@@ -1,14 +1,7 @@
 "use client";
 
 import { createFileRoute, redirect } from "@tanstack/react-router";
-import {
-  Camera,
-  ImageIcon,
-  Move,
-  MoveDiagonal2,
-  X,
-  type LucideIcon,
-} from "lucide-react";
+import { Camera, ImageIcon, Move, MoveDiagonal2, X } from "lucide-react";
 import {
   useCallback,
   useEffect,
@@ -21,6 +14,7 @@ import {
 import { useTranslation } from "react-i18next";
 
 import { useDesktopPipRuntimeConsumer } from "@/hooks/useDesktopPipRuntimeSync";
+import { useDesktopPipVoiceConsumer } from "@/hooks/useDesktopPipVoice";
 import { useRuntimePlatform } from "@/platform/RuntimePlatformProvider";
 import { cn } from "@/lib/utils";
 import { AvatarSceneHost } from "@/ui/main/canvas/AvatarSceneHost";
@@ -30,7 +24,11 @@ import {
   SCENE_CAMERA_PRESETS,
 } from "@/ui/main/canvas/sceneCameraPresets";
 import { AnimaRouteProviders } from "@/ui/app/AnimaRouteProviders";
-import { Button } from "@/ui/components/button";
+import {
+  PIP_TOOLBAR_FIT,
+  PipToolbarButton,
+  PipVoiceControls,
+} from "@/ui/main/pip/PipToolbar";
 import { Slider } from "@/ui/components/slider";
 import { SettingsProvider } from "@/ui/settings/SettingsProvider";
 
@@ -77,38 +75,6 @@ function clampPipSizeScale(value: number): number {
   return Math.max(MIN_PIP_SIZE_SCALE, Math.min(MAX_PIP_SIZE_SCALE, value));
 }
 
-/**
- * An icon button in the hover toolbar. The label doubles as a native tooltip,
- * which the OS draws outside the small PiP window.
- */
-function PipToolbarButton({
-  icon: Icon,
-  label,
-  pressed,
-  onClick,
-}: {
-  icon: LucideIcon;
-  label: string;
-  /** Set for toggles; leave undefined for plain actions. */
-  pressed?: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <Button
-      type="button"
-      variant="ghost"
-      size="icon"
-      aria-label={label}
-      aria-pressed={pressed}
-      title={label}
-      onClick={onClick}
-      className="anima-pip-no-drag text-foreground/80 aria-pressed:bg-accent aria-pressed:text-accent-foreground size-5 shrink-0 rounded-sm"
-    >
-      <Icon aria-hidden="true" className="size-3.5" />
-    </Button>
-  );
-}
-
 function DesktopPipRoute() {
   const { t } = useTranslation("app");
   const { t: tChat } = useTranslation("chat");
@@ -125,6 +91,9 @@ function DesktopPipRoute() {
     sizeScale,
     visualState,
   } = useDesktopPipRuntimeConsumer();
+  const { sendVoiceCommand, voice } = useDesktopPipVoiceConsumer();
+  const voiceActive = Boolean(voice?.activeMode);
+  const voiceButtonShown = !voiceActive && Boolean(voice?.canStartVoice);
   const cameraPreset =
     visualState?.cameraPreset ?? DEFAULT_PIP_SCENE_CAMERA_PRESET;
   const cameraLabel = t("pip.switchCamera", {
@@ -242,7 +211,7 @@ function DesktopPipRoute() {
             aria-label={t("pip.controls")}
             onKeyDown={handleToolbarKeyDown}
             className={cn(
-              "anima-pip-drag bg-background/80 border-border/60 absolute top-1 right-1 left-1 z-50 flex cursor-grab items-center rounded-md border p-0.5 opacity-0 shadow-sm backdrop-blur-md transition-opacity duration-150",
+              "anima-pip-drag bg-background/80 border-border/60 @container absolute top-1 right-1 left-1 z-50 flex cursor-grab items-center rounded-md border p-0.5 opacity-0 shadow-sm backdrop-blur-md transition-opacity duration-150",
               isHovered && "opacity-100",
             )}
           >
@@ -266,10 +235,15 @@ function DesktopPipRoute() {
                 >
                   <Move className="size-3.5 shrink-0" />
                 </span>
+                <PipVoiceControls voice={voice} onCommand={sendVoiceCommand} />
                 <PipToolbarButton
                   icon={Camera}
                   label={cameraLabel}
                   onClick={handleCameraPresetCycle}
+                  className={cn(
+                    voiceActive && PIP_TOOLBAR_FIT.cameraBesideActiveVoice,
+                    voiceButtonShown && PIP_TOOLBAR_FIT.besideVoiceButton,
+                  )}
                 />
                 <PipToolbarButton
                   icon={ImageIcon}
@@ -287,7 +261,10 @@ function DesktopPipRoute() {
             />
             <span
               aria-hidden="true"
-              className="bg-border mx-0.5 h-3.5 w-px shrink-0"
+              className={cn(
+                "bg-border mx-0.5 h-3.5 w-px shrink-0",
+                voiceActive && PIP_TOOLBAR_FIT.besideVoiceButton,
+              )}
             />
             <PipToolbarButton
               icon={X}

@@ -1286,8 +1286,10 @@ export default interface Resources {
       "controls": "Picture-in-picture controls",
       "resize": "Resize picture-in-picture",
       "sceneBackground": "Scene background",
+      "stopVoiceMode": "Stop voice mode",
       "switchCamera": "Switch camera (now {{preset}})",
-      "unavailable": "Picture-in-picture is unavailable. Keep using the companion in this window."
+      "unavailable": "Picture-in-picture is unavailable. Keep using the companion in this window.",
+      "voiceMode": "Voice mode"
     },
     "quickChat": {
       "incompatibleModel": "That model keeps conversations differently. Open the main chat to continue in a new chat.",

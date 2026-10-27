@@ -55,6 +55,8 @@ export const SyntheticWaveform = ({
   ...props
 }: SyntheticWaveformProps) => {
   const heightStyle = typeof height === "number" ? `${height}px` : height;
+  // Bar heights suit the 48 px composer; other numeric heights scale them.
+  const barScale = typeof height === "number" ? height / 48 : 1;
   const isSpeaking = active && !muted;
   const normalizedBarCount = Number.isFinite(barCount)
     ? Math.max(1, Math.floor(barCount))
@@ -81,8 +83,9 @@ export const SyntheticWaveform = ({
       </style>
       {bars.map((scale, index) => {
         const idleHeight = index % 2 === 0 ? 8 : 5;
+        const barHeight = isSpeaking ? 10 + scale * 26 : idleHeight;
         const barStyle: CSSProperties = {
-          height: `${isSpeaking ? Math.round(10 + scale * 26) : idleHeight}px`,
+          height: `${Math.max(1, Math.round(barHeight * barScale))}px`,
           opacity: isSpeaking ? 0.9 : muted ? 0.45 : 0.62,
         };
 
