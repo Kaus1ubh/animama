@@ -6321,6 +6321,7 @@ export default interface Resources {
         "quick_chat": "Quick Chat",
         "skip_tts": "Skip TTS",
         "toggle_dictation": "Dictation on/off",
+        "toggle_pip": "Picture-in-picture on/off",
         "toggle_voice_mode": "Voice Mode on/off",
         "toggle_voice_mute": "Toggle mute"
       },

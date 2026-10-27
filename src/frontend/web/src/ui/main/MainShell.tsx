@@ -4,6 +4,7 @@ import { useCallback, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
+import { useDesktopPipShortcut } from "@/hooks/useDesktopPipShortcut";
 import { useFullscreen } from "@/hooks/useFullscreen";
 import { usePictureInPicture } from "@/hooks/usePictureInPicture";
 import { cn } from "@/lib/utils";
@@ -25,6 +26,11 @@ type MainShellProps = {
   headerCenter?: ReactNode;
   headerRight?: ReactNode;
   headerOnMenuClick?: () => void;
+  /**
+   * Whether the desktop PiP shortcut may run. The route holds it back, like
+   * the chat's shortcuts, until the first-run confirmation is accepted.
+   */
+  pipShortcutEnabled?: boolean;
   children?: ReactNode;
   className?: string;
 };
@@ -44,6 +50,7 @@ export function MainShell({
   headerCenter,
   headerRight,
   headerOnMenuClick,
+  pipShortcutEnabled = false,
   children,
   className,
 }: MainShellProps) {
@@ -54,6 +61,7 @@ export function MainShell({
   const {
     backgroundMode,
     canvasHostRef,
+    isDesktopPip,
     isPipActive,
     isPipSupported,
     setBackgroundMode,
@@ -62,6 +70,10 @@ export function MainShell({
     togglePip,
   } = usePictureInPicture({ canvasMode, setCanvasMode });
   usePauseShineWhileInactive(isPipActive);
+  useDesktopPipShortcut({
+    available: isDesktopPip && pipShortcutEnabled,
+    onToggle: togglePip,
+  });
   const { isFullscreen, enterFullscreen, exitFullscreen } =
     useFullscreen(canvasWrapperRef);
 
@@ -89,10 +101,13 @@ export function MainShell({
   const renderedChatPanel =
     typeof chatPanel === "function" ? chatPanel({ canvasMode }) : chatPanel;
 
+  // The scene extends up into the app shell's title-strip padding, so it fills
+  // the strip behind the desktop window buttons; the header and chat start
+  // below the strip.
   return (
     <div
       className={cn(
-        "flex min-h-0 w-full min-w-0 flex-1 flex-col transition-[margin-left,width] duration-150 ease-in-out",
+        "-mt-(--app-titlebar-height) flex min-h-0 w-full min-w-0 flex-1 flex-col transition-[margin-left,width] duration-150 ease-in-out",
         className,
       )}
       style={FULL_WIDTH_ANIMA_SHELL_STYLE}
@@ -115,7 +130,7 @@ export function MainShell({
               <>
                 <div
                   className={cn(
-                    "pointer-events-none absolute inset-0 z-10",
+                    "pointer-events-none absolute inset-x-0 top-(--app-titlebar-height) bottom-0 z-10",
                     overlayPassthroughActive && "pointer-events-none-deep",
                   )}
                 >
@@ -150,7 +165,7 @@ export function MainShell({
                     </div>
                   }
                   onMenuClick={headerOnMenuClick}
-                  className="pointer-events-none absolute inset-x-0 top-0 z-20"
+                  className="pointer-events-none absolute inset-x-0 top-(--app-titlebar-height) z-20"
                 />
                 {children}
               </>

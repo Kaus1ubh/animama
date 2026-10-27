@@ -1,5 +1,8 @@
 import type { ReactNode } from "react";
 
+import { cn } from "@/lib/utils";
+import { useOptionalAppShell } from "@/ui/app/AppShell";
+
 type RouteViewProps = {
   eyebrow: string;
   title: string;
@@ -17,8 +20,15 @@ export function RouteView({
   actions,
   aside,
 }: RouteViewProps) {
+  // Outside the app shell the screen starts below the desktop title strip.
+  const insideAppShell = useOptionalAppShell() !== null;
   return (
-    <section className="route-view">
+    <section
+      className={cn(
+        "route-view",
+        !insideAppShell && "mt-(--app-titlebar-height)",
+      )}
+    >
       <div>
         <p className="route-eyebrow">{eyebrow}</p>
         <h2 className="route-title">{title}</h2>

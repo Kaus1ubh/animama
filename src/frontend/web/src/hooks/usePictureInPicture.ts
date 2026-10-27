@@ -21,6 +21,8 @@ export function usePictureInPicture({
       canvasHostRef: documentPip.canvasHostRef,
       backgroundMode: desktopPip.backgroundMode,
       closePip: desktopPip.closePip,
+      /** PiP is the desktop app's own window, which a shortcut can open. */
+      isDesktopPip: true,
       isPipActive: desktopPip.isPipActive,
       isPipSupported: desktopPip.isPipSupported,
       setBackgroundMode: desktopPip.setBackgroundMode,
@@ -34,6 +36,7 @@ export function usePictureInPicture({
     canvasHostRef: documentPip.canvasHostRef,
     backgroundMode: "scene" as const,
     closePip: documentPip.closePip,
+    isDesktopPip: false,
     isPipActive: documentPip.isPipActive,
     isPipSupported: documentPip.isPipSupported,
     setBackgroundMode: undefined,
