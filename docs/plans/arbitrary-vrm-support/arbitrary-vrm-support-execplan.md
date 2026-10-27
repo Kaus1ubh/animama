@@ -218,7 +218,12 @@ tenant-inventory row for `avatar_face_part_overrides`. So:
 - [ ] Phase 9 (alongside): lilToon frame cost (R11). Not started.
 - [ ] Phase 10: Diagnostics and Avatar settings in the Library and Create Anima
   (R5, R7 and R11 entry points; owner, 2026-10-27). Not started; PR B.
-- [ ] Final integration review and full pre-push suite.
+- [ ] Final integration review and full pre-push suite. PR A: `main` at
+  `d30a6ddc` merged in on 2026-10-27 (one conflict, in `AnimaAvatarStage.tsx`,
+  both sides kept); `local-http` 17.0.0, `runtime-contracts` 0.17.0 and
+  `product-ui` 0.18.0 for the new route and declarations (package-set
+  compatibility check passed against `d30a6ddc`); final integration review
+  #1 blocked on FI-1, fixed.
 
 ## Surprises & Discoveries
 
@@ -266,6 +271,10 @@ tenant-inventory row for `avatar_face_part_overrides`. So:
   up, because the updraft is far stronger than springs tuned without ambient
   forces; Automatic avoids it. Whether On should warn or scale its forces to
   the Avatar's springs is open with the owner.
+- 2026-10-27 (merging `main` into PR A): main added scene frame pacing (an idle
+  Avatar renders at 30 fps) and moved three-vrm from 3.5.2 to 3.5.5. Its `VRM`
+  class and `VRMSpringBoneManager.reset()` are unchanged, so Springs off still
+  works by resetting after each `vrm.update`.
 
 ## Decision Log
 
@@ -1545,6 +1554,44 @@ from later phases appearing in Diagnostics (R8), the licence boundary across
 each PR's diff and history, documentation accuracy and any phase without its
 own review. Then the full pre-push suite once on each PR's final candidate; its
 results go in that PR.
+
+### PR A Code Review #1 Findings
+
+Final integration mode on `cae68160` (main `d30a6ddc` merged in) and the
+version bump `f420eeb5`; diff `d30a6ddc...f420eeb5`, branch history from
+`a94f8369`. Verdict: blocked.
+
+- FI-1 (required): the Library's Avatar-card preview and Included Avatars
+  chosen in the Scene Effect, Particle and Pose creators' model picker still
+  load without the saved face-part correction (Phase 2 change 5). For Avatars,
+  `typedMetadata` (`lib/content/catalogApi.ts`) keeps only `compatibility`, so
+  `avatarPreviewTarget` builds a config without `face_parts`, although the typed
+  preview's item carries it.
+- FI-2 (required checks): Included render diffs against `d30a6ddc` in both looks
+  with the accepted spring change, the load-timing measurement and
+  `pnpm openapi-ts:check` on the merged tree (both sides of the merge edited the
+  generated client).
+- FI-3 (optional): Progress and Surprises do not record the merge, the version
+  bump or three-vrm 3.5.2 → 3.5.5 (the `VRM` class and `reset()` bodies are
+  unchanged, so Springs off still holds).
+
+No findings on cross-phase behaviour, the merge's frame pacing, security, the
+licence boundary (diff, history and commit messages), docs or attribution.
+
+### PR A Code Review #1 Revisions
+
+- FI-1 accepted. `typedMetadata` keeps an Avatar's `face_parts` and
+  `avatarPreviewTarget` forwards it as `config.face_parts`, as the Anima runtime
+  entry does; `Avatar.load` still matches it to the file's sha256. A new test in
+  `avatarPreviewTarget.test.ts` maps a typed preview with a correction through
+  `typedPreviewTransport` and `resolveRuntimeAvatarFaceParts`; it failed before
+  the fix. `npx vitest run src/lib/content src/ui/library src/ui/content-preview
+  src/ui/content-creator`: 490 passed; eslint and `tsc -p tsconfig.app.json`
+  clean.
+- FI-2 accepted: `pnpm openapi-ts:check` passed on `f420eeb5` ("Generated SDK
+  is current"); the render diffs, load timing and full suite are recorded under
+  "PR A final candidate".
+- FI-3 accepted: recorded in Progress and Surprises.
 
 ## Validation and acceptance
 
