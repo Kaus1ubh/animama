@@ -49,6 +49,27 @@
     }
   },
   "animaSettings": {
+    "avatar": {
+      "materials": {
+        "description": "lilToon 按作者的设计绘制此虚拟形象；简单材质的绘制开销更低。适用于使用此虚拟形象的所有地方，并会重新加载它。",
+        "label": "材质",
+        "modes": {
+          "automatic": "自动",
+          "liltoon": "lilToon",
+          "simple": "简单"
+        }
+      },
+      "wind": {
+        "description": "风和上升气流如何吹动此虚拟形象的头发和衣服。适用于使用此虚拟形象的所有地方。",
+        "label": "风与环境力",
+        "modes": {
+          "automatic": "自动",
+          "off": "关",
+          "on": "开",
+          "springs_off": "关闭弹簧"
+        }
+      }
+    },
     "choices": {
       "appDefaultOff": "应用默认（关）",
       "appDefaultOn": "应用默认（开）",
@@ -56,10 +77,16 @@
       "on": "开"
     },
     "headings": {
+      "avatar": "虚拟形象",
       "emotion": "情绪",
       "memory": "记忆"
     },
     "rows": {
+      "avatar_diagnostics": {
+        "description": "查看 Animama 在此 Anima 的虚拟形象中发现的内容，并复制报告以便寻求支持。",
+        "label": "虚拟形象诊断",
+        "open": "打开诊断"
+      },
       "emotion_updates": {
         "description": "在聊天中更新情绪状态。关闭后，新的情绪反应会停止，但动作仍会播放。",
         "tooltip": "关闭后，会保留当前心情，动作仍会播放。"
@@ -75,6 +102,7 @@
       }
     },
     "updateFailed": {
+      "avatar": "无法保存虚拟形象设置。",
       "emotion": "无法更新情绪设置。",
       "memory": "无法更新记忆设置。"
     }
@@ -339,6 +367,7 @@
       "quick_chat": "快速聊天",
       "skip_tts": "跳过朗读",
       "toggle_dictation": "开关听写",
+      "toggle_pip": "开关画中画",
       "toggle_voice_mode": "开关语音模式",
       "toggle_voice_mute": "切换静音"
     },

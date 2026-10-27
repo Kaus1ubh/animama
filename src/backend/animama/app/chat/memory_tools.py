@@ -874,18 +874,23 @@ def _search_memory_files_tool() -> dict[str, Any]:
     return _function_tool(
         MEMORY_TOOL_SEARCH_MEMORY_FILES,
         (
-            "Search current user-root markdown memory files, optionally excluding episodic memory. "
-            "The query supports PostgreSQL web-search syntax, including quoted phrases, OR, and -term exclusions."
+            "Search the user's markdown memory files and the episode log of notes from past chats. "
+            "Use 2-5 distinctive keywords, such as names, places, projects or topics, rather than a full question. "
+            "A file matches when it contains any keyword or quoted phrase, and files that match more of them rank "
+            "first. Prefix a word with - to exclude files that contain it."
         ),
         _object_schema(
             {
                 "query": {
                     "type": "string",
-                    "description": "Search text using PostgreSQL web-search syntax when useful.",
+                    "description": "2-5 distinctive keywords or quoted phrases, for example `piano recital Emma`.",
                 },
                 "include_episodic_memory": {
                     "type": "boolean",
-                    "description": "Whether generated episode logs are included. Defaults to true for callers.",
+                    "description": (
+                        "true also searches the episode log of past chats, so use true to recall them; false searches "
+                        "memory files only."
+                    ),
                 },
             }
         ),

@@ -173,6 +173,13 @@ face-part correction for one Included Avatar item, keyed by
 `(owner_user_id, avatar_item_id)` and cascaded with the item. It applies only
 while `avatar_revision_sha256` equals the item's current revision; Local
 Avatars keep the correction in their sidecar instead.
+`ORMAvatarSettingOverride` maps `avatar_setting_overrides`: one owner's
+settings for one Local or Included Avatar item, keyed by
+`(owner_user_id, avatar_item_id)` and cascaded with the item. Nullable
+`spring_mode` (`on`, `off`, `springs_off`) and `material_mode` (`liltoon`,
+`simple`) are checked by constraint; NULL means Automatic, and the repository
+removes a row once both are NULL. Rows have no revision or digest binding, so
+they survive an in-place Avatar update.
 
 Typed documents themselves are framework-neutral domain values and are parsed
 by the closed kind-handler registry; the catalog's bounded metadata projection

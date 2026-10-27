@@ -188,6 +188,7 @@ describe("Avatar Effect v2 runtime features", () => {
     landmarks = {
       status: "ready",
       warnings: [],
+      issues: [],
       anchorName: "head",
       anchorType: "bone",
       faceBindingKey: "face",
@@ -217,6 +218,7 @@ describe("Avatar Effect v2 runtime features", () => {
     anchors = {
       status: "ready",
       warnings: [],
+      issues: [],
       faceBindingKey: "face",
       faceMaterialName: "Face Skin",
       anchors: {
@@ -811,6 +813,7 @@ describe("Avatar Effect v2 runtime features", () => {
       },
       eyeWhite: [],
       diagnostics: [],
+      issues: [],
     });
     const withParts = (map: AvatarFacePartMap) => {
       const avatar = { ...avatarStub, facePartMap: map } as Avatar;
@@ -855,6 +858,12 @@ describe("Avatar Effect v2 runtime features", () => {
       });
       expect(partController.getSnapshot().warnings).toEqual([
         'Skipped "Test": this avatar has no detected left eye.',
+      ]);
+      expect(partController.getSnapshot().issues).toEqual([
+        {
+          code: "effect_face_part_missing",
+          params: { effectId: effect.id, part: "eye_left" },
+        },
       ]);
     });
 

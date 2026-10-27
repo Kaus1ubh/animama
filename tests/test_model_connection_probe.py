@@ -6,7 +6,7 @@ import json
 from collections.abc import Callable, Iterator
 from typing import Any
 
-import httpx
+import httpx2
 import pytest
 from openai import AsyncOpenAI
 
@@ -35,16 +35,16 @@ class _Server:
         self.unauthorized = unauthorized
         self.requests: list[tuple[str, str, dict[str, Any] | None]] = []
 
-    def __call__(self, request: httpx.Request) -> httpx.Response:
+    def __call__(self, request: httpx2.Request) -> httpx2.Response:
         body = json.loads(request.content) if request.content else None
         self.requests.append((request.method, request.url.path, body))
         if self.unauthorized:
-            return httpx.Response(401, json={"error": {"message": "bad key", "code": "invalid_api_key"}})
+            return httpx2.Response(401, json={"error": {"message": "bad key", "code": "invalid_api_key"}})
         path = request.url.path
         if path == "/v1/models":
-            return httpx.Response(200, json={"object": "list", "data": [_model("qwen3:8b"), _model("gemma4:e4b")]})
+            return httpx2.Response(200, json={"object": "list", "data": [_model("qwen3:8b"), _model("gemma4:e4b")]})
         if path == "/v1/embeddings":
-            return httpx.Response(
+            return httpx2.Response(
                 200,
                 json={
                     "object": "list",
@@ -54,16 +54,16 @@ class _Server:
                 },
             )
         if path == "/props":
-            return httpx.Response(200, json={"default_generation_settings": {"n_ctx": 8192}})
+            return httpx2.Response(200, json={"default_generation_settings": {"n_ctx": 8192}})
         if path == "/api/ps":
-            return httpx.Response(200, json={"models": [{"name": "qwen3:8b", "context_length": 4096}]})
+            return httpx2.Response(200, json={"models": [{"name": "qwen3:8b", "context_length": 4096}]})
         if path.startswith("/api/v0/models/"):
-            return httpx.Response(200, json={"max_context_length": 131072, "loaded_context_length": 16384})
+            return httpx2.Response(200, json={"max_context_length": 131072, "loaded_context_length": 16384})
         if path == "/v1/chat/completions":
             return self._chat(body or {})
-        return httpx.Response(404, json={"error": {"message": "not found"}})
+        return httpx2.Response(404, json={"error": {"message": "not found"}})
 
-    def _chat(self, body: dict[str, Any]) -> httpx.Response:
+    def _chat(self, body: dict[str, Any]) -> httpx2.Response:
         if body.get("stream"):
             chunk = {
                 "id": "c",
@@ -73,15 +73,15 @@ class _Server:
                 "choices": [{"index": 0, "delta": {"content": "ok"}, "finish_reason": "stop"}],
             }
             content = f"data: {json.dumps(chunk)}\n\ndata: [DONE]\n\n"
-            return httpx.Response(200, headers={"content-type": "text/event-stream"}, content=content.encode())
+            return httpx2.Response(200, headers={"content-type": "text/event-stream"}, content=content.encode())
         response_format = (body.get("response_format") or {}).get("type")
         tools = body.get("tools")
         if tools and response_format and not self.tools_with_schema:
-            return httpx.Response(400, json={"error": {"message": "tools cannot be combined with a grammar"}})
+            return httpx2.Response(400, json={"error": {"message": "tools cannot be combined with a grammar"}})
         if tools and self.tools:
             return _completion(body, tool_call=True)
         if response_format == "json_schema" and not self.schema:
-            return httpx.Response(400, json={"error": {"message": "json_schema is not supported"}})
+            return httpx2.Response(400, json={"error": {"message": "json_schema is not supported"}})
         if response_format in {"json_schema", "json_object"}:
             return _completion(body, content='{"answer": "ok"}')
         return _completion(body, content="ok")
@@ -91,7 +91,7 @@ def _model(model_id: str) -> dict[str, Any]:
     return {"id": model_id, "object": "model", "created": 0, "owned_by": "local"}
 
 
-def _completion(body: dict[str, Any], *, content: str | None = None, tool_call: bool = False) -> httpx.Response:
+def _completion(body: dict[str, Any], *, content: str | None = None, tool_call: bool = False) -> httpx2.Response:
     message: dict[str, Any] = {"role": "assistant", "content": content}
     if tool_call:
         message["tool_calls"] = [
@@ -101,7 +101,7 @@ def _completion(body: dict[str, Any], *, content: str | None = None, tool_call: 
                 "function": {"name": "record_answer", "arguments": '{"answer": "ok"}'},
             }
         ]
-    return httpx.Response(
+    return httpx2.Response(
         200,
         json={
             "id": "c",
@@ -114,15 +114,15 @@ def _completion(body: dict[str, Any], *, content: str | None = None, tool_call: 
 
 
 @pytest.fixture
-def sdk_transport() -> Iterator[Callable[[Callable[[httpx.Request], httpx.Response]], None]]:
+def sdk_transport() -> Iterator[Callable[[Callable[[httpx2.Request], httpx2.Response]], None]]:
     """Route every SDK client created during the test through a scripted server."""
 
     original_init = AsyncOpenAI.__init__
     patch = pytest.MonkeyPatch()
 
-    def install(server: Callable[[httpx.Request], httpx.Response]) -> None:
+    def install(server: Callable[[httpx2.Request], httpx2.Response]) -> None:
         def _init(self, *args, **kwargs):  # noqa: ANN001, ANN002, ANN003
-            kwargs["http_client"] = httpx.AsyncClient(transport=httpx.MockTransport(server))
+            kwargs["http_client"] = httpx2.AsyncClient(transport=httpx2.MockTransport(server))
             original_init(self, *args, **kwargs)
 
         patch.setattr(AsyncOpenAI, "__init__", _init)
@@ -146,7 +146,7 @@ def _connection(preset: str, *, credential_env: str | None = None) -> ModelConne
 def _probe(server: _Server, environ: dict[str, str] | None = None) -> OpenAICompatibleConnectionProbe:
     return OpenAICompatibleConnectionProbe(
         credential_resolver=static_credential_resolver({"OPENAI_API_KEY": "sk-openai", **(environ or {})}),
-        http_transport=httpx.MockTransport(server),
+        http_transport=httpx2.MockTransport(server),
     )
 
 
@@ -241,6 +241,16 @@ async def test_unreachable_servers_fail_with_a_category():
     assert exc_info.value.category == "unreachable"
 
 
+async def test_a_base_url_the_sdk_rejects_fails_with_a_category():
+    probe = OpenAICompatibleConnectionProbe(credential_resolver=static_credential_resolver())
+    connection = ModelConnection(id="conn-bad", name="Bad", preset="ollama", base_url="http://[::1/v1")
+
+    with pytest.raises(ModelConnectionProbeError) as exc_info:
+        await probe.list_models(connection)
+
+    assert exc_info.value.category == "invalid_base_url"
+
+
 async def test_models_and_embeddings_are_listed_and_measured(sdk_transport):
     server = _Server()
     sdk_transport(server)
@@ -254,17 +264,17 @@ async def test_models_and_embeddings_are_listed_and_measured(sdk_transport):
     assert embedding.steps[0].ok is True
 
 
-class _StalledStream(httpx.AsyncByteStream):
+class _StalledStream(httpx2.AsyncByteStream):
     """Sends response headers, then times out while the body is read."""
 
     async def __aiter__(self):  # noqa: ANN204
-        raise httpx.ReadTimeout("stalled")
+        raise httpx2.ReadTimeout("stalled")
         yield b""  # pragma: no cover
 
 
 async def test_a_stream_that_stalls_reports_a_timeout_step(sdk_transport):
-    def stalled(request: httpx.Request) -> httpx.Response:
-        return httpx.Response(200, headers={"content-type": "text/event-stream"}, stream=_StalledStream())
+    def stalled(request: httpx2.Request) -> httpx2.Response:
+        return httpx2.Response(200, headers={"content-type": "text/event-stream"}, stream=_StalledStream())
 
     server = _Server()
     sdk_transport(stalled)
@@ -276,8 +286,8 @@ async def test_a_stream_that_stalls_reports_a_timeout_step(sdk_transport):
 
 
 async def test_non_openai_replies_report_an_unexpected_response(sdk_transport):
-    def html(request: httpx.Request) -> httpx.Response:
-        return httpx.Response(200, headers={"content-type": "text/html"}, text="<html>Model UI</html>")
+    def html(request: httpx2.Request) -> httpx2.Response:
+        return httpx2.Response(200, headers={"content-type": "text/html"}, text="<html>Model UI</html>")
 
     server = _Server()
     sdk_transport(html)
@@ -292,8 +302,8 @@ async def test_non_openai_replies_report_an_unexpected_response(sdk_transport):
 
 
 async def test_a_wrong_base_path_is_reported_as_unreachable(sdk_transport):
-    def missing(request: httpx.Request) -> httpx.Response:
-        return httpx.Response(404, json={"error": {"message": "not found"}})
+    def missing(request: httpx2.Request) -> httpx2.Response:
+        return httpx2.Response(404, json={"error": {"message": "not found"}})
 
     server = _Server()
     sdk_transport(missing)
@@ -308,15 +318,15 @@ async def test_context_lookups_send_only_the_connection_key(sdk_transport, monke
     monkeypatch.setenv("OPENAI_API_KEY", "sk-process-openai")
     server = _Server()
     sdk_transport(server)
-    seen: list[httpx.Headers] = []
+    seen: list[httpx2.Headers] = []
 
-    def lookup(request: httpx.Request) -> httpx.Response:
+    def lookup(request: httpx2.Request) -> httpx2.Response:
         seen.append(request.headers)
         return server(request)
 
     probe = OpenAICompatibleConnectionProbe(
         credential_resolver=static_credential_resolver({"OPENAI_API_KEY": "sk-openai"}),
-        http_transport=httpx.MockTransport(lookup),
+        http_transport=httpx2.MockTransport(lookup),
     )
 
     await probe.probe_chat_model(_connection("llamacpp"), model="qwen3:8b")

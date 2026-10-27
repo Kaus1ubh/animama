@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import sys
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from typing import Any, cast
@@ -14,6 +15,7 @@ from animama.adapters.repositories.sqlalchemy.memory_entry_repo import SQLAlchem
 from animama.adapters.repositories.sqlalchemy.uow import SQLAlchemyUnitOfWork
 from animama.adapters.repositories.sqlalchemy.user_file_processing_repo import SQLAlchemyUserFileProcessingRepository
 from animama.app.chat import memory_tools as memory_tools_module
+from animama.app.chat.memory_context import MEMORY_SYSTEM_GUIDANCE
 from animama.app.chat.memory_cue import AnimaMemoriesTurn
 from animama.app.chat.memory_tools import (
     MEMORY_TOOL_APPLY_PATCH,
@@ -239,6 +241,32 @@ def test_write_tools_carry_the_description_maintenance_rule(name: str) -> None:
     assert "scope or durable contents change materially" in description["description"]
 
 
+def test_memory_guidance_prompts_searching_past_chats_before_answering_from_memory() -> None:
+    assert "Notes from past chats with this user are logged there" in MEMORY_SYSTEM_GUIDANCE
+    assert f"`{MEMORY_TOOL_SEARCH_MEMORY_FILES}` searches that log" in MEMORY_SYSTEM_GUIDANCE
+    assert "search or read memory before you answer a question about the user's news, plans, projects" in (
+        MEMORY_SYSTEM_GUIDANCE
+    )
+    assert "before you say you do not remember something" in MEMORY_SYSTEM_GUIDANCE
+    assert "If a search finds nothing relevant, search once more with other words." in MEMORY_SYSTEM_GUIDANCE
+    assert "Skip this when the answer is already in this conversation" in MEMORY_SYSTEM_GUIDANCE
+    assert "or for an unrelated technical or attachment question" in MEMORY_SYSTEM_GUIDANCE
+
+
+def test_search_memory_tool_advises_distinctive_keywords_matched_on_any_word() -> None:
+    tool = next(
+        tool
+        for tool in memory_tool_specs(allow_reads=True, allow_writes=False)
+        if tool["function"]["name"] == MEMORY_TOOL_SEARCH_MEMORY_FILES
+    )
+    description = tool["function"]["description"]
+
+    assert "episode log of notes from past chats" in description
+    assert "Use 2-5 distinctive keywords" in description
+    assert "A file matches when it contains any keyword or quoted phrase" in description
+    assert "files that match more of them rank first" in description
+
+
 def test_memory_tool_schemas_are_strict_and_do_not_expose_expected_version() -> None:
     tools = memory_tool_specs(allow_reads=True, allow_writes=True)
 
@@ -283,11 +311,14 @@ def test_memory_tool_schemas_are_strict_and_do_not_expose_expected_version() -> 
     assert search_tool["function"]["parameters"]["properties"] == {
         "query": {
             "type": "string",
-            "description": "Search text using PostgreSQL web-search syntax when useful.",
+            "description": "2-5 distinctive keywords or quoted phrases, for example `piano recital Emma`.",
         },
         "include_episodic_memory": {
             "type": "boolean",
-            "description": "Whether generated episode logs are included. Defaults to true for callers.",
+            "description": (
+                "true also searches the episode log of past chats, so use true to recall them; false searches "
+                "memory files only."
+            ),
         },
     }
     assert search_tool["function"]["parameters"]["required"] == ["query", "include_episodic_memory"]
@@ -318,7 +349,6 @@ def test_memory_tool_schemas_are_strict_and_do_not_expose_expected_version() -> 
             ],
         },
     }
-    assert "quoted phrases, OR, and -term exclusions" in search_tool["function"]["description"]
     assert "quoted phrases, OR, and -term exclusions" in upload_tool["function"]["description"]
     upload_description = upload_tool["function"]["description"]
     assert "accessible through uploaded-file tools" in upload_description
@@ -563,6 +593,91 @@ async def test_memory_search_can_exclude_episodes_before_result_limit(async_sess
             }
         ],
     }
+
+
+async def _search_memory_paths(async_session, query: str) -> list[str]:  # noqa: ANN001
+    search = _loads(
+        await _tool_service(async_session).execute(
+            tool_name=MEMORY_TOOL_SEARCH_MEMORY_FILES,
+            arguments={"query": query},
+            context=_context(),
+            tool_call_id="call-search",
+        )
+    )
+    assert search["ok"] is True
+    return [result["path"] for result in search["memory_results"]]
+
+
+async def _put_episode_log(async_session, relative_path: str, text: str) -> None:  # noqa: ANN001
+    await _put_user_file(
+        async_session,
+        relative_path,
+        f"# Episodes\n\n- [ ] {text}",
+        kind=MEMORY_EPISODE_LOG_ENTRY_KIND,
+        allow_system_managed=True,
+    )
+
+
+@pytest.mark.asyncio
+async def test_memory_search_matches_notes_containing_only_some_query_words(async_session) -> None:
+    job_log = "episodes/2026/10/2026-10-20.md"
+    book_log = "episodes/2026/10/2026-10-21.md"
+    await _put_episode_log(
+        async_session,
+        job_log,
+        "The user got a junior designer job at a children's publisher, starting on 10 November.",
+    )
+    await _put_episode_log(
+        async_session,
+        book_log,
+        "The user is making their own picture book, 'Pickle and the Moon', about their cat.",
+    )
+
+    assert await _search_memory_paths(async_session, "new job start date") == [job_log]
+    assert await _search_memory_paths(async_session, "picture book title") == [book_log]
+
+
+@pytest.mark.asyncio
+async def test_memory_search_ranks_notes_matching_more_query_words_first(async_session) -> None:
+    job_log = "episodes/2026/10/2026-10-20.md"
+    await _put_episode_log(
+        async_session,
+        job_log,
+        "The user got a junior designer job at a children's publisher, starting on 10 November.",
+    )
+    await _put_user_file(async_session, "shopping.md", "The user bought new boots, new gloves and a new scarf.")
+
+    assert await _search_memory_paths(async_session, "new job start date") == [job_log, "shopping.md"]
+
+
+@pytest.mark.asyncio
+async def test_memory_search_handles_long_queries(async_session) -> None:
+    await _put_user_file(async_session, "job.md", "The user got a junior designer job.")
+    await _put_user_file(async_session, "pickle.md", "The user's job notes mention Pickle.")
+    filler = " ".join(f"filler{index}" for index in range(400))
+    exclusions = " ".join(f"-absent{index}" for index in range(400))
+    # The test runner raises the recursion limit; the server runs with Python's default.
+    runner_limit = sys.getrecursionlimit()
+    sys.setrecursionlimit(1000)
+    try:
+        paths = await _search_memory_paths(async_session, f"job {filler} {exclusions} -pickle")
+    finally:
+        sys.setrecursionlimit(runner_limit)
+
+    assert paths == ["job.md"]
+
+
+@pytest.mark.asyncio
+async def test_memory_search_keeps_phrases_and_exclusions(async_session) -> None:
+    await _put_user_file(async_session, "pickle.md", "The user's picture book is called Pickle and the Moon.")
+    await _put_user_file(async_session, "library.md", "The user borrowed a picture book about trains.")
+    await _put_user_file(async_session, "album.md", "The user's photo book has a picture of the moon.")
+
+    assert set(await _search_memory_paths(async_session, '"picture book"')) == {"pickle.md", "library.md"}
+    assert await _search_memory_paths(async_session, '"picture book" -pickle') == ["library.md"]
+    assert await _search_memory_paths(async_session, "moon -pickle") == ["album.md"]
+    assert set(await _search_memory_paths(async_session, "trains OR photo")) == {"library.md", "album.md"}
+    assert set(await _search_memory_paths(async_session, "-pickle")) == {"library.md", "album.md"}
 
 
 @pytest.mark.asyncio

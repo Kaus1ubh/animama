@@ -1,6 +1,7 @@
 import * as THREE from "three";
 
 import { Avatar } from "@/lib/avatar";
+import type { AvatarMaterialMode } from "@/lib/avatar/avatarSettings";
 import { applyCanonicalPose } from "@/lib/avatar/motion-authoring/kinematics";
 import {
   PreviewMediaProvider,
@@ -97,6 +98,14 @@ export function seedRandom(seed: number): void {
     t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
+}
+
+type MaterialWindow = Window & { __animamaMaterialModeOverride?: unknown };
+
+/** The Avatar material setting `--materials` asked for; Automatic otherwise. */
+function reviewMaterialMode(): AvatarMaterialMode {
+  const value = (window as MaterialWindow).__animamaMaterialModeOverride;
+  return value === "liltoon" || value === "simple" ? value : "automatic";
 }
 
 const resolvePose = (id: string) => {
@@ -221,6 +230,7 @@ export class EffectSession {
       await avatar.load({
         filePath: url,
         vrmSha256: await avatarFileSha256(url),
+        materialMode: reviewMaterialMode(),
       });
       avatar.setAutomaticAnimationPlaybackEnabled(false);
       avatar.prepareFirstFrame();

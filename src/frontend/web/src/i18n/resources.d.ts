@@ -561,6 +561,180 @@ export default interface Resources {
       },
       "zoom": "Zoom {{zoom}}×"
     },
+    "avatarDiagnostics": {
+      "close": "Close",
+      "copied": "Report copied.",
+      "copyFailed": "Could not copy to the clipboard.",
+      "copyReport": "Copy report",
+      "description": "What Animama found in this Avatar's file and how it plays it.",
+      "expressions": {
+        "arkit": "ARKit face shapes",
+        "arkitValue": "{{resolved}} of {{total}}",
+        "customNames_one": "{{count}} custom name",
+        "customNames_other": "{{count}} custom names",
+        "fromArkit": "{{name}} (ARKit)",
+        "missing": "Missing expressions",
+        "playsFaces": "Moods play through ARKit shapes",
+        "present": "Standard expressions",
+        "unresolved": "Requested but not on this Avatar"
+      },
+      "face": {
+        "confidence": "Confidence",
+        "foundBy": "Found by",
+        "landmarks": "Face landmarks",
+        "meshParts": "Mesh parts",
+        "part": "Part",
+        "ready": "Ready",
+        "sharedRegions_one": "{{count}} inside a shared part",
+        "sharedRegions_other": "{{count}} inside shared parts",
+        "sources": {
+          "corrected": "Your correction",
+          "missing": "Not found",
+          "names": "Material names",
+          "signals": "Model data"
+        },
+        "textureAnchors": "Face texture anchors",
+        "unavailable": "Unavailable"
+      },
+      "file": {
+        "extensionsRequired": "Required extensions",
+        "extensionsUsed": "Extensions used",
+        "format": "Format",
+        "formatNotVrm": "{{container}} · not a VRM",
+        "formatVrm": "{{container}} · VRM {{version}}",
+        "imageExternal": "Outside the file",
+        "imageFormat": "Format",
+        "imagePixels": "Pixels",
+        "imageSize": "Size",
+        "imagesCaption": "Embedded images",
+        "materialKind": "{{kind}} {{number}}",
+        "materials": "Materials",
+        "meshes": "Meshes",
+        "meshesValue": "{{meshes}} meshes, {{primitives}} mesh parts ({{morphed}} with shape keys)",
+        "size": "File size",
+        "textures": "Images",
+        "texturesValue_one": "{{count}} image · {{size}}",
+        "texturesValue_other": "{{count}} images · {{size}}",
+        "unreadable": "The file could not be read as a glTF or VRM file."
+      },
+      "identity": {
+        "included": "Included Avatar",
+        "local": "Local Avatar",
+        "unknown": "Avatar"
+      },
+      "issues": {
+        "anEffect": "An effect",
+        "anchors_face_skin_missing": "No face skin was found, so painted face effects cannot be placed.",
+        "anchors_landmarks_unavailable": "Face landmarks are unavailable, so painted face effects cannot be placed.",
+        "anchors_mouth_missing": "No mouth position was found on the face texture.",
+        "anchors_projection_failed": "The face texture could not be mapped, so painted face effects cannot be placed.",
+        "avatar_load_failed": "The Avatar could not be loaded. Check its required extensions under File.",
+        "effect_attachment_limit": "{{effect}} was removed: at most {{limit}} body, sticker or silhouette effects can show at once.",
+        "effect_face_part_missing": "{{effect}} was skipped: this Avatar has no detected {{part, lowercase}}.",
+        "effect_face_skin_required": "{{effect}} needs the face skin, which was not found.",
+        "effect_load_failed": "{{effect}} could not load its images.",
+        "effect_overlay_required": "{{effect}} needs overlay mode on this face.",
+        "effect_placement_failed": "{{effect}} could not be placed on this Avatar.",
+        "effect_skin_color_unavailable": "{{effect}} could not sample the face skin color for its backdrop.",
+        "effect_target_incompatible": "{{effect}} does not fit the part it was placed on.",
+        "effect_target_unknown": "{{effect}} names a model part that does not exist.",
+        "effect_target_unresolved": "{{effect}} found no compatible part on this Avatar.",
+        "effect_unknown": "An effect is not available in this installation.",
+        "effect_wrong_kind": "{{effect}} cannot be shown this way.",
+        "eye_detail_not_hidden": "{{effect}} plays, but the {{part, lowercase}} inside a shared mesh part could not be hidden.",
+        "face_parts_correction_digest_unknown": "The saved face part correction was ignored because this file's digest is unknown.",
+        "face_parts_correction_invalid": "The saved face part correction could not be read and was ignored.",
+        "face_parts_correction_other_file": "The saved face part correction was made for a different file and was ignored.",
+        "face_parts_correction_schema_unsupported": "The saved face part correction uses an unsupported format and was ignored.",
+        "face_parts_correction_unknown_bindings_one": "The saved correction for {{part, lowercase}} names {{count}} mesh part this model does not have.",
+        "face_parts_correction_unknown_bindings_other": "The saved correction for {{part, lowercase}} names {{count}} mesh parts this model does not have.",
+        "face_parts_detection_failed": "Face parts could not be detected, so effects are placed by material names.",
+        "face_parts_expressions_missing": "The model has no blink or “aa” expression, so its face skin and eye details cannot be found from them.",
+        "file_unavailable": "The Avatar file could not be downloaded.",
+        "file_unreadable": "The Avatar file is not a readable glTF or VRM file.",
+        "landmarks_anchor_missing": "No head was found to anchor face landmarks.",
+        "landmarks_eyes_missing": "No eyes were found on the face, so eye effects are unavailable.",
+        "landmarks_face_bounds_failed": "The face skin could not be measured.",
+        "landmarks_face_skin_missing": "No face skin was found, so face landmarks are unavailable.",
+        "scene_bindings_unavailable": "The loaded model's mesh parts could not be listed.",
+        "springs_helper_failed": "A spring bone guide could not be drawn.",
+        "springs_metadata_missing": "The file has no spring bone settings, so springs move at half strength.",
+        "springs_source_unavailable": "The file's spring bone data could not be read, so springs use default settings.",
+        "springs_unmapped_joints_one": "{{count}} spring joint could not be matched to the file's spring data.",
+        "springs_unmapped_joints_other": "{{count}} spring joints could not be matched to the file's spring data."
+      },
+      "json": {
+        "collapseAll": "Collapse all",
+        "copied": "JSON copied.",
+        "copy": "Copy JSON",
+        "description": "The same report as data, for sharing with support.",
+        "expandAll": "Expand all"
+      },
+      "loading": "Reading the Avatar…",
+      "materialKinds": {
+        "liltoon": "lilToon",
+        "mtoon": "MToon",
+        "pbr": "Standard",
+        "unlit": "Unlit"
+      },
+      "materials": {
+        "label": "lilToon materials",
+        "rendered": "Rendered with lilToon",
+        "simple": "Simple materials",
+        "value": "{{state}} · {{why}}",
+        "why": {
+          "automatic": "chosen by Automatic",
+          "chosen": "set to {{mode}}",
+          "failed": "lilToon could not load"
+        }
+      },
+      "motion": {
+        "humanoidBones": "Humanoid bones",
+        "missingBones": "Missing required bones",
+        "notChecked": "Not checked yet",
+        "restPose": "Rest pose",
+        "springs": "Spring bones",
+        "springsValue": "{{joints}} joints · {{colliders}} colliders",
+        "wind": "Wind and ambient forces",
+        "windEffect": {
+          "held": "springs held at rest",
+          "off": "no wind or updraft",
+          "on": "wind and updraft on",
+          "tunedWithout": "no wind or updraft: its springs were tuned without them"
+        },
+        "windValue": "{{mode}} · {{effect}}"
+      },
+      "navigationLabel": "Diagnostics sections",
+      "no": "No",
+      "none": "None",
+      "notLoaded": "The Avatar could not be loaded, so only its file facts are available.",
+      "privacy": "Reports hold counts, standard names and codes: no file paths or names.",
+      "sections": {
+        "expressions": "Expressions",
+        "face": "Face",
+        "file": "File",
+        "json": "Raw JSON",
+        "motion": "Motion",
+        "warnings": "Warnings",
+        "warningsCount_one": "Warnings ({{count}})",
+        "warningsCount_other": "Warnings ({{count}})"
+      },
+      "settingSource": {
+        "default": "Default setting",
+        "stored": "Saved for this Avatar"
+      },
+      "source": {
+        "live": "on the chat stage",
+        "offscreen": "loaded for this view"
+      },
+      "title": "Avatar diagnostics",
+      "unavailable": "This Anima has no Avatar to check.",
+      "unknown": "Unknown",
+      "warnings": {
+        "none": "No problems found."
+      },
+      "yes": "Yes"
+    },
     "badges": {
       "starter": "Starter",
       "starterShort": "S"
@@ -1112,8 +1286,10 @@ export default interface Resources {
       "controls": "Picture-in-picture controls",
       "resize": "Resize picture-in-picture",
       "sceneBackground": "Scene background",
+      "stopVoiceMode": "Stop voice mode",
       "switchCamera": "Switch camera (now {{preset}})",
-      "unavailable": "Picture-in-picture is unavailable. Keep using the companion in this window."
+      "unavailable": "Picture-in-picture is unavailable. Keep using the companion in this window.",
+      "voiceMode": "Voice mode"
     },
     "quickChat": {
       "incompatibleModel": "That model keeps conversations differently. Open the main chat to continue in a new chat.",
@@ -2516,7 +2692,6 @@ export default interface Resources {
       },
       "previewAvatarFailed": "Unable to load the preview Avatar.",
       "previewNoun": "preview",
-      "previewWarning": "The preview Avatar reported a problem with this effect.",
       "recoveredDraft": "Recovered local draft",
       "recovery": {
         "unavailable": "Browser crash recovery is unavailable. Keep this tab open until Save completes."
@@ -2585,6 +2760,7 @@ export default interface Resources {
         "corrected": "Corrected",
         "detected": "Detected · {{confidence, number(style: percent)}}",
         "foundByName": "Found by name · {{confidence, number(style: percent)}}, check it",
+        "insideShared": "Found inside another mesh part",
         "missing": "Missing",
         "uncertain": "Detected · {{confidence, number(style: percent)}}, check it"
       },
@@ -3707,6 +3883,7 @@ export default interface Resources {
         "alreadyReviewed": "This file already has a review. Discard it before choosing a replacement file.",
         "animaNote": "Creates a fresh companion with the reviewed content and configuration.",
         "animaUnavailable": "Importing an Anima package is unavailable here. Import content or export an existing Anima instead.",
+        "avatarSettingsNotStored": "This app does not keep Avatar wind and material settings, so {{names}} will use Automatic.",
         "beingProcessed": "This import is being processed. Check its result before continuing.",
         "button": "Import",
         "changeFile": "Change file",
@@ -5844,6 +6021,27 @@ export default interface Resources {
       }
     },
     "animaSettings": {
+      "avatar": {
+        "materials": {
+          "description": "lilToon draws this Avatar as authored; Simple costs less to draw. Applies wherever the Avatar is used, and reloads it.",
+          "label": "Materials",
+          "modes": {
+            "automatic": "Automatic",
+            "liltoon": "lilToon",
+            "simple": "Simple"
+          }
+        },
+        "wind": {
+          "description": "How wind and updraft move this Avatar's hair and clothes, wherever the Avatar is used.",
+          "label": "Wind and ambient forces",
+          "modes": {
+            "automatic": "Automatic",
+            "off": "Off",
+            "on": "On",
+            "springs_off": "Springs off"
+          }
+        }
+      },
       "choices": {
         "appDefaultOff": "App default (Off)",
         "appDefaultOn": "App default (On)",
@@ -5851,10 +6049,16 @@ export default interface Resources {
         "on": "On"
       },
       "headings": {
+        "avatar": "Avatar",
         "emotion": "Emotion",
         "memory": "Memory"
       },
       "rows": {
+        "avatar_diagnostics": {
+          "description": "See what Animama found in this Anima's Avatar, and copy a report for support.",
+          "label": "Avatar diagnostics",
+          "open": "Open diagnostics"
+        },
         "emotion_updates": {
           "description": "Update emotional state during chat. When off, new emotion reactions stop; gestures still play.",
           "tooltip": "When off, the existing mood is preserved and gestures still play."
@@ -5870,6 +6074,7 @@ export default interface Resources {
         }
       },
       "updateFailed": {
+        "avatar": "The Avatar setting could not be saved.",
         "emotion": "Failed to update emotion settings.",
         "memory": "Failed to update memory settings."
       }
@@ -6116,6 +6321,7 @@ export default interface Resources {
         "quick_chat": "Quick Chat",
         "skip_tts": "Skip TTS",
         "toggle_dictation": "Dictation on/off",
+        "toggle_pip": "Picture-in-picture on/off",
         "toggle_voice_mode": "Voice Mode on/off",
         "toggle_voice_mute": "Toggle mute"
       },

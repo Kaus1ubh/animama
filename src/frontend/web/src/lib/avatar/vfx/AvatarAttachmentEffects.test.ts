@@ -541,6 +541,12 @@ describe("body, sticker and silhouette Avatar Effects", () => {
       expect(controller.getSnapshot().warnings).toEqual([
         'Removed "a": at most 4 body, sticker or silhouette effects can be active.',
       ]);
+      expect(controller.getSnapshot().issues).toEqual([
+        {
+          code: "effect_attachment_limit",
+          params: { effectId: "a", limit: MAX_ACTIVE_ATTACHMENT_EFFECTS },
+        },
+      ]);
       expect(warn.mock.calls[0]![1]).toMatchObject({
         code: "avatar_effect_attachment_limit",
         removedEffectId: "a",

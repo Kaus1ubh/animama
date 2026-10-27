@@ -14,6 +14,9 @@ from animama.adapters.repositories.sqlalchemy.anima_package_source_repo import S
 from animama.adapters.repositories.sqlalchemy.avatar_face_part_override_repo import (
     SQLAlchemyAvatarFacePartOverrideRepository,
 )
+from animama.adapters.repositories.sqlalchemy.avatar_setting_override_repo import (
+    SQLAlchemyAvatarSettingOverrideRepository,
+)
 from animama.adapters.repositories.sqlalchemy.content_catalog_repo import SQLAlchemyContentCatalog
 from animama.adapters.repositories.sqlalchemy.product_repositories import SQLAlchemyProductRepositories
 from animama.adapters.repositories.sqlalchemy.user_profile_repo import SQLAlchemyUserProfileRepository
@@ -24,6 +27,7 @@ from animama.app.safety.crisis_resources import CrisisResourceTable
 from animama.app.services.anima_package_source_service import AnimaPackageSourceService
 from animama.app.services.anima_runtime_service import AnimaRuntimeService
 from animama.app.services.avatar_face_parts_service import AvatarFacePartsService
+from animama.app.services.avatar_settings_service import AvatarSettingsService
 from animama.app.services.chat_compaction_service import ChatCompactionSettings
 from animama.app.services.chat_title_generation_service import ChatTitleGenerationSettings
 from animama.app.services.content_catalog_service import ContentCatalogService
@@ -90,6 +94,7 @@ def local_product_content(
     content = ContentCatalogService(store=store, catalog=catalog)
     saves = ContentSaveService(content=content)
     overrides = SQLAlchemyAvatarFacePartOverrideRepository(session)
+    settings_overrides = SQLAlchemyAvatarSettingOverrideRepository(session)
     packages = ContentPackageService(
         content=content,
         stages=stages,
@@ -105,6 +110,7 @@ def local_product_content(
         default_model_provider_id=settings.anima_default_model_provider_id,
         max_identity_bytes=settings.anima_memory_file_max_bytes,
         face_part_overrides=overrides,
+        avatar_setting_overrides=settings_overrides,
     )
     return ProductContent(
         catalog=content,
@@ -116,6 +122,7 @@ def local_product_content(
         packages=packages,
         store=store,
         runtime=AnimaRuntimeService(session, store=store),
+        avatar_settings=AvatarSettingsService(catalog=catalog, overrides=settings_overrides, commit=session.commit),
     )
 
 

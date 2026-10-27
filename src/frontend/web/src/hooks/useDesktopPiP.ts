@@ -28,6 +28,19 @@ type DesktopPipControls = {
 const DEFAULT_BACKGROUND_MODE: DesktopPipBackgroundMode = "transparent";
 const DEFAULT_SIZE_SCALE = 0.5;
 
+/**
+ * Runs `callback` after the next frame has rendered. A hidden page renders no
+ * frames, for example a minimized main window when the PiP shortcut is
+ * pressed in another app, so there it runs on the next task instead.
+ */
+export function afterNextFrame(callback: () => void): void {
+  if (document.visibilityState === "hidden") {
+    setTimeout(callback, 0);
+    return;
+  }
+  requestAnimationFrame(() => callback());
+}
+
 function runPipStateRequest(
   request: Promise<DesktopPipState>,
   onState: (state: DesktopPipState) => void,
@@ -114,7 +127,7 @@ export function useDesktopPiP({
     if (!desktopPip || !openOptions || isPipWindow) return;
     if (canvasMode === "chat") {
       setCanvasMode("avatar-chat");
-      requestAnimationFrame(() => {
+      afterNextFrame(() => {
         runPipStateRequest(desktopPip.toggle(openOptions), setState);
       });
       return;

@@ -205,7 +205,7 @@ export function TransformPanel({
   return (
     <div
       className={cn(
-        "pointer-events-auto absolute top-3 right-3 z-20 w-[22rem] max-w-[calc(100vw-1rem)]",
+        "pointer-events-auto absolute top-[calc(var(--app-titlebar-height)+0.75rem)] right-3 z-20 w-[22rem] max-w-[calc(100vw-1rem)]",
         className,
       )}
     >

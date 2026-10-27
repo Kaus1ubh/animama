@@ -106,6 +106,7 @@ describe("authored facial behavior", () => {
     landmarks = {
       status: "ready",
       warnings: [],
+      issues: [],
       anchorName: "head",
       anchorType: "bone",
       faceBindingKey: "face",
@@ -135,6 +136,7 @@ describe("authored facial behavior", () => {
     anchors = {
       status: "ready",
       warnings: [],
+      issues: [],
       faceBindingKey: "face",
       faceMaterialName: "Face Skin",
       anchors: {
@@ -472,6 +474,100 @@ describe("authored facial behavior", () => {
     expect(controller.getSnapshot().flatten.autoMouth).toBe(false);
   });
 
+  it("hides lashes drawn inside the face mesh while an eye effect plays", async () => {
+    const part = (role: AvatarFacePartRole, bindings: string[]) => ({
+      role,
+      bindings,
+      source: bindings.length ? ("signals" as const) : ("missing" as const),
+      confidence: bindings.length ? 0.9 : 0,
+    });
+    // The face plane's second triangle stands for a lash strand inside it.
+    const map: AvatarFacePartMap = {
+      parts: {
+        face_skin: part("face_skin", ["face"]),
+        eye_left: part("eye_left", ["iris"]),
+        eye_right: part("eye_right", ["iris"]),
+        eye_highlight: part("eye_highlight", ["eye_highlight"]),
+        eyeline: part("eyeline", ["eyeline"]),
+        eyelash: {
+          ...part("eyelash", []),
+          source: "signals",
+          regions: [{ bindingKey: "face", triangles: [1] }],
+        },
+        hair: part("hair", []),
+      },
+      eyeWhite: [],
+      diagnostics: [],
+      issues: [],
+    };
+    const partController = new AvatarVFXController({
+      ...avatar,
+      facePartMap: map,
+    } as Avatar);
+    controllers.push(partController);
+    const index = meshes.face.geometry.getIndex()!;
+    const corners = (triangle: number) =>
+      [0, 1, 2].map((corner) => index.getX(triangle * 3 + corner));
+    const lash = corners(1);
+
+    await partController.applyEffect({
+      bindingKey: "iris",
+      effectId: "preview",
+      effectEntry: eyeEffect(),
+    });
+    // The lash triangle draws nothing; the face's other triangle is intact.
+    expect(new Set(corners(1)).size).toBe(1);
+    expect(new Set(corners(0)).size).toBe(3);
+    expect(meshes.face.visible).toBe(true);
+
+    partController.removeEffect("preview");
+    expect(corners(1)).toEqual(lash);
+  });
+
+  it("reports a lash region it cannot hide, and still plays", async () => {
+    const part = (role: AvatarFacePartRole, bindings: string[]) => ({
+      role,
+      bindings,
+      source: bindings.length ? ("signals" as const) : ("missing" as const),
+      confidence: bindings.length ? 0.9 : 0,
+    });
+    meshes.face.geometry = meshes.face.geometry.toNonIndexed();
+    const map: AvatarFacePartMap = {
+      parts: {
+        face_skin: part("face_skin", ["face"]),
+        eye_left: part("eye_left", ["iris"]),
+        eye_right: part("eye_right", ["iris"]),
+        eye_highlight: part("eye_highlight", ["eye_highlight"]),
+        eyeline: part("eyeline", ["eyeline"]),
+        eyelash: {
+          ...part("eyelash", []),
+          source: "signals",
+          regions: [{ bindingKey: "face", triangles: [1] }],
+        },
+        hair: part("hair", []),
+      },
+      eyeWhite: [],
+      diagnostics: [],
+      issues: [],
+    };
+    const partController = new AvatarVFXController({
+      ...avatar,
+      facePartMap: map,
+    } as Avatar);
+    controllers.push(partController);
+
+    await partController.applyEffect({
+      bindingKey: "iris",
+      effectId: "preview",
+      effectEntry: eyeEffect(),
+    });
+    expect(partController.getSnapshot().activeEffects).toHaveLength(1);
+    expect(partController.getSnapshot().issues).toContainEqual({
+      code: "eye_detail_not_hidden",
+      params: { effectId: "preview", part: "eyelash" },
+    });
+  });
+
   it("paints a corrected part on a mesh that also holds a detected part", async () => {
     // Annie's lashes are drawn in her eye-line mesh: the user corrects
     // Eyelashes to that mesh while detection keeps it as the eye line.
@@ -501,6 +597,7 @@ describe("authored facial behavior", () => {
       },
       eyeWhite: [],
       diagnostics: [],
+      issues: [],
     };
     const partController = new AvatarVFXController({
       ...avatar,

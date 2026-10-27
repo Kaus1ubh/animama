@@ -1,3 +1,4 @@
+import type { AvatarIssue } from "../diagnostics/issues";
 import type {
   AvatarEffectAppearance,
   AvatarEffectDefinitionV2,
@@ -535,6 +536,8 @@ export type AvatarVFXSnapshot = {
   attachmentEffects: AvatarVFXAttachmentEffectSnapshot[];
   flatten: AvatarVFXFaceFlattenSnapshot;
   warnings: string[];
+  /** `warnings` as stable codes, for the Diagnostics view. */
+  issues: AvatarIssue[];
 };
 
 /**

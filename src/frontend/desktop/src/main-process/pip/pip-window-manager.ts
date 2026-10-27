@@ -35,8 +35,19 @@ export type DesktopPipCursorSnapshot = {
   sentAtMs: number;
 };
 
+/**
+ * Messages between the owner window and PiP. PiP sends `ready`,
+ * `camera-preset` and `voice-command`; the owner sends Avatar `snapshot` /
+ * `incremental` state and `voice` state.
+ */
 export type DesktopPipRuntimeMessage = {
-  type: "ready" | "snapshot" | "incremental" | "camera-preset";
+  type:
+    | "ready"
+    | "snapshot"
+    | "incremental"
+    | "camera-preset"
+    | "voice"
+    | "voice-command";
   sequence: number;
   sentAtMs: number;
   animaId: string;
@@ -337,7 +348,9 @@ function normalizeRuntimeMessage(value: unknown): DesktopPipRuntimeMessage {
     message.type !== "ready" &&
     message.type !== "snapshot" &&
     message.type !== "incremental" &&
-    message.type !== "camera-preset"
+    message.type !== "camera-preset" &&
+    message.type !== "voice" &&
+    message.type !== "voice-command"
   ) {
     throw new Error("Expected valid PiP runtime message type");
   }
@@ -653,9 +666,12 @@ export class PipWindowManager {
     if (!isOwnerSender && !isPipSender) {
       throw new Error("PiP runtime message came from an unknown renderer");
     }
-    // PiP sends readiness and camera preset requests; the owner sends state.
+    // PiP sends readiness, camera preset requests and voice commands; the
+    // owner sends state.
     const fromPipOnly =
-      message.type === "ready" || message.type === "camera-preset";
+      message.type === "ready" ||
+      message.type === "camera-preset" ||
+      message.type === "voice-command";
     if (fromPipOnly && !isPipSender) {
       writeLog(
         "info",
@@ -682,7 +698,10 @@ export class PipWindowManager {
       : (this.pipWindow?.webContents ?? null);
     if (isLiveWebContents(target)) {
       target.send(this.runtimeMessageChannel, message);
-      if (!isPipSender && this.pipRendererReady) {
+      // Only Avatar state can make PiP visible; voice state may arrive first.
+      const isAvatarState =
+        message.type === "snapshot" || message.type === "incremental";
+      if (isAvatarState && this.pipRendererReady) {
         if (!this.pipRuntimeStateReady) {
           writeLog("info", "PiP initial runtime state received");
         }

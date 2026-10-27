@@ -12,6 +12,7 @@ import json
 from typing import Any
 
 import httpx
+import httpx2
 import pytest
 from openai import AsyncOpenAI
 from starlette.applications import Starlette
@@ -52,11 +53,11 @@ class _RecordingServer:
     def __init__(self) -> None:
         self.authorizations: list[str | None] = []
 
-    def __call__(self, request: httpx.Request) -> httpx.Response:
+    def __call__(self, request: httpx2.Request) -> httpx2.Response:
         self.authorizations.append(request.headers.get("authorization"))
         body = json.loads(request.content) if request.content else {}
         if request.url.path.endswith("/embeddings"):
-            return httpx.Response(
+            return httpx2.Response(
                 200,
                 json={"object": "list", "model": body["model"], "data": [{"index": 0, "embedding": [0.1, 0.2]}]},
             )
@@ -68,7 +69,7 @@ class _RecordingServer:
             "choices": [{"index": 0, "delta": {"role": "assistant", "content": "ok"}, "finish_reason": "stop"}],
         }
         payload = f"data: {json.dumps(chunk)}\n\ndata: [DONE]\n\n"
-        return httpx.Response(200, headers={"content-type": "text/event-stream"}, content=payload.encode())
+        return httpx2.Response(200, headers={"content-type": "text/event-stream"}, content=payload.encode())
 
 
 @pytest.fixture
@@ -79,7 +80,7 @@ def recording_server(monkeypatch: pytest.MonkeyPatch) -> _RecordingServer:
     original_init = AsyncOpenAI.__init__
 
     def _init(self: AsyncOpenAI, *args: Any, **kwargs: Any) -> None:
-        kwargs["http_client"] = httpx.AsyncClient(transport=httpx.MockTransport(server))
+        kwargs["http_client"] = httpx2.AsyncClient(transport=httpx2.MockTransport(server))
         original_init(self, *args, **kwargs)
 
     monkeypatch.setattr(AsyncOpenAI, "__init__", _init)

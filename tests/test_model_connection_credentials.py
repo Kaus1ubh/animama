@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from typing import Any
 
-import httpx
+import httpx2
 import pytest
 
 from animama.adapters.model_clients import OpenAIChatCompletionsModelClient
@@ -149,24 +149,24 @@ async def _headers_sent_by_real_sdk(
     *,
     environ: dict[str, str],
     resolver_environ: dict[str, str] | None = None,
-) -> httpx.Headers:
+) -> httpx2.Headers:
     from openai import AsyncOpenAI
 
-    seen_headers: list[httpx.Headers] = []
+    seen_headers: list[httpx2.Headers] = []
 
-    def _handler(request: httpx.Request) -> httpx.Response:
+    def _handler(request: httpx2.Request) -> httpx2.Response:
         seen_headers.append(request.headers)
         body = (
             'data: {"id":"c","object":"chat.completion.chunk","created":1,"model":"m",'
             '"choices":[{"index":0,"delta":{"content":"Hi"},"finish_reason":"stop"}]}\n\n'
             "data: [DONE]\n\n"
         )
-        return httpx.Response(200, headers={"content-type": "text/event-stream"}, content=body.encode())
+        return httpx2.Response(200, headers={"content-type": "text/event-stream"}, content=body.encode())
 
     original_init = AsyncOpenAI.__init__
 
     def _init_with_transport(self, *args, **kwargs):  # noqa: ANN001, ANN002, ANN003
-        kwargs["http_client"] = httpx.AsyncClient(transport=httpx.MockTransport(_handler))
+        kwargs["http_client"] = httpx2.AsyncClient(transport=httpx2.MockTransport(_handler))
         original_init(self, *args, **kwargs)
 
     with pytest.MonkeyPatch.context() as patch:

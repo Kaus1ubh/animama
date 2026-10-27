@@ -145,8 +145,10 @@
     "controls": "子母畫面控制項",
     "resize": "調整子母畫面大小",
     "sceneBackground": "場景背景",
+    "stopVoiceMode": "停止語音模式",
     "switchCamera": "切換相機（目前：{{preset}}）",
-    "unavailable": "無法使用子母畫面。請繼續在此視窗中使用夥伴。"
+    "unavailable": "無法使用子母畫面。請繼續在此視窗中使用夥伴。",
+    "voiceMode": "語音模式"
   },
   "quickChat": {
     "incompatibleModel": "該模型以不同方式保存對話。請開啟主聊天，在新聊天中繼續。",

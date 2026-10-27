@@ -6,6 +6,8 @@ import {
   AvatarAttachmentEffects,
   MAX_ACTIVE_ATTACHMENT_EFFECTS,
 } from "./AvatarAttachmentEffects";
+import { addAvatarIssue, type AvatarIssue } from "../diagnostics/issues";
+import { PrimitiveRegionHider } from "./primitiveRegionHiding";
 import { loadEffectImage } from "./effect-image";
 import {
   applyFlipbookFrameToTexture,
@@ -345,6 +347,8 @@ const EYE_HOVER_AUTO_DISABLED_ROLES: AvatarVFXTargetRole[] = [
   "eyeline",
   "eyelash",
 ];
+/** Hidden roles whose parts can also be regions of a shared primitive. */
+const DETAIL_REGION_ROLES = ["eyeline", "eyelash"] as const;
 const HOVER_BACKDROP_STRIPPED_TEXTURE_PROPS = [
   "alphaMap",
   "normalMap",
@@ -1904,6 +1908,8 @@ export class AvatarVFXController {
   private _bindings = new Map<string, BindingState>();
   private _listeners = new Set<VFXListener>();
   private _warnings: string[] = [];
+  private _issues: AvatarIssue[] = [];
+  private readonly _regionHider = new PrimitiveRegionHider();
   private _snapshot: AvatarVFXSnapshot;
   private _observationSnapshot: AvatarVFXObservationSnapshot;
   private _isDisposed = false;
@@ -2369,11 +2375,17 @@ export class AvatarVFXController {
   }): Promise<void> {
     const effect = this._resolveEffectSource(args.effectId, args.effectEntry);
     if (!effect) {
-      this._pushWarning(`Unknown VFX effect "${args.effectId}".`);
+      this._pushWarning(
+        { code: "effect_unknown", params: { effectId: args.effectId } },
+        `Unknown VFX effect "${args.effectId}".`,
+      );
       return;
     }
     if (!isHoverVFXEntry(effect)) {
-      this._pushWarning(`Effect "${effect.label}" is not a hover VFX.`);
+      this._pushWarning(
+        { code: "effect_wrong_kind", params: { effectId: effect.id } },
+        `Effect "${effect.label}" is not a hover VFX.`,
+      );
       return;
     }
     await this._applyHoverEffect(effect, undefined, args.logicalEffectId);
@@ -2396,11 +2408,17 @@ export class AvatarVFXController {
   }): Promise<void> {
     const effect = this._resolveEffectSource(args.effectId, args.effectEntry);
     if (!effect) {
-      this._pushWarning(`Unknown VFX effect "${args.effectId}".`);
+      this._pushWarning(
+        { code: "effect_unknown", params: { effectId: args.effectId } },
+        `Unknown VFX effect "${args.effectId}".`,
+      );
       return;
     }
     if (!isFaceAnchoredVFXEntry(effect)) {
-      this._pushWarning(`Effect "${effect.label}" is not a face-anchored VFX.`);
+      this._pushWarning(
+        { code: "effect_wrong_kind", params: { effectId: effect.id } },
+        `Effect "${effect.label}" is not a face-anchored VFX.`,
+      );
       return;
     }
     await this._applyFaceAnchoredEffect(
@@ -2429,11 +2447,17 @@ export class AvatarVFXController {
   }): Promise<void> {
     const effect = this._resolveEffectSource(args.effectId, args.effectEntry);
     if (!effect) {
-      this._pushWarning(`Unknown VFX effect "${args.effectId}".`);
+      this._pushWarning(
+        { code: "effect_unknown", params: { effectId: args.effectId } },
+        `Unknown VFX effect "${args.effectId}".`,
+      );
       return;
     }
     if (!isTextureVFXEntry(effect)) {
-      this._pushWarning(`Effect "${effect.label}" is not a texture VFX.`);
+      this._pushWarning(
+        { code: "effect_wrong_kind", params: { effectId: effect.id } },
+        `Effect "${effect.label}" is not a texture VFX.`,
+      );
       return;
     }
     await this._applyTextureEffect(
@@ -2466,12 +2490,18 @@ export class AvatarVFXController {
       args.effectEntry,
     );
     if (!effectSource) {
-      this._pushWarning(`Unknown VFX effect "${args.effectId}".`);
+      this._pushWarning(
+        { code: "effect_unknown", params: { effectId: args.effectId } },
+        `Unknown VFX effect "${args.effectId}".`,
+      );
       return;
     }
     const binding = this._bindings.get(args.bindingKey);
     if (!binding) {
-      this._pushWarning(`Unknown VFX target "${args.bindingKey}".`);
+      this._pushWarning(
+        { code: "effect_target_unknown", params: { effectId: args.effectId } },
+        `Unknown VFX target "${args.bindingKey}".`,
+      );
       return;
     }
 
@@ -2531,7 +2561,13 @@ export class AvatarVFXController {
       art = await loadEffectImage(entry.assetPath);
     } catch (error) {
       if (this._applyTokens.get(appliedEffectId) !== token) return;
-      this._pushWarning(error instanceof Error ? error.message : String(error));
+      this._pushWarning(
+        {
+          code: "effect_load_failed",
+          params: { effectId: args.logicalEffectId ?? entry.id },
+        },
+        error instanceof Error ? error.message : String(error),
+      );
       return;
     }
     if (this._isDisposed || this._applyTokens.get(appliedEffectId) !== token) {
@@ -2546,7 +2582,13 @@ export class AvatarVFXController {
       intensity: this._takePendingIntensity(appliedEffectId),
     });
     if (!result.ok) {
-      this._pushWarning(result.warning);
+      this._pushWarning(
+        {
+          code: "effect_placement_failed",
+          params: { effectId: args.logicalEffectId ?? entry.id },
+        },
+        result.warning,
+      );
       return;
     }
     // A face effect applied earlier under the same ID gives way, as a
@@ -2567,6 +2609,13 @@ export class AvatarVFXController {
         },
       );
       this._pushWarning(
+        {
+          code: "effect_attachment_limit",
+          params: {
+            effectId: evicted.effectId,
+            limit: MAX_ACTIVE_ATTACHMENT_EFFECTS,
+          },
+        },
         `Removed "${evicted.effectLabel}": at most ${MAX_ACTIVE_ATTACHMENT_EFFECTS} body, sticker or silhouette effects can be active.`,
       );
     }
@@ -2605,6 +2654,10 @@ export class AvatarVFXController {
       avatar: this._sourceKey,
     });
     this._pushWarning(
+      {
+        code: "effect_face_part_missing",
+        params: { effectId: logicalEffectId, part },
+      },
       `Skipped "${effect.label}": this avatar has no detected ${AVATAR_FACE_PART_LABELS[part]}.`,
     );
   }
@@ -2657,6 +2710,7 @@ export class AvatarVFXController {
     this._reportedUnavailableParts.clear();
     this._pendingTransformRedraws.clear();
     this._warnings = [];
+    this._issues = [];
     this._rebuildBindings();
     this._emit();
 
@@ -2942,12 +2996,14 @@ export class AvatarVFXController {
     if (this._isDisposed) return;
     this._pendingTransformRedraws.clear();
     this.clearAllEffects();
+    this._regionHider.restoreAll();
     this._listeners.clear();
     this._bindings.clear();
     this._applyTokens.clear();
     this._pendingIntensities.clear();
     this._nextAppliedOrder = 0;
     this._warnings = [];
+    this._issues = [];
     this._snapshot = this._createSnapshot();
     this._observationSnapshot = this._createObservationSnapshot();
     this._isDisposed = true;
@@ -3096,6 +3152,7 @@ export class AvatarVFXController {
       bindingOverride ?? this._resolveAutoBindingForEffect(effect) ?? null;
     if (!binding) {
       this._pushWarning(
+        { code: "effect_target_unresolved", params: { effectId: effect.id } },
         `No compatible target was resolved for "${effect.label}".`,
       );
       return;
@@ -3118,6 +3175,7 @@ export class AvatarVFXController {
       bindingOverride ?? this._resolveAutoBindingForEffect(effect) ?? null;
     if (!binding) {
       this._pushWarning(
+        { code: "effect_target_unresolved", params: { effectId: effect.id } },
         `No compatible target was resolved for "${effect.label}".`,
       );
       return;
@@ -3143,6 +3201,7 @@ export class AvatarVFXController {
       null;
     if (!binding) {
       this._pushWarning(
+        { code: "effect_target_unresolved", params: { effectId: effect.id } },
         `No compatible target was resolved for "${effect.label}".`,
       );
       return;
@@ -3168,6 +3227,7 @@ export class AvatarVFXController {
     if (isAnchoredFaceTextureEffect(effect) && applyMode !== "overlay") {
       binding.warning = `Anchored face decals require overlay mode.`;
       this._pushWarning(
+        { code: "effect_overlay_required", params: { effectId: effect.id } },
         `Anchored face decals require overlay mode for "${effect.label}".`,
       );
       return;
@@ -3177,6 +3237,10 @@ export class AvatarVFXController {
     if (!binding.targetRoles.includes(effectTargetRole)) {
       binding.warning = `Effect "${effect.label}" does not target ${binding.targetRole}.`;
       this._pushWarning(
+        {
+          code: "effect_target_incompatible",
+          params: { effectId: effect.id, targetRole: binding.targetRole },
+        },
         `Effect "${effect.label}" is not compatible with ${binding.targetRole}.`,
       );
       return;
@@ -3199,6 +3263,7 @@ export class AvatarVFXController {
         ? `Anchored face decals require the resolved face skin binding.`
         : `Mouth hover effects require the resolved face skin binding.`;
       this._pushWarning(
+        { code: "effect_face_skin_required", params: { effectId: effect.id } },
         isAnchoredTextureEffect
           ? `Anchored face decals require the resolved face skin binding for "${effect.label}".`
           : `Mouth hover effects require the resolved face skin binding for "${effect.label}".`,
@@ -3237,7 +3302,10 @@ export class AvatarVFXController {
     } catch (error) {
       if (this._applyTokens.get(appliedEffectId) !== token) return;
       binding.warning = error instanceof Error ? error.message : String(error);
-      this._pushWarning(binding.warning);
+      this._pushWarning(
+        { code: "effect_load_failed", params: { effectId: effect.id } },
+        binding.warning,
+      );
       return;
     }
 
@@ -3262,7 +3330,10 @@ export class AvatarVFXController {
     if (renderMode === "hover_plane") {
       if (!isHoverVFXEntry(effect)) {
         binding.warning = `Effect "${effect.label}" is not a hover VFX.`;
-        this._pushWarning(binding.warning);
+        this._pushWarning(
+          { code: "effect_wrong_kind", params: { effectId: effect.id } },
+          binding.warning,
+        );
         return;
       }
       const hoverEffectState = this._createHoverEffectGroup({
@@ -3275,7 +3346,10 @@ export class AvatarVFXController {
         binding.warning =
           binding.warning ??
           `Unable to resolve hover placement for "${effect.label}".`;
-        this._pushWarning(binding.warning);
+        this._pushWarning(
+          { code: "effect_placement_failed", params: { effectId: effect.id } },
+          binding.warning,
+        );
         return;
       }
 
@@ -3333,7 +3407,10 @@ export class AvatarVFXController {
 
     if (!applyMode) {
       binding.warning = `Effect "${effect.label}" does not define a texture apply mode.`;
-      this._pushWarning(binding.warning);
+      this._pushWarning(
+        { code: "effect_wrong_kind", params: { effectId: effect.id } },
+        binding.warning,
+      );
       return;
     }
 
@@ -3349,7 +3426,10 @@ export class AvatarVFXController {
       binding.warning =
         builtLayerCanvases.warning ??
         `No compatible ${applyMode} texture slots were available.`;
-      this._pushWarning(binding.warning);
+      this._pushWarning(
+        { code: "effect_placement_failed", params: { effectId: effect.id } },
+        binding.warning,
+      );
       return;
     }
 
@@ -3403,7 +3483,10 @@ export class AvatarVFXController {
       binding.warning =
         binding.warning ??
         `Unable to composite texture VFX for "${binding.materialName ?? binding.bindingKey}".`;
-      this._pushWarning(binding.warning);
+      this._pushWarning(
+        { code: "effect_placement_failed", params: { effectId: effect.id } },
+        binding.warning,
+      );
       return;
     }
 
@@ -3748,8 +3831,13 @@ export class AvatarVFXController {
   }
 
   private _rebuildBindings() {
+    // Part regions may change with the rebuild; nothing stays hidden across it.
+    this._regionHider.restoreAll();
     const runtimeResult = buildRuntimePrimitiveBindings(this._avatar);
     this._warnings = [...runtimeResult.warnings];
+    this._issues = runtimeResult.warnings.length
+      ? [{ code: "scene_bindings_unavailable" }]
+      : [];
     this._cachedFaceFlattenState = null;
     this._bindings.clear();
 
@@ -4371,6 +4459,7 @@ export class AvatarVFXController {
     disableTargetRoles: AvatarVFXTargetRole[],
   ): string[] {
     if (disableTargetRoles.length === 0) return [];
+    this._hideDetailRegions(sourceEffectId, disableTargetRoles);
 
     const disabledBindingKeys: string[] = [];
     this._bindings.forEach((binding) => {
@@ -4388,9 +4477,51 @@ export class AvatarVFXController {
     return disabledBindingKeys;
   }
 
+  /**
+   * Draw every hidden eye-detail region again, before the face parts are
+   * measured anew; `refreshFaceParts` then hides what active effects need.
+   */
+  restoreHiddenRegions(): void {
+    this._regionHider.restoreAll();
+  }
+
+  /**
+   * Hide the eye lines and lashes kept inside the face or eye primitives
+   * (part `regions`), which hiding whole primitives cannot reach.
+   */
+  private _hideDetailRegions(
+    sourceEffectId: string,
+    roles: readonly AvatarVFXTargetRole[],
+  ): void {
+    const map = this._avatar.facePartMap;
+    if (!map) return;
+    for (const role of DETAIL_REGION_ROLES) {
+      if (!roles.includes(role)) continue;
+      for (const region of map.parts[role].regions ?? []) {
+        const binding = this._bindings.get(region.bindingKey);
+        if (!binding) continue;
+        const hidden = this._regionHider.hide(
+          sourceEffectId,
+          binding.object.geometry,
+          region.triangles,
+        );
+        if (!hidden) {
+          this._pushWarning(
+            {
+              code: "eye_detail_not_hidden",
+              params: { effectId: sourceEffectId, part: role },
+            },
+            `Could not hide the ${AVATAR_FACE_PART_LABELS[role]} inside ${region.bindingKey}: the primitive is not indexed.`,
+          );
+        }
+      }
+    }
+  }
+
   private _releaseAutoDisabledBindings(
     activeEffect: ActiveBindingEffect,
   ): void {
+    this._regionHider.release(activeEffect.appliedEffectId);
     const disabledBindingKeys = activeEffect.disabledBindingKeys;
     disabledBindingKeys.forEach((bindingKey) => {
       const binding = this._bindings.get(bindingKey);
@@ -4488,6 +4619,10 @@ export class AvatarVFXController {
       : null;
     if (hasHoverSkinBackdrop(effect) && !hoverSkinBackdropColor) {
       this._pushWarning(
+        {
+          code: "effect_skin_color_unavailable",
+          params: { effectId: effect.id },
+        },
         `Unable to sample a face skin color for hover backdrop on "${effect.label}".`,
       );
     }
@@ -4740,6 +4875,7 @@ export class AvatarVFXController {
       attachmentEffects: this._attachments.snapshot(),
       flatten,
       warnings: [...this._warnings],
+      issues: [...this._issues],
     };
   }
 
@@ -4783,7 +4919,9 @@ export class AvatarVFXController {
     };
   }
 
-  private _pushWarning(message: string) {
+  /** Record a finding as dev-panel text and as a stable code, then emit. */
+  private _pushWarning(issue: AvatarIssue, message: string) {
+    addAvatarIssue(this._issues, issue);
     this._warnings = Array.from(
       new Set(
         [...this._warnings, message]

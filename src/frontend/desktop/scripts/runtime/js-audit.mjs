@@ -1,12 +1,17 @@
 import { isBuiltin } from "node:module";
 
+/**
+ * The sandboxed preload can require only `electron`: Electron 45 removed the
+ * `events`, `timers` and `url` shims sandboxed renderers used to provide.
+ */
+const sandboxedPreload = /(?:^|\/)preload\.cjs$/u;
+
 /** Every other JS dependency must be in the bundle, not a developer's modules. */
 export function assertBundledImports(metafile) {
   for (const [name, output] of Object.entries(metafile.outputs)) {
     for (const dependency of output.imports) {
-      if (!dependency.external) continue;
-      if (isBuiltin(dependency.path) || dependency.path === "electron")
-        continue;
+      if (!dependency.external || dependency.path === "electron") continue;
+      if (isBuiltin(dependency.path) && !sandboxedPreload.test(name)) continue;
       throw new Error(
         `Undeclared runtime import in ${name}: ${dependency.path}`,
       );

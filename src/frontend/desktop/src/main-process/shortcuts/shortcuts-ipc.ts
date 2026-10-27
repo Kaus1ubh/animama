@@ -29,7 +29,8 @@ type DesktopShortcutAction =
   | "toggle_dictation"
   | "toggle_voice_mode"
   | "toggle_voice_mute"
-  | "skip_tts";
+  | "skip_tts"
+  | "toggle_pip";
 
 type DesktopKeyboardShortcut = {
   type?: "keyboard";
@@ -63,6 +64,7 @@ type DesktopShortcutsConfig = {
 
 type DesktopShortcutsContext = {
   quickChatAvailable: boolean;
+  pipAvailable: boolean;
   voiceModeAvailable: boolean;
   voiceModeActive: boolean;
   ttsAudioActive: boolean;
@@ -85,6 +87,7 @@ type DesktopShortcutsStatus = {
 
 const DEFAULT_CONTEXT: DesktopShortcutsContext = {
   quickChatAvailable: false,
+  pipAvailable: false,
   voiceModeAvailable: false,
   voiceModeActive: false,
   ttsAudioActive: false,
@@ -109,6 +112,7 @@ const ACTIONS: DesktopShortcutAction[] = [
   "toggle_voice_mode",
   "toggle_voice_mute",
   "skip_tts",
+  "toggle_pip",
 ];
 
 const ONE_SHOT_ACTIONS: DesktopOneShotShortcutAction[] = [
@@ -117,6 +121,7 @@ const ONE_SHOT_ACTIONS: DesktopOneShotShortcutAction[] = [
   "toggle_voice_mode",
   "toggle_voice_mute",
   "skip_tts",
+  "toggle_pip",
 ];
 
 const ONE_SHOT_SHORTCUT_COOLDOWN_MS = 100;
@@ -345,6 +350,9 @@ class DesktopShortcutManager {
       ...(typeof value.quickChatAvailable === "boolean"
         ? { quickChatAvailable: value.quickChatAvailable }
         : {}),
+      ...(typeof value.pipAvailable === "boolean"
+        ? { pipAvailable: value.pipAvailable }
+        : {}),
       ...(typeof value.voiceModeActive === "boolean"
         ? { voiceModeActive: value.voiceModeActive }
         : {}),
@@ -435,6 +443,8 @@ class DesktopShortcutManager {
         return this.context.voiceModeActive;
       case "skip_tts":
         return this.context.ttsAudioActive;
+      case "toggle_pip":
+        return this.context.pipAvailable;
     }
   }
 

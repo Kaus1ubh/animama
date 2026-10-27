@@ -31,7 +31,7 @@ CONTROL = "c" * 64
 RENDERER = "r" * 64
 SENTINEL = "sk-SENTINEL-" + "s" * 40
 ROUTE = "/_desktop/credentials"
-# Exactly what Electron main's fetch sends (captured from Node and Electron 44.9.3).
+# Exactly what Electron main's fetch sends (captured from Node and Electron 45.0.0).
 NODE_FETCH = {
     "x-animama-desktop-control": CONTROL,
     "content-type": "application/json",

@@ -1,4 +1,9 @@
-import type { ComponentProps, CSSProperties, HTMLAttributes } from "react";
+import {
+  useState,
+  type ComponentProps,
+  type CSSProperties,
+  type HTMLAttributes,
+} from "react";
 import { cva, type VariantProps } from "class-variance-authority";
 import { motion, type HTMLMotionProps } from "motion/react";
 
@@ -106,6 +111,7 @@ const messageContentForegroundVariants = cva("relative z-10", {
 
 export type MessageContentProps = HTMLMotionProps<"div"> &
   VariantProps<typeof messageContentShellVariants> & {
+    /** Read once at mount; give the bubble a new key to replay the entrance. */
     animateOnEnter?: boolean;
     from?: "user" | "assistant";
     messageLayout?: MessageLayout;
@@ -121,6 +127,11 @@ export const MessageContent = ({
   variant,
   ...props
 }: MessageContentProps) => {
+  // Keep the entrance the bubble mounted with. A finished turn replaces the
+  // streamed bubble with its saved message under the same key; dropping the
+  // targets then would freeze an entrance that a hidden window, which runs no
+  // animation frames, never started.
+  const [entering] = useState(animateOnEnter);
   const isUserMessage = from === "user";
   const transformOrigin = isUserMessage ? "100% 100%" : "0% 100%";
   const chatOnlyClassName =
@@ -143,13 +154,13 @@ export const MessageContent = ({
       <motion.div
         aria-hidden="true"
         initial={
-          animateOnEnter ? { opacity: 0.72, scaleX: 0, scaleY: 0 } : false
+          entering ? { opacity: 0.72, scaleX: 0, scaleY: 0 } : false
         }
         animate={
-          animateOnEnter ? { opacity: 1, scaleX: 1, scaleY: 1 } : undefined
+          entering ? { opacity: 1, scaleX: 1, scaleY: 1 } : undefined
         }
         transition={
-          animateOnEnter
+          entering
             ? { duration: 0.42, ease: [0.16, 1, 0.3, 1] }
             : undefined
         }
@@ -157,10 +168,10 @@ export const MessageContent = ({
         style={{ transformOrigin }}
       />
       <motion.div
-        initial={animateOnEnter ? { opacity: 0, y: 6 } : false}
-        animate={animateOnEnter ? { opacity: 1, y: 0 } : undefined}
+        initial={entering ? { opacity: 0, y: 6 } : false}
+        animate={entering ? { opacity: 1, y: 0 } : undefined}
         transition={
-          animateOnEnter
+          entering
             ? { duration: 0.22, ease: "easeOut", delay: 0.08 }
             : undefined
         }

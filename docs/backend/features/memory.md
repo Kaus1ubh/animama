@@ -256,7 +256,12 @@ every turn, to stay well under
 about 6,000 characters, and never to frame the relationship as missing the
 user, loneliness, jealousy or discouraging other relationships. The always-present
 memory guidance says how `remember` (the shared episode log) differs from
-`MEMORIES.md` (what the relationship means).
+`MEMORIES.md` (what the relationship means). It also says that notes from past
+chats are logged and searchable, tells the model to search or read memory before
+answering about the user's news, plans, projects or something they said earlier,
+and before saying it does not remember, and to retry an empty search once with
+other words. It skips memory when the answer is already in the conversation or
+instructions, and for unrelated technical and attachment questions.
 
 When memory influence is enabled, direct chat attaches:
 
@@ -353,8 +358,19 @@ callers that omit the boolean retain the default `true` behavior. With `false`,
 the backend excludes both `kind = "episode_log"` files and paths under
 `episodes/**` before ranking and applying the 10-result limit.
 
-The query accepts PostgreSQL web-search syntax. Models can use quoted phrases,
-`OR`, and `-term` exclusions when those constraints help narrow retrieval.
+The query accepts PostgreSQL web-search syntax, but a file matches when it
+contains any query word or quoted phrase, so natural queries such as
+`new job start date` find a note that mentions only the job and its start.
+Each space-separated word or quoted phrase is parsed with
+`websearch_to_tsquery('english', ...)`, which applies stemming, stop words and
+phrase adjacency; `OR` is redundant. `-term` exclusions remove every file that
+contains the term. Files that match more of the query's words and phrases rank
+above files that match fewer, and `ts_rank_cd` orders files with the same
+count. Only the first 32 words or phrases are used; every exclusion applies.
+Japanese text uses the `english` tokenisation, which does not split words that
+lack spaces. The tool description asks the model for 2-5 distinctive keywords
+rather than a full question and explains that matching any keyword is enough;
+Anthropic Memory Manager runs reuse that description.
 
 The model receives a `memory_results` array. Markdown memory hits include
 `path`, `description`, and `snippet`. The tool does not return entry IDs,

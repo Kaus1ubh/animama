@@ -17,7 +17,7 @@ from alembic.util import CommandError
 ROOT = Path(__file__).parents[1]
 BASELINE_MIGRATION = ROOT / "alembic" / "versions" / "0001_baseline.py"
 BASELINE_SQL = ROOT / "alembic" / "versions" / "0001_baseline.sql"
-BASELINE_SHA256 = "7c3bb9a0c62de9ea794b5d06a81706be0c2646a201d4fa492dfef8317e4d7962"
+BASELINE_SHA256 = "e05b772e81cb89a11f59cb4ea694dda07853818cc9ba08a28644e1dafb5d31e0"
 
 
 def test_baseline_does_not_import_live_metadata() -> None:
@@ -33,7 +33,7 @@ def test_baseline_artifact_has_the_reviewed_schema_fingerprint() -> None:
     assert hashlib.sha256(baseline).hexdigest() == BASELINE_SHA256
     sql = baseline.decode("utf-8")
     assert "CREATE EXTENSION IF NOT EXISTS vector" in sql
-    assert sql.count("CREATE TABLE ") == 45
+    assert sql.count("CREATE TABLE ") == 46
 
 
 def test_current_schema_is_the_single_root_and_head() -> None:
@@ -264,3 +264,40 @@ def test_fresh_creation_receipts_are_owner_scoped_and_survive_absent_animas(
         with engine.connect() as connection:
             assert connection.scalar(text("SELECT count(*) FROM anima_creation_receipts")) == 2
             assert connection.scalar(text("SELECT count(*) FROM anima_starter_receipts")) == 0
+
+
+def test_fresh_avatar_setting_overrides_store_only_non_automatic_modes(
+    db_url: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Owner settings are keyed by owner and Avatar item, hold valid modes only and go with the item."""
+
+    with migration_schema(db_url, monkeypatch) as (config, engine):
+        command.upgrade(config, "head")
+        assert inspect(engine).get_pk_constraint("avatar_setting_overrides")["constrained_columns"] == [
+            "owner_user_id",
+            "avatar_item_id",
+        ]
+        (item_fk,) = inspect(engine).get_foreign_keys("avatar_setting_overrides")
+        assert item_fk["referred_table"] == "content_catalog_items"
+        assert item_fk["options"]["ondelete"] == "CASCADE"
+        insert = text(
+            "INSERT INTO avatar_setting_overrides (owner_user_id, avatar_item_id, spring_mode, material_mode) "
+            "VALUES (:owner, 'avatar-item', :spring, :material)"
+        )
+        with engine.begin() as connection:
+            connection.execute(
+                text(
+                    "INSERT INTO content_catalog_items "
+                    "(id, source, scope, kind, relative_locator, display_name, status) "
+                    "VALUES ('avatar-item', 'included', 'included', 'avatar', 'avatars/a.vrm', 'A', 'valid')"
+                )
+            )
+            connection.execute(insert, {"owner": "a", "spring": "springs_off", "material": None})
+            connection.execute(insert, {"owner": "b", "spring": None, "material": "simple"})
+        # Automatic is stored as NULL, never as a value.
+        for spring, material in (("automatic", None), ("windy", None), (None, "automatic"), (None, "mtoon")):
+            with pytest.raises(IntegrityError), engine.begin() as connection:
+                connection.execute(insert, {"owner": "c", "spring": spring, "material": material})
+        with engine.begin() as connection:
+            connection.execute(text("DELETE FROM content_catalog_items WHERE id = 'avatar-item'"))
+            assert connection.scalar(text("SELECT count(*) FROM avatar_setting_overrides")) == 0

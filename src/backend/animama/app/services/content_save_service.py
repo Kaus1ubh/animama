@@ -13,6 +13,7 @@ from typing import Any, BinaryIO
 
 from animama.app.contracts.avatar_effect import AvatarEffectDefinitionV2, project_avatar_effect_definition
 from animama.app.services.avatar_effect_overrides import check_clip_effect_overrides
+from animama.app.services.avatar_settings import strip_document_settings
 from animama.app.services.content_access_policy import ContentAccessPolicy
 from animama.app.services.content_catalog_service import ContentCatalogService
 from animama.app.services.content_gltf import validate_vrm_stream
@@ -281,9 +282,14 @@ class ContentSaveService:
             )
 
             if metadata_sidecar is not None:
+                raw = json.loads(metadata_sidecar)
+                if kind is ContentKind.AVATAR and isinstance(raw, dict) and strip_document_settings(raw):
+                    # The owner's settings table is the only authority for Avatar
+                    # settings, so a Local sidecar never stores a copy of them.
+                    metadata_sidecar = (json.dumps(raw, ensure_ascii=False, indent=2) + "\n").encode("utf-8")
                 document = (
                     handler_for_kind(kind)
-                    .parse_document(json.loads(metadata_sidecar), fallback_path=Path(filename), descriptor_backed=False)
+                    .parse_document(raw, fallback_path=Path(filename), descriptor_backed=False)
                     .document
                 )
                 if any(dependency.kind in RETIRED_CONTENT_KINDS for dependency in document.dependencies):

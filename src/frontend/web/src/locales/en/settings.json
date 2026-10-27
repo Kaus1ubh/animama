@@ -49,6 +49,27 @@
     }
   },
   "animaSettings": {
+    "avatar": {
+      "materials": {
+        "description": "lilToon draws this Avatar as authored; Simple costs less to draw. Applies wherever the Avatar is used, and reloads it.",
+        "label": "Materials",
+        "modes": {
+          "automatic": "Automatic",
+          "liltoon": "lilToon",
+          "simple": "Simple"
+        }
+      },
+      "wind": {
+        "description": "How wind and updraft move this Avatar's hair and clothes, wherever the Avatar is used.",
+        "label": "Wind and ambient forces",
+        "modes": {
+          "automatic": "Automatic",
+          "off": "Off",
+          "on": "On",
+          "springs_off": "Springs off"
+        }
+      }
+    },
     "choices": {
       "appDefaultOff": "App default (Off)",
       "appDefaultOn": "App default (On)",
@@ -56,10 +77,16 @@
       "on": "On"
     },
     "headings": {
+      "avatar": "Avatar",
       "emotion": "Emotion",
       "memory": "Memory"
     },
     "rows": {
+      "avatar_diagnostics": {
+        "description": "See what Animama found in this Anima's Avatar, and copy a report for support.",
+        "label": "Avatar diagnostics",
+        "open": "Open diagnostics"
+      },
       "emotion_updates": {
         "description": "Update emotional state during chat. When off, new emotion reactions stop; gestures still play.",
         "tooltip": "When off, the existing mood is preserved and gestures still play."
@@ -75,6 +102,7 @@
       }
     },
     "updateFailed": {
+      "avatar": "The Avatar setting could not be saved.",
       "emotion": "Failed to update emotion settings.",
       "memory": "Failed to update memory settings."
     }
@@ -343,6 +371,7 @@
       "quick_chat": "Quick Chat",
       "skip_tts": "Skip TTS",
       "toggle_dictation": "Dictation on/off",
+      "toggle_pip": "Picture-in-picture on/off",
       "toggle_voice_mode": "Voice Mode on/off",
       "toggle_voice_mute": "Toggle mute"
     },

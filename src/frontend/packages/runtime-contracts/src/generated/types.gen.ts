@@ -797,6 +797,40 @@ export type AvatarFacePartsUpdate = {
     face_parts: AvatarFacePartCorrection | null;
 };
 
+export type AvatarMaterialMode = 'automatic' | 'liltoon' | 'simple';
+
+export type AvatarSettingSource = 'stored' | 'default';
+
+/**
+ * AvatarSettingsState
+ *
+ * The effective settings for one Avatar and whether each was stored or defaulted.
+ */
+export type AvatarSettingsState = {
+    /**
+     * Item Id
+     */
+    item_id: string;
+    material_mode: AvatarMaterialMode;
+    material_mode_source: AvatarSettingSource;
+    spring_mode: AvatarSpringMode;
+    spring_mode_source: AvatarSettingSource;
+};
+
+/**
+ * AvatarSettingsUpdate
+ *
+ * Change some of the owner's settings for one Avatar.
+ *
+ * An omitted field keeps its stored value; ``automatic`` or ``null`` clears it.
+ */
+export type AvatarSettingsUpdate = {
+    material_mode?: AvatarMaterialMode | null;
+    spring_mode?: AvatarSpringMode | null;
+};
+
+export type AvatarSpringMode = 'automatic' | 'on' | 'off' | 'springs_off';
+
 /**
  * BodyAttachment
  *
@@ -1815,6 +1849,8 @@ export type ImagePresentation = {
      */
     zoom: number;
 };
+
+export type ImportItemNotice = 'avatar_setting_not_stored';
 
 /**
  * ImportedPackageItem
@@ -9584,6 +9620,10 @@ export type ReviewedImportItem = {
      */
     name: string;
     /**
+     * Notices
+     */
+    notices?: Array<ImportItemNotice>;
+    /**
      * Original Name
      */
     original_name: string;
@@ -11584,6 +11624,66 @@ export type SaveAvatarPortraitResponses = {
 };
 
 export type SaveAvatarPortraitResponse = SaveAvatarPortraitResponses[keyof SaveAvatarPortraitResponses];
+
+export type GetAvatarSettingsData = {
+    body?: never;
+    path: {
+        /**
+         * Item Id
+         */
+        item_id: string;
+    };
+    query?: never;
+    url: '/v1/avatar-content/{item_id}/settings';
+};
+
+export type GetAvatarSettingsErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetAvatarSettingsError = GetAvatarSettingsErrors[keyof GetAvatarSettingsErrors];
+
+export type GetAvatarSettingsResponses = {
+    /**
+     * Successful Response
+     */
+    200: AvatarSettingsState;
+};
+
+export type GetAvatarSettingsResponse = GetAvatarSettingsResponses[keyof GetAvatarSettingsResponses];
+
+export type SaveAvatarSettingsData = {
+    body: AvatarSettingsUpdate;
+    path: {
+        /**
+         * Item Id
+         */
+        item_id: string;
+    };
+    query?: never;
+    url: '/v1/avatar-content/{item_id}/settings';
+};
+
+export type SaveAvatarSettingsErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type SaveAvatarSettingsError = SaveAvatarSettingsErrors[keyof SaveAvatarSettingsErrors];
+
+export type SaveAvatarSettingsResponses = {
+    /**
+     * Successful Response
+     */
+    200: AvatarSettingsState;
+};
+
+export type SaveAvatarSettingsResponse = SaveAvatarSettingsResponses[keyof SaveAvatarSettingsResponses];
 
 export type PreviewAvatarContentData = {
     body?: never;

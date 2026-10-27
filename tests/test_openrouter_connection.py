@@ -12,7 +12,7 @@ import json
 from dataclasses import replace
 from typing import Any
 
-import httpx
+import httpx2
 import pytest
 from openai import AsyncOpenAI
 from sqlalchemy import select
@@ -145,13 +145,13 @@ class _OpenRouterServer:
     """Answers like OpenRouter's Chat Completions API and records each request."""
 
     def __init__(self) -> None:
-        self.requests: list[httpx.Request] = []
+        self.requests: list[httpx2.Request] = []
 
-    def __call__(self, request: httpx.Request) -> httpx.Response:
+    def __call__(self, request: httpx2.Request) -> httpx2.Response:
         self.requests.append(request)
         path = request.url.path
         if path == "/api/v1/models":
-            return httpx.Response(
+            return httpx2.Response(
                 200,
                 json={"data": [{"id": "openai/gpt-oss-120b", "object": "model", "created": 0, "owned_by": "x"}]},
             )
@@ -166,9 +166,9 @@ class _OpenRouterServer:
                     "choices": [{"index": 0, "delta": {"content": "ok"}, "finish_reason": "stop"}],
                 }
                 content = f"data: {json.dumps(chunk)}\n\ndata: [DONE]\n\n"
-                return httpx.Response(200, headers={"content-type": "text/event-stream"}, content=content.encode())
-            return httpx.Response(400, json={"error": {"message": "unsupported in this stub"}})
-        return httpx.Response(404, json={"error": {"message": "not found"}})
+                return httpx2.Response(200, headers={"content-type": "text/event-stream"}, content=content.encode())
+            return httpx2.Response(400, json={"error": {"message": "unsupported in this stub"}})
+        return httpx2.Response(404, json={"error": {"message": "not found"}})
 
 
 @pytest.fixture
@@ -177,7 +177,7 @@ def openrouter_server(monkeypatch: pytest.MonkeyPatch) -> _OpenRouterServer:
     original_init = AsyncOpenAI.__init__
 
     def _init(self, *args: Any, **kwargs: Any) -> None:  # noqa: ANN001
-        kwargs["http_client"] = httpx.AsyncClient(transport=httpx.MockTransport(server))
+        kwargs["http_client"] = httpx2.AsyncClient(transport=httpx2.MockTransport(server))
         original_init(self, *args, **kwargs)
 
     monkeypatch.setattr(AsyncOpenAI, "__init__", _init)
@@ -190,7 +190,7 @@ def _probe() -> OpenAICompatibleConnectionProbe:
     )
 
 
-def _assert_attributed(request: httpx.Request) -> None:
+def _assert_attributed(request: httpx2.Request) -> None:
     assert request.headers.get_list("authorization") == ["Bearer sk-or-owner"]
     for name, value in ATTRIBUTION.items():
         assert request.headers.get_list(name) == [value]
@@ -258,9 +258,9 @@ async def test_chat_sse_openrouter_turn_streams_through_chat_completions_with_at
     await async_session.commit()
 
     speech = _direct_structured_response(speech="hello from openrouter")
-    upstream: list[httpx.Request] = []
+    upstream: list[httpx2.Request] = []
 
-    def openrouter(request: httpx.Request) -> httpx.Response:
+    def openrouter(request: httpx2.Request) -> httpx2.Response:
         upstream.append(request)
         body = json.loads(request.content)
         chunks = [
@@ -282,12 +282,12 @@ async def test_chat_sse_openrouter_turn_streams_through_chat_completions_with_at
             }
         )
         content = "".join(f"data: {json.dumps(frame)}\n\n" for frame in frames) + "data: [DONE]\n\n"
-        return httpx.Response(200, headers={"content-type": "text/event-stream"}, content=content.encode())
+        return httpx2.Response(200, headers={"content-type": "text/event-stream"}, content=content.encode())
 
     original_init = AsyncOpenAI.__init__
 
     def _init(self, *args, **kwargs):  # noqa: ANN001, ANN002, ANN003
-        kwargs["http_client"] = httpx.AsyncClient(transport=httpx.MockTransport(openrouter))
+        kwargs["http_client"] = httpx2.AsyncClient(transport=httpx2.MockTransport(openrouter))
         original_init(self, *args, **kwargs)
 
     monkeypatch.setattr(AsyncOpenAI, "__init__", _init)

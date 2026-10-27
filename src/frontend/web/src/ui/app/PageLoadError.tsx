@@ -1,5 +1,8 @@
 import { useTranslation } from "react-i18next";
 
+import { cn } from "@/lib/utils";
+import { useOptionalAppShell } from "@/ui/app/AppShell";
+
 /** Intercept Vite's import failure before the router attempts an automatic reload. */
 export function subscribeToAppFileErrors(
   target: EventTarget,
@@ -16,8 +19,16 @@ export function subscribeToAppFileErrors(
 /** A stale chunk or failed route offers a user-controlled reload, never a loop. */
 export function PageLoadError() {
   const { t } = useTranslation("app");
+  // As a route's error screen it can render inside the app shell, which
+  // already pads its pages below the desktop title strip.
+  const insideAppShell = useOptionalAppShell() !== null;
   return (
-    <main className="bg-background text-foreground min-h-app flex items-center justify-center px-6">
+    <main
+      className={cn(
+        "bg-background text-foreground min-h-app flex items-center justify-center px-6",
+        !insideAppShell && "mt-(--app-titlebar-height)",
+      )}
+    >
       <section className="border-border bg-card max-w-md space-y-4 rounded-2xl border p-6 text-center">
         <h1 className="text-lg font-semibold">{t("pageLoadError.title")}</h1>
         <p className="text-muted-foreground text-sm">

@@ -54,6 +54,7 @@ import {
   type DesktopQuickChatPromptSuggestion,
   type DesktopQuickChatSnapshot,
 } from "@/hooks/useDesktopQuickChatRuntime";
+import { useDesktopPipVoiceOwner } from "@/hooks/useDesktopPipVoice";
 import {
   desktopChatShortcutLabels,
   resolveDesktopShortcuts,
@@ -184,6 +185,27 @@ type ChatInterfaceViewProps = {
 
 const USER_TYPING_INACTIVITY_TIMEOUT_MS = 3000;
 
+/**
+ * Whether the composer can capture speech: offline recognition with the
+ * engine that runs installed (the owner's choice, else the UI Locale's), or
+ * the browser's Web Speech.
+ */
+function useSpeechAvailable(): boolean {
+  const { i18n } = useTranslation("chat");
+  const capabilities = useRuntimeCapabilities();
+  const platform = useRuntimePlatform();
+  const { effectivePreferences } = useSettings();
+  const offlineRoute = routeOfflineSpeech(
+    i18n.resolvedLanguage,
+    offlineSttEnginePreference(effectivePreferences),
+  );
+  return (
+    (capabilities.data !== undefined &&
+      offlineSpeechAvailable(offlineRoute, capabilities.data)) ||
+    isWebSpeechSupported(platform)
+  );
+}
+
 function combineDictationText(committed: string, interim: string): string {
   return joinSpeechText(committed.trim(), interim.trim());
 }
@@ -273,16 +295,7 @@ export function ChatInterfaceView({
         : null,
     [desktopShortcutPreferences, platform.isDesktop, platform.os],
   );
-  // Offline recognition counts only with the engine that runs installed: the
-  // owner's choice, else the UI Locale's.
-  const offlineRoute = routeOfflineSpeech(
-    i18n.resolvedLanguage,
-    offlineSttEnginePreference(effectivePreferences),
-  );
-  const speechAvailable =
-    (capabilities.data !== undefined &&
-      offlineSpeechAvailable(offlineRoute, capabilities.data)) ||
-    isWebSpeechSupported(platform);
+  const speechAvailable = useSpeechAvailable();
   const speechEngines = composerSpeechEngines({
     preferences: effectivePreferences,
     platform,
@@ -1103,6 +1116,20 @@ export const ChatInterface = ({
     handlers: quickChatHandlers,
     animaId,
     snapshot: quickChatSnapshot,
+  });
+
+  const speechAvailable = useSpeechAvailable();
+  useDesktopPipVoiceOwner({
+    animaId,
+    handlers: quickChatHandlers,
+    voice: {
+      activeMode,
+      canStartVoice: canChat && speechAvailable,
+      isDictationPreparing,
+      isMicCaptureActive,
+      isUserSpeaking,
+      isVoiceMicMuted,
+    },
   });
 
   useDesktopVoiceShortcuts({

@@ -14,7 +14,8 @@ type DesktopShortcutAction =
   | "toggle_dictation"
   | "toggle_voice_mode"
   | "toggle_voice_mute"
-  | "skip_tts";
+  | "skip_tts"
+  | "toggle_pip";
 
 type DesktopKeyboardShortcut = {
   type?: "keyboard";
@@ -43,6 +44,7 @@ type DesktopShortcutsConfig = {
 
 type DesktopShortcutsContext = {
   quickChatAvailable: boolean;
+  pipAvailable: boolean;
   voiceModeAvailable: boolean;
   voiceModeActive: boolean;
   ttsAudioActive: boolean;
@@ -102,7 +104,8 @@ function normalizeShortcutEvent(value: unknown): DesktopShortcutEvent | null {
     value.action !== "toggle_dictation" &&
     value.action !== "toggle_voice_mode" &&
     value.action !== "toggle_voice_mute" &&
-    value.action !== "skip_tts"
+    value.action !== "skip_tts" &&
+    value.action !== "toggle_pip"
   ) {
     return null;
   }

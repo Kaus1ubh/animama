@@ -9,7 +9,8 @@ export type DesktopShortcutAction =
   | "toggle_dictation"
   | "toggle_voice_mode"
   | "toggle_voice_mute"
-  | "skip_tts";
+  | "skip_tts"
+  | "toggle_pip";
 
 export type DesktopKeyboardShortcut = {
   type?: "keyboard";
@@ -42,6 +43,8 @@ export type DesktopShortcutMap = Record<DesktopShortcutAction, DesktopShortcut>;
  * Linux use Alt, since Control with `.` and Space toggles CJK input methods and
  * Control with `;` `'` `]` are Office commands. Quick Chat avoids Option/Alt
  * with Space, the launcher shortcut of ChatGPT, Claude, Raycast and PowerToys.
+ * PiP avoids Control with `[` and `\` (Escape and quit in terminals) and `-`
+ * (VS Code's Go Back on macOS).
  */
 const MACOS_DESKTOP_SHORTCUTS: DesktopShortcutMap = {
   press_to_talk: { code: "Backquote", key: "`", ctrlKey: true },
@@ -50,6 +53,7 @@ const MACOS_DESKTOP_SHORTCUTS: DesktopShortcutMap = {
   toggle_voice_mode: { code: "Semicolon", key: ";", ctrlKey: true },
   toggle_voice_mute: { code: "Quote", key: "'", ctrlKey: true },
   skip_tts: { code: "BracketRight", key: "]", ctrlKey: true },
+  toggle_pip: { code: "Comma", key: ",", ctrlKey: true },
 };
 
 const OTHER_DESKTOP_SHORTCUTS: DesktopShortcutMap = {
@@ -59,6 +63,7 @@ const OTHER_DESKTOP_SHORTCUTS: DesktopShortcutMap = {
   toggle_voice_mode: { code: "Semicolon", key: ";", altKey: true },
   toggle_voice_mute: { code: "Quote", key: "'", altKey: true },
   skip_tts: { code: "BracketRight", key: "]", altKey: true },
+  toggle_pip: { code: "Comma", key: ",", altKey: true },
 };
 
 /** The default shortcuts for `os` (Node's `process.platform` name). */
@@ -252,6 +257,7 @@ export function resolveDesktopShortcuts(
     toggle_voice_mode: resolve("toggle_voice_mode"),
     toggle_voice_mute: resolve("toggle_voice_mute"),
     skip_tts: resolve("skip_tts"),
+    toggle_pip: resolve("toggle_pip"),
   };
 }
 

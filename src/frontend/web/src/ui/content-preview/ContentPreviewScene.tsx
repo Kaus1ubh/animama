@@ -37,7 +37,11 @@ import {
   runtimeContentDownloadUrl,
   type RuntimeContentUrlLease,
 } from "@/lib/runtime-content/runtimeContentDelivery";
-import { runtimeAvatarModelSha256 } from "@/lib/runtime-content/runtimeAvatarFaceParts";
+import { useAvatarLoadSettings } from "@/query/hooks/useAvatarSettings";
+import {
+  resolveRuntimeAvatarFaceParts,
+  runtimeAvatarItemId,
+} from "@/lib/runtime-content/runtimeAvatarFaceParts";
 import type { SceneVFXRuntimeEntry } from "@/lib/scene-vfx/types";
 import {
   applyAvatarTransformToObject,
@@ -143,6 +147,9 @@ function PreviewActor({
     [applySoundPlayer, catalog, onSceneVFXChange],
   );
   const avatarSourceKey = avatarEntry.content_revision;
+  const { springMode, springModeRef, materialMode } = useAvatarLoadSettings(
+    runtimeAvatarItemId(avatarEntry),
+  );
 
   useEffect(() => {
     const releaseAvatar = acquireContentPreviewResource("dock", "avatar");
@@ -173,9 +180,14 @@ function PreviewActor({
   }, [avatarEntry]);
 
   useEffect(() => {
+    avatarInstance?.setSpringMode(springMode);
+  }, [avatarInstance, springMode]);
+
+  useEffect(() => {
     const t = getI18n().getFixedT(null, "actionEditor");
     const avatar = avatarInstance;
-    if (!avatar) return;
+    // Materials are built at load; wait for the Avatar's setting.
+    if (!avatar || !materialMode) return;
     const entry = avatarEntryRef.current;
     const logicalUrl = runtimeContentEntryUrl(entry);
     if (!logicalUrl) {
@@ -202,7 +214,10 @@ function PreviewActor({
           filePath: download.url,
           sourceUrl: logicalUrl,
           sourceKey: avatarSourceKey,
-          vrmSha256: runtimeAvatarModelSha256(entry),
+          // The saved face part correction, so parts match the chat's.
+          ...resolveRuntimeAvatarFaceParts(entry),
+          springMode: springModeRef.current,
+          materialMode,
         });
         if (
           controller.signal.aborted ||
@@ -231,7 +246,14 @@ function PreviewActor({
       }
     })();
     return () => controller.abort();
-  }, [avatarInstance, avatarLoadAttempt, avatarSourceKey, onStatusChange]);
+  }, [
+    avatarInstance,
+    avatarLoadAttempt,
+    avatarSourceKey,
+    materialMode,
+    onStatusChange,
+    springModeRef,
+  ]);
 
   useEffect(() => {
     // Each new preparation, including Retry, either reuses the loaded model or
