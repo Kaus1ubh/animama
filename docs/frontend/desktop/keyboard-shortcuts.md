@@ -176,7 +176,9 @@ ChatInterface
 whether an action is available; the chat runtime owns microphone and playback.
 The scene shell owns PiP, so `MainShell` calls `useDesktopPipShortcut`, which
 reports `pipAvailable` through `setContext` and toggles PiP on `toggle_pip`
-events. Context updates are partial, so each owner reports only its own fields.
+events. It also sends the shortcut map, because the chat is not mounted in
+Avatar-only mode, where PiP stays available. Context updates are partial, so
+each owner reports only its own fields.
 
 ## Main-Process Flow
 

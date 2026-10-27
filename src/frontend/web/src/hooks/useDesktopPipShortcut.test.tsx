@@ -3,21 +3,33 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { defaultDesktopShortcuts } from "@/lib/settings/desktop-shortcuts";
 import { useDesktopPipShortcut } from "./useDesktopPipShortcut";
 
 type ShortcutEvent = { action: string; phase: "down" | "up" };
 
 const bridge = vi.hoisted(() => ({
   listeners: new Set<(event: ShortcutEvent) => void>(),
-  setContext: vi.fn(() => Promise.resolve({})),
+  configure: vi.fn<(config: unknown) => Promise<object>>(() =>
+    Promise.resolve({}),
+  ),
+  setContext: vi.fn<(context: unknown) => Promise<object>>(() =>
+    Promise.resolve({}),
+  ),
+}));
+
+const settings = vi.hoisted(() => ({
+  userPreferences: {} as { speech?: { desktop_shortcuts?: unknown } },
 }));
 
 // The provider hands out one stable platform object, as the app's does.
 const platform = vi.hoisted(() => ({
   kind: "desktop",
   isDesktop: true,
+  os: "darwin",
   desktopBridge: {
     shortcuts: {
+      configure: bridge.configure,
       setContext: bridge.setContext,
       onEvent: (listener: (event: ShortcutEvent) => void) => {
         bridge.listeners.add(listener);
@@ -28,6 +40,9 @@ const platform = vi.hoisted(() => ({
 }));
 vi.mock("@/platform/RuntimePlatformProvider", () => ({
   useRuntimePlatform: () => platform,
+}));
+vi.mock("@/ui/settings/SettingsProvider", () => ({
+  useSettings: () => ({ userPreferences: settings.userPreferences }),
 }));
 
 function Probe({
@@ -62,7 +77,9 @@ describe("useDesktopPipShortcut", () => {
       globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
     ).IS_REACT_ACT_ENVIRONMENT = true;
     bridge.listeners.clear();
+    bridge.configure.mockClear();
     bridge.setContext.mockClear();
+    settings.userPreferences = {};
     container = document.createElement("div");
     document.body.append(container);
     root = createRoot(container);
@@ -102,6 +119,23 @@ describe("useDesktopPipShortcut", () => {
     root = createRoot(container);
     expect(bridge.setContext).toHaveBeenLastCalledWith({
       pipAvailable: false,
+    });
+  });
+
+  it("sends the shortcut map, so a rebinding applies without the chat", async () => {
+    const onToggle = vi.fn();
+    await render(true, onToggle);
+    expect(bridge.configure).toHaveBeenLastCalledWith({
+      shortcuts: defaultDesktopShortcuts("darwin"),
+    });
+
+    const rebound = { code: "KeyP", key: "p", ctrlKey: true };
+    settings.userPreferences = {
+      speech: { desktop_shortcuts: { toggle_pip: rebound } },
+    };
+    await render(true, onToggle);
+    expect(bridge.configure).toHaveBeenLastCalledWith({
+      shortcuts: { ...defaultDesktopShortcuts("darwin"), toggle_pip: rebound },
     });
   });
 
