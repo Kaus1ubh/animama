@@ -15,6 +15,7 @@ from animama.adapters.repositories.sqlalchemy.memory_entry_repo import SQLAlchem
 from animama.adapters.repositories.sqlalchemy.uow import SQLAlchemyUnitOfWork
 from animama.adapters.repositories.sqlalchemy.user_file_processing_repo import SQLAlchemyUserFileProcessingRepository
 from animama.app.chat import memory_tools as memory_tools_module
+from animama.app.chat.memory_context import MEMORY_SYSTEM_GUIDANCE
 from animama.app.chat.memory_cue import AnimaMemoriesTurn
 from animama.app.chat.memory_tools import (
     MEMORY_TOOL_APPLY_PATCH,
@@ -240,6 +241,31 @@ def test_write_tools_carry_the_description_maintenance_rule(name: str) -> None:
     assert "scope or durable contents change materially" in description["description"]
 
 
+def test_memory_guidance_prompts_searching_past_chats_before_answering_from_memory() -> None:
+    assert "Notes from past chats with this user are logged there" in MEMORY_SYSTEM_GUIDANCE
+    assert f"`{MEMORY_TOOL_SEARCH_MEMORY_FILES}` searches that log" in MEMORY_SYSTEM_GUIDANCE
+    assert "search memory before you answer a question about the user's news, plans, projects" in (
+        MEMORY_SYSTEM_GUIDANCE
+    )
+    assert "before you say you do not remember something" in MEMORY_SYSTEM_GUIDANCE
+    assert "If a search finds nothing relevant, search once more with other words." in MEMORY_SYSTEM_GUIDANCE
+    assert "unrelated technical or attachment question" in MEMORY_SYSTEM_GUIDANCE
+
+
+def test_search_memory_tool_advises_distinctive_keywords_matched_on_any_word() -> None:
+    tool = next(
+        tool
+        for tool in memory_tool_specs(allow_reads=True, allow_writes=False)
+        if tool["function"]["name"] == MEMORY_TOOL_SEARCH_MEMORY_FILES
+    )
+    description = tool["function"]["description"]
+
+    assert "episode log of notes from past chats" in description
+    assert "Use 2-5 distinctive keywords" in description
+    assert "A file matches when it contains any keyword or quoted phrase" in description
+    assert "files that match more of them rank first" in description
+
+
 def test_memory_tool_schemas_are_strict_and_do_not_expose_expected_version() -> None:
     tools = memory_tool_specs(allow_reads=True, allow_writes=True)
 
@@ -284,11 +310,11 @@ def test_memory_tool_schemas_are_strict_and_do_not_expose_expected_version() -> 
     assert search_tool["function"]["parameters"]["properties"] == {
         "query": {
             "type": "string",
-            "description": "Search text using PostgreSQL web-search syntax when useful.",
+            "description": "2-5 distinctive keywords or quoted phrases, for example `piano recital Emma`.",
         },
         "include_episodic_memory": {
             "type": "boolean",
-            "description": "Whether generated episode logs are included. Defaults to true for callers.",
+            "description": "true also searches the episode log of past chats; false searches memory files only.",
         },
     }
     assert search_tool["function"]["parameters"]["required"] == ["query", "include_episodic_memory"]
@@ -319,7 +345,6 @@ def test_memory_tool_schemas_are_strict_and_do_not_expose_expected_version() -> 
             ],
         },
     }
-    assert "quoted phrases, OR, and -term exclusions" in search_tool["function"]["description"]
     assert "quoted phrases, OR, and -term exclusions" in upload_tool["function"]["description"]
     upload_description = upload_tool["function"]["description"]
     assert "accessible through uploaded-file tools" in upload_description

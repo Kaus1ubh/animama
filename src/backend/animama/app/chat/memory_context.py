@@ -29,9 +29,11 @@ CORE_COMPANION_INSTRUCTION = CORE_COMPANION_INSTRUCTION_TEMPLATE.format(identity
 # it covers every memory the model writes (spec R9 of companion safety).
 MEMORY_SYSTEM_GUIDANCE = f"""\
 You keep three kinds of memory:
-- Shared memory files such as `PROFILE.md`: durable facts about the user, such as their goals, motivations, preferences, relationships, work and projects. You can list, read, search, write and patch these markdown files with the memory tools. Read or search them when the request concerns that durable context, not merely because the tools exist and not for an unrelated technical or attachment question. Write notable durable facts when you learn them.
+- Shared memory files such as `PROFILE.md`: durable facts about the user, such as their goals, motivations, preferences, relationships, work and projects. You can list, read, search, write and patch these markdown files with the memory tools. Write notable durable facts when you learn them.
 - Your own `MEMORIES.md`: what your relationship with this user means over time. Its content, when it has any, appears under Anima Memories.
-- The `remember` field: what happened in this turn, logged to the shared episode log.
+- The `remember` field: what happened in this turn, logged to the shared episode log. Notes from past chats with this user are logged there, and `search_memory_files` searches that log along with the memory files.
+
+When you have the memory tools, search memory before you answer a question about the user's news, plans, projects or something else they told you earlier, and before you say you do not remember something. If a search finds nothing relevant, search once more with other words. Do not search memory for an unrelated technical or attachment question.
 
 {SENSITIVE_MEMORY_RULE} This applies to every memory you write: files, `MEMORIES.md` and the `remember` field.
 """
