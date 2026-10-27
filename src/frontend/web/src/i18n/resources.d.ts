@@ -6294,6 +6294,7 @@ export default interface Resources {
       "microphone": "Microphone",
       "profile": "Profile",
       "speechToText": "Speech-to-Text",
+      "startup": "Startup",
       "textToSpeech": "Text-to-Speech",
       "webSearch": "Web search"
     },
@@ -6302,6 +6303,15 @@ export default interface Resources {
       "label": "Language",
       "saveFailed": "Failed to change the language.",
       "systemDefaultResolved": "System default ({{language}})"
+    },
+    "launchAtLogin": {
+      "blocked": {
+        "macos": "Animama will not open at login until you allow it in System Settings → General → Login Items & Extensions.",
+        "windows": "Animama will not open at login until you turn it on in Settings → Apps → Startup."
+      },
+      "description": "Open Animama automatically when you log in to your computer.",
+      "label": "Launch at login",
+      "updateFailed": "Could not change Launch at login."
     },
     "modal": {
       "close": "Close App Settings",

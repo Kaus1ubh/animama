@@ -18,7 +18,16 @@
 ; one-click uninstaller switches itself to silent mode after its confirmation,
 ; so the silent flag cannot tell, and installers always run the old uninstaller
 ; with /S (an update also passes --updated).
+;
+; Every uninstall that is not part of an install removes Launch at login, so
+; Windows does not keep starting a missing app. Electron names the entry after
+; the AppUserModelId, which is the app ID. Installers always run the old
+; uninstaller with --updated, so upgrades and reinstalls keep the setting.
 !macro customUnInstall
+  ${IfNot} ${isUpdated}
+    DeleteRegValue HKCU "Software\Microsoft\Windows\CurrentVersion\Run" "${APP_ID}"
+    DeleteRegValue HKCU "Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run" "${APP_ID}"
+  ${EndIf}
   Push $R0
   Push $R1
   ${GetParameters} $R0

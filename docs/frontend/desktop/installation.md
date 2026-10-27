@@ -118,6 +118,9 @@ configured remote AI/voice providers. An installed offline speech model
 transcribes offline; that does not make
 remote chat work offline. Desktop does not need an Animama account for local use.
 
+To open Animama when you log in, turn on Settings → General → **Launch at
+login**. If macOS or Windows blocks it, the setting says where to allow it.
+
 Starter portraits and speech-engine assets are included; your own Local media
 can be imported. Complete starter animation acquisition remains a release gate. See
 [Content policy](../../../content/included/README.md).
@@ -134,7 +137,8 @@ become unavailable. Keep using the current version until the issue is resolved.
 Replacing or removing the application does not erase your local data.
 Reinstalling is not a reset. On Windows, uninstalling from Settings → Apps asks
 afterwards whether to delete `%LOCALAPPDATA%\Animama` as well, naming the
-folder and defaulting to keeping it; upgrades never ask. Quit Animama before a coordinated backup of the
+folder and defaulting to keeping it; upgrades never ask. Uninstalling on
+Windows also removes Launch at login; upgrades and reinstalls keep it. Quit Animama before a coordinated backup of the
 whole data tree; database migration snapshots alone do not include your files
 or vault. Secure-storage recovery can require the original macOS login keychain
 or the same Windows account, so copying the directory is not a guaranteed
