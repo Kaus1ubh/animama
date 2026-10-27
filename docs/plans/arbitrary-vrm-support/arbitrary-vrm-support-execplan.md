@@ -1593,6 +1593,38 @@ licence boundary (diff, history and commit messages), docs or attribution.
   "PR A final candidate".
 - FI-3 accepted: recorded in Progress and Surprises.
 
+### PR A Code Review #2 (targeted recheck)
+
+Passed on `5470e01d`: FI-1 closed for the Library dock and the creators'
+Included model picker, with no regression (preview keys and other kinds'
+metadata unchanged; a null, invalid or other-file correction loads as before).
+One repair round used.
+
+### PR A final candidate
+
+`5470e01d` (tree `31b53f69`), baseline `main` at `d30a6ddc`, macOS arm64, heavy
+jobs through `scripts/heavy-slot.py`:
+
+- Full pre-push suite: `make check-test` 4,884 passed, 29 skipped; `pnpm verify`
+  5,788 passed, 2 skipped; `pnpm web:test:browser` 131 passed (the setup
+  journey's teardown logged React's "Invalid hook call" twice, as in an earlier
+  Phase 3 run; no test failed); `pnpm prettier:check`, `pnpm openapi-ts:check`
+  ("Generated SDK is current"), `pnpm web:build:hosted` and `pnpm desktop:test`
+  (557 passed, 14 skipped) all exit 0.
+- Package-set compatibility (`scripts/package-sets/build.py build` for
+  `d30a6ddc` and `f420eeb5`, then `compare`): passed.
+- Included review renders against `d30a6ddc` (`effects:render --diff` for Eye
+  Confused Swirl, Heart Eyes, Blush, Star, Single Tear, Mouth W, Petrified
+  Cracks and Face Red in both looks; `animation:render` `air-guitar` and
+  `apology-bow`): the Gesture sheets 0 differing pixels; the effect sheets
+  4.17–4.18% (enhanced) and 3.15–3.17% (classic), only in spring-driven hair and
+  Annie's cardigan front, the owner-accepted change.
+- Load-time correction path (median of 5, load average about 5): Andrew 62.3 ms
+  (17 primitives, 3.66 ms each), Annie 49.0 ms (15, 3.27 ms each), against
+  Phase 1's 57.3 and 45.3 ms: within a few milliseconds per primitive.
+- Not rerun on this candidate: the full `pnpm e2e:test` (last run on Phase 3's
+  pre-merge build); it runs again before merge.
+
 ## Validation and acceptance
 
 Spec acceptance criteria, with these checks (from `src/frontend` unless noted):
