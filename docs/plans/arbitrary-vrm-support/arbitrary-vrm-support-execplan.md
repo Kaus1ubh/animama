@@ -356,8 +356,8 @@ tenant-inventory row for `avatar_face_part_overrides`. So:
 - 2026-10-27, owner: offer Diagnostics and the wind and Materials settings on
   Library Avatar cards, and a Diagnostics link on Create Anima's upload
   preview, in PR B (Phase 10). Create Anima gets no settings, since an unsaved
-  upload has no Avatar item to store them on. Issue #691's spec does not list
-  these entry points yet.
+  upload has no Avatar item to store them on. Issue #691's spec lists them
+  since 2026-10-27 (R5, R7, R11, their acceptance and decision 9).
 
 ## Decisions
 

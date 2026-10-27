@@ -2,8 +2,9 @@
 
 Status: Agreed
 Snapshot of https://github.com/raymond-van/animama/issues/691 (published
-2026-10-25T02:59:47Z, captured 2026-10-26T15:45:01Z after the owner's answers, the ADR
-renumbering, the per-Avatar Materials setting and where settings are stored); the issue is authoritative.
+2026-10-25T02:59:47Z, captured 2026-10-27T04:27:43Z after the owner's answers, the ADR
+renumbering, the per-Avatar Materials setting, where settings are stored and the
+Library and Create Anima entry points); the issue is authoritative.
 Owner decision: The owner asked for this spec and its parent issue on
 2026-10-24, answered its open questions on 2026-10-25 and accepted the
 proposed defaults for the rest.
@@ -74,7 +75,8 @@ In scope, by requirement:
 - **R6 Hands.** Thumb and finger poses in Gestures look right on rigs whose
   hand rest pose differs from VRoid's.
 - **R7 Avatar diagnostics.** A diagnostics modal opened from the Anima
-  settings, available in production builds.
+  settings, the Library's Avatar cards and Create Anima's upload preview,
+  available in production builds.
 - **R8 Visible failures.** Detection and effect failures reach the user, not
   only logs.
 - **R9 Rest pose and proportions.** Detect a non-T-pose rest, and scale body
@@ -174,8 +176,9 @@ R5 Wind and spring setting:
   - **Off**.
 - A fourth value, **Springs off**, stops spring simulation entirely; springs
   hold their rest pose.
-- The setting is edited from the Anima settings for the Anima's Avatar and
-  applies live without reloading the Avatar.
+- The setting is edited from the Anima settings for the Anima's Avatar, or
+  from the Avatar's card in the Library, and applies live without reloading
+  the Avatar.
 - It persists per owner and Avatar item, for Local and Included Avatars
   alike, outside the Avatar's file and sidecar, so saving neither creates a
   new Avatar revision nor reloads the Avatar. A Local Avatar file that is
@@ -212,6 +215,18 @@ R7 Avatar diagnostics:
   - **Materials:** for an Avatar with lilToon materials, the effective
     Materials mode (R11) and why.
   - **Warnings:** everything R8 collects.
+- The same modal opens from an Avatar's card in the Library, for Included
+  and Local Avatars, and from Create Anima's upload preview for the chosen
+  file before it is saved. Effect warnings appear only when it opens from
+  an Anima, since they depend on that Anima's Gestures and Reactions. A
+  report for an unsaved upload names no file.
+- Create Anima's upload preview shows a one-line status (checking, no
+  problems found, or the number of problems) with a link to the modal. A
+  file that fails to load still shows its file facts and the error there.
+- A Library Avatar card also offers the Avatar's settings, "Wind and
+  ambient forces" (R5) and Materials (R11), beside Diagnostics. Create
+  Anima offers no settings: an unsaved upload has no Avatar item to store
+  them on.
 - A **Copy report** action copies a text summary for support.
 - A **Raw JSON** view shows the same report as JSON, with its own copy action.
 - The modal ships in local builds. Hosted builds include it only if that
@@ -264,8 +279,9 @@ R11 lilToon frame cost:
     time says it is too slow for it, then Simple;
   - **lilToon:** always the authored look;
   - **Simple:** the fallback materials.
-- The Materials setting is edited in the Anima settings beside "Wind and
-  ambient forces" and persists per Avatar the same way as that setting (R5).
+- The Materials setting is edited beside "Wind and ambient forces", in the
+  Anima settings and on the Avatar's Library card, and persists per Avatar
+  the same way as that setting (R5).
   It applies when the Avatar reloads, not live, because materials are built at
   load. Avatars without lilToon materials do not show it.
 - An app-wide quality setting is added only if the per-Avatar setting does not
@@ -326,13 +342,16 @@ R13 Package sharing:
 - [ ] R4: every `Fcl_*` name in Included content resolves on a preset-only
   synthetic model, or is reported. Positive-emotion mouths are checked by
   render.
-- [ ] R5: the setting round-trips for a Local and an Included Avatar, applies
-  live, and Automatic matches today's behaviour.
+- [ ] R5: the setting round-trips for a Local and an Included Avatar from the
+  Anima settings and the Library, applies live, and Automatic matches
+  today's behaviour.
 - [ ] R6: Double Thumbs Up and other hand Gestures look right on a converted
   test Avatar (owner review), with Included renders unchanged.
-- [ ] R7: the modal opens from the Anima settings in a production build, shows
-  every section for an Included and a Local Avatar, copies a report, and passes
-  keyboard and localization checks.
+- [ ] R7: in a production build, the modal opens from the Anima settings and a
+  Library Avatar card for an Included and a Local Avatar, and from Create
+  Anima's upload preview for an unsaved file, including one that fails to
+  load. It shows every section, copies a report, and passes keyboard and
+  localization checks.
 - [ ] R8: each failure kind appears in the modal, and the creator notice
   appears for a skipped effect.
 - [ ] R9: an A-pose test model is reported, or normalized. Body effects and
@@ -342,7 +361,8 @@ R13 Package sharing:
   plus the method). The chosen reductions meet the agreed target on the
   reference machine. The owner reviews the look in private renders. Fallback
   materials render with their base colours. The Materials setting round-trips
-  for a Local and an Included Avatar, appears only for lilToon Avatars,
+  for a Local and an Included Avatar from the Anima settings and the Library,
+  appears only for lilToon Avatars,
   Automatic follows the GPU check, and switching reloads the Avatar with the
   chosen materials. Included renders are unchanged.
 - [ ] R12: on a synthetic model with MMD morphs, each mapped region plays its
@@ -379,6 +399,9 @@ Answered by the owner on 2026-10-25 (6 to 8 take the proposed defaults):
 8. A model with no VRoid parts, MMD morphs, ARKit shapes or mood presets keeps
    a neutral face; moods show through motion and effects, and diagnostics say
    so. Lids are not lowered and mouth visemes are not used for moods.
+9. Added 2026-10-27 (owner): Diagnostics and the Avatar settings are also
+   offered on the Library's Avatar cards, and Diagnostics on Create Anima's
+   upload preview (R5, R7, R11). They are delivered in the second PR.
 
 ## Spec
 
