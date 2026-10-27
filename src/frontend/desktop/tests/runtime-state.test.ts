@@ -171,7 +171,7 @@ describe("private local state and vault", () => {
     ).not.toBe(password);
   });
 
-  it("opens a vault an Electron 44 build wrote with the synchronous API", async () => {
+  it("opens a vault in the layout Electron 44 builds saved", async () => {
     const file = path.join(fixture(), "vault.bin");
     const crypto = encryption();
     const connection = "ANIMAMA_CONNECTION_C_0123456789AB_API_KEY";
@@ -244,6 +244,22 @@ describe("private local state and vault", () => {
         }
       },
     };
+
+    // A rewrite that fails fails the open and keeps the earlier file.
+    const sealed = readFileSync(file);
+    await expect(
+      CredentialVault.open(
+        file,
+        {
+          ...rotated,
+          encryptStringAsync: async () => {
+            throw new Error("Error while encrypting the text");
+          },
+        },
+        true,
+      ),
+    ).rejects.toThrow("secure_storage_unavailable");
+    expect(readFileSync(file)).toEqual(sealed);
 
     const vault = await CredentialVault.open(file, rotated, true);
     expect(vault.childEnvironment()).toEqual({

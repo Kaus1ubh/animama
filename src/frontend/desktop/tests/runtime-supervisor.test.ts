@@ -675,6 +675,32 @@ describe("runtime supervision", () => {
     expect(existsSync(current.options.paths.vault)).toBe(true);
   });
 
+  it("reports a refused Keychain as unavailable secure storage and starts nothing until a later start", async () => {
+    const first = create();
+    await first.runtime.start();
+    await first.runtime.stop();
+    const vault = readFileSync(first.options.paths.vault);
+    const postgresStarts = fixture.postgresStarts.mock.calls.length;
+    const current = create(first.options.paths);
+    const { decryptStringAsync } = current.options.encryption;
+    current.options.encryption.decryptStringAsync = async () => {
+      throw new Error(
+        "safeStorage.decryptStringAsync is temporarily unavailable. Please try again.",
+      );
+    };
+    await current.runtime.start();
+    expect(current.runtime.status()).toEqual({
+      state: "error",
+      code: "secure_storage_unavailable",
+    });
+    expect(fixture.postgresStarts).toHaveBeenCalledTimes(postgresStarts);
+    expect(readFileSync(current.options.paths.vault)).toEqual(vault);
+
+    current.options.encryption.decryptStringAsync = decryptStringAsync;
+    await current.runtime.start();
+    expect(current.runtime.status().state).toBe("ready");
+  });
+
   it("refuses an elevated Windows launch before verifying or creating anything", async () => {
     const platform = vi.spyOn(process, "platform", "get");
     platform.mockReturnValue("win32");

@@ -164,6 +164,7 @@ function validateEntry(entry: VaultEntry): void {
 /**
  * Electron rejects with only this message when a key may come back, such as a
  * locked or denied macOS Keychain; any other decrypt failure is permanent.
+ * Recheck the message (`electron_api_safe_storage.cc`) on every Electron upgrade.
  */
 function temporarilyUnavailable(error: unknown): boolean {
   return (

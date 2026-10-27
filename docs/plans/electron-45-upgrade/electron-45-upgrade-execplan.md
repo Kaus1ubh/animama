@@ -55,9 +55,10 @@ Read from Electron's `docs/breaking-changes.md` at `v45.0.0` and checked against
   `window.open()` children of unsandboxed windows, `requestStorageAccessFor`,
   workers in subframes and DevTools extension frames: not used (every
   `window.open` is denied).
-- ASAR file descriptors work only through `fs`. Main opens descriptors only for
-  user-data files (logs, locale cache, migrations, atomic writes); the native
-  input addon is unpacked from ASAR.
+- ASAR file descriptors work only through `fs`. Every descriptor main opens is
+  for a file outside ASAR (logs, locale cache, migrations, atomic writes, packs,
+  downloads, pack signatures, update files); the native input addon is unpacked
+  from ASAR.
 - `safeStorage.isEncryptionAvailable`, `encryptString` and `decryptString` are
   deprecated (removed in 46). The vault is the only user.
 - A typings diff between `electron@44.9.3` and `45.0.0` finds no other newly
@@ -104,6 +105,16 @@ From Electron 45's `shell/browser/api/electron_api_safe_storage.cc` and
   same Chromium key providers; only the deprecation is new in 45.
 - The synchronous and asynchronous APIs produce the same `v10` format, so the
   vault file format does not change.
+- Electron's documentation says that after `shouldReEncrypt` "you should call
+  `decryptStringAsync` again to receive the new decrypted string". Chromium's
+  `Encryptor` sets the flag when the data's provider is not the encryption
+  provider, which means re-encrypting with the current key; the vault does that.
+- Electron's `safe-storage.md` mentions an `isTemporarilyUnavailable`
+  indicator, but 45.0.0 exposes the condition only through the rejection
+  message, which the vault matches.
+- The default macOS staging uv cache, `/private/tmp/animama-uv-cache`, was
+  partly deleted by macOS's temporary-folder cleanup (158 of 359 wheels lost
+  files), which broke `uv` during staging.
 - The recovery text for `secure_storage_unavailable` on macOS said "Unlock your
   login keychain and retry". With the asynchronous encryptor cached for the
   process lifetime, Retry cannot recover a refused Keychain request; the text
@@ -162,15 +173,107 @@ Changes:
 7. The macOS `secure_storage_unavailable` recovery text (five locales) and the
    docs listed above.
 
-Check record: added as checks run.
+Check record (macOS 26.6 arm64, Node 24.15.0, pnpm 10.33.0, `src/frontend`
+unless stated). Unit and harness checks ran on the working tree that became
+`f9c3c584` (tree `22b2865c`); the native rows ran on `f9c3c584` itself.
+
+| Command | Result |
+| --- | --- |
+| `pnpm -C desktop check` | pass |
+| `vitest run tests/runtime-state.test.ts tests/runtime-supervisor.test.ts` (`desktop`) | 121 passed, 3 skipped |
+| Mutation: vault writes not queued / no rewrite on `shouldReEncrypt` | the ordering test / the rotation test fails |
+| `pnpm desktop:test` | 561 passed, 14 skipped (32 files) |
+| `pnpm desktop:test:vault` | `vault encryption (all): OK` (real Keychain, Electron 45.0.0; Electron prints its `encryptString` deprecation for the legacy write) |
+| Cross-binary: harness `write-legacy` under Electron 44.9.3, then `check-legacy` under 45.0.0 (same folder) | both OK; the file starts `v10` before and after the asynchronous rewrite |
+| Reverse probe: `encryptStringAsync` under 45.0.0, `decryptString` under 44.9.3 | plaintext recovered |
+| Main-process `fetch` header probe, Electron 44.9.3 and 45.0.0 | identical headers, matching `tests/test_desktop_credentials_route.py` |
+| `pnpm desktop:test:native-input` | 1046 assertions pass; the addon also loads under Electron 45 (`ELECTRON_RUN_AS_NODE`, ABI 150) |
+| `dist/preload.cjs` imports (esbuild metafile) | only `electron`; no `Buffer`/`setImmediate`/`clearImmediate` |
+| `pnpm i18n:check`, `pnpm prettier:check` | pass |
+| `pnpm desktop:runtime:stage` / `desktop:runtime:audit` (darwin-arm64) | `runtime audit: OK`; embedded Electron 45.0.0, Node 24.22.0; download 383,778,644 / 786,432,000 bytes, installed 854,853,394 / 1,610,612,736 |
+| `pnpm desktop:mac` | `Unsigned development app: release/mac/Animama.app; runtime inventory: OK` |
+| `pnpm desktop:dist:mac -- --signing-rehearsal` | 166 native files signed and verified, 8 nested bundles; app passes `codesign --verify --deep --strict` (hardened runtime, Team ID, secure timestamp), DMG verifies; `release_ready: false`, not submitted; Gatekeeper rejects it as unnotarized |
+| electron-builder 26.18 Windows `dir` build from macOS with the real `electron-v45.0.0-win32-x64.zip` (development options, stand-in runtime) | pass: `Animama.exe` edited (Animama version strings, 16–256 px icon), `app.asar` holds main, preload and the unpacked addon, nothing signed; `electron.exe` is still the only top-level executable |
+| Supervised unpackaged launch (`ANIMAMA_DESKTOP_DEV_RUNTIME_ROOT` = the stage, disposable `ANIMAMA_DESKTOP_DEV_USER_DATA`) | reached `Runtime starting: vault`, then waited on the macOS Keychain prompt for "Animama Safe Storage" (owner gate) |
+| Full pre-push suite on `f9c3c584` (clean tree `22b2865c`, through `scripts/heavy-slot.py`) | `make check-test` (root): ruff format (865 files) and check, mypy, pytest 4875 passed, 29 skipped; `pnpm verify`: 593 files, 5704 passed, 1 skipped; `pnpm web:test:browser`: 131 passed; `pnpm desktop:test`: 561 passed, 14 skipped; `pnpm prettier:check`: pass |
+
+The cross-binary rows ran by hand, from `src/frontend/desktop` after
+`pnpm desktop:test:vault` had built the harness, with `ELECTRON_RUN_AS_NODE`
+unset and Electron 44.9.3 extracted from Electron's download cache
+(`electron-v44.9.3-darwin-arm64.zip`):
+
+```sh
+ROOT="$(mktemp -d "$(realpath "$TMPDIR")/vault-cross-XXXXXX")"
+<electron-44.9.3>/Electron.app/Contents/MacOS/Electron \
+  .desktop-runtime/tools/vault-encryption-harness.mjs write-legacy "$ROOT"
+"$(node -e 'console.log(require("electron"))')" \
+  .desktop-runtime/tools/vault-encryption-harness.mjs check-legacy "$ROOT"
+rm -rf "$ROOT"
+```
+
+On Windows the same two phases use each version's `electron.exe`.
+
+The first staging attempt failed in `uv`: macOS's temporary-folder cleanup had
+removed files from 158 of 359 wheels in the default macOS staging cache,
+`/private/tmp/animama-uv-cache`. Staging succeeded with
+`UV_CACHE_DIR=$HOME/Library/Caches/Animama/uv-cache`; the default cache location
+is a follow-up outside this plan.
 
 #### Code Review #1 Findings
 
-Pending.
+Reviewed source: `f9c3c584` (tree `22b2865c`) plus this record; baseline
+`d30a6ddc`. Two independent reviewers: analysis, and checks (reran
+`pnpm -C desktop check`, `desktop:test` 561 passed, `desktop:test:vault`,
+`desktop:test:native-input` plus an Electron 45 addon load, `i18n:check`,
+`pytest tests/test_desktop_credentials_route.py` 87 passed, the version pins and
+the preload metafile; all reproduced the record). Result: pass, no blocking
+findings.
+
+- C1: no test that a failed rewrite on `shouldReEncrypt` fails the open.
+- C2: no supervisor test of a failed asynchronous open (status code, no
+  services started, a later start opens the vault).
+- C3 / F2: the cross-binary run has no exact commands in the record and cannot
+  be repeated from it; the harness's legacy write needs rework when Electron 46
+  removes `encryptString`.
+- F1: R3's refused-Keychain mapping has only fake evidence and depends on
+  Electron's message; the deny-once owner check was optional.
+- F3: the unpackaged launch stops at the Keychain prompt, so #737's launch
+  criterion is still open.
+- F4: `desktop-runtime.md` narrated the change ("the file format did not
+  change").
+- F5: the "Electron 44 build wrote with the synchronous API" test name claims
+  crypto compatibility that only the native harness proves.
+- F6 (optional): the preload guard catches built-in imports but not the removed
+  `Buffer`/`setImmediate`/`clearImmediate` globals.
+- F7: the ASAR survey item listed too few descriptor users.
 
 #### Code Review #1 Revisions
 
-Pending.
+- C1: fixed. The rotation test also opens with a failing encryptor and expects
+  `secure_storage_unavailable` with the file unchanged; swallowing the rewrite
+  error makes it fail.
+- C2: fixed. A supervisor test reopens an existing vault with a decryptor that
+  rejects as temporarily unavailable: status `secure_storage_unavailable`, no
+  PostgreSQL start, vault unchanged, and the next start is ready. Mapping the
+  rejection to `vault_unreadable` makes it fail.
+- C3 / F2: fixed in the record (exact commands above). The Electron 46 rework is
+  left to that upgrade, when the typings drop `encryptString` and `pnpm check`
+  fails on the harness.
+- F1: fixed. The deny-once check is now a required owner gate, and the vault
+  comment says to recheck the message on every Electron upgrade.
+- F3: accepted as an owner gate; it needs the owner to allow the Keychain
+  prompt.
+- F4: fixed ("both write the same `v10` format").
+- F5: fixed (renamed "opens a vault in the layout Electron 44 builds saved").
+- F6: not changed. The guard reads the esbuild import metafile, which cannot
+  see globals, and a text scan of the bundle would also match strings and
+  comments. The built preload has none today.
+- F7: fixed in the survey.
+
+Checks after the revisions: `vitest run tests/runtime-state.test.ts
+tests/runtime-supervisor.test.ts` 122 passed, 3 skipped; both mutations above
+fail the new tests. At the high-risk tier every repair gets a recheck: see
+Code Review #2.
 
 ## Final integration review
 
@@ -186,9 +289,13 @@ owner:
   `desktop:win:installer`, then `pnpm desktop:dist:windows -- --signing-rehearsal`
   and the Windows signed build.
 - The first launch of each unpackaged or newly signed macOS build asks for the
-  "Animama Safe Storage" Keychain item. Allow it and confirm the existing vault
-  opens with its keys. Optionally deny once and confirm the recovery page shows
-  the secure-storage message, then quit, reopen and allow.
+  "Animama Safe Storage" Keychain item. Allow it, confirm the supervised
+  unpackaged launch reaches `Runtime ready`, and confirm an existing vault opens
+  with its keys (#737's unpackaged-launch criterion stays open until then).
+- R3 natively: deny that prompt once and confirm the recovery page shows the
+  macOS secure-storage message (not `vault_unreadable`) and the vault file is
+  unchanged; then quit, reopen and allow. Only a fake has exercised the
+  rejection message the vault matches.
 - Native acceptance with Electron 45 on both platforms: microphone permission
   and dictation, voice mode audio, PiP, quick chat, global Press-to-talk, saving
   and removing a provider key, runtime recovery and an update check.
