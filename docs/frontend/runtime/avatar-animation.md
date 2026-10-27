@@ -307,6 +307,38 @@ Important behavior:
   diagnostics. Manual debug reaction playback is runtime-only:
   it does not enqueue planner events or mutate canonical emotion state.
 
+#### Hand rest normalization
+
+Hand shapes, catalog poses (including `relaxedRest`), Gesture hand tracks,
+talking hands, VRMA playback and Pose creator authoring all write finger
+rotations for VRoid's hand: at rest its fingers lie straight along the arm,
+palms down, with the thumbs angled forward. A model whose hand rests otherwise
+(fingers bent down, the hand rolled, thumbs further forward, as on many
+converted VRChat Avatars) would bend them in the wrong planes.
+
+At load, `prepareLoadedVrm` calls `installHandRestNormalization`
+(`poses/anatomy/handRest.ts`). It measures each hand and finger bone's rest
+frame (bone direction and palm normal) against VRoid's, measured on Annie, and
+when any differs by 5° or more it normalizes both hands:
+
+- The instance's `humanoid.update` transfers each corrected bone's rotation N
+  as `W_parent⁻¹ · N · W_bone`, where `W` turns the model's rest frame into
+  VRoid's, and restores the authored rotations afterwards. Every `vrm.update`
+  passes through it, so every writer above is covered, in the app,
+  `animation:render` and the tests alike.
+- The normalized rig's hand and finger child offsets (and three-vrm's
+  normalized rest pose) are turned by their parent's `W`, so the normalized
+  hand has VRoid's shape with the model's lengths. Readers of normalized
+  geometry (thumb and pinch fits, fingertip and palm contacts, Pose creator
+  markers) then see the hand as drawn.
+- Each bone is measured from its nearest present ancestor, as three-vrm
+  parents it; a bone with nothing to measure (no later bone in its digit)
+  follows its parent rigidly.
+
+The Included Avatars and VRoid models are within the tolerance and take the
+same path as before. A normalized hand rests straight, palm down, like
+VRoid's; the idle pose bends it as on the Included Avatars.
+
 ### Pose and clip JSON artifacts
 
 `AnimaPose` and `AnimaPoseClip` are separate JSON artifacts. `animaPoseClip/2.0`

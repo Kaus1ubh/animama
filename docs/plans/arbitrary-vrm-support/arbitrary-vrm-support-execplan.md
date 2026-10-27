@@ -213,7 +213,8 @@ tenant-inventory row for `avatar_face_part_overrides`. So:
 - [ ] Phase 4: Expression content and MMD face shapes (R4, R12). Implemented,
   checked and review passed 2026-10-27; the owner gate (private mood renders,
   live lip-sync checks, two confirmations) is pending.
-- [ ] Phase 5: Hands (R6). Not started.
+- [ ] Phase 5: Hands (R6). Implemented, checked and review passed
+  2026-10-27; the owner gate (private hand Gesture renders) is pending.
 - [ ] Phase 6: Texture layouts (R2). Not started.
 - [ ] Phase 7: Rest pose, proportions and enhanced rendering (R9, R10). Not started.
 - [ ] Phase 8: Package sharing (R13). Not started.
@@ -422,6 +423,24 @@ tenant-inventory row for `avatar_face_part_overrides`. So:
     happy on VRoid samples, where Annie's verified profile needs 1), so
     measuring them would let blink collapse the lashes. Annie keeps her
     verified profile; Andrew, a VRoid face, keeps the default as before.
+- 2026-10-27, agent (Phase 5, within the plan):
+  - The correction is exact rather than a constant multiplier after the
+    transfer: the wrapper sets each corrected bone's normalized rotation N to
+    `W_parent⁻¹ · N · W_bone` for three-vrm's transfer and restores it after,
+    which equals the constant post-transfer form only when N and W share an
+    axis.
+  - Instead of giving each normalized-space reader the correction, the
+    normalized rig's hand and finger child offsets (and three-vrm's normalized
+    rest pose, used by resets) are turned by their parent's `W` once at load.
+    With the exact correction every bone's drawn frame is its normalized frame
+    times `W`, so the normalized rig then matches the drawn hand and the
+    thumb and pinch fits, contact points and motion checks need no change.
+  - The hand bone itself is corrected with the fingers: the converted test
+    Avatar's hand rests bent about 22° down and rolled about 20°, and
+    straightening only the fingers would kink them against the palm.
+  - The reference frames are Annie's (Andrew agrees within 0.2°) and the
+    tolerance is 5°; the Included Avatars and the VRM 0 VRoid fixture measure
+    under it, the converted test Avatar 38° over 32 bones.
 
 ## Decisions
 
@@ -1430,15 +1449,96 @@ Completion: R6 acceptance; owner gate passed.
 
 Recovery: load-time correction only.
 
-Check record: (to fill) · Commits: (to fill)
+Check record (2026-10-27, macOS arm64, worktree on
+`feat/arbitrary-vrm-support-pr-b` from `dc5dc5f2`):
+
+- New `poses/anatomy/handRest.test.ts` on a synthetic VRM 1.0 humanoid whose
+  hand rests bent 30° and rolled 20°: VRoid-like hands and both Included
+  Avatars are left alone (no normalization, three-vrm's own `update`); the
+  turned hand rests as VRoid's; a curl and a thumb raise bend as on VRoid
+  while the authored rotations stay as written; thumbs-up, fist and point
+  hand shapes (`handShapeRotations`, thumb fits included) match VRoid's; the
+  contact solver's forward kinematics put the fingertip on the drawn one
+  (within 0.1 mm), and
+  a pose reset keeps the normalized hand's shape; `prepareLoadedVrm` installs
+  it and `animation:render`'s `render.ts` loads through `prepareLoadedVrm`.
+- `npx vitest run src/lib/avatar src/ui tests/avatar` (`src/frontend/web`):
+  332 files, 3,331 passed, 2 skipped; tsc (`tsconfig.app.json`), eslint and
+  Prettier on the changed files: pass.
+- `animation:render` of Double Thumbs Up, Count on Fingers, Cheeky Finger
+  Guns and Double Peace Pop, body and right-hand views, `dc5dc5f2` against the
+  phase end: 8 sheets at 0 differing pixels.
+- Load-time corrections (median of 5): Andrew 58.9 ms (Phase 4 end 56.5),
+  Annie 47.3 ms (46.2), measured at load average 7 from other sessions; the
+  added measurement is 32 frame comparisons.
+- Private: the converted test Avatar is normalized (38° at most, 32 bones);
+  its Double Thumbs Up, Count on Fingers, Cheeky Finger Guns and Double Peace
+  Pop hand renders are in the private renders folder (`p5-hands`): thumbs up,
+  fists and pointing read correctly, for the owner gate.
+
+Commits: `feat(avatars)[p5]: normalize hands that rest unlike VRoid's`
 
 #### Code Review #1 Findings
 
-Not run.
+Independent reviewer, standard tier, initial review of working tree `cec89ecb`
+against `dc5dc5f2`. It confirmed the design argument by probe (random raw rest
+rotations, extra non-humanoid nodes, VRM 1 and VRM 0, both hands, random poses:
+normalized and drawn joints within 1.1e-15 m) and the Included margins (Annie
+0.04°, Andrew 0.16°, the VRM 0 fixture 0.19°).
+
+- P5-R1-F1 (blocking): the chain assumed every finger bone exists. A digit
+  with an unmapped intermediate bone, or a thumb without a metacarpal (three-vrm
+  produces that for some VRM 0 files), was left uncorrected under a corrected
+  hand, with its offsets turned by an absent parent: joints up to 50 mm from
+  the drawn ones and curls 10–16° off.
+- P5-R1-F2 (blocking): the Checks ask for a catalog pose and talking hands;
+  neither had a case, and the fingertip case compares forward kinematics with
+  the drawn tip rather than solving a contact.
+- Optional: no VRM 0 or right-hand case; the guide listed the motion checks
+  (which load without `prepareLoadedVrm`) among readers; `handRestNormalizationOf`
+  only served the test; no load log line; `frameRotation` degenerates when a
+  segment runs along the palm normal; the `render.ts` check is a source match.
 
 #### Code Review #1 Revisions
 
-Not run.
+- F1 accepted: each digit's present bones are measured from the nearest
+  present one before it, as three-vrm parents them; a bone with nothing to
+  measure follows its parent rigidly; offsets and the wrapper use those
+  parents (`bones` map with `parent`). Tests: without an intermediate bone and
+  without a metacarpal, normalized and drawn joints agree (under 1 µm) and the
+  index and thumb bend as on VRoid (both fail on the reviewed tree, per the
+  reviewer's probe).
+- F2 accepted: a `relaxedRest` case through `applyCanonicalPose` (the motion
+  checks' and playback's path) matches VRoid's bends; talking hands write the
+  same normalized rotations and pass through the same wrapper, which the
+  rig-level tests cover, so they get no case of their own. The record now
+  calls the fingertip case a forward-kinematics check: the contact solver uses
+  that FK.
+- Optional, accepted: the VRM 0 fixture joins the left-alone case (both hands
+  are measured on every model); guide wording; `handRestNormalizationOf`
+  removed; `Avatar.load` logs a normalization; `frameRotation` returns
+  identity without a frame. Not taken: a turned VRM 0 rig (the reviewer's
+  probe found it within 1.42°) and a runtime check of `render.ts` (a browser
+  script; the source check stays).
+- Rechecks: `npx vitest run src/lib/avatar/poses src/lib/avatar/prepareLoadedVrm.test.ts
+  src/lib/avatar/avatarLoadTiming.test.ts src/lib/avatar/includedAvatarBaselines.test.ts
+  tests/avatar` 38 files, 788 passed; tsc and eslint on the changed files pass
+  (working tree `e49ec26d`). Targeted recheck: Code Review #2.
+
+#### Code Review #2 Findings
+
+Targeted recheck of working tree `e49ec26d`: P5-R1-F1 and F2 resolved, no
+regressions. The reviewer's probe covered seven combinations of unmapped
+bones on both hands, VRM 1 and VRM 0 (normalized and drawn joints within
+7.3e-16 m; bends within 1.2° of a VRoid-like rig missing the same bones), the
+unchanged full chains and the degenerate-frame fallback. Optional: the module
+comment still listed the motion checks; the check record named no trees.
+
+#### Code Review #2 Revisions
+
+- The module comment now names Pose creator markers instead (wording,
+  verified by reading); the review rechecks name their tree. Review passed.
+  Phase 5 is agent-ready; the owner gate is pending.
 
 ### Phase 6: Texture layouts
 
