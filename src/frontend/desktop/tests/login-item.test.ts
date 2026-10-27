@@ -92,4 +92,16 @@ describe("open at login", () => {
       "login_item_unchanged",
     );
   });
+
+  it("keeps a macOS item that is waiting for approval as a successful change", () => {
+    const mac = host({});
+    mac.setLoginItemSettings.mockImplementation(() => {
+      mac.current.status = "requires-approval";
+    });
+    expect(new LoginItem(mac, "darwin").setEnabled(true)).toEqual({
+      available: true,
+      enabled: true,
+      blockedBySystem: true,
+    });
+  });
 });

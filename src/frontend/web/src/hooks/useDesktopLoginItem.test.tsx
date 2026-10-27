@@ -30,15 +30,15 @@ const on: LoginItemStatus = { ...off, enabled: true };
 const result = {
   current: null as unknown as ReturnType<typeof useDesktopLoginItem>,
 };
-function Probe() {
-  result.current = useDesktopLoginItem();
+function Probe({ shown }: { shown?: boolean }) {
+  result.current = useDesktopLoginItem(shown);
   return null;
 }
 
 let container: HTMLDivElement;
 let root: Root;
-async function render() {
-  await act(async () => root.render(<Probe />));
+async function render(shown?: boolean) {
+  await act(async () => root.render(<Probe shown={shown} />));
 }
 
 beforeEach(() => {
@@ -59,6 +59,16 @@ describe("useDesktopLoginItem", () => {
     bridge.status.mockResolvedValue({ ...on, blockedBySystem: true });
     await act(async () => window.dispatchEvent(new Event("focus")));
     expect(result.current.status).toEqual({ ...on, blockedBySystem: true });
+  });
+
+  it("reads it on focus only while the setting is shown", async () => {
+    await render(false);
+    expect(bridge.status).toHaveBeenCalledOnce();
+    await act(async () => window.dispatchEvent(new Event("focus")));
+    expect(bridge.status).toHaveBeenCalledOnce();
+    bridge.status.mockResolvedValue(on);
+    await render(true);
+    expect(result.current.status).toEqual(on);
   });
 
   it("shows the state the OS holds after a change, and after a refused one", async () => {

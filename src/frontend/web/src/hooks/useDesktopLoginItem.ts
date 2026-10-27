@@ -5,8 +5,10 @@ import { useRuntimePlatform } from "@/platform/RuntimePlatformProvider";
 /**
  * Whether the OS opens the packaged desktop app at login. Only the main
  * embedded window may read or change it; elsewhere it is unavailable.
+ * `shown` is whether the setting is on screen: only then is the state read
+ * again when the window regains focus.
  */
-export function useDesktopLoginItem() {
+export function useDesktopLoginItem(shown = true) {
   const platform = useRuntimePlatform();
   const desktop = platform.kind === "desktop" ? platform.desktopBridge : null;
   const bridge = desktop?.windowRole === "main" ? desktop.loginItem : undefined;
@@ -25,11 +27,12 @@ export function useDesktopLoginItem() {
   useEffect(() => {
     if (!bridge) return;
     void refresh();
+    if (!shown) return;
     // The user may allow or remove the login item in the OS settings, then
     // come back to the app.
     window.addEventListener("focus", refresh);
     return () => window.removeEventListener("focus", refresh);
-  }, [bridge, refresh]);
+  }, [bridge, refresh, shown]);
 
   /** Change the OS setting; rejects when the OS keeps its current state. */
   const setEnabled = useCallback(

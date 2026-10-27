@@ -1242,7 +1242,7 @@ export function ApplicationSettingsModal({
   // The updates panel renders nothing while updates are unavailable (browser,
   // unpackaged or unsupported desktop), so its entry is hidden then too.
   const desktopUpdates = useDesktopUpdates();
-  const loginItem = useDesktopLoginItem();
+  const loginItem = useDesktopLoginItem(open);
   const credentialsAvailable = useDesktopCredentialsAvailable();
   const desktopShortcutsAvailable =
     platform.isDesktop && Boolean(platform.desktopBridge.shortcuts);
