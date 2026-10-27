@@ -326,7 +326,7 @@ export class RuntimeSupervisor {
         mkdirSync(this.options.paths.base, { recursive: true, mode: 0o700 });
         this.stage("vault");
         if (!this.vault) await this.options.beforeNewVault?.();
-        this.vault ??= new CredentialVault(
+        this.vault ??= await CredentialVault.open(
           this.options.paths.vault,
           this.options.encryption,
           hasDatabaseData(this.options.paths),
@@ -920,7 +920,7 @@ export class RuntimeSupervisor {
         this.credentialFailures.delete(credentialTarget(change));
       try {
         // One encrypted write: either every change is saved or none is.
-        this.vault.apply(batch);
+        await this.vault.apply(batch);
       } catch (error) {
         // Nothing was saved, so the running backend already matches the vault.
         this.recordCredentialFailures(batch, runtimeErrorCode(error), false);

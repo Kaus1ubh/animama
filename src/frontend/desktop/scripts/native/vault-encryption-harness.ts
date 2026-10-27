@@ -1,28 +1,91 @@
 import { app, safeStorage } from "electron";
 import { readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
+import {
+  atomicWrite,
+  privateDirectory,
+} from "../../src/main-process/runtime/atomic-file.js";
 import { RuntimeError } from "../../src/main-process/runtime/errors.js";
-import { CredentialVault } from "../../src/main-process/runtime/vault.js";
+import {
+  awaitDurableEncryptionKey,
+  CredentialVault,
+} from "../../src/main-process/runtime/vault.js";
 
 /**
  * Exercise the credential vault with the operating system's real protected
  * storage (DPAPI on Windows, Keychain on macOS). The runner passes a disposable
  * folder for both the vault and Electron's profile, and removes it afterwards.
  * On macOS, safeStorage still adds an "Electron Safe Storage" Keychain item.
+ *
+ * Usage: `vault-encryption-harness [phase] <disposable folder>`. The default
+ * phase, `all`, runs every check in one Electron. `write-legacy` and
+ * `check-legacy` split the upgrade check across two Electron binaries: an
+ * earlier release writes the vault, the current one opens the same folder.
  */
-const root = process.argv.at(-1);
-if (!root || !path.isAbsolute(root))
-  throw new Error("usage: vault-encryption-harness <disposable folder>");
-app.setPath("userData", path.join(root, "electron"));
+const legacy = {
+  password: "d".repeat(64),
+  providerKey: "harness-legacy-provider-key",
+  connection: "ANIMAMA_CONNECTION_C_HARNESS_API_KEY",
+  connectionKey: "harness-legacy-connection-key",
+};
+const legacyFile = (root: string) =>
+  path.join(root, "legacy-secrets", "vault.bin");
 
-function check(root: string): void {
+/**
+ * Write a vault exactly as Electron 44 and earlier builds did, with the
+ * synchronous `encryptString` that Electron 46 removes.
+ */
+async function writeLegacy(root: string): Promise<void> {
+  const file = legacyFile(root);
+  await awaitDurableEncryptionKey(app.getPath("userData"), file);
+  privateDirectory(path.dirname(file));
+  const updatedAt = new Date().toISOString();
+  atomicWrite(
+    file,
+    safeStorage.encryptString(
+      JSON.stringify({
+        version: 1,
+        postgresPassword: legacy.password,
+        providers: { openai: { value: legacy.providerKey, updatedAt } },
+        restoredProviders: {},
+        connections: {
+          [legacy.connection]: { value: legacy.connectionKey, updatedAt },
+        },
+      }),
+    ),
+  );
+}
+
+/** Open the earlier release's vault with the asynchronous API, then update it. */
+async function checkLegacy(root: string): Promise<void> {
+  const file = legacyFile(root);
+  const vault = await CredentialVault.open(file, safeStorage, true);
+  const environment = vault.childEnvironment();
+  if (
+    vault.databasePassword() !== legacy.password ||
+    environment.OPENAI_API_KEY !== legacy.providerKey ||
+    environment[legacy.connection] !== legacy.connectionKey
+  )
+    throw new Error("the earlier release's vault did not decrypt intact");
+  await vault.apply([{ provider: "anthropic", value: "harness-added-key" }]);
+  const reopened = (
+    await CredentialVault.open(file, safeStorage, true)
+  ).childEnvironment();
+  if (
+    reopened.OPENAI_API_KEY !== legacy.providerKey ||
+    reopened.ANTHROPIC_API_KEY !== "harness-added-key"
+  )
+    throw new Error("the upgraded vault did not survive reopening");
+}
+
+async function check(root: string): Promise<void> {
   const file = path.join(root, "secrets", "vault.bin");
   const providerKey = "harness-provider-key";
-  if (!safeStorage.isEncryptionAvailable())
+  if (!(await safeStorage.isAsyncEncryptionAvailable()))
     throw new Error("protected storage is unavailable");
-  const vault = new CredentialVault(file, safeStorage, false);
-  vault.set("openai", providerKey);
-  const reopened = new CredentialVault(file, safeStorage, true);
+  const vault = await CredentialVault.open(file, safeStorage, false);
+  await vault.set("openai", providerKey);
+  const reopened = await CredentialVault.open(file, safeStorage, true);
   if (reopened.databasePassword() !== vault.databasePassword())
     throw new Error("the database password did not survive reopening");
   if (reopened.childEnvironment().OPENAI_API_KEY !== providerKey)
@@ -32,7 +95,7 @@ function check(root: string): void {
     throw new Error("the vault file contains plaintext secrets");
   writeFileSync(file, Buffer.from("not an encrypted vault"));
   try {
-    new CredentialVault(file, safeStorage, true);
+    await CredentialVault.open(file, safeStorage, true);
     throw new Error("a corrupt vault was accepted");
   } catch (error) {
     if (!(error instanceof RuntimeError) || error.code !== "vault_unreadable")
@@ -40,10 +103,30 @@ function check(root: string): void {
   }
 }
 
-void app.whenReady().then(() => {
+const phases: Record<string, (root: string) => Promise<void>> = {
+  all: async (root) => {
+    await writeLegacy(root);
+    await checkLegacy(root);
+    await check(root);
+  },
+  "write-legacy": writeLegacy,
+  "check-legacy": checkLegacy,
+};
+// Electron's argv is [electron, harness, ...arguments].
+const [phase, root] =
+  process.argv.length > 3
+    ? process.argv.slice(-2)
+    : ["all", process.argv.at(-1)];
+if (!phase || !Object.hasOwn(phases, phase) || !root || !path.isAbsolute(root))
+  throw new Error(
+    "usage: vault-encryption-harness [phase] <disposable folder>",
+  );
+app.setPath("userData", path.join(root, "electron"));
+
+void app.whenReady().then(async () => {
   try {
-    check(root);
-    process.stdout.write("vault encryption: OK\n");
+    await phases[phase]!(root);
+    process.stdout.write(`vault encryption (${phase}): OK\n`);
     app.exit(0);
   } catch (error) {
     process.stderr.write(`vault encryption failed: ${String(error)}\n`);

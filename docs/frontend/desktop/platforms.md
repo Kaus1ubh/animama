@@ -207,6 +207,11 @@ The staging command clears only its target directory, not `dev`.
 Never put user data inside `darwin-arm64/runtime`. Both overrides are
 development-only and rejected in packaged mode.
 
+Unpackaged Electron is only ad-hoc signed, so the first supervised launch after
+an Electron upgrade waits at the vault stage while macOS asks whether it may use
+the "Animama Safe Storage" Keychain item. Allow it; a denial reports
+`secure_storage_unavailable` until Animama is quit and reopened.
+
 ## App Icons
 
 Every package and installer takes its icon from `desktop/build`, generated
@@ -272,8 +277,10 @@ folder.
 
 `pnpm desktop:test:vault` checks the credential vault against the host's real
 protected storage (DPAPI on Windows, Keychain on macOS) inside Electron, using a
-disposable profile folder that it removes afterwards. On macOS, Electron still
-adds an "Electron Safe Storage" Keychain item.
+disposable profile folder that it removes afterwards. It also writes a vault
+with the synchronous `safeStorage.encryptString`, as Electron 44 and earlier
+builds did, and opens it with the asynchronous API the vault now uses. On
+macOS, Electron still adds an "Electron Safe Storage" Keychain item.
 
 Verify the actual packaged app with development servers stopped:
 

@@ -90,63 +90,213 @@ afterEach(() => {
     rmSync(root, { recursive: true, force: true });
 });
 
-function encryption(): Encryption {
+/**
+ * Fake protected storage. `seal` stands for the synchronous `encryptString`
+ * that Electron 44 and earlier builds wrote vaults with; the vault itself only
+ * uses the asynchronous calls.
+ */
+type FakeEncryption = Encryption & {
+  seal(value: string): Buffer;
+  unseal(value: Buffer): string;
+};
+function encryption(): FakeEncryption {
   const key = randomBytes(32);
+  const seal = (value: string): Buffer => {
+    const nonce = randomBytes(12);
+    const cipher = createCipheriv("aes-256-gcm", key, nonce);
+    const ciphertext = Buffer.concat([
+      cipher.update(value, "utf8"),
+      cipher.final(),
+    ]);
+    return Buffer.concat([nonce, cipher.getAuthTag(), ciphertext]);
+  };
+  const unseal = (value: Buffer): string => {
+    const decipher = createDecipheriv(
+      "aes-256-gcm",
+      key,
+      value.subarray(0, 12),
+    );
+    decipher.setAuthTag(value.subarray(12, 28));
+    return Buffer.concat([
+      decipher.update(value.subarray(28)),
+      decipher.final(),
+    ]).toString("utf8");
+  };
   return {
-    isEncryptionAvailable: () => true,
-    encryptString(value) {
-      const nonce = randomBytes(12);
-      const cipher = createCipheriv("aes-256-gcm", key, nonce);
-      const ciphertext = Buffer.concat([
-        cipher.update(value, "utf8"),
-        cipher.final(),
-      ]);
-      return Buffer.concat([nonce, cipher.getAuthTag(), ciphertext]);
-    },
-    decryptString(value) {
-      const decipher = createDecipheriv(
-        "aes-256-gcm",
-        key,
-        value.subarray(0, 12),
-      );
-      decipher.setAuthTag(value.subarray(12, 28));
-      return Buffer.concat([
-        decipher.update(value.subarray(28)),
-        decipher.final(),
-      ]).toString("utf8");
-    },
+    seal,
+    unseal,
+    isAsyncEncryptionAvailable: async () => true,
+    encryptStringAsync: async (value) => seal(value),
+    decryptStringAsync: async (value) => ({
+      result: unseal(value),
+      shouldReEncrypt: false,
+    }),
   };
 }
+/** Electron's rejection when a key may come back, such as a locked Keychain. */
+const temporarilyUnavailable = new Error(
+  "safeStorage.decryptStringAsync is temporarily unavailable. Please try again.",
+);
 
 describe("private local state and vault", () => {
-  it("persists encrypted credentials and the database password, returning only status", () => {
+  it("persists encrypted credentials and the database password, returning only status", async () => {
     const file = path.join(fixture(), "vault.bin");
     const crypto = encryption();
-    const vault = new CredentialVault(file, crypto, false);
+    const vault = await CredentialVault.open(file, crypto, false);
     const password = vault.databasePassword();
     const key = "fixture-provider-key-not-a-real-credential";
-    vault.set("openai", key);
+    await vault.set("openai", key);
     expect(readFileSync(file).includes(Buffer.from(key))).toBe(false);
     expect(readFileSync(file).includes(Buffer.from(password))).toBe(false);
     expect(privateFileMode(lstatSync(file))).toBe(true);
     expect(JSON.stringify(vault.list())).not.toContain(key);
-    const restarted = new CredentialVault(file, crypto, true);
+    const restarted = await CredentialVault.open(file, crypto, true);
     expect(restarted.databasePassword()).toBe(password);
     expect(restarted.childEnvironment()).toEqual({ OPENAI_API_KEY: key });
     expect(
       restarted.list().find((item) => item.provider === "openai"),
     ).toMatchObject({ configured: true, restartRequired: false });
-    restarted.delete("openai");
-    expect(new CredentialVault(file, crypto, true).childEnvironment()).toEqual(
-      {},
-    );
+    await restarted.delete("openai");
     expect(
-      new CredentialVault(
-        path.join(fixture(), "vault.bin"),
-        crypto,
-        false,
+      (await CredentialVault.open(file, crypto, true)).childEnvironment(),
+    ).toEqual({});
+    expect(
+      (
+        await CredentialVault.open(
+          path.join(fixture(), "vault.bin"),
+          crypto,
+          false,
+        )
       ).databasePassword(),
     ).not.toBe(password);
+  });
+
+  it("opens a vault an Electron 44 build wrote with the synchronous API", async () => {
+    const file = path.join(fixture(), "vault.bin");
+    const crypto = encryption();
+    const connection = "ANIMAMA_CONNECTION_C_0123456789AB_API_KEY";
+    const updatedAt = "2026-10-20T12:00:00.000Z";
+    // Exactly what the synchronous vault saved: restored providers apart.
+    const sealed = crypto.seal(
+      JSON.stringify({
+        version: 1,
+        postgresPassword: "b".repeat(64),
+        providers: { openai: { value: "fixture-openai", updatedAt } },
+        connections: {
+          [connection]: { value: "fixture-connection", updatedAt },
+        },
+        restoredProviders: { gemini: { value: "fixture-gemini", updatedAt } },
+      }),
+    );
+    atomicWrite(file, sealed);
+
+    const vault = await CredentialVault.open(file, crypto, true);
+    expect(vault.databasePassword()).toBe("b".repeat(64));
+    expect(vault.childEnvironment()).toEqual({
+      OPENAI_API_KEY: "fixture-openai",
+      GEMINI_API_KEY: "fixture-gemini",
+      [connection]: "fixture-connection",
+    });
+    expect(vault.list()).toContainEqual(
+      expect.objectContaining({ provider: "openai", updatedAt }),
+    );
+    // Opening alone leaves the earlier release's file untouched.
+    expect(readFileSync(file)).toEqual(sealed);
+
+    await vault.apply([{ provider: "anthropic", value: "fixture-anthropic" }]);
+    expect(
+      (await CredentialVault.open(file, crypto, true)).childEnvironment(),
+    ).toEqual({
+      OPENAI_API_KEY: "fixture-openai",
+      ANTHROPIC_API_KEY: "fixture-anthropic",
+      GEMINI_API_KEY: "fixture-gemini",
+      [connection]: "fixture-connection",
+    });
+  });
+
+  it("rewrites a vault with the current key when the decryptor asks for it", async () => {
+    const file = path.join(fixture(), "vault.bin");
+    const previous = encryption();
+    const current = encryption();
+    atomicWrite(
+      file,
+      previous.seal(
+        JSON.stringify({
+          version: 1,
+          postgresPassword: "c".repeat(64),
+          providers: {
+            openai: {
+              value: "fixture-openai",
+              updatedAt: "2026-10-20T12:00:00Z",
+            },
+          },
+        }),
+      ),
+    );
+    // A rotated key still decrypts older data and reports `shouldReEncrypt`.
+    const rotated: Encryption = {
+      ...current,
+      decryptStringAsync: async (value) => {
+        try {
+          return await current.decryptStringAsync(value);
+        } catch {
+          return { result: previous.unseal(value), shouldReEncrypt: true };
+        }
+      },
+    };
+
+    const vault = await CredentialVault.open(file, rotated, true);
+    expect(vault.childEnvironment()).toEqual({
+      OPENAI_API_KEY: "fixture-openai",
+    });
+    const onDisk = JSON.parse(current.unseal(readFileSync(file)));
+    expect(onDisk.postgresPassword).toBe("c".repeat(64));
+    expect(onDisk.providers.openai.value).toBe("fixture-openai");
+  });
+
+  it("orders concurrent writes and keeps going after a failed one", async () => {
+    const file = path.join(fixture(), "vault.bin");
+    const crypto = encryption();
+    await CredentialVault.open(file, crypto, false);
+    // The first write's encryption finishes last.
+    const delays = [40, 0, 0];
+    let failNext = false;
+    const slow: Encryption = {
+      ...crypto,
+      encryptStringAsync: async (value) => {
+        await new Promise((resolve) => setTimeout(resolve, delays.shift()));
+        if (failNext) {
+          failNext = false;
+          throw new Error("Error while encrypting the text");
+        }
+        return crypto.seal(value);
+      },
+    };
+    const reopened = await CredentialVault.open(file, slow, true);
+    await Promise.all([
+      reopened.apply([{ provider: "openai", value: "fixture-openai" }]),
+      reopened.apply([{ provider: "anthropic", value: "fixture-anthropic" }]),
+    ]);
+    expect(
+      (await CredentialVault.open(file, crypto, true)).childEnvironment(),
+    ).toEqual({
+      OPENAI_API_KEY: "fixture-openai",
+      ANTHROPIC_API_KEY: "fixture-anthropic",
+    });
+
+    failNext = true;
+    const saved = readFileSync(file);
+    await expect(
+      reopened.apply([{ provider: "elevenlabs", value: "fixture-voice" }]),
+    ).rejects.toThrow("secure_storage_unavailable");
+    expect(readFileSync(file)).toEqual(saved);
+    expect(reopened.childEnvironment()).not.toHaveProperty(
+      "ELEVENLABS_API_KEY",
+    );
+    await reopened.apply([{ provider: "openai" }]);
+    expect(
+      (await CredentialVault.open(file, crypto, true)).childEnvironment(),
+    ).toEqual({ ANTHROPIC_API_KEY: "fixture-anthropic" });
   });
 
   it("creates a Windows vault only after Chromium has saved its encryption key", async () => {
@@ -178,34 +328,33 @@ describe("private local state and vault", () => {
     ).resolves.toBeUndefined();
   });
 
-  it("fails closed on unavailable encryption, loss, corruption, and links without replacing data", () => {
+  it("fails closed on unavailable encryption, loss, corruption, and links without replacing data", async () => {
     const root = fixture();
     const file = path.join(root, "vault.bin");
     const crypto = encryption();
-    expect(
-      () =>
-        new CredentialVault(
-          file,
-          { ...crypto, isEncryptionAvailable: () => false },
-          false,
-        ),
-    ).toThrow("secure_storage_unavailable");
+    await expect(
+      CredentialVault.open(
+        file,
+        { ...crypto, isAsyncEncryptionAvailable: async () => false },
+        false,
+      ),
+    ).rejects.toThrow("secure_storage_unavailable");
     expect(existsSync(file)).toBe(false);
-    const failingEncryption = {
+    const failingEncryption: Encryption = {
       ...crypto,
-      encryptString: (): Buffer => {
+      encryptStringAsync: async () => {
         throw new Error("DPAPI failed");
       },
     };
-    expect(() => new CredentialVault(file, failingEncryption, false)).toThrow(
-      "secure_storage_unavailable",
-    );
+    await expect(
+      CredentialVault.open(file, failingEncryption, false),
+    ).rejects.toThrow("secure_storage_unavailable");
     expect(existsSync(file)).toBe(false);
-    expect(() => new CredentialVault(file, crypto, true)).toThrow(
+    await expect(CredentialVault.open(file, crypto, true)).rejects.toThrow(
       "vault_missing_for_database",
     );
     atomicWrite(file, "corrupt");
-    expect(() => new CredentialVault(file, crypto, true)).toThrow(
+    await expect(CredentialVault.open(file, crypto, true)).rejects.toThrow(
       "vault_unreadable",
     );
     expect(readFileSync(file, "utf8")).toBe("corrupt");
@@ -220,13 +369,41 @@ describe("private local state and vault", () => {
     expect(existsSync(path.join(target, "secret"))).toBe(false);
   });
 
-  it("stores model-connection keys by variable name and drops retired providers", () => {
+  it("reports a temporarily unavailable key as secure storage, not a lost vault", async () => {
     const file = path.join(fixture(), "vault.bin");
     const crypto = encryption();
-    const vault = new CredentialVault(file, crypto, false);
+    await CredentialVault.open(file, crypto, false);
+    const saved = readFileSync(file);
+    const locked: Encryption = {
+      ...crypto,
+      decryptStringAsync: async () => {
+        throw temporarilyUnavailable;
+      },
+    };
+    await expect(CredentialVault.open(file, locked, true)).rejects.toThrow(
+      "secure_storage_unavailable",
+    );
+    const broken: Encryption = {
+      ...crypto,
+      decryptStringAsync: async () => {
+        throw new Error(
+          "Error while decrypting the ciphertext provided to safeStorage.decryptStringAsync.",
+        );
+      },
+    };
+    await expect(CredentialVault.open(file, broken, true)).rejects.toThrow(
+      "vault_unreadable",
+    );
+    expect(readFileSync(file)).toEqual(saved);
+  });
+
+  it("stores model-connection keys by variable name and drops retired providers", async () => {
+    const file = path.join(fixture(), "vault.bin");
+    const crypto = encryption();
+    const vault = await CredentialVault.open(file, crypto, false);
     const password = vault.databasePassword();
     const connection = "ANIMAMA_CONNECTION_C_0123456789AB_API_KEY";
-    vault.apply([
+    await vault.apply([
       { provider: "openai", value: "fixture-openai" },
       { provider: "anthropic", value: "fixture-anthropic" },
       { connection, value: "fixture-connection" },
@@ -250,7 +427,7 @@ describe("private local state and vault", () => {
     const now = new Date().toISOString();
     atomicWrite(
       legacy,
-      crypto.encryptString(
+      crypto.seal(
         JSON.stringify({
           version: 1,
           postgresPassword: password,
@@ -261,27 +438,27 @@ describe("private local state and vault", () => {
         }),
       ),
     );
-    const upgraded = new CredentialVault(legacy, crypto, true);
+    const upgraded = await CredentialVault.open(legacy, crypto, true);
     expect(upgraded.childEnvironment()).toEqual({
       OPENAI_API_KEY: "fixture-openai",
     });
-    upgraded.apply([{ connection, value: "fixture-connection" }]);
+    await upgraded.apply([{ connection, value: "fixture-connection" }]);
     expect(readFileSync(legacy).includes(Buffer.from("fixture-gemini"))).toBe(
       false,
     );
     expect(
-      new CredentialVault(legacy, crypto, true).childEnvironment(),
+      (await CredentialVault.open(legacy, crypto, true)).childEnvironment(),
     ).not.toHaveProperty("GEMINI_API_KEY");
   });
 
-  it("stores a Gemini key apart from an earlier release's retired Gemini entry", () => {
+  it("stores a Gemini key apart from an earlier release's retired Gemini entry", async () => {
     const file = path.join(fixture(), "vault.bin");
     const crypto = encryption();
     const now = new Date().toISOString();
     // A vault an earlier release wrote, still holding its retired Gemini entry.
     atomicWrite(
       file,
-      crypto.encryptString(
+      crypto.seal(
         JSON.stringify({
           version: 1,
           postgresPassword: "a".repeat(64),
@@ -289,32 +466,32 @@ describe("private local state and vault", () => {
         }),
       ),
     );
-    const vault = new CredentialVault(file, crypto, true);
+    const vault = await CredentialVault.open(file, crypto, true);
     expect(vault.childEnvironment()).not.toHaveProperty("GEMINI_API_KEY");
 
-    vault.apply([{ provider: "gemini", value: "fixture-gemini" }]);
+    await vault.apply([{ provider: "gemini", value: "fixture-gemini" }]);
     expect(vault.childEnvironment()).toEqual({
       GEMINI_API_KEY: "fixture-gemini",
     });
-    const onDisk = JSON.parse(crypto.decryptString(readFileSync(file)));
+    const onDisk = JSON.parse(crypto.unseal(readFileSync(file)));
     expect(onDisk.providers).toEqual({});
     expect(onDisk.restoredProviders.gemini.value).toBe("fixture-gemini");
     expect(JSON.stringify(onDisk)).not.toContain("fixture-retired");
 
-    const reopened = new CredentialVault(file, crypto, true);
+    const reopened = await CredentialVault.open(file, crypto, true);
     expect(reopened.childEnvironment()).toEqual({
       GEMINI_API_KEY: "fixture-gemini",
     });
     expect(reopened.list()).toContainEqual(
       expect.objectContaining({ provider: "gemini", configured: true }),
     );
-    reopened.apply([{ provider: "gemini" }]);
+    await reopened.apply([{ provider: "gemini" }]);
     expect(
-      new CredentialVault(file, crypto, true).childEnvironment(),
+      (await CredentialVault.open(file, crypto, true)).childEnvironment(),
     ).not.toHaveProperty("GEMINI_API_KEY");
   });
 
-  it("refuses a malformed restored-provider section", () => {
+  it("refuses a malformed restored-provider section", async () => {
     const crypto = encryption();
     const now = new Date().toISOString();
     for (const restoredProviders of [
@@ -327,7 +504,7 @@ describe("private local state and vault", () => {
       const file = path.join(fixture(), "vault.bin");
       atomicWrite(
         file,
-        crypto.encryptString(
+        crypto.seal(
           JSON.stringify({
             version: 1,
             postgresPassword: "a".repeat(64),
@@ -336,16 +513,16 @@ describe("private local state and vault", () => {
           }),
         ),
       );
-      expect(() => new CredentialVault(file, crypto, true)).toThrow(
+      await expect(CredentialVault.open(file, crypto, true)).rejects.toThrow(
         "vault_unreadable",
       );
     }
   });
 
-  it("bounds connection keys and rejects malformed stored names", () => {
+  it("bounds connection keys and rejects malformed stored names", async () => {
     const root = fixture();
     const crypto = encryption();
-    const vault = new CredentialVault(
+    const vault = await CredentialVault.open(
       path.join(root, "vault.bin"),
       crypto,
       false,
@@ -354,12 +531,12 @@ describe("private local state and vault", () => {
       connection: `ANIMAMA_CONNECTION_C${index}_API_KEY`,
       value: `fixture-${index}`,
     }));
-    vault.apply(full);
-    expect(() =>
+    await vault.apply(full);
+    await expect(
       vault.apply([
         { connection: "ANIMAMA_CONNECTION_EXTRA_API_KEY", value: "x" },
       ]),
-    ).toThrow("connection_credentials_full");
+    ).rejects.toThrow("connection_credentials_full");
     expect(
       Object.keys(vault.childEnvironment()).filter((name) =>
         name.startsWith("ANIMAMA_CONNECTION_"),
@@ -369,7 +546,7 @@ describe("private local state and vault", () => {
     const file = path.join(root, "bad.bin");
     atomicWrite(
       file,
-      crypto.encryptString(
+      crypto.seal(
         JSON.stringify({
           version: 1,
           postgresPassword: vault.databasePassword(),
@@ -380,7 +557,7 @@ describe("private local state and vault", () => {
         }),
       ),
     );
-    expect(() => new CredentialVault(file, crypto, true)).toThrow(
+    await expect(CredentialVault.open(file, crypto, true)).rejects.toThrow(
       "vault_unreadable",
     );
   });

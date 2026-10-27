@@ -73,6 +73,14 @@ must be disjoint absolute paths without symlink ancestors. Only Local is watched
 the backend never creates or write-probes an Included root. React receives
 registered byte descriptors, not arbitrary host paths or object-store URLs.
 
+Main encrypts the vault with Electron's asynchronous `safeStorage` calls. They
+use the same Keychain item or DPAPI key as the synchronous calls that Electron
+44 and earlier builds used, so those vaults open unchanged; the file format did
+not change. When decryption reports that a key was rotated, main rewrites the
+vault with the current key. A Keychain that is locked or refused reports
+`secure_storage_unavailable` and leaves the vault untouched; Electron keeps
+that answer until the app restarts.
+
 The control token and renderer capability are generated in main memory for
 each app launch; they are not persisted in the vault. The principal persists in
 PostgreSQL. Loss of per-launch credentials is

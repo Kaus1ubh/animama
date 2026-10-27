@@ -242,9 +242,12 @@ function create(
     paths,
     // Fake encryption isolates orchestration; vault tests exercise encryption separately.
     encryption: {
-      isEncryptionAvailable: () => true,
-      encryptString: (value: string) => Buffer.from(value),
-      decryptString: (value: Buffer) => value.toString(),
+      isAsyncEncryptionAvailable: async () => true,
+      encryptStringAsync: async (value: string) => Buffer.from(value),
+      decryptStringAsync: async (value: Buffer) => ({
+        result: value.toString(),
+        shouldReEncrypt: false,
+      }),
     },
     onStatus: vi.fn(),
     quiesceRenderers: vi.fn(async () => undefined),
@@ -1258,7 +1261,9 @@ describe("runtime supervision", () => {
     ]);
     const vault = readFileSync(current.options.paths.vault);
     const deliveries = fixture.deliveries.length;
-    current.options.encryption.isEncryptionAvailable = () => false;
+    current.options.encryption.encryptStringAsync = async () => {
+      throw new Error("Error while encrypting the text");
+    };
     const statuses = await current.runtime.changeCredentials([
       { provider: "openai", value: "fixture-openai" },
       { connection: "ANIMAMA_CONNECTION_C_0123456789AB_API_KEY" },

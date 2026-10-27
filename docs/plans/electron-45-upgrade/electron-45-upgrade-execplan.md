@@ -1,0 +1,207 @@
+# Electron 45 desktop upgrade and asynchronous vault encryption
+
+Source agreement: [raymond-van/animama#737](https://github.com/raymond-van/animama/issues/737)
+as published on 2026-10-27, plus the owner decisions dated 2026-10-27 in the
+[Decision Log](#decision-log).
+Authorized scope: the whole plan (dated task instruction, 2026-10-27). Nothing in
+this plan authorizes notarizing or signing a release candidate, publishing or
+merging.
+
+## Purpose and context
+
+The desktop shell runs Electron 44.9.3 (#724, PR #730). Electron 45.0.0
+(2026-10-21) deprecates the synchronous `safeStorage` calls the credential
+vault uses, and Electron 46 removes them. The vault holds every desktop user's
+provider keys, model-connection keys and the private PostgreSQL password, so it
+moves to the asynchronous API now and must keep opening vaults that Electron 44
+builds wrote.
+
+After this work the desktop app runs Electron 45.0.0 (Chromium 156.0.8078.48,
+Node 24.22.0, unchanged from 44.9.3). electron-builder stays 26.18.0 and
+`electron-updater` 6.8.11: neither has an Electron 45 requirement.
+
+Commands run from `src/frontend` unless stated. Working checkout: a task worktree
+on branch `build/electron-45`, based on `main` `d30a6ddc` (#733's merge). No
+Compose stack is needed.
+
+### Orientation
+
+| Area     | Files                                                                                                     |
+| -------- | --------------------------------------------------------------------------------------------------------- |
+| Versions | `desktop/package.json`, `pnpm-lock.yaml`, `desktop/runtime/source-manifest.json`                          |
+| Vault    | `desktop/src/main-process/runtime/vault.ts`, `supervisor.ts`, `desktop/scripts/native/vault-encryption-harness.ts` |
+| Preload  | `desktop/scripts/runtime/js-audit.mjs` (bundle import audit)                                               |
+| Tests    | `desktop/tests/runtime-state.test.ts`, `runtime-supervisor.test.ts`, `runtime-packaging.test.mjs`, `windows-release.test.mjs`, `tests/test_desktop_credentials_route.py` |
+| Copy     | `desktop/src/locales/*.json` (`startup.secureStorage.macos`)                                               |
+| Docs     | `docs/backend/operations/desktop-runtime.md`, `docs/frontend/desktop/platforms.md`, `troubleshooting.md`  |
+
+### Breaking changes reviewed (Electron 45)
+
+Read from Electron's `docs/breaking-changes.md` at `v45.0.0` and checked against
+`desktop/src` and `desktop/scripts`:
+
+- Sandboxed preloads lose the `events`, `timers` and `url` shims and the
+  `Buffer`, `setImmediate` and `clearImmediate` globals. Every window is
+  sandboxed and the bundled `dist/preload.cjs` requires only `electron` and
+  uses none of those globals. The bundle audit now rejects any Node built-in
+  import in the preload, so a future one fails the build instead of the window.
+- `ipcRenderer`/`process` in sandboxed preloads use a native `EventEmitter`
+  without the static `once`/`listenerCount`/`init` helpers. Not used.
+- `contentTracing.enableHeapProfiling()` removed; JSON traces gone. Not used.
+- Screen capture requests arrive as `display-capture`. The permission handlers
+  allow only audio `media` from the app origin and deny everything else, so
+  screen capture stays denied as before.
+- `getUserMedia` with `chromeMediaSource: 'desktop'` and WebContents ids,
+  `window.open()` children of unsandboxed windows, `requestStorageAccessFor`,
+  workers in subframes and DevTools extension frames: not used (every
+  `window.open` is denied).
+- ASAR file descriptors work only through `fs`. Main opens descriptors only for
+  user-data files (logs, locale cache, migrations, atomic writes); the native
+  input addon is unpacked from ASAR.
+- `safeStorage.isEncryptionAvailable`, `encryptString` and `decryptString` are
+  deprecated (removed in 46). The vault is the only user.
+- A typings diff between `electron@44.9.3` and `45.0.0` finds no other newly
+  deprecated or removed member.
+- Node stays 24.22.0; `NODE_MODULE_VERSION` becomes 150. The first-party input
+  hook is N-API and loads unchanged.
+
+### Asynchronous `safeStorage` compatibility
+
+From Electron 45's `shell/browser/api/electron_api_safe_storage.cc` and
+`browser_process_impl.cc`, and Chromium 156's `components/os_crypt/async`:
+
+- macOS: the `KeychainKeyProvider` reads the same "<app name> Safe Storage"
+  Keychain item and derives the same AES-128-CBC key as the synchronous
+  OSCrypt, tagged `v10`. Windows: the `DPAPIKeyProvider` unwraps the same
+  `os_crypt.encrypted_key` from `Local State`, tagged `v10`. Electron's docs
+  state that `decryptStringAsync` reads data `encryptString` wrote.
+- `isAsyncEncryptionAvailable()` resolves `false` only before the app is ready;
+  once the encryptor initializes it resolves `true` even if a key provider
+  failed. A missing key surfaces as a rejected encrypt or decrypt.
+- A decrypt whose provider failed temporarily (a refused or locked Keychain)
+  rejects with "safeStorage.decryptStringAsync is temporarily unavailable.
+  Please try again."; other failures reject with "Error while decrypting…".
+  The message is the only signal.
+- Electron requests the encryptor once per process and Chromium caches it, so a
+  temporarily unavailable key stays unavailable until the app restarts.
+- `shouldReEncrypt` is true when the data's provider is not the one used for
+  encryption (a rotated key). macOS and Windows each register one provider
+  today, so it is false in practice.
+- Windows still runs `OSCrypt::Init` before the async provider reads the key,
+  so a new vault must still wait until Chromium has written `Local State`
+  (`awaitDurableEncryptionKey`).
+
+## Progress
+
+- [x] Research, issue #737 and branch (2026-10-27).
+- [ ] Phase 1: Electron 45 and the asynchronous vault.
+- [ ] Final integration review, full pre-push suite and PR.
+- [ ] Owner gates (see [Validation and acceptance](#validation-and-acceptance)).
+
+## Surprises & Discoveries
+
+- Electron 44.9.3 already exposes the asynchronous `safeStorage` calls with the
+  same Chromium key providers; only the deprecation is new in 45.
+- The synchronous and asynchronous APIs produce the same `v10` format, so the
+  vault file format does not change.
+- The recovery text for `secure_storage_unavailable` on macOS said "Unlock your
+  login keychain and retry". With the asynchronous encryptor cached for the
+  process lifetime, Retry cannot recover a refused Keychain request; the text
+  now says to quit and reopen Animama.
+
+## Decision Log
+
+- 2026-10-27, owner: upgrade to Electron 45 as a phase-3 dependency upgrade,
+  separate from the provider SDK majors; migrate the vault in the same change.
+- 2026-10-27, agent: keep electron-builder 26.18.0 and `electron-updater`
+  6.8.11. Electron 45 needs neither change; 26.18.1 and 6.8.12 add nothing this
+  upgrade uses.
+- 2026-10-27, agent: map the "temporarily unavailable" rejection to
+  `secure_storage_unavailable` (the synchronous API reported a refused Keychain
+  as unavailable encryption); every other decrypt failure stays
+  `vault_unreadable`. Matching the message is the only way to tell them apart.
+- 2026-10-27, agent: the vault queues its writes. Encryption is now
+  asynchronous, so each write computes its change from the state the previous
+  write saved; the supervisor already serializes credential changes, and the
+  queue keeps the vault correct on its own.
+- 2026-10-27, agent: rewrite the vault on `shouldReEncrypt` during open and let
+  a failed rewrite fail the open, like any other failed vault write.
+- 2026-10-27, agent: one phase. The version bump, the vault migration and the
+  breaking-change fixes ship together and share their native evidence.
+
+## Phased implementation
+
+### Phase 1: Electron 45 and the asynchronous vault
+
+Review tier: high risk (dependency, packaging, persistence of secrets).
+
+Requirements R1–R4 of #737. Starting source `d30a6ddc`.
+
+Changes:
+
+1. `desktop/package.json` `electron` 45.0.0, the lock and
+   `desktop/runtime/source-manifest.json` (staging refuses a mismatch).
+2. `vault.ts`: `Encryption` is the asynchronous `safeStorage` subset.
+   `CredentialVault.open()` replaces the constructor; `set`, `delete` and
+   `apply` return promises. Writes run through a queue and compute their change
+   from the latest saved state; a failed write changes neither file nor memory.
+   A temporarily unavailable decrypt is `secure_storage_unavailable`; a decrypt
+   reporting `shouldReEncrypt` rewrites the vault with the current key.
+3. `supervisor.ts` awaits `CredentialVault.open()` and `apply()`.
+4. `runtime-state.test.ts`: the fake storage has the asynchronous calls plus
+   `seal`, standing for Electron 44's synchronous writes. New tests: an Electron
+   44-format vault opens unchanged and stays readable after a change; a rotated
+   key rewrites the file; concurrent writes keep both changes and a failed one
+   blocks nothing; a temporarily unavailable key is `secure_storage_unavailable`
+   while a permanent failure is `vault_unreadable`, with the file untouched.
+5. `vault-encryption-harness.ts` (`pnpm desktop:test:vault`) writes a vault with
+   the synchronous `encryptString`, as Electron 44 did, and opens and updates it
+   with the asynchronous vault, before its existing checks. `write-legacy` and
+   `check-legacy` phases split that across two Electron binaries.
+6. `js-audit.mjs`: the preload bundle may import only `electron`.
+7. The macOS `secure_storage_unavailable` recovery text (five locales) and the
+   docs listed above.
+
+Check record: added as checks run.
+
+#### Code Review #1 Findings
+
+Pending.
+
+#### Code Review #1 Revisions
+
+Pending.
+
+## Final integration review
+
+Pending.
+
+## Validation and acceptance
+
+Owner gates, not performable on the macOS development host or without the
+owner:
+
+- Windows 11 x64: `pnpm desktop:test:vault` (DPAPI through the asynchronous
+  API), `desktop:test`, `desktop:test:native-input`, `desktop:test:termination`,
+  `desktop:win:installer`, then `pnpm desktop:dist:windows -- --signing-rehearsal`
+  and the Windows signed build.
+- The first launch of each unpackaged or newly signed macOS build asks for the
+  "Animama Safe Storage" Keychain item. Allow it and confirm the existing vault
+  opens with its keys. Optionally deny once and confirm the recovery page shows
+  the secure-storage message, then quit, reopen and allow.
+- Native acceptance with Electron 45 on both platforms: microphone permission
+  and dictation, voice mode audio, PiP, quick chat, global Press-to-talk, saving
+  and removing a provider key, runtime recovery and an update check.
+- Both redistribution receipts (`darwin-arm64`, `win32-x64`) are stale again:
+  the licence inventory records Electron's version and Chromium notices.
+
+## Idempotence and recovery
+
+The vault file format and location do not change. A vault the asynchronous API
+cannot read is reported, never replaced. Reverting this change restores
+Electron 44, which reads every vault this change writes (same `v10` format and
+key). Staging and packaging write only ignored build output.
+
+## Outcomes & Retrospective
+
+Pending.
