@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { readFileSync } from "node:fs";
 import {
   LoginItem,
   type LoginItemHost,
@@ -91,6 +92,20 @@ describe("open at login", () => {
     expect(() => new LoginItem(mac, "darwin").setEnabled(true)).toThrow(
       "login_item_unchanged",
     );
+  });
+
+  it("lets the Windows uninstaller remove the entry Electron names after the app ID", () => {
+    const read = (file: string) =>
+      readFileSync(new URL(`../${file}`, import.meta.url), "utf8");
+    const appId = /^appId: (\S+)$/m.exec(read("electron-builder.yml"))?.[1];
+    // Electron names the Run value after the AppUserModelId by default.
+    expect(read("src/main.ts")).toContain(`app.setAppUserModelId("${appId}")`);
+    const uninstall = read("build/installer.nsh");
+    for (const key of [
+      "Software\\Microsoft\\Windows\\CurrentVersion\\Run",
+      "Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\StartupApproved\\Run",
+    ])
+      expect(uninstall).toContain(`DeleteRegValue HKCU "${key}" "\${APP_ID}"`);
   });
 
   it("keeps a macOS item that is waiting for approval as a successful change", () => {

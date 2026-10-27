@@ -318,9 +318,11 @@ Settings → General → **Launch at login** reads and changes the OS login item
 through `desktop/src/main-process/login-item/login-item.ts`; the OS keeps the
 setting, and the app stores nothing. macOS registers the app with
 `SMAppService` and may need the user to allow it in System Settings → General →
-Login Items & Extensions. Windows writes the per-user Run entry, which the user
-can still turn off in Settings → Apps → Startup. In both cases the setting says
-where to allow it, and it reads the state again when the window regains focus.
+Login Items & Extensions. Windows writes the per-user Run entry, named after
+the app ID, which the user can still turn off in Settings → Apps → Startup; the
+uninstaller (`build/installer.nsh`) removes it, except when an install runs it
+with `--updated`. In both cases the setting says where to allow it, and while
+Settings is open it reads the state again when the window regains focus.
 The setting is hidden in the browser, unpackaged runs (which would register the
 bare Electron binary) and on Linux, which would need an XDG autostart file.
 
