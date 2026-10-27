@@ -98,7 +98,9 @@ From Electron 45's `shell/browser/api/electron_api_safe_storage.cc` and
 - [x] Phase 1: Electron 45 and the asynchronous vault (`f9c3c584`, repairs
       `30a51ba9`). Review round 1 and its recheck passed; native macOS evidence
       recorded; the unpackaged launch waits on the owner's Keychain answer.
-- [ ] Final integration review, full pre-push suite and PR.
+- [x] Final integration review (`753fbef4`): one blocking record finding and one
+      Retry fix, both rechecked; one repair round of two.
+- [ ] Full pre-push suite on the final candidate and PR (results in the PR).
 - [ ] Owner gates (see [Validation and acceptance](#validation-and-acceptance)).
 
 ## Surprises & Discoveries
@@ -363,9 +365,44 @@ public-ready.
 - I7: not run. No local stack serves the application for this worktree, and
   the supervised launch already loads the sandboxed recovery window and preload
   on Electron 45 before the vault stage.
-- I8: done below.
+- I8: the records are committed with the repairs; the final-candidate suite
+  and the PR's CI statement follow the recheck (see Progress and the PR).
+
+Checks after the revisions, on the working tree that became `753fbef4` (tree
+`ccae81d2`): `vitest run tests/runtime-ipc.test.ts` (`src/frontend/desktop`) 25
+passed, and fails with the darwin addition removed; `pnpm desktop:test` 562
+passed, 14 skipped; `pnpm -C desktop check` pass; `pnpm prettier:check` pass.
 
 At the high-risk tier the I1 and I2 repairs get a recheck (Code Review #4).
+
+#### Code Review #4 Findings
+
+Recheck of `753fbef4` (tree `ccae81d2`) against `30a51ba9`. I1 and I2 fixed with
+no regression (same five no-Retry codes; the list reaches the page through the
+existing escaping; only macOS `secure_storage_unavailable` changes); I3 and I4
+fixed; I6 accepted; I7's reason holds; the quit-while-prompting discovery is
+accurate. Reran on tree `ccae81d2`, one after another:
+`vitest run tests/runtime-ipc.test.ts` (25 passed), `pnpm desktop:test` (562
+passed, 14 skipped), `pnpm -C desktop check` (pass), `pnpm i18n:check` (pass).
+Result: pass. Non-blocking:
+
+- Q1: the I2 change had no check record, and I8 claimed work not yet done.
+- Q2 (optional): the in-app macOS text says to allow Animama before quitting
+  and reopening; the troubleshooting row gives the relaunch first.
+- Q3: the fresh-install gate did not name the smoke or its expected result.
+- Q4 (optional): the owner procedure did not say what to do after an
+  accidental Always Allow.
+
+#### Code Review #4 Revisions
+
+- Q1: fixed above.
+- Q2: not changed. Both orders recover: a user can also grant access in
+  Keychain Access before relaunching, which is what the in-app text describes,
+  and a relaunch then asks again. Rewording five locales would need another
+  repair round for no behavioural gain.
+- Q3, Q4: fixed in Validation and acceptance.
+
+Repair rounds used for the final scope: one of two.
 
 ## Validation and acceptance
 
@@ -392,12 +429,19 @@ owner:
      button, and the same `shasum` afterwards.
   3. Quit, relaunch and choose **Always Allow**. Confirm `Runtime ready` and
      that the saved key is still configured.
+
+  If step 1 ends with Always Allow, or no prompt appears, remove this Electron
+  binary from the item's Access Control in Keychain Access before step 2.
 - A signed macOS build may ask for the Keychain item after the Electron change
   even with the same Developer ID; record whether the first signed candidate
   asks.
 - A fresh installation on Electron 45 creates the "Animama Safe Storage" item
   through the asynchronous provider, a path no local run covered (the host
-  already holds the items). The separate-account native smoke covers it.
+  already holds the items). The required-name setup smoke on a fresh macOS
+  account (`pnpm desktop:smoke:mac`, see
+  [the release process](../../frontend/desktop/release-process.md)) covers it:
+  expect a new vault, and its temporary provider key saved and removed, on
+  Electron 45.
 - Native acceptance with Electron 45 on both platforms: microphone permission
   and dictation, voice mode audio, PiP, quick chat, global Press-to-talk, saving
   and removing a provider key, runtime recovery and an update check.
