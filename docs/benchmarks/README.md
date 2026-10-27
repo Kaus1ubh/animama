@@ -139,6 +139,9 @@ only within one run.
 `report.md`. The owner's recommendations go in a Markdown file passed with
 `--recommendations`; later `report` and `report --rerender` runs pass the same
 file, and `--rerender` checks the report rebuilds byte for byte.
+Owner-approved reports are tracked in this folder as `<YYYY-MM-DD>-<slug>.md`;
+raw results stay in `.animama-drafts/`. The first is the
+[2026-10-26 decision run](2026-10-26-first-decision-run.md).
 
 - Judged scores are means on the 1–5 scale with a 95% bootstrap interval and
   the number of judged replies. Rates give their counts.

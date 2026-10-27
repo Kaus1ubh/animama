@@ -1,9 +1,11 @@
 # Standardized model benchmark execution plan
 
 Status: In progress. G1 passed on 2026-10-25 and G2 on 2026-10-26.
-Phases 1–8 are done and the final integration review passed; the full
+Phases 1–9 are done and the final integration review passed; the full
 pre-push suite runs on the final candidate. G3 passed on 2026-10-26; the
 owner waived G4 and moved the judge to Claude Fable 5.1 the same day (D17).
+The first decision run's report, with the owner's recommendations, is
+tracked at [`docs/benchmarks/2026-10-26-first-decision-run.md`](../../benchmarks/2026-10-26-first-decision-run.md).
 
 Source agreement: the spec, published as the body of
 [#470](https://github.com/raymond-van/animama/issues/470) at
@@ -17,8 +19,8 @@ and the
 The owner reviewed it at `cb9c50a4` and this plan at `53adb22f`.
 
 Authorized scope: the whole plan. The owner invoked `/implement` on
-2026-10-25 after reviewing the spec and this plan. Gates G2, G3 and G4 still
-require the owner's action. Exact-candidate merge approval stays separate.
+2026-10-25 after reviewing the spec and this plan. Gates G2 and G3 passed and
+the owner waived G4 (D17). Exact-candidate merge approval stays separate.
 
 Starting source: `18d2bebd` (`origin/main`, 2026-10-25, which includes the
 #704 prompt cleanup from PR #710). `origin/main` `a94f8369` was merged into
@@ -124,7 +126,9 @@ Ownership and boundaries:
       2026-10-26, with one repair round used.
 - [x] Phase 8: Skill, documentation and glossary. Rehearsed on a mock
       stack on 2026-10-26; covered by the final integration review.
-- [ ] Phase 9: First decision run and calibration (gates G3, G4).
+- [x] Phase 9: First decision run and calibration (gates G3, G4). G3 passed
+      and G4 was waived (D17) on 2026-10-26; the report was tracked on
+      2026-10-27.
 - [x] Final integration review. Passed review #2 on 2026-10-26, with both
       repair rounds used; the full pre-push suite runs on the final
       candidate after Phase 9.
@@ -294,6 +298,22 @@ were rechecked on `18d2bebd`.
 - **Japanese search, live.** The stack smoke reconfirmed the planning-time
   finding: `京都` and `抹茶` do not match the Japanese sentence; only the whole
   sentence does.
+
+### 2026-10-27, recall in the first decision run
+
+- **Saved episode notes rarely reach a fresh chat.** In arms (a) and (c),
+  recall matched 0–2 of 9 per configuration, although capture kept 15 of 15.
+  - A fresh chat's context carries no episode notes, so a recall turn that
+    does not search cannot find them. Across the 96 recall turns in those
+    arms, the model searched memory in 12, and all 3 matches came from those
+    searches.
+  - Memory search uses `websearch_to_tsquery`, which requires every query
+    word to appear in one note. Multi-word searches therefore missed saved
+    notes, while single-word and `OR` searches matched.
+
+  This is app behaviour, not the harness, so the report's recall measures
+  search. The recommendations ask for a search fix and a rerun of the memory
+  arms before a retrieval design is chosen.
 
 ## Decision Log
 
@@ -3031,15 +3051,26 @@ visible built-in rows):
 | Paid run | `2026-10-26-first-decision-run`, source `874f760c`: 17:19:36 to 18:29:58 UTC (70 minutes of contestant calls), exit 0, not aborted; 1,726 calls, ~0.452 USD at the approved rates; 1,668 records (1,620 turns). Two short network drops failed 20 turns on all four configurations: 9 single-turn and 11 memory turns, all `anthropic_connection_error` or `openai_connection_error` |
 | Retry (owner request) | `2026-10-26-first-decision-run-retry`, source `2cd7cf7d`: 18:36:07 to 18:39:38 UTC, exit 0; 13 units (9 single-turn items, and `new-job` in arm (b) for each configuration), 77 records replaced; 88 calls, ~0.046 USD; no failed turns remain. Run totals: 1,814 calls, ~0.498 USD, within the G3 caps |
 | Cleanup | "no benchmark databases to drop"; application database 0 chats, 0 messages, no `animama_benchmark_*`; stack taken down and `.animama-stack.env` removed |
-| Calibration export | `calibrate export` on the retry run: 36 items, waiting for the owner's ratings (G4) |
+| Calibration export | `calibrate export` on the retry run: 36 items. The owner then waived G4 (D17); `calibrate waive --effort medium` is recorded in the run |
+| Judging | `judge --effort medium` with Claude Fable 5.1 on the host: 19:45 to 20:37 UTC (52 minutes), 204 of 205 batches; `expression-0008` came back missing one item on all three attempts, and a rerun scored it. 205 batches scored, no missing items; served model `claude-fable-5-1`, CLI `2.1.310 (Claude Code)` |
+| Report | `report`, then `report --rerender`: written and byte-identical, before the owner's recommendations |
+| Recommendations | On 2026-10-27 the owner asked for the agent's recommendations and adopted them as written. They are kept as `recommendations.md` in the run |
+| Tracked report | `report --recommendations … --overwrite` in the run, then `--output docs/benchmarks/2026-10-26-first-decision-run.md`: written, and the safety check passed. `report --rerender` with the same file matches byte for byte, and the run's `report.md` is identical |
+| Wall time | 70 minutes of contestant calls, 3.5 minutes of retry and 52 minutes of judging: about 2.1 hours against the 4-hour bound, with no calibration |
 
 The retry run is the run of record: calibration, judging and the report use
 it.
 
-Check record: none yet.
+Linking the report from #470 waits for the owner's OK, together with updating
+#470's spec body for D17.
+
+Check record: the report and re-render steps above. The full pre-push suite
+runs on the final candidate.
 
 Commits: `2cd7cf7d` (`feat(evals)[p9]: retry units that failed on connection
-errors`).
+errors`), `f09aef59` (`docs(evals)[p9]: record the paid run and its retry`),
+`2436d279` (`feat(evals)[p9]: judge with Fable 5.1 and record the owner's G4
+waiver`) and `docs(evals)[p9]: record the first model benchmark`.
 
 #### Code Review #1 Findings
 
@@ -3271,4 +3302,28 @@ The PR records local evidence and the actual hosted scope separately.
 
 ## Outcomes & Retrospective
 
-Not started.
+Delivered: the benchmark tooling, skill and documentation (Phases 1–8), and
+the first decision run (Phase 9) with its
+[tracked report](../../benchmarks/2026-10-26-first-decision-run.md).
+
+- **Default model.** The recommendations choose GPT-6 Luna at effort low.
+  - Its reply quality is not distinguishable from Claude Haiku 5.5's.
+  - Its expression ranks above Haiku's.
+  - It uses about 40% fewer input tokens per turn.
+- **Episodic memory.** Capture through the remember tool kept every
+  must-keep entry, while MEMORIES.md alone kept almost none. Recall is not
+  yet a design signal; see the 2026-10-27 discovery.
+- **Budget and time.** The run used 1,814 calls and about $0.50 of the
+  approved 4,600 calls and $6. It took about 2.1 hours against the 4-hour
+  bound.
+- **Deviations.**
+  - Units that failed on connection errors ran again with `run --retry-from`,
+    at the owner's request.
+  - The owner waived G4 and moved the judge to Claude Fable 5.1 at medium
+    (D17). As a result, the judge's agreement with the owner is unmeasured,
+    and the judge shares a model family with a contestant.
+- **Lessons.**
+  - Short network drops hit every configuration at once, so retry tooling
+    belongs in the first version of a paid harness.
+  - A recall result near zero across every model points at the app's
+    retrieval path before the models.
