@@ -261,8 +261,7 @@ chats are logged and searchable, tells the model to search or read memory before
 answering about the user's news, plans, projects or something they said earlier,
 and before saying it does not remember, and to retry an empty search once with
 other words. It skips memory when the answer is already in the conversation or
-instructions, and for unrelated technical and attachment questions. Anthropic
-Memory Manager runs reuse the chat search tool's description.
+instructions, and for unrelated technical and attachment questions.
 
 When memory influence is enabled, direct chat attaches:
 
@@ -370,7 +369,8 @@ above files that match fewer, and `ts_rank_cd` orders files with the same
 count. Only the first 32 words or phrases are used; every exclusion applies.
 Japanese text uses the `english` tokenisation, which does not split words that
 lack spaces. The tool description asks the model for 2-5 distinctive keywords
-rather than a full question and explains that matching any keyword is enough.
+rather than a full question and explains that matching any keyword is enough;
+Anthropic Memory Manager runs reuse that description.
 
 The model receives a `memory_results` array. Markdown memory hits include
 `path`, `description`, and `snippet`. The tool does not return entry IDs,

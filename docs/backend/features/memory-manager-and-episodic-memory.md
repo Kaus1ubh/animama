@@ -461,8 +461,8 @@ The live runtime tools are:
   10 user-scope markdown paths with partial success. Its `content` value is the
   native synthetic description-plus-body patch document in this runtime.
 - `search_memory_files(query, include_episodic_memory)`: searches user-scope
-  markdown files. The boolean defaults to true for existing callers; false
-  excludes generated episode kinds and the `episodes/**` namespace before the
+  markdown files. The schema requires the boolean; false excludes generated
+  episode kinds and the `episodes/**` namespace before the
   result limit.
 - `read_reflection_turns(page)`: Reflection runs only. Returns 50 turns per
   page, oldest first, each with a run-local number, chat title, local time in
