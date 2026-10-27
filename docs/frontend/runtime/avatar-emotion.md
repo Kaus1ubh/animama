@@ -363,8 +363,9 @@ play all three. Each region plays, in order:
 | Angry     | 怒り   | じと目   | –        |
 | Surprised | 上     | びっくり | お       |
 
-Only these standard MMD names are used. Regions without one (–) use the ARKit
-mix or the preset. `Fcl_EYE_Spread` plays びっくり or ARKit's wide eyes.
+Only these standard MMD names are used, and まばたき, ウィンク and ウィンク右 for
+blinks (below). Regions without one (–) use the ARKit mix or the preset.
+`Fcl_EYE_Spread` plays びっくり or ARKit's wide eyes.
 
 - The preset and `Fcl_ALL_<Mood>` combine their regions' MMD morphs and ARKit
   mixes and replace a preset the file authors, so such Avatars show the same
@@ -383,6 +384,11 @@ mix or the preset. `Fcl_EYE_Spread` plays びっくり or ARKit's wide eyes.
   (`iris_hide_unavailable`).
 - A preset that binds nothing counts as absent: three-vrm registers every
   preset, bound or not.
+- `blink`, `blinkLeft` and `blinkRight` that bind nothing play MMD's まばたき,
+  ウィンク and ウィンク右 (the unsuffixed wink is the model's left eye), or else
+  ARKit's `eyeBlinkLeft` and `eyeBlinkRight`; a file's own bound blinks stay.
+  They remain subject to three-vrm's `overrideBlink` and to the eyelid closure
+  correction, which never scales a blink preset by itself.
 - A name that resolves to nothing is reported once per Avatar in Diagnostics.
   So are emotion-map names the Avatar cannot play, such as `Fcl_MTH_Large`
   beside a smile without `jawOpen`; positive emotions without any smile use the
