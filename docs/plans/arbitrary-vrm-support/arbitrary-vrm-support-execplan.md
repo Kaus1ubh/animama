@@ -2753,6 +2753,36 @@ previews, creator picks and item Diagnostics.
   `pnpm openapi-ts:check` and `pnpm web:build:hosted` as the reviewer asked,
   runs once on the final candidate.
 
+### PR B final candidate
+
+`85b0ce88` (tree `1511b2d4`, clean), baseline `main` `fd4c86c5`; macOS arm64
+(Apple M5), OrbStack; each heavy job through `scripts/heavy-slot.py`:
+
+- `make check-test` (repository root): 4,906 passed, 29 skipped.
+- `pnpm verify` (`src/frontend`): vitest 624 files, 5,934 passed, 2 skipped;
+  build. `pnpm web:test:browser`: 131 of 131. `pnpm prettier:check`,
+  `pnpm desktop:test` (557 passed, 14 skipped), `pnpm -s openapi-ts:check`
+  and `pnpm -s web:build:hosted`: pass.
+- Package sets built from `fd4c86c5` and `85b0ce88`
+  (`scripts/package-sets/build.py build`); `compare`: "Compatibility policy
+  passed" (`local-http` 18.0.0, `runtime-contracts` 0.18.0, `product-ui`
+  0.18.0).
+- Included renders against `fd4c86c5`, both looks: 60 sheets (six moods, four
+  Reaction and Gesture clips, 12 painted and iris effects, four body-plane
+  effects, four hand Gestures with right-hand views) at 0 differing pixels;
+  one (Double Take, classic) first differed by 2 pixels and re-rendered twice
+  at 0 (render timing).
+- Load timing (median of 5): Andrew 55.9 ms, Annie 44.6 ms; `main` 56.1 and
+  45.0 ms.
+- `pnpm e2e:test` on a fresh built stack: 40 of 41 passed (47.5 min); the
+  failure, "accountless Local Gesture discard reopens saved content" (the
+  editor's name field never rendered after Library Edit), passed when rerun
+  alone: the suite-load flake also seen in PR A's runs. The
+  imported-playback journey then ran 10 times in a row: 9 passed; one timed
+  out loading `/library` (45 s) before its first preview, not #709's
+  particle-preview symptom.
+- Not run: hosted validation (disabled); live owner checks (owner gates).
+
 ## Validation and acceptance
 
 Spec acceptance criteria, with these checks (from `src/frontend` unless noted):
