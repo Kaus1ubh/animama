@@ -7,6 +7,10 @@ import {
 } from "../locale/shell-locale.js";
 import { writeLog } from "../logging.js";
 import { installWindowGuards } from "../security/guards.js";
+import {
+  floatingWindowType,
+  floatOnAllWorkspaces,
+} from "../window/floating-window.js";
 
 export type DesktopPipBackgroundMode = "transparent" | "scene";
 
@@ -477,7 +481,7 @@ export class PipWindowManager {
       skipTaskbar: true,
       fullscreenable: false,
       show: false,
-      type: "toolbar",
+      type: floatingWindowType(),
       title: this.locale.strings.text("windows.pip"),
       webPreferences: {
         preload: this.preloadPath,
@@ -493,7 +497,7 @@ export class PipWindowManager {
     keepLocalizedTitle(pipWindow, this.locale, "windows.pip");
     installWindowGuards(pipWindow, this.config.allowedWebOrigin);
     pipWindow.setAlwaysOnTop(true, "floating");
-    pipWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+    floatOnAllWorkspaces(pipWindow);
     this.startMouseTracking(pipWindow);
 
     const syncVisibility = () => {

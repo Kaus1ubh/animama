@@ -47,7 +47,10 @@ window's display work area, with a small margin so OS taskbars and docks are not
 covered. The default size scale is `0.5`.
 
 It uses the floating always-on-top level and remains visible across workspaces,
-including fullscreen workspaces.
+including fullscreen workspaces. On macOS it is a non-activating panel, which
+floats over full-screen apps while Animama stays in the Dock and Command-Tab.
+Electron's default for full-screen visibility hides the Dock icon instead, so
+`floatOnAllWorkspaces` passes `skipTransformProcessType`.
 
 The Linux `type: "toolbar"` hint makes the window easier to identify in window
 managers. Tiling window managers may still need explicit user rules.
