@@ -9,8 +9,9 @@ tracked at [`docs/benchmarks/2026-10-26-first-decision-run.md`](../../benchmarks
 
 Source agreement: the spec, published as the body of
 [#470](https://github.com/raymond-van/animama/issues/470) at
-`2026-10-26T02:24:13Z`, which is authoritative. The tracked
-[snapshot](model-benchmark-spec.md) records that capture. The spec follows
+`2026-10-26T02:24:13Z`, which is authoritative. On `2026-10-27T04:17:27Z` the
+body was revised for D17. The tracked [snapshot](model-benchmark-spec.md)
+records that capture. The spec follows
 the owner's discovery answers of 2026-10-12 and 2026-10-25 and the owner's
 spec answers of 2026-10-25, recorded on #470 in the
 [2026-10-12 brief](https://github.com/raymond-van/animama/issues/470#issuecomment-6134798047)
@@ -510,8 +511,8 @@ were rechecked on `18d2bebd`.
   rather than rate the sample. The judge model changes for this and every
   later run (D6, spec R12); the waiver covers this run only (D15, spec R13),
   so a later run of the same prompt-set version still needs a calibration.
-  The spec snapshot records the revision; #470 is updated with the owner's
-  agreement.
+  The spec snapshot records the revision. With the owner's agreement, #470's
+  body was updated to match on 2026-10-27.
   - `JUDGE_MODEL` is `claude-fable-5-1`; the isolation check confirms it on
     every call, as before.
   - `calibrate waive --effort medium` records the waiver in
@@ -3061,8 +3062,10 @@ visible built-in rows):
 The retry run is the run of record: calibration, judging and the report use
 it.
 
-Linking the report from #470 waits for the owner's OK, together with updating
-#470's spec body for D17.
+On 2026-10-27, with the owner's OK, #470's body was updated with the D17
+revision, and
+[a comment](https://github.com/raymond-van/animama/issues/470#issuecomment-6433628394)
+links the tracked report.
 
 Check record: the report and re-render steps above. The full pre-push suite
 runs on the final candidate.

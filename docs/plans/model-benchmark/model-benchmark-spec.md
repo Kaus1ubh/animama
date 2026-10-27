@@ -662,7 +662,8 @@ Flagged against existing decisions:
 ## Spec
 
 Snapshot of https://github.com/raymond-van/animama/issues/470, captured from
-its body as published at `2026-10-26T02:24:13Z` (issue `updatedAt`). The
+its body as published at `2026-10-27T04:17:27Z` (issue `updatedAt`), which
+added the 2026-10-26 revision to the body published at `2026-10-26T02:24:13Z`. The
 issue is authoritative: refresh this file from it before resuming, and do
 not edit this file as a competing source of requirements.
 
