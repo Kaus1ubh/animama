@@ -2901,6 +2901,27 @@ previews, creator picks and item Diagnostics.
   particle-preview symptom.
 - Not run: hosted validation (disabled); live owner checks (owner gates).
 
+After the live check's repairs and the owner's frame-cap decision, the final
+candidate is `d5818800` (tree `3c8fe5ae`, clean). Backend, content, package,
+contract and script inputs are unchanged since `85b0ce88` (empty `git diff
+--stat` over `src/backend`, `contracts`, `src/frontend/packages`, `scripts`,
+`content`, `alembic`, `pyproject.toml`, `uv.lock`), so `make check-test`, the
+package-set compare, the Included renders and load timing above still apply;
+the renders after the wink repair are in "PR B live check #1 Revisions".
+Rerun on `d5818800`:
+
+- `pnpm verify`: vitest 626 files, 5,956 passed, 2 skipped; build.
+  `pnpm web:test:browser`: 131 of 131. `pnpm prettier:check`,
+  `pnpm desktop:test` (557 passed, 14 skipped), `pnpm -s openapi-ts:check`
+  and `pnpm -s web:build:hosted`: pass.
+- `pnpm e2e:test` on a fresh built stack: 36 of 41 passed (1.1 h, the
+  machine shared with other sessions' heavy jobs). All five failures stopped
+  on the Library after Edit or Copy with the editor's name field never
+  rendered (content sharing export/import, Local Gesture discard, Avatar FX
+  discard before Library Edit, and both Pose content journeys); rerun alone
+  on the same stack, all five passed. This is the suite-load flake above,
+  more often under load. Not rerun: the imported-playback series.
+
 ### PR B live check #1 Findings
 
 The PR A session checked PR B's head `9a97029a` live on a production stack
