@@ -72,10 +72,10 @@ Open after Phase 7:
   D4's question whether the app's tone mapping and chat filter should keep
   applying to authored lilToon materials; the measured cost against R2's
   target (see Validation); the upstream texts.
-- [ ] D5 (approved): once #744 merges, merge `main` into this branch, raise
-  `lilToonGpuCheck.ts`'s `METHOD` so viewers measure again, reconsider timing
-  at a known clock state (Surprises 1), and propose Automatic's threshold for
-  the owner's approval.
+- [x] D5 (approved): after #744 merged, `main` was merged in and
+  `lilToonGpuCheck.ts`'s `METHOD` raised to 3; the threshold stays as it is
+  (see D5 record under Validation), pending the owner's approval of the
+  candidate.
 - [ ] Follow-up (not in this plan): find why the first lilToon Avatar in a
   fresh page renders about three times slower than later loads, and which
   state the app runs in (Validation, idle-machine recheck).
@@ -1230,6 +1230,24 @@ loads one Avatar per launch and so measures the first-load state. The cause,
 and which state the app runs in, are not established; if the app runs in the
 later state, the lilToon frame after the change (1.8–1.9 ms) is close to an
 Included Avatar's (Andrew 1.0–1.5 ms in the same pages).
+
+D5 record (2026-10-27, after #744 merged as `b8fed9a5`): `main` merged into
+this branch (`beedb7e3`), and `METHOD` in `lilToonGpuCheck.ts` raised from 2
+to 3 so every viewer's GPU measures again; the tests now store method 3 and
+treat a method 2 result as not measured (`npx vitest run
+src/lib/avatar/liltoon/lilToonGpuCheck.test.ts` 21 of 21). The in-app check
+times paced frames with the timer query. A paced bench (`--fps 60 --frames
+600 --rounds 2 --pixel-ratios 1.44,2,3.5`, alternating `b8fed9a5` with the
+candidate over two rounds, machine load rising from 3 to 7) read the lilToon
+frame at 8.3–12.2 ms before and 7.0–10.9 ms after: paced readings follow the
+clock the GPU chooses (Surprises 1), so the halving shows as headroom rather
+than a lower reading, and neither grew with pixels. On the M5 both fit 60 fps
+(12.8 ms) with the fastest of three measurements deciding. Proposed and
+pending the owner's approval: keep `LILTOON_FRAME_HEADROOM` (1.3) and the 60,
+45, 30 and 24 fps steps, and keep paced timing. A paced reading is
+conservative: a frame that fits at a lowered clock fits at 60 fps, and one
+that does not fit makes the GPU clock up, so at worst a busy moment caps a
+GPU lower than it needs until a faster measurement replaces it.
 
 ## Idempotence and recovery
 
