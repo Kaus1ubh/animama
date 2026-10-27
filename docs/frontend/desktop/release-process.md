@@ -20,12 +20,12 @@ remain pending for the exact current candidate.
 | Inputs                        | Apple Team ID, Developer ID identity and local notarization Keychain profile are configured; content/dependency terms and notices are reviewed. Keep credentials out of source and chat.                                                                                                                                                                                        |
 | Candidate coordinates         | Select the app distribution with `ANIMAMA_RELEASE_DISTRIBUTION` (default `r2`) and keep it identical for stage, audit and `desktop:dist:mac`. Archive-pack and update URLs derive from it; model objects always use `downloads.animama.ai/models/`. No token, visibility check or upload is needed to build.                                                                    |
 | Reviewed packs                | No pack is active: expanded content and document processing are explicitly deferred from the first release. Preserve the signed/notarized worker as future review input without advertising or approving it. The required model objects, including both Parakeet and both SenseVoice sets, are scanned with the candidate.                                                      |
-| Dependency audit              | On the selected `main` revision, `pnpm audit --prod`, Electron's entries in the full `pnpm audit` and `pip-audit` of the locked backend runtime report no advisory, except ones accepted as unreachable and recorded with the candidate. Electron is on one of its three supported stable majors.                                                                               |
+| Dependency audit              | On each build host, `pnpm audit --prod`, the full audit's `desktop>electron` entries and `pip-audit` of the frozen backend's locked packages report no advisory, except ones accepted as unreachable and listed in `desktop/release/dependency-audit/`. Electron is on the latest release of a supported stable major.                                                          |
 | Candidate                     | From reviewed release inputs on `main`, stage, audit and build the local signed DMG/ZIP. Check sizes, hashes, signatures, notarization and notices. A build never uploads to GitHub; notarization sends the binaries to Apple.                                                                                                                                                  |
 | Automated acceptance          | Run the required-name setup smoke on a fresh macOS account/runner. It rejects blank input before named completion. Explicit provider-key approval is needed for real chat calls. Never reset the maintainer's normal desktop profile.                                                                                                                                           |
 | Distribution / public preview | Currently not authorized. The publisher requires the selected destination to serve anonymously (a public GitHub repository or the R2 custom domain), a passing release scan and separate approval of the exact candidate/packs. A private destination cannot serve installed-app downloads; a different private testing transport would require a separate design and approval. |
 | Native acceptance             | Check physical microphone/audio, windows/shortcuts, in-place offline speech install/removal and offline dictation, packs/document conversion, failures/recovery and a real forward signed upgrade. Record supported OS and compatible app/pack versions actually exercised.                                                                                                     |
-| Stable promotion              | `raymond-van` reviews the exact DMG-bound manual receipt and required-name smoke/network reports, then runs the final publisher command.                                                                                                                                                                                                                                        |
+| Stable promotion              | `raymond-van` reviews the exact DMG-bound manual receipt, required-name smoke/network reports and a rerun dependency audit, then runs the final publisher command.                                                                                                                                                                                                              |
 
 Windows 11 x64 passes the same gates with its own commands; see
 [Windows candidates](#windows-candidates). macOS 15 and Windows build 22000 are
@@ -60,31 +60,36 @@ complete voice inventory, add `--import-voices /absolute/import-voice-set`.
 See [model tooling](../../../scripts/models/README.md#release-only-bootstrap).
 Ordinary web builds do not need optional voices or the cloning encoder.
 
-Before staging, audit the dependencies of the selected revision. From
-`src/frontend`:
+Before staging, audit the dependencies on each build host, in the checkout you
+stage from. These commands run from the repository root in both shells and keep
+their reports in `desktop/release/dependency-audit/`, which staging and
+`desktop:dist:*` leave in place:
 
 ```sh
-pnpm audit --prod
-pnpm audit
+uv export --frozen --no-default-groups --group desktop-build --all-extras --no-hashes --no-emit-project --format requirements-txt -o src/frontend/desktop/release/dependency-audit/runtime-requirements.txt
+uvx pip-audit@2.10.1 --no-deps --disable-pip -r src/frontend/desktop/release/dependency-audit/runtime-requirements.txt -o src/frontend/desktop/release/dependency-audit/pip-audit.txt
+pnpm -C src/frontend audit --prod > src/frontend/desktop/release/dependency-audit/pnpm-audit-prod.txt
+pnpm -C src/frontend audit > src/frontend/desktop/release/dependency-audit/pnpm-audit.txt
 ```
 
-From the repository root:
+The export is the package set the frozen backend is built from, including
+PyInstaller, plus optional extras the app does not ship. `pip-audit` evaluates
+platform markers for the machine it runs on, so Windows-only packages are
+audited only on the Windows host. `--prod` covers the web and desktop production
+dependencies but omits the desktop devDependencies that still ship: Electron
+and electron-builder's installer templates. Treat full-audit entries whose path
+starts with `desktop>electron` like production entries; the full audit's other
+entries are build and test tools to review without blocking. Both tools exit
+non-zero whenever they report an advisory.
 
-```sh
-uv export --frozen --no-dev --all-extras --no-hashes --no-emit-project \
-  --format requirements-txt | uvx pip-audit@2.10.1 --no-deps --disable-pip -r /dev/stdin
-```
-
-`--prod` covers the web and desktop production dependencies but omits Electron,
-which ships in every candidate although it is a desktop devDependency, so check
-the full audit for `electron` entries. The full audit's other entries are build
-and test tools: review them, but they do not block a candidate. `pip-audit`
-checks every locked backend runtime package, including optional extras, without
-installing them. Upgrade a package with an advisory on a task branch before
-building. A candidate may proceed with an advisory only when the affected code
-is unreachable in the app, for example one limited to building packages from
-source; record each accepted advisory and its reason with the candidate's
-receipts. Electron fixes security issues only in its three newest stable majors.
+Upgrade a package with a blocking advisory on a task branch before building. A
+candidate may proceed with one only when the affected code is unreachable in
+the app, for example an advisory limited to building packages from source;
+list each accepted advisory and its reason in `accepted-advisories.txt` in the
+same folder. Electron must also be on the latest release of one of its three
+supported stable majors ([release timeline](https://releases.electronjs.org/)),
+because only those receive security fixes. Keep the folder with the candidate's
+other receipts, and rerun the audit before stable promotion.
 
 From `src/frontend`, the candidate sequence is:
 
