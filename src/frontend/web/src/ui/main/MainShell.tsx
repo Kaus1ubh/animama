@@ -26,6 +26,11 @@ type MainShellProps = {
   headerCenter?: ReactNode;
   headerRight?: ReactNode;
   headerOnMenuClick?: () => void;
+  /**
+   * Whether the desktop PiP shortcut may run. The route holds it back, like
+   * the chat's shortcuts, until the first-run confirmation is accepted.
+   */
+  pipShortcutEnabled?: boolean;
   children?: ReactNode;
   className?: string;
 };
@@ -45,6 +50,7 @@ export function MainShell({
   headerCenter,
   headerRight,
   headerOnMenuClick,
+  pipShortcutEnabled = false,
   children,
   className,
 }: MainShellProps) {
@@ -64,7 +70,10 @@ export function MainShell({
     togglePip,
   } = usePictureInPicture({ canvasMode, setCanvasMode });
   usePauseShineWhileInactive(isPipActive);
-  useDesktopPipShortcut({ available: isDesktopPip, onToggle: togglePip });
+  useDesktopPipShortcut({
+    available: isDesktopPip && pipShortcutEnabled,
+    onToggle: togglePip,
+  });
   const { isFullscreen, enterFullscreen, exitFullscreen } =
     useFullscreen(canvasWrapperRef);
 

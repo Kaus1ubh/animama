@@ -103,6 +103,16 @@ describe("useDesktopPipShortcut", () => {
     expect(onToggle).toHaveBeenCalledTimes(1);
   });
 
+  it("sends nothing while unavailable, as behind the first-run confirmation", async () => {
+    const onToggle = vi.fn();
+    await render(false, onToggle);
+
+    expect(bridge.configure).not.toHaveBeenCalled();
+    expect(bridge.setContext).not.toHaveBeenCalled();
+    press("toggle_pip");
+    expect(onToggle).not.toHaveBeenCalled();
+  });
+
   it("withdraws availability when PiP becomes unavailable or unmounts", async () => {
     const onToggle = vi.fn();
     await render(true, onToggle);
