@@ -20,6 +20,7 @@ remain pending for the exact current candidate.
 | Inputs                        | Apple Team ID, Developer ID identity and local notarization Keychain profile are configured; content/dependency terms and notices are reviewed. Keep credentials out of source and chat.                                                                                                                                                                                        |
 | Candidate coordinates         | Select the app distribution with `ANIMAMA_RELEASE_DISTRIBUTION` (default `r2`) and keep it identical for stage, audit and `desktop:dist:mac`. Archive-pack and update URLs derive from it; model objects always use `downloads.animama.ai/models/`. No token, visibility check or upload is needed to build.                                                                    |
 | Reviewed packs                | No pack is active: expanded content and document processing are explicitly deferred from the first release. Preserve the signed/notarized worker as future review input without advertising or approving it. The required model objects, including both Parakeet and both SenseVoice sets, are scanned with the candidate.                                                      |
+| Dependency audit              | On the selected `main` revision, `pnpm audit --prod`, Electron's entries in the full `pnpm audit` and `pip-audit` of the locked backend runtime report no advisory, except ones accepted as unreachable and recorded with the candidate. Electron is on one of its three supported stable majors.                                                                               |
 | Candidate                     | From reviewed release inputs on `main`, stage, audit and build the local signed DMG/ZIP. Check sizes, hashes, signatures, notarization and notices. A build never uploads to GitHub; notarization sends the binaries to Apple.                                                                                                                                                  |
 | Automated acceptance          | Run the required-name setup smoke on a fresh macOS account/runner. It rejects blank input before named completion. Explicit provider-key approval is needed for real chat calls. Never reset the maintainer's normal desktop profile.                                                                                                                                           |
 | Distribution / public preview | Currently not authorized. The publisher requires the selected destination to serve anonymously (a public GitHub repository or the R2 custom domain), a passing release scan and separate approval of the exact candidate/packs. A private destination cannot serve installed-app downloads; a different private testing transport would require a separate design and approval. |
@@ -58,6 +59,32 @@ inventory drift; it never changes approvals or publishes. To reuse a verified
 complete voice inventory, add `--import-voices /absolute/import-voice-set`.
 See [model tooling](../../../scripts/models/README.md#release-only-bootstrap).
 Ordinary web builds do not need optional voices or the cloning encoder.
+
+Before staging, audit the dependencies of the selected revision. From
+`src/frontend`:
+
+```sh
+pnpm audit --prod
+pnpm audit
+```
+
+From the repository root:
+
+```sh
+uv export --frozen --no-dev --all-extras --no-hashes --no-emit-project \
+  --format requirements-txt | uvx pip-audit@2.10.1 --no-deps --disable-pip -r /dev/stdin
+```
+
+`--prod` covers the web and desktop production dependencies but omits Electron,
+which ships in every candidate although it is a desktop devDependency, so check
+the full audit for `electron` entries. The full audit's other entries are build
+and test tools: review them, but they do not block a candidate. `pip-audit`
+checks every locked backend runtime package, including optional extras, without
+installing them. Upgrade a package with an advisory on a task branch before
+building. A candidate may proceed with an advisory only when the affected code
+is unreachable in the app, for example one limited to building packages from
+source; record each accepted advisory and its reason with the candidate's
+receipts. Electron fixes security issues only in its three newest stable majors.
 
 From `src/frontend`, the candidate sequence is:
 
