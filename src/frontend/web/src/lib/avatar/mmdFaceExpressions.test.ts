@@ -205,4 +205,55 @@ describe("MMD face shapes", () => {
     expect(morphInfluence(mesh, "Viseme_A")).toBe(0);
     controller.dispose();
   });
+
+  it("fills empty blink presets from MMD's winks and keeps the file's own", () => {
+    // three-vrm registers every preset, so the file's empty winks are present.
+    const { vrm, mesh } = syntheticFaceVrm({
+      morphs: [...MMD_MORPHS, "Blink_Authored", "ウィンク", "ウィンク右"],
+      presetBinds: {
+        blink: ["Blink_Authored"],
+        blinkLeft: [],
+        blinkRight: [],
+      },
+    });
+    prepareLoadedVrm(vrm, { vrmSha256: null });
+    const manager = vrm.expressionManager!;
+
+    manager.setValue("blinkLeft", 1);
+    manager.update();
+    expect(morphInfluence(mesh, "ウィンク")).toBeCloseTo(1, 5);
+    expect(morphInfluence(mesh, "ウィンク右")).toBe(0);
+    manager.setValue("blinkLeft", 0);
+    manager.setValue("blinkRight", 1);
+    manager.update();
+    expect(morphInfluence(mesh, "ウィンク右")).toBeCloseTo(1, 5);
+    manager.setValue("blinkRight", 0);
+    manager.setValue("blink", 1);
+    manager.update();
+    expect(morphInfluence(mesh, "Blink_Authored")).toBeCloseTo(1, 5);
+  });
+
+  it("fills empty blink presets from ARKit, and blink never overrides itself", () => {
+    const { vrm, mesh } = syntheticFaceVrm({
+      morphs: ARKIT_BLENDSHAPES.map(arkitSpelling),
+      presetBinds: { blink: [], blinkLeft: [], blinkRight: [] },
+    });
+    prepareLoadedVrm(vrm, { vrmSha256: null });
+    const manager = vrm.expressionManager!;
+
+    manager.setValue("blinkLeft", 1);
+    manager.update();
+    expect(morphInfluence(mesh, "eyeBlink_L")).toBeCloseTo(1, 5);
+    expect(morphInfluence(mesh, "eyeBlink_R")).toBe(0);
+    manager.setValue("blinkLeft", 0);
+    manager.setValue("blink", 1);
+    manager.update();
+    expect(morphInfluence(mesh, "eyeBlink_L")).toBeCloseTo(1, 5);
+    expect(morphInfluence(mesh, "eyeBlink_R")).toBeCloseTo(1, 5);
+    manager.setValue("blink", 0);
+    // VRoid's one-eye close parts follow the filled presets.
+    manager.setValue("Fcl_EYE_Close_R", 1);
+    manager.update();
+    expect(morphInfluence(mesh, "eyeBlink_R")).toBeCloseTo(1, 5);
+  });
 });

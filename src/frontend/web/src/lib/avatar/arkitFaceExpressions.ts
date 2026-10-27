@@ -108,6 +108,13 @@ export function ownFaceNames(vrm: VRM): (name: string) => boolean {
 
 const REGIONS: readonly FaceRegion[] = ["brow", "eye", "mouth"];
 
+/** The ARKit mix each blink preset plays when the file and MMD leave it empty. */
+const ARKIT_BLINK_MIXES: Readonly<Record<string, ArkitMix>> = {
+  blink: { eyeBlinkLeft: 1, eyeBlinkRight: 1 },
+  blinkLeft: { eyeBlinkLeft: 1 },
+  blinkRight: { eyeBlinkRight: 1 },
+};
+
 /** VRoid's eye-closing parts and the blink preset each plays without ARKit. */
 const EYE_CLOSE_BLINKS: Readonly<Record<string, string>> = {
   Fcl_EYE_Close: "blink",
@@ -246,6 +253,11 @@ export function registerArkitFace(vrm: VRM): ArkitFace {
   }
   for (const [part, mix] of Object.entries(ARKIT_NON_MOOD_PART_MIXES)) {
     if (resolves(mix)) registerMix(part, mix);
+  }
+  // A blink preset the file and MMD leave empty plays its ARKit eye closing.
+  for (const [preset, mix] of Object.entries(ARKIT_BLINK_MIXES)) {
+    if ((manager.getExpression(preset)?.binds.length ?? 0) > 0) continue;
+    if (resolves(mix)) registerMix(preset, mix, true);
   }
   // Closing the eyes is what each blink preset does on any model.
   for (const [part, blink] of Object.entries(EYE_CLOSE_BLINKS)) {

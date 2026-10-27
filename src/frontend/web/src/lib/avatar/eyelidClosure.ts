@@ -228,10 +228,19 @@ export function applyEyelidClosureCorrection(
     correction = { source: "measured", profile };
   }
   for (const expression of manager.expressions) {
+    // The blink presets are what the correction overrides, never corrected.
+    if (BLINK_PRESETS.has(expression.expressionName)) continue;
     if (isAnimamaFaceExpression(expression)) correctMeasured(expression);
   }
   return correction;
 }
+
+/** The presets three-vrm's blink override scales. */
+const BLINK_PRESETS: ReadonlySet<string> = new Set([
+  "blink",
+  "blinkLeft",
+  "blinkRight",
+]);
 
 /**
  * Whether an expression closes one eye only: an ARKit mix that moves one
