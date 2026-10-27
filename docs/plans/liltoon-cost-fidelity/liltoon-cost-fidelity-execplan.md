@@ -55,7 +55,8 @@ or Included Avatars with synthetic additions.
 - [x] Phase 2: opaque lilToon surfaces and outlines without blending (review
   passed; owner gate pending: accept the pre-pass edge-sample difference).
 - [ ] Phase 3: morph-weight textures without per-frame reallocation.
-- [ ] Phase 4: vertex-colour outlines (runtime fallback and export).
+- [ ] Phase 4: vertex-colour outlines (runtime fallback; export held
+  upstream pending the owner's acceptance).
 - [ ] Phase 5: Unity parity report and fixes.
 - [ ] Phase 6: upstream texts.
 - [ ] Phase 7: documentation and final integration review.
@@ -157,6 +158,9 @@ primitives, 67,698 triangles; 19 draws and 131,137 triangles with outlines),
 - 2026-10-27, agent: merged `feat/arbitrary-vrm-support-pr-b` at `d5818800`
   (#744's Automatic keeps lilToon with a frame-rate cap) into this branch
   before Phase 1; it touches none of this plan's files.
+- 2026-10-27, agent: Phase 4 before Phase 3 (its work was ready and touches
+  no patch file). Its export change moved upstream: UniVRM's VRM 1.0 writer
+  drops vertex colours regardless of settings.
 - 2026-10-27, agent (Phase 2 review): Phases 2 and 3 raised to high risk
   because they patch a runtime dependency (P2-R1-F1).
 - 2026-10-27, agent (Phase 1, within the plan): the R2 target compares
@@ -189,6 +193,16 @@ primitives, 67,698 triangles; 19 draws and 131,137 triangles with outlines),
   `lilToonGpuCheck.ts`'s `METHOD` so viewers measure again, and reconsider
   timing at a known clock state. Proposed: a follow-up after #744 merges, in
   this branch, with the owner's approval of the threshold.
+
+Pending owner decisions (raised during implementation):
+
+- D6 (Phase 2 gate): accept the depth pre-pass's edge-sample difference
+  (about one edge pixel per frame on the converted test Avatar, channel delta
+  up to 21) for its saving, or keep the pre-pass off for lilToon primitives.
+- D7 (Phase 4 gate, changes R3): the export cannot keep vertex colours today
+  (UniVRM's VRM 1.0 writer drops them), so R3's export half moves to the
+  upstream drafts and Animama ships the runtime fallback (no dark patches;
+  tips slightly heavier than Unity's) until an exporter keeps them.
 
 ## Phased implementation
 
@@ -562,6 +576,109 @@ private Unity project; private renders: no dark band, outline taper as in
 Unity; Simple renders unchanged with `COLOR_0` present.
 
 Owner gate: the look in private renders.
+
+Starting source: `aabbff5c` (Phase 2). Done before Phase 3 because its
+Animama-side work was ready and touches no patch file (Decision Log).
+
+Implemented:
+
+1. Runtime fallback in Animama, not the patch:
+   `fallBackFromMissingOutlineColours` (`liltoon/lilToon.ts`) sets
+   `_OutlineVertexR2Width` from 2 to 0 on lilToon materials none of whose
+   meshes has vertex colours; `withOnDemandLilToon` wraps the VRM plugin's
+   `afterRoot` to apply it and logs one warning naming the materials. Mode 1
+   (width from red) is left alone: with no colours it reads full width, as
+   Unity does.
+2. Export: not possible in Animama's batch export. UniVRM 0.131.2's VRM 1.0
+   writer (`MeshWriter.ExportMeshDivided`) writes positions, normals, the
+   first UV set and skinning only, and `VRM10ExportSettings.MeshExportSettings`
+   returns new settings without `ExportVertexColor`; a private test export
+   with Mochiya changed to set it still had no `COLOR_0`. The fix moves to the
+   upstream drafts (Phase 6); vrchat-avatar-conversion.md lists the limit.
+3. `LilToonFallbackMaterialsPlugin.afterRoot` clears `vertexColors` on glTF
+   fallbacks built from lilToon materials, so files that do carry `COLOR_0`
+   draw Simple untinted; other materials keep glTF's multiply.
+4. Verification on private copies: the converted test Avatar as exported now
+   loads with the fallback, and the bang-tip dark band is gone; a copy with
+   the author's colours injected from the Unity meshes (UniVRM keeps each
+   submesh's vertices in source order, so the mapping is exact) draws thin,
+   tapered tips like Unity.
+
+Check record (2026-10-27, macOS arm64, Phase 5 drafts set aside, working tree
+`8a3f9b8b5b5d70b6fcb9e7b168ffc46d5a3ca98d`):
+
+- New tests in `lilToon.test.ts` with a synthetic triangle glTF (optional
+  `COLOR_0`): the fallback to mode 0 without colours and the colour-free
+  Simple fallback failed before the change and pass after it; mode 2 kept
+  with colours passes.
+- `npx vitest run src/lib/avatar/liltoon src/lib/avatar/Avatar`
+  (`src/frontend/web`): 12 files, 107 passed (1 skipped).
+- `npx tsc --noEmit -p tsconfig.app.json`, `npx eslint` and `npx prettier
+  --check` on `lilToon.ts` and `lilToon.test.ts` (`src/frontend/web`):
+  passed.
+- Private renders (`animation:render`, SwiftShader): bang crops as exported,
+  with the fallback, and with injected colours.
+
+#### Code Review #1 Findings
+
+Independent reviewer (standard tier, initial review) of tree `a94fdcdb`
+against `aabbff5c`; reused the record and reran the loader, Included-baseline
+and material-mode tests (73 passed). Result: blocked.
+
+- P4-R1-F1 (required): no test asserted the load warning R3 requires.
+- P4-R1-F2 (required): moving R3's export half upstream changes an agreed
+  requirement; it needs the owner's acceptance at this phase's gate.
+- P4-R1-F3 (required): the planned check "Simple renders unchanged with
+  `COLOR_0` present" had no render evidence.
+- Optional: the fallback is decided per material copy (GLTFLoader clones
+  materials per mesh flag set, so coloured and uncoloured meshes never share
+  one), not per glTF material as written, and the warning could repeat a
+  name; the function needlessly exported; no `featureSet.outline` check, so a
+  non-outline material with a stale mode 2 would be changed and named; the
+  decision not to warn for mode 1 unrecorded; mode 0 uses the outline vector
+  texture when present; the fallback plugin traversed every file; stale
+  JSDoc; "UVs" for "the first UV set"; the Progress line.
+
+#### Code Review #1 Revisions
+
+- P4-R1-F1 accepted: both colour tests spy on `console.warn` (the logger's
+  sink): one warning with `{ materials: ["Skin"] }` without colours, none
+  with them.
+- P4-R1-F2 accepted: the owner's decision is pending (see Decisions); the
+  phase stays open until it is recorded.
+- P4-R1-F3 accepted: `effects:render library:blush --times 0.5 --views
+  front,face --materials simple` on the converted test Avatar as exported and
+  on the copy with `COLOR_0` injected, `--diff --threshold 0`: the only
+  differing pixels are the sheet's file-name labels (rows 8–21); the render
+  tiles below the 28 px header are identical.
+- Optional findings accepted: the docs and comment say "on meshes without
+  vertex colours" and explain the material copies; names are de-duplicated;
+  the function is module-private; `isVertexColourOutline` requires
+  `featureSet.outline`; mode 1 is documented as needing no fallback; mode 0
+  mentions the outline vector texture; `LilToonFallbackMaterialsPlugin.afterRoot`
+  returns early for files without the extension; JSDoc updated; the
+  conversion guide says "the first UV set".
+
+Repair check record (same environment, tree `517dd0bd92a5b398b3694876ab19be5f2646c1d1`): `npx vitest run
+src/lib/avatar/liltoon src/lib/avatar/Avatar
+src/lib/avatar/configureAvatarGltfLoader src/lib/avatar/includedAvatarBaselines
+src/lib/avatar/avatarMaterialMode` (`src/frontend/web`) passed; `npx tsc
+--noEmit -p tsconfig.app.json`, eslint and `prettier --check` on `lilToon.ts`
+and `lilToon.test.ts` passed.
+
+#### Code Review #2 Findings
+
+Targeted recheck (repair round 1) on tree `851f1ebf`: P4-R1-F1 and F3 fixed,
+F2 correctly recorded as pending owner decision D7, optional items applied
+without regressions. Non-blocking: mode 1's "as in Unity" holds only for
+meshes without colours in Unity; on exports that drop them its tips are
+heavier too. Result: pass; the phase closes when the owner records D7.
+
+#### Code Review #2 Revisions
+
+The mode 1 wording in avatar-animation.md and the function's JSDoc now says
+so (comment and doc text only; `npx prettier --check` and eslint on
+`lilToon.ts` passed). Repair budget used: one of two rounds.
 
 ### Phase 5: Unity parity report and fixes
 

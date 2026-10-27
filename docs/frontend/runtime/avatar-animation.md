@@ -1731,7 +1731,22 @@ adapts colour and UV expression binds to those materials.
   materials, which renders them almost black without an environment map.
   `LilToonFallbackMaterialsPlugin` builds fallbacks of lilToon materials with
   metalness 0; GLTFLoader extends only materials it builds itself, so
-  lilToon's own materials are untouched.
+  lilToon's own materials are untouched. Vertex colours on those materials'
+  meshes are lilToon outline data, so their fallbacks also ignore `COLOR_0`
+  (other materials keep glTF's colour multiply).
+- **Outlines from vertex colours:** with `_OutlineVertexR2Width` 2, lilToon
+  takes an outline's direction from the vertex colour's RGB (a tangent-space
+  normal the author baked, often for hair) and its width from the alpha.
+  On a mesh without vertex colours, three-liltoon reads white, which pushes
+  the outline through thin parts as dark patches (hair bang tips).
+  `withOnDemandLilToon` then sets such outlined materials to mode 0 (the mesh
+  normal, or the outline vector texture, at full width still scaled by the
+  width mask) and logs a warning naming them. Outline tips then read
+  slightly heavier than in Unity, where the colours taper them; meshes that
+  keep their vertex colours draw as authored. Mode 1 (width from red) keeps
+  its direction without colours and reads full width, as Unity does for a
+  mesh without colours; on exports that drop them its tips also read
+  heavier than in Unity.
 - **Fallback:** in development and the review tools, a failed import loads the
   glTF fallback materials instead, and a later Avatar retries. In a built app a
   failed chunk download shows the app's reload screen (`PageLoadError`), as for
