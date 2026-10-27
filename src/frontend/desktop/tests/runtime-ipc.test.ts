@@ -573,11 +573,11 @@ describe("independent runtime recovery page", () => {
   });
 
   it.each([
-    ["darwin", "ログインキーチェーン", "pnpm desktop:mac:reset"],
-    ["win32", "一時プロファイル", "%LOCALAPPDATA%\\Animama"],
+    ["darwin", "ログインキーチェーン", "pnpm desktop:mac:reset", true],
+    ["win32", "一時プロファイル", "%LOCALAPPDATA%\\Animama", false],
   ] as const)(
     "gives %s its own secure-storage and fresh-profile advice in the shell locale",
-    async (platform, storage, reset) => {
+    async (platform, storage, reset, retryHidden) => {
       const page = await loadRuntimePage(
         "data:text/html,recovery",
         "recovery",
@@ -585,6 +585,8 @@ describe("independent runtime recovery page", () => {
       );
       page.render({ state: "error", code: "secure_storage_unavailable" });
       expect(page.element("#message").textContent).toContain(storage);
+      // A refused macOS Keychain needs a relaunch; Windows can retry the key wait.
+      expect(page.element("#retry").hidden).toBe(retryHidden);
       page.render({ state: "error", code: "database_schema_mismatch" });
       const message = String(page.element("#message").textContent);
       expect(message).toContain(reset);

@@ -1773,15 +1773,22 @@ Load command 4
     },
   );
   it("does not allow a JS package to escape into developer node_modules", () => {
-    const meta = (name) => ({
+    const meta = (name, output = "dist/main.js") => ({
       inputs: {},
-      outputs: { "main.js": { imports: [{ path: name, external: true }] } },
+      outputs: { [output]: { imports: [{ path: name, external: true }] } },
     });
     for (const name of ["electron", "node:fs"])
       expect(() => assertBundledImports(meta(name))).not.toThrow();
     expect(() => assertBundledImports(meta("hono"))).toThrow(
       "Undeclared runtime import",
     );
+    // A sandboxed preload has no Node modules to require.
+    expect(() =>
+      assertBundledImports(meta("electron", "dist/preload.cjs")),
+    ).not.toThrow();
+    expect(() =>
+      assertBundledImports(meta("node:events", "dist/preload.cjs")),
+    ).toThrow("Undeclared runtime import in dist/preload.cjs: node:events");
     expect(() =>
       assertBundledImports({
         inputs: { "node_modules/better-auth/index.js": {} },
