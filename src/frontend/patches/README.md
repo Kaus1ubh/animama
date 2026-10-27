@@ -25,4 +25,8 @@ unblended and still keeps one morph-weight texture per material before
 rebasing or removing the patch. The same patch keeps one
 morph-weight texture per mesh instead of one per material: a material shared by
 meshes with different morph-target counts otherwise reallocated its texture on
-every draw. See issue [#752](https://github.com/raymond-van/animama/issues/752).
+every draw. It also guards the 12 places the generated vertex shaders normalize the
+spherical-harmonics direction, which the web lighting ABI leaves at zero, so
+lilToon's environment-lit shadows are defined on every GPU (check whether
+upstream guards it before rebasing). See issue
+[#752](https://github.com/raymond-van/animama/issues/752).

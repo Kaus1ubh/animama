@@ -7,6 +7,7 @@
     "routes:generate": "node scripts/generate-routes.mjs",
     "animation": "node scripts/animation.mjs",
     "animation:render": "node scripts/animation-render.mjs",
+    "avatar:parity-render": "node scripts/liltoon-parity.mjs",
     "animation:reel": "node scripts/animation-reel.mjs",
     "effects:render": "node scripts/effect-render.mjs",
     "vrm:optimize": "node scripts/vrm-optimize.mjs",
@@ -39,7 +40,7 @@
     "check:source": "pnpm --dir .. poses:check && tsc -b",
     "test:source": "pnpm test:source:unit",
     "test:browser:source": "node --test --test-concurrency=1 scripts/*.browser.test.mjs",
-    "test:source:unit": "node --test ../scripts/generate-pose-catalog.test.mjs scripts/effect-render-sources.test.mjs scripts/effect-bench.test.mjs scripts/effect-bench/breakdownPlan.test.ts scripts/effect-assets.test.mjs scripts/effects.test.mjs scripts/animation-preview-media.test.mjs scripts/animation-reel.test.mjs scripts/included-dependencies.test.mjs scripts/content-tune-model.test.mjs scripts/content-tune.test.mjs scripts/content-tune/model.test.ts scripts/content-tune/draft.test.ts scripts/content-tune/applied.test.ts scripts/content-tune/proposals.test.ts scripts/content-tune-save.test.mjs scripts/content-tune-write.test.mjs scripts/content-tune-effects.test.mjs scripts/vrm-optimize.test.mjs scripts/vrm-inspect.test.mjs scripts/vrm-bake-expressions.test.mjs scripts/avatar-file.test.mjs && node --experimental-vm-modules --test scripts/fast-refresh-lifecycle.test.mjs && node --test scripts/animation-save.test.mjs scripts/animation-promote.test.mjs && vitest run",
+    "test:source:unit": "node --test ../scripts/generate-pose-catalog.test.mjs scripts/effect-render-sources.test.mjs scripts/effect-bench.test.mjs scripts/liltoon-parity.test.mjs scripts/effect-bench/breakdownPlan.test.ts scripts/effect-assets.test.mjs scripts/effects.test.mjs scripts/animation-preview-media.test.mjs scripts/animation-reel.test.mjs scripts/included-dependencies.test.mjs scripts/content-tune-model.test.mjs scripts/content-tune.test.mjs scripts/content-tune/model.test.ts scripts/content-tune/draft.test.ts scripts/content-tune/applied.test.ts scripts/content-tune/proposals.test.ts scripts/content-tune-save.test.mjs scripts/content-tune-write.test.mjs scripts/content-tune-effects.test.mjs scripts/vrm-optimize.test.mjs scripts/vrm-inspect.test.mjs scripts/vrm-bake-expressions.test.mjs scripts/avatar-file.test.mjs && node --experimental-vm-modules --test scripts/fast-refresh-lifecycle.test.mjs && node --test scripts/animation-save.test.mjs scripts/animation-promote.test.mjs && vitest run",
     "build:source": "pnpm --dir .. poses:check && pnpm routes:generate && tsc -b && vite build",
     "bundle:source": "pnpm --dir .. poses:check && pnpm routes:generate && vite build",
     "build:hosted:source": "pnpm --dir .. poses:check && pnpm routes:generate && tsc -b && vite build --mode hosted --config vite.hosted.config.ts"

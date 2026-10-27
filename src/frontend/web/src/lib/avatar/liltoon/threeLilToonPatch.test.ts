@@ -175,3 +175,34 @@ describe("three-liltoon morph weights (Animama patch)", () => {
     material.dispose();
   });
 });
+
+describe("three-liltoon SH direction (Animama patch)", () => {
+  // The web lighting ABI supplies only the SH constant term, so OpenLit's
+  // dominant-SH-direction `normalize` sees a zero vector; unguarded it is
+  // undefined (NaN), and lilToon's environment-lit shadows vary by GPU.
+  const SH_DIRECTION =
+    "normalize((_Globals.unity_SHAr.xyz + _Globals.unity_SHAg.xyz) + _Globals.unity_SHAb.xyz)";
+  const SH_SUM =
+    "((_Globals.unity_SHAr.xyz + _Globals.unity_SHAg.xyz) + _Globals.unity_SHAb.xyz)";
+  const GUARDED = `(dot(${SH_SUM}, ${SH_SUM}) < 1e-12 ? vec3(0.0) : ${SH_DIRECTION})`;
+
+  it("guards the SH direction in each surface family's vertex shader", () => {
+    for (const shaderVariant of [
+      "lilToon",
+      "Hidden/lilToonCutout",
+      "Hidden/lilToonTransparent",
+      "Hidden/lilToonRefraction",
+      "Hidden/lilToonRefractionBlur",
+      "Hidden/lilToonFur",
+      "Hidden/lilToonFurCutout",
+      "Hidden/lilToonFurTwoPass",
+    ] as const) {
+      const material = new LilToonMaterial({ shaderVariant, properties: {} });
+      const source = material.vertexShader;
+      const uses = source.split(SH_DIRECTION).length - 1;
+      expect(uses, shaderVariant).toBeGreaterThan(0);
+      expect(source.split(GUARDED).length - 1, shaderVariant).toBe(uses);
+      material.dispose();
+    }
+  });
+});

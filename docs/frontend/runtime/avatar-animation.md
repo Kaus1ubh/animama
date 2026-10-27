@@ -1670,6 +1670,12 @@ adapts colour and UV expression binds to those materials.
 - **Lighting:** lilToon reads only the first visible directional light plus the
   ambient and hemisphere lights, so the enhanced look's fill and rim lights do
   not reach it. Tone mapping applies to both looks; the MToon retune does not.
+  three-liltoon passes the ambient as the constant spherical-harmonics term
+  only, with no direction, and lilToon (OpenLit) normalizes that direction to
+  light shadows by the environment (`_ShadowEnvStrength`); unguarded that is
+  `normalize(0)`, whose result differs by GPU. Animama's patch uses no
+  direction instead, which is what Unity converges to for an almost uniform
+  ambient, so shadowed areas lighten by the ambient colour as in Unity.
 - **Materials setting:** an Avatar's Simple setting
   ([Avatar settings](../features/anima-management.md#avatar-settings)) loads
   it through a loader without `withOnDemandLilToon` (`createAvatarGltfLoader`

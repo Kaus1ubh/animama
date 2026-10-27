@@ -53,12 +53,13 @@ or Included Avatars with synthetic additions.
   outline diagnosis; recorded below.
 - [x] Phase 1: full-clock measurement in `effects:bench` (review passed).
 - [x] Phase 2: opaque lilToon surfaces and outlines without blending (review
-  passed; owner gate pending: accept the pre-pass edge-sample difference).
+  passed; owner accepted the pre-pass edge-sample difference, D6).
 - [x] Phase 3: morph-weight textures without per-frame reallocation (high
   risk; review and checks passed).
-- [ ] Phase 4: vertex-colour outlines (runtime fallback; export held
-  upstream pending the owner's acceptance).
-- [ ] Phase 5: Unity parity report and fixes.
+- [x] Phase 4: vertex-colour outlines (runtime fallback; export held
+  upstream, owner-accepted D7).
+- [x] Phase 5: Unity parity report and fixes (high risk; SH-direction guard,
+  parity renders; review and checks passed).
 - [ ] Phase 6: upstream texts.
 - [ ] Phase 7: documentation and final integration review.
 
@@ -154,11 +155,17 @@ primitives, 67,698 triangles; 19 draws and 131,137 triangles with outlines),
 - 2026-10-27, owner: asked for this work, reported the hair bang difference
   with a side-by-side Unity screenshot, and approved publishing the spec as
   #752 as drafted.
+- 2026-10-27, owner: accepted D6 (the depth pre-pass's edge-sample
+  difference, about one edge pixel per frame on the converted test Avatar,
+  for its saving) and D7 (R3's export half moves to the upstream drafts;
+  Animama keeps the runtime fallback), closing Phase 2's gate and Phase 4.
 - 2026-10-27, owner: approved this plan with D1–D5 as proposed below and
   asked for implementation from Phase 1; no push or pull request until asked.
 - 2026-10-27, agent: merged `feat/arbitrary-vrm-support-pr-b` at `d5818800`
   (#744's Automatic keeps lilToon with a frame-rate cap) into this branch
   before Phase 1; it touches none of this plan's files.
+- 2026-10-27, agent (Phase 5): raised to high risk because its fix extends
+  the dependency patch.
 - 2026-10-27, agent (Phase 3): morph weights stay in a texture, now per
   mesh; a uniform-array path is left to upstream (rationale in Phase 3).
 - 2026-10-27, agent: Phase 4 before Phase 3 (its work was ready and touches
@@ -197,7 +204,7 @@ primitives, 67,698 triangles; 19 draws and 131,137 triangles with outlines),
   timing at a known clock state. Proposed: a follow-up after #744 merges, in
   this branch, with the owner's approval of the threshold.
 
-Pending owner decisions (raised during implementation):
+Owner decisions raised during implementation (both accepted 2026-10-27):
 
 - D6 (Phase 2 gate): accept the depth pre-pass's edge-sample difference
   (about one edge pixel per frame on the converted test Avatar, channel delta
@@ -790,7 +797,7 @@ so (comment and doc text only; `npx prettier --check` and eslint on
 
 ### Phase 5: Unity parity report and fixes
 
-Review tier: standard.
+Review tier: high risk (raised: the fix extends the dependency patch).
 
 Requirements: R4. Changes: a Unity editor script beside the batch export that
 renders a prefab from a given camera with one directional light and flat
@@ -805,15 +812,168 @@ same comparison; Included Avatars unchanged.
 
 Owner gate: the report and the look.
 
+Starting source: `856db32d` (Phase 3).
+
+Implemented:
+
+- Tooling: `pnpm -s avatar:parity-render` (`scripts/liltoon-parity.mjs`,
+  `scripts/liltoon-parity/`; argument tests in `liltoon-parity.test.mjs`)
+  renders the rest pose (body, face, face from its right) with one white key
+  light (intensity 1 from (1, 2, 2)) and white ambient light (0.35, plus
+  three-liltoon's own 0.05), no tone mapping, sRGB, on SwiftShader, and writes
+  `views.json`. `scripts/avatars/unity/AnimamaReferenceRender.cs` renders the
+  same views in Unity (prefab T-posed as for export; X mirrored between the
+  two coordinate systems; colours converted for Unity's linear project).
+  The conversion guide's new "Compare with Unity" section documents both.
+- Fix (patch): the 12 generated vertex shaders that normalize the SH
+  direction for OpenLit's indirect light now use no direction when it is
+  zero (`dot(S, S) < 1e-12 ? vec3(0.0) : normalize(S)`), giving the constant
+  term as indirect light. Test: every SH-direction `normalize` in the
+  `lilToon`, cutout and transparent vertex shaders is guarded (red before).
+
+Verifying the reference (Unity, private project copy, batch mode with
+graphics): Unity's lighting state matched the request (linear colour space,
+forward path, key light 1.0, ambient probe 0.4). With a perfectly flat
+ambient, Unity's lilToon output did not depend on the light direction at all
+(mirrored and back-lit renders identical; a sphere with the hair material
+showed no shading even with a black shadow colour, while a new lilToon
+material shaded normally). A per-property bisect traced this to
+`_ShadowEnvStrength` with the MatCap; the cause is OpenLit's
+`normalize(SHA.rgb)` on a zero vector. With a barely directional trilight
+(sky 1% brighter than ground) Unity's result is defined and tends to the
+constant term, so the reference uses it.
+
+Differences (R4), converted test Avatar, matched views at 640×800; share of
+pixels differing from Unity by more than 8 (and 24) of 255:
+
+| View | Before the guard | With the guard | With colours restored |
+|---|---|---|---|
+| face | 2.9% (1.5%) | 2.8% (1.8%) | 2.5% (1.5%) |
+| face from its right | 10.8% (1.8%) | 3.4% (2.1%) | 3.0% (1.8%) |
+| body | 1.6% (1.0%) | 1.1% (0.8%) | 1.1% (0.8%) |
+
+("Before the guard" compares the colour-restored copy with Unity's trilight
+render, from a first version of the parity page that applied Animama's rest
+normalization; the other columns come from the repaired page and Unity script
+(see the Code Review #1 revisions), which changed only the body view's arms
+and hands. Restoring the second UV set as well changed no pixel.)
+
+| Difference | Cause | Status |
+|---|---|---|
+| Lit areas | none: identical to within 1 of 255 at every sampled point | matches |
+| Dark patches at hair bang tips | outline vertex colours dropped by UniVRM's VRM 1.0 writer | runtime fallback (Phase 4); export upstream (D7) |
+| Shadowed hair, sleeves and face side darker | OpenLit's indirect light undefined for the web ABI's directionless ambient | fixed (this phase) |
+| Bag strap and overalls under the jacket | authored blendshape weights (a shape key at 100) not exported | export upstream; not fixable in Animama without the data |
+| Soft highlight band on the hair (+3 to +10 of 255) | the hair's MatCap contributes nothing in Animama, with or without the second UV set or its blend mask; cause not identified | open (Phase 6 asks upstream) |
+| Outline and silhouette edges (about 1–2% of pixels) | sub-pixel rasterization and outline width differences | not pursued |
+| The app's look (tone mapping, enhanced lights) | excluded from parity renders by design (D4) | owner's call |
+
+Check record (2026-10-27, macOS arm64, Apple M5):
+
+- Red before: the SH-guard test failed against the Phase 3 patch (one
+  unguarded use, none guarded) and passes with this one.
+- Full pre-push suite on tree `50b6c9fa` (heavy slot): `make check-test`
+  (root) passed (218 s); `pnpm verify` (`src/frontend`, including
+  `test:source:unit` with `liltoon-parity.test.mjs`, `tsc -b` covering
+  `scripts/liltoon-parity/parity.ts`, lint and the build) passed (109 s);
+  `pnpm web:test:browser` passed 131 of 131 (525 s); `pnpm prettier:check`
+  passed.
+- Renders (`src/frontend/web`): `pnpm -s avatar:parity-render
+  --avatar-file <file> --out <private-dir>` for the converted test Avatar as
+  exported, with colours injected, and with colours and the second UV set
+  injected; Unity: `AnimamaReferenceRender.Render` on a private copy of the
+  Unity project (batch mode with graphics) from the same `views.json`;
+  differences counted per channel above 8 and 24 of 255 (scratch script
+  equivalent to `effects:render --diff`).
+- R6: three-liltoon is imported only for files that declare its extension,
+  so the guard cannot reach the Included Avatars; the parity tooling is a
+  review tool.
+
+#### Code Review #1 Findings
+
+Independent reviewer (high-risk tier, initial review) of tree `376d58bf`
+against `856db32d`. Verified: all 12 SH-direction `normalize` sites in the
+installed package are guarded and that is the patch's only change; the
+guarded value is the limit of OpenLit's `shMin` as the SH direction
+vanishes; the Unity coordinate, light and colour conversions; no private
+data in tracked files. Result: blocked.
+
+- P5-R1-F1 (required): editing the plan removed the Phase 6 heading and
+  duplicated Phase 5's tier line.
+- P5-R1-F2 (required): no Phase 5 check record.
+- P5-R1-F3 (required): the parity page called `prepareLoadedVrm`, whose rest
+  normalization re-poses arms and hands toward VRoid's rest, while Unity
+  renders the exported rest.
+- Optional: P5-R1-F4 the CLI resolved relative paths from the package, not
+  the caller (`INIT_CWD`), and printed a stack for a missing file; P5-R1-F5
+  the guard test covered 3 of 12 shaders and matched only `: normalize`;
+  P5-R1-F6 doc wording (the comparison section omitted the open differences;
+  delivery evidence in a runtime doc; a repeated "second UV set"); P5-R1-F7
+  Unity script robustness (assert Linear, force a pixel light, no reflection
+  probe, read back RGB); P5-R1-F8 the light-direction `normalize` can also
+  see zero with no directional light and a zero override (upstream
+  behaviour, for Phase 6); the tier raise lacked a Decision Log entry.
+
+#### Code Review #1 Revisions
+
+All accepted: Phase 6's heading restored and its list extended (F1, F8);
+this record (F2); `parity.ts` no longer calls `prepareLoadedVrm` (re-render:
+only the body view changed, 1.3% to 1.1% of pixels over 8 against Unity;
+face views identical) (F3); the CLI resolves from `INIT_CWD` and prints a
+missing file's message with exit 2 (F4); the guard test covers the eight
+surface families' vertex shaders and asserts the whole guarded expression
+(F5); docs reworded (F6); the Unity script requires the Linear colour space,
+forces a per-pixel key light, sets no reflection probe and reads back RGB, and
+the re-rendered Unity views gave the same face-view figures (F7); Decision Log
+entry added.
+
+Repair check record (tree `04476235`): `pnpm verify` (`src/frontend`, heavy
+slot) passed, including the parity argument tests, `tsc -b` and lint, and
+`npx vitest run src/lib/avatar/liltoon/threeLilToonPatch.test.ts` passed 9 of
+9; `pnpm prettier:check` passed. The suite's `make check-test` and
+`web:test:browser` runs on `50b6c9fa` stay valid: the repairs touched the
+parity tool, a unit test, the Unity script and docs, none of which they run.
+
+#### Code Review #2 Findings
+
+Targeted recheck (repair round 1, high-risk tier) on tree `220265a3` (the
+repair tree plus this plan's records): P5-R1-F1 to F8 and the tier-log entry
+fixed, no regressions; the RGB24 readback works with `effects:render --diff`,
+which reads both images with an alpha channel. Non-blocking: one doc bullet
+wrapped wider than the file; three blank lines in this section; a render
+failure inside the parity tool still exits with a stack trace where the
+sibling tools print the message and exit 1. Result: pass.
+
+Independent checks (high-risk tier, same tree, `src/frontend` and
+`src/frontend/web`): `pnpm install --frozen-lockfile --offline` up to date
+and the patch's SHA-256 matches the lockfile; the installed chunk has 12
+guarded SH-direction `normalize` sites and none unguarded; `npx vitest run
+src/lib/avatar/liltoon src/lib/avatar/vfx/silhouetteOverlay.test.ts
+src/lib/avatar/releaseModelScene.test.ts` 65 of 65; `node --test
+scripts/liltoon-parity.test.mjs scripts/effect-bench.test.mjs` 6 of 6; `tsc
+--noEmit` for `tsconfig.app.json` and `tsconfig.scripts.json`, and eslint on
+the touched files, clean; the guard test run against the Phase 3 package
+fails only the SH-direction test (red without the guard); the parity CLI's
+`--help` exits 0 and a missing file exits 2 with one message line.
+
+#### Code Review #2 Revisions
+
+The doc bullet and blank lines are fixed (text only). The parity tool's
+render-failure message is deferred to Phase 7, whose integration review
+covers it. Repair budget used: one of two rounds. Phase 5 complete.
+
 ### Phase 6: Upstream texts
 
 Review tier: light.
 
 Requirements: R5. Draft issues or pull requests: three-liltoon (opaque
-blending, morph-weight reallocation, absent vertex colour, and any Phase 5
-translation fixes); Mochiya Avatar Tools (exporting vertex colours that lilToon
-outlines read). Nothing is posted without the owner's approval of the exact
-text.
+blending, morph-weight reallocation and the per-draw morph-count define flip,
+absent vertex colour, the SH-direction guard, the hair MatCap contribution
+found missing in Phase 5, and the light-direction `normalize` that can still
+see zero when no directional light exists and an authored override is zero);
+Mochiya Avatar Tools (exporting the vertex colours and second UV set lilToon
+reads, and authored blendshape weights). Nothing is posted without the
+owner's approval of the exact text.
 
 ### Phase 7: Documentation and final integration review
 
