@@ -1,12 +1,11 @@
 # Avatar Effects and Reactions on common third-party VRM layouts
 
-Source agreement: raymond-van/animama#760 (published 2026-10-27, status
-Proposal; snapshot in [arbitrary-vrm-effects-spec.md](arbitrary-vrm-effects-spec.md)).
+Source agreement: raymond-van/animama#760 (published 2026-10-27, Agreed the
+same day; snapshot in [arbitrary-vrm-effects-spec.md](arbitrary-vrm-effects-spec.md)).
 The issue is the spec.
-Authorized scope: planning only. Implementation waits for the owner's answers
-to Q1–Q3 and agreement of the spec and this plan. The work then ships as one PR
-from this branch. Merge approval and any use of third-party Avatar data beyond
-local testing stay separate.
+Authorized scope: the whole plan, as one PR from this branch (owner,
+2026-10-27). Owner gates in each phase still apply. Merge approval and any use
+of third-party Avatar data beyond local testing stay separate.
 
 ## Purpose and context
 
@@ -64,7 +63,7 @@ Evidence in this plan and the PR is counts and pass/fail only.
 
 ## Progress
 
-- [ ] Spec and plan agreed by the owner; Q1–Q3 answered.
+- [x] Spec and plan agreed by the owner; Q1–Q3 answered (2026-10-27).
 - [ ] Phase 1: review renders catch wrong art.
 - [ ] Phase 2: per-primitive shape names.
 - [ ] Phase 3: blink and mouth signals beyond VRM presets.
@@ -95,9 +94,10 @@ Evidence in this plan and the PR is counts and pass/fail only.
 - 2026-10-27, owner: open a new issue and ExecPlan for the survey's gap fixes,
   delivered as its own PR after PR #744 merges. #744 merged the same day; this
   branch starts from `main` at `b8fed9a5`.
-- 2026-10-27, agent proposal (pending owner): Q1 no manual face marking; Q2
-  synthetic fixtures only, no CC0 Avatar in the repository; Q3 Phase 8 included
-  but deferrable.
+- 2026-10-27, owner: accepted the proposed answers (Q1 no manual face marking;
+  Q2 synthetic fixtures only, no CC0 Avatar in the repository; Q3 Phase 8
+  included but deferrable) and the plan; push the branch and implement the
+  whole plan.
 - 2026-10-27, agent: Phase 3 synthesizes missing `blink`, `blinkLeft`,
   `blinkRight` and viseme expressions at load, bound to the shapes found, as
   `registerMmdFace` and `registerArkitFace` do for moods. Face detection,

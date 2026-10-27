@@ -1,12 +1,12 @@
 # Avatar Effects and Reactions on common third-party VRM layouts
 
-Status: Proposal
+Status: Agreed
 Snapshot of https://github.com/raymond-van/animama/issues/760 (published 2026-10-27T22:33:52Z,
-captured 2026-10-27T22:36:40Z after adding the chat camera finding); the issue is
+captured 2026-10-27T22:40:07Z after the owner's agreement); the issue is
 authoritative.
 Owner decision: The owner asked for this issue and its ExecPlan on 2026-10-27,
-after reviewing the survey below, as its own PR after PR #744. The open
-questions carry proposed defaults awaiting the owner's answer.
+after reviewing the survey below, as its own PR after PR #744, and on the same
+day accepted the proposed answers to Q1–Q3 and the plan.
 
 ## Problem and intended users
 
@@ -158,13 +158,15 @@ Non-goals:
 ## Open questions and decisions
 
 - **Q1 Manual face marking.** Should users be able to mark the face or eyes by
-  hand when detection fails? Proposed: no; Diagnostics explains the failure, and
-  a manual editor is a separate request.
+  hand when detection fails? Decided 2026-10-27 (owner): no; Diagnostics
+  explains the failure, and a manual editor is a separate request.
 - **Q2 CC0 fixtures.** Olivia, Polybot and Carol North are CC0. Should a small
-  CC0 Avatar enter the repository as a test fixture? Proposed: no; synthetic
-  fixtures stay the rule, and CC0 Avatars stay in the private survey.
-- **Q3 Material and rig fixes (R8).** Proposed: include them as the last phase,
-  deferrable to their own issue if the earlier phases run long.
+  CC0 Avatar enter the repository as a test fixture? Decided 2026-10-27
+  (owner): no; synthetic fixtures stay the rule, and CC0 Avatars stay in the
+  private survey.
+- **Q3 Material and rig fixes (R8).** Decided 2026-10-27 (owner): include them
+  as the last phase, deferrable to their own issue if the earlier phases run
+  long.
 
 ## Spec
 
