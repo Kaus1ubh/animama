@@ -530,7 +530,10 @@ running stack:
 uv run python -m animama.server.export_openapi --output /tmp/animama-openapi.json
 ```
 
-The exporter writes atomically. The frontend `pnpm openapi-ts` wrapper manages
+The exporter writes atomically. It describes binary fields (uploads and `bytes`)
+as `format: binary` strings instead of FastAPI's
+`contentMediaType: application/octet-stream`, which the pinned SDK generator
+would type as text. The frontend `pnpm openapi-ts` wrapper manages
 its own temporary schema, passes it to the generator, and removes it on success
 or failure; normal client generation should use that wrapper.
 

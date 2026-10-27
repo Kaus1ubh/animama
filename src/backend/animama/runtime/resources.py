@@ -48,6 +48,8 @@ def alembic_config():  # noqa: ANN201
 def audit_resources() -> dict[str, Any]:
     """Validate resource structure without a database, HTTP listener, or provider key."""
 
+    from fastapi.routing import iter_route_contexts
+
     from alembic.script import ScriptDirectory
     from animama.app.services.starter_loadout_policy import starter_loadout_policy
     from animama.prompts.avatar_animation_manifest import get_manifest_gesture_inventory
@@ -72,7 +74,9 @@ def audit_resources() -> dict[str, Any]:
     gestures = get_manifest_gesture_inventory()
     if not policy["gestures"] or not policy["reactions"] or not gestures:
         raise ValueError("Packaged starter or animation resources are empty")
-    if "/v1/animas/{anima_id}/chat:sse" not in {getattr(route, "path", "") for route in app.routes}:
+    # Included routers are nested entries in app.routes; count the routes they serve.
+    routes = list(iter_route_contexts(app.routes))
+    if "/v1/animas/{anima_id}/chat:sse" not in {route.path for route in routes}:
         raise ValueError("Frozen FastAPI application is missing its chat route")
     return {
         "schema": "animama-resource-audit/1",
@@ -83,7 +87,7 @@ def audit_resources() -> dict[str, Any]:
         "sql_count": len(sql),
         "gesture_count": len(gestures),
         "starter_policy": policy["id"],
-        "api_route_count": len(app.routes),
+        "api_route_count": len(routes),
     }
 
 
