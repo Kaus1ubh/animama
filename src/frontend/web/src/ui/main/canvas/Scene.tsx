@@ -309,7 +309,7 @@ export default function Scene({
             orbitControlsRef={orbitControlsRef}
             settings={sceneCameraSettings}
           />
-          <AvatarSceneLighting />
+          <AvatarSceneLighting measureLilToonGpu />
           {/* {isDev ? <axesHelper args={[5]} /> : null}
         {isDev ? (
           <Grid

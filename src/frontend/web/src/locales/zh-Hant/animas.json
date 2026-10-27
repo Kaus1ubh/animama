@@ -207,11 +207,16 @@
     },
     "materials": {
       "label": "lilToon 材質",
+      "milliseconds": "{{value}} 毫秒",
       "rendered": "使用 lilToon 算繪",
       "simple": "簡單材質",
       "value": "{{state}} · {{why}}",
       "why": {
         "automatic": "由自動選擇",
+        "automaticFast": "由自動選擇：此 GPU 繪製一幀 lilToon 用時 {{measured}}，未超過 {{threshold}} 上限",
+        "automaticNotMeasured": "由自動選擇：尚未測量此 GPU 的 lilToon 幀時間",
+        "automaticSlow": "由自動選擇：此 GPU 繪製一幀 lilToon 用時 {{measured}}，超過 {{threshold}} 上限",
+        "automaticUnsupported": "由自動選擇：此瀏覽器無法測量 GPU 時間",
         "chosen": "設為{{mode}}",
         "failed": "lilToon 無法載入"
       }

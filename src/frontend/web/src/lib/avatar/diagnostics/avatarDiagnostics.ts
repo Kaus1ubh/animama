@@ -13,6 +13,7 @@ import {
 } from "../arkitFaceExpressions";
 import type { Avatar } from "../Avatar";
 import type { AvatarMaterialMode, AvatarSpringMode } from "../avatarSettings";
+import type { AutomaticMaterialsDecision } from "../liltoon/lilToonGpuCheck";
 import type {
   AvatarFacePartRole,
   AvatarFacePartSource,
@@ -87,6 +88,8 @@ export type AvatarLiveDiagnostics = {
   materials: {
     mode: AvatarMaterialMode;
     lilToon: "rendered" | "fallback";
+    /** What Automatic chose and why; null under lilToon or Simple. */
+    automatic: AutomaticMaterialsDecision | null;
   } | null;
   issues: AvatarIssue[];
 };
@@ -240,7 +243,11 @@ export function collectAvatarLiveDiagnostics(
     materials:
       avatar.lilToonMaterials === "none"
         ? null
-        : { mode: avatar.materialMode, lilToon: avatar.lilToonMaterials },
+        : {
+            mode: avatar.materialMode,
+            lilToon: avatar.lilToonMaterials,
+            automatic: avatar.automaticMaterials,
+          },
     issues,
   };
 }

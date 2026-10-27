@@ -212,11 +212,16 @@
     },
     "materials": {
       "label": "lilToon materials",
+      "milliseconds": "{{value}} ms",
       "rendered": "Rendered with lilToon",
       "simple": "Simple materials",
       "value": "{{state}} · {{why}}",
       "why": {
         "automatic": "chosen by Automatic",
+        "automaticFast": "chosen by Automatic: this GPU drew a lilToon frame in {{measured}}, within the {{threshold}} limit",
+        "automaticNotMeasured": "chosen by Automatic: this GPU's lilToon frame time is not measured yet",
+        "automaticSlow": "chosen by Automatic: this GPU drew a lilToon frame in {{measured}}, over the {{threshold}} limit",
+        "automaticUnsupported": "chosen by Automatic: this browser cannot time the GPU",
         "chosen": "set to {{mode}}",
         "failed": "lilToon could not load"
       }

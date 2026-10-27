@@ -100,7 +100,7 @@ const live: AvatarLiveDiagnostics = {
       handsNormalized: false,
     },
   },
-  materials: { mode: "simple", lilToon: "fallback" },
+  materials: { mode: "simple", lilToon: "fallback", automatic: null },
   issues: [
     {
       code: "effect_face_part_missing",
@@ -190,6 +190,63 @@ describe("AvatarDiagnosticsDialog", () => {
     // Focus moves into the dialog.
     expect(dialog()?.contains(document.activeElement)).toBe(true);
   });
+
+  it.each([
+    [
+      "fallback",
+      { choice: "simple", reason: "slow", frameMs: 9.64, pixels: 1_920_000 },
+      "Simple materials · chosen by Automatic: this GPU drew a lilToon frame in 9.6 ms, over the 8 ms limit",
+    ],
+    [
+      "rendered",
+      { choice: "liltoon", reason: "fast", frameMs: 5.2, pixels: 1_920_000 },
+      "Rendered with lilToon · chosen by Automatic: this GPU drew a lilToon frame in 5.2 ms, within the 8 ms limit",
+    ],
+    [
+      "rendered",
+      {
+        choice: "liltoon",
+        reason: "not_measured",
+        frameMs: null,
+        pixels: null,
+      },
+      "Rendered with lilToon · chosen by Automatic: this GPU's lilToon frame time is not measured yet",
+    ],
+    [
+      "rendered",
+      { choice: "liltoon", reason: "unsupported", frameMs: null, pixels: null },
+      "Rendered with lilToon · chosen by Automatic: this browser cannot time the GPU",
+    ],
+  ] as const)(
+    "says why Automatic loaded %s materials",
+    (lilToon, decision, expected) => {
+      const automaticReport = buildAvatarDiagnosticsReport({
+        avatar: { source: "local", itemId: "item-9" },
+        file: report.file,
+        live: {
+          ...live,
+          materials: {
+            mode: "automatic",
+            lilToon,
+            automatic: { ...decision, thresholdMs: 8 },
+          },
+        },
+        settings: null,
+      });
+      diagnostics.view = {
+        state: {
+          status: "ready",
+          report: automaticReport,
+          issues: live.issues,
+          live: false,
+        },
+        effectNames: new Map(),
+      };
+      render();
+      click("Open diagnostics");
+      expect(dialog()?.textContent).toContain(expected);
+    },
+  );
 
   it("shows every section", () => {
     render();

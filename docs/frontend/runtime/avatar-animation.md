@@ -1638,6 +1638,16 @@ adapts colour and UV expression binds to those materials.
   (`installLilToonRenderingWhenLoaded`). The passes stay until the canvas
   unmounts, so after a lilToon Avatar each render of that canvas also walks
   the scene for lilToon materials; other materials draw as before.
+- **Depth pre-pass:** with those passes, `installLilToonDepthPrepass`
+  (`depthPrepass.ts`) draws each opaque lilToon primitive's depth first, with
+  colour writes off, so the depth test rejects hidden layers (the body under
+  clothing, hair behind the face) before the lilToon shader runs. Its meshes
+  exist only while the renderer draws, like lilToon's outlines. Its depth
+  sits eight units and one slope step behind the surface, the drift between
+  lilToon's skinning and three.js's, so every surface still passes its own
+  test and no pixel changes. A frame draws without it when a visible material
+  tests depth other than less, less-or-equal or always, or writes stencil into
+  a target with a stencil buffer (Avatar canvases have none).
 - **Lighting:** lilToon reads only the first visible directional light plus the
   ambient and hemisphere lights, so the enhanced look's fill and rim lights do
   not reach it. Tone mapping applies to both looks; the MToon retune does not.
@@ -1645,9 +1655,25 @@ adapts colour and UV expression binds to those materials.
   ([Avatar settings](../features/anima-management.md#avatar-settings)) loads
   it through a loader without `withOnDemandLilToon` (`createAvatarGltfLoader`
   in `avatarGltfLoader.ts`), so the glTF fallback materials load and
-  three-liltoon is not imported. Automatic and lilToon load lilToon; an
-  Automatic GPU check is planned in #691 (R11). `Avatar.lilToonMaterials`
-  reports `rendered`, `fallback` or `none`.
+  three-liltoon is not imported. lilToon always loads lilToon; Automatic
+  loads it unless the GPU check below chose Simple. `Avatar.lilToonMaterials`
+  reports `rendered`, `fallback` or `none`, and `Avatar.automaticMaterials`
+  what Automatic chose and why.
+- **GPU check for Automatic** (`lilToonGpuCheck.ts`): the chat canvas
+  (`AvatarSceneLighting measureLilToonGpu` in `Scene.tsx`) times its first
+  lilToon frames on the GPU with `EXT_disjoint_timer_query_webgl2`. It skips
+  60 warm-up frames and times the next 60 that draw a lilToon Avatar on a
+  drawing buffer of at least one million pixels, then stores their median
+  in `localStorage` per GPU (vendor and renderer strings) and per viewer.
+  Frames another timer query already wraps, such as `effects:bench`'s, are
+  skipped, and repeated disjoint timings give up for the session. Each load
+  under Automatic reads the stored value for the GPU the latest Avatar
+  canvas uses. Above `LILTOON_AUTOMATIC_MAX_FRAME_MS` (8 ms, about half a
+  60 fps frame) it loads Simple; otherwise it loads lilToon. A new
+  measurement applies from the next load, and changing the constant needs no
+  new measurement. A GPU not measured yet, or a browser without the timer
+  extension (stored as unsupported), keeps lilToon. Blocked storage counts
+  as not measured. Diagnostics shows the decision and its reason.
 - **Fallback base colours:** Mochiya writes `metallicFactor` 1 on the fallback
   materials, which renders them almost black without an environment map.
   `LilToonFallbackMaterialsPlugin` builds fallbacks of lilToon materials with
@@ -1663,12 +1689,19 @@ adapts colour and UV expression binds to those materials.
   depth units, because lilToon skins and projects in its own order.
   `releaseModelScene` disposes their `lilToonTextures`, which neither
   `VRMUtils.deepDispose` nor the material's `dispose` releases.
-- **Frame cost:** lilToon shading is much heavier than MToon. On an Apple M5 at
-  the chat canvas's 1600×1200 and DPR 2, measured back to back under equal load
-  with `effects:bench --avatar-file` (2026-10-25), a converted Avatar's GPU time
-  per frame was 30.8 ms with lilToon, 0.8 ms with the fallback materials and
-  1.2 ms for Andrew; at DPR 1 it was 6.2 ms with lilToon, so the cost is mostly
-  per pixel. Reducing it is tracked in #691 (R11).
+- **Frame cost:** lilToon shading is much heavier than MToon. On an Apple M5
+  at the chat canvas (800×600 at DPR 2, frames paced at 60 fps with
+  `effects:bench --fps 60`, 2026-10-27), a converted Avatar took about 5–7 ms
+  of GPU time per frame with lilToon (up to 9.7 ms under heavier load), 1.0–1.6
+  ms with its fallback materials, and 1.7–3.0 ms for the Included Avatars.
+  These absolute values move with the GPU's clock and other jobs, so compare
+  only runs made together. In those runs the depth pre-pass saved 0.5–0.6 ms
+  with no pixel changed; under heavier load a prototype saved up to 3.5 ms.
+  Outlines already act as a partial pre-pass: switching them off made frames
+  slower. Lowering the pixel ratio or switching off toon shadow, reflection,
+  rim or normal maps saved little, and no combination brought lilToon near an
+  Included Avatar's cost. `effects:bench --breakdown` breaks the cost down by
+  material, lilToon feature and layer.
 
 On an Apple M5 the enhanced look adds about 0.1–0.15 ms per frame over classic.
 Review renders and benchmarks use enhanced rendering unless given

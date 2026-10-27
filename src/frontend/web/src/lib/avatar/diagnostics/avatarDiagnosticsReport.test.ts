@@ -5,6 +5,7 @@ import { loadedTestAvatar } from "../testing/loadedTestAvatar";
 import { readAvatarFileFacts } from "./avatarFileFacts";
 import {
   AVATAR_DIAGNOSTICS_SCHEMA,
+  automaticMaterialsLine,
   avatarDiagnosticsJson,
   avatarDiagnosticsText,
   buildAvatarDiagnosticsReport,
@@ -156,5 +157,59 @@ describe("Avatar diagnostics reports", () => {
     expect(text).toContain("Format: GLB, VRM 1.0");
     expect(text).toContain("Live Avatar\n  Not loaded");
     expect(text).toContain("  - avatar_load_failed");
+  });
+});
+
+describe("automaticMaterialsLine", () => {
+  const decision = {
+    frameMs: null,
+    pixels: null,
+    thresholdMs: 8,
+  } as const;
+
+  it("states the measured time, the threshold and the choice", () => {
+    expect(
+      automaticMaterialsLine({
+        ...decision,
+        choice: "simple",
+        reason: "slow",
+        frameMs: 9.64,
+        pixels: 1_920_000,
+      }),
+    ).toBe(
+      "Automatic chose Simple: a lilToon frame took 9.6 ms of GPU time on this GPU (1920000 pixels), above the 8.0 ms threshold",
+    );
+    expect(
+      automaticMaterialsLine({
+        ...decision,
+        choice: "liltoon",
+        reason: "fast",
+        frameMs: 5.2,
+        pixels: 1_920_000,
+      }),
+    ).toBe(
+      "Automatic chose lilToon: a lilToon frame took 5.2 ms of GPU time on this GPU (1920000 pixels), within the 8.0 ms threshold",
+    );
+  });
+
+  it("says when the GPU is not measured or cannot be timed", () => {
+    expect(
+      automaticMaterialsLine({
+        ...decision,
+        choice: "liltoon",
+        reason: "not_measured",
+      }),
+    ).toBe(
+      "Automatic chose lilToon: this GPU's lilToon frame time is not measured yet (threshold 8.0 ms)",
+    );
+    expect(
+      automaticMaterialsLine({
+        ...decision,
+        choice: "liltoon",
+        reason: "unsupported",
+      }),
+    ).toBe(
+      "Automatic chose lilToon: this browser cannot time the GPU (threshold 8.0 ms)",
+    );
   });
 });
