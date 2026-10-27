@@ -6,7 +6,7 @@ from hashlib import sha256
 from types import SimpleNamespace
 from typing import Any
 
-import httpx
+import httpx2
 import pytest
 from openai import APIStatusError
 from openai._models import construct_type
@@ -347,8 +347,8 @@ def _api_status_error(
     url: str = "https://api.openai.example/v1/responses",
     headers: dict[str, str] | None = None,
 ) -> APIStatusError:
-    request = httpx.Request("POST", url)
-    response = httpx.Response(status_code, json=body, headers=headers, request=request)
+    request = httpx2.Request("POST", url)
+    response = httpx2.Response(status_code, json=body, headers=headers, request=request)
     return APIStatusError("OpenAI Responses request failed", response=response, body=body)
 
 
@@ -1957,7 +1957,6 @@ async def test_openai_responses_client_converts_memory_tools_and_parses_function
                     "sequence_number": 2,
                     "output_index": 0,
                     "item_id": "fc_1",
-                    "name": "memory_read_files",
                     "arguments": '{"paths":"profile.md"}',
                 }
             ),

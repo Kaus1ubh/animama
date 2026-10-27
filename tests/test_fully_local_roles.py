@@ -14,7 +14,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Any, cast
 from uuid import uuid4
 
-import httpx
+import httpx2
 import pytest
 from fastapi import Request
 from openai import AsyncOpenAI
@@ -55,10 +55,10 @@ class _LocalModelServer:
         self.requests: list[tuple[str, dict[str, Any]]] = []
         self.foreign: list[str] = []
 
-    def __call__(self, request: httpx.Request) -> httpx.Response:
+    def __call__(self, request: httpx2.Request) -> httpx2.Response:
         if (request.url.host, request.url.port) != ("127.0.0.1", 11434):
             self.foreign.append(str(request.url))
-            return httpx.Response(500, json={"error": {"message": "not the local server"}})
+            return httpx2.Response(500, json={"error": {"message": "not the local server"}})
         body = json.loads(request.content) if request.content else {}
         self.requests.append((request.url.path, body))
         if request.url.path == "/v1/embeddings":
@@ -66,7 +66,7 @@ class _LocalModelServer:
                 {"object": "embedding", "index": index, "embedding": [1.0 if "moon" in text.lower() else 0.0, 0.5]}
                 for index, text in enumerate(body["input"])
             ]
-            return httpx.Response(200, json={"object": "list", "model": body["model"], "data": data})
+            return httpx2.Response(200, json={"object": "list", "model": body["model"], "data": data})
         if body.get("stream"):
             return _stream(body)
         return _memory_manager_reply(body)
@@ -75,7 +75,7 @@ class _LocalModelServer:
         return [body for request_path, body in self.requests if request_path == path]
 
 
-def _stream(body: dict[str, Any]) -> httpx.Response:
+def _stream(body: dict[str, Any]) -> httpx2.Response:
     structured = body.get("response_format") is not None
     content = sse._direct_structured_response(speech="Hello from the local model") if structured else "Moon plans"
     base = {"id": "local", "object": "chat.completion.chunk", "created": 1, "model": body["model"]}
@@ -85,10 +85,10 @@ def _stream(body: dict[str, Any]) -> httpx.Response:
         {**base, "choices": [], "usage": {"prompt_tokens": 12, "completion_tokens": 6, "total_tokens": 18}},
     ]
     payload = "".join(f"data: {json.dumps(chunk)}\n\n" for chunk in chunks) + "data: [DONE]\n\n"
-    return httpx.Response(200, headers={"content-type": "text/event-stream"}, content=payload.encode())
+    return httpx2.Response(200, headers={"content-type": "text/event-stream"}, content=payload.encode())
 
 
-def _memory_manager_reply(body: dict[str, Any]) -> httpx.Response:
+def _memory_manager_reply(body: dict[str, Any]) -> httpx2.Response:
     """Propose one memory patch, then finish once the tool result arrives."""
 
     message: dict[str, Any] = {"role": "assistant", "content": None}
@@ -107,7 +107,7 @@ def _memory_manager_reply(body: dict[str, Any]) -> httpx.Response:
                 "function": {"name": "apply_patch", "arguments": json.dumps({"operation": operation})},
             }
         ]
-    return httpx.Response(
+    return httpx2.Response(
         200,
         json={
             "id": "local",
@@ -144,7 +144,7 @@ def local_only(monkeypatch, set_runtime_credentials):  # noqa: ANN001
 
     def _init(self, *args, **kwargs):  # noqa: ANN001, ANN002, ANN003
         base_urls.append(str(kwargs.get("base_url")))
-        kwargs["http_client"] = httpx.AsyncClient(transport=httpx.MockTransport(server))
+        kwargs["http_client"] = httpx2.AsyncClient(transport=httpx2.MockTransport(server))
         original_init(self, *args, **kwargs)
 
     monkeypatch.setattr(AsyncOpenAI, "__init__", _init)
