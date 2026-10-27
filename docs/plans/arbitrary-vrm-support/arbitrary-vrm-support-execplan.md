@@ -221,7 +221,12 @@ tenant-inventory row for `avatar_face_part_overrides`. So:
   review passed 2026-10-27 on `feat/arbitrary-vrm-support-pr-b`;
   `pnpm e2e:test:fast` waits for PR B's final candidate; the owner's UI review
   is pending.
-- [ ] Final integration review and full pre-push suite.
+- [ ] Final integration review and full pre-push suite. PR A: `main` at
+  `d30a6ddc` merged in on 2026-10-27 (one conflict, in `AnimaAvatarStage.tsx`,
+  both sides kept); `local-http` 17.0.0, `runtime-contracts` 0.17.0 and
+  `product-ui` 0.18.0 for the new route and declarations (package-set
+  compatibility check passed against `d30a6ddc`); final integration review
+  #1 blocked on FI-1, fixed.
 
 ## Surprises & Discoveries
 
@@ -269,6 +274,10 @@ tenant-inventory row for `avatar_face_part_overrides`. So:
   up, because the updraft is far stronger than springs tuned without ambient
   forces; Automatic avoids it. Whether On should warn or scale its forces to
   the Avatar's springs is open with the owner.
+- 2026-10-27 (merging `main` into PR A): main added scene frame pacing (an idle
+  Avatar renders at 30 fps) and moved three-vrm from 3.5.2 to 3.5.5. Its `VRM`
+  class and `VRMSpringBoneManager.reset()` are unchanged, so Springs off still
+  works by resetting after each `vrm.update`.
 
 ## Decision Log
 
@@ -1662,6 +1671,76 @@ from later phases appearing in Diagnostics (R8), the licence boundary across
 each PR's diff and history, documentation accuracy and any phase without its
 own review. Then the full pre-push suite once on each PR's final candidate; its
 results go in that PR.
+
+### PR A Code Review #1 Findings
+
+Final integration mode on `cae68160` (main `d30a6ddc` merged in) and the
+version bump `f420eeb5`; diff `d30a6ddc...f420eeb5`, branch history from
+`a94f8369`. Verdict: blocked.
+
+- FI-1 (required): the Library's Avatar-card preview and Included Avatars
+  chosen in the Scene Effect, Particle and Pose creators' model picker still
+  load without the saved face-part correction (Phase 2 change 5). For Avatars,
+  `typedMetadata` (`lib/content/catalogApi.ts`) keeps only `compatibility`, so
+  `avatarPreviewTarget` builds a config without `face_parts`, although the typed
+  preview's item carries it.
+- FI-2 (required checks): Included render diffs against `d30a6ddc` in both looks
+  with the accepted spring change, the load-timing measurement and
+  `pnpm openapi-ts:check` on the merged tree (both sides of the merge edited the
+  generated client).
+- FI-3 (optional): Progress and Surprises do not record the merge, the version
+  bump or three-vrm 3.5.2 → 3.5.5 (the `VRM` class and `reset()` bodies are
+  unchanged, so Springs off still holds).
+
+No findings on cross-phase behaviour, the merge's frame pacing, security, the
+licence boundary (diff, history and commit messages), docs or attribution.
+
+### PR A Code Review #1 Revisions
+
+- FI-1 accepted. `typedMetadata` keeps an Avatar's `face_parts` and
+  `avatarPreviewTarget` forwards it as `config.face_parts`, as the Anima runtime
+  entry does; `Avatar.load` still matches it to the file's sha256. A new test in
+  `avatarPreviewTarget.test.ts` maps a typed preview with a correction through
+  `typedPreviewTransport` and `resolveRuntimeAvatarFaceParts`; it failed before
+  the fix. `npx vitest run src/lib/content src/ui/library src/ui/content-preview
+  src/ui/content-creator`: 490 passed; eslint and `tsc -p tsconfig.app.json`
+  clean.
+- FI-2 accepted: `pnpm openapi-ts:check` passed on `f420eeb5` ("Generated SDK
+  is current"); the render diffs, load timing and full suite are recorded under
+  "PR A final candidate".
+- FI-3 accepted: recorded in Progress and Surprises.
+
+### PR A Code Review #2 (targeted recheck)
+
+Passed on `5470e01d`: FI-1 closed for the Library dock and the creators'
+Included model picker, with no regression (preview keys and other kinds'
+metadata unchanged; a null, invalid or other-file correction loads as before).
+One repair round used.
+
+### PR A final candidate
+
+`5470e01d` (tree `31b53f69`), baseline `main` at `d30a6ddc`, macOS arm64, heavy
+jobs through `scripts/heavy-slot.py`:
+
+- Full pre-push suite: `make check-test` 4,884 passed, 29 skipped; `pnpm verify`
+  5,788 passed, 2 skipped; `pnpm web:test:browser` 131 passed (the setup
+  journey's teardown logged React's "Invalid hook call" twice, as in an earlier
+  Phase 3 run; no test failed); `pnpm prettier:check`, `pnpm openapi-ts:check`
+  ("Generated SDK is current"), `pnpm web:build:hosted` and `pnpm desktop:test`
+  (557 passed, 14 skipped) all exit 0.
+- Package-set compatibility (`scripts/package-sets/build.py build` for
+  `d30a6ddc` and `f420eeb5`, then `compare`): passed.
+- Included review renders against `d30a6ddc` (`effects:render --diff` for Eye
+  Confused Swirl, Heart Eyes, Blush, Star, Single Tear, Mouth W, Petrified
+  Cracks and Face Red in both looks; `animation:render` `air-guitar` and
+  `apology-bow`): the Gesture sheets 0 differing pixels; the effect sheets
+  4.17–4.18% (enhanced) and 3.15–3.17% (classic), only in spring-driven hair and
+  Annie's cardigan front, the owner-accepted change.
+- Load-time correction path (median of 5, load average about 5): Andrew 62.3 ms
+  (17 primitives, 3.66 ms each), Annie 49.0 ms (15, 3.27 ms each), against
+  Phase 1's 57.3 and 45.3 ms: within a few milliseconds per primitive.
+- Not rerun on this candidate: the full `pnpm e2e:test` (last run on Phase 3's
+  pre-merge build); it runs again before merge.
 
 ## Validation and acceptance
 
