@@ -13,7 +13,7 @@ import json
 from collections.abc import Mapping
 from typing import Any
 
-import httpx
+import httpx2
 from openai import AsyncOpenAI, OpenAIError
 
 from animama.app.model_catalog import STRUCTURED_OUTPUT_TRANSPORT_JSON_OBJECT, STRUCTURED_OUTPUT_TRANSPORT_JSON_SCHEMA
@@ -60,12 +60,12 @@ _log = get_logger("adapters.model_clients.openai_chat_completions.probe")
 _MAX_LISTED_MODELS = 500
 _CONTEXT_LOOKUP_TIMEOUT_SECONDS = 5.0
 # A server that is down should fail fast even when loading a model may take minutes.
-# Failures a probe step reports instead of raising: SDK errors, transport errors
-# the SDK does not wrap (for example mid-stream timeouts) and replies that are
-# not OpenAI-compatible JSON.
+# Failures a probe step reports instead of raising: SDK errors, any transport
+# error the SDK's HTTPX2 client raises unwrapped, and replies that are not
+# OpenAI-compatible JSON.
 _STEP_FAILURES: tuple[type[BaseException], ...] = (
     OpenAIError,
-    httpx.HTTPError,
+    httpx2.HTTPError,
     ValueError,
     TypeError,
     AttributeError,
@@ -115,7 +115,7 @@ class OpenAICompatibleConnectionProbe:
         credential_resolver: ModelCredentialResolver,
         openai_base_url: str | None = None,
         default_timeout: float | None = 60.0,
-        http_transport: httpx.AsyncBaseTransport | None = None,
+        http_transport: httpx2.AsyncBaseTransport | None = None,
     ) -> None:
         self._credentials = credential_resolver
         self._openai_base_url = resolve_openai_base_url(openai_base_url)
@@ -244,10 +244,10 @@ class OpenAICompatibleConnectionProbe:
         except ModelClientProviderError as exc:
             raise ModelConnectionProbeError(str(exc), category=model_error_category(exc.code)) from exc
         seconds = connection.timeout_seconds if connection.timeout_seconds is not None else self._default_timeout
-        timeout = connection_timeout(seconds) or httpx.Timeout(None, connect=CONNECT_TIMEOUT_SECONDS)
+        timeout = connection_timeout(seconds) or httpx2.Timeout(None, connect=CONNECT_TIMEOUT_SECONDS)
         try:
             client = sdk_client_for_connection(connection, credential=credential, base_url=base_url, timeout=timeout)
-        except (httpx.InvalidURL, ValueError) as exc:
+        except (httpx2.InvalidURL, ValueError) as exc:
             raise ModelConnectionProbeError(
                 "The connection's base URL is not valid", category=ERROR_INVALID_BASE_URL
             ) from exc
@@ -343,7 +343,7 @@ class OpenAICompatibleConnectionProbe:
         preset = session.connection.preset
         headers = {"Authorization": f"Bearer {session.api_key}"} if session.api_key else {}
         try:
-            async with httpx.AsyncClient(
+            async with httpx2.AsyncClient(
                 timeout=_CONTEXT_LOOKUP_TIMEOUT_SECONDS,
                 transport=session.http_transport,
                 headers=headers,
@@ -363,7 +363,7 @@ class OpenAICompatibleConnectionProbe:
                     payload = (await http.get(f"{root}/api/v0/models/{model}")).json()
                     # max_context_length is the model maximum, not the served window.
                     return _positive_int(payload.get("loaded_context_length")) if isinstance(payload, dict) else None
-        except (httpx.HTTPError, ValueError, AttributeError) as exc:
+        except (httpx2.HTTPError, ValueError, AttributeError) as exc:
             _log.info("Model context window lookup unavailable", preset=preset, error_type=exc.__class__.__name__)
         return None
 
@@ -380,7 +380,7 @@ class _ProbeSession:
         base_url: str,
         api_key: str | None,
         extra_headers: dict[str, Any] | None,
-        http_transport: httpx.AsyncBaseTransport | None,
+        http_transport: httpx2.AsyncBaseTransport | None,
     ) -> None:
         self.connection = connection
         self.client = client
@@ -437,9 +437,9 @@ def _failure(exc: BaseException, *, model: str) -> tuple[str, str | None]:
         info = classify_openai_exception(exc, api=OPENAI_API, provider_type=OPENAI_HTTP_PROVIDER_TYPE, model=model)
         detail = info.metadata.get("provider_error_message")
         return model_error_category(info.code), detail if isinstance(detail, str) else None
-    if isinstance(exc, httpx.TimeoutException):
+    if isinstance(exc, httpx2.TimeoutException):
         return ERROR_TIMEOUT, "The server did not answer before the connection timeout."
-    if isinstance(exc, httpx.HTTPError):
+    if isinstance(exc, httpx2.HTTPError):
         return ERROR_UNREACHABLE, "The connection to the server failed."
     _log.info("Model probe received an unexpected response", error_type=exc.__class__.__name__)
     return ERROR_UNEXPECTED_RESPONSE, "The server's reply was not an OpenAI-compatible response."

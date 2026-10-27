@@ -1966,6 +1966,16 @@ Changes:
 7. Docs: `docs/frontend/features/library.md` (the Avatar card action) and
    `docs/frontend/features/anima-management.md` (the settings follow the Avatar
    and are also in the Library; Create Anima's upload status).
+8. Saved face-part corrections in Avatar previews (PR A FI-1, deferred): the
+   Library's Avatar-card preview and Included Avatars picked in the Scene
+   Effect, Particle and Pose creators load without the saved correction,
+   because typed Avatar previews drop the item's `face_parts`. PR A's fix
+   (`typedMetadata` keeping `face_parts`, `avatarPreviewTarget` forwarding it as
+   `config.face_parts`) made the imported-playback e2e journey's Library
+   particle preview report `error` after Stop on every run, and the Gesture
+   creator discard journey fail after earlier journeys; find why before
+   landing it, and run both journeys repeatedly on a fresh stack. Step 1's
+   Avatar-item source depends on it.
 
 Checks: hook tests for the three sources (the Anima source unchanged; an Avatar
 item off screen and from the dock; an upload with and without the stage's
@@ -2127,14 +2137,18 @@ licence boundary (diff, history and commit messages), docs or attribution.
 
 ### PR A Code Review #1 Revisions
 
-- FI-1 accepted. `typedMetadata` keeps an Avatar's `face_parts` and
-  `avatarPreviewTarget` forwards it as `config.face_parts`, as the Anima runtime
-  entry does; `Avatar.load` still matches it to the file's sha256. A new test in
-  `avatarPreviewTarget.test.ts` maps a typed preview with a correction through
-  `typedPreviewTransport` and `resolveRuntimeAvatarFaceParts`; it failed before
-  the fix. `npx vitest run src/lib/content src/ui/library src/ui/content-preview
-  src/ui/content-creator`: 490 passed; eslint and `tsc -p tsconfig.app.json`
-  clean.
+- FI-1 accepted, then deferred to Phase 10. The fix (`5470e01d`:
+  `typedMetadata` kept an Avatar's `face_parts` and `avatarPreviewTarget`
+  forwarded it as `config.face_parts`, with a test that failed before it) passed
+  its unit checks and the targeted recheck, but the full `pnpm e2e:test` then
+  showed "imported playback covers every supported content kind" failing at
+  the Library particle preview (the dock reported `error` after Stop) on every
+  run of that build: 3 of 3, including a fresh stack. The same journey passed
+  on fresh stacks built from `main` (`d30a6ddc`), the merge (`cae68160`) and
+  `f420eeb5` (twice). "Gesture creator discard existing draft before Library
+  Edit" also failed after other journeys had run on the same stack and passed
+  on a fresh one. The fix was backed out of PR A; Phase 10 step 8 carries it
+  with that investigation.
 - FI-2 accepted: `pnpm openapi-ts:check` passed on `f420eeb5` ("Generated SDK
   is current"); the render diffs, load timing and full suite are recorded under
   "PR A final candidate".
@@ -2143,11 +2157,15 @@ licence boundary (diff, history and commit messages), docs or attribution.
 ### PR A Code Review #2 (targeted recheck)
 
 Passed on `5470e01d`: FI-1 closed for the Library dock and the creators'
-Included model picker, with no regression (preview keys and other kinds'
-metadata unchanged; a null, invalid or other-file correction loads as before).
-One repair round used.
+Included model picker, with no regression found by reading (preview keys and
+other kinds' metadata unchanged; a null, invalid or other-file correction loads
+as before). One repair round used. The full e2e run then showed the regression
+recorded under FI-1, so the fix was backed out and FI-1 deferred.
 
 ### PR A final candidate
+
+Superseded: the run below is on `5470e01d`, whose FI-1 fix was backed out (see
+FI-1); the record for the final candidate follows it.
 
 `5470e01d` (tree `31b53f69`), baseline `main` at `d30a6ddc`, macOS arm64, heavy
 jobs through `scripts/heavy-slot.py`:

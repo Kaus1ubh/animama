@@ -8,7 +8,7 @@ from datetime import UTC, date, datetime, timedelta
 from types import SimpleNamespace
 from typing import Any, TypeVar, cast
 
-import httpx
+import httpx2
 import pytest
 import pytest_asyncio
 from agents import (
@@ -2724,9 +2724,9 @@ async def test_memory_manager_chains_only_latest_user_message_and_persists_curso
 class _ExpiredCursorRunner:
     async def run(self, **kwargs):  # noqa: ANN003
         del kwargs
-        response = httpx.Response(
+        response = httpx2.Response(
             400,
-            request=httpx.Request("POST", "https://api.openai.com/v1/responses"),
+            request=httpx2.Request("POST", "https://api.openai.com/v1/responses"),
         )
         raise BadRequestError(
             "Previous response not found",
