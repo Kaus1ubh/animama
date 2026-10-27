@@ -14,6 +14,8 @@ const frames = vi.hoisted(() => {
   const held: FrameRequestCallback[] = [];
   const control = {
     hidden: false,
+    /** Frames requested while hidden and not yet replayed. */
+    pending: () => held.length,
     show() {
       control.hidden = false;
       for (const callback of held.splice(0)) native(callback);
@@ -35,9 +37,10 @@ const { MessageContent } = await import("./message");
 
 let root: Root | undefined;
 afterEach(() => {
+  // Replay held frames even after a failure, or motion never asks again.
+  frames.show();
   act(() => root?.unmount());
   root = undefined;
-  frames.hidden = false;
 });
 
 function render(animateOnEnter: boolean) {
@@ -56,9 +59,10 @@ function layers(container: HTMLElement) {
   return { background: background!, foreground: foreground! };
 }
 
+const wait = (ms: number) =>
+  act(() => new Promise((resolve) => setTimeout(resolve, ms)));
 /** Let the 0.42 s entrance finish on real frames. */
-const settle = () =>
-  act(() => new Promise((resolve) => setTimeout(resolve, 800)));
+const settle = () => wait(800);
 
 describe("MessageContent entrance", () => {
   it("ends fully shown after an ordinary entrance", async () => {
@@ -69,22 +73,26 @@ describe("MessageContent entrance", () => {
     const { background, foreground } = layers(container);
     expect(foreground.style.opacity).toBe("1");
     expect(background.style.opacity).toBe("1");
-    expect(background.style.transform).not.toMatch(/scale\(0/);
+    expect(background.style.transform).toBe("none");
   });
 
   it("ends fully shown when its turn finished while the window was hidden", async () => {
     const container = document.createElement("div");
     root = createRoot(container);
+    // Run any frame motion already requested, so hiding holds every later one.
+    await wait(50);
     frames.hidden = true;
     // A streamed bubble mounts with its entrance, then the finished turn
     // replaces it with the saved message under the same key.
     render(true);
     render(false);
+    // Motion is waiting on frames that the hidden window has not run.
+    expect(frames.pending()).toBeGreaterThan(0);
     frames.show();
     await settle();
     const { background, foreground } = layers(container);
     expect(foreground.style.opacity).toBe("1");
     expect(background.style.opacity).toBe("1");
-    expect(background.style.transform).not.toMatch(/scale\(0/);
+    expect(background.style.transform).toBe("none");
   });
 });

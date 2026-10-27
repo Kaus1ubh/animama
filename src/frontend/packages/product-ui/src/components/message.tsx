@@ -111,6 +111,7 @@ const messageContentForegroundVariants = cva("relative z-10", {
 
 export type MessageContentProps = HTMLMotionProps<"div"> &
   VariantProps<typeof messageContentShellVariants> & {
+    /** Read once at mount; give the bubble a new key to replay the entrance. */
     animateOnEnter?: boolean;
     from?: "user" | "assistant";
     messageLayout?: MessageLayout;
