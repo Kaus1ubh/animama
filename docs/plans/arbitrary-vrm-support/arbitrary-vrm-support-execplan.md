@@ -207,9 +207,9 @@ tenant-inventory row for `avatar_face_part_overrides`. So:
   checked and review passed 2026-10-26; the owner gate (private renders of the
   eye-hiding effects) is pending.
 - [ ] Phase 3: Avatar settings: wind and materials (R5, R11's Materials
-  setting). Implemented, checked and review passed 2026-10-26; the owner gate
-  (live wind modes, the Simple look, and acceptance of the Included Avatars'
-  spring change in creators and review renders) is pending.
+  setting). Implemented, checked and review passed 2026-10-26; the owner
+  accepted the Included Avatars' spring change on 2026-10-27; the rest of the
+  owner gate (live wind modes, the Simple look) is pending.
 - [ ] Phase 4: Expression content and MMD face shapes (R4, R12). Not started.
 - [ ] Phase 5: Hands (R6). Not started.
 - [ ] Phase 6: Texture layouts (R2). Not started.
@@ -353,6 +353,11 @@ tenant-inventory row for `avatar_face_part_overrides`. So:
     full download only to decide one row was rejected.
   - The backend notice for a composition without the store is a per-item
     `notices` list on `ReviewedImportItem`, worded in the import review.
+- 2026-10-27, owner: accept the Included Avatars' spring change in the content
+  and Pose creators and the review renders (Phase 3: hair and Annie's cardigan
+  bow move under the chat's spring settings there, about 4% of a review
+  sheet's pixels). Included render diffs against `main` are judged with that
+  change accepted.
 - 2026-10-27, owner: offer Diagnostics and the wind and Materials settings on
   Library Avatar cards, and a Diagnostics link on Create Anima's upload
   preview, in PR B (Phase 10). Create Anima gets no settings, since an unsaved
@@ -921,7 +926,8 @@ Simple; and the owner's acceptance of the Included Avatars' spring change in
 the creators and review renders (see Code Review #1 Revisions): their hair and
 Annie's cardigan bow now move under the chat's spring settings there, about 4%
 of a review sheet's pixels. If the owner does not accept it, those surfaces
-settle Included Avatars as before Phase 3 before the phase completes.
+settle Included Avatars as before Phase 3 before the phase completes. Accepted
+by the owner on 2026-10-27 (Decision Log).
 
 Completion: R5 acceptance and R11's Materials-setting acceptance except the
 Automatic GPU check; owner gate passed; a Cloud follow-up issue recorded
