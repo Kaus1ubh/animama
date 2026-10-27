@@ -361,7 +361,7 @@ Each space-separated word or quoted phrase is parsed with
 phrase adjacency; `OR` is redundant. `-term` exclusions remove every file that
 contains the term. Files that match more of the query's words and phrases rank
 above files that match fewer, and `ts_rank_cd` orders files with the same
-count. Only the first 32 words or phrases and the first 32 exclusions are used.
+count. Only the first 32 words or phrases are used; every exclusion applies.
 Japanese text uses the `english` tokenisation, which does not split words that
 lack spaces.
 

@@ -91,22 +91,23 @@ def _snippet_for_query(entry: MemoryEntry, query: str, *, max_chars: int) -> str
 
 # One web-search clause: a quoted phrase or a whitespace-separated word, either optionally negated with "-".
 _SEARCH_CLAUSE_PATTERN = re.compile(r'-?"[^"]*"?|\S+')
-# Each clause nests the statement one level deeper, and SQLAlchemy compiles it recursively, so a
-# pasted passage would exceed Python's recursion limit without this bound on each clause kind.
-_MAX_SEARCH_CLAUSES = 32
+# Each positive clause nests the statement one level deeper, and SQLAlchemy compiles it recursively,
+# so a pasted passage would exceed Python's recursion limit without this bound.
+_MAX_POSITIVE_SEARCH_CLAUSES = 32
 
 
 def _websearch_clause(clause: str) -> ColumnElement[Any]:
     return func.websearch_to_tsquery("english", clause, type_=TSQUERY)
 
 
-def _search_clauses(query: str) -> tuple[list[ColumnElement[Any]], list[ColumnElement[Any]]]:
-    """Split a web-search query into positive and excluded tsquery clauses.
+def _search_clauses(query: str) -> tuple[list[ColumnElement[Any]], ColumnElement[Any] | None]:
+    """Split a web-search query into positive tsquery clauses and one exclusion tsquery.
 
     Each clause is parsed by ``websearch_to_tsquery``, so stemming, stop words,
     quoted phrases and ``-term`` negation follow PostgreSQL's rules. A standalone
     ``or`` is dropped because positive clauses are already alternatives. Only the
-    first ``_MAX_SEARCH_CLAUSES`` positive and excluded clauses are kept.
+    first ``_MAX_POSITIVE_SEARCH_CLAUSES`` positive clauses are kept; every
+    exclusion is kept, parsed together as ``!a & !b ...``.
     """
 
     positives: list[str] = []
@@ -116,8 +117,8 @@ def _search_clauses(query: str) -> tuple[list[ColumnElement[Any]], list[ColumnEl
             continue
         (exclusions if clause.startswith("-") else positives).append(clause)
     return (
-        [_websearch_clause(clause) for clause in positives[:_MAX_SEARCH_CLAUSES]],
-        [_websearch_clause(clause) for clause in exclusions[:_MAX_SEARCH_CLAUSES]],
+        [_websearch_clause(clause) for clause in positives[:_MAX_POSITIVE_SEARCH_CLAUSES]],
+        _websearch_clause(" ".join(exclusions)) if exclusions else None,
     )
 
 
@@ -645,13 +646,11 @@ class SQLAlchemyMemoryEntryRepository(MemoryEntryRepository):
     ) -> list[MemoryEntrySearchResult]:
         # A file matches when it contains any positive word or phrase and no excluded one. Files matching
         # more clauses rank first, so every-word matches stay above partial ones; ts_rank_cd orders the rest.
-        positives, exclusions = _search_clauses(query)
+        positives, exclusion = _search_clauses(query)
         ranking: list[ColumnElement[Any]] = []
         if positives:
             any_positive = reduce(lambda left, right: left.op("||", return_type=TSQUERY)(right), positives)
-            search_query = reduce(
-                lambda left, right: left.op("&&", return_type=TSQUERY)(right), exclusions, any_positive
-            )
+            search_query = any_positive if exclusion is None else any_positive.op("&&", return_type=TSQUERY)(exclusion)
             matched_clauses = reduce(
                 operator.add,
                 (cast(ORMMemoryEntry.search_vector.op("@@")(clause), Integer) for clause in positives),

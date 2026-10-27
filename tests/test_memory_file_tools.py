@@ -626,11 +626,12 @@ async def test_memory_search_handles_long_queries(async_session) -> None:
     await _put_user_file(async_session, "job.md", "The user got a junior designer job.")
     await _put_user_file(async_session, "pickle.md", "The user's job notes mention Pickle.")
     filler = " ".join(f"filler{index}" for index in range(400))
+    exclusions = " ".join(f"-absent{index}" for index in range(400))
     # The test runner raises the recursion limit; the server runs with Python's default.
     runner_limit = sys.getrecursionlimit()
     sys.setrecursionlimit(1000)
     try:
-        paths = await _search_memory_paths(async_session, f"job {filler} -pickle")
+        paths = await _search_memory_paths(async_session, f"job {filler} {exclusions} -pickle")
     finally:
         sys.setrecursionlimit(runner_limit)
 
