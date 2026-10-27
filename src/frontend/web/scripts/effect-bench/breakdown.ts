@@ -8,6 +8,7 @@ import {
   lilToonDepthPrepassEnabled,
   setLilToonDepthPrepassEnabled,
 } from "@/lib/avatar/liltoon/depthPrepass";
+import { isLilToonSurface } from "@/lib/avatar/liltoon/lilToonSurface";
 import { AVATAR_FACE_PART_LABELS } from "@/lib/avatar/vfx/faceParts";
 import { PrimitiveRegionHider } from "@/lib/avatar/vfx/primitiveRegionHiding";
 import { buildRuntimePrimitiveBindings } from "@/lib/avatar/vrmEditorInspection";
@@ -96,10 +97,7 @@ type Scenario = {
 };
 
 function asLilToon(material: THREE.Material): LilToonMaterial | null {
-  const candidate = material as Partial<LilToonMaterial>;
-  return candidate.isLilToonMaterial && candidate.pass === "forward"
-    ? (material as LilToonMaterial)
-    : null;
+  return isLilToonSurface(material) ? (material as LilToonMaterial) : null;
 }
 
 function blendOf(material: THREE.Material): Blend {

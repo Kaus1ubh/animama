@@ -13,8 +13,9 @@ import { avatarSceneLights } from "./sceneCameraPresets";
  * the "Enable enhanced renderer and shaders" setting, plus lilToon's render
  * passes once an Avatar with lilToon materials has loaded. `lights={false}` keeps
  * only the tone mapping, for canvases that bring their own lights.
- * `measureLilToonGpu` (the chat canvas) times the first lilToon frames for
- * the Materials setting's Automatic.
+ * `measureLilToonGpu` (the main Avatar canvas, never Picture in Picture or
+ * previews) times the first lilToon frames for the Materials setting's
+ * Automatic.
  */
 export function AvatarSceneLighting({
   lights = true,

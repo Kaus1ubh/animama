@@ -1,5 +1,7 @@
 import * as THREE from "three";
 
+import { isLilToonSurface } from "./lilToonSurface";
+
 /**
  * A depth pre-pass for opaque lilToon primitives.
  *
@@ -11,15 +13,20 @@ import * as THREE from "three";
  * the lilToon shader runs. lilToon's own outline pass already does part of
  * this by accident, which is why switching outlines off made frames slower.
  *
- * The pre-pass never changes a pixel. It writes depth only, pushed slightly
- * behind the surface (three-liltoon skins and projects in its own order, so
- * its depth drifts from three.js's by up to about eight units; see
+ * The pre-pass must never change a pixel. It writes depth only, pushed
+ * slightly behind the surface (three-liltoon skins and projects in its own
+ * order, so its depth drifts from three.js's by up to about eight units; see
  * `silhouetteOverlay.ts`), so each surface still passes its own test and
  * writes its exact depth, and a fragment it rejects lies behind an opaque
- * surface that covers it. A primitive takes part only when that holds for its
- * material (`takesDepthPrepass`), and a frame skips the pre-pass when any
- * visible material's depth test could see the earlier depth
- * (`toleratesDepthPrepass`).
+ * surface that covers it. That holds only for a surface that replaces colour
+ * and alpha (One and Zero blend factors, no alpha-to-coverage) and draws at
+ * its own depth (no polygon offset of its own): the chat canvas keeps alpha,
+ * so a surface that blends alpha over what lies behind it could show the
+ * difference. `depthPrepassBlocker` checks each material, and a frame skips
+ * the pre-pass when any visible material's depth test could see the earlier
+ * depth (`toleratesDepthPrepass`). three-liltoon blends alpha with One and
+ * One-minus-source-alpha by default, so most converted Avatars take no
+ * pre-pass until that is shown to be safe.
  *
  * Like lilToon's outlines, the pre-pass meshes exist only while the renderer
  * draws: they are attached as children of their surfaces before each render
@@ -31,13 +38,6 @@ import * as THREE from "three";
  * grazing triangles and the eight units lilToon's depth drift needs.
  */
 export const DEPTH_PREPASS_POLYGON_OFFSET = { factor: 1, units: 8 } as const;
-
-/** The parts of three-liltoon's `LilToonMaterial` the pre-pass reads. */
-type LilToonFacts = {
-  isLilToonMaterial?: boolean;
-  pass?: string;
-  renderMode?: string;
-};
 
 /** Depth tests that never see a pre-pass's depth where the surface's own was. */
 const TOLERANT_DEPTH_FUNCS: ReadonlySet<THREE.DepthModes> = new Set([
@@ -51,32 +51,65 @@ export type DepthPrepassBlocker =
   | "not_liltoon_surface"
   | "not_opaque"
   | "blends"
+  | "blends_alpha"
+  | "alpha_to_coverage"
+  | "polygon_offset"
   | "hidden"
   | "no_colour"
   | "depth_state";
 
 /**
+ * Whether custom blending writes the source unchanged: Add with One and Zero
+ * factors. three.js uses the colour equation and factors for alpha when the
+ * alpha ones are unset (null).
+ */
+function replacesWith(
+  equation: THREE.BlendingEquation,
+  source: THREE.BlendingSrcFactor,
+  destination: THREE.BlendingDstFactor,
+): boolean {
+  return (
+    equation === THREE.AddEquation &&
+    source === THREE.OneFactor &&
+    destination === THREE.ZeroFactor
+  );
+}
+
+/**
  * Why a material may not draw its depth first, or null when it may: an
- * opaque lilToon surface pass that draws every fragment, replaces what is
- * behind it and writes its depth with a less-or-equal test. three-liltoon
- * enables blending on every material, so blending counts as replacing when
- * its colour factors are One and Zero.
+ * opaque lilToon surface pass that draws every fragment at its own depth,
+ * replaces the colour and alpha behind it and writes its depth with a
+ * less-or-equal test. three-liltoon enables blending on every material, so
+ * blending counts as replacing when its factors are One and Zero.
  */
 export function depthPrepassBlocker(
   material: THREE.Material,
 ): DepthPrepassBlocker | null {
-  const lilToon = material as THREE.Material & LilToonFacts;
-  if (!lilToon.isLilToonMaterial || lilToon.pass !== "forward")
-    return "not_liltoon_surface";
-  if (lilToon.renderMode !== "opaque" || material.transparent)
+  if (!isLilToonSurface(material)) return "not_liltoon_surface";
+  if (material.renderMode !== "opaque" || material.transparent)
     return "not_opaque";
-  const replaces =
-    material.blending === THREE.NoBlending ||
-    (material.blending === THREE.CustomBlending &&
-      material.blendEquation === THREE.AddEquation &&
-      material.blendSrc === THREE.OneFactor &&
-      material.blendDst === THREE.ZeroFactor);
-  if (!replaces) return "blends";
+  if (material.blending !== THREE.NoBlending) {
+    if (
+      material.blending !== THREE.CustomBlending ||
+      !replacesWith(
+        material.blendEquation,
+        material.blendSrc,
+        material.blendDst,
+      )
+    )
+      return "blends";
+    if (
+      !replacesWith(
+        material.blendEquationAlpha ?? material.blendEquation,
+        material.blendSrcAlpha ?? material.blendSrc,
+        material.blendDstAlpha ?? material.blendDst,
+      )
+    )
+      return "blends_alpha";
+  }
+  if (material.alphaToCoverage) return "alpha_to_coverage";
+  // An offset of its own could put the surface behind its pre-pass depth.
+  if (material.polygonOffset) return "polygon_offset";
   if (!material.visible) return "hidden";
   if (!material.colorWrite) return "no_colour";
   if (
@@ -157,18 +190,39 @@ function targetHasStencil(renderer: THREE.WebGLRenderer): boolean {
   }
 }
 
-type PrepassState = { enabled: boolean };
+type Installation = {
+  enabled: boolean;
+  /** Releases still to come; the last one restores `render`. */
+  users: number;
+  uninstall: () => void;
+};
 
-const installations = new WeakMap<THREE.WebGLRenderer, PrepassState>();
+const installations = new WeakMap<THREE.WebGLRenderer, Installation>();
+
+/** One user's release of a shared installation; later calls do nothing. */
+function releaseOnce(installation: Installation): () => void {
+  let released = false;
+  return () => {
+    if (released) return;
+    released = true;
+    installation.users -= 1;
+    if (installation.users === 0) installation.uninstall();
+  };
+}
 
 /**
  * Draw opaque lilToon primitives' depth first on `renderer` (installed with
- * lilToon's own passes). Returns the release, which restores `render`.
+ * lilToon's own passes). A second install on the same renderer shares the
+ * first. Returns the release; the last release restores `render`.
  */
 export function installLilToonDepthPrepass(
   renderer: THREE.WebGLRenderer,
 ): () => void {
-  const state: PrepassState = { enabled: true };
+  const existing = installations.get(renderer);
+  if (existing) {
+    existing.users += 1;
+    return releaseOnce(existing);
+  }
   const helpers = new WeakSet<THREE.Object3D>();
   const proxies = new WeakMap<THREE.Mesh, THREE.Mesh>();
   const materials = new Map<THREE.Side, THREE.MeshBasicMaterial>();
@@ -226,7 +280,7 @@ export function installLilToonDepthPrepass(
   const wrapped: THREE.WebGLRenderer["render"] = function (scene, camera) {
     const attached: THREE.Mesh[] = [];
     // An override material would draw the pre-pass in colour.
-    if (state.enabled && !(scene as THREE.Scene).overrideMaterial) {
+    if (installation.enabled && !(scene as THREE.Scene).overrideMaterial) {
       for (const mesh of depthPrepassMeshes(
         scene,
         helpers,
@@ -245,14 +299,19 @@ export function installLilToonDepthPrepass(
       for (const proxy of attached) proxy.removeFromParent();
     }
   };
-  renderer.render = wrapped;
-  installations.set(renderer, state);
-  return () => {
-    if (renderer.render === wrapped) renderer.render = render;
-    installations.delete(renderer);
-    for (const material of materials.values()) material.dispose();
-    materials.clear();
+  const installation: Installation = {
+    enabled: true,
+    users: 1,
+    uninstall: () => {
+      if (renderer.render === wrapped) renderer.render = render;
+      installations.delete(renderer);
+      for (const material of materials.values()) material.dispose();
+      materials.clear();
+    },
   };
+  renderer.render = wrapped;
+  installations.set(renderer, installation);
+  return releaseOnce(installation);
 }
 
 /**
@@ -264,8 +323,8 @@ export function setLilToonDepthPrepassEnabled(
   renderer: THREE.WebGLRenderer,
   enabled: boolean,
 ): void {
-  const state = installations.get(renderer);
-  if (state) state.enabled = enabled;
+  const installation = installations.get(renderer);
+  if (installation) installation.enabled = enabled;
 }
 
 /** Whether `renderer` draws the pre-pass (installed and enabled). */

@@ -51,7 +51,7 @@
   "animaSettings": {
     "avatar": {
       "materials": {
-        "description": "lilToon은 제작자가 만든 그대로 그리고, 단순은 그리는 부담이 적습니다. 이 아바타를 사용하는 모든 곳에 적용되며 아바타를 다시 불러옵니다.",
+        "description": "lilToon은 제작자가 만든 그대로 그리고, 단순은 그리는 부담이 적습니다. 자동은 lilToon을 사용하지만, 이 기기의 GPU에서 너무 느리게 그려지면 단순을 사용합니다. 이 아바타를 사용하는 모든 곳에 적용되며 아바타를 다시 불러옵니다.",
         "label": "머티리얼",
         "modes": {
           "automatic": "자동",

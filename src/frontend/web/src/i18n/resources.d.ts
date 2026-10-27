@@ -6058,7 +6058,7 @@ export default interface Resources {
     "animaSettings": {
       "avatar": {
         "materials": {
-          "description": "lilToon draws this Avatar as authored; Simple costs less to draw. Applies wherever the Avatar is used, and reloads it.",
+          "description": "lilToon draws this Avatar as authored; Simple costs less to draw. Automatic uses lilToon unless this device's GPU drew it too slowly, then Simple. Applies wherever the Avatar is used, and reloads it.",
           "label": "Materials",
           "modes": {
             "automatic": "Automatic",

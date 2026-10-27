@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   DEPTH_PREPASS_POLYGON_OFFSET,
+  depthPrepassBlocker,
   depthPrepassMeshes,
   installLilToonDepthPrepass,
   lilToonDepthPrepassEnabled,
@@ -21,6 +22,11 @@ function lilToonMaterial(
     renderMode: string;
     blendSrc: THREE.BlendingSrcFactor;
     blendDst: THREE.BlendingDstFactor;
+    blendSrcAlpha: THREE.BlendingSrcFactor;
+    blendDstAlpha: THREE.BlendingDstFactor;
+    alphaToCoverage: boolean;
+    polygonOffset: boolean;
+    polygonOffsetUnits: number;
     depthFunc: THREE.DepthModes;
     depthWrite: boolean;
     transparent: boolean;
@@ -32,6 +38,11 @@ function lilToonMaterial(
     blending: THREE.CustomBlending,
     blendSrc: overrides.blendSrc ?? THREE.OneFactor,
     blendDst: overrides.blendDst ?? THREE.ZeroFactor,
+    blendSrcAlpha: overrides.blendSrcAlpha ?? null,
+    blendDstAlpha: overrides.blendDstAlpha ?? null,
+    alphaToCoverage: overrides.alphaToCoverage ?? false,
+    polygonOffset: overrides.polygonOffset ?? false,
+    polygonOffsetUnits: overrides.polygonOffsetUnits ?? 0,
     depthFunc: overrides.depthFunc ?? THREE.LessEqualDepth,
     depthWrite: overrides.depthWrite ?? true,
     transparent: overrides.transparent ?? false,
@@ -84,6 +95,43 @@ describe("takesDepthPrepass", () => {
     const unblended = lilToonMaterial();
     unblended.blending = THREE.NoBlending;
     expect(takesDepthPrepass(unblended)).toBe(true);
+  });
+
+  it("accepts alpha factors that replace, set or inherited", () => {
+    expect(
+      takesDepthPrepass(
+        lilToonMaterial({
+          blendSrcAlpha: THREE.OneFactor,
+          blendDstAlpha: THREE.ZeroFactor,
+        }),
+      ),
+    ).toBe(true);
+  });
+
+  it("refuses surfaces whose alpha, coverage or depth could differ", () => {
+    // three-liltoon's default alpha factors: One, One minus source alpha.
+    expect(
+      depthPrepassBlocker(
+        lilToonMaterial({
+          blendSrcAlpha: THREE.OneFactor,
+          blendDstAlpha: THREE.OneMinusSrcAlphaFactor,
+        }),
+      ),
+    ).toBe("blends_alpha");
+    expect(
+      depthPrepassBlocker(
+        lilToonMaterial({ blendSrcAlpha: THREE.SrcAlphaFactor }),
+      ),
+    ).toBe("blends_alpha");
+    expect(
+      depthPrepassBlocker(lilToonMaterial({ alphaToCoverage: true })),
+    ).toBe("alpha_to_coverage");
+    // A positive authored offset would put the surface behind its pre-pass.
+    expect(
+      depthPrepassBlocker(
+        lilToonMaterial({ polygonOffset: true, polygonOffsetUnits: 4 }),
+      ),
+    ).toBe("polygon_offset");
   });
 
   it("refuses anything whose hidden fragments could show or count", () => {
@@ -230,6 +278,25 @@ describe("installLilToonDepthPrepass", () => {
     renderer.render(scene, new THREE.PerspectiveCamera());
     expect(frames).toEqual([[]]);
     release();
+  });
+
+  it("shares one installation per renderer until the last release", () => {
+    const { renderer, frames } = recordingRenderer();
+    const scene = new THREE.Scene();
+    scene.add(skinnedMesh(lilToonMaterial()));
+    const first = installLilToonDepthPrepass(renderer);
+    const second = installLilToonDepthPrepass(renderer);
+
+    renderer.render(scene, new THREE.PerspectiveCamera());
+    first();
+    first();
+    renderer.render(scene, new THREE.PerspectiveCamera());
+    second();
+    renderer.render(scene, new THREE.PerspectiveCamera());
+
+    // One pre-pass mesh per frame, not two; none after the last release.
+    expect(frames.map((frame) => frame.length)).toEqual([1, 1, 0]);
+    expect(lilToonDepthPrepassEnabled(renderer)).toBe(false);
   });
 
   it("can be switched off and skips scenes with an override material", () => {

@@ -2,18 +2,25 @@ import type * as THREE from "three";
 
 import { createLogger } from "@/lib/logger";
 
+import { isLilToonSurface } from "./lilToonSurface";
+
 /**
  * Automatic for the per-Avatar Materials setting: lilToon, unless this
  * machine's GPU is too slow for it.
  *
- * The chat canvas times the first frames it draws with a lilToon Avatar on
- * the GPU (`EXT_disjoint_timer_query_webgl2`) and keeps the median per viewer
- * and GPU. Every later load under Automatic reads it: above
- * `LILTOON_AUTOMATIC_MAX_FRAME_MS` it loads the glTF fallback materials
- * (Simple), otherwise lilToon. Materials are built at load, so a new
- * measurement applies from the next load. A GPU that has not been measured
- * yet, or a browser that cannot time the GPU, keeps lilToon; Diagnostics says
- * which (`AutomaticMaterialsDecision`).
+ * The main Avatar canvas (`AvatarSceneHost` in `main` mode: chat and the
+ * surfaces that reuse it; never Picture in Picture or previews) times the
+ * first frames it draws with a lilToon Avatar on the GPU
+ * (`EXT_disjoint_timer_query_webgl2`) and keeps the median per viewer and
+ * GPU, under `localStorage` key `animama.lilToonGpuCheck`. Every later load
+ * under Automatic reads it: above `LILTOON_AUTOMATIC_MAX_FRAME_MS` it loads
+ * the glTF fallback materials (Simple), otherwise lilToon. Materials are
+ * built at load, so a new measurement applies from the next load. A GPU that
+ * has not been measured yet, or a browser that cannot time the GPU, keeps
+ * lilToon; Diagnostics says which (`AutomaticMaterialsDecision`).
+ *
+ * A GPU is measured once per viewer. Removing the storage key, or raising
+ * `METHOD` below, measures every GPU again on its next lilToon frames.
  */
 
 const logger = createLogger("LilToonGpuCheck");
@@ -23,9 +30,16 @@ const logger = createLogger("LilToonGpuCheck");
  * GPU time at the chat canvas: about half a 60 fps frame (16.7 ms), so the
  * Avatar, its effects (up to 4 ms for a Reaction's Particle and Scene
  * Effects) and the rest of the page still fit in one frame with headroom.
- * The reference Apple M5 measures 5–7 ms with the depth pre-pass, so it keeps
- * lilToon; a GPU about half as fast moves to Simple. Owner decision; change
- * it here (stored measurements are compared on every load, so no re-measure).
+ * The reference Apple M5 measures 5–7 ms, so it keeps lilToon; a GPU about
+ * half as fast moves to Simple. Owner decision; change it here (stored
+ * measurements are compared on every load, so no re-measure).
+ *
+ * The measured time is compared as measured, not scaled by canvas size: on
+ * the M5 a converted Avatar's lilToon frame took 5.3–6.0 ms from 1.0 to 5.9
+ * million drawing-buffer pixels (an 800 × 600 canvas at DPR 1.44 to 3.5;
+ * the default app window's chat canvas is about 3.7 million at DPR 2), where
+ * an Included Avatar's grew from 2.4 to 4.5 ms. The cost is mostly per frame,
+ * not per pixel, so per-pixel scaling would understate a large canvas.
  */
 export const LILTOON_AUTOMATIC_MAX_FRAME_MS = 8;
 
@@ -132,19 +146,22 @@ function readAll(storage: Storage | null): StoredMeasurements {
   }
 }
 
+const isCount = (value: unknown, min = 0): value is number =>
+  typeof value === "number" && Number.isFinite(value) && value >= min;
+
 function isMeasurement(value: unknown): value is LilToonGpuMeasurement {
   const entry = value as Partial<{
     status: unknown;
     method: unknown;
     frameMs: unknown;
+    pixels: unknown;
   }> | null;
   if (!entry || entry.method !== METHOD) return false;
   if (entry.status === "unsupported") return true;
   return (
     entry.status === "measured" &&
-    typeof entry.frameMs === "number" &&
-    Number.isFinite(entry.frameMs) &&
-    entry.frameMs >= 0
+    isCount(entry.frameMs) &&
+    isCount(entry.pixels, LILTOON_GPU_CHECK.minPixels)
   );
 }
 
@@ -222,8 +239,6 @@ export function resetAvatarCanvasGpuForTesting(gpu: string | null = null) {
 
 type TimerExtension = { TIME_ELAPSED_EXT: number; GPU_DISJOINT_EXT: number };
 
-type LilToonFacts = { isLilToonMaterial?: boolean; pass?: string };
-
 /** Whether `scene` draws a visible lilToon surface. */
 function drawsLilToon(scene: THREE.Object3D): boolean {
   let found = false;
@@ -234,8 +249,7 @@ function drawsLilToon(scene: THREE.Object3D): boolean {
     for (const material of Array.isArray(mesh.material)
       ? mesh.material
       : [mesh.material]) {
-      const lilToon = material as THREE.Material & LilToonFacts;
-      if (lilToon.isLilToonMaterial && lilToon.pass === "forward") found = true;
+      if (isLilToonSurface(material)) found = true;
     }
   });
   return found;
@@ -286,16 +300,18 @@ export function installLilToonGpuCheck(
     pending.length = 0;
   };
   const collect = () => {
-    // Reading the flag clears it; a disjoint event voids every query in flight.
-    if (gl.getParameter(timer.GPU_DISJOINT_EXT)) {
-      disjoint += 1;
-      drop();
-      if (disjoint > LILTOON_GPU_CHECK.maxDisjoint) done = true;
-      return;
-    }
     while (pending.length) {
       const { query, pixels } = pending[0]!;
       if (!gl.getQueryParameter(query, gl.QUERY_RESULT_AVAILABLE)) return;
+      // Checked once a result is available, as the extension recommends.
+      // Reading the flag clears it; a disjoint event voids every query in
+      // flight. Only frames this check timed can count one.
+      if (gl.getParameter(timer.GPU_DISJOINT_EXT)) {
+        disjoint += 1;
+        drop();
+        if (disjoint > LILTOON_GPU_CHECK.maxDisjoint) done = true;
+        return;
+      }
       pending.shift();
       samples.push(gl.getQueryParameter(query, gl.QUERY_RESULT) / 1e6);
       pixelsMeasured = pixels;
