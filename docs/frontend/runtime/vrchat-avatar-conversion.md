@@ -77,6 +77,9 @@ change.
 
 Pick the prefab the Avatar should look like. Many Avatars ship variants, such
 as a prefab variant without the jacket; each export captures one prefab.
+Variants usually hide a garment by tagging it `EditorOnly`, which VRChat strips
+when it builds the Avatar but Mochiya exports. The script strips those objects
+first, as a build would, and logs `Stripped EditorOnly object <name>` for each.
 
 Close the project in the Unity editor first; batch mode cannot open a project
 that is already open. `Unity` below is the editor binary; on macOS it lives in
@@ -140,9 +143,10 @@ pnpm -s vrm:inspect <private-dir>/<Avatar>.vrm
 Check that:
 
 - no texture is a flat colour (a sign of a `-nographics` export);
-- the file is VRM 1.0 and under the 100 MiB upload limit. `vrm:optimize` does
-  not support Mochiya's extensions, so reduce an oversized Avatar's textures in
-  Unity and export again;
+- the file is VRM 1.0 and under the 100 MiB upload limit. `vrm:optimize`
+  (see [VRM optimization](vrm-optimization.md)) shrinks a conversion without
+  changing how it looks; reduce oversized textures in Unity first if it is
+  still too large;
 - every face mesh stores its names at mesh level, not "primitives only";
 - the rest pose is a T-pose: arms straight out to the sides (the Gesture
   renders below show it quickly);
