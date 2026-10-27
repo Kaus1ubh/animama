@@ -353,8 +353,16 @@ callers that omit the boolean retain the default `true` behavior. With `false`,
 the backend excludes both `kind = "episode_log"` files and paths under
 `episodes/**` before ranking and applying the 10-result limit.
 
-The query accepts PostgreSQL web-search syntax. Models can use quoted phrases,
-`OR`, and `-term` exclusions when those constraints help narrow retrieval.
+The query accepts PostgreSQL web-search syntax, but a file matches when it
+contains any query word or quoted phrase, so natural queries such as
+`new job start date` find a note that mentions only the job and its start.
+Each word or phrase is parsed with `websearch_to_tsquery('english', ...)`, so
+stemming, stop words and phrase adjacency are unchanged; `OR` is redundant.
+`-term` exclusions still remove every file that contains the term. Files that
+match more of the query's words and phrases rank first, so every-word matches
+stay above partial ones; `ts_rank_cd` then orders files with the same count.
+Japanese text keeps the `english` tokenisation, which does not split words
+that lack spaces.
 
 The model receives a `memory_results` array. Markdown memory hits include
 `path`, `description`, and `snippet`. The tool does not return entry IDs,

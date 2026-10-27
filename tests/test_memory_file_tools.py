@@ -565,6 +565,74 @@ async def test_memory_search_can_exclude_episodes_before_result_limit(async_sess
     }
 
 
+async def _search_memory_paths(async_session, query: str) -> list[str]:  # noqa: ANN001
+    search = _loads(
+        await _tool_service(async_session).execute(
+            tool_name=MEMORY_TOOL_SEARCH_MEMORY_FILES,
+            arguments={"query": query},
+            context=_context(),
+            tool_call_id="call-search",
+        )
+    )
+    assert search["ok"] is True
+    return [result["path"] for result in search["memory_results"]]
+
+
+async def _put_episode_log(async_session, relative_path: str, text: str) -> None:  # noqa: ANN001
+    await _put_user_file(
+        async_session,
+        relative_path,
+        f"# Episodes\n\n- [ ] {text}",
+        kind=MEMORY_EPISODE_LOG_ENTRY_KIND,
+        allow_system_managed=True,
+    )
+
+
+@pytest.mark.asyncio
+async def test_memory_search_matches_notes_containing_only_some_query_words(async_session) -> None:
+    job_log = "episodes/2026/10/2026-10-20.md"
+    book_log = "episodes/2026/10/2026-10-21.md"
+    await _put_episode_log(
+        async_session,
+        job_log,
+        "The user got a junior designer job at a children's publisher, starting on 10 November.",
+    )
+    await _put_episode_log(
+        async_session,
+        book_log,
+        "The user is making their own picture book, 'Pickle and the Moon', about their cat.",
+    )
+
+    assert await _search_memory_paths(async_session, "new job start date") == [job_log]
+    assert await _search_memory_paths(async_session, "picture book title") == [book_log]
+
+
+@pytest.mark.asyncio
+async def test_memory_search_ranks_notes_matching_more_query_words_first(async_session) -> None:
+    job_log = "episodes/2026/10/2026-10-20.md"
+    await _put_episode_log(
+        async_session,
+        job_log,
+        "The user got a junior designer job at a children's publisher, starting on 10 November.",
+    )
+    await _put_user_file(async_session, "shopping.md", "The user bought new boots, new gloves and a new scarf.")
+
+    assert await _search_memory_paths(async_session, "new job start date") == [job_log, "shopping.md"]
+
+
+@pytest.mark.asyncio
+async def test_memory_search_keeps_phrases_and_exclusions(async_session) -> None:
+    await _put_user_file(async_session, "pickle.md", "The user's picture book is called Pickle and the Moon.")
+    await _put_user_file(async_session, "library.md", "The user borrowed a picture book about trains.")
+    await _put_user_file(async_session, "album.md", "The user's photo book has a picture of the moon.")
+
+    assert set(await _search_memory_paths(async_session, '"picture book"')) == {"pickle.md", "library.md"}
+    assert await _search_memory_paths(async_session, '"picture book" -pickle') == ["library.md"]
+    assert await _search_memory_paths(async_session, "moon -pickle") == ["album.md"]
+    assert set(await _search_memory_paths(async_session, "trains OR photo")) == {"library.md", "album.md"}
+    assert set(await _search_memory_paths(async_session, "-pickle")) == {"library.md", "album.md"}
+
+
 @pytest.mark.asyncio
 async def test_memory_read_files_enforces_path_and_content_budgets_with_partial_success(async_session) -> None:
     content = "x" * (32 * 1024)
