@@ -3,13 +3,17 @@
  * English warning for the dev panels also records one of these, so the
  * Diagnostics view can show localized text and reports stay free of model,
  * material and effect names. Parameters hold only counts, part roles, binding
- * keys and runtime effect ids; a Local effect's runtime id derives from its
- * name, so shareable reports replace it (`avatarDiagnosticsReport.ts`).
+ * keys, glTF extension names and runtime effect ids; a Local effect's runtime
+ * id derives from its name, so shareable reports replace it
+ * (`avatarDiagnosticsReport.ts`).
  */
 export const AVATAR_ISSUE_CODES = [
   // The file and its load (Diagnostics' off-screen load).
   "file_unavailable",
   "file_unreadable",
+  // A glTF extension the file needs that the runtime cannot load
+  // (`avatarGltfExtensions.ts`); read from the file, before any load.
+  "avatar_extension_unsupported",
   "avatar_load_failed",
   // The live scene's primitives could not be listed.
   "scene_bindings_unavailable",
@@ -21,6 +25,8 @@ export const AVATAR_ISSUE_CODES = [
   "face_parts_correction_other_file",
   "face_parts_correction_digest_unknown",
   "face_parts_correction_unknown_bindings",
+  // Expressions (`diagnostics/avatarDiagnostics.ts`).
+  "face_expressions_none",
   // Face landmarks (`vfx/AvatarFaceLandmarks.ts`).
   "landmarks_face_skin_missing",
   "landmarks_anchor_missing",
@@ -50,6 +56,8 @@ export const AVATAR_ISSUE_CODES = [
   "effect_face_skin_required",
   "effect_skin_color_unavailable",
   "eye_detail_not_hidden",
+  // `Fcl_EYE_Iris_Hide` on a model without that shape (`irisHideExpression.ts`).
+  "iris_hide_unavailable",
 ] as const;
 
 export type AvatarIssueCode = (typeof AVATAR_ISSUE_CODES)[number];

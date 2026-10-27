@@ -139,6 +139,21 @@ describe("installLilToonRenderingWhenLoaded", () => {
     expect(fake.releases).toEqual(["before", "after"]);
   });
 
+  it("releases the passes again when the GPU check cannot install", async () => {
+    const fake = fakeRuntime();
+    restoreImporter = setLilToonRuntimeImporterForTesting(
+      async () => fake.runtime,
+    );
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    // A stand-in without `getContext`: the check throws while installing.
+    installLilToonRenderingWhenLoaded(
+      { id: "no-context" } as unknown as THREE.WebGLRenderer,
+      { measureGpu: true },
+    );
+    await loadLilToonRuntime();
+    expect(fake.releases).toEqual(["no-context"]);
+  });
+
   it("keeps installing on other renderers when one fails", async () => {
     const fake = fakeRuntime();
     const enable = fake.runtime.enableRendering;

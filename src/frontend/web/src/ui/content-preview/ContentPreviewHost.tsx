@@ -450,6 +450,9 @@ export function ContentPreviewHost() {
   };
   const stop = () => {
     activeAvatarRef.current?.resetAnimations();
+    // Stop ends a preparation that is still loading clip dependencies; the
+    // scene no longer reports it, so clear its overlay here.
+    setDependenciesLoading(false);
     setStopRequest((current) => current + 1);
     setObservationStopped(true);
     setStatus("ready");

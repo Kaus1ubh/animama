@@ -5,6 +5,7 @@ import { loadedTestAvatar } from "../testing/loadedTestAvatar";
 import { readAvatarFileFacts } from "./avatarFileFacts";
 import {
   AVATAR_DIAGNOSTICS_SCHEMA,
+  automaticMaterialsLine,
   avatarDiagnosticsJson,
   avatarDiagnosticsText,
   buildAvatarDiagnosticsReport,
@@ -88,6 +89,27 @@ describe("Avatar diagnostics reports", () => {
       expect(text).toContain(`\n${heading}\n`);
     }
     expect(text).toContain("  - face_parts_correction_invalid");
+    // Andrew rests in VRoid's T-pose: measured, nothing normalized.
+    expect(report.live?.motion.restPose).toMatchObject({
+      armDegrees: 0,
+      armsNormalized: false,
+      handsNormalized: false,
+    });
+    expect(text).toMatch(
+      /Rest pose: arms 0° from a T-pose, hands \d+° from VRoid's\n/,
+    );
+    const aPose = structuredClone(report);
+    aPose.live!.motion.restPose = {
+      armDegrees: 40,
+      handDegrees: 7,
+      armsNormalized: true,
+      handsNormalized: true,
+    };
+    expect(avatarDiagnosticsText(aPose)).toContain(
+      "Rest pose: arms 40° from a T-pose (normalized), hands 7° from VRoid's (normalized)",
+    );
+    aPose.live!.motion.restPose = null;
+    expect(avatarDiagnosticsText(aPose)).toContain("Rest pose: not checked\n");
     expect(JSON.parse(avatarDiagnosticsJson(report))).toEqual(report);
   });
 
@@ -135,5 +157,78 @@ describe("Avatar diagnostics reports", () => {
     expect(text).toContain("Format: GLB, VRM 1.0");
     expect(text).toContain("Live Avatar\n  Not loaded");
     expect(text).toContain("  - avatar_load_failed");
+  });
+});
+
+describe("automaticMaterialsLine", () => {
+  const decision = {
+    fpsCap: null,
+    budgetFps: null,
+    frameMs: null,
+    pixels: null,
+    samples: 0,
+  } as const;
+
+  it("states the fastest measurement, the frame rate's budget and the choice", () => {
+    expect(
+      automaticMaterialsLine({
+        ...decision,
+        choice: "simple",
+        reason: "slow",
+        budgetFps: 24,
+        frameMs: 40.04,
+        pixels: 1_920_000,
+        samples: 2,
+      }),
+    ).toBe(
+      "Automatic chose Simple: the fastest of 2 lilToon frame measurements on this GPU took 40.0 ms of GPU time (1920000 pixels), over the 32.1 ms budget for 24 fps",
+    );
+    expect(
+      automaticMaterialsLine({
+        ...decision,
+        choice: "liltoon",
+        reason: "remeasuring",
+        fpsCap: 24,
+        budgetFps: 24,
+        frameMs: 40,
+        pixels: 1_920_000,
+        samples: 1,
+      }),
+    ).toBe(
+      "Automatic chose lilToon at 24 fps: the only lilToon frame measurement on this GPU took 40.0 ms of GPU time (1920000 pixels), over the 32.1 ms budget for 24 fps; measuring again before choosing Simple",
+    );
+    expect(
+      automaticMaterialsLine({
+        ...decision,
+        choice: "liltoon",
+        reason: "capped",
+        fpsCap: 45,
+        budgetFps: 45,
+        frameMs: 14.4,
+        pixels: 1_920_000,
+        samples: 3,
+      }),
+    ).toBe(
+      "Automatic chose lilToon at 45 fps: the fastest of 3 lilToon frame measurements on this GPU took 14.4 ms of GPU time (1920000 pixels), within the 17.1 ms budget for 45 fps",
+    );
+  });
+
+  it("says when the GPU is not measured or cannot be timed", () => {
+    expect(
+      automaticMaterialsLine({
+        ...decision,
+        choice: "liltoon",
+        reason: "not_measured",
+      }),
+    ).toBe(
+      "Automatic chose lilToon: this GPU's lilToon frame time is not measured yet",
+    );
+    expect(
+      automaticMaterialsLine({
+        ...decision,
+        choice: "liltoon",
+        reason: "unsupported",
+      }),
+    ).toBe("Automatic chose lilToon: this browser cannot time the GPU");
   });
 });

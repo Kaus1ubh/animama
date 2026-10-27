@@ -80,7 +80,15 @@ Avatar rows use `/v1/avatar-catalog`, which joins Avatar metadata to a valid
 catalog model and registered portrait Appearance. Each row uses that model's
 generated portrait (never an Anima's custom profile picture), falling back to an
 icon when unavailable. Preview resolves registered VRM bytes; Create Anima hands
-the Avatar to Anima creation. Entries without model files are omitted; reference-safe seed reconciliation
+the Avatar to Anima creation. **Avatar settings** (on cards with a catalog
+item, in both layouts) opens the Avatar's wind and Materials settings, the
+same rows as Anima settings, so a change applies wherever the Avatar is used,
+the preview dock included (see
+[Avatar settings](anima-management.md#avatar-settings)), and **Open
+diagnostics** for that item. Materials needs to know whether the file has
+lilToon materials; the backend keeps no file facts, so the dialog reads the
+file once per session when no surface has loaded it. The hosted app keeps no
+Avatar settings, so there the dialog offers Diagnostics only. Entries without model files are omitted; reference-safe seed reconciliation
 preserves records needed by Animas.
 
 Some Included content is **non-portable**: it plays, previews and can be

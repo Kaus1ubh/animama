@@ -5,6 +5,7 @@ import type { Avatar } from "../Avatar";
 import { appendTriangle } from "../testing/appendTriangle";
 import { loadedTestAvatar } from "../testing/loadedTestAvatar";
 import { buildRuntimePrimitiveBindings } from "../vrmEditorInspection";
+import { baseTextureOf } from "./textureUvMapping";
 
 const loadedAnnie = () => loadedTestAvatar("AvatarSample_A_1_New");
 
@@ -49,6 +50,79 @@ describe("AvatarFaceTextureAnchors", () => {
     await avatar.setFacePartCorrections(null);
 
     expect(avatar.getFaceTextureAnchorsSnapshot()).toEqual(expected);
+  });
+
+  describe("on a transformed face texture", () => {
+    /** The face skin's mesh, whose base texture the anchors follow. */
+    const faceMesh = (avatar: Avatar) => {
+      const faceKey = avatar.getFaceLandmarksSnapshot()!.faceBindingKey!;
+      return buildRuntimePrimitiveBindings(avatar).entries.find(
+        (entry) => entry.bindingKey === faceKey,
+      )!.object;
+    };
+    /** Every anchor and cleanup region, in a fixed order. */
+    const regions = (avatar: Avatar) => {
+      const { anchors, flatten } = avatar.getFaceTextureAnchorsSnapshot()!;
+      return [
+        anchors.undereye.left,
+        anchors.undereye.right,
+        anchors.blush.left,
+        anchors.blush.right,
+        anchors.mouth.center,
+        flatten.sample.center,
+        flatten.eyes.left,
+        flatten.eyes.right,
+        flatten.mouth.center,
+      ].map((region) => region!);
+    };
+
+    it("places anchors where the texture's offset and repeat draw them", async () => {
+      vi.spyOn(console, "info").mockImplementation(() => {});
+      const expected = regions(await loadedAnnie());
+
+      // The face's art packed into a quarter of an atlas by its transform.
+      const avatar = await loadedAnnie();
+      const texture = baseTextureOf(faceMesh(avatar))!;
+      texture.offset.set(0.5, 0.25);
+      texture.repeat.set(0.5, 0.5);
+      await avatar.setFacePartCorrections(null);
+
+      regions(avatar).forEach((region, index) => {
+        const before = expected[index]!;
+        expect(region.uv.u).toBeCloseTo(0.5 + before.uv.u * 0.5, 6);
+        expect(region.uv.v).toBeCloseTo(0.25 + before.uv.v * 0.5, 6);
+        expect(region.referenceSizeUv.width).toBeCloseTo(
+          Math.max(0.01, before.referenceSizeUv.width * 0.5),
+          6,
+        );
+        expect(region.referenceSizeUv.height).toBeCloseTo(
+          Math.max(0.01, before.referenceSizeUv.height * 0.5),
+          6,
+        );
+      });
+    });
+
+    it("wraps face UVs laid out past 0–1 on a repeating texture", async () => {
+      vi.spyOn(console, "info").mockImplementation(() => {});
+      const expected = regions(await loadedAnnie());
+
+      // The same layout one tile to the right.
+      const avatar = await loadedAnnie();
+      const mesh = faceMesh(avatar);
+      const uv = mesh.geometry.getAttribute("uv");
+      for (let i = 0; i < uv.count; i += 1) uv.setX(i, uv.getX(i) + 1);
+      baseTextureOf(mesh)!.wrapS = THREE.RepeatWrapping;
+      await avatar.setFacePartCorrections(null);
+
+      regions(avatar).forEach((region, index) => {
+        expect(region.uv.u).toBeCloseTo(expected[index]!.uv.u, 5);
+        expect(region.uv.v).toBe(expected[index]!.uv.v);
+        expect(region.referenceSizeUv.width).toBeCloseTo(
+          expected[index]!.referenceSizeUv.width,
+          5,
+        );
+      });
+    });
   });
 
   it("does not take a small island at the seed for the face", async () => {

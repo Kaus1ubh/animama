@@ -384,3 +384,57 @@ describe("Library avatar Create Anima action", () => {
     expect(row).not.toContain("Create Anima");
   });
 });
+
+describe("Library avatar settings action", () => {
+  const avatars = [
+    {
+      avatar_id: "avatar-1",
+      catalog_item_id: "catalog-avatar-1",
+      name: "Aiko",
+      description: "",
+      origin: "included",
+      preview_url: null,
+    },
+    {
+      avatar_id: "avatar-2",
+      catalog_item_id: "catalog-avatar-2",
+      name: "Mika",
+      description: "",
+      origin: "local",
+      preview_url: null,
+    },
+    {
+      avatar_id: "avatar-3",
+      catalog_item_id: null,
+      name: "Draft",
+      description: "",
+      origin: "local",
+      preview_url: null,
+    },
+  ];
+  const renderRows = (layout: "grid" | "list") => {
+    vi.stubGlobal("window", { localStorage: { getItem: () => layout } });
+    mocks.avatars = avatars;
+    const html = renderToString(
+      <LibraryContentInventory
+        search={normalizeContentLibrarySearch({ section: "avatars" })}
+        onSearchChange={() => {}}
+      />,
+    );
+    const row = (name: string) =>
+      html.split(`aria-label="${name}"`)[1]!.split("</article>")[0]!;
+    return { aiko: row("Aiko"), mika: row("Mika"), draft: row("Draft") };
+  };
+
+  it.each(["grid", "list"] as const)(
+    "offers Avatar settings on Included and Local cards in the %s layout",
+    (layout) => {
+      const rows = renderRows(layout);
+      for (const row of [rows.aiko, rows.mika])
+        expect(row).toContain('aria-label="Avatar settings"');
+      // A card without a catalog item has nothing to keep settings for.
+      expect(rows.draft).not.toContain('aria-label="Avatar settings"');
+      if (layout === "list") expect(rows.aiko).toContain(" Settings");
+    },
+  );
+});

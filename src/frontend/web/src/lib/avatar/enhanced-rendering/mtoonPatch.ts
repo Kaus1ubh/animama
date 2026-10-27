@@ -42,9 +42,24 @@ function retuneMToon(material: GltfMaterial, mtoon: MToonExtension): void {
   mtoon.outlineLightingMixFactor = 0.6;
 }
 
+/**
+ * Whether the model is a VRoid export: an MToon material carries VRoid's face
+ * skin name. Only those are retuned. Another model with some VRoid-like
+ * suffixes would mix retuned and authored materials, so every material on it
+ * keeps its authored look (R10); the scene's lighting is the same for both.
+ */
+function isVroidExport(materials: readonly GltfMaterial[]): boolean {
+  return materials.some(
+    (material) =>
+      material.extensions?.VRMC_materials_mtoon &&
+      vroidLookFor(material.name ?? "")?.kind === "face",
+  );
+}
+
 function patchMaterials(parser: GLTFParser): void {
   if (!isEnhancedRenderingEnabled()) return;
   const materials = (parser.json.materials ?? []) as GltfMaterial[];
+  if (!isVroidExport(materials)) return;
   for (const material of materials) {
     const mtoon = material.extensions?.VRMC_materials_mtoon;
     if (mtoon) retuneMToon(material, mtoon);
@@ -52,7 +67,8 @@ function patchMaterials(parser: GLTFParser): void {
 }
 
 /**
- * Retune VRoid MToon parameters in `plugin`'s glTF for enhanced rendering,
+ * Retune a VRoid export's MToon parameters in `plugin`'s glTF for enhanced
+ * rendering,
  * before three-vrm builds any material. The patch runs right after the VRM
  * 0.x compat step, which is where VRM 0.x files gain `VRMC_materials_mtoon`.
  * The setting is read per parse, so a cached loader follows later changes.

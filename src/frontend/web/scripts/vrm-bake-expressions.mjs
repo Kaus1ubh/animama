@@ -13,9 +13,10 @@ import { readGlb, writeGlb } from "./vrm-optimize/glb.mjs";
  * Writes happy, angry, sad, relaxed and surprised as morph-target binds built
  * from the ARKit mixes Animama plays on ARKit Avatars
  * (`src/lib/avatar/arkitFaceCompositions.json`), plus an empty neutral, so the
- * file emotes in other VRM apps too. On an Avatar with every table shape and
- * no VRoid mood parts, Animama plays its own runtime mixes either way;
- * otherwise it plays the baked presets too, and the command says which.
+ * file emotes in other VRM apps too. Animama composes each mood from the
+ * Avatar's MMD morphs and ARKit shapes region by region; a mood it cannot
+ * compose entirely (or any mood, on an Avatar with VRoid mood parts) plays the
+ * baked preset instead, and the command says whether any does.
  * Presets that already bind something are kept unless `--replace`; an authored
  * neutral is always kept. Only the JSON's preset entries change; the binary
  * chunk is written back byte for byte and every other JSON value, extensions
@@ -72,23 +73,17 @@ function nodeMorphNames(json) {
  *
  * @param resolveArkitFacesPerMesh From `arkitFaceCapability.ts`.
  * @param moodMixes `ARKIT_MOOD_MIXES` from `arkitFaceCompositions.ts`.
- * @param tableShapes `ARKIT_COMPOSITION_SHAPES` from the same module.
  * @param isVroidMoodPart From the same module.
  * @returns Which presets were written or kept; ARKit shapes the written
  *   presets use that the file lacks, or has several equal candidates for; how
  *   many meshes name their morph targets only per primitive; and whether
- *   Animama will play the baked presets (it plays its own mixes on an Avatar
- *   with every mood shape and no VRoid mood parts).
+ *   Animama will play any baked preset (it composes a mood itself when every
+ *   shape of that mood resolves and the Avatar has no VRoid mood parts; MMD
+ *   morphs, which this JSON-only check does not see, can only add moods).
  */
 export function bakeExpressions(
   json,
-  {
-    resolveArkitFacesPerMesh,
-    moodMixes,
-    tableShapes,
-    isVroidMoodPart,
-    replace = false,
-  },
+  { resolveArkitFacesPerMesh, moodMixes, isVroidMoodPart, replace = false },
 ) {
   const vrm = json.extensions?.VRMC_vrm;
   if (!vrm) {
@@ -153,15 +148,19 @@ export function bakeExpressions(
   const used = shapesOf(written).filter(
     (shape) => !capability.resolved.has(shape),
   );
-  // Mirrors `registerArkitFace`: every table shape resolves and the Avatar has
-  // no VRoid mood parts, as morph targets or authored custom expressions.
+  // As `registerArkitFace` decides for ARKit: a mood whose every shape
+  // resolves is composed by the app (its baked preset is replaced); VRoid
+  // mood parts, as morph targets or authored custom expressions, keep the
+  // file's own faces.
   const ownParts = [
     ...nodes.flatMap(({ names }) => names),
     ...Object.keys(vrm.expressions.custom ?? {}),
   ].some(isVroidMoodPart);
   const appPlaysOwnMixes =
-    [...tableShapes].every((shape) => capability.resolved.has(shape)) &&
-    !ownParts;
+    !ownParts &&
+    Object.values(moodMixes).every((mix) =>
+      Object.keys(mix).every((shape) => capability.resolved.has(shape)),
+    );
   return {
     written,
     kept,
@@ -218,7 +217,6 @@ async function main(argv) {
     report = bakeExpressions(document.json, {
       resolveArkitFacesPerMesh: web.module.resolveArkitFacesPerMesh,
       moodMixes: compositions.ARKIT_MOOD_MIXES,
-      tableShapes: compositions.ARKIT_COMPOSITION_SHAPES,
       isVroidMoodPart: compositions.isVroidMoodPart,
       replace,
     });
@@ -252,7 +250,7 @@ async function main(argv) {
     );
   console.log(
     report.animamaPlaysBakedPresets
-      ? "Animama plays these baked presets on this Avatar (it lacks table shapes or has VRoid mood parts)."
+      ? "Animama plays these baked presets for the moods it cannot compose from the Avatar's MMD morphs and ARKit shapes; vrm:inspect lists each mood's sources."
       : "Animama plays its own ARKit mixes on this Avatar; the baked presets serve other VRM apps.",
   );
   return 0;

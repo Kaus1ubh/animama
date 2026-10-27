@@ -84,6 +84,7 @@ const live: AvatarLiveDiagnostics = {
     ],
     missingPresets: ["lookUp"],
     arkit: { resolved: 41, total: 52, playsFaces: true },
+    moods: [{ preset: "happy", brow: "mmd", eye: "mmd", mouth: "arkit" }],
     unresolved: { names: ["surprised"], otherCount: 2 },
   },
   motion: {
@@ -92,9 +93,19 @@ const live: AvatarLiveDiagnostics = {
     springJoints: 120,
     springColliders: 18,
     wind: { mode: "off", ambientForces: false },
-    restPose: null,
+    restPose: {
+      armDegrees: 40,
+      handDegrees: 2,
+      armsNormalized: true,
+      handsNormalized: false,
+    },
   },
-  materials: { mode: "simple", lilToon: "fallback" },
+  materials: {
+    mode: "simple",
+    lilToon: "fallback",
+    automatic: null,
+    nextLoad: null,
+  },
   issues: [
     {
       code: "effect_face_part_missing",
@@ -185,6 +196,167 @@ describe("AvatarDiagnosticsDialog", () => {
     expect(dialog()?.contains(document.activeElement)).toBe(true);
   });
 
+  const measured = { frameMs: null, pixels: null, samples: 0 } as const;
+  it.each([
+    [
+      "fallback",
+      {
+        choice: "simple",
+        reason: "slow",
+        fpsCap: null,
+        budgetFps: 24,
+        frameMs: 40.04,
+        pixels: 1_920_000,
+        samples: 2,
+      },
+      "Simple materials · chosen by Automatic: this GPU drew a lilToon frame in 40 ms, over the 32.1 ms budget for 24 fps",
+    ],
+    [
+      "rendered",
+      {
+        choice: "liltoon",
+        reason: "remeasuring",
+        fpsCap: 24,
+        budgetFps: 24,
+        frameMs: 40,
+        pixels: 1_920_000,
+        samples: 1,
+      },
+      "Rendered with lilToon at 24 fps · chosen by Automatic: this GPU drew a lilToon frame in 40 ms, over the 32.1 ms budget for 24 fps; measuring again before choosing Simple",
+    ],
+    [
+      "rendered",
+      {
+        choice: "liltoon",
+        reason: "capped",
+        fpsCap: 45,
+        budgetFps: 45,
+        frameMs: 14.4,
+        pixels: 1_920_000,
+        samples: 1,
+      },
+      "Rendered with lilToon at 45 fps · chosen by Automatic: this GPU drew a lilToon frame in 14.4 ms, within the 17.1 ms budget for 45 fps",
+    ],
+    [
+      "rendered",
+      {
+        choice: "liltoon",
+        reason: "fast",
+        fpsCap: 60,
+        budgetFps: 60,
+        frameMs: 5.2,
+        pixels: 1_920_000,
+        samples: 3,
+      },
+      "Rendered with lilToon at 60 fps · chosen by Automatic: this GPU drew a lilToon frame in 5.2 ms, within the 12.8 ms budget for 60 fps",
+    ],
+    [
+      "rendered",
+      {
+        ...measured,
+        choice: "liltoon",
+        reason: "not_measured",
+        fpsCap: null,
+        budgetFps: null,
+      },
+      "Rendered with lilToon · chosen by Automatic: this GPU's lilToon frame time is not measured yet",
+    ],
+    [
+      "rendered",
+      {
+        ...measured,
+        choice: "liltoon",
+        reason: "unsupported",
+        fpsCap: null,
+        budgetFps: null,
+      },
+      "Rendered with lilToon · chosen by Automatic: this browser cannot time the GPU",
+    ],
+  ] as const)(
+    "says why Automatic loaded %s materials",
+    (lilToon, decision, expected) => {
+      const automaticReport = buildAvatarDiagnosticsReport({
+        avatar: { source: "local", itemId: "item-9" },
+        file: report.file,
+        live: {
+          ...live,
+          materials: {
+            mode: "automatic",
+            lilToon,
+            automatic: decision,
+            nextLoad: null,
+          },
+        },
+        settings: null,
+      });
+      diagnostics.view = {
+        state: {
+          status: "ready",
+          report: automaticReport,
+          issues: live.issues,
+          live: false,
+        },
+        effectNames: new Map(),
+      };
+      render();
+      click("Open diagnostics");
+      expect(dialog()?.textContent).toContain(expected);
+    },
+  );
+
+  it("says what the next load uses after a measurement since this load", () => {
+    const measuredReport = buildAvatarDiagnosticsReport({
+      avatar: { source: "local", itemId: "item-9" },
+      file: report.file,
+      live: {
+        ...live,
+        materials: {
+          mode: "automatic",
+          lilToon: "rendered",
+          automatic: {
+            choice: "liltoon",
+            reason: "not_measured",
+            fpsCap: null,
+            budgetFps: null,
+            frameMs: null,
+            pixels: null,
+            samples: 0,
+          },
+          nextLoad: {
+            choice: "liltoon",
+            reason: "capped",
+            fpsCap: 45,
+            budgetFps: 45,
+            frameMs: 14.4,
+            pixels: 5_184_000,
+            samples: 1,
+          },
+        },
+      },
+      settings: null,
+    });
+    diagnostics.view = {
+      state: {
+        status: "ready",
+        report: measuredReport,
+        issues: live.issues,
+        live: false,
+      },
+      effectNames: new Map(),
+    };
+    render();
+    click("Open diagnostics");
+    expect(dialog()?.textContent).toContain(
+      "Rendered with lilToon · chosen by Automatic: this GPU's lilToon frame time is not measured yet",
+    );
+    expect(dialog()?.textContent).toContain(
+      "Next load: Rendered with lilToon at 45 fps · chosen by Automatic: this GPU drew a lilToon frame in 14.4 ms, within the 17.1 ms budget for 45 fps (measured since this load)",
+    );
+    expect(avatarDiagnosticsText(measuredReport)).toContain(
+      "  Next load: Automatic chose lilToon at 45 fps: the only lilToon frame measurement on this GPU took 14.4 ms of GPU time (5184000 pixels), within the 17.1 ms budget for 45 fps (measured since this load)",
+    );
+  });
+
   it("shows every section", () => {
     render();
     click("Open diagnostics");
@@ -204,7 +376,9 @@ describe("AvatarDiagnosticsDialog", () => {
     expect(dialog()?.textContent).toContain("120 joints · 18 colliders");
     expect(dialog()?.textContent).toContain("Off · no wind or updraft");
     expect(dialog()?.textContent).toContain("Saved for this Avatar");
-    expect(dialog()?.textContent).toContain("Not checked yet");
+    expect(dialog()?.textContent).toContain(
+      "arms rest 40° from a T-pose, normalized · hands like VRoid's",
+    );
 
     click("Warnings (1)");
     expect(dialog()?.textContent).toContain(
@@ -218,6 +392,30 @@ describe("AvatarDiagnosticsDialog", () => {
     );
     expect(tree?.textContent).toContain(
       '"schema": "animama/avatar-diagnostics/1"',
+    );
+  });
+
+  it("names an extension the runtime cannot load", () => {
+    diagnostics.view = {
+      state: {
+        status: "ready",
+        report,
+        issues: [
+          {
+            code: "avatar_extension_unsupported",
+            params: { extension: "KHR_draco_mesh_compression" },
+          },
+          { code: "avatar_load_failed" },
+        ],
+        live: false,
+      },
+      effectNames: new Map(),
+    };
+    render();
+    click("Open diagnostics");
+    click("Warnings (2)");
+    expect(dialog()?.textContent).toContain(
+      "The file requires KHR_draco_mesh_compression, a glTF extension this app cannot load yet, so the Avatar cannot be shown.",
     );
   });
 

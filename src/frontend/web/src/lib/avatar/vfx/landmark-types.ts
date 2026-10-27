@@ -42,10 +42,17 @@ export type AvatarFaceEyeLandmarkSnapshot = {
   normalizedBoxCoord: AvatarFaceBoxCoordinate;
   projectedBoxCoord: AvatarFaceBoxCoordinate;
   /**
-   * Where the eye's iris art lies on its texture: the island's UV bounds, or
-   * those of a larger-texture layer over the whole eye. Null without UVs.
+   * Where the eye's iris art lies on its texture's image: the island's UV
+   * bounds through the iris texture's transform, or those of a
+   * larger-texture layer over the whole eye. Null without UVs.
    */
   textureRect: AvatarFaceTextureRect | null;
+  /**
+   * Present (true) when that art runs mirrored against VRoid's: its image x
+   * grows toward the Avatar's right instead of its left, as on a model whose
+   * eyes share mirrored UVs. Iris art is then mirrored for this eye.
+   */
+  textureMirrored?: boolean;
 };
 
 export type AvatarFaceLandmarksSnapshot = {

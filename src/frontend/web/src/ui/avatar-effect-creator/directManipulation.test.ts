@@ -10,6 +10,7 @@ import {
   planeDragOffset,
   pointerRay,
   projectWorldPoint,
+  raycastSurfaceUv,
   rayPlaneLocalPoint,
   screenPlacements,
   stickerDragOffset,
@@ -64,6 +65,26 @@ describe("Avatar Effect direct manipulation maths", () => {
     });
     expect(mirrored.x).toBeCloseTo(-0.04);
     expect(mirrored.y).toBeCloseTo(-0.05);
+  });
+
+  it("reads a surface hit as a position on the texture's image", () => {
+    // PlaneGeometry: u 0..1 spans x −0.5..0.5, v 0..1 spans y −0.5..0.5.
+    const map = new THREE.Texture();
+    map.offset.set(0.5, 0.25);
+    map.repeat.set(0.5, 0.5);
+    const mesh = new THREE.Mesh(
+      new THREE.PlaneGeometry(1, 1),
+      new THREE.MeshBasicMaterial({ map }),
+    );
+    mesh.updateMatrixWorld(true);
+    const ray = new THREE.Ray(
+      new THREE.Vector3(-0.25, 0.25, 1),
+      new THREE.Vector3(0, 0, -1),
+    );
+    // UV (0.25, 0.75) drawn at offset + UV × repeat.
+    const hit = raycastSurfaceUv(ray, mesh)!;
+    expect(hit.x).toBeCloseTo(0.625);
+    expect(hit.y).toBeCloseTo(0.625);
   });
 
   it("moves plane art in its frame's x–y plane and keeps its depth", () => {

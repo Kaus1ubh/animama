@@ -322,6 +322,57 @@ describe("authored facial behavior", () => {
     expect(meshes.eyelash.visible).toBe(true);
   });
 
+  it("hides the irises while Fcl_EYE_Iris_Hide is held, counted with effects", async () => {
+    controller.setIrisHidden(true);
+    expect(meshes.iris.visible).toBe(false);
+    expect(meshes.face.visible).toBe(true);
+    // An effect hiding the irises too keeps them hidden until both release.
+    await controller.applyTextureVFX({
+      effectId: "texture",
+      effectEntry: {
+        ...base(),
+        id: "texture",
+        kind: "texture",
+        targetRole: "face_skin",
+        applyMode: "overlay",
+        assetShape: "full_face",
+        disableTargetRoles: ["eye_iris"],
+      },
+    });
+    controller.setIrisHidden(false);
+    expect(meshes.iris.visible).toBe(false);
+    controller.clearAllEffects();
+    expect(meshes.iris.visible).toBe(true);
+
+    controller.setIrisHidden(true);
+    await controller.refreshFaceParts();
+    expect(meshes.iris.visible, "hidden again on the rebuilt bindings").toBe(
+      false,
+    );
+    controller.setIrisHidden(false);
+    expect(meshes.iris.visible).toBe(true);
+  });
+
+  it("reports irises it cannot hide for Fcl_EYE_Iris_Hide", () => {
+    const current = vi
+      .mocked(buildRuntimePrimitiveBindings)
+      .mock.results.at(-1)!.value as ReturnType<
+      typeof buildRuntimePrimitiveBindings
+    >;
+    vi.mocked(buildRuntimePrimitiveBindings).mockReturnValue({
+      ...current,
+      entries: current.entries.filter(
+        (entry) => !entry.bindingKey.includes("iris"),
+      ),
+    });
+    const withoutIrises = new AvatarVFXController(avatar);
+    controllers.push(withoutIrises);
+    withoutIrises.setIrisHidden(true);
+    expect(withoutIrises.getSnapshot().issues).toContainEqual({
+      code: "iris_hide_unavailable",
+    });
+  });
+
   it("skips an untextured iris when automatically selecting a texture replacement target", async () => {
     const untexturedMaterial = meshes.untextured_iris.material;
     const texturedMaterial = meshes.iris.material;

@@ -8,6 +8,12 @@ import type {
 
 import { createLogger } from "@/lib/logger";
 
+import { installLilToonDepthPrepass } from "./depthPrepass";
+import {
+  installLilToonGpuCheck,
+  rememberAvatarCanvasGpu,
+} from "./lilToonGpuCheck";
+
 /**
  * Authored lilToon materials through three-liltoon, loaded only when needed.
  *
@@ -18,8 +24,10 @@ import { createLogger } from "@/lib/logger";
  * without it, including every Included Avatar's, load exactly as before.
  *
  * Once the runtime has loaded, every Avatar renderer registered with
- * `installLilToonRenderingWhenLoaded` gains lilToon's outline and extra passes;
- * renderers of sessions that never load such an Avatar are untouched.
+ * `installLilToonRenderingWhenLoaded` gains lilToon's outline and extra passes
+ * and Animama's depth pre-pass for opaque lilToon primitives
+ * (`depthPrepass.ts`); renderers of sessions that never load such an Avatar
+ * are untouched.
  *
  * If the import fails, the glTF fallback materials load in development and in
  * the review tools, and a later Avatar retries. In a built app a failed chunk
@@ -41,7 +49,10 @@ export type LilToonRuntime = {
    * `loadMaterial` and `afterRoot` when it calls them.
    */
   enhancePlugin: (plugin: VRMLoaderPlugin) => void;
-  /** Install lilToon's passes on a renderer; returns its release. */
+  /**
+   * Install lilToon's passes and the depth pre-pass on a renderer; returns
+   * their release.
+   */
   enableRendering: (renderer: THREE.WebGLRenderer) => () => void;
 };
 
@@ -123,7 +134,15 @@ async function importLilToonRuntime(): Promise<LilToonRuntime> {
           logger.warn("Load", "lilToon material warning", { ...warning }),
       });
     },
-    enableRendering: (renderer) => core.enableLilToon(renderer),
+    enableRendering: (renderer) => {
+      const releasePasses = core.enableLilToon(renderer);
+      // Outermost, so it attaches its meshes before lilToon prepares a frame.
+      const releasePrepass = installLilToonDepthPrepass(renderer);
+      return () => {
+        releasePrepass();
+        releasePasses();
+      };
+    },
   };
 }
 
@@ -166,15 +185,32 @@ export function loadLilToonRuntime(): Promise<LilToonRuntime> {
 /**
  * Install lilToon's passes on `renderer` as soon as the runtime is loaded (at
  * once if it already is). Returns a cleanup that releases the passes or stops
- * waiting.
+ * waiting. The renderer's GPU is noted at once, so the Materials setting's
+ * Automatic can look up its measurement before the next Avatar loads
+ * (`lilToonGpuCheck.ts`). With `measureGpu` (the chat canvas), the canvas
+ * also times lilToon frames whenever a measurement is due.
  */
 export function installLilToonRenderingWhenLoaded(
   renderer: THREE.WebGLRenderer,
+  { measureGpu = false }: { measureGpu?: boolean } = {},
 ): () => void {
+  rememberAvatarCanvasGpu(renderer);
   let release: (() => void) | null = null;
   const install = (runtime: LilToonRuntime) => {
     loadedListeners.delete(install);
-    release = runtime.enableRendering(renderer);
+    const releasePasses = runtime.enableRendering(renderer);
+    let releaseCheck: () => void = () => undefined;
+    try {
+      // Outermost, so it times the passes and the pre-pass as well.
+      if (measureGpu) releaseCheck = installLilToonGpuCheck(renderer);
+    } catch (error) {
+      releasePasses();
+      throw error;
+    }
+    release = () => {
+      releaseCheck();
+      releasePasses();
+    };
   };
   if (loadedRuntime) notify(install, loadedRuntime);
   else loadedListeners.add(install);

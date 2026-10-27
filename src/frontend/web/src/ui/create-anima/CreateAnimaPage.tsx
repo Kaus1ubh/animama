@@ -33,7 +33,11 @@ import { CreateAnimaVoiceStep } from "./CreateAnimaVoiceStep";
 import { CreateAnimaIdentityStep } from "./CreateAnimaIdentityStep";
 import { CreateAnimaNamePlate } from "./CreateAnimaNamePlate";
 import { CreateAnimaReviewStep } from "./CreateAnimaReviewStep";
-import { CreateAnimaStage, type CreationStageHandle } from "./CreateAnimaStage";
+import {
+  CreateAnimaStage,
+  type CreationStageAvatar,
+  type CreationStageHandle,
+} from "./CreateAnimaStage";
 import { creationPortraitTarget } from "./createAnimaPortrait";
 import { useSaveAvatarPortrait } from "@/query/mutations/useSaveAvatarPortrait";
 import { CreateAnimaStepNav, creationStepText } from "./CreateAnimaStepNav";
@@ -84,6 +88,11 @@ function OwnedCreateAnimaPage({
   const navigate = useNavigate();
   const { expireSession } = useContentPreviewDock();
   const [stageReady, setStageReady] = useState(false);
+  // The stage's Avatar for the chosen upload, for its Diagnostics status.
+  const [stageAvatar, setStageAvatar] = useState<CreationStageAvatar>({
+    avatar: null,
+    status: "loading",
+  });
   const [startOver, setStartOver] = useState(false);
   const stage = useRef<CreationStageHandle | null>(null);
   const avatarFileInput = useRef<HTMLInputElement | null>(null);
@@ -378,6 +387,7 @@ function OwnedCreateAnimaPage({
               onFile={controller.setFile}
               onSelect={controller.chooseAvatar}
               onWorking={controller.setWorking}
+              stageAvatar={stageAvatar}
             />
           ) : draft.step === 1 ? (
             <CreateAnimaVoiceStep
@@ -592,6 +602,7 @@ function OwnedCreateAnimaPage({
                 onFinished={stop}
                 portraitTarget={portraitTarget}
                 savePortrait={savePortrait}
+                onAvatarStateChange={setStageAvatar}
               />
             ) : (
               <p className="text-muted-foreground p-6 text-sm">

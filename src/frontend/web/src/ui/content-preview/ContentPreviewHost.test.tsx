@@ -34,6 +34,8 @@ const harness = vi.hoisted(() => ({
   sceneRenders: [] as SceneRender[],
   /** Each render's `onStatusChange`, as the scene's effects receive it. */
   statusCallbacks: [] as unknown[],
+  /** The latest `onDependenciesLoadingChange`. */
+  dependenciesLoading: null as ((loading: boolean) => void) | null,
 }));
 
 vi.mock("./ContentPreviewDockProvider", () => ({
@@ -70,8 +72,10 @@ vi.mock("./ContentPreviewScene", () => ({
     playRequest: number;
     resetCameraRequest: number;
     onStatusChange: unknown;
+    onDependenciesLoadingChange: (loading: boolean) => void;
   }) => {
     harness.statusCallbacks.push(props.onStatusChange);
+    harness.dependenciesLoading = props.onDependenciesLoadingChange;
     useEffect(() => {
       harness.sceneMounts += 1;
       return () => {
@@ -359,5 +363,24 @@ describe("ContentPreviewHost", () => {
         await getI18n().changeLanguage("en");
       });
     }
+  });
+
+  it("clears the resource-loading overlay when Stop ends a preparation", () => {
+    const wave = gesture("wave");
+    prepare(wave);
+    show(wave, "docked");
+    const status = harness.statusCallbacks.at(-1) as (status: string) => void;
+    act(() => {
+      status("loading");
+      harness.dependenciesLoading?.(true);
+    });
+    expect(container.textContent).toContain("Loading included resources");
+
+    const stop = Array.from(container.querySelectorAll("button")).find(
+      (button) => button.textContent?.trim() === "Stop",
+    );
+    expect(stop).toBeDefined();
+    act(() => stop!.click());
+    expect(container.textContent).not.toContain("Loading included resources");
   });
 });

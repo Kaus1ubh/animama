@@ -102,7 +102,14 @@
     "search": "아바타 검색",
     "searchPlaceholder": "아바타 검색…",
     "showMore": "아바타 더 보기",
-    "upload": "VRM 업로드"
+    "upload": "VRM 업로드",
+    "diagnostics": {
+      "checking": "이 아바타를 확인하는 중…",
+      "noProblems": "문제가 발견되지 않았습니다.",
+      "failed": "Animama가 이 아바타를 불러오지 못했습니다.",
+      "view": "진단 보기",
+      "problems_other": "문제 {{count}}개가 발견되었습니다."
+    }
   },
   "completion": {
     "degraded": "일부 런타임 콘텐츠를 사용할 수 없습니다. Anima는 정상적으로 만들어졌습니다.",

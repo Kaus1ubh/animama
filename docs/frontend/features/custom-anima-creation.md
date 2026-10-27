@@ -91,6 +91,9 @@ browser-local preview, the client checks the `.vrm` name, 100 MiB maximum,
 binary GLB container and length, supported VRM 0.x/1.0 document, and absence of
 external resources. The server remains authoritative when the user confirms
 the typed Local Save. An uploaded VRM is only browser-local preview until that Save.
+Under the preview, one status line says whether Diagnostics found problems in
+the file, with **View diagnostics** (see
+[Avatar diagnostics](anima-management.md#avatar-diagnostics)).
 Confirmed content survives cancel; unsaved browser files must be selected again
 after reload. Creation submits `profile: null` and `background: null` for default
 appearance; use [Appearance management](avatar-releases-and-appearance.md) afterward.

@@ -176,7 +176,7 @@ local server package, so any composition can return the same contract; the local
 router is a thin adapter. `runtime_kind` is presentation metadata (`desktop`,
 `self_hosted_web` or `hosted`), not an authentication mode or a feature gate;
 the local composition never reports `hosted`. Capability schema version 2 is
-exported in `local-http` contract version 17.0.0. `chat`, `model_selection` and
+exported in `local-http` contract version 18.0.0. `chat`, `model_selection` and
 `model_role_selection` admit chat and choices from the composition's catalog,
 independently of provider administration. The local adapter reports them true.
 `provider_credentials` and `local_filesystem_administration` describe owner key
@@ -395,7 +395,7 @@ are under `/v1/content`:
 | `DELETE /package-exports/{export_id}` | Discard an inactive owned cache. |
 | `POST /package-imports` | Allocate a private stage with operation ID, filename and total byte length. |
 | `PUT /package-imports/{stage_id}/parts/{index}` | Send sequential 8 MiB binary parts (the final part may be shorter); exact retries return the original acknowledgement. |
-| `POST /package-imports/{stage_id}/review` | Seal and validate the whole archive; freeze fresh content identities, dependency copies and automatic `-2`/`-3` collision names. Each item lists `notices` about what the import leaves out: `avatar_setting_not_stored` when it carries Avatar settings this composition does not store. |
+| `POST /package-imports/{stage_id}/review` | Seal and validate the whole archive; freeze fresh content identities, dependency copies and automatic `-2`/`-3` collision names. Each item lists `notices` about what the import leaves out: `avatar_setting_not_stored` when it carries Avatar settings this composition does not store, and `avatar_extension_unsupported` when an Avatar's model uses a glTF extension the runtime cannot decode yet (Draco; it still imports). |
 | `GET /package-imports/{stage_id}` | Read received-byte progress and the public review; no private paths or install plan are exposed. |
 | `POST /package-imports/{stage_id}/commit` | Submit the operation ID and review digest to install the whole package through one recoverable content/Anima transaction. |
 | `GET /package-operations/{operation_id}` | Resolve the durable result or report pending/recovery state before another submission. |

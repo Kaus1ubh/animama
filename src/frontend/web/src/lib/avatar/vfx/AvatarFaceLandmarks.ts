@@ -21,6 +21,7 @@ import {
   UnionFind,
   type RuntimePrimitiveBindingEntry,
 } from "./avatarPrimitiveUtils";
+import { baseTextureOf, TextureUvMapping } from "./textureUvMapping";
 import { buildRuntimePrimitiveBindings } from "../vrmEditorInspection";
 import { createLogger } from "@/lib/logger";
 
@@ -45,6 +46,7 @@ type InternalEyeLandmark = {
   normalizedBoxCoord: AvatarFaceBoxCoordinate;
   projectedBoxCoord: AvatarFaceBoxCoordinate;
   textureRect: AvatarFaceTextureRect | null;
+  textureMirrored: boolean;
 };
 
 type PrimitiveIsland = {
@@ -54,7 +56,15 @@ type PrimitiveIsland = {
   bounds: THREE.Box3;
   center: THREE.Vector3;
   textureRect: AvatarFaceTextureRect | null;
+  /** Whether its art runs mirrored against VRoid's; see `measureTextureLayout`. */
+  textureMirrored: boolean;
 };
+
+/**
+ * Below this correlation between an island's image x and its position along
+ * the Avatar's left, its UVs have no clear direction (a dome, a point).
+ */
+const TEXTURE_DIRECTION_MIN_CORRELATION = 0.3;
 
 type HairFrontSearchWindow = {
   minX: number;
@@ -276,6 +286,8 @@ export class AvatarFaceLandmarks {
       normalizedBoxCoord: eye.normalizedBoxCoord,
       projectedBoxCoord: eye.projectedBoxCoord,
       textureRect: eye.textureRect,
+      // Only a mirrored eye carries the flag; VRoid's eyes read as before.
+      ...(eye.textureMirrored ? { textureMirrored: true } : {}),
     };
   }
 
@@ -354,6 +366,7 @@ export class AvatarFaceLandmarks {
 
     // One primitive may hold both eyes, so islands are extracted once per
     // binding and offered to the side(s) whose part lists that binding.
+    const leftSign = resolveVRMSpecVersion(this._avatar) === "0" ? -1 : 1;
     const islandsByBinding = new Map(
       eyeBindings.map((binding) => [
         binding.bindingKey,
@@ -361,6 +374,7 @@ export class AvatarFaceLandmarks {
           avatar: this._avatar,
           binding,
           anchorObject,
+          leftSign,
         }),
       ]),
     );
@@ -416,8 +430,8 @@ export class AvatarFaceLandmarks {
    * cannot be one eye (some VRChat eye meshes carry such a dome around each
    * eyeball) and is skipped, unless that leaves no island. Such meshes also
    * draw an eye in stacked layers (the iris art, a gloss, an alternative eye);
-   * the landmark's `textureRect` is that of the iris art (see
-   * `irisTextureRect`).
+   * the landmark's `textureRect` and `textureMirrored` are those of the iris
+   * art (see `irisArtIsland`).
    */
   private _assignEyes(args: {
     anchorObject: THREE.Object3D;
@@ -511,14 +525,19 @@ export class AvatarFaceLandmarks {
           .find((island) => island !== leftIsland) ?? null;
     }
 
-    const landmarkOf = (island: PrimitiveIsland | null) =>
-      island
-        ? createEyeLandmarkFromIsland(
-            { ...island, textureRect: irisTextureRect(island, plausible) },
-            args.faceBounds,
-            args.frontZLocal,
-          )
-        : null;
+    const landmarkOf = (island: PrimitiveIsland | null) => {
+      if (!island) return null;
+      const art = irisArtIsland(island, plausible);
+      return createEyeLandmarkFromIsland(
+        {
+          ...island,
+          textureRect: art.textureRect,
+          textureMirrored: art.textureMirrored,
+        },
+        args.faceBounds,
+        args.frontZLocal,
+      );
+    };
     return { left: landmarkOf(leftIsland), right: landmarkOf(rightIsland) };
   }
 
@@ -551,6 +570,7 @@ function createEyeLandmarkFromIsland(
     normalizedBoxCoord: normalizePointWithinBounds(island.center, faceBounds),
     projectedBoxCoord: normalizePointWithinBounds(projectedFront, faceBounds),
     textureRect: island.textureRect,
+    textureMirrored: island.textureMirrored,
   };
 }
 
@@ -931,10 +951,16 @@ function resolveBoxHoverFrontClearance(args: {
   };
 }
 
+/**
+ * A primitive's islands (connected triangles), largest first, with where each
+ * lies on its texture. `leftSign` turns anchor-space x toward the Avatar's
+ * left (VRM 0 heads face −Z, so their left is −x).
+ */
 function extractPrimitiveIslandsInAnchorSpace(args: {
   avatar: Avatar;
   binding: RuntimePrimitiveBindingEntry;
   anchorObject: THREE.Object3D;
+  leftSign: 1 | -1;
 }): PrimitiveIsland[] {
   const primitiveData = collectPrimitiveData({
     avatar: args.avatar,
@@ -944,10 +970,17 @@ function extractPrimitiveIslandsInAnchorSpace(args: {
   if (!primitiveData) return [];
 
   const uv = args.binding.object.geometry.getAttribute("uv");
-  const textureRectOf = (vertexIndices: readonly number[]) =>
+  const mapping = TextureUvMapping.of(baseTextureOf(args.binding.object));
+  const textureLayoutOf = (vertexIndices: readonly number[]) =>
     uv instanceof THREE.BufferAttribute
-      ? computeTextureRect(uv, vertexIndices)
-      : null;
+      ? measureTextureLayout({
+          uv,
+          mapping,
+          vertexIndices,
+          pointsByIndex: primitiveData.pointsByIndex,
+          leftSign: args.leftSign,
+        })
+      : { textureRect: null, textureMirrored: false };
 
   if (!primitiveData.indexed) {
     const points = primitiveData.orderedPoints;
@@ -960,7 +993,7 @@ function extractPrimitiveIslandsInAnchorSpace(args: {
         vertexCount: points.length,
         bounds,
         center: computeCentroid(points),
-        textureRect: textureRectOf(primitiveData.uniqueVertexIndices),
+        ...textureLayoutOf(primitiveData.uniqueVertexIndices),
       },
     ];
   }
@@ -1006,7 +1039,7 @@ function extractPrimitiveIslandsInAnchorSpace(args: {
         vertexCount: points.length,
         bounds,
         center: computeCentroid(points),
-        textureRect: textureRectOf(componentVertexIndices),
+        ...textureLayoutOf(componentVertexIndices),
       } satisfies PrimitiveIsland;
     })
     .filter((value): value is PrimitiveIsland => value !== null);
@@ -1015,16 +1048,17 @@ function extractPrimitiveIslandsInAnchorSpace(args: {
 }
 
 /**
- * The texture rectangle of an eye's iris art: of the islands layered over
- * `eye` (same primitive, centre inside its outline, at least half its width
- * and height), the one with the largest texture area. A small patch mapped to
- * a large texture area (a gloss gradient) is thus not taken for the iris.
+ * The island holding an eye's iris art: of the islands layered over `eye`
+ * (same primitive, centre inside its outline, at least half its width and
+ * height), the one with the largest texture area, else `eye` itself. A small
+ * patch mapped to a large texture area (a gloss gradient) is thus not taken
+ * for the iris.
  */
-function irisTextureRect(
+function irisArtIsland(
   eye: PrimitiveIsland,
   islands: readonly PrimitiveIsland[],
-): AvatarFaceTextureRect | null {
-  let best = eye.textureRect;
+): PrimitiveIsland {
+  let best = eye;
   for (const island of islands) {
     const rect = island.textureRect;
     const size = island.bounds.getSize(new THREE.Vector3());
@@ -1041,32 +1075,85 @@ function irisTextureRect(
     ) {
       continue;
     }
-    if (!best || rect.width * rect.height > best.width * best.height) {
-      best = rect;
+    const bestRect = best.textureRect;
+    if (
+      !bestRect ||
+      rect.width * rect.height > bestRect.width * bestRect.height
+    ) {
+      best = island;
     }
   }
   return best;
 }
 
-/** The UV bounds of some vertices, as a texture-space rectangle. */
-function computeTextureRect(
-  uv: THREE.BufferAttribute,
-  vertexIndices: readonly number[],
-): AvatarFaceTextureRect | null {
-  if (vertexIndices.length === 0) return null;
+/**
+ * Where some vertices lie on their texture's image, and which way their art
+ * runs. The rectangle bounds their UVs through `mapping`, wrapped together by
+ * the tile of their UV bounds' centre. The art is mirrored when the image's x
+ * falls toward the Avatar's left: on VRoid irises it grows that way on both
+ * eyes, which iris art assumes. A trend weaker than
+ * {@link TEXTURE_DIRECTION_MIN_CORRELATION} counts as not mirrored.
+ */
+function measureTextureLayout(args: {
+  uv: THREE.BufferAttribute;
+  mapping: TextureUvMapping;
+  vertexIndices: readonly number[];
+  pointsByIndex: ReadonlyMap<number, THREE.Vector3>;
+  leftSign: 1 | -1;
+}): { textureRect: AvatarFaceTextureRect | null; textureMirrored: boolean } {
+  const { uv, mapping, vertexIndices } = args;
+  if (vertexIndices.length === 0) {
+    return { textureRect: null, textureMirrored: false };
+  }
+  const raw = new THREE.Box2();
+  for (const vertexIndex of vertexIndices) {
+    raw.expandByPoint(
+      new THREE.Vector2(uv.getX(vertexIndex), uv.getY(vertexIndex)),
+    );
+  }
+  const reference = raw.getCenter(new THREE.Vector2());
   let minU = Infinity;
   let minV = Infinity;
   let maxU = -Infinity;
   let maxV = -Infinity;
+  // Sums for the correlation of image x with position along the left.
+  let count = 0;
+  let sumX = 0;
+  let sumL = 0;
+  let sumXX = 0;
+  let sumLL = 0;
+  let sumXL = 0;
   for (const vertexIndex of vertexIndices) {
-    const u = uv.getX(vertexIndex);
-    const v = uv.getY(vertexIndex);
+    const { x: u, y: v } = mapping.toImage(
+      { x: uv.getX(vertexIndex), y: uv.getY(vertexIndex) },
+      reference,
+    );
     minU = Math.min(minU, u);
     minV = Math.min(minV, v);
     maxU = Math.max(maxU, u);
     maxV = Math.max(maxV, v);
+    const point = args.pointsByIndex.get(vertexIndex);
+    if (!point) continue;
+    const left = point.x * args.leftSign;
+    count += 1;
+    sumX += u;
+    sumL += left;
+    sumXX += u * u;
+    sumLL += left * left;
+    sumXL += u * left;
   }
-  return { x: minU, y: minV, width: maxU - minU, height: maxV - minV };
+  const covariance = sumXL / count - (sumX / count) * (sumL / count);
+  const spread = Math.sqrt(
+    Math.max(0, sumXX / count - (sumX / count) ** 2) *
+      Math.max(0, sumLL / count - (sumL / count) ** 2),
+  );
+  return {
+    textureRect: { x: minU, y: minV, width: maxU - minU, height: maxV - minV },
+    textureMirrored:
+      count > 2 &&
+      spread > 0 &&
+      covariance / spread < -TEXTURE_DIRECTION_MIN_CORRELATION,
+  };
 }
 
 /**

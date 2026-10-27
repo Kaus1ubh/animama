@@ -36,6 +36,12 @@ import {
 import { CreatorError, creatorErrorText } from "./createAnimaErrors";
 import { useCreationPortraitCapture } from "./createAnimaPortrait";
 
+/** The stage's Avatar for the shown source and whether it loaded. */
+export type CreationStageAvatar = {
+  avatar: Avatar | null;
+  status: "loading" | "ready" | "failed";
+};
+
 export type CreationStageHandle = {
   stop: () => void;
   play: (load: (signal: AbortSignal) => Promise<PyTypedContentPreview>) => void;
@@ -58,6 +64,8 @@ type Props = {
     blob: Blob,
     signal: AbortSignal,
   ) => Promise<void>;
+  /** The shown source's Avatar and whether it loaded, for upload Diagnostics. */
+  onAvatarStateChange?: (state: CreationStageAvatar) => void;
 };
 
 class StageBoundary extends Component<
@@ -92,6 +100,7 @@ export function CreateAnimaStage({
   onFinished,
   portraitTarget = null,
   savePortrait,
+  onAvatarStateChange,
 }: Props) {
   const { t } = useTranslation("create");
   const reducedMotion = useReducedMotion() === true;
@@ -142,6 +151,17 @@ export function CreateAnimaStage({
   useEffect(() => {
     stop();
   }, [avatar?.item_id, avatar?.revision_sha256, file, stop]);
+
+  // An error without an Avatar is a failed load; once loaded, a later error
+  // belongs to a Gesture or Reaction preview.
+  const avatarState: CreationStageAvatar["status"] = loadedAvatar
+    ? "ready"
+    : status === "error"
+      ? "failed"
+      : "loading";
+  useEffect(() => {
+    onAvatarStateChange?.({ avatar: loadedAvatar, status: avatarState });
+  }, [avatarState, loadedAvatar, onAvatarStateChange]);
 
   useImperativeHandle(
     ref,

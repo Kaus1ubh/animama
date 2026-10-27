@@ -94,7 +94,17 @@
       "missing": "缺少的表情",
       "playsFaces": "通过 ARKit 形态播放情绪",
       "present": "标准表情",
-      "unresolved": "被请求但此虚拟形象没有"
+      "unresolved": "被请求但此虚拟形象没有",
+      "fromMmd": "{{name}}（MMD）",
+      "moods": "情绪面部",
+      "moodValue": "眉毛 {{brow}} · 眼睛 {{eye}} · 嘴 {{mouth}}",
+      "regionSources": {
+        "vroid": "自带部件",
+        "mmd": "MMD",
+        "arkit": "ARKit",
+        "preset": "预设",
+        "none": "无"
+      }
     },
     "face": {
       "confidence": "置信度",
@@ -136,7 +146,8 @@
     "identity": {
       "included": "内置虚拟形象",
       "local": "本地虚拟形象",
-      "unknown": "虚拟形象"
+      "unknown": "虚拟形象",
+      "upload": "未保存的上传"
     },
     "issues": {
       "anchors_face_skin_missing": "未找到面部皮肤，因此无法放置绘于面部的特效。",
@@ -144,6 +155,7 @@
       "anchors_mouth_missing": "在面部纹理上未找到嘴的位置。",
       "anchors_projection_failed": "无法映射面部纹理，因此无法放置绘于面部的特效。",
       "anEffect": "某个特效",
+      "avatar_extension_unsupported": "该文件需要 glTF 扩展 {{extension}}，但此应用尚无法加载，因此无法显示虚拟形象。",
       "avatar_load_failed": "无法加载虚拟形象。请在“文件”中检查其必需扩展。",
       "effect_attachment_limit": "已移除 {{effect}}：身体、贴纸或剪影特效最多同时显示 {{limit}} 个。",
       "effect_face_part_missing": "已跳过 {{effect}}：此虚拟形象未识别到{{part}}。",
@@ -175,7 +187,9 @@
       "springs_helper_failed": "无法绘制弹簧骨骼参考线。",
       "springs_metadata_missing": "文件没有弹簧骨骼设置，因此弹簧以一半强度摆动。",
       "springs_source_unavailable": "无法读取文件的弹簧骨骼数据，因此弹簧使用默认设置。",
-      "springs_unmapped_joints_other": "有 {{count}} 个弹簧关节无法与文件的弹簧数据对应。"
+      "springs_unmapped_joints_other": "有 {{count}} 个弹簧关节无法与文件的弹簧数据对应。",
+      "face_expressions_none": "此虚拟形象没有用于情绪的面部形态（VRoid 部件、MMD 变形、ARKit 形态或情绪预设），因此面部保持中性；情绪通过动作和特效表现。",
+      "iris_hide_unavailable": "内容要求隐藏瞳孔（Fcl_EYE_Iris_Hide），但无法隐藏此虚拟形象的瞳孔网格部件：未找到，或与面部皮肤共用网格部件。"
     },
     "json": {
       "collapseAll": "全部折叠",
@@ -193,11 +207,19 @@
     },
     "materials": {
       "label": "lilToon 材质",
+      "milliseconds": "{{value}} 毫秒",
+      "nextLoad": "下次加载：{{state}} · {{why}}（在本次加载后测得）",
       "rendered": "使用 lilToon 渲染",
+      "renderedAt": "使用 lilToon 渲染（{{fps}} fps）",
       "simple": "简单材质",
       "value": "{{state}} · {{why}}",
       "why": {
         "automatic": "由自动选择",
+        "automaticNotMeasured": "由自动选择：尚未测量此 GPU 的 lilToon 帧时间",
+        "automaticRemeasuring": "由自动选择：此 GPU 绘制一帧 lilToon 用时 {{measured}}，超过 {{fps}} fps 的 {{budget}} 上限；改用简单材质前将再次测量",
+        "automaticSlow": "由自动选择：此 GPU 绘制一帧 lilToon 用时 {{measured}}，超过 {{fps}} fps 的 {{budget}} 上限",
+        "automaticUnsupported": "由自动选择：此浏览器无法测量 GPU 时间",
+        "automaticWithin": "由自动选择：此 GPU 绘制一帧 lilToon 用时 {{measured}}，未超过 {{fps}} fps 的 {{budget}} 上限",
         "chosen": "设为{{mode}}",
         "failed": "lilToon 无法加载"
       }
@@ -216,7 +238,16 @@
         "on": "有风和上升气流",
         "tunedWithout": "无风和上升气流：其弹簧是在没有它们的情况下调校的"
       },
-      "windValue": "{{mode}} · {{effect}}"
+      "windValue": "{{mode}} · {{effect}}",
+      "restPoseValue": "{{arms}} · {{hands}}",
+      "arms": {
+        "tPose": "T 姿势",
+        "normalized": "手臂静止时偏离 T 姿势 {{degrees}}°，已规范化"
+      },
+      "hands": {
+        "vroid": "手部与 VRoid 相同",
+        "normalized": "手部已按 VRoid 规范化（{{degrees}}°）"
+      }
     },
     "navigationLabel": "诊断分区",
     "no": "否",
@@ -238,7 +269,10 @@
     },
     "source": {
       "live": "位于聊天舞台",
-      "offscreen": "为此视图加载"
+      "offscreen": "为此视图加载",
+      "dock": "位于预览中",
+      "uploadStage": "位于预览舞台",
+      "notLoaded": "未能加载"
     },
     "title": "虚拟形象诊断",
     "unavailable": "此 Anima 没有可检查的虚拟形象。",

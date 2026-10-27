@@ -21,6 +21,7 @@ import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { useFormatters } from "@animama/product-ui/i18n";
 
+import type { FaceRegionSource } from "@/lib/avatar/arkitFaceExpressions";
 import type { AvatarFacePartSource } from "@/lib/avatar/vfx/faceParts";
 import {
   avatarDiagnosticsJson,
@@ -29,6 +30,10 @@ import {
   type AvatarSettingSource,
 } from "@/lib/avatar/diagnostics/avatarDiagnosticsReport";
 import type { AvatarMaterialKind } from "@/lib/avatar/diagnostics/avatarFileFacts";
+import {
+  lilToonFrameBudgetMs,
+  type AutomaticMaterialsDecision,
+} from "@/lib/avatar/liltoon/lilToonGpuCheck";
 import type { AvatarIssue } from "@/lib/avatar/diagnostics/issues";
 import { cn } from "@/lib/utils";
 import { facePartRoleName } from "@/ui/avatar-effect-creator/facePartsPanel";
@@ -41,7 +46,11 @@ import {
 import { avatarIssueText } from "./avatarIssueText";
 import { materialModeLabel, springModeLabel } from "./avatarSettingLabels";
 import { JsonTree } from "./JsonTree";
-import { useAvatarDiagnostics } from "./useAvatarDiagnostics";
+import {
+  useAvatarDiagnostics,
+  type AvatarDiagnosticsSource,
+  type AvatarDiagnosticsView,
+} from "./useAvatarDiagnostics";
 
 type DiagnosticsSection =
   | "file"
@@ -134,30 +143,113 @@ function SettingSource({ source }: { source: AvatarSettingSource | null }) {
   );
 }
 
+/** Why Automatic chose this look and frame rate: the GPU check's result. */
+function automaticMaterialsWhy(
+  t: TFunction<"animas">,
+  format: ReturnType<typeof useFormatters>,
+  decision: AutomaticMaterialsDecision,
+): string {
+  const ms = (value: number) =>
+    t("avatarDiagnostics.materials.milliseconds", {
+      value: format.number(value, { maximumFractionDigits: 1 }),
+    });
+  const fps = decision.budgetFps ?? 0;
+  const measured = {
+    measured: ms(decision.frameMs ?? 0),
+    budget: ms(lilToonFrameBudgetMs(fps)),
+    fps,
+  };
+  switch (decision.reason) {
+    case "fast":
+    case "capped":
+      return t("avatarDiagnostics.materials.why.automaticWithin", measured);
+    case "remeasuring":
+      return t(
+        "avatarDiagnostics.materials.why.automaticRemeasuring",
+        measured,
+      );
+    case "slow":
+      return t("avatarDiagnostics.materials.why.automaticSlow", measured);
+    case "not_measured":
+      return t("avatarDiagnostics.materials.why.automaticNotMeasured");
+    case "unsupported":
+      return t("avatarDiagnostics.materials.why.automaticUnsupported");
+  }
+}
+
+/** How the file's lilToon materials render, with Automatic's frame cap. */
+function lilToonStateLabel(
+  t: TFunction<"animas">,
+  rendered: boolean,
+  decision: AutomaticMaterialsDecision | null,
+): string {
+  if (!rendered) return t("avatarDiagnostics.materials.simple");
+  return decision?.fpsCap
+    ? t("avatarDiagnostics.materials.renderedAt", { fps: decision.fpsCap })
+    : t("avatarDiagnostics.materials.rendered");
+}
+
 /** The file's lilToon materials: how they render and why. */
 function LilToonMaterialsFact({ report }: { report: AvatarDiagnosticsReport }) {
   const { t } = useTranslation("animas");
   const { t: tSettings } = useTranslation("settings");
+  const format = useFormatters();
   const materials = report.live?.materials;
   if (!materials) return null;
-  const state =
-    materials.lilToon === "rendered"
-      ? t("avatarDiagnostics.materials.rendered")
-      : t("avatarDiagnostics.materials.simple");
+  const state = lilToonStateLabel(
+    t,
+    materials.lilToon === "rendered",
+    materials.automatic,
+  );
+  // The look the setting asked for; Automatic asks for its GPU check's choice.
+  const asked =
+    materials.mode === "automatic"
+      ? (materials.automatic?.choice ?? "liltoon")
+      : materials.mode;
   const why =
-    materials.lilToon === "fallback" && materials.mode !== "simple"
+    materials.lilToon === "fallback" && asked !== "simple"
       ? t("avatarDiagnostics.materials.why.failed")
-      : materials.mode === "automatic"
-        ? t("avatarDiagnostics.materials.why.automatic")
-        : t("avatarDiagnostics.materials.why.chosen", {
+      : materials.mode !== "automatic"
+        ? t("avatarDiagnostics.materials.why.chosen", {
             mode: materialModeLabel(tSettings, materials.mode),
-          });
+          })
+        : materials.automatic
+          ? automaticMaterialsWhy(t, format, materials.automatic)
+          : t("avatarDiagnostics.materials.why.automatic");
+  // A measurement stored since this load: the next load uses it.
+  const next = materials.nextLoad;
   return (
     <Fact label={t("avatarDiagnostics.materials.label")}>
       {t("avatarDiagnostics.materials.value", { state, why })}
+      {next ? (
+        <span className="text-muted-foreground block">
+          {t("avatarDiagnostics.materials.nextLoad", {
+            state: lilToonStateLabel(t, next.choice === "liltoon", next),
+            why: automaticMaterialsWhy(t, format, next),
+          })}
+        </span>
+      ) : null}
       <SettingSource source={report.settings?.materialModeSource ?? null} />
     </Fact>
   );
+}
+
+function regionSourceLabel(
+  t: TFunction<"animas">,
+  source: FaceRegionSource,
+): string {
+  switch (source) {
+    case "vroid":
+      return t("avatarDiagnostics.expressions.regionSources.vroid");
+    case "mmd":
+      return t("avatarDiagnostics.expressions.regionSources.mmd");
+    case "arkit":
+      return t("avatarDiagnostics.expressions.regionSources.arkit");
+    case "preset":
+      return t("avatarDiagnostics.expressions.regionSources.preset");
+    case "none":
+      return t("avatarDiagnostics.expressions.regionSources.none");
+  }
 }
 
 function readyLabel(
@@ -448,7 +540,11 @@ function ExpressionsSection({ report }: { report: AvatarDiagnosticsReport }) {
               ? t("avatarDiagnostics.expressions.fromArkit", {
                   name: preset.name,
                 })
-              : preset.name,
+              : preset.source === "mmd"
+                ? t("avatarDiagnostics.expressions.fromMmd", {
+                    name: preset.name,
+                  })
+                : preset.name,
           )}
           none={t("avatarDiagnostics.none")}
         />
@@ -469,6 +565,28 @@ function ExpressionsSection({ report }: { report: AvatarDiagnosticsReport }) {
         {expressions.arkit.playsFaces
           ? t("avatarDiagnostics.yes")
           : t("avatarDiagnostics.no")}
+      </Fact>
+      <Fact label={t("avatarDiagnostics.expressions.moods")}>
+        {expressions.moods.length > 0 ? (
+          <ul className="grid gap-1">
+            {expressions.moods.map((mood) => (
+              <li key={mood.preset} className="flex flex-wrap gap-x-2">
+                <span className="font-mono text-xs">{mood.preset}</span>
+                <span className="text-muted-foreground">
+                  {t("avatarDiagnostics.expressions.moodValue", {
+                    brow: regionSourceLabel(t, mood.brow),
+                    eye: regionSourceLabel(t, mood.eye),
+                    mouth: regionSourceLabel(t, mood.mouth),
+                  })}
+                </span>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <span className="text-muted-foreground">
+            {t("avatarDiagnostics.none")}
+          </span>
+        )}
       </Fact>
       <Fact label={t("avatarDiagnostics.expressions.unresolved")}>
         <Names names={unresolved} none={t("avatarDiagnostics.none")} />
@@ -516,9 +634,24 @@ function MotionSection({ report }: { report: AvatarDiagnosticsReport }) {
         <SettingSource source={report.settings?.springModeSource ?? null} />
       </Fact>
       <Fact label={t("avatarDiagnostics.motion.restPose")}>
-        <span className="text-muted-foreground">
-          {t("avatarDiagnostics.motion.notChecked")}
-        </span>
+        {motion.restPose ? (
+          t("avatarDiagnostics.motion.restPoseValue", {
+            arms: motion.restPose.armsNormalized
+              ? t("avatarDiagnostics.motion.arms.normalized", {
+                  degrees: motion.restPose.armDegrees,
+                })
+              : t("avatarDiagnostics.motion.arms.tPose"),
+            hands: motion.restPose.handsNormalized
+              ? t("avatarDiagnostics.motion.hands.normalized", {
+                  degrees: motion.restPose.handDegrees,
+                })
+              : t("avatarDiagnostics.motion.hands.vroid"),
+          })
+        ) : (
+          <span className="text-muted-foreground">
+            {t("avatarDiagnostics.motion.notChecked")}
+          </span>
+        )}
       </Fact>
     </FactList>
   );
@@ -632,28 +765,55 @@ function identityLabel(
       return t("avatarDiagnostics.identity.included");
     case "local":
       return t("avatarDiagnostics.identity.local");
+    case "upload":
+      return t("avatarDiagnostics.identity.upload");
     default:
       return t("avatarDiagnostics.identity.unknown");
   }
 }
 
+/** Where the live facts come from: the Avatar on screen, or a load for this view. */
+function liveSourceLabel(
+  t: TFunction<"animas">,
+  kind: AvatarDiagnosticsSource["kind"],
+  live: boolean,
+): string {
+  if (kind === "upload") {
+    return live
+      ? t("avatarDiagnostics.source.uploadStage")
+      : t("avatarDiagnostics.source.notLoaded");
+  }
+  if (!live) return t("avatarDiagnostics.source.offscreen");
+  return kind === "anima"
+    ? t("avatarDiagnostics.source.live")
+    : t("avatarDiagnostics.source.dock");
+}
+
 type AvatarDiagnosticsDialogProps = {
-  animaId: string;
+  source: AvatarDiagnosticsSource;
+  /**
+   * Diagnostics the caller already collects for `source`, so the dialog does
+   * not read the Avatar a second time.
+   */
+  view?: AvatarDiagnosticsView;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 };
 
 /**
- * Avatar Diagnostics: what Animama found in an Anima's Avatar file and how it
- * plays it, with a shareable report free of paths and names.
+ * Avatar Diagnostics: what Animama found in an Avatar file and how it plays
+ * it, with a shareable report free of paths and names. It describes an
+ * Anima's Avatar, an Avatar item or an unsaved upload (`source`).
  */
 export function AvatarDiagnosticsDialog({
-  animaId,
+  source,
+  view,
   open,
   onOpenChange,
 }: AvatarDiagnosticsDialogProps) {
   const { t } = useTranslation("animas");
-  const { state, effectNames } = useAvatarDiagnostics(animaId, open);
+  const own = useAvatarDiagnostics(source, open && !view);
+  const { state, effectNames } = view ?? own;
   const [section, setSection] = useState<DiagnosticsSection>("file");
   const report = state.status === "ready" ? state.report : null;
   const json = useMemo(
@@ -726,9 +886,11 @@ export function AvatarDiagnosticsDialog({
                 <p className="text-muted-foreground text-xs">
                   {identityLabel(t, report)}
                   {" · "}
-                  {state.status === "ready" && state.live
-                    ? t("avatarDiagnostics.source.live")
-                    : t("avatarDiagnostics.source.offscreen")}
+                  {liveSourceLabel(
+                    t,
+                    source.kind,
+                    state.status === "ready" && state.live,
+                  )}
                 </p>
               ) : null}
               <Button

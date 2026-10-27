@@ -57,8 +57,9 @@ export type AvatarVFXPlacementGuides = {
 export type AvatarVFXManipulationPlacement = {
   label: string;
   /**
-   * The effect's own mirrored copy (`effectMirror`): its lateral offset is
-   * mirrored, so dragging it moves the offset the other way.
+   * The effect's own mirrored copy (`effectMirror`), or an iris cell whose
+   * UVs run mirrored (`flipX`), but not both: its lateral offset is mirrored
+   * on the texture, so dragging it moves the offset the other way.
    */
   mirrored: boolean;
   corners: [THREE.Vector3, THREE.Vector3, THREE.Vector3, THREE.Vector3];

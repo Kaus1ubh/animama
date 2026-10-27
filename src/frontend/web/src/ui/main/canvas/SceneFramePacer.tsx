@@ -4,6 +4,7 @@ import { useThree } from "@react-three/fiber";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 
 import type { CursorLookAtInputProvider } from "@/lib/avatar";
+import { canvasFrameCap } from "@/lib/avatar/canvasFrameCap";
 import {
   createSceneFrameDemand,
   nextSceneFrame,
@@ -16,11 +17,13 @@ const INPUT_EVENTS = ["pointermove", "pointerdown", "wheel", "keydown"];
 
 /**
  * Renders an on-demand (`frameloop="demand"`) canvas at the rate its scene
- * needs: 60 fps, or 30 while the Avatar idles without input. Runs its own
- * display-rate loop and renders due frames there with `advance`, whose
- * `useFrame` delta is the real time since the previous render. Requesting
- * them with `invalidate` instead would render one display frame later, and on
- * a 60 Hz display R3F's stopped loop would then drop every other frame.
+ * needs: 60 fps, or 30 while the Avatar idles without input, and never above
+ * the canvas's frame cap (`canvasFrameCap`: Automatic's lilToon cap). Runs
+ * its own display-rate loop and renders due frames there with `advance`,
+ * whose `useFrame` delta is the real time since the previous render.
+ * Requesting them with `invalidate` instead would render one display frame
+ * later, and on a 60 Hz display R3F's stopped loop would then drop every
+ * other frame.
  *
  * Input marks the scene active: window pointer, wheel and key events, and in
  * PiP the desktop cursor feed that drives cursor look-at.
@@ -33,6 +36,7 @@ export function SceneFramePacer({
   cursorLookAtInputProvider?: CursorLookAtInputProvider | null;
 }) {
   const advance = useThree((state) => state.advance);
+  const canvas = useThree((state) => state.gl.domElement);
   // The loop keeps its schedule when the provider's identity changes.
   const cursorProviderRef = useRef(cursorLookAtInputProvider);
   useEffect(() => {
@@ -64,7 +68,7 @@ export function SceneFramePacer({
       const next = nextSceneFrame(
         nowMs,
         lastFrameMs,
-        sceneTargetFps(demand, nowMs),
+        sceneTargetFps(demand, nowMs, canvasFrameCap(canvas)),
       );
       if (next === null) return;
       lastFrameMs = next;
@@ -77,7 +81,7 @@ export function SceneFramePacer({
         window.removeEventListener(type, markInput);
       }
     };
-  }, [advance, demand]);
+  }, [advance, canvas, demand]);
 
   return null;
 }

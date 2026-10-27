@@ -27,6 +27,10 @@ export function avatarIssueText(
   const texts: Record<AvatarIssueCode, () => string> = {
     file_unavailable: () => t("avatarDiagnostics.issues.file_unavailable"),
     file_unreadable: () => t("avatarDiagnostics.issues.file_unreadable"),
+    avatar_extension_unsupported: () =>
+      t("avatarDiagnostics.issues.avatar_extension_unsupported", {
+        extension: String(params.extension ?? ""),
+      }),
     avatar_load_failed: () => t("avatarDiagnostics.issues.avatar_load_failed"),
     scene_bindings_unavailable: () =>
       t("avatarDiagnostics.issues.scene_bindings_unavailable"),
@@ -42,6 +46,10 @@ export function avatarIssueText(
       t("avatarDiagnostics.issues.face_parts_correction_other_file"),
     face_parts_correction_digest_unknown: () =>
       t("avatarDiagnostics.issues.face_parts_correction_digest_unknown"),
+    iris_hide_unavailable: () =>
+      t("avatarDiagnostics.issues.iris_hide_unavailable"),
+    face_expressions_none: () =>
+      t("avatarDiagnostics.issues.face_expressions_none"),
     face_parts_correction_unknown_bindings: () =>
       t("avatarDiagnostics.issues.face_parts_correction_unknown_bindings", {
         count,

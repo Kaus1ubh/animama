@@ -95,6 +95,38 @@ describe("AvatarFaceLandmarks eyes", () => {
     expect(eyes.right).toEqual(expected.right);
   });
 
+  it("marks an eye whose iris UVs run mirrored", async () => {
+    vi.spyOn(console, "info").mockImplementation(() => {});
+    const expected = (await loadedAnnie()).getFaceLandmarksSnapshot()!.eyes;
+    expect(expected.left!.textureMirrored).toBeUndefined();
+    expect(expected.right!.textureMirrored).toBeUndefined();
+
+    // The left eye's iris island mirrored in u within its own rectangle, as
+    // on a model whose eyes share mirrored UVs.
+    const avatar = await loadedAnnie();
+    const binding = buildRuntimePrimitiveBindings(avatar).entries.find(
+      (entry) => entry.bindingKey === expected.left!.bindingKey,
+    )!;
+    const mesh = binding.object;
+    const head = avatar.vrm!.humanoid.getNormalizedBoneNode("head")!;
+    const uv = mesh.geometry.getAttribute("uv");
+    const point = new THREE.Vector3();
+    const { x, width } = expected.left!.textureRect!;
+    for (let vertex = 0; vertex < uv.count; vertex += 1) {
+      mesh.getVertexPosition(vertex, point);
+      // Annie is VRM 1: her left (the left eye) is +x in head space.
+      if (head.worldToLocal(mesh.localToWorld(point)).x <= 0) continue;
+      uv.setX(vertex, 2 * x + width - uv.getX(vertex));
+    }
+    await avatar.setFacePartCorrections(null);
+
+    const eyes = avatar.getFaceLandmarksSnapshot()!.eyes;
+    expect(eyes.left!.textureMirrored).toBe(true);
+    expect(eyes.left!.textureRect!.x).toBeCloseTo(x, 6);
+    expect(eyes.left!.textureRect!.width).toBeCloseTo(width, 6);
+    expect(eyes.right).toEqual(expected.right);
+  });
+
   it("does not take a small stretched patch for the iris art", async () => {
     vi.spyOn(console, "info").mockImplementation(() => {});
     const expected = (await loadedAnnie()).getFaceLandmarksSnapshot()!.eyes;

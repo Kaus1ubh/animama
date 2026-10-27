@@ -67,10 +67,19 @@ wherever that Avatar is used:
 - **Materials**: Automatic, lilToon or Simple, shown only for a file with
   authored lilToon materials (see
   [Authored lilToon materials](../runtime/avatar-animation.md#authored-liltoon-materials)),
-  or while a stored choice is not Automatic. Materials are built at load, so
+  or while a stored choice is not Automatic. Automatic loads lilToon and
+  lowers the canvas's frame rate to 45, 30 or 24 fps where this machine's GPU
+  needs it, and Simple only when it cannot draw lilToon at 24 fps (the GPU
+  check in the linked section). Materials are built at load, so
   a change reloads the Avatar wherever it is shown. Whether a file has lilToon
-  materials is known once any surface has loaded it in this session
+  materials is known once any surface has loaded it in this session, or the
+  Library's Avatar settings have read its file facts
   (`useAvatarFileTraitsStore`, keyed by the VRM's sha256).
+
+The Library offers the same rows for any Avatar item (see
+[Library](library.md)); both use `AvatarSettingsRows`, keyed by Avatar item.
+Create Anima has no settings: an unsaved upload has no Avatar item to keep
+them for.
 
 Automatic is stored as no value. Every surface that loads a saved Avatar (chat
 canvas, Anima page stage, content previews, the content creators, the Pose
@@ -90,32 +99,60 @@ Animama found in the Anima's Avatar and how it plays it:
   extensions, mesh, mesh-part and material counts by kind (MToon, lilToon,
   unlit, standard), each embedded image's pixel size and, for a file with
   lilToon materials, whether they render with lilToon or as Simple materials
-  and why.
+  and why. Under Automatic it gives the GPU check's result: the frame rate
+  lilToon renders at and the fastest measured lilToon frame time against that
+  rate's budget, or that this GPU is not measured yet or the browser cannot
+  time the GPU (lilToon in both cases). A "Next load" line says what the next
+  load uses when a measurement since this load changes the materials or frame
+  rate. Clearing the measurements measures again ([GPU check](../runtime/avatar-animation.md#authored-liltoon-materials)).
 - **Face**: how each face part was found (model data, material names, a saved
   correction, or not at all) and whether face landmarks and texture anchors
   are ready.
 - **Expressions**: the standard VRM expressions present, those played through
-  ARKit mixes, ARKit shape coverage, and names Gestures, Reactions or moods
-  asked for that the Avatar lacks.
-- **Motion**: humanoid bones, missing required bones, spring joints and
-  colliders, and the wind setting in effect with whether wind and updraft
-  apply. Each setting also shows whether it is saved for the Avatar or the
+  ARKit mixes or MMD morphs, ARKit shape coverage, each mood's source per face
+  region ([Faces on non-VRoid Avatars](../runtime/avatar-emotion.md#faces-on-non-vroid-avatars)),
+  and names Gestures, Reactions or moods asked for that the Avatar lacks.
+- **Motion**: humanoid bones, missing required bones, the rest pose (arms
+  from a T-pose and hands from VRoid's, and whether each was normalized:
+  [Rest normalization](../runtime/avatar-animation.md#rest-normalization)),
+  spring joints and colliders, and the wind setting in effect with whether
+  wind and updraft apply. Each setting also shows whether it is saved for the Avatar or the
   default.
-- **Warnings**: every face-part, landmark, texture-anchor, spring and effect
-  finding, once each.
+- **Warnings**: every face-part, landmark, texture-anchor, expression (no
+  usable face expressions; `Fcl_EYE_Iris_Hide` with no iris part to hide),
+  spring and effect finding, once each, and each glTF extension the file needs
+  that Animama cannot load (such as Draco compression), read from the file
+  before loading.
 
-It reads the Avatar on the chat stage when that Anima is there; otherwise it
-loads the Avatar separately, with its saved face part correction, and releases
-it on close. An Avatar that does not load still shows its file facts and the
-load error. **Copy report** copies a plain-text report and **Raw JSON** shows
+Diagnostics describes one of three sources (`useAvatarDiagnostics`):
+
+- an Anima's Avatar (this row): the Avatar on the chat stage when that Anima
+  is there. Only this source lists effect warnings, which depend on the
+  Anima's Gestures and Reactions; the other two leave out the effect
+  findings the dock's or stage's own previews leave on their Avatar (other
+  findings from content played there, such as an iris hide with no iris part
+  or a mood the Avatar lacks, still show until that Avatar reloads);
+- an Avatar item, from the Library's Avatar settings: the preview dock's
+  Avatar when the dock shows that revision of the item
+  (`usePreviewDockAvatarStore`);
+- an unsaved upload, from Create Anima: file facts from the chosen file and
+  live facts from the creator stage's Avatar once it loads. Under
+  "Previewing …" the step shows one status line (checking, no problems found,
+  the number of problems, or that the file could not load) with **View
+  diagnostics**.
+
+Without an Avatar on screen, it loads the Avatar separately, with its saved
+face part correction and settings, and releases it on close. An Avatar that
+does not load still shows its file facts and the load error. **Copy report** copies a plain-text report and **Raw JSON** shows
 the same `animama/avatar-diagnostics/1` report as a collapsible tree, with
 Copy JSON for the whole document. Reports identify the
 Avatar, and any effect a warning names, by source and item id
-(`local:<item id>`), and hold counts, standard names (VRM expressions and
+(`local:<item id>`), an unsaved upload by kind alone (`upload`), and hold counts, standard names (VRM expressions and
 bones, ARKit shapes, VRoid `Fcl_` parts) and codes only: no file paths, URLs,
 or Avatar, material, effect or custom expression names. The dialog itself
-names effects on screen. Diagnostics uses only the runtime snapshot, loadout
-and content delivery, with nothing local-only, so hosted builds include it.
+names effects on screen. Diagnostics uses only the runtime snapshot, loadout,
+the shared Avatar preview route and content delivery, with nothing
+local-only, so hosted builds include it.
 
 ## Loadout
 

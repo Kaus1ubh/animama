@@ -102,6 +102,8 @@
   },
   "inventory": {
     "actions": {
+      "avatarSettings": "Avatar settings",
+      "avatarSettingsShort": "Settings",
       "createAnima": "Create Anima",
       "draft": "Draft",
       "edit": "Edit",
@@ -114,6 +116,12 @@
       "stop": "Stop",
       "useInGesture": "Use in Gesture",
       "useInReaction": "Use in Reaction"
+    },
+    "avatarSettings": {
+      "description": "Settings for {{name}}. They apply wherever this Avatar is used.",
+      "diagnostics": "See what Animama found in this Avatar, and copy a report for support.",
+      "diagnosticsOnly": "See what Animama found in {{name}}.",
+      "title": "Avatar settings"
     },
     "groups": {
       "avatarEffects": "Avatar Effects",
@@ -255,6 +263,8 @@
       "animaNote": "Creates a fresh companion with the reviewed content and configuration.",
       "animaUnavailable": "Importing an Anima package is unavailable here. Import content or export an existing Anima instead.",
       "avatarSettingsNotStored": "This app does not keep Avatar wind and material settings, so {{names}} will use Automatic.",
+      "avatarsNotLoadable_one": "{{names}} will be imported, but this version of Animama cannot show it yet: its model uses mesh compression the app cannot decode. Avatar Diagnostics names what it needs.",
+      "avatarsNotLoadable_other": "{{names}} will be imported, but this version of Animama cannot show them yet: their models use mesh compression the app cannot decode. Avatar Diagnostics names what they need.",
       "beingProcessed": "This import is being processed. Check its result before continuing.",
       "button": "Import",
       "changeFile": "Change file",

@@ -208,22 +208,48 @@ tenant-inventory row for `avatar_face_part_overrides`. So:
   eye-hiding effects) is pending.
 - [ ] Phase 3: Avatar settings: wind and materials (R5, R11's Materials
   setting). Implemented, checked and review passed 2026-10-26; the owner
-  accepted the Included Avatars' spring change on 2026-10-27; the rest of the
-  owner gate (live wind modes, the Simple look) is pending.
-- [ ] Phase 4: Expression content and MMD face shapes (R4, R12). Not started.
-- [ ] Phase 5: Hands (R6). Not started.
-- [ ] Phase 6: Texture layouts (R2). Not started.
-- [ ] Phase 7: Rest pose, proportions and enhanced rendering (R9, R10). Not started.
-- [ ] Phase 8: Package sharing (R13). Not started.
-- [ ] Phase 9 (alongside): lilToon frame cost (R11). Not started.
+  accepted the Included Avatars' spring change on 2026-10-27; the Cloud
+  follow-up is raymond-van/animama-cloud#229; the rest of the owner gate (live
+  wind modes, the Simple look) is pending.
+- [ ] Phase 4: Expression content and MMD face shapes (R4, R12). Implemented,
+  checked and review passed 2026-10-27; the owner gate (private mood renders,
+  live lip-sync checks, two confirmations) is pending.
+- [ ] Phase 5: Hands (R6). Implemented, checked and review passed
+  2026-10-27; the owner gate (private hand Gesture renders) is pending.
+- [ ] Phase 6: Texture layouts (R2). Implemented, checked and review passed
+  2026-10-27 (merged into PR B); no owner gate.
+- [ ] Phase 7: Rest pose, proportions and enhanced rendering (R9, R10).
+  Implemented, checked and review passed 2026-10-27; the owner gate (scaling
+  band, private Gesture renders on the T-pose and A-pose exports, the R10
+  departure) is pending.
+- [ ] Phase 8: Package sharing (R13). Implemented, checked and review passed
+  2026-10-27 (merged into PR B); `local-http` 18.0.0 and `runtime-contracts`
+  0.18.0 for the import notice (`45d207a8`); the full `pnpm e2e:test` runs on
+  the final candidate.
+- [ ] Phase 9 (alongside): lilToon frame cost (R11). Implemented, checked and
+  review passed 2026-10-27 (merged into PR B). The owner's frame-cap decision
+  (Decision Log, 2026-10-27) replaced the 8 ms threshold and the
+  re-measurement options; its repair passed Code Review #3 the same day. The
+  owner gate (the measured result against the target, the inert pre-pass,
+  whether the cap should differ while the Avatar speaks, and a live check of
+  the cap) is pending.
 - [ ] Phase 10: Diagnostics and Avatar settings in the Library and Create Anima
-  (R5, R7 and R11 entry points; owner, 2026-10-27). Not started; PR B.
+  (R5, R7 and R11 entry points; owner, 2026-10-27). Implemented, checked and
+  review passed 2026-10-27 on `feat/arbitrary-vrm-support-pr-b`;
+  `pnpm e2e:test:fast` waits for PR B's final candidate; the owner's UI review
+  is pending. Step 8 (saved corrections in previews, with a preview-dock Stop
+  fix and an Avatar Effect creator URL fix) implemented and reviewed
+  2026-10-27.
 - [ ] Final integration review and full pre-push suite. PR A: `main` at
   `d30a6ddc` merged in on 2026-10-27 (one conflict, in `AnimaAvatarStage.tsx`,
   both sides kept); `local-http` 17.0.0, `runtime-contracts` 0.17.0 and
   `product-ui` 0.18.0 for the new route and declarations (package-set
   compatibility check passed against `d30a6ddc`); final integration review
-  #1 blocked on FI-1, fixed.
+  #1 blocked on FI-1, whose fix was backed out of PR A and landed in Phase 10
+  step 8. PR B: `main` at `fd4c86c5` (PR A merged) merged in; final
+  integration review #1 (2026-10-27) found no code defect and blocked on a
+  stale guide sentence and private measurements in the record, both fixed;
+  the full pre-push suite on PR B's final candidate follows.
 
 ## Surprises & Discoveries
 
@@ -372,6 +398,146 @@ tenant-inventory row for `avatar_face_part_overrides`. So:
   preview, in PR B (Phase 10). Create Anima gets no settings, since an unsaved
   upload has no Avatar item to store them on. Issue #691's spec lists them
   since 2026-10-27 (R5, R7, R11, their acceptance and decision 9).
+- 2026-10-27, agent (Phase 10 step 4, within the plan): no backend field. The
+  backend keeps no file facts (an item's catalog `metadata` is its sidecar
+  projection, and `validate_vrm_stream`'s facts are discarded), so a field
+  would need scan-time persistence of file facts, an API field, a regenerated
+  client, package-set bumps and a Cloud repin for one row. The Library's
+  Avatar settings dialog instead reads the item's file facts when this
+  session does not yet know whether the file has lilToon materials
+  (`useAvatarItemFileTraits`), once per file per session, into the same
+  `useAvatarFileTraitsStore`, so the Anima settings then show the row too.
+  This narrows Phase 3's rejection of "a full download only to decide one
+  row" to the panels that are always shown: the Library dialog is opened
+  deliberately. A file whose glTF cannot be read is remembered as without
+  lilToon, so it is not read again. The phase stays at the standard tier.
+- 2026-10-27, agent (Phase 10, within the plan): the preview dock publishes
+  its loaded Avatar and item id (`stores/preview-dock-avatar-store.ts`) so
+  Diagnostics for that item reads it; Create Anima's stage lifts its Avatar
+  and load state (`onAvatarStateChange`) to the upload step. The Library
+  dialog opens Diagnostics nested inside it, so Escape closes Diagnostics
+  first.
+- 2026-10-27, agent (Phase 4, within the plan; recorded in `avatar-emotion.md`):
+  - #688's per-Avatar rules became per region. A region plays the model's own
+    VRoid part, else its standard MMD morph, else the ARKit mix when every
+    shape that region of the table uses resolves, else the preset fallback.
+    So an Avatar missing a table shape now plays its other regions' mixes.
+  - The whole-face names (the mood preset and `Fcl_ALL_<Mood>`) combine their
+    regions' MMD morphs and ARKit mixes and replace an authored preset, as the
+    mixes did. A mood with a region neither covers keeps the file's own preset
+    whole: one preset cannot be split by region, and a partial face would be
+    worse than today's. Without an own preset that region stays neutral.
+    Content keying a single region still plays its MMD morph or mix.
+  - `Fcl_EYE_Close`, `_L` and `_R` play ARKit's blink shapes as before, else
+    the blink presets. `Fcl_EYE_Iris_Hide` is an expression whose bind tells
+    `AvatarVFXController.setIrisHidden` when it is held (weight 0.5 or more),
+    counted with effects that hide parts; `animation:render`, which has no
+    effect controller, does not hide irises.
+  - Emotion-map names the Avatar cannot play are reported (for example
+    `Fcl_MTH_Large` without `jawOpen` beside a resolved smile), except when the
+    whole positive-mood fallback (`relaxed`) replaces the map's names.
+  - Eyelid closure measures every lid-closing expression's share of blink's
+    motion on models without VRoid eye parts of their own. VRoid faces keep
+    the default profile instead of a digest pin for Andrew: their smiling eyes
+    are an arc that the share along blink's motion understates (about 0.62 for
+    happy on VRoid samples, where Annie's verified profile needs 1), so
+    measuring them would let blink collapse the lashes. Annie keeps her
+    verified profile; Andrew, a VRoid face, keeps the default as before.
+- 2026-10-27, agent (Phase 5, within the plan):
+  - The correction is exact rather than a constant multiplier after the
+    transfer: the wrapper sets each corrected bone's normalized rotation N to
+    `W_parent⁻¹ · N · W_bone` for three-vrm's transfer and restores it after,
+    which equals the constant post-transfer form only when N and W share an
+    axis.
+  - Instead of giving each normalized-space reader the correction, the
+    normalized rig's hand and finger child offsets (and three-vrm's normalized
+    rest pose, used by resets) are turned by their parent's `W` once at load.
+    With the exact correction every bone's drawn frame is its normalized frame
+    times `W`, so the normalized rig then matches the drawn hand and the
+    thumb and pinch fits, contact points and motion checks need no change.
+  - The hand bone itself is corrected with the fingers: the converted test
+    Avatar's hand rests bent down and rolled well beyond the tolerance, and
+    straightening only the fingers would kink them against the palm.
+  - The reference frames are Annie's (Andrew agrees within 0.2°) and the
+    tolerance is 5°; the Included Avatars and the VRM 0 VRoid fixture measure
+    under it, the converted test Avatar beyond it on 32 bones.
+- 2026-10-27, agent (Phase 7, within the plan except the last bullet):
+  - `handRest.ts` became `restNormalization.ts` (`installRestNormalization`):
+    arms join the hands in one wrapper and one offset pass. Each upper arm and
+    forearm is measured against VRoid's horizontal T-pose with a 10° tolerance;
+    normalized arms are exact like hands. Hands are measured against VRoid's
+    as carried by their own forearm (review P7-R1-F5), so an arm's tilt never
+    counts against its hand; a corrected forearm carries its hand, rigidly when
+    the palm cannot be measured (P7-R1-F1), and adds the hand's own correction
+    only when the hands are beyond their tolerance. Gestures on a 40° A-pose
+    synthetic model match the T-pose one (directions within 1e-5 rad, joints
+    within 1 µm), so normalization is kept rather than report-only. The
+    Included Avatars and the VRM 0 fixture rest in an exact T-pose; the
+    converted test Avatar's arms are within the arm tolerance and are not normalized,
+    and its hand correction is now measured against its forearm.
+  - Body effects scale by `avatarScale` (rest head height above the feet over
+    1.25 m, the contacts' measure), not bounding height: the converted test
+    Avatar's bounding height is inflated by hair and accessories, while its head
+    height puts it just below Annie (1.012). The proposed band is 0.91–1.2 (the
+    Included 1.012 and 1.094 widened by 10%), scaling by size over the nearer
+    edge outside it, so the size is continuous at the edges. The scale is on
+    the effect's root group, so offset and size scale together and the Avatar
+    Effect creator's drags (in that group's frame) and resizes (ratios) stay
+    consistent.
+  - Contacts stay on `avatarScale`; the arm solver already uses the model's
+    own arm lengths. Head size is not measured separately: on the converted
+    test Avatar the face's depth in front of the head joint matches Annie's
+    to within a millimetre.
+  - Departure from step 3 (and PLAN-F5), for the owner: non-VRoid MToon models
+    keep every material as authored (R10's "switched off consistently")
+    instead of a role-based retune. There is no non-VRoid MToon reference
+    model to tune or judge the shade and rim colours on, and the face-part map
+    gives face skin but no reliable split between body skin and cloth, so the
+    "cannot all be assigned" fallback would apply to nearly every model. The
+    retune now requires VRoid's face skin material name, which also removes
+    today's partial retune of models with VRoid-like suffixes (on renamed
+    copies of the Included Avatars 14 and 18 materials would have been
+    retuned beside authored ones). Such models keep the enhanced lights, tone
+    mapping and chat filter on their authored materials: "classic" applies per
+    material, not to the scene. A role-based retune remains a follow-up.
+- 2026-10-27, agent (Phase 9, within the plan; owner gate items marked):
+  - Measurements run paced at 60 fps: unpaced, a lilToon Avatar saturates the
+    GPU and the timer counts queued work, which most likely explains R11's
+    30.8 ms baseline. Paced, the converted test Avatar takes about 5.5–7 ms
+    against 1.7–3 ms for the Included Avatars; the target is not met.
+  - The cost is spread over large surfaces and does not grow with pixels; no
+    feature or layer cut reaches the target, and the outline pass must stay
+    (it acts as a partial depth pre-pass).
+  - A depth pre-pass ships but covers only surfaces that replace colour and
+    alpha, which excludes three-liltoon's default alpha blend: for the owner,
+    keep it (safe, no saving on known Avatars), admit materials proven opaque
+    (a texture scan at load), accept alpha-only differences (one rule; 0
+    differing pixels in renders), or remove it. Blending off is not shipped.
+  - Automatic uses a one-time GPU measurement per viewer and GPU with a
+    proposed 8 ms threshold; for the owner: the threshold, and whether to
+    re-measure (near or over the threshold, by age) instead of the documented
+    manual reset. Only the main canvas measures. No app-wide setting.
+- 2026-10-27, owner (relayed by the PR A session): Automatic is lilToon-first.
+  Under Automatic a lilToon Avatar keeps lilToon, and the canvas showing it
+  renders at the highest of 60, 45, 30 or 24 fps its GPU sustains; Simple only
+  below 24 fps or when the user picks it. This replaces the 8 ms threshold and
+  settles Phase 9's threshold and re-measurement gate items. Agent choices
+  within it (Phase 9, "Owner decision repair"):
+  - Budget: frame time × 1.3 within the frame interval (60 fps up to 12.8 ms,
+    45 up to 17.1, 30 up to 25.6, 24 up to 32.1), the owner's suggested
+    headroom; the only tuning evidence is the reference GPU's.
+  - Robustness: one measurement per session until three are kept, then
+    weekly; the fastest decides. Simple needs two measurements too slow for
+    24 fps with the newest under a week old; until then lilToon at 24 fps,
+    because only lilToon frames can be measured again.
+  - Materials and cap are chosen at load; a later measurement applies from
+    the next load (Diagnostics "Next load").
+  - The cap applies on every paced canvas showing the Avatar, Picture in
+    Picture included (it shares the chat `Scene`), active or idle (idle is
+    the lower of the cap and 30), speaking included. Explicit lilToon is never
+    capped; Avatars without lilToon materials, such as the Included ones, are
+    unaffected.
+  - For the owner: whether the cap should differ while the Avatar speaks.
 
 ## Decisions
 
@@ -941,7 +1107,9 @@ by the owner on 2026-10-27 (Decision Log).
 Completion: R5 acceptance and R11's Materials-setting acceptance except the
 Automatic GPU check; owner gate passed; a Cloud follow-up issue recorded
 for the hosted migration, lifecycle, wiring and inventory, plus a backend
-composition check at repin.
+composition check at repin: raymond-van/animama-cloud#229 ("build: adopt
+local-http 17 and decide Hosted Avatar settings"; PR B raises `local-http` to
+18.0.0 and `runtime-contracts` to 0.18.0 for the import notice).
 
 Recovery: the table and route are additive. A revert leaves stored values
 unused, and packages exported with either setting would no longer import on
@@ -1191,21 +1359,147 @@ check.
 Owner gate: private renders of moods on the converted test Avatar (R12) and of
 positive-emotion mouths on a preset-only model (R4); a live check of a
 mood-held `jawOpen` under lip sync, with visemes and with ARKit lip-sync
-shaping.
+shaping, and of a surprised face while speaking on an MMD model (its お and
+`oh` viseme may bind one morph); confirmation that a partly covered mood keeps
+the file's own preset whole (Decision Log); acceptance of the one-pixel
+`double-take` render difference (check record).
 
 Completion: R4 and R12 acceptance; owner gate passed.
 
 Recovery: load-time registration only.
 
-Check record: (to fill) · Commits: (to fill)
+Check record (2026-10-27, macOS arm64, worktree on
+`feat/arbitrary-vrm-support-pr-b` from `06d381c9`):
+
+- New tests: `mmdFaceExpressions.test.ts` (each mapped region plays its MMD
+  morph; a mood MMD covers fully is composed and replaces the authored
+  preset, one it covers partly keeps the preset while its MMD region still
+  plays for a part; MMD plus ARKit fills sad's eyes and mouth from ARKit with
+  ARKit's brows still; positive emotions smile with にっこり; `Fcl_MTH_Large`
+  reported without `jawOpen`; blink stays within shut under 笑い; the `aa`
+  viseme stays still for moods), `includedFaceNames.test.ts` (every one of the
+  18 `Fcl_*` names in `content/included` plays on a preset-only model or is
+  reported, and only mouth parts are reported; a model with only a blink and
+  visemes stays neutral, shows no viseme motion for moods and gets
+  `face_expressions_none`; `Fcl_EYE_Iris_Hide` reports its held state and a
+  model's own shape wins) and a `facial-controls.test.ts` case (irises hidden
+  while held, counted with an effect that hides them, re-hidden after the
+  bindings rebuild). Updated: the ARKit per-region rules
+  (`arkitFaceExpressions.test.ts`: a missing table shape now leaves only its
+  region; a partly covered mood keeps the authored preset; the Perfect Sync
+  fixture has all VRoid parts) and eyelid closure (`eyelidClosure.test.ts`:
+  measured shares on a non-VRoid model; VRoid faces keep the default).
+  Included baselines unchanged.
+- `npx vitest run src/lib/avatar src/ui tests/avatar` (`src/frontend/web`):
+  331 files, 3,320 passed, 2 skipped; `node --test scripts/vrm-inspect.test.mjs
+  scripts/vrm-bake-expressions.test.mjs`: 10 passed; tsc (`tsconfig.app.json`,
+  `tsconfig.scripts.json`), `pnpm -s web:lint`, `pnpm -s i18n:check`: pass;
+  Prettier on the changed files: pass.
+- Review renders, `06d381c9` against the phase end, enhanced and classic:
+  `effects:render` with `--expression` happy, relaxed, sad, angry,
+  surprised and `Fcl_MTH_Fun`, and `--with-clip` Reactions `joy-3`,
+  `amusement-2`, `sadness-2`, `anger-2`, `fear-2`, `embarrassment-2` and the
+  Gestures `shy-finger-poke-loop` and `double-take`: 27 of 28 sheets at 0
+  differing pixels. `double-take` (enhanced) differs in one pixel (Andrew's
+  face tile at 2 s, channel delta 19), reproducibly; the phase-start
+  `AvatarVFXController.ts` gives 0, and so does no change, but an inert edit
+  of that module (an unused constant) gives the same pixel, so it is render
+  timing, not behaviour. (One sheet failed once when a source edit reloaded
+  the review page mid-run; rerendered.)
+- Load-time corrections (`avatarLoadTiming.test.ts`, median of 5): Andrew
+  56.9 ms before, 56.5 ms after (17 primitives); Annie 45.4 ms before, 46.2 ms
+  after (15).
+- `vrm:inspect` on the converted test Avatar (private): every MMD standard
+  morph and 52 of 52 ARKit shapes; happy, relaxed and surprised play MMD in
+  all three regions, sad an MMD brow with ARKit eyes and mouth, angry MMD
+  brows and eyes with an ARKit mouth.
+
+Commits: `feat(avatars)[p4]: play moods from MMD morphs and ARKit mixes region by region`
 
 #### Code Review #1 Findings
 
-Not run.
+Independent reviewer, standard tier, initial review of working tree `cc5c3be2`
+against `06d381c9`; it reran the full avatar and UI vitest set (3,320 passed),
+the script tests, both tsc configurations and eslint on the changed files, and
+probed empty presets out of tree.
+
+- P4-R1-F1 (blocking): the measured eyelid share (an average along blink's
+  motion) understates arc-shaped smiling eyes, which the Decision Log itself
+  shows for VRoid (0.62 where 1 is needed); MMD 笑い is that shape, and a
+  non-VRoid model's closing `happy` dropped from 1 to its share. The only test
+  used a linear fixture.
+- P4-R1-F2 (blocking): three-vrm registers every preset, so an empty preset
+  counted as the file's own: a partly covered mood kept it whole and played
+  nothing, nothing was reported, and a model with only empty presets got no
+  `face_expressions_none`.
+- P4-R1-F3 (blocking): `Fcl_EYE_Iris_Hide` always counted as resolved, but
+  hiding nothing (no iris, or an iris in the face skin's primitive) was never
+  reported.
+- P4-R1-F4 (blocking, trivial): `avatar-animation.md` (two passages) and
+  `vrm-bake-expressions.mjs` (header, JSDoc, comment and rule) still described
+  the per-Avatar ARKit rule and VRoid constants for every model.
+- Optional: お may share a morph with the `oh` viseme (add to the live
+  check); a partly covered mood keeping the preset departs from the literal
+  region order (owner confirmation); the one-pixel render difference needs
+  owner acceptance; `coversArkitTable` and `MmdFace.parts` unused; MMD binding
+  duplicated `registerMorphExpression`; `isAnimamaFaceExpression` left out the
+  iris expression; delight's two smile parts bind にっこり twice (mirrors ARKit).
 
 #### Code Review #1 Revisions
 
-Not run.
+- F1 accepted. Measured: on Annie happy shares 0.62 of blink's motion on
+  average and 0.69 at the lid's own vertices (90th percentile of per-vertex
+  shares where blink moves at least a quarter of its furthest vertex); relaxed
+  0.145; on Andrew 0.75 and 0.13; on the converted test Avatar (private) its
+  smile morphs close the lid almost fully. Non-ARKit expressions now correct by that
+  lid share divided by Annie's happy (0.69), which reproduces her verified
+  relaxed (0.21 against 0.2164) and Andrew's default (0.19 against 0.2) and
+  gives the converted Avatar's 笑い full suppression; ARKit mixes keep #688's
+  share. New test: the calibration reproduces Annie's verified profile; the
+  笑い fixture expects blink below the remaining 0.4. `avatar-emotion.md`
+  reworded.
+- F2 accepted: a preset that binds nothing counts as absent for region
+  sources, keeping a preset whole and the neutral-face finding, and an
+  expression that binds nothing (except `neutral`) counts as unresolved.
+  Tests: empty presets on an MMD model (sad plays 困る), only empty presets
+  (`face_expressions_none`, sad and `Fcl_EYE_Sorrow` reported); the controller
+  test mock now returns bound expressions.
+- F3 accepted: `setIrisHidden(true)` hiding nothing records
+  `iris_hide_unavailable` (5 locales). Test: a controller without iris parts.
+- F4 accepted: both passages and the bake script updated; the bake rule is now
+  per mood (a mood whose shapes all resolve is composed by the app).
+- Optional, accepted: the live-check and owner items added to the owner gate;
+  `coversArkitTable` and its test removed; `registerMmdFace` returns nothing
+  and binds through `morphTargetExpression` (`morphTargetExpressions.ts`);
+  the iris expression counts as Animama's. Not taken: delight's double smile
+  (the ARKit mixes do the same; the R4 render shows it).
+- Rechecks on the repaired tree: `npx vitest run src/lib/avatar src/ui
+  tests/avatar` 332 files, 3,321 passed, 2 skipped, with the two controller
+  failures above fixed and their suite rerun (`tests/avatar` and the
+  controller tests, 331 passed); script tests 10 passed; both tsc
+  configurations, `web:lint` and `i18n:check` pass; `expr-happy`, `joy-3` and
+  `shy-finger-poke-loop` (enhanced) rerendered at 0 differing pixels against
+  `06d381c9`. Targeted recheck: Code Review #2.
+
+#### Code Review #2 Findings
+
+Targeted recheck of working tree `e8f2eb97`: P4-R1-F1 to F4 and the accepted
+optional items resolved, no blocking regressions. The reviewer reran the full
+avatar and UI vitest set (331 files, 3,323 passed, 2 skipped), the script
+tests, both tsc configurations, eslint on the changed files and
+`i18n:check`, and repeated the calibration and empty-preset probes. Optional:
+a composite of MMD and ARKit regions is measured as a composite even when its
+eye region is an ARKit `eyeBlink` mix (on the converted test Avatar, blinks
+during `sad` then stop slightly short of fully closed);
+`ARKIT_COMPOSITION_SHAPES` and `measureEyelidClosure` are now test-only; an
+empty authored preset is still listed as present (pre-existing).
+
+#### Code Review #2 Revisions
+
+- The composite's measurement is kept: it errs toward lids that never pass
+  shut, and the owner's mood renders and live check cover the look. The other
+  optional notes are left as they are.
+- Review passed. Phase 4 is agent-ready; the owner gate is pending.
 
 ### Phase 5: Hands
 
@@ -1254,15 +1548,97 @@ Completion: R6 acceptance; owner gate passed.
 
 Recovery: load-time correction only.
 
-Check record: (to fill) · Commits: (to fill)
+Check record (2026-10-27, macOS arm64, worktree on
+`feat/arbitrary-vrm-support-pr-b` from `dc5dc5f2`):
+
+- New `poses/anatomy/handRest.test.ts` on a synthetic VRM 1.0 humanoid whose
+  hand rests bent 30° and rolled 20°: VRoid-like hands and both Included
+  Avatars are left alone (no normalization, three-vrm's own `update`); the
+  turned hand rests as VRoid's; a curl and a thumb raise bend as on VRoid
+  while the authored rotations stay as written; thumbs-up, fist and point
+  hand shapes (`handShapeRotations`, thumb fits included) match VRoid's; the
+  contact solver's forward kinematics put the fingertip on the drawn one
+  (within 0.1 mm), and
+  a pose reset keeps the normalized hand's shape; `prepareLoadedVrm` installs
+  it and `animation:render`'s `render.ts` loads through `prepareLoadedVrm`.
+- `npx vitest run src/lib/avatar src/ui tests/avatar` (`src/frontend/web`):
+  332 files, 3,331 passed, 2 skipped; tsc (`tsconfig.app.json`), eslint and
+  Prettier on the changed files: pass.
+- `animation:render` of Double Thumbs Up, Count on Fingers, Cheeky Finger
+  Guns and Double Peace Pop, body and right-hand views, `dc5dc5f2` against the
+  phase end: 8 sheets at 0 differing pixels.
+- Load-time corrections (median of 5): Andrew 58.9 ms (Phase 4 end 56.5),
+  Annie 47.3 ms (46.2), measured at load average 7 from other sessions; the
+  added measurement is 32 frame comparisons.
+- Private: the converted test Avatar is normalized (beyond the tolerance, 32
+  bones);
+  its Double Thumbs Up, Count on Fingers, Cheeky Finger Guns and Double Peace
+  Pop hand renders are in the private renders folder (`p5-hands`): thumbs up,
+  fists and pointing read correctly, for the owner gate.
+
+Commits: `feat(avatars)[p5]: normalize hands that rest unlike VRoid's`
 
 #### Code Review #1 Findings
 
-Not run.
+Independent reviewer, standard tier, initial review of working tree `cec89ecb`
+against `dc5dc5f2`. It confirmed the design argument by probe (random raw rest
+rotations, extra non-humanoid nodes, VRM 1 and VRM 0, both hands, random poses:
+normalized and drawn joints within 1.1e-15 m) and the Included margins (Annie
+0.04°, Andrew 0.16°, the VRM 0 fixture 0.19°).
+
+- P5-R1-F1 (blocking): the chain assumed every finger bone exists. A digit
+  with an unmapped intermediate bone, or a thumb without a metacarpal (three-vrm
+  produces that for some VRM 0 files), was left uncorrected under a corrected
+  hand, with its offsets turned by an absent parent: joints up to 50 mm from
+  the drawn ones and curls 10–16° off.
+- P5-R1-F2 (blocking): the Checks ask for a catalog pose and talking hands;
+  neither had a case, and the fingertip case compares forward kinematics with
+  the drawn tip rather than solving a contact.
+- Optional: no VRM 0 or right-hand case; the guide listed the motion checks
+  (which load without `prepareLoadedVrm`) among readers; `handRestNormalizationOf`
+  only served the test; no load log line; `frameRotation` degenerates when a
+  segment runs along the palm normal; the `render.ts` check is a source match.
 
 #### Code Review #1 Revisions
 
-Not run.
+- F1 accepted: each digit's present bones are measured from the nearest
+  present one before it, as three-vrm parents them; a bone with nothing to
+  measure follows its parent rigidly; offsets and the wrapper use those
+  parents (`bones` map with `parent`). Tests: without an intermediate bone and
+  without a metacarpal, normalized and drawn joints agree (under 1 µm) and the
+  index and thumb bend as on VRoid (both fail on the reviewed tree, per the
+  reviewer's probe).
+- F2 accepted: a `relaxedRest` case through `applyCanonicalPose` (the motion
+  checks' and playback's path) matches VRoid's bends; talking hands write the
+  same normalized rotations and pass through the same wrapper, which the
+  rig-level tests cover, so they get no case of their own. The record now
+  calls the fingertip case a forward-kinematics check: the contact solver uses
+  that FK.
+- Optional, accepted: the VRM 0 fixture joins the left-alone case (both hands
+  are measured on every model); guide wording; `handRestNormalizationOf`
+  removed; `Avatar.load` logs a normalization; `frameRotation` returns
+  identity without a frame. Not taken: a turned VRM 0 rig (the reviewer's
+  probe found it within 1.42°) and a runtime check of `render.ts` (a browser
+  script; the source check stays).
+- Rechecks: `npx vitest run src/lib/avatar/poses src/lib/avatar/prepareLoadedVrm.test.ts
+  src/lib/avatar/avatarLoadTiming.test.ts src/lib/avatar/includedAvatarBaselines.test.ts
+  tests/avatar` 38 files, 788 passed; tsc and eslint on the changed files pass
+  (working tree `e49ec26d`). Targeted recheck: Code Review #2.
+
+#### Code Review #2 Findings
+
+Targeted recheck of working tree `e49ec26d`: P5-R1-F1 and F2 resolved, no
+regressions. The reviewer's probe covered seven combinations of unmapped
+bones on both hands, VRM 1 and VRM 0 (normalized and drawn joints within
+7.3e-16 m; bends within 1.2° of a VRoid-like rig missing the same bones), the
+unchanged full chains and the degenerate-frame fallback. Optional: the module
+comment still listed the motion checks; the check record named no trees.
+
+#### Code Review #2 Revisions
+
+- The module comment now names Pose creator markers instead (wording,
+  verified by reading); the review rechecks name their tree. Review passed.
+  Phase 5 is agent-ready; the owner gate is pending.
 
 ### Phase 6: Texture layouts
 
@@ -1294,15 +1670,92 @@ Completion: R2 acceptance.
 
 Recovery: placement only; no data change.
 
-Check record: (to fill) · Commits: (to fill)
+Delivered: `full` art on a `face_skin` binding is clipped (a cached `Path2D`
+per binding and slot in `drawCompositedLayerCanvas`) to the face skin's own
+triangles on that image: the face's UV island (`selectFaceIsland`, shared with
+the anchors) plus islands outside its front-view outline (VRoid's ears), less
+the part map's eye-line and lash `regions` and, in a face primitive under 90%
+head-weighted, triangles not weighted to the head; the clip is made only when
+the image is shared with another primitive or those rules drop triangles, so
+VRoid faces on their own texture (the Included Avatars) draw as before. An
+opaque clipped replacement hides the original only inside its clip.
+`textureUvMapping.ts` maps UVs to image positions through `Texture.matrix`
+(three-vrm fills it from `KHR_texture_transform` and VRM 0 `_MainTex_ST`) and
+the wrap modes, for face anchors, `meshUvLocator.ts`, the clip and iris
+rectangles; the creator's surface hits map through the transform. Mirrored
+iris UVs are detected per eye and flipped per cell in `resolveIrisEyeLayout`
+(compositor, guides and drag handles). Docs: `avatar-vfx.md`.
+
+Check record (2026-10-27, macOS arm64, worktree `feat/arbitrary-vrm-support-p6`
+from `1ae2f37e`, final tree `dc7a0c22`): `npx vitest run src/lib/avatar src/ui
+tests/avatar` (`src/frontend/web`) 334 files passed, 1 skipped, 3,367 tests
+passed; `npx tsc -p tsconfig.app.json --noEmit` and `pnpm -s web:lint` exit 0;
+Prettier on the changed TS clean; Included renders of 12 painted and iris
+effects (face_red, texture_black_1, petrified_cracks, pale_blue_shade,
+texture_sick_1, blush, blush_band, mouth_w, single_tear, star3, heart_eyes,
+eye_confused_swirl) in both looks, `1ae2f37e` against `dc7a0c22`: 24 sheets at
+0 differing pixels. Merged into PR B (`90087fc7`): `tsc` and the same vitest
+set (337 files, 3,391 passed). Private renders on a converted model: not made
+(optional for this phase).
+
+Commits: `feat(avatars)[p6]: keep painted face art on the face's own texture region`,
+`fix(avatars)[p6]: clip whole-face art to the face island inside shared primitives`
 
 #### Code Review #1 Findings
 
-Not run.
+Independent reviewer, standard tier, on `76774ad9`. Verified correct: the UV
+mapping against three's shader (matrix, then wrap, mirrored repeat and
+negative tiles), `flipY`, the VRM 0 tiling port, the atlas test on shared
+image sources, winding, iris mirroring, cache invalidation, the
+`readPrimitiveVertexOrder` refactor and the licence boundary.
+
+- P6-R1-F1 (blocking): the clip kept every head-weighted triangle of a face
+  primitive, so an inner mouth, teeth, eyes or lash regions inside it still
+  took whole-face art; a head-skinned face primitive with an inner mouth on its
+  own texture got no clip; lash regions hidden by an eye effect made the cached
+  clip depend on order.
+- Optional: F2 the clip was retraced on every 30 Hz redraw; F3 a clipped
+  static replacement in a later segment let the original show through its
+  transparent pixels; F4/F5 docs precision (growth, mip seams, the VRoid
+  claim); F6 records and departures; F7 an unused helper.
 
 #### Code Review #1 Revisions
 
-Not run.
+- F1 accepted, with one departure: the clip keeps the face's island plus
+  islands outside its front-view outline, not the face island alone, because
+  VRoid's ears are separate islands (the face island is 3,288 of 4,232
+  triangles on the Included faces) and a face-island-only rule would clip the
+  Included Avatars. Eye-line and lash regions are removed by triangle number
+  before the island search, so hidden regions cannot change the clip. Tests:
+  an inner-mouth island and lash strands inside Annie's face primitive, a
+  hidden-lash equivalence, a region unit test and the VRoid face kept whole.
+- F2, F3, F4, F5 and F7 accepted (a cached `Path2D`; segment 0 clears the
+  original inside each opaque clipped replacement; docs; helper removed).
+- F6 departures recorded here: `readPrimitiveVertexOrder` and an exported
+  `selectFaceIsland` instead of exporting `selectFaceIslandTriangles` as is;
+  iris rectangles map through the iris texture's own transform; the creator's
+  surface hits map through the transform.
+
+#### Code Review #2 Findings
+
+Targeted recheck of `9dbf00c2`: every round-1 finding resolved; the outer-island
+rule accepted as a sound reading of R2 ("its UV island or islands"; VRoid's
+ears are face skin), orientation-safe on VRM 0. Mutation runs confirmed the
+tests discriminate (face island only fails 7; no region removal, no island
+selection, no head filter, `complete` forced and no base clear each fail at
+least one), except that nothing tests the `baseClips` rebuild trigger.
+Optional: that test; two doc precision notes (the main-files row; the head
+filter applies under 90% head-weighted); an image whose UVs or positions are
+interleaved stays unclipped; the island analysis runs per slot and could be
+cached per binding.
+
+#### Code Review #2 Revisions
+
+- Both doc notes taken (verified by reading). Not taken, recorded as
+  follow-ups: a `baseClips` trigger test (its path is exercised only when a
+  clipped replacement's opacity crosses 1) and caching the selection per
+  binding (a one-time cost per face slot). Interleaved attributes already keep
+  the face pipeline off, as before.
 
 ### Phase 7: Rest pose, proportions and enhanced rendering
 
@@ -1346,21 +1799,156 @@ renders in both looks at 0 differing pixels; the load-timing measurement; vitest
 and check.
 
 Owner gate: the scaling band proposal and, if normalization lands, Gesture
-renders on the converted test Avatar.
+renders on the converted test Avatar. Added at Phase 7 (review P7-R1-F3): the
+R10 departure (non-VRoid MToon models keep authored materials under the
+enhanced lights, instead of step 3's role-based retune; see the Decision Log).
 
 Completion: R9 and R10 acceptance; owner gate passed.
 
 Recovery: load-time only.
 
-Check record: (to fill) · Commits: (to fill)
+Delivered (see the Decision Log for the choices): arm rest normalization in
+`poses/anatomy/restNormalization.ts` (renamed from `handRest.ts`), with the
+measurement on `Avatar.restPose` and in Avatar Diagnostics (Motion, "Rest
+pose"); body effects scaled by `avatarScale` outside the proposed 0.91–1.2
+band (`AvatarAttachmentEffects.ts`); contacts unchanged; enhanced MToon retune
+limited to VRoid exports (`mtoonPatch.ts`), every other model consistently
+authored; docs in `avatar-animation.md`, `avatar-vfx.md` and
+`anima-management.md`.
+
+Check record (2026-10-27, macOS arm64, worktree on
+`feat/arbitrary-vrm-support-pr-b` from `1ae2f37e`):
+
+- Unit tests: a 40° A-pose synthetic model is normalized and plays a Gesture
+  as the T-pose one does (`restNormalization.test.ts`); body effects keep
+  factor 1 at the Included sizes and band edges and scale offset and size
+  together on a 1.6× synthetic model (`AvatarAttachmentEffects.test.ts`); a
+  1.5× copy of Annie's skeleton solves the same arm turn for a chin contact
+  (`arms.test.ts`, "contact scale"); a non-VRoid MToon material set with
+  VRoid-like suffixes keeps every material authored (`mtoonPatch.test.ts`).
+- Mixed-look check on real data, standing in for the planned render check
+  (it compares every built material's parameters, which a render cannot):
+  the app's patched loader on copies of Annie and Andrew with VRoid's face
+  marker renamed retunes 0 materials (the previous patch would have retuned
+  14 and 18 beside authored ones); the originals still retune 18 and 20, as
+  before.
+- `npx vitest run src/lib/avatar src/ui/animas src/ui/avatar-effect-creator`
+  (`src/frontend/web`): 118 files, 1,526 passed, 2 skipped; `tsc -p
+  tsconfig.app.json`, eslint on the changed files and `pnpm i18n:check`
+  (`src/frontend`): pass.
+- Included renders, `1ae2f37e` against the phase end (source tree
+  `b4026e1e`): six moods and four Reaction/Gesture clips in both looks,
+  four body-plane effects (`rawr_lettering_chest`, `heart_pop`, `glowstick`,
+  `cupid_arrow_stuck`) and four hand Gestures (body and right-hand views):
+  32 sheets at 0 differing pixels. One (Shy Finger Poke, classic) first
+  differed by 4 pixels; two reruns of the same source gave 4 and 0, so it is
+  render timing.
+- Load-time corrections (median of 5): Andrew 55.4 ms, Annie 46.1 ms (Phase 5
+  end 58.9 and 47.3), at load average 5.
+- Private: the converted test Avatar's T-pose export rests within the arm
+  tolerance of a T-pose (arms not normalized; hands normalized against the
+  forearm, 32 bones) and its size is inside the band. An A-pose export of the
+  same Avatar (`-animamaKeepPose`, private) is far beyond the arm tolerance
+  (arms normalized; hands normalized against the forearm, 36 bones). Double Thumbs Up, Count on Fingers,
+  Cheeky Finger Guns and Double Peace Pop on both exports, body and
+  right-hand views, are in the private renders folder (`p7-arms`) for the
+  owner gate: thumbs up, pointing and palms read the same on both; the
+  sheets differ by 1.3–1.6% (body) and 21–24% (hand close-ups, framing and
+  sleeve shifts), from the exports' different skin bindings.
+- After Code Review #1 (tree `75abdbb5`): `restNormalization.test.ts`
+  15 passed; the same vitest set 118 files, 1,529 passed, 2 skipped; tsc,
+  eslint and Prettier on the changed files pass; the eight Included Gesture
+  sheets again at 0 differing pixels against `1ae2f37e`.
+
+Commits: `feat(avatars)[p7]: normalize A-posed arms and size body effects by the Avatar`
 
 #### Code Review #1 Findings
 
-Not run.
+Independent reviewer, standard tier, initial review of working tree `5063845c`
+against `1ae2f37e`. Body-effect scaling was verified correct (VRM 0 yaw,
+`facing: "bone"` and camera billboards, the creator's offset frame, drags,
+resizes and live transform updates); the licence boundary holds.
+
+- P7-R1-F1 (blocking): with the arms normalized, a hand that cannot be
+  measured (no little finger, or no finger bones) stayed out of the
+  correction under a corrected forearm: its normalized joints sat 0.137 m
+  from the drawn ones on a 40° A-pose probe and wrist poses bent 11.9° off.
+- P7-R1-F2 (blocking): `vrchat-avatar-conversion.md` still said an A-pose
+  export plays Gestures with the arms too low, and that the Gesture renders
+  show the rest pose.
+- P7-R1-F3 (record): the R10 departure was not in the owner gate.
+- P7-R1-F4 (owner gate): normalization landed, but no Gesture renders on a
+  real A-pose export; the only evidence was a synthetic rig.
+- Optional: F5 hands were measured absolutely, so an arm 5–10° off (within
+  its tolerance) counted against the hand (an 8° wrist kink on a probe) and
+  Diagnostics' hand figure included the arm angle; F6 the A-pose test's
+  0.02 rad tolerance and missing hand rotation; F7 no Diagnostics or report
+  test of the rest-pose text; F8 a non-positive head height would scale
+  body effects to zero, and the scale guard repeats `prepareV2`'s; F9 the
+  render check is a loader count (say so); the creator's "centimetres" hint
+  is reference centimetres outside the band; locale key order.
 
 #### Code Review #1 Revisions
 
-Not run.
+- F1 accepted: hands are collected per side first; under a corrected forearm
+  the hand and its present fingers take the forearm's correction (rigidly
+  when the palm cannot be measured), parented as three-vrm parents them.
+  Tests: A-posed rigs without a little finger and without finger bones keep
+  normalized and drawn joints within 1 µm and bend the wrist as the T-pose
+  rig does (within 1e-5 rad); both fail on the reviewed tree.
+- F5 accepted with F1: each hand is measured against VRoid's carried by its
+  own forearm's rest direction, and a corrected forearm adds the hand's own
+  correction only when the hands exceed their tolerance (otherwise an A-posed
+  VRoid-like hand would be straightened by its sub-tolerance residual).
+  `handsNormalized` now means the hands themselves were corrected. Test: arms
+  8° down with the hand along the forearm report the same hand angle as the
+  level rig and install nothing. The converted test Avatar's hand correction
+  is now measured against its forearm, which rests slightly raised (within
+  the arm tolerance), so it differs by that tilt from the absolute one and its
+  private hand renders are redone for the gate.
+- F6 accepted: the A-pose test now uses unit quaternions, a wrist rotation,
+  the hand-to-finger direction and a 1e-5 rad tolerance.
+- F2 accepted: the guide describes load-time normalization and points to
+  Diagnostics' "Rest pose"; the Gesture renders no longer serve as the check.
+  The rewritten sentence also drops the model's name.
+- F3 accepted: the owner gate lists the R10 departure and its "authored
+  materials under the enhanced lights" reading.
+- F4 accepted: see the check record's private renders.
+- F7 accepted: the dialog test shows an A-pose rest pose; the report test
+  checks Andrew's measured T-pose and the normalized wording.
+- F8 accepted in part: a non-finite or non-positive size keeps factor 1.
+  Not taken: sharing the guard with `prepareV2`, which builds its own
+  skeleton for the solvers anyway.
+- F9 accepted: the check record calls the mixed-look check a loader count
+  standing in for a render (stronger: it compares every material's
+  parameters).
+- Not taken: the creator hint (reference centimetres is what the creator
+  edits on every model) and locale key order (style only).
+- Licence: the Decision Log's figures for the converted test Avatar are now
+  qualitative.
+
+#### Code Review #2 Findings
+
+Targeted recheck of tree `75abdbb5`: every round-1 finding resolved, no
+blocking findings. A probe of 300 combinations (both sides, VRM 0 and 1, five
+arm rests, three hand rests, five bone sets, a pose touching every chain) kept
+normalized and drawn joints within 7.4e-16 m and posed directions with the
+reference rig; the new tests fail on the round-1 code. Against `1ae2f37e`'s
+hand normalization, a level forearm gives identical bones, parents and
+rotations; a tilted one differs by exactly its tilt, as F5 intends. Optional:
+N1 the `handDegrees`/`handsNormalized` doc comments; N2 an antecedent in the
+guide; N3 the dialog's null rest-pose branch lost its assertion; N4 an
+unmeasurable hand reports 0°; N5 the check record's angles for the converted
+test Avatar (Phase 5's record set the precedent; the owner's call); N6 name
+the check tree.
+
+#### Code Review #2 Revisions
+
+- N1, N2 and N6 taken (comments, wording and tree only; verified by the
+  rest-normalization tests and `tsc`). N4 is now stated in the doc comment
+  rather than changed. N3 taken in the report test (a rest pose not checked);
+  the dialog's matching branch is one ternary over the same value. N5 left
+  for the owner gate.
 
 ### Phase 8: Package sharing
 
@@ -1396,15 +1984,125 @@ Completion: R13 acceptance.
 Recovery: the allowlist change is additive; reverting it makes packages with
 these Avatars fail to import again.
 
-Check record: (to fill) · Commits: (to fill)
+Delivered: package validation (`_GLTF_EXTENSIONS`) accepts the four
+extensions and `VRMC_springBone_extended_collider` (which `vrm:optimize`
+keeps); one shared `configureAvatarGltfLoader` gives every Avatar loader (app,
+headless, `animation:render`, the `vrm:optimize` compare page) the meshopt
+decoder, imported only for a file that uses or requires meshopt, and fails a
+file whose required extensions the runtime cannot load, naming them; one web
+list (`avatarGltfExtensions.ts`) drives that and Diagnostics' pre-load finding
+`avatar_extension_unsupported`; the import review marks such an Avatar with
+the notice `avatar_extension_unsupported` (a new `ImportItemNotice` value) before the user
+confirms; a shared fixture pins the backend list to the web loaders' list plus
+the undecoded one (Draco, accepted and reported per D4). Docs: backend
+`custom-animas-and-content.md` and `http-api.md`, `vrchat-avatar-conversion.md`,
+`vrm-optimization.md`.
+
+Contract: the new notice value changes the local HTTP schema and the
+generated client, so PR B needs local-http 18.0.0 and runtime-contracts 0.18.0
+relative to `main` after PR A (checked with `package_set.py compare` at PR
+time).
+
+Cloud repin note: hosted content-only package import is live (Cloud runs the
+shared `ContentPackageService` with Anima import disabled), so on repin the
+allowlist and the import notice take effect there: a meshopt, Draco or
+converter Avatar in a content package is accepted, and a Draco one shows the
+notice. Until then Cloud's backend rejects such files with the generic
+`package_definition_invalid`. The hosted web bundle loads the meshopt decoder
+only for such a file, under a CSP that already allows `'wasm-unsafe-eval'`;
+the landing site never decodes one. The repin should check that a meshopt
+Avatar imports and loads under the hosted CSP and that a Draco Avatar shows
+the notice, admit local-http 18 / runtime-contracts 0.18, and revisit Cloud's
+tenant inventory, which still lists `content_package_import.py` as excluded.
+
+Check record (2026-10-27, macOS arm64, worktree `feat/arbitrary-vrm-support-p8`
+from `06d381c9`; integrated with the PR B branch at `00e070eb`, tree
+`dce9dc4f`, each through `scripts/heavy-slot.py`): `make check-test`,
+`pnpm verify`, `pnpm web:test:browser`, `pnpm prettier:check` and
+`pnpm desktop:test` all exit 0. Code Review #1's checks reviewer reran the
+affected checks on the same tree, all passing: backend pytest on the 64
+affected files (1,103 passed) and the two named files (94 passed), ruff and
+format on the changed Python, vitest on the changed tests (472 passed) and
+every related test (2,044 passed), `pnpm check`, eslint, the
+`animation:render` browser test (2/2), `vrm:inspect` tests (3/3) and smoke
+runs of `vrm:optimize compare` and `verify`. After the repair (tree
+`ceed698c`): backend pytest on the 65 affected files 1,127 passed; ruff and
+format; eslint and related vitest on the changed files; `pnpm prettier:check`;
+`pnpm check` (after regenerating the i18n types) all pass. The optional
+round-2 changes (commit `b192d6b2`): the loader and import-review tests,
+eslint, `tsc` and ruff format pass. Merged into PR B: `tsc`, `i18n:check` and
+vitest on `src/lib/avatar src/ui/library src/ui/animas src/lib/content`
+(168 files, 1,887 passed). The full `pnpm e2e:test` runs on the final
+candidate.
+
+Commits: `feat(packages)[p8]: share Avatars that use converter, meshopt and Draco extensions`,
+`fix(packages)[p8]: name undecodable Avatars on import and load meshopt on demand`
 
 #### Code Review #1 Findings
 
-Not run.
+High-risk tier: an independent analysis reviewer and an independent checks
+reviewer (all checks passed; see the check record) on `00e070eb`. Every Avatar
+and VRMA loader goes through the shared configuration; a required unknown
+extension fails before any parse; the Included Avatars are unaffected; fixtures
+are synthetic.
+
+- P8-R1-F1 (blocking): R13 says an Avatar the runtime cannot load is reported
+  on import and in Diagnostics; only Diagnostics reported it.
+- P8-R1-F2 (blocking): the meshopt module compiles its WebAssembly when
+  evaluated, and its static import reached the landing site through `Avatar`,
+  whose CSP refuses WebAssembly: a console error on every page load.
+- P8-R1-F3 (record): the Cloud repin note was missing.
+- Optional: N1 `VRMC_springBone_extended_collider` loadable but refused by
+  packages, with no test pinning the two lists; N2 the Draco test passed
+  for an unrelated reason; N3 meshoptimizer's MIT notice in the runtime
+  notices; N4 name the extension in the backend's rejection; N5 meshopt in
+  the debug VRM editor.
 
 #### Code Review #1 Revisions
 
-Not run.
+- F1 accepted: the review's per-item `notices` gain
+  `avatar_extension_unsupported`, read from the Avatar model's glTF header
+  (`undecoded_gltf_extensions`, sharing the bounded reader with validation);
+  the import review lists such Avatars; SDK regenerated; locales in five
+  languages. Tests: the parametrized import test asserts the notice for Draco
+  only; a unit test of the reader; an import-review UI case.
+- F2 accepted: the decoder is imported in the loader plugin's `beforeRoot`
+  only for a meshopt file. A test counts zero module evaluations for a plain
+  file.
+- F3 accepted: the Cloud repin note above.
+- N1 accepted: the extension is accepted, and the shared fixture pins the
+  backend list to the web lists (tests on both sides). N2 accepted: the test
+  uses a VRM-shaped file and asserts three's own refusal, which comes before
+  any plugin. N3 deferred to the release licence review (runtime notices
+  need `license-sources.json` groups and per-path source-review records). N4
+  rejected: the archive inspector reports only the error code, so the
+  message never reaches the user. N5 deferred (debug only).
+
+#### Code Review #2 Findings
+
+Targeted recheck (high risk, with reruns: ruff, backend pytest 153, the SDK
+check, vitest 31 and related 2,001, eslint, `pnpm check`, `vrm:inspect`) of
+tree `ceed698c`: F1, F2, N1 and N2 resolved. A Node probe decoded required
+and used-only meshopt files; a Vite build put the decoder in its own chunk,
+reached only by dynamic import; hostile inputs to the header reader stayed
+bounded.
+
+- P8-R2-F1 (blocking, record): the drafted repin note said hosted beta had no
+  package import; Cloud runs content-only package import, so the change takes
+  effect there on repin.
+- Optional: F2 the notice read ran on the event loop; F3 a file listing
+  meshopt only as required got no decoder; the decoder's retry comment
+  overstated (a failed compile stayed cached).
+
+#### Code Review #2 Revisions
+
+- R2-F1 accepted: the repin note above says hosted import is live and what
+  the repin should check, and flags Cloud's stale inventory row.
+- Optional, all taken in `b192d6b2`: notices are computed with
+  `asyncio.to_thread`; the decoder loads when meshopt is used or required; a
+  failed import or compile is no longer cached. Verified by the loader and
+  import-review tests, eslint, `tsc` and ruff. The note's text is checked in
+  PR B's final integration review.
 
 ### Phase 9 (alongside): lilToon frame cost
 
@@ -1450,15 +2148,261 @@ Completion: R11 acceptance; owner gate passed.
 Recovery: rendering changes are runtime only; an app-wide preference, if added,
 is optional with a default.
 
-Check record: (to fill) · Commits: (to fill)
+Measurement (step 1). Method: `effects:bench` on an Apple M5, headless
+Chromium with ANGLE Metal, the chat canvas 800×600, enhanced rendering, the
+default looping Gesture, paced at 60 fps (`--fps 60`: unpaced runs reach about
+116 fps and a lilToon Avatar then saturates the GPU, so the timer counts queued
+work; the 2026-10-24 figures in R11 were most likely unpaced), 120 warm-up
+frames and 4 rounds of 80 measured frames per pass, scenarios alternating with
+the baseline within a run. Other sessions' jobs ran throughout: baselines moved
+between runs, so deltas are within one run. GPU ms per frame:
+
+| Avatar | DPR 1 | DPR 1.5 | DPR 2 | Draw calls / triangles |
+|---|---|---|---|---|
+| converted test Avatar, lilToon | 5.60 | 6.04 | 5.78 | 19 / 131,137 |
+| same Avatar, Simple | 0.97 | 1.16 | 1.61 | 11 / 67,698 |
+| Andrew | 1.97 | 2.35 | 2.30 | 27 / 82,040 |
+| Annie | 1.62 | 1.69 | 2.05 | 24 / 56,194 |
+
+Breakdown at DPR 2 (one run, baseline 7.55 ms): hiding the largest garment
+material −1.52 and the face skin −1.28; by layer, body and clothing −2.38, face
+−0.64, hair −0.62, eye stack −0.38 (no hot spot; no separate shadow mesh);
+features off: toon shadow −1.13, reflection −1.27, normal maps −0.57, rim
+−0.22, each changing at most 0.2% of pixels under the chat lights; turning the
+outline pass off costs +6.4 (it acts as a partial depth pre-pass); morph targets
+−0.2 to −0.6. lilToon on one material only: 3.6–6.3 ms for the large
+materials, 1.8–2.4 for the small ones; all fallback 1.74. A resolution-
+independent floor of about 4–5 ms is unexplained (a GPU capture is left for
+later).
+
+Levers (step 2): a lower pixel ratio gains little at 60 fps (DPR 1 still
+5.4–5.9 ms); an idle frame-rate cap halves GPU busy time but not per-frame
+cost (the app already idles at 30 fps); feature cuts total −1 to −3 ms and
+never reach the target; lilToon on chosen materials reaches about 2 ms only
+when the large materials fall back (effectively Simple); a depth pre-pass and
+blending off on opaque materials change no colour. The depth pre-pass
+(`liltoon/depthPrepass.ts`, outlines kept) saved 0.5–0.6 ms when it covered
+the nine opaque primitives (6.08 vs 6.60 at DPR 2, 6.52 vs 7.13 at DPR 1; up
+to 3.5 under heavier load), with 0 differing pixels in private renders
+(`effects:render --materials liltoon`, front, three-quarter and face views at
+0.5 and 1 s, SwiftShader, `--diff --threshold 0`, max channel delta 0; with a
+head sticker, an eye effect using face cleanup and eye-detail hiding, and a
+silhouette; a determinism run 0). Review then made it refuse any surface
+whose alpha blends (lilToon's opaque output alpha is texture alpha times
+`_Color.a`, so canvas alpha could depend on what is behind), alpha-to-coverage
+and any polygon offset. three-liltoon blends alpha One/One-minus-source on
+every material, so the shipped pre-pass covers 0 of the converted test
+Avatar's 11 primitives and saves nothing there. Not shipped: blending off.
+The lilToon Avatar therefore takes about 2–3 times an Included Avatar, and the
+target needs Automatic (step 3).
+
+Automatic (step 3): the main canvas (chat; not PiP or previews) times 60
+lilToon frames after 60 warm-up frames with `EXT_disjoint_timer_query_webgl2`
+(available in Chromium and the Electron browser pane on this machine) on a
+drawing buffer of at least 1 million pixels, and stores the median per GPU in
+per-viewer storage (`liltoon/lilToonGpuCheck.ts`); under Automatic,
+`Avatar.load` picks Simple when that median exceeds
+`LILTOON_AUTOMATIC_MAX_FRAME_MS` (proposed 8 ms, half a 60 fps frame; the M5
+measures about 5.5–7 ms without the pre-pass and keeps lilToon), and lilToon
+when unmeasured, unsupported or storage is blocked; it applies from the next
+load, and Diagnostics says what Automatic chose and why. No app-wide setting
+was added. The raw median is compared because lilToon's cost did not grow
+with pixels (GPU ms per frame, ascending / descending runs, pre-pass on as at
+`fbbca3f8`):
+
+| Drawing-buffer pixels | lilToon | Andrew |
+|---|---|---|
+| 1.00 million | 5.94 / 5.91 | 2.44 / 2.43 |
+| 1.92 million | 5.80 / 5.96 | 2.98 / 2.99 |
+| 3.71 million | 5.28 / 5.65 | 3.93 / 3.97 |
+| 5.88 million | 5.52 / 5.45 | 4.56 / 4.49 |
+| 7.68 million | 5.55 / 12.45 | 4.67 / 4.82 |
+
+The 12.45 ms reading was steady across its passes and opened the descending
+run: a heavier regime the M5 entered at times under other sessions' load. One
+such reading during the one-time measurement would keep the M5 on Simple
+under Automatic until the stored result is cleared (documented reset; the
+policy is the owner's). Superseded by the owner's frame-cap decision: see
+"Owner decision repair" below.
+
+Check record (2026-10-27, macOS arm64, worktree `feat/arbitrary-vrm-support-p9`
+from `1ae2f37e`, merged with `main` `fd4c86c5`; final tree at `fbbca3f8`,
+`src/frontend/web`): `npx tsc -p tsconfig.app.json --noEmit` and `-p
+tsconfig.scripts.json`; eslint and Prettier on the changed files; vitest on
+`src/lib/avatar src/ui/animas src/ui/main/canvas src/ui/library src/query/hooks
+src/ui/create-anima src/ui/content-preview src/ui/content-creator
+src/ui/pose-creator` 201 files passed, 1 skipped, 2,057 tests passed;
+`pnpm i18n:check`; `node --test` on the bench tests 6/6. Included Avatars' bench
+output and draw calls unchanged by the bench edit (27 and 24 draw calls).
+Merged into PR B with the repair: `pnpm i18n:check`, both `tsc` configs and
+`npx vitest run src/lib/avatar src/ui tests/avatar src/lib/content
+src/lib/content-preview src/query src/routes` (423 files, 3,938 passed). Not run here: `pnpm verify`,
+`web:test:browser` and e2e (the final candidate's full suite), and a live app
+check of the GPU check.
+
+Commits: `feat(avatars)[p9]: break down lilToon frame cost in effects:bench`,
+`feat(avatars)[p9]: draw opaque lilToon depth first`,
+`feat(avatars)[p9]: let Automatic choose Simple on slow GPUs`,
+`fix(avatars)[p9]: keep the pre-pass and GPU check within their evidence`,
+`docs(avatars)[p9]: record lilToon frame cost measurement, checks and reviews`
 
 #### Code Review #1 Findings
 
-Not run.
+Independent reviewer, standard tier, on `fbbca3f8` (no high-risk trigger: no
+preference, API or settings contract; the measurement cache is per device and
+the GPU name appears in no report or log). Confirmed: skinned and morphed
+pre-pass meshes share the skeleton and influences; layers, side, culling and
+render order copied; override and stencil checks; release order; Included
+Avatars never load the runtime and the default bench is unchanged.
+
+- P9-R1-F1 (blocking): the pre-pass ignored a material's own polygon offset,
+  so a surface with a positive offset would fail its depth test behind its
+  own pre-pass (holes); also alpha-to-coverage and non-replacing alpha blends.
+- P9-R1-F2 (blocking): the 8 ms threshold came from the bench at 1.92 million
+  pixels while the app measured any main canvas of at least 1 million pixels
+  (about 3.7 million in the default window) and ignored the stored count;
+  PiP also measured.
+- P9-R1-F3 (owner policy; minimum required): one measurement stays in force;
+  document the reset path.
+- P9-R1-F4 (evidence): the pixel claim needed its method and coverage of eye
+  hiding and silhouettes.
+- P9-R1-F5 (record): this section had no table, decisions or check record.
+- Optional: disjoint-event handling, release on a failed install, a second
+  install, measurement validation, tests that tell a median from a mean, one
+  shared lilToon-surface predicate, the Materials setting's description.
 
 #### Code Review #1 Revisions
 
-Not run.
+- F1 accepted: the pre-pass also refuses alpha-blending surfaces, alpha to
+  coverage and any polygon offset; unit tests for each. Consequence recorded
+  above: it covers no default lilToon material.
+- F2 accepted: the scaling bench above supports the raw comparison (stated
+  beside the constant and in the docs); only the main canvas measures
+  (`Scene` `measureLilToonGpu`, `AvatarSceneHost` passes it for `main`).
+- F3: the reset path is documented ("Measuring again" in
+  `avatar-animation.md`, linked from `anima-management.md`); the policy goes
+  to the owner gate.
+- F4 accepted: the method and the three effects are in the measurement above.
+- F5 accepted: this section and the Decision Log.
+- Optional, all taken (`474e54aa`): the disjoint flag is read after a result
+  is available and only while timing; a failed check install releases the
+  passes; a second install shares the first; stored measurements need the
+  pixel minimum; `liltoon/lilToonSurface.ts` is shared by the pre-pass, the
+  check and the bench; the Materials description mentions Automatic's GPU
+  check in five languages. Checks on `474e54aa` (`src/frontend/web`): both
+  `tsc` configs; eslint and Prettier on the changed files; vitest on
+  `src/lib/avatar src/ui/animas src/ui/main/canvas src/ui/library
+  src/query/hooks src/ui/create-anima src/ui/content-preview
+  src/ui/content-creator src/ui/pose-creator src/routes` 207 files passed,
+  2,112 tests passed; `pnpm i18n:check`; the bench tests 6/6.
+
+#### Code Review #2 Findings
+
+Targeted recheck of `474e54aa`: every code finding resolved with no
+regression (the blend rule matches three's state handling; only the main
+canvas measures, checked at every caller; the shared predicate behaves as
+before at all three sites). P9-R2-F1 (wording): the docs and the module
+comment said removing the key re-measures on the next lilToon frames, but the
+check reads storage when the main canvas mounts, so it takes a reload.
+Optional: keep lilToon's passes when only the optional GPU check fails to
+install. Owner decisions: ship an inert pre-pass; one-shot measurement near
+the threshold; evidence from one GPU only.
+
+#### Code Review #2 Revisions
+
+- R2-F1 accepted (trivial, verified by reading the code path): both now say
+  to reload. Not taken: keeping the passes on a failed check install (the
+  path is practically unreachable; failing whole is the simpler contract).
+
+#### Owner decision repair: Automatic frame cap
+
+The owner's decision of 2026-10-27 (Decision Log) replaces step 3's
+threshold, as a repair within this phase's review budget. The live check
+prompted it: the reference M5 stored 14.4 ms once under other sessions' load
+against 5.5–7 ms in the bench, which the threshold turned into Simple.
+
+- `liltoon/lilToonGpuCheck.ts`: `decideAutomaticMaterials` returns the frame
+  cap (`fpsCap`), the rate judged (`budgetFps`), the sample count and the
+  reasons `fast`, `capped`, `remeasuring`, `slow`, `not_measured` and
+  `unsupported`. Each GPU keeps its newest three measurements (`METHOD` 2,
+  so earlier single results are measured again). `lilToonGpuCheckDue` and an
+  hourly check while the main canvas stays mounted implement the
+  re-measurement; repeated disjoint timings wait for the next check.
+  `LILTOON_AUTOMATIC_MAX_FRAME_MS` is gone.
+- `canvasFrameCap.ts`: caps keyed by canvas element, the lowest winning.
+  `Avatar.load` sets its cap on the canvas it was constructed with when its
+  lilToon materials rendered under Automatic; `unload` clears it. Every paced
+  Avatar canvas constructs its Avatars with `gl.domElement` (chat and PiP
+  `AvatarCanvasActor`, the Anima page stage, the content preview dock, the
+  content and Pose creators, Create Anima's stage and preview); the
+  off-screen Diagnostics load has no canvas.
+- `SceneFramePacer` reads its canvas's cap each display frame;
+  `sceneTargetFps` takes the lower of the scene's rate and the cap.
+- Diagnostics names the rate ("Rendered with lilToon at 45 fps") and gives
+  the fastest measurement against that rate's budget, or "measuring again
+  before choosing Simple"; the report line likewise. The Materials
+  description says Automatic lowers the frame rate. Five languages.
+- From the live-check recheck (below): the probe's `powerPreference`
+  (R-F2), and "Next load" now compares only materials and cap, so finding
+  that a browser cannot time the GPU no longer shows as a change.
+- Tests: tier boundaries (12.8/12.9, 17.0/17.1, 25.6/25.7 and 32.0/32.1 ms);
+  Simple only after two recent too-slow measurements, and staleness; recovery
+  to a faster later measurement; measuring once per session until three,
+  then after a week while the canvas stays mounted; rolling storage and the
+  method change; a full `Avatar.load` capping its canvas (lilToon under
+  Automatic) and not (explicit lilToon; a file without lilToon); the pacer
+  rendering 30 of 120 display frames a second under a 30 cap and 60 once it
+  lifts; capped pacing at 45 and 24 fps on 60, 120 and 144 Hz; the lowest
+  cap of several; stored measurements kept in a session that cannot time the
+  GPU; dialog and report text. Mutations: without the Avatar's
+  cap or the pacer's read, the respective test fails.
+- Check record (2026-10-27, `src/frontend/web`, tree `11464869` before this
+  line): `npx tsc -p tsconfig.app.json --noEmit`; eslint and Prettier on the
+  changed TS/TSX files; `pnpm i18n:check`; `npx vitest run src/lib/avatar
+  src/ui tests/avatar src/lib/content src/lib/content-preview src/query
+  src/routes` 425 files passed, 1 skipped, 3,959 tests passed; the two
+  mutations above. Not run here: the final candidate's frontend suite and
+  e2e, and a live check on the converted test Avatar.
+
+#### Code Review #3 Findings
+
+Targeted recheck of the repair (tree `a39247c5`), standard tier, final round.
+No code defect. Required:
+
+- P9-R3-F1 (records): Phase 9's Progress entry still listed the 8 ms
+  threshold and re-measurement as owner gate items and omitted the speaking
+  question.
+
+Optional: a load overlapping another on one Avatar (the preview dock reuses
+its Avatar) could leave the earlier load's cap on a file without lilToon,
+because the cap was set only for rendered lilToon; a session without the
+timer extension overwrote stored measurements with "unsupported"; a disjoint
+give-up could retry at once after a long round; three comments still said
+"first lilToon frames"; no test of 24 fps at 120 Hz; "the fastest of 1
+measurements" in the report; the Japanese settings text listed the rates
+without "or"; the per-surface `gl.domElement` construction is shown by
+reading (all seven paced Avatar constructions; none missed), not a test.
+Owner gate: the spec snapshot and issue #691 still describe Automatic as
+"lilToon unless too slow, then Simple"; the live check of the cap; the 1.3×
+headroom rests on one GPU; measurements now often run on capped canvases.
+
+#### Code Review #3 Revisions
+
+- P9-R3-F1 accepted (trivial, verified by reading): Progress updated.
+- Optional taken: `Avatar.load` always sets its cap (null without rendered
+  lilToon); a session that cannot time the GPU marks only an unmeasured GPU
+  unsupported (test added); a give-up schedules the next check; the three
+  comments; a 24 fps at 120 Hz assertion; "the only lilToon frame
+  measurement" for one; 「45、30 または 24 fps」. Affected checks
+  (`src/frontend/web`): tsc, eslint, Prettier, `pnpm i18n:check`, and vitest
+  on `src/lib/avatar/liltoon src/lib/avatar/avatarMaterialMode.test.ts
+  src/lib/avatar/canvasFrameCap.test.ts src/lib/avatar/diagnostics
+  src/ui/animas/AvatarDiagnosticsDialog.test.tsx src/ui/main/canvas` 20 files,
+  133 tests passed. Not taken: a per-surface construction test (seven call
+  sites read; a source scan would be brittle).
+- Spec: R11's Automatic bullet and decision 7 in the tracked snapshot now
+  record the owner's frame cap; updating issue #691's text is the owner's
+  call.
 
 ### Phase 10: Diagnostics and Avatar settings in the Library and Create Anima
 
@@ -1546,15 +2490,227 @@ passed.
 Recovery: UI only, plus an additive read-only field if step 4 adds it; removing
 the entry points leaves the Anima settings as Phase 3 left them.
 
-Check record: (to fill) · Commits: (to fill)
+Check record (2026-10-27, macOS arm64, worktree on
+`feat/arbitrary-vrm-support-pr-b` from `cae68160`; working tree `f18131e3`):
+
+- New tests: `useAvatarDiagnostics.test.tsx` (an Avatar item off screen and
+  from the dock, an upload while the stage loads, with its Avatar and after a
+  failed load; upload reports hold no file name or item id; the Anima source
+  unchanged), `LibraryAvatarSettingsDialog.test.tsx` (real settings hooks over
+  a mocked SDK: both rows once the file is known to have lilToon materials,
+  no read for a known file, a wind change reaching the dock's load settings
+  without a material change, Diagnostics for the item, Diagnostics only in the
+  hosted runtime), `LibraryContentInventory.test.tsx` (the action on Included
+  and Local cards in both layouts, none without a catalog item),
+  `CreateAnimaUploadDiagnostics.test.tsx`, `CreateAnimaAvatarStep.test.tsx`,
+  `CreateAnimaStage.settings.test.tsx` (loading, ready and failed states) and
+  `ContentPreviewScene.test.tsx` (the dock publishes its Avatar only after a
+  finished load).
+- `npx vitest run src/lib/avatar src/ui src/stores src/lib/content
+  tests/avatar` (`src/frontend/web`): 381 files, 3,733 passed, 2 skipped.
+- `npx tsc -p tsconfig.app.json --noEmit` (`src/frontend/web`),
+  `pnpm -s i18n:check`, `pnpm -s web:lint` (`src/frontend`): pass; Prettier
+  on the changed files: pass.
+- Production-build stack `animama-arbvrmb` (http://animama-arbvrmb.localhost:9000,
+  built from this tree), 1440x900 and 900x800, light and dark: the action in
+  the grid and list layouts; Annie's dialog (no Materials row, no lilToon);
+  Diagnostics nested in it ("Included Avatar · loaded for this view", and
+  "in the preview" after Preview); Escape closes Diagnostics only; Springs off
+  saved in the dialog showed "Springs off · springs held at rest · Saved for
+  this Avatar" in Diagnostics reading the dock's Avatar, without a reload
+  (reset to Automatic afterwards); Create Anima with Included bytes as an
+  upload showed "No problems found." and "Unsaved upload · on the preview
+  stage"; a synthetic Draco-required VRM showed "Animama could not load this
+  Avatar." and "Unsaved upload · not loaded" with the load error.
+- Not run here: `pnpm verify` as one command (its parts above were run
+  separately; the Vite bundle was built by the stack) and
+  `pnpm e2e:test:fast`, deferred to PR B's final candidate with the other
+  phases' user-facing changes, so Completion stays open until it passes; the
+  converted test Avatar on the stack (the owner gate).
+
+Commits: `feat(avatars)[p10]: offer Avatar settings and Diagnostics in the
+Library and Create Anima`.
 
 #### Code Review #1 Findings
 
-Not run.
+Independent reviewer, standard tier, initial review of the working tree
+(`f18131e3`, then `b36cadb6` with only plan records changed) against
+`cae68160`; recorded checks reused.
+
+- P10-R1-F1 (blocking): Library Diagnostics (and the dock) loaded an Avatar
+  item without its saved face part correction: the preview entry carried no
+  `face_parts`, although the `:preview` route returns the effective one.
+- P10-R1-F2 (blocking): item and upload Diagnostics listed effect findings
+  that the dock's or creator stage's own previews left on their Avatar,
+  contrary to R7 ("effect warnings only from an Anima"); two new tests
+  asserted that behaviour.
+- Optional: P10-R1-F3, the dock store matched by item id only (an older
+  revision could be described); P10-R1-F4, the upload status line and its
+  dialog each read the file, plus two nits (`NO_UPLOAD`, the stage importing
+  its type from the diagnostics component); P10-R1-F5, two doc gaps; P10-R1-F6,
+  the step-4 entry should say it narrows Phase 3's rejection, and an
+  unreadable file was read again on each open; P10-R1-F7, the record should
+  mark `pnpm verify` and e2e as not run. Step 4's choice assessed as sound.
 
 #### Code Review #1 Revisions
 
-Not run.
+- F1 accepted: the Avatar typed metadata and `avatarPreviewEntry` carry the
+  item's `face_parts`, the same two changes PR A's `5470e01d` makes (so the
+  code merges cleanly); dock previews and Library Diagnostics then load and report
+  the saved correction. Test: an item whose correction is invalid reports
+  `face_parts_correction_invalid`; PR A's `avatarPreviewTarget.test.ts` covers
+  the entry once merged.
+- F2 accepted: for the item and upload sources the hook drops live findings
+  that name an effect (`params.effectId`) from the screen and the report. The
+  dock test now expects only the non-effect finding, and the upload status
+  counts 2 of 3 findings; both fail without the filter.
+- F3 accepted: the dock's Avatar is used only when its VRM sha256 matches the
+  item's; test: an older revision in the dock loads off screen.
+- F4 accepted: the dialog takes an optional `view`, so the upload status line
+  and its dialog share one read; `NO_UPLOAD` removed; `CreationStageAvatar`
+  lives in `CreateAnimaStage.tsx`.
+- F5 accepted: `anima-management.md` names the preview route and the effect
+  rule; `custom-anima-creation.md` points to the upload status.
+- F6 accepted: Decision Log entry extended; unreadable files are remembered.
+- F7 accepted: the check record says what was not run and why.
+- Rechecks: `npx vitest run src/ui/animas src/ui/create-anima src/ui/library
+  src/lib/content src/ui/content-preview` 100 files, 652 passed; tsc pass.
+  Targeted recheck: Code Review #2.
+
+#### Code Review #2 Findings
+
+Targeted recheck of working tree `dc282576` against `b36cadb6`: P10-R1-F1 to
+F7 resolved, no regressions. The reviewer reran the consumers of the changed
+preview entry (`src/ui/content-creator`, `src/ui/avatar-effect-creator`,
+`src/ui/pose-creator`, `src/lib/content-preview`: 66 files, 400 passed) and
+an in-memory `git merge-tree` with `feat/arbitrary-vrm-support` (code merges
+cleanly; this plan conflicts). Optional: P10-R2-F1, the F1 revision said the
+merge is clean although the plan conflicts; P10-R2-F2, the Commits line names
+a commit not yet made.
+
+#### Code Review #2 Revisions
+
+- P10-R2-F1 accepted: the revision now says the code merges cleanly.
+- P10-R2-F2: the Commits line keeps the subject, as the other phases do.
+- Review passed. Phase 10 is agent-ready except `pnpm e2e:test:fast`; the
+  owner's UI review is pending.
+
+#### Step 8: saved face-part corrections in previews
+
+Why PR A's fix broke the journeys, from a fresh built stack of PR B with the
+fix re-applied (the fast suite once, then the two journeys three times each)
+and PR A's own run evidence:
+
+- The imported-playback journey's `error` after Stop matches a preview-dock
+  race: Stop cleared effects and set the host to `ready` but did not end the
+  play still preparing, whose later failure then reported `error` over it.
+  What made Stop land during preparation in PR A's runs is unconfirmed: the
+  Library particle preview uses the preview Anima's runtime Avatar (not
+  `avatarPreviewTarget`), and no Avatar on a fresh e2e stack has a saved
+  correction, so the forward probably changed no loaded entry there. The race
+  is fixed either way: `ContentPreviewScene` gives each play a token that Stop
+  and deactivation retire, so a preparation still in flight neither starts
+  playback nor reports (idle animations included), and the host's Stop clears
+  the resource-loading overlay that preparation set. Scene tests stop a play
+  still preparing and then fail it or let it succeed; a host test stops during
+  dependency loading (each fails before the change).
+- The Gesture creator discard failure is an editor route that never renders
+  after Library Edit (URL changed or not, no name field within the timeout).
+  The same failure hits other editor journeys (Pose content sharing, Local
+  Gesture discard, Scene discard, Eye = guides) in different suite runs,
+  including PR A's run on `44c6b78e` before the correction existed, and every
+  one passes when rerun alone. It is a suite-load flake independent of the
+  correction, listed as a follow-up in PR B's report.
+- With the fix re-applied (`typedMetadata` keeps `face_parts`;
+  `avatarPreviewEntry` forwards `config.face_parts`, so Library previews,
+  creator picks and the Avatar-item Diagnostics source load with the saved
+  correction): the imported-playback and Gesture discard journeys passed 3 of
+  3 each after a full fast run on the same stack.
+- Found on the way, failing on `main` too: "vfx guides preserve authored JSON
+  with replacement artwork and animation" reported one Avatar VFX warning,
+  `Failed to load VFX asset "blob:…"`. The Avatar Effect creator revoked a
+  replaced image's object URL in the effect cleanup, while an apply of the
+  new document with the old URL (made in the render before the new file's
+  URL existed) was still loading it. `useAvatarEffectImageUrls` now revokes a
+  URL only once its replacement is in use (a hook test fails on the old
+  ordering); the journey then passed 3 of 3 on a rebuilt stack.
+
+Checks (2026-10-27, `src/frontend/web`, tree `27860bda`; repaired tree in Code
+Review #1 Revisions below): `npx vitest run src/ui/content-preview
+src/lib/content src/ui/avatar-effect-creator` 63 files, 398 passed; `tsc`,
+eslint and Prettier on the changed files pass.
+E2E on fresh built stacks of that working tree: the two journeys above 3 of 3
+each; the vfx guides journey 3 of 3 after the creator fix; the fast suite's
+remaining failures (two to four editor-route journeys per run) each passed
+when rerun alone.
+
+##### Step 8 Code Review #1 Findings
+
+Independent reviewer, standard tier, on tree `27860bda`. Sound: the Stop
+token's coverage of effect and motion playback, re-Play, deactivation and
+StrictMode; forwarding `face_parts` (both sides of the creator's comparison are
+zod-parsed, so no needless refresh); `useAvatarEffectImageUrls` (the
+consumer's `removeEffect` bumps the apply token before the hook revokes).
+Reran vitest over the changed modules' consumers (167 files, 1,091 passed).
+
+- P10S8-R1-F1 (blocking): Stop during a clip's dependency preparation left
+  the dock's resource-loading overlay up, because the retired play no longer
+  cleared it and the host's Stop did not.
+- P10S8-R1-F2 (blocking, record): the record claimed the correction made Stop
+  land during preparation, without evidence; the Library particle preview's
+  Avatar does not pass through the forward, and no fresh-stack Avatar has a
+  correction.
+- P10S8-R1-F3 (comment): the creator still said Included previews load
+  without the correction.
+- Optional: idle animations ignored the token; the hook's unmount test
+  asserted nothing; only the failure path of a stopped preparation was
+  tested; a correction saved for an Included Avatar does not change cached
+  preview keys within their grant window (not a regression); record hygiene
+  and two doc lines.
+
+##### Step 8 Code Review #1 Revisions
+
+- F1 accepted: the host's Stop clears `dependenciesLoading`, as Replay does;
+  a host test stops during dependency loading (fails without the change).
+- F2 accepted: the record now says the trigger in PR A's runs is unconfirmed
+  and why the forward probably changed nothing there; the race fix stands on
+  its own evidence.
+- F3 accepted: the comment names a correction saved after load or a cached
+  preview.
+- Optional taken: idle animations pass `isCurrent`; a scene test lets a
+  stopped preparation succeed and checks it does not play; the hook test
+  asserts the revokes on unmount; the record's tree, follow-up and Progress
+  line; `content-previews.md` and `avatar-vfx.md` say Avatar previews load
+  with the saved correction. Not taken: invalidating cached previews when a
+  correction is saved (the creator's own compare-and-apply covers its stage;
+  the dock reloads on the next grant).
+- Checks on the repaired tree `597e891c` (`src/frontend/web`): `tsc`; eslint
+  on the changed directories; `npx vitest run src/ui/content-preview
+  src/lib/content src/ui/avatar-effect-creator src/ui/library src/ui/animas
+  src/ui/content-creator src/ui/pose-creator` 133 files, 825 passed;
+  Prettier on the changed files. Targeted recheck: Step 8 Code Review #2.
+  E2E was not rerun on the repaired tree; the final candidate's runs cover it.
+
+##### Step 8 Code Review #2 Findings
+
+Targeted recheck of `597e891c`: F2, F3 and the optional items resolved; F1
+partly. P10S8-R2-F1 (required): a play retired while its Reaction or pose clip
+was still loading raised the resource-loading overlay after the host's Stop had
+cleared it, because the raise followed the clip load without checking the
+token (a scratch test showed the last value reported was `true`).
+P10S8-R2-F2 (required, record): the E2E sentence had moved under the repaired
+tree's checks, crediting runs to a tree they did not use.
+
+##### Step 8 Code Review #2 Revisions
+
+- R2-F1 accepted: `playContentPreviewMotion` returns right after a Reaction or
+  pose clip loads when the play is no longer current, before any dependency
+  preparation. A `playback.test.ts` case per clip kind fails before the change
+  (the overlay raised once) and passes after; `src/lib/content-preview` and
+  `src/ui/content-preview` vitest 19 files, 110 passed. A trivial repair,
+  verified by that test.
+- R2-F2 accepted: the E2E sentence is back with the `27860bda` checks, and
+  the repaired tree's line says E2E was not rerun.
 
 ## Final integration review
 
@@ -1662,6 +2818,208 @@ no conflicts and no contract or package change from `main`.
 - The package-set check, the Included render diffs and the load timing above
   still apply: the code differs from `f420eeb5`/`5470e01d` only by the backed-out
   preview change and `main`'s backend dependency update.
+
+### PR B Final Integration Review #1 Findings
+
+Independent reviewer on `0d9b117e` against `main` `fd4c86c5` (Phases 4–10,
+the step 8 work and the creator fix `8a045a0a`; 27 commits). No code defect
+across phases: one load step (`prepareLoadedVrm`) for MMD, ARKit, iris hide,
+eyelid correction and rest normalization on every load path; iris hiding
+through Phase 2's bindings and Phase 6's clip independent of hidden regions;
+every Avatar loader through `configureAvatarGltfLoader`; the web extension
+lists equal the backend's (fixture-pinned) and the import notice and
+Diagnostics share `avatar_extension_unsupported`; contract versions agree in
+`contracts/versions.json`, `hosted-web.md`, `http-api.md` and the packages;
+the Cloud repin note's facts hold against Cloud `main`; Automatic's GPU note
+precedes the chat Avatar's load; Diagnostics sources and step 8's correction
+agree; no Alembic, Cloud import, generated-file or debug leftovers; commit
+messages clean.
+
+- PRB-R1-F1 (required): `vrchat-avatar-conversion.md` still said whole-face
+  art tints the other parts of an atlas, contradicting Phase 6.
+- PRB-R1-F2 (required): the plan and a test comment recorded rig and morph
+  measurements of the converted test Avatar (angles, lid shares), which are
+  not counts, timings or pass/fail.
+- Optional: F3 the conversion guide's inspect check predates Phase 4's
+  per-region output; F4 the Diagnostics Warnings list omitted expression
+  findings; F5 item and upload Diagnostics keep content-triggered findings
+  without an effect id (iris hide, missing moods) from the dock or stage
+  Avatar; F6 the pre-pass and GPU check walk the scene per frame once a
+  lilToon Avatar loaded (input to the owner's pre-pass decision); F7 Progress
+  records; minor exports used only in their module.
+
+Acceptance (R1–R13): R2, R8 met; R4, R9, R12, R13 met by tests with owner
+gates or the full e2e pending; R5, R6, R7, R10, R11 owner-gated (R10 a
+recorded departure, R11 with the target not met and Automatic deciding); R1
+and R3 delivered by PR A, with step 8 adding the saved correction to Library
+previews, creator picks and item Diagnostics.
+
+### PR B Final Integration Review #1 Revisions
+
+- F1 accepted: the guide says whole-face art is clipped to the face skin's
+  triangles and leaves the atlas's other parts untouched (and no longer names
+  the model in that sentence).
+- F2 accepted: the figures are now tolerance-relative or qualitative (Phase 4
+  lid shares and sad blink, Phase 5 hand and bone notes, Phase 7 rest poses
+  and the forearm-relative note) and the test comment describes a generic
+  converted hand. Bone counts and timings stay.
+- F3, F4 accepted; F5 documented in `anima-management.md` (findings from
+  content played on the dock or stage Avatar show until it reloads); F7
+  accepted (this record and Progress). F6 goes to the owner's pre-pass
+  decision. Not taken: the module-only exports (used by tests or harmless).
+- Verified by reading (wording only). The full pre-push suite, including
+  `pnpm openapi-ts:check` and `pnpm web:build:hosted` as the reviewer asked,
+  runs once on the final candidate.
+
+### PR B final candidate
+
+`85b0ce88` (tree `1511b2d4`, clean), baseline `main` `fd4c86c5`; macOS arm64
+(Apple M5), OrbStack; each heavy job through `scripts/heavy-slot.py`:
+
+- `make check-test` (repository root): 4,906 passed, 29 skipped.
+- `pnpm verify` (`src/frontend`): vitest 624 files, 5,934 passed, 2 skipped;
+  build. `pnpm web:test:browser`: 131 of 131. `pnpm prettier:check`,
+  `pnpm desktop:test` (557 passed, 14 skipped), `pnpm -s openapi-ts:check`
+  and `pnpm -s web:build:hosted`: pass.
+- Package sets built from `fd4c86c5` and `85b0ce88`
+  (`scripts/package-sets/build.py build`); `compare`: "Compatibility policy
+  passed" (`local-http` 18.0.0, `runtime-contracts` 0.18.0, `product-ui`
+  0.18.0).
+- Included renders against `fd4c86c5`, both looks: 60 sheets (six moods, four
+  Reaction and Gesture clips, 12 painted and iris effects, four body-plane
+  effects, four hand Gestures with right-hand views) at 0 differing pixels;
+  one (Double Take, classic) first differed by 2 pixels and re-rendered twice
+  at 0 (render timing).
+- Load timing (median of 5): Andrew 55.9 ms, Annie 44.6 ms; `main` 56.1 and
+  45.0 ms.
+- `pnpm e2e:test` on a fresh built stack: 40 of 41 passed (47.5 min); the
+  failure, "accountless Local Gesture discard reopens saved content" (the
+  editor's name field never rendered after Library Edit), passed when rerun
+  alone: the suite-load flake also seen in PR A's runs. The
+  imported-playback journey then ran 10 times in a row: 9 passed; one timed
+  out loading `/library` (45 s) before its first preview, not #709's
+  particle-preview symptom.
+- Not run: hosted validation (disabled); live owner checks (owner gates).
+
+After the live check's repairs and the owner's frame-cap decision, the final
+candidate is `d5818800` (tree `3c8fe5ae`, clean). Backend, content, package,
+contract and script inputs are unchanged since `85b0ce88` (empty `git diff
+--stat` over `src/backend`, `contracts`, `src/frontend/packages`, `scripts`,
+`content`, `alembic`, `pyproject.toml`, `uv.lock`), so `make check-test`, the
+package-set compare, the Included renders and load timing above still apply;
+the renders after the wink repair are in "PR B live check #1 Revisions".
+Rerun on `d5818800`:
+
+- `pnpm verify`: vitest 626 files, 5,956 passed, 2 skipped; build.
+  `pnpm web:test:browser`: 131 of 131. `pnpm prettier:check`,
+  `pnpm desktop:test` (557 passed, 14 skipped), `pnpm -s openapi-ts:check`
+  and `pnpm -s web:build:hosted`: pass.
+- `pnpm e2e:test` on a fresh built stack: 36 of 41 passed (1.1 h, the
+  machine shared with other sessions' heavy jobs). All five failures stopped
+  on the Library after Edit or Copy with the editor's name field never
+  rendered (content sharing export/import, Local Gesture discard, Avatar FX
+  discard before Library Edit, and both Pose content journeys); rerun alone
+  on the same stack, all five passed. This is the suite-load flake above,
+  more often under load. Not rerun: the imported-playback series.
+
+### PR B live check #1 Findings
+
+The PR A session checked PR B's head `9a97029a` live on a production stack
+with the converted test Avatar (Create Anima upload, chat, Diagnostics, wind
+and Materials, a Reaction, a hand Gesture, an eye effect in the creator, the
+Library's Avatar settings); all worked except:
+
+- PRB-LC1-F1 (Phase 4, R4): winks dropped. After a chat turn, Diagnostics
+  listed `blinkLeft` as requested but not on this Avatar: the file has no
+  `blinkLeft`/`blinkRight` preset binds, though it has ARKit
+  `eyeBlinkLeft`/`eyeBlinkRight` and MMD wink morphs. The per-region fallback
+  covered moods and VRoid parts but never filled an empty blink preset.
+- PRB-LC1-F2 (Phase 9, R11): Automatic applied inconsistently. With a
+  measurement stored (over the threshold), the Library's off-screen
+  Diagnostics load still chose lilToon as "not measured", before and after a
+  reload, while the chat stage chose Simple after the reload; and right after
+  the measurement the chat stage's Diagnostics said only "not measured yet".
+  Automatic looked up the measurement for the GPU the latest Avatar canvas
+  noted, and a load before any canvas mounted (the Library, off-screen
+  Diagnostics) had none; Diagnostics showed only the decision made at load.
+
+### PR B live check #1 Revisions
+
+- F1: an empty `blink`, `blinkLeft` or `blinkRight` preset (three-vrm
+  registers every preset) now plays the standard MMD morph (まばたき, ウィンク,
+  ウィンク右; ウィンク closes the model's left eye as `blinkLeft` does), else
+  its ARKit eye closing (`eyeBlinkLeft`/`eyeBlinkRight`), before VRoid's
+  `Fcl_EYE_Close*` parts copy the presets; a preset that binds anything stays
+  the file's own. The eyelid closure correction skips the three blink presets,
+  which it exists to scale (a filled `blink` would otherwise override itself).
+  Tests: MMD-only and ARKit-only synthetic faces play each wink on the right
+  eye, keep an own `blink`, and an ARKit-filled `blink` closes fully (both
+  fail before the change; the latter also fails without the correction's
+  skip). On the converted test Avatar (private probe) `blinkLeft` and
+  `blinkRight` now play its MMD winks and its own `blink` is kept.
+- F2: when no Avatar canvas has noted its GPU yet, Automatic names it from a
+  short-lived WebGL context (once per session), so every load (chat, Anima
+  page, dock, creators, Create Anima, off-screen Diagnostics) reads the same
+  stored measurement in `Avatar.load`; each of those surfaces' settings tests
+  already shows it passes the setting through. A measurement completed during
+  a session applies from the next load (materials are built at load, as the
+  setting says); Diagnostics now also shows "Next load: …" when a
+  measurement stored since this load changes the choice (report line and
+  dialog, five languages). Tests: Automatic reads the measurement with no
+  canvas noted (fails without the probe), a measurement stored after a load
+  is reported and used by the next load, and the dialog and report text.
+- Checks (`src/frontend/web`, tree `f7f27dee` before these records): `pnpm
+  i18n:check`; `npx tsc -p tsconfig.app.json --noEmit`; eslint on the changed
+  files; `npx vitest run src/lib/avatar src/ui tests/avatar src/lib/content
+  src/lib/content-preview src/query src/routes` 423 files, 3,943 passed;
+  Included renders of the six moods and four clips in both looks against
+  `fd4c86c5`: 20 sheets at 0 differing pixels (Shy Finger Poke, enhanced,
+  first differed by 4 pixels and re-rendered twice at 0). The live recheck on
+  the converted test Avatar is the PR A session's, on the new head.
+
+### PR B live check #1 Recheck Findings
+
+Targeted recheck of `22cd2c31` (tree `6ad5bef5`; the check record's tree
+`f7f27dee` differs only in the ExecPlan), standard tier. F1 is resolved: the
+blink fill order is own preset with binds, then MMD, then ARKit; refilling is
+idempotent; the filled presets stay under three-vrm's name-based
+`overrideBlink`; the eyelid correction's skip covers both fills; both
+Included Avatars bind their own blink presets and have no MMD blink morphs,
+so neither fill applies to them. F2 is resolved where one GPU draws
+everything. Required:
+
+- PRB-LC1-R-F1 (docs): `avatar-emotion.md` still said only the mood table's
+  MMD names are used and did not describe the blink fill;
+  `avatar-animation.md` described the pre-fix lookup (latest canvas only),
+  and neither it nor `anima-management.md` mentioned "Next load".
+- PRB-LC1-R-F2: the probe's context asked for the default `powerPreference`
+  while R3F's canvases ask for `"high-performance"`, so on a two-GPU machine
+  honouring it (Intel MacBook Pros) the probe could name the integrated GPU
+  and Library loads would read no measurement (safe: lilToon). Apple Silicon
+  is unaffected.
+
+Optional: "not measured" to "unsupported" showed as a Next-load change; the
+Japanese Next-load string used 測定 beside 計測; the ARKit test's last
+assertion passes without the fill, and no test fills `blink` from まばたき;
+on faces with MMD and ARKit, `blinkLeft` plays ウィンク while
+`Fcl_EYE_Close_L` keeps ARKit's (the Phase 4 part order); `faceParts.ts` now
+sees a filled `blink` on files whose own is empty. Owner check: in the live
+recheck, `blinkLeft` closes the converted Avatar's own left eye.
+
+### PR B live check #1 Recheck Revisions
+
+- R-F1 accepted (trivial, docs; verified by reading against the code):
+  `avatar-emotion.md` names the blink morphs and gains a bullet on the fill
+  order, `overrideBlink` and the correction; `avatar-animation.md` and
+  `anima-management.md` describe the probe and "Next load", rewritten with
+  Phase 9's frame-cap repair.
+- R-F2 accepted (one line, in the frame-cap repair): the probe asks for
+  `powerPreference: "high-performance"` for both context types. Not unit
+  tested (the tests inject the probed GPU; happy-dom has no WebGL).
+- Optional taken: Next load compares materials and cap only (tested); 計測 in
+  the Japanese string. Not taken: the test and `faceParts.ts` notes (no
+  defect; the Included Avatars bind their own `blink`) and the mixed-face
+  wink order (Phase 4's documented order).
 
 ## Validation and acceptance
 

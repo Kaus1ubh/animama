@@ -307,6 +307,51 @@ Important behavior:
   diagnostics. Manual debug reaction playback is runtime-only:
   it does not enqueue planner events or mutate canonical emotion state.
 
+#### Rest normalization
+
+Catalog poses (including `relaxedRest`), Gestures, hand shapes, talking hands,
+VRMA playback and Pose creator authoring all write rotations for VRoid's rest:
+arms straight out to the sides (a T-pose), and hands with the fingers straight
+along the arm, palms down and the thumbs angled forward. A model that rests
+otherwise (an A-pose; fingers bent down, the hand rolled or thumbs further
+forward, as on many converted VRChat Avatars) would move its arms and fingers
+in the wrong planes.
+
+At load, `prepareLoadedVrm` calls `installRestNormalization`
+(`poses/anatomy/restNormalization.ts`). It measures each upper arm and forearm
+against horizontal, and each hand and finger bone's rest frame (bone direction
+and palm normal) against VRoid's, measured on Annie and carried by the hand's
+own forearm's rest direction, so an arm's tilt never counts against its hand.
+Arms 10° or more from a T-pose are normalized, and a corrected forearm carries
+its hand and fingers with it (rigidly when the hand cannot be measured, as on
+a hand without a little finger or finger bones). Hands are normalized when they
+differ by 5° or more:
+
+- The instance's `humanoid.update` transfers each corrected bone's rotation N
+  as `W_parent⁻¹ · N · W_bone`, where `W` turns the model's rest frame into
+  VRoid's, and restores the authored rotations afterwards. Every `vrm.update`
+  passes through it, so every writer above is covered, in the app,
+  `animation:render` and the tests alike.
+- The normalized rig's child offsets below each corrected bone (and three-vrm's
+  normalized rest pose) are turned by their parent's `W`, so the normalized arm
+  and hand have VRoid's shape with the model's lengths. Readers of normalized
+  geometry (the arm-contact solver, thumb and pinch fits, fingertip and palm
+  contacts, Pose creator markers) then see the arm as drawn.
+- Each bone is measured from its nearest present ancestor, as three-vrm
+  parents it; a bone with nothing to measure (no later bone in its digit)
+  follows its parent rigidly.
+
+`Avatar.restPose` keeps the measurement, and Avatar Diagnostics shows it under
+Motion ("Rest pose"). The Included Avatars and VRoid models are within both
+tolerances and take the same path as before. A normalized hand rests straight,
+palm down, like VRoid's; the idle pose bends it as on the Included Avatars.
+
+Contact offsets scale with `avatarScale` (rest head height above the feet over
+1.25 m), and the solver reaches with the model's own arm lengths, so a
+uniformly larger model solves the same arm turns. Head proportions are not
+measured separately, so a model whose head is unusually large or small for its
+height places face contacts proportionally to its height.
+
 ### Pose and clip JSON artifacts
 
 `AnimaPose` and `AnimaPoseClip` are separate JSON artifacts. `animaPoseClip/2.0`
@@ -887,9 +932,10 @@ Important behavior:
   (inspectors, `getValue`), and every path that updates the manager — chat,
   creator writes, previews and review renders — gets the same correction.
   The profile is chosen by the VRM's `vrmSha256`: verified for Annie (k 0.2164).
-  Other Avatars, including Andrew, get happy 1 / k 0.2 for
-  each of happy and relaxed whose morphs measurably move blink's vertices
-  closed, and nothing otherwise. VRoid's eye parts `Fcl_EYE_Joy` and
+  Other VRoid faces (with VRoid eye parts of their own), including Andrew, get
+  happy 1 / k 0.2 for each of happy and relaxed whose morphs measurably move
+  blink's vertices closed, and nothing otherwise. Other models are measured
+  instead ([Faces on non-VRoid Avatars](avatar-emotion.md#faces-on-non-vroid-avatars)). VRoid's eye parts `Fcl_EYE_Joy` and
   `Fcl_EYE_Fun` carry all of happy's and relaxed's eyelid motion, so they take
   the same factors; the correction registers them from the face's morph
   targets when a VRM 0 file has no expressions for them. An expression with a
@@ -931,9 +977,9 @@ unresolved on that mesh, and the controller logs them as ambiguous. A name the
 file already uses for an expression keeps that expression.
 `getArkitFaceCapability()` returns the resolved shapes, the missing ones and the
 ambiguous candidates. `getAvailableExpressions()` lists each resolved shape
-once, under its canonical name. When an Avatar has every shape the emotion table
-uses, its mood presets and VRoid parts also become ARKit mixes; see
-[ARKit Avatars](avatar-emotion.md#arkit-avatars).
+once, under its canonical name. Each mood region whose shapes the Avatar has
+also plays an ARKit mix, after the Avatar's own VRoid parts and standard MMD
+morphs; see [Faces on non-VRoid Avatars](avatar-emotion.md#faces-on-non-vroid-avatars).
 
 `pnpm -s vrm:inspect <file.vrm>` (from `src/frontend/web`) reports the same
 resolution for a file before import, including shapes found under another
@@ -1545,12 +1591,16 @@ canvas between enhanced and classic rendering. `SettingsProvider` mirrors the
 preference into `useEnhancedRenderingStore`
 (`src/lib/avatar/enhanced-rendering/`), which non-React code reads.
 
-- **Materials:** `withEnhancedMToonPatch` retunes VRoid MToon materials in the
-  glTF after three-vrm's VRM 0.x conversion and before any material is built:
-  coloured shadows, a crisper terminator, rim light and screen-space outlines.
-  Colours come from VRoid material-name suffixes (`_SKIN`, `_CLOTH`, `_HAIR`,
-  `vroidPalette.ts`) tuned on Annie, so other models can look off; eyes, brows
-  and mouth stay flat. A change reloads the chat Avatar
+- **Materials:** `withEnhancedMToonPatch` retunes a VRoid export's MToon
+  materials in the glTF after three-vrm's VRM 0.x conversion and before any
+  material is built: coloured shadows, a crisper terminator, rim light and
+  screen-space outlines. Colours come from VRoid material-name suffixes
+  (`_SKIN`, `_CLOTH`, `_HAIR`, `vroidPalette.ts`) tuned on Annie; eyes, brows
+  and mouth stay flat. A model is a VRoid export when an MToon material carries
+  VRoid's face skin name (`_Face_` with `_SKIN`). Every other model keeps all
+  its materials as authored, even ones with VRoid-like suffixes, so no Avatar
+  mixes retuned and authored materials; the lights and tone mapping below
+  apply to all models. A change reloads the chat Avatar
   (`AvatarCanvasActor`); other canvases pick it up on their next load.
 - **Lights and tone mapping:** `AvatarSceneLighting` gives the chat, preview
   and Create Anima canvases three-point lighting (`ENHANCED_SCENE_LIGHTS`) and
@@ -1588,6 +1638,23 @@ adapts colour and UV expression binds to those materials.
   (`installLilToonRenderingWhenLoaded`). The passes stay until the canvas
   unmounts, so after a lilToon Avatar each render of that canvas also walks
   the scene for lilToon materials; other materials draw as before.
+- **Depth pre-pass:** with those passes, `installLilToonDepthPrepass`
+  (`depthPrepass.ts`) draws each opaque lilToon primitive's depth first, with
+  colour writes off, so the depth test rejects hidden layers (the body under
+  clothing, hair behind the face) before the lilToon shader runs. Its meshes
+  exist only while the renderer draws, like lilToon's outlines. Its depth
+  sits eight units and one slope step behind the surface, the drift between
+  lilToon's skinning and three.js's, so a surface drawn at its own depth
+  still passes its own test. A primitive takes the pre-pass only when its
+  material replaces colour and alpha (blend factors One and Zero, or no
+  blending), has no alpha-to-coverage and no polygon offset of its own
+  (`depthPrepassBlocker`); otherwise a fragment it rejects could have shown in
+  the canvas's alpha or its offset surface could fail the test. three-liltoon
+  blends alpha with One and One-minus-source-alpha by default, so most
+  converted Avatars take no pre-pass (the converted test Avatar takes it on
+  none of its primitives). A frame draws without it when a visible material
+  tests depth other than less, less-or-equal or always, or writes stencil into
+  a target with a stencil buffer (Avatar canvases have none).
 - **Lighting:** lilToon reads only the first visible directional light plus the
   ambient and hemisphere lights, so the enhanced look's fill and rim lights do
   not reach it. Tone mapping applies to both looks; the MToon retune does not.
@@ -1595,9 +1662,59 @@ adapts colour and UV expression binds to those materials.
   ([Avatar settings](../features/anima-management.md#avatar-settings)) loads
   it through a loader without `withOnDemandLilToon` (`createAvatarGltfLoader`
   in `avatarGltfLoader.ts`), so the glTF fallback materials load and
-  three-liltoon is not imported. Automatic and lilToon load lilToon; an
-  Automatic GPU check is planned in #691 (R11). `Avatar.lilToonMaterials`
-  reports `rendered`, `fallback` or `none`.
+  three-liltoon is not imported. lilToon always loads lilToon at the full
+  frame rate; Automatic loads lilToon at the frame rate the GPU check below
+  allows, or Simple. `Avatar.lilToonMaterials` reports `rendered`, `fallback`
+  or `none`, and `Avatar.automaticMaterials` what Automatic chose (materials
+  and frame cap) and why.
+- **GPU check for Automatic** (`lilToonGpuCheck.ts`): the main Avatar canvas
+  (`AvatarSceneHost` in `main` mode, which passes `measureLilToonGpu` to
+  `Scene`: chat and any surface that reuses it) times lilToon frames on the
+  GPU with `EXT_disjoint_timer_query_webgl2`. A measurement skips 60 warm-up
+  frames, times the next 60 that draw a lilToon Avatar on a drawing buffer
+  of at least one million pixels, and adds their median to the GPU's
+  measurements in `localStorage`, per GPU (vendor and renderer strings) and
+  per viewer; the newest three are kept. Frames another timer query already
+  wraps, such as `effects:bench`'s, are skipped, and repeated disjoint
+  timings give up until the next hourly check. Picture in Picture and the
+  other Avatar canvases (previews, Create Anima, the review tools) never
+  measure, though their loads read the result.
+- **Automatic's choice** (`decideAutomaticMaterials`): each load under
+  Automatic reads the measurements of the GPU the latest Avatar canvas uses
+  or, before any canvas has mounted (the Library, an off-screen Diagnostics
+  load), of the GPU a short-lived WebGL context names; it asks for
+  `powerPreference: "high-performance"`, as R3F's canvases do, so a machine
+  with two GPUs names the same one. The fastest measurement decides: lilToon
+  at the highest of 60, 45, 30 and 24 fps whose budget it fits, the frame
+  time times `LILTOON_FRAME_HEADROOM` (1.3) within the frame interval (60 fps
+  up to 12.8 ms, 45 up to 17.1, 30 up to 25.6, 24 up to 32.1). Slower than
+  that, it loads Simple once two measurements agree and the newest is under a
+  week old; until then it loads lilToon at 24 fps, because only lilToon
+  frames can be measured again. A GPU not measured yet, or a browser without
+  the timer extension (stored as unsupported), keeps lilToon uncapped;
+  blocked storage counts as not measured. The time is compared as measured,
+  not scaled by canvas size: on an Apple M5 a converted Avatar's lilToon
+  frame took 5.3–6.0 ms from 1.0 to 5.9 million drawing-buffer pixels,
+  where Andrew's grew from 2.4 to 4.5 ms (the default window's chat canvas
+  is about 3.7 million pixels at DPR 2).
+- **Frame cap:** a loaded lilToon Avatar under Automatic sets its cap on the
+  canvas it was constructed with (`canvasFrameCap.ts`, keyed by the R3F
+  canvas element; cleared on unload), and that canvas's `SceneFramePacer`
+  renders at most that often ([Frame rate](#frame-rate)). An Avatar without
+  lilToon materials, such as an Included Avatar, one whose lilToon failed to
+  load, and an explicit lilToon setting set none.
+- **Measuring again:** the chat canvas measures a GPU once per session (an
+  app launch or page load) until it has three measurements, then whenever
+  the newest is over a week old (checked when the main canvas mounts and
+  hourly while it stays mounted). Automatic uses the fastest, so a
+  measurement taken while the machine was busy gives way to a faster later
+  one. Materials and the cap are chosen at load, so a new measurement
+  applies from the next load; Diagnostics shows a "Next load" line when it
+  would change either. Removing the `animama.lilToonGpuCheck` key from the
+  app's `localStorage` (for example in the developer tools) and reloading
+  measures every GPU from scratch. Raising `METHOD` in `lilToonGpuCheck.ts`
+  does that for every viewer, for a changed measurement or a rendering
+  change that moves lilToon's cost.
 - **Fallback base colours:** Mochiya writes `metallicFactor` 1 on the fallback
   materials, which renders them almost black without an environment map.
   `LilToonFallbackMaterialsPlugin` builds fallbacks of lilToon materials with
@@ -1613,12 +1730,21 @@ adapts colour and UV expression binds to those materials.
   depth units, because lilToon skins and projects in its own order.
   `releaseModelScene` disposes their `lilToonTextures`, which neither
   `VRMUtils.deepDispose` nor the material's `dispose` releases.
-- **Frame cost:** lilToon shading is much heavier than MToon. On an Apple M5 at
-  the chat canvas's 1600×1200 and DPR 2, measured back to back under equal load
-  with `effects:bench --avatar-file` (2026-10-25), a converted Avatar's GPU time
-  per frame was 30.8 ms with lilToon, 0.8 ms with the fallback materials and
-  1.2 ms for Andrew; at DPR 1 it was 6.2 ms with lilToon, so the cost is mostly
-  per pixel. Reducing it is tracked in #691 (R11).
+- **Frame cost:** lilToon shading is much heavier than MToon. On an Apple M5
+  at the chat canvas (800×600 at DPR 2, frames paced at 60 fps with
+  `effects:bench --fps 60`, 2026-10-27), a converted Avatar took about 5–7 ms
+  of GPU time per frame with lilToon (up to 9.7 ms under heavier load), 1.0–1.6
+  ms with its fallback materials, and 1.7–3.0 ms for the Included Avatars.
+  These absolute values move with the GPU's clock and other jobs, so compare
+  only runs made together. Drawn on all nine opaque primitives (before
+  alpha-blending surfaces were excluded), the depth pre-pass saved 0.5–0.6 ms
+  in those runs with no pixel changed in exact render comparisons; under
+  heavier load a prototype saved up to 3.5 ms.
+  Outlines already act as a partial pre-pass: switching them off made frames
+  slower. Lowering the pixel ratio or switching off toon shadow, reflection,
+  rim or normal maps saved little, and no combination brought lilToon near an
+  Included Avatar's cost. `effects:bench --breakdown` breaks the cost down by
+  material, lilToon feature and layer.
 
 On an Apple M5 the enhanced look adds about 0.1–0.15 ms per frame over classic.
 Review renders and benchmarks use enhanced rendering unless given
@@ -1690,6 +1816,12 @@ input, and in PiP the desktop cursor feed, keep the full rate for
 `SCENE_INPUT_ACTIVE_MS` (1.5 s) so cursor look-at stays smooth. Scenes with a
 custom `avatarActor` never report idle and keep 60 fps. Delta-time consumers see
 the real interval since the previous rendered frame.
+
+A canvas showing a lilToon Avatar that Automatic capped (45, 30 or 24 fps on a
+GPU too slow for 60; see the [frame cap](#authored-liltoon-materials)) renders
+at most at the cap, active or idle; idle uses the lower of the cap and 30.
+Picture in Picture shares the chat `Scene`, so the cap applies there too, as on
+every `PacedScene` canvas below.
 
 The other Avatar canvases use the same `PacedScene` wrapper. An active
 `AvatarPreviewSurface` (the Animas page, the Library preview, creators and

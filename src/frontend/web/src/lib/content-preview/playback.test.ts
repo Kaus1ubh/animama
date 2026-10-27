@@ -276,6 +276,47 @@ describe("Asset preview playback policy", () => {
     expect(loadAndPlayClip).toHaveBeenCalledOnce();
   });
 
+  it.each(["anima_pose_clip", "reaction_clip"] as const)(
+    "reports no dependency loading for a %s play retired while its clip loads",
+    async (kind) => {
+      let finishClip: (value: unknown) => void = () => undefined;
+      const clipLoad = new Promise((resolve) => {
+        finishClip = resolve;
+      });
+      const catalog = {
+        loadPoseClip: vi.fn().mockReturnValue(clipLoad),
+        loadReactionClip: vi.fn().mockReturnValue(clipLoad),
+        listAvatarVFX: () => [],
+        listSceneVFX: () => [],
+        listParticleVFX: () => [],
+        listAudio: () => [],
+      } as unknown as PreviewRuntimeCatalogSession;
+      const loadAndPlayClip = vi.fn();
+      const playDebugReactionClip = vi.fn();
+      const onDependenciesLoadingChange = vi.fn();
+      let current = true;
+      const preview = target("anima_pose_clip");
+      const playback = playContentPreviewMotion({
+        avatar: { loadAndPlayClip, playDebugReactionClip } as unknown as Avatar,
+        catalog,
+        target:
+          kind === "reaction_clip" ? { ...preview, slot: "reaction" } : preview,
+        loop: false,
+        isCurrent: () => current,
+        onDependenciesLoadingChange,
+      });
+
+      // Stop retires the play before its clip arrives.
+      current = false;
+      finishClip(emptyClip);
+
+      expect(await playback).toBe(false);
+      expect(onDependenciesLoadingChange).not.toHaveBeenCalled();
+      expect(loadAndPlayClip).not.toHaveBeenCalled();
+      expect(playDebugReactionClip).not.toHaveBeenCalled();
+    },
+  );
+
   it("executes idle playback through the supplied catalog and lifecycle", async () => {
     const onFinished = vi.fn();
     const playAnimationWithName = vi.fn(

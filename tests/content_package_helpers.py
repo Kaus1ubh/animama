@@ -9,12 +9,22 @@ from typing import Any, BinaryIO, TypedDict, cast
 
 from animama.adapters.content_store import FilesystemContentStore
 from animama.adapters.repositories.sqlalchemy.content_catalog_repo import SQLAlchemyContentCatalog
+from animama.app.contracts.content_package_import import ReviewedPackageImport
 from animama.app.services.content_catalog_service import ContentCatalogService
 from animama.app.services.content_package_service import ContentPackageService, ExportedContentPackage
 from animama.app.services.content_save_service import ContentSaveService
 from animama.domain.content_catalog import ContentKind
 from animama.server.config import Settings
 from animama.server.local_runtime import initialize_local_runtime
+
+# glTF extensions that converted (Mochiya Avatar Tools) and optimized (meshopt,
+# Draco) Avatar files carry; packages accept them beside the standard set.
+CONVERTED_AVATAR_EXTENSIONS = (
+    "MOCHIYA_avatar_composition",
+    "MOCHIYA_materials_liltoon",
+    "EXT_meshopt_compression",
+    "KHR_draco_mesh_compression",
+)
 
 
 class PackageCommitCommand(TypedDict):
@@ -38,6 +48,16 @@ async def reviewed_import(
     packages: ContentPackageService, *, user_id: str, archive_path: Path, operation_id: str
 ) -> PackageCommitCommand:
     """Exercise allocation, sequential byte parts and review without committing."""
+    _review, command = await review_import(
+        packages, user_id=user_id, archive_path=archive_path, operation_id=operation_id
+    )
+    return command
+
+
+async def review_import(
+    packages: ContentPackageService, *, user_id: str, archive_path: Path, operation_id: str
+) -> tuple[ReviewedPackageImport, PackageCommitCommand]:
+    """``reviewed_import`` that also returns the review the user would see."""
     stage = packages.stages.create_import(
         user_id=user_id,
         operation_id=operation_id,
@@ -65,7 +85,7 @@ async def reviewed_import(
                 )
                 index += 1
     review = await packages.imports.review(user_id=user_id, stage_id=stage.stage_id)
-    return {
+    return review, {
         "user_id": user_id,
         "stage_id": stage.stage_id,
         "operation_id": operation_id,

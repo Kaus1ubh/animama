@@ -91,6 +91,13 @@ import {
   lilToonMaterialStateOf,
   type LilToonMaterialState,
 } from "./liltoon/lilToon";
+import {
+  automaticMaterialsDecision,
+  type AutomaticMaterialsDecision,
+} from "./liltoon/lilToonGpuCheck";
+import { setCanvasFrameCap } from "./canvasFrameCap";
+import { irisHideBindOf } from "./irisHideExpression";
+import type { RestPoseCheck } from "./poses/anatomy/restNormalization";
 import { prepareLoadedVrm } from "./prepareLoadedVrm";
 import type { ArkitFace } from "./arkitFaceExpressions";
 import {
@@ -431,10 +438,12 @@ export class Avatar {
   private _vrmSha256: string | null = null;
   private _facePartCorrections: AvatarFacePartCorrections | null = null;
   private _arkitFace: ArkitFace | null = null;
+  private _restPose: RestPoseCheck | null = null;
   private _springMode: AvatarSpringMode = "automatic";
   /** Automatic's wind choice for the loaded file. */
   private _automaticAmbientForces: boolean = true;
   private _materialMode: AvatarMaterialMode = "automatic";
+  private _automaticMaterials: AutomaticMaterialsDecision | null = null;
   private _lilToonMaterials: LilToonMaterialState = "none";
   private _facePartIssues: AvatarIssue[] = [];
   private _diagnosticsListeners = new Set<() => void>();
@@ -465,6 +474,14 @@ export class Avatar {
     return this._materialMode;
   }
 
+  /**
+   * What the Materials setting's Automatic chose for this load and why (the
+   * GPU check); null under an explicit lilToon or Simple setting.
+   */
+  get automaticMaterials(): AutomaticMaterialsDecision | null {
+    return this._automaticMaterials;
+  }
+
   /** How the loaded file's authored lilToon materials render. */
   get lilToonMaterials(): LilToonMaterialState {
     return this._lilToonMaterials;
@@ -473,6 +490,10 @@ export class Avatar {
   /** The loaded model's ARKit coverage, as the load-time installs found it. */
   get arkitFace(): ArkitFace | null {
     return this._arkitFace;
+  }
+  /** How far the loaded model rests from VRoid's T-pose, and what was normalized. */
+  get restPose(): RestPoseCheck | null {
+    return this._restPose;
   }
 
   /** Findings this Avatar recorded itself (not its parts' or controllers'). */
@@ -529,6 +550,8 @@ export class Avatar {
     this.unload();
     this._springMode = spec.springMode ?? "automatic";
     this._materialMode = spec.materialMode ?? "automatic";
+    this._automaticMaterials =
+      this._materialMode === "automatic" ? automaticMaterialsDecision() : null;
 
     onProgress?.({ phase: "setup", message: "Setting up..." });
 
@@ -546,7 +569,7 @@ export class Avatar {
         });
       },
       spec.resourceUrls,
-      this._materialMode,
+      this._automaticMaterials?.choice ?? this._materialMode,
     );
     if (this._isDisposed) {
       releaseModelScene(vrm.scene);
@@ -566,12 +589,21 @@ export class Avatar {
         this._lilToonMaterials !== "none",
       );
     }
-    const { arkitFace, eyelidClosure } = prepareLoadedVrm(vrm, {
+    const { arkitFace, eyelidClosure, restPose } = prepareLoadedVrm(vrm, {
       vrmSha256: this._vrmSha256,
     });
     this._arkitFace = arkitFace;
+    this._restPose = restPose;
     if (eyelidClosure) {
       logger.info("Load", "Eyelid closure correction", eyelidClosure);
+    }
+    if (restPose.normalization) {
+      logger.info("Load", "Rest pose normalized to VRoid's", {
+        arms: restPose.armsNormalized,
+        hands: restPose.handsNormalized,
+        bones: restPose.normalization.bones.size,
+        maxDegrees: Math.round(restPose.normalization.maxDegrees),
+      });
     }
     this.poseController = new PoseController(vrm, {
       isVrm0: this._isVrm0,
@@ -625,6 +657,10 @@ export class Avatar {
     this._unsubscribeVfxDiagnostics = this.vfxController.subscribe(() =>
       this._notifyDiagnostics(),
     );
+    // `Fcl_EYE_Iris_Hide` on a model without that shape hides its irises.
+    irisHideBindOf(vrm)?.setListener((hidden) =>
+      this.vfxController?.setIrisHidden(hidden),
+    );
     this.expressionController.setUnresolvedExpressionListener(() =>
       this._notifyDiagnostics(),
     );
@@ -634,6 +670,17 @@ export class Avatar {
     );
     this._syncPoseClipEventSink();
     this._syncReactionClipEventSink();
+    // Automatic's lilToon frame cap, on the canvas this Avatar draws on. Set
+    // either way: a load that overlapped this one may have set a cap.
+    if (this._viewportElement) {
+      setCanvasFrameCap(
+        this._viewportElement,
+        this,
+        this._lilToonMaterials === "rendered"
+          ? (this._automaticMaterials?.fpsCap ?? null)
+          : null,
+      );
+    }
     this._notifyDiagnostics();
 
     onProgress?.({ phase: "animation", ratio: 1, message: "Ready" });
@@ -645,6 +692,8 @@ export class Avatar {
   unload(): void {
     // Detach before any controller cleanup so no frame can draw a half-released model.
     this.vrm?.scene.removeFromParent();
+    if (this._viewportElement)
+      setCanvasFrameCap(this._viewportElement, this, null);
     this._poseClipOnFinished = null;
     this.springBonePhysicsController?.dispose();
     this.springBonePhysicsController = null;
@@ -664,6 +713,7 @@ export class Avatar {
       this.faceLandmarks = null;
       this._unsubscribeVfxDiagnostics?.();
       this._unsubscribeVfxDiagnostics = null;
+      irisHideBindOf(this.vrm)?.setListener(null);
       this.vfxController?.dispose();
       this.vfxController = null;
       this.particleVFXController?.dispose();
@@ -681,7 +731,9 @@ export class Avatar {
       this._vrmSha256 = null;
       this._facePartCorrections = null;
       this._arkitFace = null;
+      this._restPose = null;
       this._lilToonMaterials = "none";
+      this._automaticMaterials = null;
       this._facePartIssues = [];
       this.animationManager = null;
       this.expressionController = null;

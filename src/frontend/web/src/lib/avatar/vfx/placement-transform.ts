@@ -12,6 +12,12 @@ export type TexturePlacement = {
    * flipped only by the model's UV layout keeps its offsets.
    */
   effectMirror?: boolean;
+  /**
+   * The cell's UVs run mirrored against VRoid's (an iris cell `flipped` by
+   * the eye layout): the whole drawing, art, offsets and turns, is mirrored
+   * about the rectangle's centre so it reads on screen as on VRoid.
+   */
+  flipX?: boolean;
   rect: { x: number; y: number; width: number; height: number };
 };
 
@@ -30,11 +36,14 @@ export function resolveTexturePlacementTransform(
   // decals already place (and mirror) their static offset in the rectangle.
   const mirrorSign = placement.effectMirror ? -1 : 1;
   const staticOffsetX = anchored ? 0 : effect.transform.offset.x * mirrorSign;
+  // Mirroring about the centre negates the offset and turn and flips the art.
+  const flipSign = placement.flipX ? -1 : 1;
   return {
     x:
       placement.rect.x +
       placement.rect.width * 0.5 +
-      (staticOffsetX + animation.driftX + animation.offsetX * mirrorSign) *
+      flipSign *
+        (staticOffsetX + animation.driftX + animation.offsetX * mirrorSign) *
         Math.max(1, size.width),
     y:
       placement.rect.y +
@@ -43,8 +52,10 @@ export function resolveTexturePlacementTransform(
         animation.driftY +
         animation.offsetY) *
         Math.max(1, size.height),
-    rotation: effect.transform.rotation.z + animation.rotationRadians,
+    rotation:
+      flipSign * (effect.transform.rotation.z + animation.rotationRadians),
     scaleX:
+      flipSign *
       (placement.mirrorX ? -1 : 1) *
       (anchored ? 1 : staticScale(effect.transform.scale.x)) *
       scale,

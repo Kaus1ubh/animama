@@ -110,11 +110,11 @@ import {
   avatarEffectPreviewCompatibility,
   avatarEffectSnapshotFingerprint,
   createAvatarEffectHistorySnapshot,
-  createAvatarEffectObjectUrlLease,
   equalAvatarEffectHistorySnapshots,
   NO_AVATAR_EFFECT_IMAGES,
   type AvatarEffectHistorySnapshot,
 } from "./avatarEffectCreatorBehavior";
+import { useAvatarEffectImageUrls } from "./useAvatarEffectImageUrls";
 import { AvatarEffectFacePartsPanel } from "./AvatarEffectFacePartsPanel";
 import { AvatarEffectGuideRenderer } from "./AvatarEffectGuideRenderer";
 import { AvatarEffectInspector } from "./AvatarEffectInspector";
@@ -267,10 +267,10 @@ export function AvatarEffectCreatorPage({
   const [importOpen, setImportOpen] = useState(false);
   const [importText, setImportText] = useState("");
   const [importError, setImportError] = useState<string | null>(null);
-  const [imageUrls, setImageUrls] = useState<{
-    image: string | null;
-    otherEyeImage: string | null;
-  }>({ image: null, otherEyeImage: null });
+  const imageUrls = useAvatarEffectImageUrls(
+    imageResources.image?.file ?? null,
+    imageResources.otherEyeImage?.file ?? null,
+  );
   /** Bumped when the preview Avatar's face part map is rebuilt. */
   const [facePartsVersion, setFacePartsVersion] = useState(0);
   const [pickingRole, setPickingRole] = useState<AvatarFacePartRole | null>(
@@ -458,25 +458,6 @@ export function AvatarEffectCreatorPage({
     [soundQuery.data?.pages],
   );
   const soundAudio = useContentPreviewAudio(soundPreview);
-
-  const imageFile = imageResources.image?.file ?? null;
-  const otherEyeFile = imageResources.otherEyeImage?.file ?? null;
-  useEffect(() => {
-    const leases = {
-      image: imageFile ? createAvatarEffectObjectUrlLease(imageFile) : null,
-      otherEyeImage: otherEyeFile
-        ? createAvatarEffectObjectUrlLease(otherEyeFile)
-        : null,
-    };
-    setImageUrls({
-      image: leases.image?.url ?? null,
-      otherEyeImage: leases.otherEyeImage?.url ?? null,
-    });
-    return () => {
-      leases.image?.dispose();
-      leases.otherEyeImage?.dispose();
-    };
-  }, [imageFile, otherEyeFile]);
 
   useEffect(() => {
     if (!document.sound) {
@@ -849,8 +830,8 @@ export function AvatarEffectCreatorPage({
     },
     [previewAvatar],
   );
-  // Apply the saved correction when the loaded Avatar does not have it yet
-  // (Included previews load without it).
+  // Apply the saved correction when the loaded Avatar does not have it yet:
+  // one saved after the preview loaded, or a preview cached from before.
   const savedCorrection = facePartsQuery.data?.face_parts ?? null;
   useEffect(() => {
     if (!previewAvatar || !facePartsQuery.isSuccess) return;

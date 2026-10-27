@@ -5,9 +5,18 @@ import {
 } from "@pixiv/three-vrm";
 
 import { ARKIT_BLENDSHAPES } from "../arkit";
-import { arkitMixOf } from "../arkitFaceExpressions";
+import type { FaceRegion } from "../arkitFaceCompositions";
+import {
+  arkitMixOf,
+  isAnimamaFaceExpression,
+  type FaceRegionSource,
+} from "../arkitFaceExpressions";
 import type { Avatar } from "../Avatar";
 import type { AvatarMaterialMode, AvatarSpringMode } from "../avatarSettings";
+import {
+  automaticDecisionSinceLoad,
+  type AutomaticMaterialsDecision,
+} from "../liltoon/lilToonGpuCheck";
 import type {
   AvatarFacePartRole,
   AvatarFacePartSource,
@@ -24,8 +33,16 @@ export type AvatarDiagnosticsFacePart = {
   confidence: number;
 };
 
-/** Where a standard expression the Avatar plays comes from. */
-export type AvatarExpressionSource = "model" | "arkit";
+/**
+ * Where a standard expression the Avatar plays comes from: the file, an ARKit
+ * mix, or Animama's composition of MMD morphs (and ARKit mixes) by region.
+ */
+export type AvatarExpressionSource = "model" | "arkit" | "mmd";
+
+/** Where each region of a mood preset's face comes from (R12). */
+export type AvatarMoodFace = {
+  preset: string;
+} & Record<FaceRegion, FaceRegionSource>;
 
 /**
  * Facts read from a loaded Avatar. Names are limited to standard vocabularies
@@ -44,6 +61,8 @@ export type AvatarLiveDiagnostics = {
     presets: { name: string; source: AvatarExpressionSource }[];
     missingPresets: string[];
     arkit: { resolved: number; total: number; playsFaces: boolean };
+    /** Each mood preset's face, region by region, as emotions play it. */
+    moods: AvatarMoodFace[];
     /** Names emotions or clips asked for that the Avatar cannot play. */
     unresolved: { names: string[]; otherCount: number };
   };
@@ -54,8 +73,16 @@ export type AvatarLiveDiagnostics = {
     springColliders: number;
     /** The wind setting in effect, and whether wind and updraft apply. */
     wind: { mode: AvatarSpringMode; ambientForces: boolean };
-    /** Rest-pose check; not measured yet. */
-    restPose: null;
+    /**
+     * How far the arms and hands rest from VRoid's T-pose (degrees) and
+     * whether they were normalized; null before a load measured them.
+     */
+    restPose: {
+      armDegrees: number;
+      handDegrees: number;
+      armsNormalized: boolean;
+      handsNormalized: boolean;
+    } | null;
   };
   /**
    * How the file's authored lilToon materials render under the material
@@ -64,6 +91,14 @@ export type AvatarLiveDiagnostics = {
   materials: {
     mode: AvatarMaterialMode;
     lilToon: "rendered" | "fallback";
+    /** What Automatic chose at load and why; null under lilToon or Simple. */
+    automatic: AutomaticMaterialsDecision | null;
+    /**
+     * What Automatic would choose now, when a GPU measurement stored since
+     * this load changes it: materials are built at load, so the next load
+     * uses it. Null otherwise.
+     */
+    nextLoad: AutomaticMaterialsDecision | null;
   } | null;
   issues: AvatarIssue[];
 };
@@ -117,7 +152,11 @@ function collectExpressions(
     if (expression) {
       presets.push({
         name,
-        source: arkitMixOf(expression) ? "arkit" : "model",
+        source: arkitMixOf(expression)
+          ? "arkit"
+          : isAnimamaFaceExpression(expression)
+            ? "mmd"
+            : "model",
       });
     } else if (looksWithExpressions || !LOOK_PRESETS.has(name)) {
       // A model that looks with its eye bones does not need look expressions.
@@ -135,12 +174,33 @@ function collectExpressions(
       total: ARKIT_BLENDSHAPES.length,
       playsFaces: arkitFace?.playsFacesWithArkit ?? false,
     },
+    moods: Object.entries(arkitFace?.moods ?? {}).map(([preset, regions]) => ({
+      preset,
+      ...regions,
+    })),
     unresolved: {
       names: unresolved.filter(isStandardExpressionName),
       otherCount: unresolved.filter((name) => !isStandardExpressionName(name))
         .length,
     },
   };
+}
+
+/**
+ * A face with nothing to play moods (no VRoid parts, MMD morphs, ARKit shapes
+ * or mood presets) stays neutral: lids are not lowered and mouth visemes are
+ * not used for moods (owner decision 8), so say so.
+ */
+function expressionIssues(
+  expressions: AvatarLiveDiagnostics["expressions"],
+): AvatarIssue[] {
+  const neutral =
+    expressions.moods.length > 0 &&
+    expressions.moods.every(
+      (mood) =>
+        mood.brow === "none" && mood.eye === "none" && mood.mouth === "none",
+    );
+  return neutral ? [{ code: "face_expressions_none" }] : [];
 }
 
 function collectMotion(avatar: Avatar): AvatarLiveDiagnostics["motion"] {
@@ -156,7 +216,14 @@ function collectMotion(avatar: Avatar): AvatarLiveDiagnostics["motion"] {
     springJoints: springs?.joints.size ?? 0,
     springColliders: springs?.colliders.length ?? 0,
     wind: { mode: avatar.springMode, ambientForces: avatar.ambientForces },
-    restPose: null,
+    restPose: avatar.restPose
+      ? {
+          armDegrees: Math.round(avatar.restPose.armDegrees),
+          handDegrees: Math.round(avatar.restPose.handDegrees),
+          armsNormalized: avatar.restPose.armsNormalized,
+          handsNormalized: avatar.restPose.handsNormalized,
+        }
+      : null,
   };
 }
 
@@ -168,8 +235,10 @@ function collectMotion(avatar: Avatar): AvatarLiveDiagnostics["motion"] {
 export function collectAvatarLiveDiagnostics(
   avatar: Avatar,
 ): AvatarLiveDiagnostics {
+  const expressions = collectExpressions(avatar);
   const issues = mergeAvatarIssues(
     avatar.loadIssues,
+    expressionIssues(expressions),
     avatar.facePartMap?.issues,
     avatar.getFaceLandmarksSnapshot()?.issues,
     avatar.getFaceTextureAnchorsSnapshot()?.issues,
@@ -178,12 +247,17 @@ export function collectAvatarLiveDiagnostics(
   );
   return {
     face: collectFace(avatar),
-    expressions: collectExpressions(avatar),
+    expressions,
     motion: collectMotion(avatar),
     materials:
       avatar.lilToonMaterials === "none"
         ? null
-        : { mode: avatar.materialMode, lilToon: avatar.lilToonMaterials },
+        : {
+            mode: avatar.materialMode,
+            lilToon: avatar.lilToonMaterials,
+            automatic: avatar.automaticMaterials,
+            nextLoad: automaticDecisionSinceLoad(avatar.automaticMaterials),
+          },
     issues,
   };
 }

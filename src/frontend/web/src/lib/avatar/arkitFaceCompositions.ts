@@ -14,14 +14,16 @@ export { isVroidMoodPart } from "./vroidMoodParts";
  * ARKit shapes split into brow, eye and mouth regions: `Fcl_BRW_<Mood>`,
  * `Fcl_EYE_<Mood>` and `Fcl_MTH_<Mood>` are one region each, and the preset
  * and `Fcl_ALL_<Mood>` all three. Its `parts` list the other VRoid parts
- * content keys. `arkitFaceExpressions.ts` registers these mixes as expressions;
+ * content keys. `arkitFaceExpressions.ts` registers these mixes as expressions,
+ * region by region where the model and its MMD morphs leave one empty;
  * `vrm:bake-expressions` writes the mood presets into a file. Its `vowels` give
  * each `vowel5` lip-sync channel an ARKit mouth mix, which `ExpressionController`
  * plays instead of the viseme presets when ARKit lip-sync shaping is selected.
  */
 
 export type ArkitMix = Readonly<Record<string, number>>;
-type FaceRegion = "brow" | "eye" | "mouth";
+/** A face region: VRoid's `BRW`, `EYE` and `MTH` parts. */
+export type FaceRegion = "brow" | "eye" | "mouth";
 
 const REGIONS_BY_PART: Readonly<Record<string, readonly FaceRegion[]>> = {
   ALL: ["brow", "eye", "mouth"],
@@ -34,8 +36,13 @@ const MOODS = compositions.moods as Readonly<
   Record<string, Readonly<Record<FaceRegion, ArkitMix>>>
 >;
 
+/** Each VRM mood preset's ARKit mix, region by region, at weight 1. */
+export const ARKIT_MOOD_REGION_MIXES: Readonly<
+  Record<string, Readonly<Record<FaceRegion, ArkitMix>>>
+> = MOODS;
+
 /** Combine mixes; a shape in several keeps its largest value. */
-function mergeMixes(mixes: readonly ArkitMix[]): ArkitMix {
+export function mergeMixes(mixes: readonly ArkitMix[]): ArkitMix {
   const merged: Record<string, number> = {};
   for (const mix of mixes) {
     for (const [shape, value] of Object.entries(mix)) {
@@ -54,6 +61,14 @@ export const ARKIT_MOOD_MIXES: Readonly<Record<string, ArkitMix>> =
     ]),
   );
 
+/**
+ * The table's VRoid parts that are not one mood's region (`Fcl_MTH_Large`,
+ * `Fcl_EYE_Close` …), at weight 1.
+ */
+export const ARKIT_NON_MOOD_PART_MIXES = compositions.parts as Readonly<
+  Record<string, ArkitMix>
+>;
+
 /** The ARKit mix for each VRoid part the table covers, at weight 1. */
 export const ARKIT_PART_MIXES: Readonly<Record<string, ArkitMix>> = {
   ...Object.fromEntries(
@@ -64,7 +79,7 @@ export const ARKIT_PART_MIXES: Readonly<Record<string, ArkitMix>> = {
       ]),
     ),
   ),
-  ...(compositions.parts as Readonly<Record<string, ArkitMix>>),
+  ...ARKIT_NON_MOOD_PART_MIXES,
 };
 
 /** Every ARKit shape the table's moods and parts use (not its vowels). */
@@ -74,17 +89,6 @@ export const ARKIT_COMPOSITION_SHAPES: ReadonlySet<string> = new Set(
     ...Object.values(ARKIT_PART_MIXES),
   ].flatMap((mix) => Object.keys(mix)),
 );
-
-/**
- * Whether an Avatar plays faces through ARKit mixes: it must have every shape
- * the moods and parts use, so no mood loses a region to a missing shape. Avatars with
- * only some ARKit shapes keep their own presets and the preset fallback.
- */
-export function playsFacesWithArkit(capability: ArkitFaceCapability): boolean {
-  return [...ARKIT_COMPOSITION_SHAPES].every((shape) =>
-    capability.resolved.has(shape),
-  );
-}
 
 /** The `vowel5` lip-sync channels, in frame order. */
 export const VOWEL5_CHANNELS = ["A", "E", "I", "O", "U"] as const;

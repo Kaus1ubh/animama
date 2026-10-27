@@ -4,35 +4,12 @@ import {
   readTestAvatarBytes,
   VRM0_FIXTURE_ID,
 } from "../motion-authoring/testing/includedAvatars";
-import { readAvatarFileFacts, readImagePixelSize } from "./avatarFileFacts";
-
-/** A GLB holding `json` and an optional binary chunk. */
-function glb(json: unknown, bin?: Uint8Array): Uint8Array {
-  const pad = (bytes: Uint8Array, fill: number) => {
-    const padded = new Uint8Array(Math.ceil(bytes.length / 4) * 4).fill(fill);
-    padded.set(bytes);
-    return padded;
-  };
-  const jsonChunk = pad(new TextEncoder().encode(JSON.stringify(json)), 0x20);
-  const binChunk = bin ? pad(bin, 0) : null;
-  const length =
-    12 + 8 + jsonChunk.length + (binChunk ? 8 + binChunk.length : 0);
-  const out = new Uint8Array(length);
-  const view = new DataView(out.buffer);
-  view.setUint32(0, 0x46546c67, true);
-  view.setUint32(4, 2, true);
-  view.setUint32(8, length, true);
-  view.setUint32(12, jsonChunk.length, true);
-  view.setUint32(16, 0x4e4f534a, true);
-  out.set(jsonChunk, 20);
-  if (binChunk) {
-    const at = 20 + jsonChunk.length;
-    view.setUint32(at, binChunk.length, true);
-    view.setUint32(at + 4, 0x004e4942, true);
-    out.set(binChunk, at + 8);
-  }
-  return out;
-}
+import { encodeGlb as glb } from "../testing/glb";
+import {
+  avatarFileIssues,
+  readAvatarFileFacts,
+  readImagePixelSize,
+} from "./avatarFileFacts";
 
 function png(width: number, height: number): Uint8Array {
   const bytes = new Uint8Array(33);
@@ -183,6 +160,52 @@ describe("readAvatarFileFacts", () => {
     ).toBeNull();
     const truncated = glb({ asset: {} }).slice(0, 24);
     expect(readAvatarFileFacts(truncated)).toBeNull();
+  });
+});
+
+describe("avatarFileIssues", () => {
+  it("finds nothing in the Included Avatars", async () => {
+    for (const id of ["Andrew", "AvatarSample_A_1_New"] as const) {
+      const facts = readAvatarFileFacts(await readTestAvatarBytes(id));
+      expect(avatarFileIssues(facts)).toEqual([]);
+    }
+  });
+
+  it("names a required Draco extension before any load", () => {
+    const facts = readAvatarFileFacts(
+      glb({
+        asset: { version: "2.0" },
+        extensionsUsed: ["VRMC_vrm", "KHR_draco_mesh_compression"],
+        extensionsRequired: ["KHR_draco_mesh_compression"],
+        extensions: { VRMC_vrm: { specVersion: "1.0" } },
+      }),
+    );
+    expect(avatarFileIssues(facts)).toEqual([
+      {
+        code: "avatar_extension_unsupported",
+        params: { extension: "KHR_draco_mesh_compression" },
+      },
+    ]);
+  });
+
+  it("accepts the extensions converted and optimized Avatars use", () => {
+    const extensions = [
+      "MOCHIYA_avatar_composition",
+      "MOCHIYA_materials_liltoon",
+      "EXT_meshopt_compression",
+    ];
+    const facts = readAvatarFileFacts(
+      glb({
+        extensionsUsed: ["VRMC_vrm", ...extensions],
+        extensionsRequired: extensions,
+        extensions: { VRMC_vrm: { specVersion: "1.0" } },
+      }),
+    );
+    expect(avatarFileIssues(facts)).toEqual([]);
+  });
+
+  it("reports an unreadable file", () => {
+    expect(avatarFileIssues(null)).toEqual([{ code: "file_unreadable" }]);
   });
 });
 

@@ -24,6 +24,30 @@ const morphNamesOf = (mesh: THREE.Mesh) =>
   Object.keys(mesh.morphTargetDictionary ?? {});
 
 /**
+ * An expression binding the morph target `morphName` at weight 1 on every
+ * mesh of the Avatar that has it, or null when none does.
+ */
+export function morphTargetExpression(
+  vrm: VRM,
+  expressionName: string,
+  morphName: string,
+): VRMExpression | null {
+  const expression = new VRMExpression(expressionName);
+  for (const mesh of morphTargetMeshes(vrm)) {
+    const index = mesh.morphTargetDictionary?.[morphName];
+    if (index === undefined) continue;
+    expression.addBind(
+      new VRMExpressionMorphTargetBind({
+        primitives: [mesh],
+        index,
+        weight: 1,
+      }),
+    );
+  }
+  return expression.binds.length > 0 ? expression : null;
+}
+
+/**
  * Register an expression binding, on each mesh, the morph targets that
  * `morphNamesFor` names for it, at weight 1. Nothing is registered when no
  * mesh has one.

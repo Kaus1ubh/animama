@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { ImportItemNotice } from "@animama/runtime-contracts/api-types";
 import type { LibrarySharingFlow } from "@/lib/content-sharing/types";
 import { LibrarySharingDialog } from "./LibrarySharingDialog";
 
@@ -281,8 +282,8 @@ describe("Library sharing", () => {
     expect(page).toContain("Uses this app&#x27;s copy");
     expect(page).toContain("Not available here");
   });
-  it("tells the user before importing which Avatar settings will not be kept", () => {
-    const review = (notices?: "avatar_setting_not_stored"[]) => ({
+  it("tells the user before importing which Avatar settings will not be kept or shown", () => {
+    const review = (notices?: ImportItemNotice[]) => ({
       screen: "import-review" as const,
       importReview: {
         anima: null,
@@ -311,6 +312,10 @@ describe("Library sharing", () => {
     expect(html(review())).not.toContain("will use Automatic");
     expect(html(review(["avatar_setting_not_stored"]))).toContain(
       "This app does not keep Avatar wind and material settings, so Lark will use Automatic.",
+    );
+    expect(html(review())).not.toContain("cannot show");
+    expect(html(review(["avatar_extension_unsupported"]))).toContain(
+      "Lark will be imported, but this version of Animama cannot show it yet",
     );
   });
   it("does not offer replacement or discard for an unconfirmed commit", () => {
