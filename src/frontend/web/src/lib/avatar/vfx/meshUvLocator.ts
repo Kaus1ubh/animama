@@ -1,5 +1,7 @@
 import * as THREE from "three";
 
+import { mapTrianglesToImage, TextureUvMapping } from "./textureUvMapping";
+
 /** Grid cells per side of the UV index. */
 const GRID = 32;
 
@@ -13,34 +15,41 @@ const scratchC = new THREE.Vector3();
 
 /**
  * Map texture coordinates back onto a mesh's current surface. Face-surface
- * art is placed in UV space; this finds where a UV point is drawn, so the
- * creator can put handles on it. Triangles are indexed in a UV grid once;
- * positions are read through `Mesh.getVertexPosition`, so skinning and morphs
- * apply. The geometry is borrowed, never changed.
+ * art is placed on the texture's image; this finds where an image point is
+ * drawn, so the creator can put handles on it. Triangles are indexed once in a
+ * grid over their corners on the image (UVs through the texture's
+ * {@link TextureUvMapping}, each triangle wrapped whole); positions are read
+ * through `Mesh.getVertexPosition`, so skinning and morphs apply. The geometry
+ * is borrowed, never changed.
  */
 export class MeshUvLocator {
   private readonly _mesh: THREE.Mesh;
-  private readonly _uv:
-    | THREE.BufferAttribute
-    | THREE.InterleavedBufferAttribute;
   private readonly _triangles: Uint32Array;
+  /** Each triangle's corners on the image: six numbers per triangle. */
+  private readonly _corners: Float32Array;
   private readonly _cells: number[][];
   private readonly _min = new THREE.Vector2(Infinity, Infinity);
   private readonly _size = new THREE.Vector2();
 
-  /** Null when the mesh has no UVs. */
-  static create(mesh: THREE.Mesh): MeshUvLocator | null {
+  /**
+   * Null when the mesh has no UVs. `mapping` is the texture's; points are
+   * plain UVs without one.
+   */
+  static create(
+    mesh: THREE.Mesh,
+    mapping: TextureUvMapping = TextureUvMapping.identity,
+  ): MeshUvLocator | null {
     const uv = mesh.geometry?.getAttribute("uv");
     if (!uv || uv.itemSize < 2 || uv.count < 3) return null;
-    return new MeshUvLocator(mesh, uv);
+    return new MeshUvLocator(mesh, uv, mapping);
   }
 
   private constructor(
     mesh: THREE.Mesh,
     uv: THREE.BufferAttribute | THREE.InterleavedBufferAttribute,
+    mapping: TextureUvMapping,
   ) {
     this._mesh = mesh;
-    this._uv = uv;
     const index = mesh.geometry.getIndex();
     const count = index ? index.count : uv.count;
     const group = mesh.geometry.groups[0];
@@ -59,12 +68,13 @@ export class MeshUvLocator {
       );
     }
     this._triangles = Uint32Array.from(triangles);
+    this._corners = mapTrianglesToImage(uv, this._triangles, mapping);
     const max = new THREE.Vector2(-Infinity, -Infinity);
-    for (let i = 0; i < uv.count; i += 1) {
-      this._min.x = Math.min(this._min.x, uv.getX(i));
-      this._min.y = Math.min(this._min.y, uv.getY(i));
-      max.x = Math.max(max.x, uv.getX(i));
-      max.y = Math.max(max.y, uv.getY(i));
+    for (let i = 0; i < this._corners.length; i += 2) {
+      this._min.x = Math.min(this._min.x, this._corners[i]!);
+      this._min.y = Math.min(this._min.y, this._corners[i + 1]!);
+      max.x = Math.max(max.x, this._corners[i]!);
+      max.y = Math.max(max.y, this._corners[i + 1]!);
     }
     this._size.set(
       Math.max(1e-6, max.x - this._min.x),
@@ -72,9 +82,9 @@ export class MeshUvLocator {
     );
     this._cells = Array.from({ length: GRID * GRID }, () => []);
     for (let t = 0; t < this._triangles.length / 3; t += 1) {
-      const [a, b, c] = this._vertices(t);
-      const xs = [uv.getX(a), uv.getX(b), uv.getX(c)];
-      const ys = [uv.getY(a), uv.getY(b), uv.getY(c)];
+      const base = t * 6;
+      const xs = [base, base + 2, base + 4].map((i) => this._corners[i]!);
+      const ys = [base + 1, base + 3, base + 5].map((i) => this._corners[i]!);
       const [x0, y0] = this._cell(Math.min(...xs), Math.min(...ys));
       const [x1, y1] = this._cell(Math.max(...xs), Math.max(...ys));
       for (let y = y0; y <= y1; y += 1)
@@ -83,8 +93,9 @@ export class MeshUvLocator {
   }
 
   /**
-   * World position of `uv` on the mesh's current surface. A point outside
-   * every triangle uses the nearest point of the nearest nearby triangle.
+   * World position of `uv`, a point on the image, on the mesh's current
+   * surface. A point outside every triangle uses the nearest point of the
+   * nearest nearby triangle.
    */
   toWorld(
     uv: { x: number; y: number },
@@ -144,10 +155,11 @@ export class MeshUvLocator {
   }
 
   private _uvTriangle(triangle: number): void {
-    const [a, b, c] = this._vertices(triangle);
-    scratchTriangle.a.set(this._uv.getX(a), this._uv.getY(a), 0);
-    scratchTriangle.b.set(this._uv.getX(b), this._uv.getY(b), 0);
-    scratchTriangle.c.set(this._uv.getX(c), this._uv.getY(c), 0);
+    const base = triangle * 6;
+    const corners = this._corners;
+    scratchTriangle.a.set(corners[base]!, corners[base + 1]!, 0);
+    scratchTriangle.b.set(corners[base + 2]!, corners[base + 3]!, 0);
+    scratchTriangle.c.set(corners[base + 4]!, corners[base + 5]!, 0);
   }
 
   private _cell(u: number, v: number): [number, number] {

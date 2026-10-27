@@ -8,6 +8,7 @@ import type {
   AvatarFaceTextureAnchorSource,
   AvatarFaceTextureFlattenRegionSnapshot,
   AvatarFaceTextureReferenceSize,
+  AvatarFaceTextureUvCoordinate,
 } from "./texture-anchor-types";
 import type {
   AvatarFaceEyeLandmarkSnapshot,
@@ -27,6 +28,11 @@ import {
   measureEyelidBounds,
   resolveAvatarFacePartEntries,
 } from "./faceParts";
+import {
+  baseTextureOf,
+  TextureUvMapping,
+  type UvPoint,
+} from "./textureUvMapping";
 import { buildRuntimePrimitiveBindings } from "../vrmEditorInspection";
 import { createLogger } from "@/lib/logger";
 
@@ -67,6 +73,8 @@ type FaceProjectionData = {
   pointsByIndex: Map<number, THREE.Vector3>;
   uniqueVertexIndices: number[];
   faceBounds: THREE.Box3;
+  /** Where the face's UVs land on its texture's image. */
+  mapping: TextureUvMapping;
 };
 
 type MouthAnchorCandidate = {
@@ -141,6 +149,15 @@ function toVectorSnapshot(value: THREE.Vector3): AvatarFaceLandmarkVector {
     y: value.y,
     z: value.z,
   };
+}
+
+/** A face UV as the position on the face texture's image where art lands. */
+function toImageCoordinate(
+  mapping: TextureUvMapping,
+  uv: UvPoint,
+): AvatarFaceTextureUvCoordinate {
+  const point = mapping.toImage(uv);
+  return { u: point.x, v: point.y };
 }
 
 function cloneWorldPoint(
@@ -310,6 +327,11 @@ function isPointWithinMouthSearchWindow(
  * the nearest triangle there can land on another part of the texture (the
  * inside of the mouth, an eye socket), so anchors and their sizes in texture
  * space stay on the face's island.
+ *
+ * `withOuterIslands` also keeps every island whose front outline (x and y
+ * extent) the face island's does not enclose: VRoid's ears, unwrapped apart
+ * from the face, or a neck below it. Islands inside the face's outline (an
+ * inner mouth, teeth, eyes, brows) are still left out.
  */
 function selectFaceIslandTriangles(args: {
   primitiveData: CollectedPrimitiveData;
@@ -317,6 +339,7 @@ function selectFaceIslandTriangles(args: {
   uv: THREE.BufferAttribute;
   seed: THREE.Vector3;
   eyes: readonly [THREE.Vector3, THREE.Vector3];
+  withOuterIslands?: boolean;
 }): number[] {
   const { primitiveData, position, uv, seed, eyes } = args;
   const ordered = primitiveData.orderedVertexIndices;
@@ -382,13 +405,55 @@ function selectFaceIslandTriangles(args: {
   const reach = eyes[0].distanceTo(eyes[1]) / 2;
   if (faceIsland === null || bestDistanceSq > reach * reach) return ordered;
 
+  const outline = extents.get(faceIsland)!;
+  const keep = (root: number) => {
+    if (root === faceIsland) return true;
+    if (!args.withOuterIslands) return false;
+    const extent = extents.get(root);
+    return (
+      !extent ||
+      extent.min.x <= outline.min.x ||
+      extent.min.y <= outline.min.y ||
+      extent.max.x >= outline.max.x ||
+      extent.max.y >= outline.max.y
+    );
+  };
   const triangles: number[] = [];
   for (let offset = 0; offset + 2 < ordered.length; offset += 3) {
-    if (islands.find(ordered[offset]) === faceIsland) {
+    if (keep(islands.find(ordered[offset]))) {
       triangles.push(ordered[offset], ordered[offset + 1], ordered[offset + 2]);
     }
   }
   return triangles;
+}
+
+/**
+ * The triangles (three vertex indices each, of `primitiveData`'s order) of a
+ * face skin primitive's own UV island, found by the face landmarks' eyes
+ * (see {@link selectFaceIslandTriangles}, with its `withOuterIslands`);
+ * every triangle without both eyes. Texture anchors project onto the island,
+ * and whole-face art is clipped to it with its outer islands.
+ */
+export function selectFaceIsland(args: {
+  primitiveData: CollectedPrimitiveData;
+  position: THREE.BufferAttribute;
+  uv: THREE.BufferAttribute;
+  landmarks: AvatarFaceLandmarksSnapshot;
+  withOuterIslands?: boolean;
+}): number[] {
+  const eyeMid = resolveEyeMidpoint(args.landmarks);
+  const { left, right } = args.landmarks.eyes;
+  if (!eyeMid || !left || !right) {
+    return args.primitiveData.orderedVertexIndices;
+  }
+  return selectFaceIslandTriangles({
+    primitiveData: args.primitiveData,
+    position: args.position,
+    uv: args.uv,
+    seed: eyeMid,
+    eyes: [toVector3(left.centerLocal), toVector3(right.centerLocal)],
+    withOuterIslands: args.withOuterIslands,
+  });
 }
 
 export class AvatarFaceTextureAnchors {
@@ -667,21 +732,12 @@ export class AvatarFaceTextureAnchors {
     if (!faceBounds) {
       return null;
     }
-    const eyeMid = resolveEyeMidpoint(args.faceLandmarks);
-    const { left: leftEye, right: rightEye } = args.faceLandmarks.eyes;
-    const orderedVertexIndices =
-      eyeMid && leftEye && rightEye
-        ? selectFaceIslandTriangles({
-            primitiveData,
-            position,
-            uv,
-            seed: eyeMid,
-            eyes: [
-              toVector3(leftEye.centerLocal),
-              toVector3(rightEye.centerLocal),
-            ],
-          })
-        : primitiveData.orderedVertexIndices;
+    const orderedVertexIndices = selectFaceIsland({
+      primitiveData,
+      position,
+      uv,
+      landmarks: args.faceLandmarks,
+    });
 
     return {
       bindingKey: args.binding.bindingKey,
@@ -697,6 +753,7 @@ export class AvatarFaceTextureAnchors {
       pointsByIndex: primitiveData.pointsByIndex,
       uniqueVertexIndices: Array.from(new Set(orderedVertexIndices)),
       faceBounds,
+      mapping: TextureUvMapping.of(baseTextureOf(args.binding.object)),
     };
   }
 
@@ -803,8 +860,9 @@ export class AvatarFaceTextureAnchors {
       localPoint: baseProjected.localPoint,
       referenceSizeLocal,
     });
+    const centre = projection.mapping.toImage(baseProjected.uv);
     const offsetUvV = THREE.MathUtils.clamp(
-      baseProjected.uv.y + referenceSizeUv.height * yOffsetRatio,
+      centre.y + referenceSizeUv.height * yOffsetRatio,
       0,
       1,
     );
@@ -819,7 +877,7 @@ export class AvatarFaceTextureAnchors {
         baseProjected.localPoint,
       ),
       uv: {
-        u: baseProjected.uv.x,
+        u: centre.x,
         v: offsetUvV,
       },
       referenceSizeLocal,
@@ -1058,10 +1116,7 @@ export class AvatarFaceTextureAnchors {
         args.projection.anchorObject,
         projected.localPoint,
       ),
-      uv: {
-        u: projected.uv.x,
-        v: projected.uv.y,
-      },
+      uv: toImageCoordinate(args.projection.mapping, projected.uv),
       referenceSizeLocal: args.referenceSizeLocal,
       referenceSizeUv,
     };
@@ -1095,15 +1150,17 @@ export class AvatarFaceTextureAnchors {
         args.projection.anchorObject,
         projected.localPoint,
       ),
-      uv: {
-        u: projected.uv.x,
-        v: projected.uv.y,
-      },
+      uv: toImageCoordinate(args.projection.mapping, projected.uv),
       referenceSizeLocal: args.referenceSizeLocal,
       referenceSizeUv,
     };
   }
 
+  /**
+   * The extent on the face texture's image of a `referenceSizeLocal` box
+   * around `localPoint`: its centre and edge midpoints projected onto the
+   * face, mapped onto the image together.
+   */
   private _projectReferenceSizeUv(args: {
     projection: FaceProjectionData;
     localPoint: THREE.Vector3;
@@ -1128,10 +1185,14 @@ export class AvatarFaceTextureAnchors {
       };
     }
 
-    const minU = Math.min(...samples.map((sample) => sample.uv.x));
-    const maxU = Math.max(...samples.map((sample) => sample.uv.x));
-    const minV = Math.min(...samples.map((sample) => sample.uv.y));
-    const maxV = Math.max(...samples.map((sample) => sample.uv.y));
+    // Wrapped by the first sample's tile, so the box stays whole.
+    const points = samples.map((sample) =>
+      args.projection.mapping.toImage(sample.uv, samples[0]!.uv),
+    );
+    const minU = Math.min(...points.map((point) => point.x));
+    const maxU = Math.max(...points.map((point) => point.x));
+    const minV = Math.min(...points.map((point) => point.y));
+    const maxV = Math.max(...points.map((point) => point.y));
 
     return {
       width: clampMin(maxU - minU, 0.01),

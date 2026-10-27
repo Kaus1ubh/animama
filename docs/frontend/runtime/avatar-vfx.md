@@ -24,6 +24,7 @@ Frontend paths are relative to `src/frontend/web/src/`.
 | Parser and limits      | `lib/avatar/vfx/definition.ts`, `effect-image-limits.ts`, `effect-image.ts`, `effectSource.ts`                                                         |
 | Runtime                | `lib/avatar/vfx/AvatarVFXController.ts`, `AvatarAttachmentEffects.ts`, `silhouetteOverlay.ts`, `animation.ts`, `types.ts`                              |
 | Face parts and anchors | `lib/avatar/vfx/faceParts.ts`, `profiles.ts` (name fallback), `AvatarFaceLandmarks.ts`, `AvatarFaceTextureAnchors.ts`, `lib/avatar/humanoidAnchors.ts` |
+| Texture layouts        | `lib/avatar/vfx/textureUvMapping.ts` (UVs to image positions), `faceSkinClip.ts` (whole-face clip on shared textures)                                  |
 | Creator                | `ui/avatar-effect-creator/`, editor document `lib/avatar/vfx/editor/`, shared creator code `ui/content-creator/`                                       |
 | Template picker        | `lib/effects/effectTemplates.ts`, `ui/create/EffectTemplatePickerDialog.tsx`, thumbnails `assets/effect-templates/`                                    |
 | Conversion             | `src/backend/animama/app/services/avatar_effect_conversion.py`, `scripts/content/convert_avatar_effects.py`                                            |
@@ -208,7 +209,22 @@ replaces that instance.
 
 - **`full` and `eyes`** use the part's texture layout, so full-face art must
   match the Avatar's UV layout. `hideParts` hides other detected parts while
-  the effect is active. `eyes` art is drawn for a VRoid iris texture: one
+  the effect is active. `full` art is drawn only on the face skin's own
+  triangles of its texture: in each `face_skin` primitive on that image, the
+  face's UV island (`selectFaceIsland`, as anchors use) and the islands
+  outside its outline in the front view, such as VRoid's ears, less any
+  eye-line or lash `regions` and, in a primitive that also holds the neck or
+  body, the triangles not weighted to the head (`createFaceVertexFilter`).
+  An inner mouth, teeth or eyes inside the face's outline are left out. The
+  clip is made only where it removes something: when another primitive's
+  material also draws the image (a texture atlas), or when those rules drop
+  triangles. Each clip triangle grows about 1–1.5 px at the texture's full
+  resolution, so filtering there leaves no seam at the island's edge. The
+  clip is built once per binding and slot as a `Path2D`; an opaque clipped
+  replacement hides the original texture only inside it. VRoid faces on
+  their own texture, the Included Avatars among them, need no clip and draw
+  as before.
+  `eyes` art is drawn for a VRoid iris texture: one
   iris per half, the art cell being the whole half, about twice the iris.
   When an iris does not sit in its half that way (inside it, roughly centred,
   covering at least 40% of it in each direction), as on an Avatar whose eyes
@@ -216,8 +232,13 @@ replaces that instance.
   eye's art in a cell 1.9 times its own iris rectangle, clipped to that
   rectangle so it cannot reach the other eye. The iris rectangle is that of
   the eye landmark's island, or of a layer over the whole eye with a larger
-  texture area (its painted art). Eyes sharing one rectangle draw the same
-  art, unmirrored.
+  texture area (its painted art). On VRoid irises the image's x grows toward
+  the Avatar's left on both eyes; an eye whose art runs the other way
+  (`textureMirrored`, mirrored UVs) has its cell `flipped`, so everything drawn
+  there (art, offsets and turns) is mirrored about the cell's centre and reads
+  as on VRoid. Eyes sharing one rectangle draw the same art, unmirrored and
+  oriented for the viewer's left eye; with mirrored UVs the other eye shows
+  it mirrored, as on VRoid.
 - **Decals** (`undereye`, `blush`, `mouth`) are placed at UV anchors that
   `AvatarFaceTextureAnchors` computes at load: a 3D landmark is projected onto
   the `face_skin` mesh and its UV is interpolated. Projection stays on the face
@@ -229,6 +250,14 @@ replaces that instance.
   reference size; it does not clip the art, so a tear can run below the eye.
   `span` stretches one image across both anchors; use it only for art drawn
   that way.
+- **Texture transforms.** Anchors, iris rectangles, the face clip and the
+  creator's surface handles read positions on the texture's image, not raw
+  UVs (`TextureUvMapping`): the UV through the base texture's transform
+  (`KHR_texture_transform` offset, scale and rotation; three-vrm ports VRM 0's
+  `_MainTex_ST` tiling to the same transform), then wrapped by its
+  `wrapS`/`wrapT` (repeat, mirrored repeat or clamp) when outside 0–1. A
+  shape (a triangle, an anchor's extent) wraps whole by one reference point.
+  An untransformed texture maps UVs inside 0–1 to themselves.
 
 ### Floating effects (`face_landmark`)
 
@@ -844,7 +873,9 @@ update transforms and animated composites redraw and re-upload. The controller
 caches the original texture, cleanup fills, static layers and static segments
 between animated layers, so a tick redraws only what moves. An animated
 full-face texture is the most expensive effect; it dominates the heavy
-combination's GPU p95. Camera-facing planes and stickers compose one matrix
+combination's GPU p95. Where whole-face art needs a clip, each redraw also
+clips with the face skin's cached `Path2D` (VRoid faces on their own texture
+need none). Camera-facing planes and stickers compose one matrix
 per render; a silhouette adds one skinned draw per overlaid primitive (about
 11–13 on the Included Avatars).
 
@@ -881,11 +912,21 @@ per render; a silhouette adds one skinned draw per overlaid primitive (about
 - The mouth anchor follows the vertices the mouth shapes (`aa`, `ee`, `ih`,
   `oh`, `ou`) move most, or an estimate without them; on a face whose jaw
   moves with those shapes (Lapwing), mouth decals sit slightly low.
-- `full` art covers the face skin's whole texture. On a texture atlas it also
-  tints the other parts that primitive maps there (neck, inner mouth).
-- An iris layout assumes each eye's UVs run like VRoid's (not mirrored per
-  eye), and the painted-art layer is chosen by texture area, so a stretched
-  layer covering the whole eye can be taken for it.
+- The `full` art clip tells the face's own islands by their outline in the
+  front view: an island unwrapped apart inside the face's outline (a nose
+  patch, say) is left out with the inner mouth, and an inner part reaching
+  past the outline is kept. A face unwrapped in halves, with no island
+  spanning both eyes, keeps every island. Lower mipmap levels can still blend
+  art across an island's border, as the growth holds only at full
+  resolution.
+- An iris layout mirrors an eye whose art runs mirrored against VRoid's, but
+  `span` iris art is drawn across both cells without it; the painted-art layer
+  is chosen by texture area, so a stretched layer covering the whole eye can
+  be taken for it.
+- Texture transforms are read when the anchors, landmarks and clip are built,
+  so an expression that moves a texture (a texture-transform bind) is not
+  followed. Decal anchors assume the shade texture shares the base texture's
+  transform, and only the first UV set is read.
 - Hidden face parts and face cleanup cannot fade; they switch at half the
   event's envelope.
 - Decal quality depends on the cached anchors, and cleanup quality on the

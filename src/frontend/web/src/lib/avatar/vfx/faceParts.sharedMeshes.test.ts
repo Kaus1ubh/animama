@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { Avatar } from "../Avatar";
 import { appendTriangle } from "../testing/appendTriangle";
+import { addBlinkStrand, blinkTargets } from "../testing/blinkStrand";
 import { loadedTestAvatar } from "../testing/loadedTestAvatar";
 import { buildRuntimePrimitiveBindings } from "../vrmEditorInspection";
 import type { RuntimePrimitiveBindingEntry } from "./avatarPrimitiveUtils";
@@ -29,49 +30,6 @@ function entryOf(avatar: Avatar, key: string): RuntimePrimitiveBindingEntry {
   return buildRuntimePrimitiveBindings(avatar).entries.find(
     (entry) => entry.bindingKey === key,
   )!;
-}
-
-/** The morph targets `blink` drives on a mesh. */
-function blinkTargets(avatar: Avatar, mesh: THREE.Object3D): number[] {
-  const binds = avatar.vrm!.expressionManager!.getExpression("blink")!
-    .binds as unknown as { primitives?: THREE.Object3D[]; index?: number }[];
-  return binds
-    .filter((bind) => bind.primitives?.includes(mesh))
-    .map((bind) => bind.index!);
-}
-
-/**
- * A strand `above` an eye, inside the face mesh, that blink lowers as far as
- * the lid: `width` across, a thin sliver tall.
- */
-function addBlinkStrand(
-  avatar: Avatar,
-  face: RuntimePrimitiveBindingEntry,
-  eye: THREE.Vector3,
-  width: number,
-  above = 0.012,
-): void {
-  const y = eye.y + above;
-  const z = eye.z + 0.004;
-  appendTriangle({
-    avatar,
-    binding: face,
-    anchor: headOf(avatar),
-    corners: [
-      new THREE.Vector3(eye.x - width / 2, y, z),
-      new THREE.Vector3(eye.x + width / 2, y, z),
-      new THREE.Vector3(eye.x, y + 0.002, z),
-    ],
-    uv: [
-      [0.1, 0.1],
-      [0.12, 0.1],
-      [0.11, 0.12],
-    ],
-    morph: {
-      targets: blinkTargets(avatar, face.object),
-      offset: new THREE.Vector3(0, -0.02, 0),
-    },
-  });
 }
 
 function eyeCenters(avatar: Avatar): THREE.Vector3[] {
