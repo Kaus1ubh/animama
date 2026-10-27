@@ -8,7 +8,7 @@ from datetime import datetime
 from functools import reduce
 from typing import Any
 
-from sqlalchemy import Integer, RowMapping, SQLColumnExpression, cast, func, insert, literal, or_, select, update
+from sqlalchemy import Integer, RowMapping, SQLColumnExpression, cast, func, insert, or_, select, update
 from sqlalchemy.dialects.postgresql import TSQUERY
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -91,6 +91,9 @@ def _snippet_for_query(entry: MemoryEntry, query: str, *, max_chars: int) -> str
 
 # One web-search clause: a quoted phrase or a whitespace-separated word, either optionally negated with "-".
 _SEARCH_CLAUSE_PATTERN = re.compile(r'-?"[^"]*"?|\S+')
+# Each clause nests the statement one level deeper, and SQLAlchemy compiles it recursively, so a
+# pasted passage would exceed Python's recursion limit without this bound on each clause kind.
+_MAX_SEARCH_CLAUSES = 32
 
 
 def _websearch_clause(clause: str) -> ColumnElement[Any]:
@@ -100,18 +103,22 @@ def _websearch_clause(clause: str) -> ColumnElement[Any]:
 def _search_clauses(query: str) -> tuple[list[ColumnElement[Any]], list[ColumnElement[Any]]]:
     """Split a web-search query into positive and excluded tsquery clauses.
 
-    Each clause is still parsed by ``websearch_to_tsquery``, so stemming, stop
-    words, quoted phrases and ``-term`` negation keep PostgreSQL's behavior. A
-    standalone ``or`` is dropped because positive clauses are already alternatives.
+    Each clause is parsed by ``websearch_to_tsquery``, so stemming, stop words,
+    quoted phrases and ``-term`` negation follow PostgreSQL's rules. A standalone
+    ``or`` is dropped because positive clauses are already alternatives. Only the
+    first ``_MAX_SEARCH_CLAUSES`` positive and excluded clauses are kept.
     """
 
-    positives: list[ColumnElement[Any]] = []
-    exclusions: list[ColumnElement[Any]] = []
+    positives: list[str] = []
+    exclusions: list[str] = []
     for clause in _SEARCH_CLAUSE_PATTERN.findall(query):
         if clause.lower() == "or":
             continue
-        (exclusions if clause.startswith("-") else positives).append(_websearch_clause(clause))
-    return positives, exclusions
+        (exclusions if clause.startswith("-") else positives).append(clause)
+    return (
+        [_websearch_clause(clause) for clause in positives[:_MAX_SEARCH_CLAUSES]],
+        [_websearch_clause(clause) for clause in exclusions[:_MAX_SEARCH_CLAUSES]],
+    )
 
 
 def _constraint_name_from_integrity_error(exc: IntegrityError) -> str | None:
@@ -639,7 +646,7 @@ class SQLAlchemyMemoryEntryRepository(MemoryEntryRepository):
         # A file matches when it contains any positive word or phrase and no excluded one. Files matching
         # more clauses rank first, so every-word matches stay above partial ones; ts_rank_cd orders the rest.
         positives, exclusions = _search_clauses(query)
-        matched_clauses: ColumnElement[int]
+        ranking: list[ColumnElement[Any]] = []
         if positives:
             any_positive = reduce(lambda left, right: left.op("||", return_type=TSQUERY)(right), positives)
             search_query = reduce(
@@ -649,10 +656,10 @@ class SQLAlchemyMemoryEntryRepository(MemoryEntryRepository):
                 operator.add,
                 (cast(ORMMemoryEntry.search_vector.op("@@")(clause), Integer) for clause in positives),
             )
+            ranking.append(matched_clauses.desc())
         else:
             # Only exclusions, such as "-pickle": keep PostgreSQL's own interpretation of the whole query.
             any_positive = search_query = _websearch_clause(query)
-            matched_clauses = literal(0)
         score = func.ts_rank_cd(ORMMemoryEntry.search_vector, any_positive).label("score")
         stmt = (
             select(ORMMemoryEntry, score)
@@ -663,7 +670,7 @@ class SQLAlchemyMemoryEntryRepository(MemoryEntryRepository):
                 ORMMemoryEntry.search_vector.op("@@")(search_query),
             )
             .order_by(
-                matched_clauses.desc(),
+                *ranking,
                 score.desc(),
                 ORMMemoryEntry.updated_at.desc(),
                 ORMMemoryEntry.normalized_path.asc(),

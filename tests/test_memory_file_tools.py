@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import sys
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from typing import Any, cast
@@ -618,6 +619,22 @@ async def test_memory_search_ranks_notes_matching_more_query_words_first(async_s
     await _put_user_file(async_session, "shopping.md", "The user bought new boots, new gloves and a new scarf.")
 
     assert await _search_memory_paths(async_session, "new job start date") == [job_log, "shopping.md"]
+
+
+@pytest.mark.asyncio
+async def test_memory_search_handles_long_queries(async_session) -> None:
+    await _put_user_file(async_session, "job.md", "The user got a junior designer job.")
+    await _put_user_file(async_session, "pickle.md", "The user's job notes mention Pickle.")
+    filler = " ".join(f"filler{index}" for index in range(400))
+    # The test runner raises the recursion limit; the server runs with Python's default.
+    runner_limit = sys.getrecursionlimit()
+    sys.setrecursionlimit(1000)
+    try:
+        paths = await _search_memory_paths(async_session, f"job {filler} -pickle")
+    finally:
+        sys.setrecursionlimit(runner_limit)
+
+    assert paths == ["job.md"]
 
 
 @pytest.mark.asyncio
