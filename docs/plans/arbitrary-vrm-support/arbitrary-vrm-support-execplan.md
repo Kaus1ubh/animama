@@ -2380,6 +2380,26 @@ jobs through `scripts/heavy-slot.py`:
 - Not rerun on this candidate: the full `pnpm e2e:test` (last run on Phase 3's
   pre-merge build); it runs again before merge.
 
+Final candidate: `d1628f98` (tree `a1434799`): the FI-1 back-out `5c507671`
+with `main` at `0cb206f0` (#741, #742: provider SDK majors, docs) merged in,
+no conflicts and no contract or package change from `main`.
+
+- Full pre-push suite, all exit 0: `make check-test` 4,885 passed, 29 skipped;
+  `pnpm verify` 5,787 passed, 2 skipped; `pnpm web:test:browser` 131 passed;
+  `pnpm prettier:check`; `pnpm openapi-ts:check`; `pnpm web:build:hosted`;
+  `pnpm desktop:test` 557 passed, 14 skipped.
+- Full `pnpm e2e:test` on a fresh disposable built stack (`ANIMAMA_LLM_SKIP=1`):
+  40 passed, 1 failed. The failure, "accountless vfx guides preserve authored
+  JSON with replacement artwork and animation" (one `avatar_vfx`
+  `controller_warnings` diagnostic after the preceding "keep Eye = playing"
+  journey), also fails on `main` `0cb206f0`: running that spec's journeys in
+  order on fresh stacks failed it 2 of 2 times on both `main` and the
+  candidate, so it predates this PR. The imported-playback and Gesture
+  discard journeys passed.
+- The package-set check, the Included render diffs and the load timing above
+  still apply: the code differs from `f420eeb5`/`5470e01d` only by the backed-out
+  preview change and `main`'s backend dependency update.
+
 ## Validation and acceptance
 
 Spec acceptance criteria, with these checks (from `src/frontend` unless noted):
