@@ -257,7 +257,7 @@ function LocalSetupForm({ ownerId }: { ownerId: string }) {
   if (draft.awaitingAgeConfirmation) return <Navigate to="/" replace />;
 
   return (
-    <main className="bg-background text-foreground flex min-h-screen items-start justify-center px-4 py-10 sm:items-center sm:px-6 sm:py-12">
+    <main className="bg-background text-foreground min-h-app mt-(--app-titlebar-height) flex items-start justify-center px-4 py-10 sm:items-center sm:px-6 sm:py-12">
       <div className="border-border bg-card w-full max-w-2xl space-y-6 rounded-3xl border p-5 shadow-sm sm:p-9">
         <SetupProgress step={step} />
         <header className="space-y-2">

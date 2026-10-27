@@ -15,6 +15,7 @@ from animama.server import compose_entrypoint, native_entrypoint
 from animama.server.app import create_local_app
 from animama.server.config import Settings
 from animama.server.local_http import local_http_config, local_telemetry
+from tests.route_support import served_routes
 
 
 @pytest.mark.parametrize("field", ["animama_desktop_renderer_capability", "animama_desktop_control_token"])
@@ -50,7 +51,7 @@ async def test_built_factory_serves_assets_after_bootstrap_and_hides_private_rou
             animama_web_root=web,
         )
     )
-    paths = {getattr(route, "path", "") for route in application.routes}
+    paths = {getattr(route, "path", "") for route in served_routes(application)}
     assert not any(path.startswith("/_desktop") for path in paths)
     assert "/docs" not in paths and "/openapi.json" not in paths
     async with httpx.AsyncClient(

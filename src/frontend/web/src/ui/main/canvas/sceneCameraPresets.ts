@@ -37,6 +37,17 @@ export const SCENE_CAMERA_PRESETS: readonly SceneCameraPreset[] = [
   "portrait-close",
 ];
 
+/** Whether `value` names a chat camera preset, for untrusted input. */
+export function isSceneCameraPreset(
+  value: unknown,
+): value is SceneCameraPreset {
+  return SCENE_CAMERA_PRESETS.some((preset) => preset === value);
+}
+
+/** The PiP window's preset until the owner picks another. */
+export const DEFAULT_PIP_SCENE_CAMERA_PRESET: SceneCameraPreset =
+  "portrait-close";
+
 export type SceneCameraPresetState = {
   bindings: SceneCameraBindings;
   settings: SceneCameraSettings;

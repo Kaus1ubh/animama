@@ -50,7 +50,7 @@ import {
   type SettingsPreferences,
 } from "@/lib/settings/preferences";
 import {
-  DEFAULT_DESKTOP_SHORTCUTS,
+  defaultDesktopShortcuts,
   formatDesktopShortcut,
   resolveDesktopShortcuts,
   shortcutFromKeyboardEvent,
@@ -199,6 +199,7 @@ function ShortcutRecorder({
   onKeyDown,
 }: ShortcutRecorderProps) {
   const { t } = useTranslation("settings");
+  const { os } = useRuntimePlatform();
   return (
     <SettingsRow
       label={label}
@@ -224,7 +225,7 @@ function ShortcutRecorder({
             ? allowMouseShortcut
               ? t("shortcuts.pressKeysOrMouse")
               : t("shortcuts.pressKeys")
-            : formatDesktopShortcut(shortcut, (button) =>
+            : formatDesktopShortcut(shortcut, os, (button) =>
                 t("shortcuts.mouseButton", { button }),
               )}
         </Button>
@@ -243,12 +244,16 @@ function shortcutActionLabel(
       return t("shortcuts.actions.press_to_talk");
     case "quick_chat":
       return t("shortcuts.actions.quick_chat");
+    case "toggle_dictation":
+      return t("shortcuts.actions.toggle_dictation");
     case "toggle_voice_mode":
       return t("shortcuts.actions.toggle_voice_mode");
     case "toggle_voice_mute":
       return t("shortcuts.actions.toggle_voice_mute");
     case "skip_tts":
       return t("shortcuts.actions.skip_tts");
+    case "toggle_pip":
+      return t("shortcuts.actions.toggle_pip");
   }
 }
 
@@ -543,6 +548,8 @@ const shortcutRows: Array<{
 }> = [
   { action: "press_to_talk", allowMouseShortcut: true },
   { action: "quick_chat" },
+  { action: "toggle_pip" },
+  { action: "toggle_dictation" },
   { action: "toggle_voice_mode" },
   { action: "toggle_voice_mute" },
   { action: "skip_tts" },
@@ -588,7 +595,7 @@ export function ApplicationSettingsModal({
   const [selectedGeminiModelId, setSelectedGeminiModelId] =
     useState<GeminiTtsModelId>(DEFAULT_GEMINI_TTS_MODEL_ID);
   const [desktopShortcuts, setDesktopShortcuts] = useState<DesktopShortcutMap>(
-    DEFAULT_DESKTOP_SHORTCUTS,
+    defaultDesktopShortcuts(platform.os),
   );
   const [recordingShortcutAction, setRecordingShortcutAction] =
     useState<DesktopShortcutAction | null>(null);
@@ -634,7 +641,7 @@ export function ApplicationSettingsModal({
   );
   const savedTtsEnabledRef = useRef(false);
   const savedDesktopShortcutsRef = useRef<DesktopShortcutMap>(
-    DEFAULT_DESKTOP_SHORTCUTS,
+    defaultDesktopShortcuts(platform.os),
   );
   const savedAvatarTransformControlsEnabledRef = useRef(false);
   const updateUserPreferencesRef = useRef(updateUserPreferences);
@@ -666,8 +673,9 @@ export function ApplicationSettingsModal({
     () =>
       resolveDesktopShortcuts(
         resolvedUserPreferences?.speech?.desktop_shortcuts,
+        platform.os,
       ),
-    [resolvedUserPreferences?.speech?.desktop_shortcuts],
+    [platform.os, resolvedUserPreferences?.speech?.desktop_shortcuts],
   );
   const savedAvatarTransformControlsEnabled =
     resolvedUserPreferences?.presentation?.enable_avatar_transform_controls ===

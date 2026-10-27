@@ -26,9 +26,11 @@ export const SHORTCUTS_STATUS_CHANGED_CHANNEL =
 type DesktopShortcutAction =
   | "press_to_talk"
   | "quick_chat"
+  | "toggle_dictation"
   | "toggle_voice_mode"
   | "toggle_voice_mute"
-  | "skip_tts";
+  | "skip_tts"
+  | "toggle_pip";
 
 type DesktopKeyboardShortcut = {
   type?: "keyboard";
@@ -62,6 +64,7 @@ type DesktopShortcutsConfig = {
 
 type DesktopShortcutsContext = {
   quickChatAvailable: boolean;
+  pipAvailable: boolean;
   voiceModeAvailable: boolean;
   voiceModeActive: boolean;
   ttsAudioActive: boolean;
@@ -84,6 +87,7 @@ type DesktopShortcutsStatus = {
 
 const DEFAULT_CONTEXT: DesktopShortcutsContext = {
   quickChatAvailable: false,
+  pipAvailable: false,
   voiceModeAvailable: false,
   voiceModeActive: false,
   ttsAudioActive: false,
@@ -104,16 +108,20 @@ const MODIFIER_CODES = new Set([
 const ACTIONS: DesktopShortcutAction[] = [
   "press_to_talk",
   "quick_chat",
+  "toggle_dictation",
   "toggle_voice_mode",
   "toggle_voice_mute",
   "skip_tts",
+  "toggle_pip",
 ];
 
 const ONE_SHOT_ACTIONS: DesktopOneShotShortcutAction[] = [
   "quick_chat",
+  "toggle_dictation",
   "toggle_voice_mode",
   "toggle_voice_mute",
   "skip_tts",
+  "toggle_pip",
 ];
 
 const ONE_SHOT_SHORTCUT_COOLDOWN_MS = 100;
@@ -342,6 +350,9 @@ class DesktopShortcutManager {
       ...(typeof value.quickChatAvailable === "boolean"
         ? { quickChatAvailable: value.quickChatAvailable }
         : {}),
+      ...(typeof value.pipAvailable === "boolean"
+        ? { pipAvailable: value.pipAvailable }
+        : {}),
       ...(typeof value.voiceModeActive === "boolean"
         ? { voiceModeActive: value.voiceModeActive }
         : {}),
@@ -423,12 +434,17 @@ class DesktopShortcutManager {
         return this.context.voiceModeActive;
       case "quick_chat":
         return this.context.quickChatAvailable;
+      case "toggle_dictation":
+        // Dictation and Voice Mode share the microphone; one runs at a time.
+        return this.context.voiceModeAvailable && !this.context.voiceModeActive;
       case "toggle_voice_mode":
         return this.context.voiceModeAvailable;
       case "toggle_voice_mute":
         return this.context.voiceModeActive;
       case "skip_tts":
         return this.context.ttsAudioActive;
+      case "toggle_pip":
+        return this.context.pipAvailable;
     }
   }
 

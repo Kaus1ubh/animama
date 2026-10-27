@@ -53,6 +53,70 @@ the shared document preview.
 The [Appearance editor](avatar-releases-and-appearance.md) manages independent
 Profile and Background images, framing and Avatar portrait fallback.
 
+## Avatar settings
+
+Anima settings (the Settings tab, and Settings in the chat profile modal) end
+with an **Avatar** section. On the local runtimes (desktop and self-hosted web)
+it holds two settings of the Anima's Avatar item, stored per owner and Avatar
+through `GET`/`PUT /v1/avatar-content/{item_id}/settings`, so they apply
+wherever that Avatar is used:
+
+- **Wind and ambient forces**: Automatic, On, Off or Springs off (see
+  [`SpringBonePhysicsController`](../runtime/avatar-animation.md#springbonephysicscontroller)).
+  A change applies live on every surface showing the Avatar.
+- **Materials**: Automatic, lilToon or Simple, shown only for a file with
+  authored lilToon materials (see
+  [Authored lilToon materials](../runtime/avatar-animation.md#authored-liltoon-materials)),
+  or while a stored choice is not Automatic. Materials are built at load, so
+  a change reloads the Avatar wherever it is shown. Whether a file has lilToon
+  materials is known once any surface has loaded it in this session
+  (`useAvatarFileTraitsStore`, keyed by the VRM's sha256).
+
+Automatic is stored as no value. Every surface that loads a saved Avatar (chat
+canvas, Anima page stage, content previews, the content creators, the Pose
+creator, Create Anima and Diagnostics' own load) reads the settings through
+`useAvatarLoadSettings`, which waits for the read before loading so a Simple
+Avatar is not loaded twice; a failed read means Automatic and never blocks the
+load. The hosted app never calls the local-only route and shows neither row.
+Packages carry the exporter's stored values; an importing runtime that cannot
+keep them says so in the import review.
+
+## Avatar diagnostics
+
+The Avatar section's **Avatar diagnostics** row opens a dialog showing what
+Animama found in the Anima's Avatar and how it plays it:
+
+- **File**: container and VRM version, size, required and used glTF
+  extensions, mesh, mesh-part and material counts by kind (MToon, lilToon,
+  unlit, standard), each embedded image's pixel size and, for a file with
+  lilToon materials, whether they render with lilToon or as Simple materials
+  and why.
+- **Face**: how each face part was found (model data, material names, a saved
+  correction, or not at all) and whether face landmarks and texture anchors
+  are ready.
+- **Expressions**: the standard VRM expressions present, those played through
+  ARKit mixes, ARKit shape coverage, and names Gestures, Reactions or moods
+  asked for that the Avatar lacks.
+- **Motion**: humanoid bones, missing required bones, spring joints and
+  colliders, and the wind setting in effect with whether wind and updraft
+  apply. Each setting also shows whether it is saved for the Avatar or the
+  default.
+- **Warnings**: every face-part, landmark, texture-anchor, spring and effect
+  finding, once each.
+
+It reads the Avatar on the chat stage when that Anima is there; otherwise it
+loads the Avatar separately, with its saved face part correction, and releases
+it on close. An Avatar that does not load still shows its file facts and the
+load error. **Copy report** copies a plain-text report and **Raw JSON** shows
+the same `animama/avatar-diagnostics/1` report as a collapsible tree, with
+Copy JSON for the whole document. Reports identify the
+Avatar, and any effect a warning names, by source and item id
+(`local:<item id>`), and hold counts, standard names (VRM expressions and
+bones, ARKit shapes, VRoid `Fcl_` parts) and codes only: no file paths, URLs,
+or Avatar, material, effect or custom expression names. The dialog itself
+names effects on screen. Diagnostics uses only the runtime snapshot, loadout
+and content delivery, with nothing local-only, so hosted builds include it.
+
 ## Loadout
 
 `GET /v1/animas/{anima_id}/loadout` supplies one typed aggregate containing:

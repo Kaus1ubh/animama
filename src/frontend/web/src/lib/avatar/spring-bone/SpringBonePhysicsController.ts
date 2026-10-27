@@ -7,6 +7,11 @@ import {
 } from "@pixiv/three-vrm";
 import type { GLTF } from "three/examples/jsm/loaders/GLTFLoader.js";
 
+import {
+  addAvatarIssue,
+  mergeAvatarIssues,
+  type AvatarIssue,
+} from "../diagnostics/issues";
 import type { AvatarAnimationState, EmotionLabel } from "../types";
 import {
   buildSpringBoneSemanticAssignments,
@@ -121,6 +126,8 @@ export type SpringBonePhysicsSnapshot = {
   footBonesResolved: string[];
   footBonesMissing: string[];
   warnings: string[];
+  /** This controller's and the classifier's warnings as stable codes. */
+  issues: AvatarIssue[];
   semanticProfileReady: boolean;
   semanticJointCounts: SpringBoneSemanticJointCounts;
   semanticAssignmentCount: number;
@@ -194,6 +201,7 @@ export class SpringBonePhysicsController {
   private _helperRoot: THREE.Group | null = null;
   private _helpers: SpringBoneHelper[] = [];
   private _warnings: string[] = [];
+  private _issues: AvatarIssue[] = [];
   private _semanticClassification: SpringBoneSemanticClassification;
   private _semanticProfileOverrides: Partial<
     Record<SpringBoneSemantic, SpringBoneSemanticProfileOverride>
@@ -296,8 +304,11 @@ export class SpringBonePhysicsController {
       }
 
       if (fanOrigin && updraftStrength > 0) {
-        joint.bone.updateWorldMatrix(true, false);
-        joint.bone.getWorldPosition(this._jointWorldPosition);
+        // The falloff is soft, so the joint's world matrix from the latest
+        // full update (this frame's look-at pass or the last render) is close
+        // enough. Updating each joint's parent chain here recomputed the
+        // shared hair chains for every joint, twice, every frame.
+        this._jointWorldPosition.setFromMatrixPosition(joint.bone.matrixWorld);
 
         const dx = this._jointWorldPosition.x - fanOrigin.x;
         const dz = this._jointWorldPosition.z - fanOrigin.z;
@@ -385,6 +396,10 @@ export class SpringBonePhysicsController {
       footBonesResolved: footBones.resolved,
       footBonesMissing: footBones.missing,
       warnings: [...this._warnings],
+      issues: mergeAvatarIssues(
+        this._issues,
+        semanticProfileReady ? this._semanticClassification.issues : null,
+      ),
       semanticProfileReady,
       semanticJointCounts: semanticProfileReady
         ? { ...this._semanticClassification.counts }
@@ -415,6 +430,14 @@ export class SpringBonePhysicsController {
 
   setEnabled(enabled: boolean): void {
     this.setParams({ enabled });
+  }
+
+  /**
+   * Apply or drop wind and updraft (the Avatar's wind setting). Without them
+   * joints keep their authored gravity and drag.
+   */
+  setAmbientForces(enabled: boolean): void {
+    this._ambientForces = enabled;
   }
 
   setParams(params: Partial<SpringBonePhysicsParams>): void {
@@ -607,10 +630,11 @@ export class SpringBonePhysicsController {
     const rightFoot = humanoid?.getNormalizedBoneNode("rightFoot");
     if (!leftFoot || !rightFoot) return null;
 
+    // `getWorldPosition` would update each chain a second time.
     leftFoot.updateWorldMatrix(true, false);
     rightFoot.updateWorldMatrix(true, false);
-    leftFoot.getWorldPosition(this._leftFootPosition);
-    rightFoot.getWorldPosition(this._rightFootPosition);
+    this._leftFootPosition.setFromMatrixPosition(leftFoot.matrixWorld);
+    this._rightFootPosition.setFromMatrixPosition(rightFoot.matrixWorld);
 
     this._fanOrigin
       .copy(this._leftFootPosition)
@@ -766,6 +790,7 @@ export class SpringBonePhysicsController {
       this._helperRoot.add(helper);
     } catch (error) {
       this._pushWarning(
+        { code: "springs_helper_failed" },
         error instanceof Error
           ? error.message
           : "Unable to create spring-bone helper.",
@@ -838,7 +863,8 @@ export class SpringBonePhysicsController {
     this._targetGustDirectionOffsetDeg = 0;
   }
 
-  private _pushWarning(warning: string): void {
+  private _pushWarning(issue: AvatarIssue, warning: string): void {
+    addAvatarIssue(this._issues, issue);
     if (this._warnings.includes(warning)) return;
     this._warnings = [...this._warnings, warning].slice(-MAX_WARNINGS);
   }

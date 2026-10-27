@@ -1297,7 +1297,11 @@ Responsibilities:
 - Own runtime spring-bone tuning for VRM secondary motion.
 - Snapshot original spring joint stiffness, gravity, and drag settings.
 - Apply debug parameters for gravity, drag, updraft, wind, gusts, and helper
-  visibility before `vrm.update(delta)`.
+  visibility before three-vrm's update. `Avatar.updateModel(delta)` runs both;
+  every per-frame update goes through it (`Avatar.update`, the content
+  creators, the Pose creator and review renders), never `vrm.update(delta)`
+  directly. Zero-delta `vrm.update(0)` refreshes remain; they never step the
+  springs.
 - Scale environmental physics per semantic spring-bone profile. Hair receives
   full intensity; named non-hair profiles and unprofiled joints receive the
   conservative fallback intensity unless their profile is tuned.
@@ -1306,9 +1310,23 @@ Responsibilities:
 Current defaults keep spring physics enabled, use a stronger drag multiplier,
 apply a subtle updraft, enable gust shaping, and keep helpers hidden.
 
-Avatars converted by Mochiya Avatar Tools, the supported VRChat conversion
-route, get no ambient forces: no wind, no updraft and, at the default gravity
-multiplier, no zero-gravity baseline. `Avatar.load` detects them by the
+Each Avatar has a wind setting ([Avatar settings](../features/anima-management.md#avatar-settings)),
+applied at load (`AvatarLoadSpec.springMode`) and live through
+`Avatar.setSpringMode`:
+
+- **Automatic** keeps the choice below: ambient forces, except for Avatars
+  converted by Mochiya.
+- **On** and **Off** force ambient forces on or off
+  (`SpringBonePhysicsController.setAmbientForces`).
+- **Springs off** also holds every spring joint at its rest rotation.
+  three-vrm has no switch for its springs, so `updateModel` calls
+  `springBoneManager.reset()` after each `vrm.update`; leaving the mode
+  resumes the simulation from rest. `avatarSpringMode.test.ts` pins this
+  against the installed three-vrm.
+
+Under Automatic, Avatars converted by Mochiya Avatar Tools, the supported
+VRChat conversion route, get no ambient forces: no wind, no updraft and, at
+the default gravity multiplier, no zero-gravity baseline. `Avatar.load` detects them by the
 `MOCHIYA_avatar_composition` glTF extension Mochiya adds to every Avatar it
 converts (`springsTunedWithoutAmbientForces`), so detection holds only while a
 re-export keeps that extension. The snapshot and the debug panel's Spring Bones
@@ -1573,6 +1591,18 @@ adapts colour and UV expression binds to those materials.
 - **Lighting:** lilToon reads only the first visible directional light plus the
   ambient and hemisphere lights, so the enhanced look's fill and rim lights do
   not reach it. Tone mapping applies to both looks; the MToon retune does not.
+- **Materials setting:** an Avatar's Simple setting
+  ([Avatar settings](../features/anima-management.md#avatar-settings)) loads
+  it through a loader without `withOnDemandLilToon` (`createAvatarGltfLoader`
+  in `avatarGltfLoader.ts`), so the glTF fallback materials load and
+  three-liltoon is not imported. Automatic and lilToon load lilToon; an
+  Automatic GPU check is planned in #691 (R11). `Avatar.lilToonMaterials`
+  reports `rendered`, `fallback` or `none`.
+- **Fallback base colours:** Mochiya writes `metallicFactor` 1 on the fallback
+  materials, which renders them almost black without an environment map.
+  `LilToonFallbackMaterialsPlugin` builds fallbacks of lilToon materials with
+  metalness 0; GLTFLoader extends only materials it builds itself, so
+  lilToon's own materials are untouched.
 - **Fallback:** in development and the review tools, a failed import loads the
   glTF fallback materials instead, and a later Avatar retries. In a built app a
   failed chunk download shows the app's reload screen (`PageLoadError`), as for
@@ -1639,6 +1669,37 @@ After the first posed draw, on every `useFrame` tick:
 - Call `avatar.update(delta, { speechTiming })`.
 
 This avoids coupling avatar updates to React render frequency.
+
+### Frame rate
+
+The chat `Scene` (main window and PiP) renders on demand at the rate it needs,
+not at the display rate (120 Hz on ProMotion displays). `SceneFramePacer`
+(`ui/main/canvas/SceneFramePacer.tsx`) runs a display-rate loop and renders due
+frames there with R3F's `advance`: 60 fps while the Avatar is active, 30 fps
+while it idles. Requesting frames with `invalidate` instead renders them one
+display frame late, and on a 60 Hz display R3F's stopped loop then drops every
+other one. Each
+frame costs renderer and GPU-process CPU, so on a 120 Hz display this measured
+about 75% → 45% of a core idle, and about 26% at the idle rate.
+
+The Avatar is idle when the interaction phase is `idle` and
+`avatar.isMotionActive()` is false: an `idle` animation state, no reaction clip
+and no Avatar or particle effect. `AvatarCanvasActor` writes this into the
+scene's `SceneFrameDemand` after each update. Window pointer, wheel and key
+input, and in PiP the desktop cursor feed, keep the full rate for
+`SCENE_INPUT_ACTIVE_MS` (1.5 s) so cursor look-at stays smooth. Scenes with a
+custom `avatarActor` never report idle and keep 60 fps. Delta-time consumers see
+the real interval since the previous rendered frame.
+
+The other Avatar canvases use the same `PacedScene` wrapper. An active
+`AvatarPreviewSurface` (the Animas page, the Library preview, creators and
+editors) and the Create Anima upload preview render at 60 fps; the Animas page,
+the Library preview and Create Anima report idle through `useSceneFrameDemand`
+and drop to 30 while nothing plays, while creators and editors keep 60. An
+inactive surface renders only when invalidated. These canvases render at most
+1.5× device pixels (`PREVIEW_CANVAS_DPR`) with 4× MSAA kept; chat and PiP keep
+2×. On a Retina display 1.5× is 44% fewer pixels; for a full-window chat canvas
+it measured about 230 MB less GPU memory and no CPU change.
 
 ### Animation debug modal
 

@@ -38,11 +38,13 @@ from animama.app.contracts.content_package import (
 )
 from animama.app.contracts.portable_anima import PortableAnima
 from animama.app.ports.avatar_face_parts import AvatarFacePartOverrideRepository
+from animama.app.ports.avatar_settings import AvatarSettingField, AvatarSettingOverrideRepository
 from animama.app.ports.content_package_staging import PackageInspector, PackageStageLease, PackageStages
 from animama.app.ports.user_profile_port import UserProfileRepository
 from animama.app.services.anima_package_source_service import AnimaPackageSnapshot, AnimaPackageSourceService
 from animama.app.services.avatar_face_parts import effective_face_parts
 from animama.app.services.avatar_portraits import portrait_matches
+from animama.app.services.avatar_settings import override_settings, strip_document_settings
 from animama.app.services.content_catalog_service import ContentCatalogService
 from animama.app.services.content_kind_registry import MAX_JSON_BYTES, handler_for_kind
 from animama.app.services.content_package_staging import PackageStageService
@@ -303,6 +305,9 @@ class _Selection:
     non_portable: tuple[tuple[CatalogContentEntry, tuple[_NonPortableUse, ...]], ...] = ()
     # Effective face-part corrections by Avatar item id, written into each portable sidecar.
     face_parts: dict[str, dict[str, Any]] = field(default_factory=dict)
+    # The exporter's stored non-Automatic Avatar settings by Avatar item id,
+    # written into each portable sidecar as ``spring_mode``/``material_mode``.
+    avatar_settings: dict[str, dict[AvatarSettingField, str]] = field(default_factory=dict)
 
 
 def _portraits(
@@ -332,9 +337,12 @@ class ContentPackageExportService:
         inspector: PackageInspector | None = None,
         profiles: UserProfileRepository | None = None,
         face_part_overrides: AvatarFacePartOverrideRepository | None = None,
+        avatar_setting_overrides: AvatarSettingOverrideRepository | None = None,
     ) -> None:
         self._content = content
         self._face_part_overrides = face_part_overrides
+        # Without a settings store (a composition that keeps none) exports carry no settings.
+        self._avatar_setting_overrides = avatar_setting_overrides
         self._catalog = content.mutations.catalog
         self._store = content.mutations.store
         if stages is None and exports_root is None:
@@ -418,6 +426,7 @@ class ContentPackageExportService:
         silent: set[str] = set()
         stripped = self._strip_non_portable(entries, uses, silent)
         face_parts = await self._face_parts(user_id=user_id, entries=tuple(entries.values()))
+        avatar_settings = await self._avatar_settings(user_id=user_id, entries=tuple(entries.values()))
         total = sum(file.size_bytes for item in entries.values() for file in _shared_files(item.item))
         count = sum(len(_shared_files(item.item)) for item in entries.values())
         count += sum(
@@ -435,6 +444,7 @@ class ContentPackageExportService:
                 "portraits": portraits,
                 "non_portable": {item.id: item.revision_sha256 for item, _ in non_portable},
                 "face_parts": face_parts,
+                "avatar_settings": avatar_settings,
             }
         )
         selected = set(item_ids)
@@ -471,6 +481,7 @@ class ContentPackageExportService:
             stripped=stripped,
             non_portable=non_portable,
             face_parts=face_parts,
+            avatar_settings=avatar_settings,
         )
 
     @staticmethod
@@ -533,6 +544,26 @@ class ContentPackageExportService:
             )
             if effective.face_parts is not None:
                 result[avatar.item.id] = effective.face_parts
+        return result
+
+    async def _avatar_settings(
+        self, *, user_id: str, entries: tuple[TypedCatalogItem, ...]
+    ) -> dict[str, dict[AvatarSettingField, str]]:
+        """Read the exporter's stored settings for each exported Avatar, Local or Included.
+
+        Values in a source document are never exported: the owner's table is the
+        only authority, so the import side applies exactly what this owner chose.
+        """
+
+        avatars = [item.item.id for item in entries if isinstance(item.document, AvatarDocumentV1)]
+        if self._avatar_setting_overrides is None or not avatars:
+            return {}
+        overrides = await self._avatar_setting_overrides.list_for_items(owner_user_id=user_id, avatar_item_ids=avatars)
+        result: dict[str, dict[AvatarSettingField, str]] = {}
+        for item_id in avatars:
+            values = override_settings(overrides.get(item_id))
+            if values:
+                result[item_id] = values
         return result
 
     async def summarize(
@@ -755,6 +786,9 @@ class ContentPackageExportService:
                     projection.pop("face_parts", None)
                     if entry.id in selected.face_parts:
                         projection["face_parts"] = selected.face_parts[entry.id]
+                    strip_document_settings(projection)
+                    for name, value in selected.avatar_settings.get(entry.id, {}).items():
+                        projection[name] = value
                 aliases = frozenset(edge.alias for edge in document.dependencies if edge.alias)
                 portable = portable_json(projection, references, aliases=aliases)
                 portable_document = handler.parse_document(

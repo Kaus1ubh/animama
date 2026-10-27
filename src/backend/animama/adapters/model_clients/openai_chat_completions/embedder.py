@@ -7,7 +7,7 @@ from collections.abc import Iterable, Mapping
 from itertools import islice
 from typing import Any
 
-import httpx
+import httpx2
 from openai import OpenAIError
 
 from animama.app.model_clients import ModelClientError, ModelClientProviderError, ModelClientTimeoutError
@@ -105,7 +105,7 @@ class ConnectionEmbedder:
             raise error_type(
                 _failure_message(connection.name, info.code, info.metadata), code=info.code, raw_metadata=info.metadata
             ) from exc
-        except httpx.HTTPError as exc:
+        except httpx2.HTTPError as exc:
             raise ModelClientProviderError(
                 _failure_message(connection.name, "openai_connection_error", None), code="openai_connection_error"
             ) from exc

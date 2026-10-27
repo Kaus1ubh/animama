@@ -88,6 +88,11 @@ export function facePartRows(
     } else if (part.source === "corrected") {
       status = "corrected";
       statusLabel = t("faceParts.status.corrected");
+    } else if (!part.bindings.length && part.regions?.length) {
+      // Lashes or lines modelled inside the face or eye mesh: found, but not
+      // a mesh part of their own to pick.
+      status = "detected";
+      statusLabel = t("faceParts.status.insideShared");
     } else if (part.source === "missing" || !part.bindings.length) {
       status = "missing";
       statusLabel = t("faceParts.status.missing");

@@ -33,7 +33,11 @@ export function avatarPreviewTarget(
     display_name: displayName,
     description: displayName,
     config_schema_version: 1,
-    config: object(object(metadata.spec).presentation),
+    config: {
+      ...object(object(metadata.spec).presentation),
+      // The Avatar item, so the preview loads with its saved settings.
+      ...(preview.item_id ? { avatar_catalog_item_id: preview.item_id } : {}),
+    },
     content_revision: preview.revision,
     source: { type: "authorized_files", files },
   };

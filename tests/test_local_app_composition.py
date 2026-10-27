@@ -20,6 +20,7 @@ from animama.server.app import create_local_app
 from animama.server.config import Settings
 from animama.server.deps import get_current_principal
 from animama.server.runtime_credentials import PinnedCredentialsMiddleware
+from tests.route_support import served_routes
 
 
 def test_local_app_stays_fail_closed_before_completed_bootstrap(tmp_path: Path) -> None:
@@ -65,7 +66,7 @@ def test_every_local_product_http_route_requires_the_principal_dependency(tmp_pa
 
     unprotected = [
         route.path
-        for route in app.routes
+        for route in served_routes(app)
         if isinstance(route, APIRoute) and route.path.startswith("/v1") and not resolves_principal(route.dependant)
     ]
     assert unprotected == []

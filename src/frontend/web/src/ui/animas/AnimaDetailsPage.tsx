@@ -387,7 +387,7 @@ function ManagementPanel({
           ) : activeTab === "loadout" ? (
             <AnimaLoadout animaId={anima.id} onStagePreview={onStagePreview} />
           ) : (
-            <AnimaSettingsModal />
+            <AnimaSettingsModal animaId={anima.id} />
           )}
         </div>
       </aside>
@@ -808,7 +808,7 @@ export function AnimaDetailsPage({
 
   return (
     <AppShellPage
-      className="min-h-[100dvh] xl:h-[100dvh] xl:overflow-hidden"
+      className="min-h-app xl:h-app xl:overflow-hidden"
       contentClassName="min-h-full max-w-none gap-0 px-0 py-0 md:px-0 md:py-0 lg:px-0 xl:h-full xl:min-h-0"
       backdrop={
         // A soft, full-window wash of the stage image reaches behind the

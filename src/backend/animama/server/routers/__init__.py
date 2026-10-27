@@ -24,6 +24,7 @@ from animama.product_http.routes import (
 from . import (
     anima_creation,
     archive,
+    avatar_settings,
     content,
     elevenlabs,
     events,
@@ -54,6 +55,7 @@ router.include_router(shared_content.router)
 router.include_router(content.router)
 router.include_router(packages.router)
 router.include_router(typed_content.router)
+router.include_router(avatar_settings.router)
 router.include_router(chats.router)
 router.include_router(shared_elevenlabs.router)
 router.include_router(elevenlabs.router)

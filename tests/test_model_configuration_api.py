@@ -25,6 +25,7 @@ from animama.server.routers import model_configuration, router as shared_router
 from animama.server.routers.model_configuration import get_model_connection_probe
 from tests.local_http_client import local_client
 from tests.product_http_support import install_local_ports
+from tests.route_support import served_routes
 
 
 class _FakeProbe:
@@ -497,25 +498,25 @@ async def test_detect_ignores_a_requested_address(async_session, tmp_path, owner
 async def test_detect_lists_a_real_server_without_a_key_and_bounds_the_models(
     async_session, tmp_path, owner_id, monkeypatch
 ):
-    import httpx
+    import httpx2
     from openai import AsyncOpenAI
 
     from animama.adapters.model_clients.openai_chat_completions.probe import OpenAICompatibleConnectionProbe
     from animama.app.model_clients.credentials import static_credential_resolver
 
-    requests: list[httpx.Request] = []
+    requests: list[httpx2.Request] = []
 
-    def server(request: httpx.Request) -> httpx.Response:
+    def server(request: httpx2.Request) -> httpx2.Response:
         requests.append(request)
         data = [
             {"id": f"model-{index:03d}", "object": "model", "created": 0, "owned_by": "local"} for index in range(250)
         ]
-        return httpx.Response(200, json={"object": "list", "data": data})
+        return httpx2.Response(200, json={"object": "list", "data": data})
 
     original_init = AsyncOpenAI.__init__
 
     def _init(self, *args, **kwargs):  # noqa: ANN001, ANN002, ANN003
-        kwargs["http_client"] = httpx.AsyncClient(transport=httpx.MockTransport(server))
+        kwargs["http_client"] = httpx2.AsyncClient(transport=httpx2.MockTransport(server))
         original_init(self, *args, **kwargs)
 
     monkeypatch.setattr(AsyncOpenAI, "__init__", _init)
@@ -539,11 +540,11 @@ def test_only_the_local_composition_mounts_model_configuration_routes(tmp_path):
     from animama.server.app import create_local_app
 
     configuration_paths = {route.path for route in model_configuration.router.routes if isinstance(route, APIRoute)}
-    shared_paths = {route.path for route in shared_router.routes if isinstance(route, APIRoute)}
+    shared_paths = {route.path for route in served_routes(shared_router) if isinstance(route, APIRoute)}
     local_app = create_local_app(
         runtime_settings=Settings(animama_content_root=tmp_path / "content", animama_data_root=tmp_path / "data")
     )
-    local_paths = {route.path for route in local_app.routes if isinstance(route, APIRoute)}
+    local_paths = {route.path for route in served_routes(local_app) if isinstance(route, APIRoute)}
 
     assert "/v1/model-connections" in configuration_paths
     assert "/v1/model-connection-presets/openrouter/models" in configuration_paths

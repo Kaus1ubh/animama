@@ -72,7 +72,7 @@
     "actionFailed": "操作无法完成。请打开日志，或在解决问题后退出并重新打开 Animama。",
     "genericError": "启动无法完成。请打开日志查看详情，解决问题后重试。你的本地数据已保留。",
     "secureStorage": {
-      "macos": "macOS 安全存储不可用。请解锁登录钥匙串后重试。",
+      "macos": "macOS 安全存储不可用。请解锁登录钥匙串并允许 Animama 访问，然后退出并重新打开 Animama。",
       "windows": "此账户无法使用 Windows 受保护存储。请使用你自己的账户（而非临时配置文件）登录 Windows 后重试。"
     },
     "freshProfile": {

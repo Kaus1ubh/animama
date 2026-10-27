@@ -139,8 +139,8 @@ Renderer access to Electron goes through `window.animamaDesktop`, exposed by the
 sandboxed preload at `desktop/src/preload.cts`.
 
 API version 2 identifies the platform and window role and groups runtime,
-credential, feature-pack, update, fullscreen, PiP, Quick Chat, shortcut and
-locale methods.
+credential, feature-pack, update, fullscreen, title bar, PiP, Quick Chat,
+shortcut and locale methods.
 See `desktop/src/preload.cts` for the complete surface.
 
 The preload source uses `.cts` and is bundled to `dist/preload.cjs` after
@@ -352,6 +352,36 @@ The main process emits fullscreen state changes on native
 process so the React button state stays aligned with the native window state.
 
 Browser web still falls back to DOM fullscreen.
+
+## Title Bar
+
+On macOS and Windows the main window has no native title bar
+([`title-bar.ts`](../../../src/frontend/desktop/src/main-process/window/title-bar.ts)).
+Its window buttons sit in a strip across the top of the page: the macOS
+traffic lights, or the Windows minimize, maximize and close buttons at 32px,
+which Windows draws on a box in the app background color. On an Anima chat the
+Scene fills the strip; other pages show the app background there. Linux keeps
+the native frame.
+
+Electron reports the strip to the page as the window-controls overlay, so the
+web app reads its height from `env(titlebar-area-height)` into
+`--app-titlebar-height`; it is 0px in fullscreen, in PiP and Quick Chat, on
+Linux and in the browser. The `.app-titlebar` element in `web/index.html` moves
+the window by it, and buttons, links and form controls opt out of dragging.
+
+Layouts reserve the strip themselves. Never pad the body for it: Radix's modal
+scroll lock replaces the body's padding, which would shift the app up while a
+dialog is open. The app shell spans the window and pads its pages below the
+strip; the Anima scene shell extends into that padding while its header and
+chat stay below it. Screens outside the app shell, such as setup, start below
+the strip with a top margin. Layouts below the strip use the `h-app` and
+`min-h-app` utilities instead of the viewport height, and fixed panels such as
+the sidebar start below the strip.
+
+Windows draws its buttons in fixed colors, so the main window samples the body
+background and text colors on theme and Appearance changes and sends them as
+`#rrggbb` through `window.animamaDesktop.titleBar.setColors(...)`. The
+desktop-shell load-error page has its own drag strip.
 
 ## Desktop Picture-In-Picture
 

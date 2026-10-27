@@ -155,11 +155,13 @@ function sourceRoots(options: JsonObject, avatar: JsonObject): JsonObject[] {
       source: asObject(gesture.source, "Gesture source"),
     });
   }
+  // Each emotion maps intensities to a Reaction pool: a possibly empty list of
+  // source references, every one of which needs creation evidence.
   const reactions = asObject(recommended.reactions, "Recommended reactions");
   for (const cellsValue of Object.values(reactions)) {
     const cells = asObject(cellsValue, "Reaction cells");
-    for (const source of Object.values(cells)) {
-      if (source !== null) {
+    for (const pool of Object.values(cells)) {
+      for (const source of asArray(pool, "Reaction pool")) {
         roots.push({
           kind: "reaction",
           source: asObject(source, "Reaction source"),

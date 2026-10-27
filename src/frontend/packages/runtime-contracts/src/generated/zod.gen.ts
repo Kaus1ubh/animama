@@ -454,6 +454,52 @@ export const zAvatarFacePartsUpdate = z.object({
     ])
 });
 
+export const zAvatarMaterialMode = z.enum([
+    'automatic',
+    'liltoon',
+    'simple'
+]);
+
+export const zAvatarSettingSource = z.enum(['stored', 'default']);
+
+export const zAvatarSpringMode = z.enum([
+    'automatic',
+    'on',
+    'off',
+    'springs_off'
+]);
+
+/**
+ * AvatarSettingsState
+ *
+ * The effective settings for one Avatar and whether each was stored or defaulted.
+ */
+export const zAvatarSettingsState = z.object({
+    item_id: z.string(),
+    material_mode: zAvatarMaterialMode,
+    material_mode_source: zAvatarSettingSource,
+    spring_mode: zAvatarSpringMode,
+    spring_mode_source: zAvatarSettingSource
+});
+
+/**
+ * AvatarSettingsUpdate
+ *
+ * Change some of the owner's settings for one Avatar.
+ *
+ * An omitted field keeps its stored value; ``automatic`` or ``null`` clears it.
+ */
+export const zAvatarSettingsUpdate = z.object({
+    material_mode: z.optional(z.union([
+        zAvatarMaterialMode,
+        z.null()
+    ])),
+    spring_mode: z.optional(z.union([
+        zAvatarSpringMode,
+        z.null()
+    ]))
+});
+
 /**
  * BodyAttachment
  *
@@ -1128,6 +1174,8 @@ export const zImagePresentation = z.object({
     focal_y: z.number().gte(0).lte(1),
     zoom: z.number().gte(1).lte(4)
 });
+
+export const zImportItemNotice = z.literal('avatar_setting_not_stored');
 
 /**
  * ImportedPackageItem
@@ -6149,6 +6197,7 @@ export const zReviewedImportItem = z.object({
         'voice'
     ]),
     name: z.string(),
+    notices: z.optional(z.array(zImportItemNotice)).default([]),
     original_name: z.string(),
     selected: z.boolean()
 });
@@ -6727,6 +6776,8 @@ export const zUserFileProcessingCapability = z.object({
  * ValidationError
  */
 export const zValidationError = z.object({
+    ctx: z.optional(z.record(z.string(), z.unknown())),
+    input: z.optional(z.unknown()),
     loc: z.array(z.union([z.string(), z.int()])),
     msg: z.string(),
     type: z.string()
@@ -7500,6 +7551,32 @@ export const zSaveAvatarPortraitData = z.object({
  * Successful Response
  */
 export const zSaveAvatarPortraitResponse = zPyAppearance;
+
+export const zGetAvatarSettingsData = z.object({
+    body: z.optional(z.never()),
+    path: z.object({
+        item_id: z.string()
+    }),
+    query: z.optional(z.never())
+});
+
+/**
+ * Successful Response
+ */
+export const zGetAvatarSettingsResponse = zAvatarSettingsState;
+
+export const zSaveAvatarSettingsData = z.object({
+    body: zAvatarSettingsUpdate,
+    path: z.object({
+        item_id: z.string()
+    }),
+    query: z.optional(z.never())
+});
+
+/**
+ * Successful Response
+ */
+export const zSaveAvatarSettingsResponse = zAvatarSettingsState;
 
 export const zPreviewAvatarContentData = z.object({
     body: z.optional(z.never()),

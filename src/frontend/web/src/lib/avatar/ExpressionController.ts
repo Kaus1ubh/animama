@@ -710,6 +710,11 @@ export class ExpressionController {
   private _currentEmotionLabel: EmotionLabel = "neutral";
   private _currentIntensity: number = 0;
   private _targetExpressions = new Map<string, number>();
+  /** Expression names content asked for that this model cannot play. */
+  private _unresolvedExpressionNames = new Set<string>();
+  /** Names already found playable, so per-frame overlays skip the lookups. */
+  private _resolvedExpressionNames = new Set<string>();
+  private _unresolvedExpressionListener: (() => void) | null = null;
   private _currentWeights = new Map<string, number>();
   private _expressionOverlays = new Map<string, ExpressionOverlayMap>();
   private _lastExpressionOverlayKeys = new Set<string>();
@@ -774,6 +779,54 @@ export class ExpressionController {
     this._targetExpressions.clear();
     this._currentWeights.clear();
     this._manualTargets = {};
+    this._unresolvedExpressionNames.clear();
+    this._resolvedExpressionNames.clear();
+    this._unresolvedExpressionListener = null;
+  }
+
+  /**
+   * Expression names that emotions, clips or overlays asked for and this model has no
+   * expression for (nor an ARKit fallback), each listed once, for Avatar
+   * Diagnostics.
+   */
+  get unresolvedExpressionNames(): readonly string[] {
+    return [...this._unresolvedExpressionNames];
+  }
+
+  /** Called when `unresolvedExpressionNames` gains a name. */
+  setUnresolvedExpressionListener(listener: (() => void) | null): void {
+    this._unresolvedExpressionListener = listener;
+  }
+
+  /**
+   * Record requested names that play nothing: not an expression of the model,
+   * not an ARKit name it maps to one, and not a VRoid part whose mood preset
+   * stands in (`partExpressionFallback.ts`). Pass the names as requested,
+   * before any fallback rewrites them.
+   */
+  private _noteUnresolvedExpressions(names: Iterable<string>): void {
+    let added = false;
+    for (const name of names) {
+      if (
+        this._resolvedExpressionNames.has(name) ||
+        this._unresolvedExpressionNames.has(name)
+      ) {
+        continue;
+      }
+      const arkitFallback = this._arkitToVrmMap[name];
+      const partFallback = fallbackPresetForPart(name);
+      if (
+        this._hasBlendshape(name) ||
+        (arkitFallback !== undefined && this._hasBlendshape(arkitFallback)) ||
+        (partFallback !== null && this._hasBlendshape(partFallback))
+      ) {
+        this._resolvedExpressionNames.add(name);
+        continue;
+      }
+      this._unresolvedExpressionNames.add(name);
+      added = true;
+    }
+    if (added) this._unresolvedExpressionListener?.();
   }
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -811,6 +864,7 @@ export class ExpressionController {
             ),
           }
         : null;
+    if (clip) this._noteUnresolvedExpressions(Object.keys(clip.expressions));
   }
 
   /**
@@ -943,6 +997,7 @@ export class ExpressionController {
         this._targetExpressions.set(fallbackPreset, 1.0);
       }
     }
+    this._noteUnresolvedExpressions(this._targetExpressions.keys());
   }
 
   /**
@@ -971,9 +1026,9 @@ export class ExpressionController {
       }
     }
 
-    const overlay = this._filterSupportedExpressions(
-      expressionOverlayInputToComposition(expressions),
-    );
+    const requested = expressionOverlayInputToComposition(expressions);
+    this._noteUnresolvedExpressions(Object.keys(requested));
+    const overlay = this._filterSupportedExpressions(requested);
     if (!overlay.size) {
       this._expressionOverlays.delete(normalizedOwnerId);
       return false;

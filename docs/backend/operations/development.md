@@ -128,10 +128,12 @@ owner decides when to reset existing development data. Running bootstrap or
 `alembic upgrade head` against a database already at the baseline does not
 reapply changes to its SQL.
 
-Existing development databases must therefore be reset to gain the
-`avatar_face_part_overrides` table (Included Avatar face-part corrections); no
-migration adds it. Without it, Avatar requests and chat runtime preparation fail
-with `relation "avatar_face_part_overrides" does not exist`. Run
+Existing development databases must therefore be reset to gain tables added to
+the baseline; no migration adds them. Without `avatar_face_part_overrides`
+(Included Avatar face-part corrections), Avatar requests and chat runtime
+preparation fail with `relation "avatar_face_part_overrides" does not exist`;
+without `avatar_setting_overrides` (per-owner Avatar settings), the Avatar
+settings routes and package export or import of Avatars fail the same way. Run
 `./reset.sh --purge` (with `--name` and `--base-port` for a named stack), or the
 database-only reset below when Local content and private data must survive.
 
@@ -530,7 +532,10 @@ running stack:
 uv run python -m animama.server.export_openapi --output /tmp/animama-openapi.json
 ```
 
-The exporter writes atomically. The frontend `pnpm openapi-ts` wrapper manages
+The exporter writes atomically. It describes binary fields (uploads and `bytes`)
+as `format: binary` strings instead of FastAPI's
+`contentMediaType: application/octet-stream`, which the pinned SDK generator
+would type as text. The frontend `pnpm openapi-ts` wrapper manages
 its own temporary schema, passes it to the generator, and removes it on success
 or failure; normal client generation should use that wrapper.
 
@@ -1820,11 +1825,9 @@ with frozen installs. Do not symlink complete installations across worktrees or
 platforms. Warm offline installs require all locked artifacts already cached;
 initial setup and missing platform binaries need network access.
 
-The frontend disables pnpm's side-effects cache because its cached Electron macOS
-framework layout expands symlinks into duplicate regular files. Installation scripts
-still run. Download reuse remains enabled; an existing expanded installation may
-need a fresh frozen install before benefiting from the layout change. This is
-separate from app signing or native acceptance.
+The `electron` package has no installation script. The desktop tools download
+its binary into `node_modules/electron/dist` on first use (verified against the
+package's checksums) and Electron's own download cache serves later worktrees.
 
 Docker copies lock/config inputs before sources and uses architecture/toolchain
 qualified BuildKit download caches. Source-only edits reuse dependency layers;

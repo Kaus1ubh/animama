@@ -253,7 +253,7 @@ def events_from_response_stream_event(
                 item_id=event.item_id,
                 output_index=event.output_index,
                 tool_type="function",
-                tool_name=event.name,
+                # The event carries no tool name; response.output_item.done reports it.
                 arguments_length=len(event.arguments or ""),
                 details=details,
             ),

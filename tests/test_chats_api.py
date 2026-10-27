@@ -20,6 +20,7 @@ from animama.orm.base import Base
 from animama.product_http.routes import chats as chats_router
 from animama.server.routers import router as api_router
 from animama.server.schemas.chat_history import PyChatCreate, PyChatSearchRequest, PyChatUpdate
+from tests.route_support import served_routes
 
 
 def _user(user_id: str) -> RequestPrincipal:
@@ -63,7 +64,7 @@ async def _sync_model_catalog(session) -> None:
 
 
 def test_chat_routes_are_mounted_and_conversation_routes_are_absent() -> None:
-    paths = {getattr(route, "path", None) for route in api_router.routes}
+    paths = {getattr(route, "path", None) for route in served_routes(api_router)}
 
     assert "/v1/chats" in paths
     assert "/v1/chats/search" in paths

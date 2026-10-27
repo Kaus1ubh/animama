@@ -6,6 +6,55 @@
   --font-sans: "DM Sans Variable", ui-sans-serif, system-ui, sans-serif;
 }
 
+/*
+ * The desktop main window has no native title bar on macOS and Windows. Its
+ * window buttons sit in a strip across the top that Electron reports as the
+ * window-controls overlay; the strip is 0px in fullscreen, in PiP and Quick
+ * Chat, on Linux and in the browser. The `.app-titlebar` element in index.html
+ * moves the window by it. Layouts reserve the strip themselves, never the body,
+ * whose padding Radix's modal scroll lock replaces: the app shell spans the
+ * window and pads its pages below the strip, the Anima scene draws into that
+ * padding, and screens outside the shell start below the strip with a top
+ * margin. Layouts below the strip use `h-app` and `min-h-app` instead of the
+ * viewport height.
+ */
+:root {
+  --app-titlebar-height: env(titlebar-area-height, 0px);
+}
+
+@utility h-app {
+  height: calc(100dvh - var(--app-titlebar-height));
+}
+
+@utility min-h-app {
+  min-height: calc(100dvh - var(--app-titlebar-height));
+}
+
+.app-titlebar {
+  position: fixed;
+  inset: 0 0 auto;
+  height: var(--app-titlebar-height);
+  pointer-events: none;
+  -webkit-app-region: drag;
+  app-region: drag;
+}
+
+/* Controls under a drag region, such as a dialog edge, stay clickable. */
+:where(
+  button,
+  a[href],
+  input,
+  select,
+  textarea,
+  summary,
+  [role="button"],
+  [role="slider"],
+  [contenteditable="true"]
+) {
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
+}
+
 .pointer-events-none-deep,
 .pointer-events-none-deep * {
   pointer-events: none !important;
@@ -22,6 +71,21 @@
 [data-animama-quick-chat="true"] [data-slot="dialog-overlay"] {
   background: transparent !important;
   backdrop-filter: none !important;
+}
+
+/*
+ * The shine border repaints its window every display frame. Pause it while the
+ * window is not in use: unfocused, or behind an open PiP window.
+ */
+[data-animama-shine-paused] [data-slot="shine-border"] {
+  animation-play-state: paused;
+}
+
+/* The closed, prewarmed Quick Chat window still paints every animation frame. */
+[data-animama-quick-chat-closed] *,
+[data-animama-quick-chat-closed] *::before,
+[data-animama-quick-chat-closed] *::after {
+  animation-play-state: paused !important;
 }
 
 .anima-pip-drag {

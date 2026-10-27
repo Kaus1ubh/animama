@@ -24,6 +24,8 @@ import { Avatar } from "@/lib/avatar";
 import { acquireContentPreviewResource } from "@/lib/content-preview/lifecycle";
 import { apiErrorLine } from "@/lib/errors/apiError";
 import { VerifiedByteLoader } from "@/lib/runtime-content/VerifiedByteLoader";
+import { useAvatarFaceParts } from "@/query/hooks/useAvatarFaceParts";
+import { useAvatarLoadSettings } from "@/query/hooks/useAvatarSettings";
 import type { SceneVFXRuntimeEntry } from "@/lib/scene-vfx/types";
 import { AvatarPreviewSurface } from "@/ui/avatar-preview/AvatarPreviewSurface";
 import { Button } from "@/ui/components/button";
@@ -276,7 +278,26 @@ function CreationStageActor({
   const avatarRef = useRef<Avatar | null>(null);
   const reducedMotionRef = useRef(reducedMotion);
   reducedMotionRef.current = reducedMotion;
+  // Parts match the chat's: apply the saved Avatar's face part correction.
+  const savedItemId = file ? null : (source?.item_id ?? null);
+  const faceParts = useAvatarFaceParts(savedItemId);
+  // An unsaved file loads with Automatic settings.
+  const { springMode, springModeRef, materialMode } =
+    useAvatarLoadSettings(savedItemId);
   useEffect(() => {
+    avatarRef.current?.setSpringMode(springMode);
+  }, [object, springMode]);
+  const savedCorrection = faceParts.data?.face_parts ?? null;
+  useEffect(() => {
+    const avatar = avatarRef.current;
+    if (!object || !avatar || !savedCorrection) return;
+    void avatar
+      .setFacePartCorrections(savedCorrection)
+      .then(() => invalidate());
+  }, [invalidate, object, savedCorrection]);
+  useEffect(() => {
+    // Materials are built at load; wait for the Avatar's setting.
+    if (!materialMode) return;
     const controller = new AbortController();
     const avatar = new Avatar(camera, gl.domElement, {
       motionCatalog: session.catalog,
@@ -293,6 +314,8 @@ function CreationStageActor({
     void (async () => {
       try {
         let blob: Blob;
+        // A saved Avatar's digest matches its saved face part correction.
+        let vrmSha256: string | null = null;
         if (file) blob = file;
         else {
           const preview = await loadAvatar(source!, controller.signal);
@@ -300,12 +323,18 @@ function CreationStageActor({
             (item) => item.role === "model" || item.role === "vrm",
           );
           if (!model) throw new CreatorError(t("stage.noModel"));
+          vrmSha256 = model.sha256 ?? null;
           blob = (await new VerifiedByteLoader().load(model, controller.signal))
             .blob;
         }
         if (controller.signal.aborted) return;
         objectUrl = URL.createObjectURL(blob);
-        await avatar.load({ filePath: objectUrl });
+        await avatar.load({
+          filePath: objectUrl,
+          vrmSha256,
+          springMode: springModeRef.current,
+          materialMode,
+        });
         if (controller.signal.aborted) {
           avatar.dispose();
           return;
@@ -333,6 +362,8 @@ function CreationStageActor({
     return () => {
       controller.abort();
       detach();
+      // A material change reloads in this actor; never draw the disposed scene.
+      setObject(null);
       avatar.dispose();
       release();
       if (objectUrl) URL.revokeObjectURL(objectUrl);
@@ -347,11 +378,13 @@ function CreationStageActor({
     gl,
     invalidate,
     loadAvatar,
+    materialMode,
     onAvatar,
     onContextError,
     report,
     session,
     source,
+    springModeRef,
   ]);
   useEffect(() => {
     avatarRef.current?.setSpringBonePhysicsEnabled(!reducedMotion);

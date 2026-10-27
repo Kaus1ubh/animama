@@ -1,15 +1,16 @@
 import { LilToonMaterial } from "@mochiya/three-liltoon";
-import { VRMLoaderPlugin, type VRM } from "@pixiv/three-vrm";
+import type { VRM, VRMLoaderPlugin } from "@pixiv/three-vrm";
 import * as THREE from "three";
-import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import type { GLTF } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { withEnhancedMToonPatch } from "../enhanced-rendering/mtoonPatch";
+import { createAvatarGltfLoader } from "../avatarGltfLoader";
 import { PlaceholderTexturePlugin } from "../motion-authoring/headlessVrm";
 import { readTestAvatarBytes } from "../motion-authoring/testing/includedAvatars";
 import {
   installLilToonRenderingWhenLoaded,
   LILTOON_MATERIALS_EXTENSION,
+  lilToonMaterialStateOf,
   loadLilToonRuntime,
   setLilToonRuntimeImporterForTesting,
   usesLilToonMaterials,
@@ -215,12 +216,16 @@ function triangleGlb(extension: Record<string, unknown> | null): ArrayBuffer {
   return glb.buffer;
 }
 
-async function loadMaterial(gltf: ArrayBuffer): Promise<THREE.Material> {
-  const loader = new GLTFLoader();
-  loader.register((parser) =>
-    withEnhancedMToonPatch(withOnDemandLilToon(new VRMLoaderPlugin(parser))),
-  );
-  const result = await loader.parseAsync(gltf, "");
+/** Load a test glTF through the app's loader; `lilToon` false is Simple. */
+async function loadGltf(bytes: ArrayBuffer, lilToon = true): Promise<GLTF> {
+  return createAvatarGltfLoader({ lilToon }).parseAsync(bytes, "");
+}
+
+async function loadMaterial(
+  bytes: ArrayBuffer,
+  lilToon = true,
+): Promise<THREE.Material> {
+  const result = await loadGltf(bytes, lilToon);
   let material: THREE.Material | null = null;
   result.scene.traverse((object) => {
     const mesh = object as THREE.Mesh;
@@ -230,23 +235,56 @@ async function loadMaterial(gltf: ArrayBuffer): Promise<THREE.Material> {
   return material;
 }
 
+const AUTHORED_LILTOON = {
+  specVersion: "1.3",
+  shaderVariant: "lilToon",
+  properties: { _Color: [0.8, 0.7, 0.9, 1], _UseShadow: 1 },
+  textures: {},
+};
+
 describe("lilToon materials through the real runtime", () => {
   it("replaces a material that carries authored lilToon settings", async () => {
-    const material = await loadMaterial(
-      triangleGlb({
-        specVersion: "1.3",
-        shaderVariant: "lilToon",
-        properties: { _Color: [0.8, 0.7, 0.9, 1], _UseShadow: 1 },
-        textures: {},
-      }),
-    );
+    const gltf = await loadGltf(triangleGlb(AUTHORED_LILTOON));
+    const material = await loadMaterial(triangleGlb(AUTHORED_LILTOON));
     expect(material).toBeInstanceOf(LilToonMaterial);
+    expect(lilToonMaterialStateOf(gltf)).toBe("rendered");
     material.dispose();
   });
 
   it("leaves other materials as glTF materials", async () => {
     const material = await loadMaterial(triangleGlb(null));
     expect(material).toBeInstanceOf(THREE.MeshStandardMaterial);
+    // Only lilToon fallbacks lose glTF's metalness.
+    expect((material as THREE.MeshStandardMaterial).metalness).toBe(1);
+    expect(lilToonMaterialStateOf(await loadGltf(triangleGlb(null)))).toBe(
+      "none",
+    );
+    material.dispose();
+  });
+});
+
+describe("lilToon fallback materials", () => {
+  it("Simple builds the unmetallic glTF fallback without importing lilToon", async () => {
+    const importer = vi.fn(async () => fakeRuntime().runtime);
+    restoreImporter = setLilToonRuntimeImporterForTesting(importer);
+    const gltf = await loadGltf(triangleGlb(AUTHORED_LILTOON), false);
+    const material = await loadMaterial(triangleGlb(AUTHORED_LILTOON), false);
+
+    expect(importer).not.toHaveBeenCalled();
+    expect(material).toBeInstanceOf(THREE.MeshStandardMaterial);
+    // Mochiya writes metallicFactor 1, which renders the fallback dark.
+    expect((material as THREE.MeshStandardMaterial).metalness).toBe(0);
+    expect(lilToonMaterialStateOf(gltf)).toBe("fallback");
+    material.dispose();
+  });
+
+  it("keeps a fallback unmetallic when lilToon fails to load", async () => {
+    restoreImporter = setLilToonRuntimeImporterForTesting(async () => {
+      throw new Error("offline");
+    });
+    const material = await loadMaterial(triangleGlb(AUTHORED_LILTOON));
+    expect(material).toBeInstanceOf(THREE.MeshStandardMaterial);
+    expect((material as THREE.MeshStandardMaterial).metalness).toBe(0);
     material.dispose();
   });
 });
@@ -296,31 +334,49 @@ describe("the app's VRM loader chain with lilToon", () => {
       (await readTestAvatarBytes("Andrew")).slice(0),
       0,
     );
-    const loader = new GLTFLoader();
-    loader.register((parser) => new PlaceholderTexturePlugin(parser));
-    loader.register((parser) =>
-      withEnhancedMToonPatch(withOnDemandLilToon(new VRMLoaderPlugin(parser))),
-    );
-    const gltf = await loader.parseAsync(bytes, "");
-    const vrm = (gltf.userData as { vrm?: VRM }).vrm;
+    const vrm = await loadVrm(bytes);
 
     expect(vrm?.humanoid.getRawBoneNode("hips")).toBeTruthy();
-    const kinds = new Set<string>();
-    vrm!.scene.traverse((object) => {
-      const mesh = object as THREE.Mesh;
-      if (!mesh.isMesh) return;
-      for (const material of [mesh.material].flat()) {
-        kinds.add(
-          material instanceof LilToonMaterial
-            ? "lilToon"
-            : (material as { isMToonMaterial?: boolean }).isMToonMaterial
-              ? "MToon"
-              : material.type,
-        );
-      }
-    });
+    const kinds = materialKinds(vrm!);
     // The patched material is lilToon; the rest stay three-vrm’s MToon.
     expect(kinds.has("lilToon")).toBe(true);
     expect(kinds.has("MToon")).toBe(true);
   });
+
+  it("builds three-vrm's materials only under Simple", async () => {
+    const bytes = withLilToonMaterial(
+      (await readTestAvatarBytes("Andrew")).slice(0),
+      0,
+    );
+    const kinds = materialKinds((await loadVrm(bytes, false))!);
+    expect(kinds.has("lilToon")).toBe(false);
+    expect(kinds.has("MToon")).toBe(true);
+  });
 });
+
+/** Load VRM bytes through the app's loader, without their texture images. */
+async function loadVrm(bytes: ArrayBuffer, lilToon = true) {
+  const loader = createAvatarGltfLoader({ lilToon });
+  loader.register((parser) => new PlaceholderTexturePlugin(parser));
+  const gltf = await loader.parseAsync(bytes, "");
+  return (gltf.userData as { vrm?: VRM }).vrm;
+}
+
+/** The kinds of material a loaded VRM renders with. */
+function materialKinds(vrm: VRM): Set<string> {
+  const kinds = new Set<string>();
+  vrm.scene.traverse((object) => {
+    const mesh = object as THREE.Mesh;
+    if (!mesh.isMesh) return;
+    for (const material of [mesh.material].flat()) {
+      kinds.add(
+        material instanceof LilToonMaterial
+          ? "lilToon"
+          : (material as { isMToonMaterial?: boolean }).isMToonMaterial
+            ? "MToon"
+            : material.type,
+      );
+    }
+  });
+  return kinds;
+}

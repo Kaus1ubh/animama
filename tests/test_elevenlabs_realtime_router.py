@@ -8,6 +8,7 @@ from animama.app.contracts.elevenlabs import PyElevenLabsVoice
 from animama.app.voice_emotional_tone import normalize_elevenlabs_emotional_tone
 from animama.server.app import app
 from animama.server.elevenlabs_service import resolve_realtime_tts_session
+from tests.route_support import served_routes
 
 
 async def _primary_voice() -> PyElevenLabsVoice:
@@ -17,7 +18,7 @@ async def _primary_voice() -> PyElevenLabsVoice:
 
 
 def test_removed_elevenlabs_tts_proxy_routes_are_not_registered() -> None:
-    paths = {getattr(route, "path", None) for route in app.routes}
+    paths = {getattr(route, "path", None) for route in served_routes(app)}
 
     assert "/v1/animas/{anima_id}/tts/elevenlabs:stream" not in paths
     assert "/v1/elevenlabs/realtime-tts/session" not in paths

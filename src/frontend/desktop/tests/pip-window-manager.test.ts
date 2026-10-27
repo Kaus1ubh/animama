@@ -81,7 +81,8 @@ const fake = vi.hoisted(() => {
   }
 
   const workArea = { x: 0, y: 0, width: 1440, height: 900 };
-  return { FakeBrowserWindow, FakeWebContents, workArea };
+  const cursor = { x: 0, y: 0 };
+  return { FakeBrowserWindow, FakeWebContents, cursor, workArea };
 });
 
 vi.mock("electron", () => ({
@@ -89,7 +90,7 @@ vi.mock("electron", () => ({
   screen: {
     getPrimaryDisplay: () => ({ workArea: fake.workArea }),
     getDisplayMatching: () => ({ workArea: fake.workArea }),
-    getCursorScreenPoint: () => ({ x: 0, y: 0 }),
+    getCursorScreenPoint: () => ({ ...fake.cursor }),
   },
 }));
 vi.mock("../src/main-process/security/guards.js", () => ({
@@ -103,7 +104,10 @@ import type { WebContents } from "electron";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { ShellLocale } from "../src/main-process/locale/shell-locale.js";
-import { PipWindowManager } from "../src/main-process/pip/pip-window-manager.js";
+import {
+  classifyPipMouseZone,
+  PipWindowManager,
+} from "../src/main-process/pip/pip-window-manager.js";
 
 function manager() {
   return new PipWindowManager({
@@ -125,8 +129,18 @@ function manager() {
   });
 }
 
+function pipWindowOf(pip: PipWindowManager) {
+  return (
+    pip as unknown as {
+      pipWindow: InstanceType<typeof fake.FakeBrowserWindow>;
+    }
+  ).pipWindow;
+}
+
 beforeEach(() => {
   vi.useFakeTimers();
+  fake.cursor.x = 0;
+  fake.cursor.y = 0;
 });
 
 afterEach(() => {
@@ -172,5 +186,139 @@ describe("PipWindowManager", () => {
 
     current.emit("destroyed");
     expect(pip.getState().isOpen).toBe(false);
+  });
+
+  it("passes camera preset requests from PiP to its owner only", async () => {
+    const pip = manager();
+    const owner = new fake.FakeWebContents();
+    await pip.open(owner as unknown as WebContents, { animaId: "annie" });
+    const pipContents = pipWindowOf(pip).webContents;
+    const request = {
+      type: "camera-preset",
+      sequence: 0,
+      sentAtMs: 1,
+      animaId: "annie",
+      payload: { kind: "camera-preset", preset: "full-body" },
+    };
+
+    pip.publishRuntimeMessage(pipContents as unknown as WebContents, request);
+    expect(owner.send).toHaveBeenCalledWith(
+      "pip:runtime",
+      expect.objectContaining({ type: "camera-preset" }),
+    );
+
+    // The owner sets the preset itself; it never asks PiP for one.
+    pipContents.send.mockClear();
+    pip.publishRuntimeMessage(owner as unknown as WebContents, request);
+    expect(pipContents.send).not.toHaveBeenCalled();
+  });
+
+  it("relays voice state from the owner and voice commands from PiP, one way each", async () => {
+    const pip = manager();
+    const owner = new fake.FakeWebContents();
+    await pip.open(owner as unknown as WebContents, { animaId: "annie" });
+    const pipContents = pipWindowOf(pip).webContents;
+    const message = (type: string, payload: unknown) => ({
+      type,
+      sequence: 1,
+      sentAtMs: 1,
+      animaId: "annie",
+      payload,
+    });
+    const voice = message("voice", { activeMode: "voice" });
+    const command = message("voice-command", { command: "toggle-voice-mute" });
+
+    pip.publishRuntimeMessage(owner as unknown as WebContents, voice);
+    expect(pipContents.send).toHaveBeenCalledWith(
+      "pip:runtime",
+      expect.objectContaining({ type: "voice" }),
+    );
+    pip.publishRuntimeMessage(pipContents as unknown as WebContents, command);
+    expect(owner.send).toHaveBeenCalledWith(
+      "pip:runtime",
+      expect.objectContaining({ type: "voice-command" }),
+    );
+
+    // PiP never reports voice state, and the owner never sends PiP commands.
+    owner.send.mockClear();
+    pipContents.send.mockClear();
+    pip.publishRuntimeMessage(pipContents as unknown as WebContents, voice);
+    pip.publishRuntimeMessage(owner as unknown as WebContents, command);
+    expect(owner.send).not.toHaveBeenCalled();
+    expect(pipContents.send).not.toHaveBeenCalled();
+  });
+
+  it("shows PiP after the first Avatar snapshot, not after voice state", async () => {
+    const pip = manager();
+    const owner = new fake.FakeWebContents();
+    await pip.open(owner as unknown as WebContents, { animaId: "annie" });
+    const window = pipWindowOf(pip);
+    const show = vi.spyOn(window, "show");
+    const message = (type: string) => ({
+      type,
+      sequence: 1,
+      sentAtMs: 1,
+      animaId: "annie",
+      payload: null,
+    });
+
+    pip.publishRuntimeMessage(
+      window.webContents as unknown as WebContents,
+      message("ready"),
+    );
+    pip.publishRuntimeMessage(
+      owner as unknown as WebContents,
+      message("voice"),
+    );
+    expect(show).not.toHaveBeenCalled();
+
+    pip.publishRuntimeMessage(
+      owner as unknown as WebContents,
+      message("snapshot"),
+    );
+    expect(show).toHaveBeenCalledOnce();
+  });
+
+  it("scales from the top-left corner while PiP holds its resize grip", async () => {
+    const pip = manager();
+    const owner = new fake.FakeWebContents();
+    await pip.open(owner as unknown as WebContents, { animaId: "annie" });
+    const pipWindow = pipWindowOf(pip);
+    const setSize = vi.spyOn(pipWindow, "setSize");
+    const pipContents = pipWindow.webContents as unknown as WebContents;
+
+    // The owner cannot start a resize.
+    pip.setGripResizing(owner as unknown as WebContents, true);
+    fake.cursor.x = 84;
+    vi.advanceTimersByTime(20);
+    expect(setSize).not.toHaveBeenCalled();
+
+    pip.setGripResizing(pipContents, true);
+    // Along the window's diagonal: 0.2 of the default 420 x 560.
+    fake.cursor.x += 84;
+    fake.cursor.y += 112;
+    vi.advanceTimersByTime(20);
+    expect(pip.getState().sizeScale).toBeCloseTo(0.7);
+    expect(setSize).toHaveBeenLastCalledWith(294, 392);
+
+    pip.setGripResizing(pipContents, false);
+    fake.cursor.x += 84;
+    vi.advanceTimersByTime(20);
+    expect(pip.getState().sizeScale).toBeCloseTo(0.7);
+    expect(setSize).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("classifyPipMouseZone", () => {
+  const bounds = { x: 100, y: 200, width: 210, height: 280 };
+
+  it.each([
+    ["outside the window", { x: 99, y: 300 }, "outside"],
+    ["over the toolbar", { x: 200, y: 210 }, "interactive"],
+    ["over the resize grip", { x: 300, y: 470 }, "interactive"],
+    ["over the Avatar", { x: 200, y: 340 }, "pass-through"],
+    ["along an edge", { x: 102, y: 340 }, "pass-through"],
+  ])("classifies a cursor %s", (_case, cursor, zone) => {
+    expect(classifyPipMouseZone(cursor, bounds)).toBe(zone);
   });
 });
