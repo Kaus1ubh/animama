@@ -252,6 +252,8 @@ function shortcutActionLabel(
       return t("shortcuts.actions.toggle_voice_mute");
     case "skip_tts":
       return t("shortcuts.actions.skip_tts");
+    case "toggle_pip":
+      return t("shortcuts.actions.toggle_pip");
   }
 }
 
@@ -546,6 +548,7 @@ const shortcutRows: Array<{
 }> = [
   { action: "press_to_talk", allowMouseShortcut: true },
   { action: "quick_chat" },
+  { action: "toggle_pip" },
   { action: "toggle_dictation" },
   { action: "toggle_voice_mode" },
   { action: "toggle_voice_mute" },

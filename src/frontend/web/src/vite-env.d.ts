@@ -178,7 +178,8 @@ type DesktopShortcutAction =
   | "toggle_dictation"
   | "toggle_voice_mode"
   | "toggle_voice_mute"
-  | "skip_tts";
+  | "skip_tts"
+  | "toggle_pip";
 
 type DesktopKeyboardShortcut = {
   type?: "keyboard";
@@ -207,6 +208,7 @@ type DesktopShortcutsConfig = {
 
 type DesktopShortcutsContext = {
   quickChatAvailable: boolean;
+  pipAvailable: boolean;
   voiceModeAvailable: boolean;
   voiceModeActive: boolean;
   ttsAudioActive: boolean;

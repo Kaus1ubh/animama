@@ -4,6 +4,7 @@ import { useCallback, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
+import { useDesktopPipShortcut } from "@/hooks/useDesktopPipShortcut";
 import { useFullscreen } from "@/hooks/useFullscreen";
 import { usePictureInPicture } from "@/hooks/usePictureInPicture";
 import { cn } from "@/lib/utils";
@@ -54,6 +55,7 @@ export function MainShell({
   const {
     backgroundMode,
     canvasHostRef,
+    isDesktopPip,
     isPipActive,
     isPipSupported,
     setBackgroundMode,
@@ -62,6 +64,7 @@ export function MainShell({
     togglePip,
   } = usePictureInPicture({ canvasMode, setCanvasMode });
   usePauseShineWhileInactive(isPipActive);
+  useDesktopPipShortcut({ available: isDesktopPip, onToggle: togglePip });
   const { isFullscreen, enterFullscreen, exitFullscreen } =
     useFullscreen(canvasWrapperRef);
 

@@ -1,0 +1,119 @@
+// @vitest-environment happy-dom
+import { act } from "react";
+import { createRoot, type Root } from "react-dom/client";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import { useDesktopPipShortcut } from "./useDesktopPipShortcut";
+
+type ShortcutEvent = { action: string; phase: "down" | "up" };
+
+const bridge = vi.hoisted(() => ({
+  listeners: new Set<(event: ShortcutEvent) => void>(),
+  setContext: vi.fn(() => Promise.resolve({})),
+}));
+
+// The provider hands out one stable platform object, as the app's does.
+const platform = vi.hoisted(() => ({
+  kind: "desktop",
+  isDesktop: true,
+  desktopBridge: {
+    shortcuts: {
+      setContext: bridge.setContext,
+      onEvent: (listener: (event: ShortcutEvent) => void) => {
+        bridge.listeners.add(listener);
+        return () => bridge.listeners.delete(listener);
+      },
+    },
+  },
+}));
+vi.mock("@/platform/RuntimePlatformProvider", () => ({
+  useRuntimePlatform: () => platform,
+}));
+
+function Probe({
+  available,
+  onToggle,
+}: {
+  available: boolean;
+  onToggle: () => void;
+}) {
+  useDesktopPipShortcut({ available, onToggle });
+  return null;
+}
+
+let container: HTMLDivElement;
+let root: Root;
+
+async function render(available: boolean, onToggle: () => void) {
+  await act(async () =>
+    root.render(<Probe available={available} onToggle={onToggle} />),
+  );
+}
+
+function press(action: string, phase: "down" | "up" = "down") {
+  act(() => {
+    for (const listener of bridge.listeners) listener({ action, phase });
+  });
+}
+
+describe("useDesktopPipShortcut", () => {
+  beforeEach(() => {
+    (
+      globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
+    ).IS_REACT_ACT_ENVIRONMENT = true;
+    bridge.listeners.clear();
+    bridge.setContext.mockClear();
+    container = document.createElement("div");
+    document.body.append(container);
+    root = createRoot(container);
+  });
+
+  afterEach(() => {
+    act(() => root.unmount());
+    container.remove();
+  });
+
+  it("reports PiP available and toggles it on the shortcut", async () => {
+    const onToggle = vi.fn();
+    await render(true, onToggle);
+
+    expect(bridge.setContext).toHaveBeenLastCalledWith({ pipAvailable: true });
+    press("quick_chat");
+    press("toggle_pip", "up");
+    expect(onToggle).not.toHaveBeenCalled();
+
+    press("toggle_pip");
+    expect(onToggle).toHaveBeenCalledTimes(1);
+  });
+
+  it("withdraws availability when PiP becomes unavailable or unmounts", async () => {
+    const onToggle = vi.fn();
+    await render(true, onToggle);
+    await render(false, onToggle);
+
+    expect(bridge.setContext).toHaveBeenLastCalledWith({
+      pipAvailable: false,
+    });
+    press("toggle_pip");
+    expect(onToggle).not.toHaveBeenCalled();
+
+    await render(true, onToggle);
+    act(() => root.unmount());
+    root = createRoot(container);
+    expect(bridge.setContext).toHaveBeenLastCalledWith({
+      pipAvailable: false,
+    });
+  });
+
+  it("calls the latest toggle without re-registering", async () => {
+    const first = vi.fn();
+    const second = vi.fn();
+    await render(true, first);
+    await render(true, second);
+
+    expect(bridge.setContext).toHaveBeenCalledTimes(1);
+    press("toggle_pip");
+    expect(first).not.toHaveBeenCalled();
+    expect(second).toHaveBeenCalledTimes(1);
+  });
+});

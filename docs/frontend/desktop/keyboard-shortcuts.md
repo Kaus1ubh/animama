@@ -1,7 +1,7 @@
 # Desktop Keyboard Shortcuts
 
-Animama Desktop supports global voice shortcuts through the Electron main
-process. The browser web app can store and display these application preferences,
+Animama Desktop supports global voice, Quick Chat and picture-in-picture
+shortcuts through the Electron main process. The browser web app can store and display these application preferences,
 but shortcut capture only runs inside the desktop app.
 
 For the auxiliary chat window, see [Quick Chat](quick-chat.md).
@@ -19,6 +19,7 @@ methods and Control with `;`, `'` or `]` are Office commands.
 | ------------------------ | --------- | ----------------- | -------- | ------------------------------------ |
 | Press to talk            | `` ⌃` ``  | `` Ctrl+` ``      | hold     | active Voice Mode                    |
 | Quick Chat               | `⌃/`      | `Alt+/`           | one-shot | active anima chat route              |
+| Picture-in-picture       | `⌃,`      | `Alt+,`           | one-shot | anima route with desktop PiP         |
 | Dictation on/off         | `⌃.`      | `Alt+.`           | one-shot | chat-capable surface, Voice Mode off |
 | Toggle Voice Mode on/off | `⌃;`      | `Alt+;`           | one-shot | chat-capable chat surface            |
 | Toggle mute              | `⌃'`      | `Alt+'`           | one-shot | active Voice Mode                    |
@@ -26,7 +27,9 @@ methods and Control with `;`, `'` or `]` are Office commands.
 
 Quick Chat avoids `⌥Space`/`Alt+Space`, the launcher shortcut of ChatGPT,
 Claude's quick entry, Raycast, Alfred and PowerToys Run, and on Windows the
-window menu. The defaults leave Discord's, ChatGPT's and Claude's own
+window menu. Picture-in-picture avoids Control with `[` and `\`, which
+terminals read as Escape and quit, and `⌃-`, VS Code's Go Back on macOS. The
+defaults leave Discord's, ChatGPT's and Claude's own
 shortcuts alone: on macOS they use Command, and on Windows Discord uses
 `Ctrl+/`, `Ctrl+[` and Alt with arrows. Press to talk is observed, not taken, so
 the focused app still receives `` Ctrl+` `` (VS Code toggles its terminal); a
@@ -66,6 +69,10 @@ Detailed rules:
 - Dictation on/off starts dictation into the composer, or stops it when it is
   running. It does nothing during Voice Mode, which owns the microphone.
 - Skip TTS stops the active spoken response without changing Voice Mode state.
+- Picture-in-picture opens the desktop PiP window for the current anima, or
+  closes it, as the canvas PiP button does. It works while another app is
+  focused. Browser Document PiP needs a click in the page, so the shortcut is
+  desktop-only.
 - On the desktop, the composer's tooltips name the shortcut for what the button
   does now: Dictate or Stop dictation (Dictation on/off), Voice Mode or Stop
   Voice Mode (Toggle Voice Mode on/off) and Mute or Unmute (Toggle mute). The
@@ -94,9 +101,9 @@ recording control can receive the input first.
 
 The settings are stored under `user_settings.preferences.speech.desktop_shortcuts`,
 with entries for `press_to_talk`, `quick_chat`, `toggle_dictation`,
-`toggle_voice_mode`, `toggle_voice_mute` and `skip_tts`. A missing or invalid
-entry, such as `toggle_dictation` in preferences saved before it existed, uses
-the default. Keyboard entries contain a physical `code`,
+`toggle_voice_mode`, `toggle_voice_mute`, `skip_tts` and `toggle_pip`. A
+missing or invalid entry, such as `toggle_pip` in preferences saved before it
+existed, uses the default. Keyboard entries contain a physical `code`,
 optional display `key`, optional `type: "keyboard"` and modifier flags
 `ctrlKey`, `altKey`, `shiftKey`, `metaKey`. Mouse entries use `type: "mouse"`,
 `button` and the same modifier flags.
@@ -167,6 +174,9 @@ ChatInterface
 
 `useDesktopVoiceShortcuts` applies the behavior described above. Electron knows
 whether an action is available; the chat runtime owns microphone and playback.
+The scene shell owns PiP, so `MainShell` calls `useDesktopPipShortcut`, which
+reports `pipAvailable` through `setContext` and toggles PiP on `toggle_pip`
+events. Context updates are partial, so each owner reports only its own fields.
 
 ## Main-Process Flow
 
@@ -405,5 +415,7 @@ approval.
   shortcut, and the shown shortcut follows a rebinding.
 - `⌃/` / `Alt+/` shows or hides Quick Chat on an Anima chat route, focuses the
   chat input, and lets transparent outer window regions pass clicks through.
+- `⌃,` / `Alt+,` opens PiP on an Anima chat route and closes it again, also
+  while another app is focused; it does nothing on other pages.
 - Recording a shortcut in settings pauses shortcut handling and persists the new
   binding.
