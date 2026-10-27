@@ -2,7 +2,9 @@
 
 `pnpm -s vrm:optimize` (from `src/frontend/web`) shrinks a VRM 1.0 Avatar that
 Animama ships, without changing how it looks or behaves in the app. The Included
-Avatars in `content/included/avatars/` are produced with it.
+Avatars in `content/included/avatars/` are produced with it, and
+`vrm:convert-vrchat` runs it on every VRChat conversion unless told not to
+(see [VRChat Avatar conversion](vrchat-avatar-conversion.md)).
 
 ```bash
 pnpm -s vrm:optimize <source.vrm> --out <optimized.vrm> [--meta <meta.json>]
