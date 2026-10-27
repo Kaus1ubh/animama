@@ -62,8 +62,8 @@ Ordinary web builds do not need optional voices or the cloning encoder.
 
 Before staging, audit the dependencies on each build host, in the checkout you
 stage from. These commands run from the repository root in both shells and keep
-their reports in `desktop/release/dependency-audit/`, which staging and
-`desktop:dist:*` leave in place:
+their reports in `src/frontend/desktop/release/dependency-audit/`, which
+staging and `desktop:dist:*` leave in place:
 
 ```sh
 uv export --frozen --no-default-groups --group desktop-build --all-extras --no-hashes --no-emit-project --format requirements-txt -o src/frontend/desktop/release/dependency-audit/runtime-requirements.txt
