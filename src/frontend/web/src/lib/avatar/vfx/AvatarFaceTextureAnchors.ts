@@ -8,6 +8,7 @@ import type {
   AvatarFaceTextureAnchorSource,
   AvatarFaceTextureFlattenRegionSnapshot,
   AvatarFaceTextureReferenceSize,
+  AvatarFaceTextureUvCoordinate,
 } from "./texture-anchor-types";
 import type {
   AvatarFaceEyeLandmarkSnapshot,
@@ -27,6 +28,11 @@ import {
   measureEyelidBounds,
   resolveAvatarFacePartEntries,
 } from "./faceParts";
+import {
+  baseTextureOf,
+  TextureUvMapping,
+  type UvPoint,
+} from "./textureUvMapping";
 import { buildRuntimePrimitiveBindings } from "../vrmEditorInspection";
 import { createLogger } from "@/lib/logger";
 
@@ -67,6 +73,8 @@ type FaceProjectionData = {
   pointsByIndex: Map<number, THREE.Vector3>;
   uniqueVertexIndices: number[];
   faceBounds: THREE.Box3;
+  /** Where the face's UVs land on its texture's image. */
+  mapping: TextureUvMapping;
 };
 
 type MouthAnchorCandidate = {
@@ -141,6 +149,15 @@ function toVectorSnapshot(value: THREE.Vector3): AvatarFaceLandmarkVector {
     y: value.y,
     z: value.z,
   };
+}
+
+/** A face UV as the position on the face texture's image where art lands. */
+function toImageCoordinate(
+  mapping: TextureUvMapping,
+  uv: UvPoint,
+): AvatarFaceTextureUvCoordinate {
+  const point = mapping.toImage(uv);
+  return { u: point.x, v: point.y };
 }
 
 function cloneWorldPoint(
@@ -697,6 +714,7 @@ export class AvatarFaceTextureAnchors {
       pointsByIndex: primitiveData.pointsByIndex,
       uniqueVertexIndices: Array.from(new Set(orderedVertexIndices)),
       faceBounds,
+      mapping: TextureUvMapping.of(baseTextureOf(args.binding.object)),
     };
   }
 
@@ -803,8 +821,9 @@ export class AvatarFaceTextureAnchors {
       localPoint: baseProjected.localPoint,
       referenceSizeLocal,
     });
+    const centre = projection.mapping.toImage(baseProjected.uv);
     const offsetUvV = THREE.MathUtils.clamp(
-      baseProjected.uv.y + referenceSizeUv.height * yOffsetRatio,
+      centre.y + referenceSizeUv.height * yOffsetRatio,
       0,
       1,
     );
@@ -819,7 +838,7 @@ export class AvatarFaceTextureAnchors {
         baseProjected.localPoint,
       ),
       uv: {
-        u: baseProjected.uv.x,
+        u: centre.x,
         v: offsetUvV,
       },
       referenceSizeLocal,
@@ -1058,10 +1077,7 @@ export class AvatarFaceTextureAnchors {
         args.projection.anchorObject,
         projected.localPoint,
       ),
-      uv: {
-        u: projected.uv.x,
-        v: projected.uv.y,
-      },
+      uv: toImageCoordinate(args.projection.mapping, projected.uv),
       referenceSizeLocal: args.referenceSizeLocal,
       referenceSizeUv,
     };
@@ -1095,15 +1111,17 @@ export class AvatarFaceTextureAnchors {
         args.projection.anchorObject,
         projected.localPoint,
       ),
-      uv: {
-        u: projected.uv.x,
-        v: projected.uv.y,
-      },
+      uv: toImageCoordinate(args.projection.mapping, projected.uv),
       referenceSizeLocal: args.referenceSizeLocal,
       referenceSizeUv,
     };
   }
 
+  /**
+   * The extent on the face texture's image of a `referenceSizeLocal` box
+   * around `localPoint`: its centre and edge midpoints projected onto the
+   * face, mapped onto the image together.
+   */
   private _projectReferenceSizeUv(args: {
     projection: FaceProjectionData;
     localPoint: THREE.Vector3;
@@ -1128,10 +1146,14 @@ export class AvatarFaceTextureAnchors {
       };
     }
 
-    const minU = Math.min(...samples.map((sample) => sample.uv.x));
-    const maxU = Math.max(...samples.map((sample) => sample.uv.x));
-    const minV = Math.min(...samples.map((sample) => sample.uv.y));
-    const maxV = Math.max(...samples.map((sample) => sample.uv.y));
+    // Wrapped by the first sample's tile, so the box stays whole.
+    const points = samples.map((sample) =>
+      args.projection.mapping.toImage(sample.uv, samples[0]!.uv),
+    );
+    const minU = Math.min(...points.map((point) => point.x));
+    const maxU = Math.max(...points.map((point) => point.x));
+    const minV = Math.min(...points.map((point) => point.y));
+    const maxV = Math.max(...points.map((point) => point.y));
 
     return {
       width: clampMin(maxU - minU, 0.01),

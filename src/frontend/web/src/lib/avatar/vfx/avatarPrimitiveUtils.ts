@@ -73,28 +73,15 @@ export function collectPrimitiveData(args: {
     return null;
   }
 
-  const range = resolvePrimitiveVertexRange(args.avatar, args.binding);
-  const index = geometry.getIndex();
+  const order = readPrimitiveVertexOrder(args.avatar, args.binding);
   const meshObject = args.binding.object;
 
   meshObject.updateWorldMatrix(true, false);
   args.anchorObject.updateWorldMatrix(true, false);
 
-  if (index) {
-    const start = Math.max(0, range?.start ?? 0);
-    const maxCount = index.count - start;
-    const count =
-      range?.count === null || range?.count === undefined
-        ? maxCount
-        : Math.max(0, Math.min(range.count, maxCount));
-    const orderedVertexIndices: number[] = [];
-    const uniqueVertexIndexSet = new Set<number>();
-    for (let offset = 0; offset < count; offset += 1) {
-      const vertexIndex = index.getX(start + offset);
-      orderedVertexIndices.push(vertexIndex);
-      uniqueVertexIndexSet.add(vertexIndex);
-    }
-    const uniqueVertexIndices = Array.from(uniqueVertexIndexSet);
+  if (order.indexed) {
+    const orderedVertexIndices = order.vertices;
+    const uniqueVertexIndices = Array.from(new Set(orderedVertexIndices));
     const pointsByIndex = buildPointMap({
       anchorObject: args.anchorObject,
       meshObject,
@@ -113,16 +100,7 @@ export function collectPrimitiveData(args: {
     };
   }
 
-  const start = Math.max(0, range?.start ?? 0);
-  const maxCount = position.count - start;
-  const count =
-    range?.count === null || range?.count === undefined
-      ? maxCount
-      : Math.max(0, Math.min(range.count, maxCount));
-  const uniqueVertexIndices = Array.from(
-    { length: count },
-    (_unused, offset) => start + offset,
-  );
+  const uniqueVertexIndices = order.vertices;
   const pointsByIndex = buildPointMap({
     anchorObject: args.anchorObject,
     meshObject,
@@ -139,6 +117,33 @@ export function collectPrimitiveData(args: {
     pointsByIndex,
     uniqueVertexIndices,
   };
+}
+
+/**
+ * A primitive's triangle corners as vertex indices, in draw order: its index
+ * range within the mesh (or, unindexed, its vertex range), so a mesh that
+ * holds several primitives yields only this one's.
+ */
+export function readPrimitiveVertexOrder(
+  avatar: Pick<Avatar, "sourceGltf">,
+  binding: RuntimePrimitiveBindingEntry,
+): { indexed: boolean; vertices: number[] } {
+  const geometry = binding.object.geometry;
+  const range = resolvePrimitiveVertexRange(avatar, binding);
+  const index = geometry.getIndex();
+  const total = index
+    ? index.count
+    : (geometry.getAttribute("position")?.count ?? 0);
+  const start = Math.max(0, range?.start ?? 0);
+  const maxCount = total - start;
+  const count =
+    range?.count === null || range?.count === undefined
+      ? maxCount
+      : Math.max(0, Math.min(range.count, maxCount));
+  const vertices = Array.from({ length: Math.max(0, count) }, (_, offset) =>
+    index ? index.getX(start + offset) : start + offset,
+  );
+  return { indexed: index !== null, vertices };
 }
 
 export function resolvePrimitiveVertexRange(

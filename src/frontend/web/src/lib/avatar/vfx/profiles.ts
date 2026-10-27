@@ -151,9 +151,13 @@ function mostlyOverlap(
  * Avatar's right eye). When an iris does not sit in its half that way, as
  * when the eyes share a texture atlas with other parts, each eye's art is
  * drawn in a cell around its own iris rectangle, scaled like VRoid's, and
- * clipped to that rectangle so it cannot reach the other eye. Eyes that share
- * one rectangle draw the same, unmirrored art. Otherwise the irises' UVs are
- * assumed to run like VRoid's, so `mirrorRight` is kept.
+ * clipped to that rectangle so it cannot reach the other eye.
+ *
+ * An eye whose UVs run mirrored against VRoid's (`textureMirrored`) has its
+ * cell `flipped`, so its art reads on screen as on VRoid, `mirrorRight`
+ * included. Eyes that share one rectangle draw the same art, unmirrored and
+ * oriented for the viewer's left eye; with mirrored UVs the other eye then
+ * shows it mirrored, as VRoid does.
  */
 export function resolveIrisEyeLayout(
   layout: EyeLayout,
@@ -162,18 +166,26 @@ export function resolveIrisEyeLayout(
   const viewerLeft = eyes.right?.textureRect ?? null;
   const viewerRight = eyes.left?.textureRect ?? null;
   if (!viewerLeft || !viewerRight) return layout;
+  const flippedLeft = eyes.right?.textureMirrored === true;
+  const flippedRight = eyes.left?.textureMirrored === true;
+  const flipped = (left: boolean, right: boolean) =>
+    left || right ? { flipped: { left, right } } : {};
   if (
     fitsVroidHalf(layout.left, viewerLeft) &&
     fitsVroidHalf(layout.right, viewerRight)
   ) {
-    return layout;
+    return flippedLeft || flippedRight
+      ? { ...layout, ...flipped(flippedLeft, flippedRight) }
+      : layout;
   }
+  const shared = mostlyOverlap(viewerLeft, viewerRight);
   return {
     left: grownRect(viewerLeft, VROID_IRIS_CELL_SCALE),
     right: grownRect(viewerRight, VROID_IRIS_CELL_SCALE),
-    mirrorRight: mostlyOverlap(viewerLeft, viewerRight)
-      ? false
-      : layout.mirrorRight,
+    mirrorRight: shared ? false : layout.mirrorRight,
     clip: { left: viewerLeft, right: viewerRight },
+    ...(shared
+      ? flipped(flippedLeft, flippedLeft)
+      : flipped(flippedLeft, flippedRight)),
   };
 }

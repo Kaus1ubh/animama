@@ -35,6 +35,14 @@ import {
 } from "./manipulationPlacement";
 import { MeshUvLocator } from "./meshUvLocator";
 import {
+  collectFaceSkinClipTriangles,
+  dilateClipTriangles,
+  traceClipTriangles,
+  type FaceSkinClipSource,
+} from "./faceSkinClip";
+import { TextureUvMapping } from "./textureUvMapping";
+import type { RuntimePrimitiveBindingEntry } from "./avatarPrimitiveUtils";
+import {
   anchoredGuideLabel,
   boxGuideLabel,
   eyeGuideLabel,
@@ -71,6 +79,7 @@ import {
 import { matchAvatarTargetRole } from "./avatarRuntimeTargeting";
 import {
   AVATAR_FACE_PART_LABELS,
+  createFaceVertexFilter,
   findMissingFacePart,
   resolveFacePartTargetRoles,
   type AvatarFacePartRole,
@@ -199,6 +208,8 @@ type ActiveBindingEffect = {
 };
 
 type BindingState = {
+  /** The live primitive this binding was built from. */
+  entry: RuntimePrimitiveBindingEntry;
   bindingKey: string;
   /** Primary role: a corrected face part first, else name-matcher precedence. */
   targetRole: AvatarVFXTargetRole;
@@ -258,9 +269,16 @@ type TexturePixelPlacementInstance = {
   mirrorX: boolean;
   /** The effect's own mirrored copy; see `TexturePlacement.effectMirror`. */
   effectMirror?: boolean;
+  /** A cell with mirrored UVs; see `TexturePlacement.flipX`. */
+  flipX?: boolean;
   rect: PixelRect;
   /** Where the art may draw; see the eye layout's `clip`. */
   clip?: PixelRect;
+  /**
+   * The face skin's own triangles, in pixels: whole-face art draws only
+   * inside them on a texture it shares (see `_faceSkinClip`).
+   */
+  clipTriangles?: Float32Array;
 };
 
 type StaticCompositeSegmentState = {
@@ -1213,12 +1231,18 @@ function resolveAnchoredTexturePlacementInstances(args: {
   return { instances };
 }
 
+/**
+ * Where a texture effect draws on one slot's canvas, in its pixels. Whole-face
+ * art covers the face rectangle, clipped to the face skin's own triangles
+ * when `faceClip` (read only for that art) returns them.
+ */
 function resolveTextureEffectPlacements(args: {
   image: CanvasImageSource;
   effect: AvatarVFXCatalogEntry;
   size: Size;
   profile: AvatarVFXModelProfile;
   faceTextureAnchors: AvatarFaceTextureAnchorsSnapshot | null;
+  faceClip?: () => Float32Array | null;
 }): {
   placements: TexturePixelPlacementInstance[];
   warning?: string;
@@ -1228,12 +1252,13 @@ function resolveTextureEffectPlacements(args: {
   if (isTextureVFXEntry(effect) && effect.targetRole === "eye_iris") {
     const eyeLayout = profile.eyeLayout;
     if (!eyeLayout) return { placements: [] };
-    // One eye's cell, and its clip when the layout has one.
+    // One eye's cell, its clip when the layout has one, and its UV flip.
     const eye = (side: "left" | "right") => ({
       rect: toPixelRect(size, eyeLayout[side]),
       ...(eyeLayout.clip
         ? { clip: toPixelRect(size, eyeLayout.clip[side]) }
         : {}),
+      ...(eyeLayout.flipped?.[side] ? { flipX: true } : {}),
     });
 
     if (effect.assetShape === "single_eye") {
@@ -1332,12 +1357,14 @@ function resolveTextureEffectPlacements(args: {
 
   const faceRect = profile.faceLayout?.rect;
   if (!faceRect) return { placements: [] };
+  const clipTriangles = args.faceClip?.() ?? null;
   return {
     placements: [
       {
         label: "face",
         mirrorX: false,
         rect: toPixelRect(size, faceRect),
+        ...(clipTriangles ? { clipTriangles } : {}),
       },
     ],
   };
@@ -1464,10 +1491,17 @@ function getTextureEffectKindOrder(effect: AvatarVFXCatalogEntry): number {
   return isAnchoredFaceTextureEffect(effect) ? 1 : 0;
 }
 
+/**
+ * Draw one effect's placements onto a composite canvas. A placement with
+ * `clipTriangles` draws inside them only; an opaque replacement there first
+ * clears them, so it replaces the face's region and leaves the rest of the
+ * shared texture as it was.
+ */
 function drawCompositedLayerCanvas(args: {
   context: CanvasContext;
   layerState: EffectLayerCanvasState;
   effect: AvatarVFXCatalogEntry;
+  applyMode: AvatarVFXApplyMode | null;
   size: Size;
   animationState: AvatarVFXAnimationState;
   opacity: number;
@@ -1514,6 +1548,14 @@ function drawCompositedLayerCanvas(args: {
         placement.clip.height,
       );
       context.clip();
+    }
+    if (placement.clipTriangles) {
+      context.beginPath();
+      traceClipTriangles(context, placement.clipTriangles);
+      context.clip();
+      if (args.applyMode === "replace" && args.opacity >= 1) {
+        context.clearRect(0, 0, size.width, size.height);
+      }
     }
     context.translate(transform.x, transform.y);
     // Texture decals rotate in their 2D surface; spin adds to the authored angle.
@@ -1933,8 +1975,27 @@ export class AvatarVFXController {
   /** Composites whose transform changed since their last redraw. */
   private _pendingTransformRedraws = new Set<BindingState>();
   private _lastTransformRedrawMs = -Infinity;
-  /** UV lookups per face mesh, built on first use for direct manipulation. */
-  private _uvLocators = new WeakMap<THREE.Mesh, MeshUvLocator | null>();
+  /**
+   * UV lookups per face mesh, built on first use for direct manipulation,
+   * with the texture whose layout they follow.
+   */
+  private _uvLocators = new WeakMap<
+    THREE.Mesh,
+    { texture: THREE.Texture | null; locator: MeshUvLocator | null }
+  >();
+  /**
+   * The primitives (binding keys) whose main material draws each texture
+   * image (`Texture.source`), from the last binding rebuild.
+   */
+  private readonly _textureImageUsers = new Map<
+    THREE.Source<unknown>,
+    Set<string>
+  >();
+  /** Whole-face clips per binding and slot, resolved on first use. */
+  private _faceSkinClips = new WeakMap<
+    BindingState,
+    Map<AvatarVFXTextureSlot, Float32Array | null>
+  >();
 
   constructor(
     avatar: Avatar,
@@ -2682,6 +2743,65 @@ export class AvatarVFXController {
   }
 
   /**
+   * Where whole-face art may draw on a face skin slot, in its pixels; null
+   * where it covers the whole texture as before. Only a texture that needs it
+   * is clipped: another primitive's material also draws its image (an
+   * atlas), or a face skin primitive drawing it also holds neck or body
+   * vertices. The clip is every face skin primitive's triangles on that image
+   * (the head-weighted ones of a primitive that holds the neck), resolved
+   * once per binding and slot.
+   */
+  private _faceSkinClip(
+    binding: BindingState,
+    slot: BindingTextureState,
+  ): Float32Array | null {
+    let bySlot = this._faceSkinClips.get(binding);
+    if (!bySlot) {
+      bySlot = new Map();
+      this._faceSkinClips.set(binding, bySlot);
+    }
+    const cached = bySlot.get(slot.slot);
+    if (cached !== undefined) return cached;
+    const clip = this._resolveFaceSkinClip(binding, slot);
+    bySlot.set(slot.slot, clip);
+    return clip;
+  }
+
+  private _resolveFaceSkinClip(
+    binding: BindingState,
+    slot: BindingTextureState,
+  ): Float32Array | null {
+    const vrm = this._avatar.vrm;
+    const image = slot.texture.source;
+    if (!vrm || !binding.targetRoles.includes("face_skin")) return null;
+    const faces = Array.from(this._bindings.values()).filter((face) =>
+      face.targetRoles.includes("face_skin"),
+    );
+    const sources: FaceSkinClipSource[] = faces.flatMap((face) => {
+      const texture = face.textureSlots.find(
+        (candidate) => candidate.texture.source === image,
+      )?.texture;
+      return texture
+        ? [
+            {
+              entry: face.entry,
+              texture,
+              keepVertex: createFaceVertexFilter(vrm, face.object),
+            },
+          ]
+        : [];
+    });
+    const faceKeys = new Set(faces.map((face) => face.bindingKey));
+    const shared = Array.from(this._textureImageUsers.get(image) ?? []).some(
+      (key) => !faceKeys.has(key),
+    );
+    const holdsBody = sources.some((source) => source.keepVertex !== null);
+    if (!shared && !holdsBody) return null;
+    const triangles = collectFaceSkinClipTriangles(this._avatar, sources);
+    return triangles.length > 0 ? dilateClipTriangles(triangles, slot) : null;
+  }
+
+  /**
    * Rebuild bindings after the Avatar's face parts change (a correction), then
    * re-apply active effects in their original order with their intensities.
    * An effect whose part is now unavailable is skipped and reported.
@@ -2830,12 +2950,16 @@ export class AvatarVFXController {
         : null;
       // Anchored decals bake offset and scale into their placement rectangles.
       for (const layer of active.layerCanvases.values()) {
+        const slot = binding.textureSlots.find(
+          (candidate) => candidate.slot === layer.slot,
+        );
         const resolved = resolveTextureEffectPlacements({
           image: layer.image,
           effect,
           size: layer,
           profile: this._placementProfile(),
           faceTextureAnchors: anchors,
+          faceClip: () => (slot ? this._faceSkinClip(binding, slot) : null),
         });
         if (resolved.placements.length) layer.placements = resolved.placements;
       }
@@ -3100,11 +3224,22 @@ export class AvatarVFXController {
       active.layerCanvases.get("map") ??
       active.layerCanvases.values().next().value;
     if (!layer) return [];
-    let locator = this._uvLocators.get(binding.object);
-    if (locator === undefined) {
-      locator = MeshUvLocator.create(binding.object);
-      this._uvLocators.set(binding.object, locator);
+    // The layer's original texture: its transform maps the mesh's UVs.
+    const texture =
+      binding.textureSlots.find((slot) => slot.slot === layer.slot)?.texture ??
+      null;
+    let cached = this._uvLocators.get(binding.object);
+    if (!cached || cached.texture !== texture) {
+      cached = {
+        texture,
+        locator: MeshUvLocator.create(
+          binding.object,
+          TextureUvMapping.of(texture),
+        ),
+      };
+      this._uvLocators.set(binding.object, cached);
     }
+    const locator = cached.locator;
     if (!locator) return [];
     const size = { width: layer.width, height: layer.height };
     const placements: AvatarVFXManipulationPlacement[] = [];
@@ -3132,13 +3267,17 @@ export class AvatarVFXController {
         locator.toWorld(transformTexturePlacementPoint(point, transform, size)),
       );
       if (corners.some((corner) => corner === null)) continue;
+      // A cell with mirrored UVs negates offsets and turns as well as the
+      // art, so each sense reverses once more there.
+      const flipped = placement.flipX === true;
+      const flippedArt = transform.scaleX < 0;
       placements.push(
         quadManipulationPlacement({
           label: placement.label,
-          mirrored: placement.effectMirror === true,
+          mirrored: (placement.effectMirror === true) !== flipped,
           corners: corners as AvatarVFXManipulationPlacement["corners"],
           // The canvas turns +x toward +y (down); a flipped copy reverses it.
-          rotationSense: transform.scaleX < 0 ? -1 : 1,
+          rotationSense: flippedArt !== flipped ? -1 : 1,
         }),
       );
     }
@@ -3533,6 +3672,7 @@ export class AvatarVFXController {
         size: { width: slotState.width, height: slotState.height },
         profile: this._placementProfile(),
         faceTextureAnchors: args.faceTextureAnchors,
+        faceClip: () => this._faceSkinClip(args.binding, slotState),
       });
       if (drawResult.placements.length === 0) {
         textureDrawWarning = textureDrawWarning ?? drawResult.warning ?? null;
@@ -3854,8 +3994,18 @@ export class AvatarVFXController {
     // Roles come from the Avatar's face part map (spec signals, then names,
     // then corrections); an Avatar without a map uses name matching.
     const partMap = this._avatar.facePartMap ?? null;
+    this._textureImageUsers.clear();
     runtimeResult.entries.forEach((entry) => {
       const mainMaterial = getRenderableMainMaterial(entry.object);
+      // Every primitive drawing each image, part or not, to tell an atlas.
+      SUPPORTED_TEXTURE_SLOTS.forEach((slot) => {
+        const image =
+          mainMaterial && getTextureSlot(mainMaterial, slot)?.source;
+        if (!image) return;
+        const users = this._textureImageUsers.get(image) ?? new Set<string>();
+        users.add(entry.bindingKey);
+        this._textureImageUsers.set(image, users);
+      });
       const targetRoles = partMap
         ? resolveFacePartTargetRoles(partMap, entry.bindingKey)
         : [matchAvatarTargetRole(entry.materialName, this._profile)].filter(
@@ -3888,6 +4038,7 @@ export class AvatarVFXController {
       // Creator effects arrive after discovery and may suppress any recognized
       // role, including untextured lines or lashes absent from the mounted catalog.
       this._bindings.set(entry.bindingKey, {
+        entry,
         bindingKey: entry.bindingKey,
         targetRole,
         targetRoles,
@@ -4073,13 +4224,17 @@ export class AvatarVFXController {
       const slotEffects = textureEffects.filter((effect) =>
         effect.layerCanvases.has(slotState.slot),
       );
-      // A replacement below full opacity shows the original slot beneath it.
+      // A replacement below full opacity shows the original slot beneath it,
+      // and one clipped to the face keeps the rest of a shared texture.
       const shouldDrawBaseTexture =
         slotEffects.length === 0 ||
         slotEffects.every(
           (effect) =>
             effect.applyMode === "overlay" ||
-            this._resolveActiveEffectOpacity(effect) < 1,
+            this._resolveActiveEffectOpacity(effect) < 1 ||
+            effect.layerCanvases
+              .get(slotState.slot)
+              ?.placements.some((placement) => placement.clipTriangles),
         );
       const flattenColorForSlot =
         flattenState.sampledColorsBySlot[slotState.slot] ?? null;
@@ -4184,6 +4339,7 @@ export class AvatarVFXController {
             context: segment.context,
             layerState,
             effect: effect.effectEntry,
+            applyMode: effect.applyMode,
             size: {
               width: slotState.width,
               height: slotState.height,
@@ -4231,6 +4387,7 @@ export class AvatarVFXController {
           context: compositeSlotState.context,
           layerState,
           effect: animatedEffect.effectEntry,
+          applyMode: animatedEffect.applyMode,
           size: {
             width: slotState.width,
             height: slotState.height,

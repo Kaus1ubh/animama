@@ -10,12 +10,16 @@ const layout = DEFAULT_AVATAR_VFX_MODEL_PROFILE.eyeLayout!;
 
 type Rect = [x: number, y: number, width: number, height: number];
 
-/** Eye landmarks carrying only the texture rectangles the layout reads. */
+/**
+ * Eye landmarks carrying only what the layout reads: texture rectangles and,
+ * per `mirrored`, the Avatar's eyes whose UVs run mirrored against VRoid's.
+ */
 function eyes(
   left: Rect | null,
   right: Rect | null,
+  mirrored: { left?: boolean; right?: boolean } = {},
 ): AvatarFaceLandmarksSnapshot["eyes"] {
-  const eye = (rect: Rect | null) =>
+  const eye = (rect: Rect | null, textureMirrored?: boolean) =>
     rect
       ? ({
           textureRect: {
@@ -24,9 +28,13 @@ function eyes(
             width: rect[2],
             height: rect[3],
           },
+          ...(textureMirrored ? { textureMirrored } : {}),
         } as NonNullable<AvatarFaceLandmarksSnapshot["eyes"]["left"]>)
       : null;
-  return { left: eye(left), right: eye(right) };
+  return {
+    left: eye(left, mirrored.left),
+    right: eye(right, mirrored.right),
+  };
 }
 
 const rect = ([x, y, width, height]: Rect) => ({ x, y, width, height });
@@ -83,6 +91,52 @@ describe("resolveIrisEyeLayout", () => {
     const shared: Rect = [0.6, 0.6, 0.3, 0.3];
     const resolved = resolveIrisEyeLayout(layout, eyes(shared, shared));
     expect(resolved.mirrorRight).toBe(false);
+  });
+
+  describe("eyes whose UVs run mirrored", () => {
+    // Annie's iris rectangles, in their VRoid halves.
+    const avatarLeft: Rect = [0.62, 0.21, 0.25, 0.56];
+    const avatarRight: Rect = [0.13, 0.21, 0.25, 0.56];
+
+    it("flips the mirrored eye's cell in a VRoid layout", () => {
+      // The Avatar's left eye is the viewer's right cell.
+      const resolved = resolveIrisEyeLayout(
+        layout,
+        eyes(avatarLeft, avatarRight, { left: true }),
+      );
+      expect(resolved).toEqual({
+        ...layout,
+        flipped: { left: false, right: true },
+      });
+    });
+
+    it("flips each mirrored eye's own cell on an atlas", () => {
+      const viewerLeft: Rect = [0.4, 0.1, 0.2, 0.2];
+      const viewerRight: Rect = [0.7, 0.1, 0.2, 0.2];
+      const resolved = resolveIrisEyeLayout(
+        layout,
+        eyes(viewerRight, viewerLeft, { right: true }),
+      );
+      expect(resolved.flipped).toEqual({ left: true, right: false });
+      expect(resolved.mirrorRight).toBe(layout.mirrorRight);
+    });
+
+    it("draws one shared rectangle for the viewer's left eye", () => {
+      const shared: Rect = [0.6, 0.6, 0.3, 0.3];
+      // Mirrored UVs on the viewer's right eye already mirror its art.
+      const mirroredRight = resolveIrisEyeLayout(
+        layout,
+        eyes(shared, shared, { left: true }),
+      );
+      expect(mirroredRight.mirrorRight).toBe(false);
+      expect(mirroredRight.flipped).toBeUndefined();
+      // Both draws flip together when the viewer's left eye is mirrored.
+      const mirroredLeft = resolveIrisEyeLayout(
+        layout,
+        eyes(shared, shared, { right: true }),
+      );
+      expect(mirroredLeft.flipped).toEqual({ left: true, right: true });
+    });
   });
 
   it("keeps the layout without both irises' rectangles", () => {
