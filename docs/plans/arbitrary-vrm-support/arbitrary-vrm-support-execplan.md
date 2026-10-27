@@ -208,8 +208,9 @@ tenant-inventory row for `avatar_face_part_overrides`. So:
   eye-hiding effects) is pending.
 - [ ] Phase 3: Avatar settings: wind and materials (R5, R11's Materials
   setting). Implemented, checked and review passed 2026-10-26; the owner
-  accepted the Included Avatars' spring change on 2026-10-27; the rest of the
-  owner gate (live wind modes, the Simple look) is pending.
+  accepted the Included Avatars' spring change on 2026-10-27; the Cloud
+  follow-up is raymond-van/animama-cloud#229; the rest of the owner gate (live
+  wind modes, the Simple look) is pending.
 - [ ] Phase 4: Expression content and MMD face shapes (R4, R12). Implemented,
   checked and review passed 2026-10-27; the owner gate (private mood renders,
   live lip-sync checks, two confirmations) is pending.
@@ -1082,7 +1083,9 @@ by the owner on 2026-10-27 (Decision Log).
 Completion: R5 acceptance and R11's Materials-setting acceptance except the
 Automatic GPU check; owner gate passed; a Cloud follow-up issue recorded
 for the hosted migration, lifecycle, wiring and inventory, plus a backend
-composition check at repin.
+composition check at repin: raymond-van/animama-cloud#229 ("build: adopt
+local-http 17 and decide Hosted Avatar settings"; PR B raises `local-http` to
+18.0.0 and `runtime-contracts` to 0.18.0 for the import notice).
 
 Recovery: the table and route are additive. A revert leaves stored values
 unused, and packages exported with either setting would no longer import on
