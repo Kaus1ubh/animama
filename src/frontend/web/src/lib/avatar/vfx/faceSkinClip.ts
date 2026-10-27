@@ -1,15 +1,19 @@
 import * as THREE from "three";
 
 import type { Avatar } from "../Avatar";
+import { selectFaceIsland } from "./AvatarFaceTextureAnchors";
 import {
-  readPrimitiveVertexOrder,
+  collectPrimitiveData,
+  withoutTriangles,
   type RuntimePrimitiveBindingEntry,
 } from "./avatarPrimitiveUtils";
+import type { AvatarFaceLandmarksSnapshot } from "./landmark-types";
 import { mapTrianglesToImage, TextureUvMapping } from "./textureUvMapping";
 
 /**
- * How far each clip triangle grows, in texture pixels: enough that filtering
- * at the island's edge samples tinted texels instead of leaving a seam.
+ * How far each clip triangle grows, in texture pixels (its edges move about
+ * 1–1.5 px): enough that filtering at full resolution samples tinted texels
+ * at the island's edge. Lower mipmap levels can still blend across it.
  */
 const CLIP_DILATION_PX = 1.5;
 /** A sliver triangle's corners move at most this many dilations outward. */
@@ -25,38 +29,73 @@ export type FaceSkinClipSource = {
    * body vertices; null for a head-skinned one, all of whose triangles count.
    */
   keepVertex: ((vertex: number) => boolean) | null;
+  /** Its eye-line and lash part `regions` (triangle numbers), left out. */
+  regions: ReadonlySet<number>;
 };
 
 /**
- * The face skin's triangles on one texture image, for clipping whole-face art
- * to the face's own region of a shared texture: six numbers (three image x, y
+ * The face skin's own triangles on one texture image, for clipping whole-face
+ * art to the face's region of the texture: six numbers (three image x, y
  * pairs, 0–1) per triangle, all wound the same way so overlapping triangles
  * (mirrored UV halves) add up under the non-zero rule instead of cancelling.
  *
- * A primitive with neck or body vertices keeps the triangles whose corners
- * all pass its `keepVertex` (all of them, should none pass). An inner mouth
- * skinned to the head inside the face primitive stays in, so it still takes
- * the art.
+ * Each primitive first loses its eye-line and lash regions, by number, so the
+ * result is the same whether an eye effect hides them at the time. It then
+ * keeps its face island and the islands outside the face's outline
+ * (`selectFaceIsland`): an inner mouth, teeth or eyes inside the outline are
+ * left out, VRoid's ears kept. A primitive that also holds the neck or body
+ * keeps only the triangles whose corners all pass its `keepVertex` (the
+ * island's, should none pass). `complete` is whether every triangle of every
+ * primitive was kept, as on a VRoid face: the clip then removes nothing the
+ * face's own texture shows.
  */
-export function collectFaceSkinClipTriangles(
-  avatar: Pick<Avatar, "sourceGltf">,
-  sources: readonly FaceSkinClipSource[],
-): Float32Array {
+export function collectFaceSkinClipTriangles(args: {
+  avatar: Avatar;
+  anchorObject: THREE.Object3D | null;
+  landmarks: AvatarFaceLandmarksSnapshot | null;
+  sources: readonly FaceSkinClipSource[];
+}): { triangles: Float32Array; complete: boolean } {
   const parts: Float32Array[] = [];
-  for (const source of sources) {
-    const uv = source.entry.object.geometry.getAttribute("uv");
-    if (!uv || uv.itemSize < 2) continue;
-    const { vertices } = readPrimitiveVertexOrder(avatar, source.entry);
+  let complete = true;
+  // A primitive that cannot be read leaves the art unclipped, as before.
+  const unclipped = { triangles: new Float32Array(), complete: true };
+  for (const source of args.sources) {
+    const geometry = source.entry.object.geometry;
+    const uv = geometry.getAttribute("uv");
+    const position = geometry.getAttribute("position");
+    if (
+      !(uv instanceof THREE.BufferAttribute) ||
+      !(position instanceof THREE.BufferAttribute)
+    ) {
+      return unclipped;
+    }
+    const all = collectPrimitiveData({
+      avatar: args.avatar,
+      binding: source.entry,
+      anchorObject: args.anchorObject ?? source.entry.object,
+    });
+    if (!all) return unclipped;
+    const primitiveData = withoutTriangles(all, source.regions);
+    const island = args.landmarks
+      ? selectFaceIsland({
+          primitiveData,
+          position,
+          uv,
+          landmarks: args.landmarks,
+          withOuterIslands: true,
+        })
+      : primitiveData.orderedVertexIndices;
+    let kept = island;
     const keep = source.keepVertex;
-    let kept = vertices;
     if (keep) {
       kept = [];
-      for (let offset = 0; offset + 2 < vertices.length; offset += 3) {
-        const corners = vertices.slice(offset, offset + 3);
+      for (let offset = 0; offset + 2 < island.length; offset += 3) {
+        const corners = island.slice(offset, offset + 3);
         if (corners.every(keep)) kept.push(...corners);
       }
-      if (kept.length === 0) kept = vertices;
+      if (kept.length === 0) kept = island;
     }
+    complete &&= kept.length === all.orderedVertexIndices.length;
     const corners = mapTrianglesToImage(
       uv,
       kept,
@@ -73,7 +112,7 @@ export function collectFaceSkinClipTriangles(
     triangles.set(part, offset);
     offset += part.length;
   }
-  return triangles;
+  return { triangles, complete };
 }
 
 /** Reorder each triangle's corners to one winding: a positive signed area. */
@@ -144,15 +183,25 @@ export function dilateClipTriangles(
   return out.slice(0, written);
 }
 
-/** Add pixel triangles to a canvas context's current path, for `clip()`. */
+/** Add pixel triangles to a path (a `Path2D` or a context's current path). */
 export function traceClipTriangles(
-  context: Pick<CanvasRenderingContext2D, "moveTo" | "lineTo" | "closePath">,
+  path: Pick<CanvasPath, "moveTo" | "lineTo" | "closePath">,
   triangles: Float32Array,
 ): void {
   for (let base = 0; base + 5 < triangles.length; base += 6) {
-    context.moveTo(triangles[base]!, triangles[base + 1]!);
-    context.lineTo(triangles[base + 2]!, triangles[base + 3]!);
-    context.lineTo(triangles[base + 4]!, triangles[base + 5]!);
-    context.closePath();
+    path.moveTo(triangles[base]!, triangles[base + 1]!);
+    path.lineTo(triangles[base + 2]!, triangles[base + 3]!);
+    path.lineTo(triangles[base + 4]!, triangles[base + 5]!);
+    path.closePath();
   }
+}
+
+/**
+ * The clip as a `Path2D` of pixel triangles, built once so each composite
+ * redraw clips with it instead of tracing every triangle again.
+ */
+export function createClipPath(triangles: Float32Array): Path2D {
+  const path = new Path2D();
+  traceClipTriangles(path, triangles);
+  return path;
 }

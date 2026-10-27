@@ -36,8 +36,8 @@ import {
 import { MeshUvLocator } from "./meshUvLocator";
 import {
   collectFaceSkinClipTriangles,
+  createClipPath,
   dilateClipTriangles,
-  traceClipTriangles,
   type FaceSkinClipSource,
 } from "./faceSkinClip";
 import { TextureUvMapping } from "./textureUvMapping";
@@ -169,6 +169,8 @@ type CompositeTextureSlotState = {
   height: number;
   /** Whether the static cache drew the original slot beneath its effects. */
   baseDrawn: boolean;
+  /** Clips of opaque replacements the static cache cleared the original in. */
+  baseClips: Path2D[];
 };
 
 type BindingTextureCompositeState = {
@@ -275,10 +277,10 @@ type TexturePixelPlacementInstance = {
   /** Where the art may draw; see the eye layout's `clip`. */
   clip?: PixelRect;
   /**
-   * The face skin's own triangles, in pixels: whole-face art draws only
-   * inside them on a texture it shares (see `_faceSkinClip`).
+   * The face skin's own triangles, as a cached pixel path: whole-face art
+   * draws only inside it where the texture needs a clip (`_faceSkinClip`).
    */
-  clipTriangles?: Float32Array;
+  clipPath?: Path2D;
 };
 
 type StaticCompositeSegmentState = {
@@ -1234,7 +1236,7 @@ function resolveAnchoredTexturePlacementInstances(args: {
 /**
  * Where a texture effect draws on one slot's canvas, in its pixels. Whole-face
  * art covers the face rectangle, clipped to the face skin's own triangles
- * when `faceClip` (read only for that art) returns them.
+ * when `faceClip` (read only for that art) returns their path.
  */
 function resolveTextureEffectPlacements(args: {
   image: CanvasImageSource;
@@ -1242,7 +1244,7 @@ function resolveTextureEffectPlacements(args: {
   size: Size;
   profile: AvatarVFXModelProfile;
   faceTextureAnchors: AvatarFaceTextureAnchorsSnapshot | null;
-  faceClip?: () => Float32Array | null;
+  faceClip?: () => Path2D | null;
 }): {
   placements: TexturePixelPlacementInstance[];
   warning?: string;
@@ -1357,14 +1359,14 @@ function resolveTextureEffectPlacements(args: {
 
   const faceRect = profile.faceLayout?.rect;
   if (!faceRect) return { placements: [] };
-  const clipTriangles = args.faceClip?.() ?? null;
+  const clipPath = args.faceClip?.() ?? null;
   return {
     placements: [
       {
         label: "face",
         mirrorX: false,
         rect: toPixelRect(size, faceRect),
-        ...(clipTriangles ? { clipTriangles } : {}),
+        ...(clipPath ? { clipPath } : {}),
       },
     ],
   };
@@ -1492,16 +1494,13 @@ function getTextureEffectKindOrder(effect: AvatarVFXCatalogEntry): number {
 }
 
 /**
- * Draw one effect's placements onto a composite canvas. A placement with
- * `clipTriangles` draws inside them only; an opaque replacement there first
- * clears them, so it replaces the face's region and leaves the rest of the
- * shared texture as it was.
+ * Draw one effect's placements onto a composite canvas. A placement with a
+ * `clipPath` draws inside it only.
  */
 function drawCompositedLayerCanvas(args: {
   context: CanvasContext;
   layerState: EffectLayerCanvasState;
   effect: AvatarVFXCatalogEntry;
-  applyMode: AvatarVFXApplyMode | null;
   size: Size;
   animationState: AvatarVFXAnimationState;
   opacity: number;
@@ -1549,14 +1548,7 @@ function drawCompositedLayerCanvas(args: {
       );
       context.clip();
     }
-    if (placement.clipTriangles) {
-      context.beginPath();
-      traceClipTriangles(context, placement.clipTriangles);
-      context.clip();
-      if (args.applyMode === "replace" && args.opacity >= 1) {
-        context.clearRect(0, 0, size.width, size.height);
-      }
-    }
+    if (placement.clipPath) context.clip(placement.clipPath);
     context.translate(transform.x, transform.y);
     // Texture decals rotate in their 2D surface; spin adds to the authored angle.
     context.rotate(transform.rotation);
@@ -1991,10 +1983,13 @@ export class AvatarVFXController {
     THREE.Source<unknown>,
     Set<string>
   >();
-  /** Whole-face clips per binding and slot, resolved on first use. */
+  /**
+   * Whole-face clip paths per binding and slot, resolved on first use; a
+   * binding rebuild makes new keys, which drops them.
+   */
   private _faceSkinClips = new WeakMap<
     BindingState,
-    Map<AvatarVFXTextureSlot, Float32Array | null>
+    Map<AvatarVFXTextureSlot, Path2D | null>
   >();
 
   constructor(
@@ -2743,18 +2738,19 @@ export class AvatarVFXController {
   }
 
   /**
-   * Where whole-face art may draw on a face skin slot, in its pixels; null
-   * where it covers the whole texture as before. Only a texture that needs it
-   * is clipped: another primitive's material also draws its image (an
-   * atlas), or a face skin primitive drawing it also holds neck or body
-   * vertices. The clip is every face skin primitive's triangles on that image
-   * (the head-weighted ones of a primitive that holds the neck), resolved
-   * once per binding and slot.
+   * The path whole-face art on a face skin slot is clipped to, in its
+   * pixels; null where it covers the whole texture as before. The clip holds
+   * every face skin primitive's own triangles on that image (see
+   * `collectFaceSkinClipTriangles`), and is made only where it removes
+   * something: another primitive's material also draws the image (an atlas),
+   * or the face skin primitives drawing it hold triangles outside the face
+   * (an inner mouth, eyes, the neck, lash regions). Resolved once per binding
+   * and slot.
    */
   private _faceSkinClip(
     binding: BindingState,
     slot: BindingTextureState,
-  ): Float32Array | null {
+  ): Path2D | null {
     let bySlot = this._faceSkinClips.get(binding);
     if (!bySlot) {
       bySlot = new Map();
@@ -2770,13 +2766,23 @@ export class AvatarVFXController {
   private _resolveFaceSkinClip(
     binding: BindingState,
     slot: BindingTextureState,
-  ): Float32Array | null {
+  ): Path2D | null {
     const vrm = this._avatar.vrm;
     const image = slot.texture.source;
     if (!vrm || !binding.targetRoles.includes("face_skin")) return null;
     const faces = Array.from(this._bindings.values()).filter((face) =>
       face.targetRoles.includes("face_skin"),
     );
+    // Eye-line and lash regions inside a face primitive are never face skin.
+    const regions = new Map<string, Set<number>>();
+    const map = this._avatar.facePartMap;
+    for (const role of DETAIL_REGION_ROLES) {
+      for (const region of map?.parts[role].regions ?? []) {
+        const triangles = regions.get(region.bindingKey) ?? new Set<number>();
+        region.triangles.forEach((triangle) => triangles.add(triangle));
+        regions.set(region.bindingKey, triangles);
+      }
+    }
     const sources: FaceSkinClipSource[] = faces.flatMap((face) => {
       const texture = face.textureSlots.find(
         (candidate) => candidate.texture.source === image,
@@ -2787,6 +2793,7 @@ export class AvatarVFXController {
               entry: face.entry,
               texture,
               keepVertex: createFaceVertexFilter(vrm, face.object),
+              regions: regions.get(face.bindingKey) ?? new Set<number>(),
             },
           ]
         : [];
@@ -2795,10 +2802,14 @@ export class AvatarVFXController {
     const shared = Array.from(this._textureImageUsers.get(image) ?? []).some(
       (key) => !faceKeys.has(key),
     );
-    const holdsBody = sources.some((source) => source.keepVertex !== null);
-    if (!shared && !holdsBody) return null;
-    const triangles = collectFaceSkinClipTriangles(this._avatar, sources);
-    return triangles.length > 0 ? dilateClipTriangles(triangles, slot) : null;
+    const { triangles, complete } = collectFaceSkinClipTriangles({
+      avatar: this._avatar,
+      anchorObject: this._avatar.faceLandmarks?.getAnchorObject() ?? null,
+      landmarks: this._avatar.getFaceLandmarksSnapshot(),
+      sources,
+    });
+    if ((!shared && complete) || triangles.length === 0) return null;
+    return createClipPath(dilateClipTriangles(triangles, slot));
   }
 
   /**
@@ -4148,6 +4159,7 @@ export class AvatarVFXController {
       width: args.slotState.width,
       height: args.slotState.height,
       baseDrawn: false,
+      baseClips: [],
     };
     compositeState.slotStates.set(args.slotState.slot, nextState);
     return nextState;
@@ -4224,6 +4236,10 @@ export class AvatarVFXController {
       const slotEffects = textureEffects.filter((effect) =>
         effect.layerCanvases.has(slotState.slot),
       );
+      const clipPathsOf = (effect: ActiveBindingEffect) =>
+        (effect.layerCanvases.get(slotState.slot)?.placements ?? []).flatMap(
+          (placement) => (placement.clipPath ? [placement.clipPath] : []),
+        );
       // A replacement below full opacity shows the original slot beneath it,
       // and one clipped to the face keeps the rest of a shared texture.
       const shouldDrawBaseTexture =
@@ -4232,10 +4248,18 @@ export class AvatarVFXController {
           (effect) =>
             effect.applyMode === "overlay" ||
             this._resolveActiveEffectOpacity(effect) < 1 ||
-            effect.layerCanvases
-              .get(slotState.slot)
-              ?.placements.some((placement) => placement.clipTriangles),
+            clipPathsOf(effect).length > 0,
         );
+      // An opaque clipped replacement hides the original inside its clip (an
+      // unclipped one leaves it out entirely), whichever static segment the
+      // art itself lands in.
+      const baseClips = slotEffects
+        .filter(
+          (effect) =>
+            effect.applyMode === "replace" &&
+            this._resolveActiveEffectOpacity(effect) >= 1,
+        )
+        .flatMap(clipPathsOf);
       const flattenColorForSlot =
         flattenState.sampledColorsBySlot[slotState.slot] ?? null;
       const shouldApplyFlattenToSlot =
@@ -4266,8 +4290,11 @@ export class AvatarVFXController {
       const animatedEffects = slotEffects.filter((effect) => effect.isAnimated);
       const shouldRebuildStaticCache =
         compositeState.staticCacheDirty ||
-        compositeSlotState.baseDrawn !== shouldDrawBaseTexture;
+        compositeSlotState.baseDrawn !== shouldDrawBaseTexture ||
+        compositeSlotState.baseClips.length !== baseClips.length ||
+        baseClips.some((path, at) => compositeSlotState.baseClips[at] !== path);
       compositeSlotState.baseDrawn = shouldDrawBaseTexture;
+      compositeSlotState.baseClips = baseClips;
       if (shouldRebuildStaticCache) {
         const staticSegments = this._ensureStaticCompositeSegments({
           compositeSlotState,
@@ -4321,6 +4348,16 @@ export class AvatarVFXController {
           }
         }
 
+        const base = staticSegments[0]?.context;
+        if (shouldDrawBaseTexture && base) {
+          for (const path of baseClips) {
+            base.save();
+            base.clip(path);
+            base.clearRect(0, 0, slotState.width, slotState.height);
+            base.restore();
+          }
+        }
+
         let staticSegmentIndex = 0;
         slotEffects.forEach((effect) => {
           if (effect.isAnimated) {
@@ -4339,7 +4376,6 @@ export class AvatarVFXController {
             context: segment.context,
             layerState,
             effect: effect.effectEntry,
-            applyMode: effect.applyMode,
             size: {
               width: slotState.width,
               height: slotState.height,
@@ -4387,7 +4423,6 @@ export class AvatarVFXController {
           context: compositeSlotState.context,
           layerState,
           effect: animatedEffect.effectEntry,
-          applyMode: animatedEffect.applyMode,
           size: {
             width: slotState.width,
             height: slotState.height,

@@ -209,16 +209,21 @@ replaces that instance.
 
 - **`full` and `eyes`** use the part's texture layout, so full-face art must
   match the Avatar's UV layout. `hideParts` hides other detected parts while
-  the effect is active. `full` art covers the face skin's whole texture
-  unless that texture needs a clip: when another primitive's material also
-  draws its image (a texture atlas), or a `face_skin` primitive also holds
-  neck or body vertices (`createFaceVertexFilter`). It is then drawn only
-  inside the triangles of every `face_skin` primitive on that image (the
-  head-weighted ones of a primitive that holds the neck), each grown about
-  1.5 px so filtering leaves no seam at the island's edge. The clip is built
-  once per binding and slot; a clipped replacement keeps the rest of the
-  texture and replaces only the face's region. VRoid faces, the Included
-  Avatars among them, need no clip and draw as before.
+  the effect is active. `full` art is drawn only on the face skin's own
+  triangles of its texture: in each `face_skin` primitive on that image, the
+  face's UV island (`selectFaceIsland`, as anchors use) and the islands
+  outside its outline in the front view, such as VRoid's ears, less any
+  eye-line or lash `regions` and, in a primitive that also holds the neck or
+  body, the triangles not weighted to the head (`createFaceVertexFilter`).
+  An inner mouth, teeth or eyes inside the face's outline are left out. The
+  clip is made only where it removes something: when another primitive's
+  material also draws the image (a texture atlas), or when those rules drop
+  triangles. Each clip triangle grows about 1–1.5 px at the texture's full
+  resolution, so filtering there leaves no seam at the island's edge. The
+  clip is built once per binding and slot as a `Path2D`; an opaque clipped
+  replacement hides the original texture only inside it. VRoid faces on
+  their own texture, the Included Avatars among them, need no clip and draw
+  as before.
   `eyes` art is drawn for a VRoid iris texture: one
   iris per half, the art cell being the whole half, about twice the iris.
   When an iris does not sit in its half that way (inside it, roughly centred,
@@ -865,8 +870,8 @@ caches the original texture, cleanup fills, static layers and static segments
 between animated layers, so a tick redraws only what moves. An animated
 full-face texture is the most expensive effect; it dominates the heavy
 combination's GPU p95. Where whole-face art needs a clip, each redraw also
-traces the face skin's triangles as a canvas clip path (VRoid faces need
-none). Camera-facing planes and stickers compose one matrix
+clips with the face skin's cached `Path2D` (VRoid faces on their own texture
+need none). Camera-facing planes and stickers compose one matrix
 per render; a silhouette adds one skinned draw per overlaid primitive (about
 11–13 on the Included Avatars).
 
@@ -903,10 +908,13 @@ per render; a silhouette adds one skinned draw per overlaid primitive (about
 - The mouth anchor follows the vertices the mouth shapes (`aa`, `ee`, `ih`,
   `oh`, `ou`) move most, or an estimate without them; on a face whose jaw
   moves with those shapes (Lapwing), mouth decals sit slightly low.
-- `full` art on a clipped texture still tints whatever a head-weighted
-  `face_skin` primitive maps there: an inner mouth or eye socket inside the
-  face primitive takes the art. Without a clip (the face's own texture, all
-  head-skinned) it covers the whole texture, as on VRoid.
+- The `full` art clip tells the face's own islands by their outline in the
+  front view: an island unwrapped apart inside the face's outline (a nose
+  patch, say) is left out with the inner mouth, and an inner part reaching
+  past the outline is kept. A face unwrapped in halves, with no island
+  spanning both eyes, keeps every island. Lower mipmap levels can still blend
+  art across an island's border, as the growth holds only at full
+  resolution.
 - An iris layout mirrors an eye whose art runs mirrored against VRoid's, but
   `span` iris art is drawn across both cells without it; the painted-art layer
   is chosen by texture area, so a stretched layer covering the whole eye can

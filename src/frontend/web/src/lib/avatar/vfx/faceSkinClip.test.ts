@@ -7,12 +7,18 @@ import {
   type TestAvatarId,
 } from "../motion-authoring/testing/includedAvatars";
 import { appendTriangle } from "../testing/appendTriangle";
+import { addBlinkStrand } from "../testing/blinkStrand";
 import { loadedTestAvatar } from "../testing/loadedTestAvatar";
 import { buildRuntimePrimitiveBindings } from "../vrmEditorInspection";
 import { AvatarVFXController } from "./AvatarVFXController";
 import type { RuntimePrimitiveBindingEntry } from "./avatarPrimitiveUtils";
 import { loadEffectImage } from "./effect-image";
-import { dilateClipTriangles, traceClipTriangles } from "./faceSkinClip";
+import {
+  collectFaceSkinClipTriangles,
+  dilateClipTriangles,
+  traceClipTriangles,
+} from "./faceSkinClip";
+import { PrimitiveRegionHider } from "./primitiveRegionHiding";
 import { baseTextureOf } from "./textureUvMapping";
 import type { AvatarVFXCatalogEntry } from "./types";
 
@@ -20,9 +26,21 @@ vi.mock("./effect-image", () => ({ loadEffectImage: vi.fn() }));
 
 const TEXTURE_SIZE = 1024;
 
+/** A `Path2D` that keeps its triangles, one array of corners per subpath. */
+class RecordingPath {
+  triangles: number[][] = [];
+  moveTo(x: number, y: number) {
+    this.triangles.push([x, y]);
+  }
+  lineTo(x: number, y: number) {
+    this.triangles.at(-1)!.push(x, y);
+  }
+  closePath() {}
+}
+
 /**
- * A canvas that records what each context does: the triangles traced before
- * every `clip()`, and the order of base draws, clips, clears and art draws.
+ * A canvas that records what each context does: the triangles of each path
+ * it clips with, and the order of base draws, clips, clears and art draws.
  */
 class RecordingCanvas {
   width = TEXTURE_SIZE;
@@ -33,8 +51,6 @@ class RecordingCanvas {
   static base: unknown = null;
 
   getContext() {
-    let triangles: number[][] = [];
-    let current: number[] = [];
     const state = {
       globalAlpha: 1,
       globalCompositeOperation: "source-over",
@@ -50,27 +66,21 @@ class RecordingCanvas {
       arc: () => {},
       fill: () => {},
       fillRect: () => {},
+      beginPath: () => {},
       clearRect: () => this.operations.push("clear"),
-      beginPath: () => {
-        triangles = [];
-        current = [];
-      },
-      moveTo: (x: number, y: number) => {
-        current = [x, y];
-      },
-      lineTo: (x: number, y: number) => {
-        current.push(x, y);
-      },
-      closePath: () => {
-        triangles.push(current);
-        current = [];
-      },
-      clip: () => {
-        this.clips.push(triangles);
+      clip: (path: RecordingPath) => {
+        this.clips.push(path.triangles);
         this.operations.push("clip");
       },
-      drawImage: (image: unknown) =>
-        this.operations.push(image === RecordingCanvas.base ? "base" : "draw"),
+      // The original drawn whole is the base; a patch of it is a skin sample.
+      drawImage: (image: unknown, ...args: number[]) =>
+        this.operations.push(
+          image !== RecordingCanvas.base
+            ? "draw"
+            : args.length === 4
+              ? "base"
+              : "sample",
+        ),
       getImageData: () => ({
         data: new Uint8ClampedArray([220, 190, 160, 255]),
       }),
@@ -83,8 +93,9 @@ const created: RecordingCanvas[] = [];
 
 const fullFace = (
   applyMode: "overlay" | "replace" = "overlay",
+  id = "full-face",
 ): AvatarVFXCatalogEntry => ({
-  id: "full-face",
+  id,
   label: "Full face",
   description: "",
   assetPath: "blob:full-face",
@@ -112,26 +123,39 @@ function faceEntry(avatar: Avatar): RuntimePrimitiveBindingEntry {
 
 /**
  * Give the face texture an image the compositor can draw, apply whole-face
- * art, and return the clips the composite drew it through.
+ * art (`effects`, in order), and return the clips the composites drew with.
  */
 async function applyFullFace(
   avatar: Avatar,
-  applyMode: "overlay" | "replace" = "overlay",
+  effects: AvatarVFXCatalogEntry[] = [fullFace()],
 ): Promise<number[][][]> {
+  created.length = 0;
   const texture = baseTextureOf(faceEntry(avatar).object)!;
   texture.image = new RecordingCanvas();
   RecordingCanvas.base = texture.image;
   const controller = new AvatarVFXController(avatar);
-  const effect = fullFace(applyMode);
-  await controller.applyEffect({
-    bindingKey: faceEntry(avatar).bindingKey,
-    effectId: effect.id,
-    effectEntry: effect,
-  });
+  for (const effect of effects) {
+    await controller.applyEffect({
+      bindingKey: faceEntry(avatar).bindingKey,
+      effectId: effect.id,
+      effectEntry: effect,
+    });
+  }
   expect(created.some((canvas) => canvas.operations.includes("draw"))).toBe(
     true,
   );
   return created.flatMap((canvas) => canvas.clips);
+}
+
+/** The FaceMouth primitive drawing from the face's texture, as on an atlas. */
+function shareFaceTexture(avatar: Avatar): RuntimePrimitiveBindingEntry {
+  const mouth = buildRuntimePrimitiveBindings(avatar).entries.find((entry) =>
+    entry.materialName?.includes("FaceMouth"),
+  )!;
+  (mouth.object.material as THREE.MeshBasicMaterial).map = baseTextureOf(
+    faceEntry(avatar).object,
+  );
+  return mouth;
 }
 
 /** Whether a pixel point lies inside any of the traced triangles. */
@@ -189,6 +213,58 @@ const HOLE_PIXEL: [number, number] = [
   0.344 * TEXTURE_SIZE,
   0.546 * TEXTURE_SIZE,
 ];
+/** The same in the other eye hole. */
+const OTHER_HOLE_UV: [[number, number], [number, number], [number, number]] = [
+  [0.651, 0.543],
+  [0.661, 0.543],
+  [0.656, 0.552],
+];
+const OTHER_HOLE_PIXEL: [number, number] = [
+  0.656 * TEXTURE_SIZE,
+  0.546 * TEXTURE_SIZE,
+];
+
+/**
+ * Annie with an inner mouth and lash strands kept inside her face primitive,
+ * on its own texture as a converted Avatar has them: the mouth an island
+ * behind the lips, mapped into one eye hole of the face texture, the lashes
+ * blink regions mapped into the other.
+ */
+async function annieWithInnerParts(): Promise<Avatar> {
+  const avatar = await loadedTestAvatar("AvatarSample_A_1_New");
+  const face = faceEntry(avatar);
+  const { left, right } = avatar.getFaceLandmarksSnapshot()!.eyes;
+  const eyes = [left!, right!].map((eye) =>
+    new THREE.Vector3().copy(eye.centerLocal),
+  );
+  const y = eyes[0]!.y - 0.05;
+  const z = eyes[0]!.z - 0.02;
+  appendTriangle({
+    avatar,
+    binding: face,
+    anchor: avatar.vrm!.humanoid.getNormalizedBoneNode("head")!,
+    corners: [
+      new THREE.Vector3(-0.004, y, z),
+      new THREE.Vector3(0.004, y, z),
+      new THREE.Vector3(0, y + 0.004, z),
+    ],
+    uv: HOLE_UV,
+  });
+  for (const eye of eyes) {
+    addBlinkStrand(avatar, face, eye, 0.01, 0.012, OTHER_HOLE_UV);
+  }
+  await avatar.setFacePartCorrections(null);
+  return avatar;
+}
+
+/** Centroids, in texture pixels, of a VRoid face's ear triangles. */
+function earCentroids(entry: RuntimePrimitiveBindingEntry): [number, number][] {
+  const position = entry.object.geometry.getAttribute("position");
+  // The ears reach past the face island's outline (about ±0.087 m).
+  return triangleCentroids(entry, 20, (vertices) =>
+    vertices.every((vertex) => Math.abs(position.getX(vertex)) > 0.09),
+  );
+}
 
 /**
  * The glTF images a material shows as its base or shade colour (glTF and
@@ -225,6 +301,7 @@ beforeEach(() => {
   vi.spyOn(console, "warn").mockImplementation(() => {});
   created.length = 0;
   vi.stubGlobal("HTMLCanvasElement", RecordingCanvas);
+  vi.stubGlobal("Path2D", RecordingPath);
   vi.stubGlobal("document", {
     createElement: () => {
       const canvas = new RecordingCanvas();
@@ -266,16 +343,11 @@ describe("whole-face art on the face skin's texture", () => {
   it("covers only the face skin's triangles on a texture atlas", async () => {
     const avatar = await loadedTestAvatar("AvatarSample_A_1_New");
     const face = faceEntry(avatar);
-    // The mouth primitive draws from the face's texture, as on an atlas, with
-    // a triangle in a corner the face does not use.
-    const mouth = buildRuntimePrimitiveBindings(avatar).entries.find((entry) =>
-      entry.materialName?.includes("FaceMouth"),
-    )!;
-    const mouthMaterial = mouth.object.material as THREE.MeshBasicMaterial;
-    mouthMaterial.map = baseTextureOf(face.object);
+    // The mouth primitive draws from the face's texture, with a triangle in
+    // a part of it the face does not use.
     appendTriangle({
       avatar,
-      binding: mouth,
+      binding: shareFaceTexture(avatar),
       anchor: avatar.vrm!.humanoid.getNormalizedBoneNode("head")!,
       corners: [
         new THREE.Vector3(-0.002, 0, 0),
@@ -288,34 +360,98 @@ describe("whole-face art on the face skin's texture", () => {
     // One clip per colour slot (map and shade texture), both the same.
     const clips = await applyFullFace(avatar);
     expect(clips).toHaveLength(2);
+    const ears = earCentroids(face);
+    expect(ears.length).toBeGreaterThan(0);
     for (const clip of clips) {
-      for (const [x, y] of triangleCentroids(face, 50)) {
+      for (const [x, y] of [...triangleCentroids(face, 50), ...ears]) {
         expect(covers(clip, x, y)).toBe(true);
       }
       expect(covers(clip, ...HOLE_PIXEL)).toBe(false);
     }
   });
 
-  it("keeps a shared texture's other parts under a replacement", async () => {
-    const avatar = await loadedTestAvatar("AvatarSample_A_1_New");
-    const mouth = buildRuntimePrimitiveBindings(avatar).entries.find((entry) =>
-      entry.materialName?.includes("FaceMouth"),
-    )!;
-    (mouth.object.material as THREE.MeshBasicMaterial).map = baseTextureOf(
-      faceEntry(avatar).object,
+  it("covers only the face island of a primitive holding an inner mouth and lashes", async () => {
+    const avatar = await annieWithInnerParts();
+    const face = faceEntry(avatar);
+    expect(avatar.facePartMap!.parts.eyelash.regions).toMatchObject([
+      { bindingKey: face.bindingKey },
+    ]);
+
+    // The face's own texture, all head-skinned: the inner parts alone call
+    // for the clip.
+    const clips = await applyFullFace(avatar);
+    expect(clips).toHaveLength(2);
+    for (const clip of clips) {
+      for (const [x, y] of [
+        ...triangleCentroids(face, 50),
+        ...earCentroids(face),
+      ]) {
+        expect(covers(clip, x, y)).toBe(true);
+      }
+      expect(covers(clip, ...HOLE_PIXEL)).toBe(false);
+      expect(covers(clip, ...OTHER_HOLE_PIXEL)).toBe(false);
+    }
+  });
+
+  it("builds the same clip while an eye effect hides the lashes", async () => {
+    const plain = await applyFullFace(await annieWithInnerParts());
+
+    // Lash regions written as degenerate triangles when the clip is built.
+    const avatar = await annieWithInnerParts();
+    const face = faceEntry(avatar);
+    const regions = avatar.facePartMap!.parts.eyelash.regions!;
+    new PrimitiveRegionHider().hide(
+      "eye-effect",
+      face.object.geometry,
+      regions.flatMap((region) => region.triangles),
     );
 
-    expect(await applyFullFace(avatar, "replace")).toHaveLength(2);
-    // The original texture, then the face's region cleared and replaced.
+    expect(await applyFullFace(avatar)).toEqual(plain);
+  });
+
+  it("keeps a shared texture's other parts under a replacement", async () => {
+    const avatar = await loadedTestAvatar("AvatarSample_A_1_New");
+    shareFaceTexture(avatar);
+
+    await applyFullFace(avatar, [fullFace("replace")]);
+    // The original texture, cleared inside the face's clip, then the art
+    // drawn through the clip.
     const operations = created.find((canvas) =>
-      canvas.operations.includes("clip"),
+      canvas.operations.includes("base"),
     )!.operations;
     const base = operations.indexOf("base");
     const clip = operations.indexOf("clip", base);
     const clear = operations.indexOf("clear", clip);
     const draw = operations.indexOf("draw", clear);
     expect(base).toBeGreaterThanOrEqual(0);
-    expect([clip, clear, draw].every((index) => index > base)).toBe(true);
+    expect(clip).toBeGreaterThan(base);
+    expect(clear).toBeGreaterThan(clip);
+    expect(draw).toBeGreaterThan(clear);
+  });
+
+  it("hides the original under a replacement drawn after animated art", async () => {
+    const avatar = await loadedTestAvatar("AvatarSample_A_1_New");
+    shareFaceTexture(avatar);
+    const animated = fullFace("overlay", "animated");
+    animated.keyframes = {
+      loop: true,
+      frames: [
+        { t: 0, opacity: 1 },
+        { t: 1, opacity: 0.5 },
+      ],
+    };
+
+    // The replacement draws in a later static segment than the original.
+    await applyFullFace(avatar, [animated, fullFace("replace", "replace")]);
+    const segments = created.filter((canvas) =>
+      canvas.operations.includes("base"),
+    );
+    expect(segments.length).toBeGreaterThan(0);
+    for (const { operations } of segments) {
+      const base = operations.indexOf("base");
+      expect(operations.indexOf("clip", base)).toBeGreaterThan(base);
+      expect(operations.indexOf("draw", base)).toBe(-1);
+    }
   });
 
   it("leaves out the neck of a face primitive that holds it", async () => {
@@ -366,6 +502,57 @@ describe("whole-face art on the face skin's texture", () => {
 });
 
 describe("clip triangles", () => {
+  it("leave out part regions, whether or not they are hidden", async () => {
+    const avatar = await loadedTestAvatar("AvatarSample_A_1_New");
+    const face = faceEntry(avatar);
+    // Ten of the face's triangles taken as a lash region.
+    const regions = new Set([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
+    const collect = () =>
+      collectFaceSkinClipTriangles({
+        avatar,
+        anchorObject: avatar.faceLandmarks!.getAnchorObject(),
+        landmarks: avatar.getFaceLandmarksSnapshot(),
+        sources: [
+          {
+            entry: face,
+            texture: baseTextureOf(face.object)!,
+            keepVertex: null,
+            regions,
+          },
+        ],
+      });
+    const triangleCount = face.object.geometry.getIndex()!.count / 3;
+
+    const plain = collect();
+    expect(plain.complete).toBe(false);
+    expect(plain.triangles).toHaveLength((triangleCount - regions.size) * 6);
+    // An eye effect has the region written as degenerate triangles.
+    new PrimitiveRegionHider().hide("eye-effect", face.object.geometry, [
+      ...regions,
+    ]);
+    expect(collect()).toEqual(plain);
+  });
+
+  it("keep every triangle of a VRoid face, ears included", async () => {
+    const avatar = await loadedTestAvatar("Andrew");
+    const face = faceEntry(avatar);
+    const { triangles, complete } = collectFaceSkinClipTriangles({
+      avatar,
+      anchorObject: avatar.faceLandmarks!.getAnchorObject(),
+      landmarks: avatar.getFaceLandmarksSnapshot(),
+      sources: [
+        {
+          entry: face,
+          texture: baseTextureOf(face.object)!,
+          keepVertex: null,
+          regions: new Set(),
+        },
+      ],
+    });
+    expect(complete).toBe(true);
+    expect(triangles).toHaveLength(face.object.geometry.getIndex()!.count * 2);
+  });
+
   it("grow about 1.5 px past each edge", () => {
     // Image coordinates on a 10 × 10 texture: a right triangle 10 px a side.
     const grown = dilateClipTriangles(Float32Array.of(0, 0, 1, 0, 0, 1), {

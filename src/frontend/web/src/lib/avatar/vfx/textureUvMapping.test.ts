@@ -24,7 +24,6 @@ function texture(settings: {
 describe("TextureUvMapping", () => {
   it("leaves UVs on an untransformed texture exactly as they are", () => {
     const mapping = TextureUvMapping.of(texture({}));
-    expect(mapping.isTransformed).toBe(false);
     for (const uv of [
       { x: 0, y: 0 },
       { x: 1, y: 1 },
@@ -38,7 +37,6 @@ describe("TextureUvMapping", () => {
     const mapping = TextureUvMapping.of(
       texture({ offset: [0.25, 0.1], repeat: [0.5, 0.5] }),
     );
-    expect(mapping.isTransformed).toBe(true);
     const point = mapping.toImage({ x: 0.5, y: 0.5 });
     expect(point.x).toBeCloseTo(0.5);
     expect(point.y).toBeCloseTo(0.35);

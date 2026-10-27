@@ -73,11 +73,6 @@ export class TextureUvMapping {
     this._wrapT = wrapT;
   }
 
-  /** Whether the texture has a transform (UVs inside 0–1 then move). */
-  get isTransformed(): boolean {
-    return this._matrix !== null;
-  }
-
   /** `uv` through the texture's transform, before wrapping. */
   transform(uv: UvPoint): UvPoint {
     const elements = this._matrix?.elements;
