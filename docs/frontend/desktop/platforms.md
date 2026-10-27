@@ -207,10 +207,11 @@ The staging command clears only its target directory, not `dev`.
 Never put user data inside `darwin-arm64/runtime`. Both overrides are
 development-only and rejected in packaged mode.
 
-Unpackaged Electron is only ad-hoc signed, so the first supervised launch after
-an Electron upgrade waits at the vault stage while macOS asks whether it may use
-the "Animama Safe Storage" Keychain item. Allow it; a denial reports
-`secure_storage_unavailable` until Animama is quit and reopened.
+Unpackaged Electron is only ad-hoc signed, so after an Electron upgrade a
+supervised launch waits at the vault stage while macOS asks whether it may use
+the "Animama Safe Storage" Keychain item. Allow asks again on the next launch;
+Always Allow stops the prompt until the Electron binary changes. A denial
+reports `secure_storage_unavailable` until Animama is quit and reopened.
 
 ## App Icons
 
