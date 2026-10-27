@@ -56,7 +56,7 @@ function storeMeasurement(
   }
   writeLilToonGpuMeasurement("Apple | Test GPU", {
     status: "measured",
-    method: 2,
+    method: 3,
     samples: [frameMs].flat().map((value) => ({
       frameMs: value,
       frames: 60,
