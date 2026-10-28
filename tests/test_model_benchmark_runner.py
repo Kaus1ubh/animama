@@ -448,18 +448,20 @@ def test_expression_is_measured_against_each_items_intended_band_tones_and_audio
         _turn(unit_id="plain", emotional_intensity=1),
         _turn(unit_id="plain", speech_check=tagged("[sighs]")),
         _turn(kind="chat", unit_id="loss", emotional_intensity=4),
+        # An unusable intensity plays no Reaction and is not held against the band.
+        _turn(unit_id="loss", emotional_intensity=None, emotional_tone="gentle"),
         _turn(unit_id="loss", error="provider_error"),
     ]
 
     targets = measures.expression_targets(turns, items)
 
-    # Warm-ups and failed turns are left out; a chat turn counts for the cells but not against an item.
-    assert targets["intensity_cells"] == {
-        "n": 8,
-        "counts": {"none": 2, "mild": 2, "moderate": 2, "strong": 1, "intense": 1},
+    # Warm-ups and failed turns are left out; a chat turn counts for the Reaction intensities but not against an item.
+    assert targets["reaction_intensity"] == {
+        "n": 9,
+        "counts": {"none": 3, "mild": 2, "moderate": 2, "strong": 1, "intense": 1},
     }
     assert targets["intensity_band"] == {"scored": 3, "in_band": 1, "below": 1, "above": 1}
-    assert targets["tones"] == {"scored": 3, "in_family": 2}
+    assert targets["tones"] == {"scored": 4, "in_family": 3}
     assert targets["audio_tags"] == {"laughs": {"replies": 2, "hits": 1}, "none": {"replies": 2, "hits": 1}}
 
 

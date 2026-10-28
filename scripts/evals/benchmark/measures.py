@@ -22,7 +22,7 @@ from .prompt_set import Item
 
 __all__ = [
     "AUDIO_TAG_KINDS",
-    "INTENSITY_CELLS",
+    "REACTION_INTENSITIES",
     "RECOVERY_PATHS",
     "STYLE_VIOLATIONS",
     "expression_targets",
@@ -34,9 +34,9 @@ __all__ = [
 
 RECOVERY_PATHS = ("strict", "lenient", "repaired", "salvaged", "plain_text")
 STYLE_VIOLATIONS = ("url", "email", "path", "code", "markdown", "list", "table", "emoji")
-INTENSITY_CELLS = ("none", "mild", "moderate", "strong", "intense")
-"""The Reaction each 1-10 intensity plays, in order (``voice_intensity_to_reaction_intensity``): 1-2 none, then
-3-4 Mild, 5-6 Moderate, 7-8 Strong and 9-10 Intense."""
+REACTION_INTENSITIES = ("none", "mild", "moderate", "strong", "intense")
+"""The Reaction intensity each 1-10 intensity plays, in order (``voice_intensity_to_reaction_intensity``): 1-2 no
+Reaction, then 3-4 Mild, 5-6 Moderate, 7-8 Strong and 9-10 Intense."""
 _AUDIO_TAG_PREFIX = "audio-tag:"
 AUDIO_TAG_KINDS: Mapping[str, frozenset[str]] = {
     "laughs": frozenset({"laugh", "chuckle", "giggle"}),
@@ -115,8 +115,8 @@ def _tag_ids(labels: Iterable[str]) -> set[str]:
 def expression_targets(turns: Iterable[Mapping[str, Any]], items: Mapping[str, Item]) -> dict[str, Any]:
     """One configuration's expression against the prompt set's intentions, from the recorded turns alone.
 
-    - ``intensity_cells``: core turns (single-turn items and scripted chats) by the Reaction cell their
-      intensity plays.
+    - ``reaction_intensity``: core turns (single-turn items and scripted chats) by the Reaction intensity
+      their intensity plays.
     - ``intensity_band``: single-turn replies to items with an intended band, inside it, below it or above it.
     - ``tones``: single-turn replies to items with listed tones, and how many chose one of them.
     - ``audio_tags``: per ``audio-tag:<kind>`` item kind, the replies and how many carry an answering tag
@@ -124,8 +124,8 @@ def expression_targets(turns: Iterable[Mapping[str, Any]], items: Mapping[str, I
     """
 
     ok = [turn for turn in turns if turn["kind"] in {"single", "chat"} and turn["error"] is None]
-    cells = Counter(
-        INTENSITY_CELLS[voice_intensity_to_reaction_intensity(turn["emotional_intensity"]) or 0] for turn in ok
+    reactions = Counter(
+        REACTION_INTENSITIES[voice_intensity_to_reaction_intensity(turn["emotional_intensity"]) or 0] for turn in ok
     )
     band: Counter[str] = Counter()
     tones: Counter[str] = Counter()
@@ -134,9 +134,9 @@ def expression_targets(turns: Iterable[Mapping[str, Any]], items: Mapping[str, I
         item = items.get(turn["unit_id"]) if turn["kind"] == "single" else None
         if item is None:
             continue
-        if item.intensity is not None:
+        value = turn["emotional_intensity"]
+        if item.intensity is not None and value is not None:
             low, high = item.intensity
-            value = turn["emotional_intensity"]
             band["scored"] += 1
             band["below" if value < low else "above" if value > high else "in_band"] += 1
         if item.tones:
@@ -150,7 +150,10 @@ def expression_targets(turns: Iterable[Mapping[str, Any]], items: Mapping[str, I
                 audio.setdefault(kind, Counter())["replies"] += 1
                 audio[kind]["hits"] += answered
     return {
-        "intensity_cells": {"n": len(ok), "counts": {cell: cells.get(cell, 0) for cell in INTENSITY_CELLS}},
+        "reaction_intensity": {
+            "n": len(ok),
+            "counts": {level: reactions.get(level, 0) for level in REACTION_INTENSITIES},
+        },
         "intensity_band": {key: band.get(key, 0) for key in ("scored", "in_band", "below", "above")},
         "tones": {key: tones.get(key, 0) for key in ("scored", "in_family")},
         "audio_tags": {

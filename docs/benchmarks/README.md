@@ -150,8 +150,8 @@ raw results stay in `.animama-drafts/`. The first is the
   on at least five items or conversations; otherwise the report says they are
   not distinguishable or too few to compare.
 - Expression is also measured without the judge: core turns by the Reaction
-  cell their intensity plays (1–2 none, 3–4 Mild, 5–6 Moderate, 7–8 Strong,
-  9–10 Intense); single-turn replies inside, below or above the item's
+  intensity their intensity plays (1–2 none, 3–4 Mild, 5–6 Moderate, 7–8
+  Strong, 9–10 Intense); single-turn replies inside, below or above the item's
   intended band and with a fitting tone; and, for each `audio-tag:<kind>`
   item kind, the replies carrying the tag it invites (any laugh for
   `laughs`; no tag at all for `none`).

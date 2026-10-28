@@ -22,7 +22,13 @@ from ..core.stats import TOKEN_STAT_KEYS
 from .calibrate import CALIBRATION_DIR
 from .intervals import MIN_GROUPS, Interval, bootstrap_mean, bootstrap_paired, comparable, distinguishable
 from .judge import JUDGE_NAME
-from .measures import AUDIO_TAG_KINDS, INTENSITY_CELLS, STYLE_VIOLATIONS, expression_targets, summarize_configuration
+from .measures import (
+    AUDIO_TAG_KINDS,
+    REACTION_INTENSITIES,
+    STYLE_VIOLATIONS,
+    expression_targets,
+    summarize_configuration,
+)
 from .memory_runner import ARM_BOTH, ARM_MEMORIES_MD_ONLY, ARM_REMEMBER_ONLY
 from .prompt_set import PromptSet
 from .rubrics import RubricSet
@@ -686,19 +692,17 @@ def render_report(data: Mapping[str, Any], *, title: str, recommendations: str |
                 for label, c in core.items()
             ),
         )
-    out += ["### Emotional intensity by Reaction cell", "",
-            "Core turns by the Reaction their intensity plays: none for 1-2, then Mild for 3-4, Moderate for 5-6, "
-            "Strong for 7-8 and Intense for 9-10.", ""]  # fmt: skip
+    out += ["### Emotional intensity by Reaction intensity", "",
+            "Core turns by the Reaction intensity their intensity plays: none for 1-2, then Mild for 3-4, Moderate "
+            "for 5-6, Strong for 7-8 and Intense for 9-10.", ""]  # fmt: skip
+    reactions = {label: c["targets"]["reaction_intensity"] for label, c in core.items()}
     out += _table(
-        ["Configuration", "Turns", *(_CELL_LABELS[cell] for cell in INTENSITY_CELLS)],
+        ["Configuration", "Turns", *(_REACTION_LABELS[level] for level in REACTION_INTENSITIES)],
         (
             [
                 label,
-                str(c["targets"]["intensity_cells"]["n"]),
-                *(
-                    _share(c["targets"]["intensity_cells"]["counts"][cell], c["targets"]["intensity_cells"]["n"])
-                    for cell in INTENSITY_CELLS
-                ),
+                str(reactions[label]["n"]),
+                *(_share(reactions[label]["counts"][level], reactions[label]["n"]) for level in REACTION_INTENSITIES),
             ]
             for label, c in core.items()
         ),
@@ -752,7 +756,7 @@ def render_report(data: Mapping[str, Any], *, title: str, recommendations: str |
     return "\n".join(out)
 
 
-_CELL_LABELS = {
+_REACTION_LABELS = {
     "none": "None (1-2)",
     "mild": "Mild (3-4)",
     "moderate": "Moderate (5-6)",
