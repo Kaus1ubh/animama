@@ -114,7 +114,11 @@ Each staging pass clears only `desktop/.desktop-runtime/darwin-arm64`, then:
    `.vite/browser-runtime.json` alongside the coherent SPA output; packaged
    FastAPI uses them to identify fingerprinted JS/CSS eligible for immutable
    caching and to revalidate speech runtime files by digest, and serves
-   neither record.
+   neither record. The audit fails, naming the file, when any staged web file
+   contains the build user's home directory. A build step recorded an absolute
+   path, such as a Vite plugin emitting an asset with an absolute
+   `originalFileName` (manifest keys must stay relative to the web root); fix
+   that step rather than the staged copy.
    HTML validators hash the actual contents, so normalized file dates and an
    unchanged HTML length cannot keep a previous build's script fingerprints.
 5. Bundles Electron main/preload with esbuild and copies only the native input

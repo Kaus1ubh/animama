@@ -26,6 +26,7 @@ import { msvcEnvironment } from "./windows-build.mjs";
 import { auditWindowsStage } from "./windows-platform.mjs";
 import {
   assertDesktopWebAssets,
+  assertNoHomeDirectoryPaths,
   assertNoIncludedAliasCopies,
 } from "./desktop-web.mjs";
 import { resolveBrowserRuntimeAssets } from "../../../scripts/browser-runtime-assets.mjs";
@@ -68,6 +69,7 @@ try {
   );
   assertInventory(target.runtime, manifest.files);
   assertDesktopWebAssets(path.join(target.runtime, "web"));
+  await assertNoHomeDirectoryPaths(path.join(target.runtime, "web"));
   if (inventoryId(manifest.files) !== manifest.build_id)
     throw new Error("Manifest inventory ID mismatch");
   console.log(
