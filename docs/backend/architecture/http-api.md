@@ -239,6 +239,19 @@ telemetry. The local composition never reports it, even with its
 error logs to `{path}/metrics` and `{path}/logs`; see
 [browser telemetry](../../frontend/architecture/overview.md#browser-telemetry).
 
+## Automatic Episode Processing
+
+Local composition only (`automatic_episode_processing` capability). See
+[automatic episode processing](../features/memory-manager-and-episodic-memory.md#when-automatic-runs-start-local-composition).
+
+- `GET /v1/memory/automatic-processing`: `{threshold, state, pending_count,
+  runs_today, last_error, next_attempt_at, batch_size, started_at}`. `state` is
+  `off`, `memory_off`, `needs_model`, `running`, `paused`, `backing_off`,
+  `waiting` or `ready`; `batch_size` and `started_at` are set while `running`.
+- `PUT /v1/memory/automatic-processing`: `{threshold}`, 0 (Off) or 5–50; other
+  values fail validation (422). A changed value lifts a failure pause. Returns the
+  status and starts a check at once.
+
 ## Web Search
 
 Local composition only. The installation has at most one application web

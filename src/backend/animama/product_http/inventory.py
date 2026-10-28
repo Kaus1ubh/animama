@@ -357,6 +357,21 @@ ROUTES: tuple[RouteSpec, ...] = (
     _excluded("web_search.configuration", "PUT", "/v1/web-search/settings", "update_web_search_settings", "write"),
     _excluded("web_search.configuration", "DELETE", "/v1/web-search/settings", "clear_web_search_settings", "write"),
     _excluded("web_search.configuration", "POST", "/v1/web-search/settings/test", "test_web_search_settings", "write"),
+    # Automatic episode processing (the local composition only, spec #775)
+    _excluded(
+        "automatic_episode_processing",
+        "GET",
+        "/v1/memory/automatic-processing",
+        "get_automatic_episode_processing",
+        "read",
+    ),
+    _excluded(
+        "automatic_episode_processing",
+        "PUT",
+        "/v1/memory/automatic-processing",
+        "update_automatic_episode_processing",
+        "write",
+    ),
     # Desktop controls (mounted only with desktop credentials)
     _excluded(
         "native_features",

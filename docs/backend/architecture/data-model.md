@@ -89,6 +89,10 @@ Local content.
 
 ### Installation Settings
 
+`ORMEpisodeProcessingSettings` (local only, `episode_processing_settings`, keyed by
+`user_id`) holds the owner's automatic episode-processing `threshold` (NULL for the
+default, 0 for Off, otherwise 5–50, checked) and its last change, `reset_at`.
+
 `ORMInstallationSettings` maps the singleton `installation_settings` row. Its
 small-integer primary key is constrained to `1`.
 `installation_principal_id` is non-null and unique; the baseline generates

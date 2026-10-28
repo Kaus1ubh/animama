@@ -524,6 +524,17 @@ CREATE TABLE content_previews (
 
 -- animama-statement --
 
+CREATE TABLE episode_processing_settings (
+    user_id character varying NOT NULL,
+    threshold smallint,
+    reset_at timestamp with time zone,
+    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    CONSTRAINT ck_episode_processing_settings_threshold_valid CHECK (((threshold IS NULL) OR (threshold = 0) OR ((threshold >= 5) AND (threshold <= 50))))
+);
+
+-- animama-statement --
+
 CREATE TABLE installation_settings (
     id smallint DEFAULT 1 NOT NULL,
     installation_principal_id text NOT NULL,
@@ -1094,6 +1105,11 @@ ALTER TABLE ONLY content_preview_files
 
 ALTER TABLE ONLY content_previews
     ADD CONSTRAINT pk_content_previews PRIMARY KEY (id);
+
+-- animama-statement --
+
+ALTER TABLE ONLY episode_processing_settings
+    ADD CONSTRAINT pk_episode_processing_settings PRIMARY KEY (user_id);
 
 -- animama-statement --
 

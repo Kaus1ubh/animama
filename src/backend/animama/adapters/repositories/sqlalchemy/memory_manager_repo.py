@@ -14,6 +14,8 @@ from animama.app.ports.memory_manager_port import (
     MemoryManagerRepositoryConflictError,
 )
 from animama.domain.memory_manager import (
+    MEMORY_MANAGER_EPISODE_TASK_STATUS_PROCESSED,
+    MEMORY_MANAGER_RUN_KIND_EPISODE_PROCESSING,
     MEMORY_MANAGER_RUN_ORIGIN_AUTOMATIC,
     MEMORY_MANAGER_RUN_ORIGIN_KEY,
     MEMORY_MANAGER_RUN_ORIGIN_OWNER,
@@ -288,6 +290,36 @@ class SQLAlchemyMemoryManagerRepository(MemoryManagerRepository):
 
     async def list_open_automatic_runs(self, *, user_id: str, for_update: bool = False) -> list[MemoryManagerRun]:
         return await self._list_open_runs(user_id=user_id, for_update=for_update, automatic=True)
+
+    async def list_automatic_runs(self, *, user_id: str, limit: int) -> list[MemoryManagerRun]:
+        stmt = (
+            select(ORMMemoryManagerRun)
+            .where(
+                ORMMemoryManagerRun.user_id == user_id,
+                ORMMemoryManagerRun.metadata_[MEMORY_MANAGER_RUN_ORIGIN_KEY].astext
+                == MEMORY_MANAGER_RUN_ORIGIN_AUTOMATIC,
+            )
+            .order_by(ORMMemoryManagerRun.created_at.desc(), ORMMemoryManagerRun.id.desc())
+            .limit(max(1, int(limit)))
+        )
+        result = await self._s.execute(stmt)
+        return [self._run_to_domain(obj) for obj in result.scalars()]
+
+    async def latest_processed_owner_episode_run(self, *, user_id: str) -> MemoryManagerRun | None:
+        origin = ORMMemoryManagerRun.metadata_[MEMORY_MANAGER_RUN_ORIGIN_KEY].astext
+        stmt = (
+            select(ORMMemoryManagerRun)
+            .where(
+                ORMMemoryManagerRun.user_id == user_id,
+                ORMMemoryManagerRun.kind == MEMORY_MANAGER_RUN_KIND_EPISODE_PROCESSING,
+                func.coalesce(origin, MEMORY_MANAGER_RUN_ORIGIN_OWNER) == MEMORY_MANAGER_RUN_ORIGIN_OWNER,
+                ORMMemoryManagerRun.task_state["status"].astext == MEMORY_MANAGER_EPISODE_TASK_STATUS_PROCESSED,
+            )
+            .order_by(ORMMemoryManagerRun.updated_at.desc(), ORMMemoryManagerRun.id.desc())
+            .limit(1)
+        )
+        obj = (await self._s.execute(stmt)).scalars().first()
+        return self._run_to_domain(obj) if obj is not None else None
 
     async def _list_open_runs(self, *, user_id: str, for_update: bool, automatic: bool) -> list[MemoryManagerRun]:
         origin = ORMMemoryManagerRun.metadata_[MEMORY_MANAGER_RUN_ORIGIN_KEY].astext

@@ -6,7 +6,7 @@ from collections.abc import Iterable
 from datetime import date, datetime
 from typing import Any
 
-from sqlalchemy import RowMapping, SQLColumnExpression, select, text
+from sqlalchemy import RowMapping, SQLColumnExpression, func, select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -203,6 +203,13 @@ class SQLAlchemyMemoryEpisodeRepository(MemoryEpisodeRepository):
             stmt = stmt.limit(max(1, int(limit)))
         result = await self._s.execute(stmt)
         return [self._row_to_domain(row._mapping) for row in result]
+
+    async def count_items(self, *, user_id: str, status: str) -> int:
+        stmt = select(func.count()).where(
+            ORMMemoryEpisodeItem.user_id == user_id,
+            ORMMemoryEpisodeItem.status == status,
+        )
+        return int((await self._s.execute(stmt)).scalar_one())
 
     async def list_items_by_source_message_ids(
         self,

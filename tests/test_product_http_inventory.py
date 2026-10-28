@@ -33,6 +33,7 @@ PERMISSIONS = (
     "provider_credentials",
     "chat_file_uploads",
     "anima_creation",
+    "automatic_episode_processing",
     "local_filesystem_administration",
     "native_features",
     "user_file_processing.enabled",

@@ -3727,6 +3727,7 @@ async def test_chat_sse_title_generation_does_not_block_primary_response(
     async_session.add(ORMChat(id=chat_id, anima_id=anima_id, user_id="user-1", metadata_={}))
     await async_session.commit()
     await _seed_anima_identity_file(async_session, anima_id=anima_id)
+    await _seed_default_chat_model_provider(async_session)
     _install_db_route_mocks(
         monkeypatch,
         async_session_factory,
@@ -3803,6 +3804,7 @@ async def test_chat_sse_does_not_generate_title_for_existing_title(
     )
     await async_session.commit()
     await _seed_anima_identity_file(async_session, anima_id=anima_id)
+    await _seed_default_chat_model_provider(async_session)
     _install_db_route_mocks(
         monkeypatch,
         async_session_factory,
@@ -4910,3 +4912,61 @@ async def test_chat_sse_instructions_carry_the_profile_and_this_animas_notes_fro
     assert f"- {now.date().isoformat()}: Sam adopted a cat named Pickle." in system
     assert "another Anima a secret" not in system
     assert "This chat's own earlier note." not in system
+
+
+@pytest.mark.asyncio
+async def test_a_failing_automatic_processing_task_leaves_the_chat_turn_unchanged(
+    monkeypatch,
+    async_session,
+    async_session_factory,
+) -> None:
+    from animama.server.episode_processing import AutomaticEpisodeProcessingWorker
+
+    anima_id = "anima-db-failing-worker"
+    async_session.add(ORMAnima(id=anima_id, user_id="user-1"))
+    await async_session.commit()
+    await _seed_anima_identity_file(async_session, anima_id=anima_id)
+    await _seed_default_chat_model_provider(async_session)
+    model_client = _RouteModelClient(
+        finals=[
+            ModelClientFinal(
+                text=_direct_structured_response(speech="Still here.", remember="Sam said hello again."),
+                usage=Usage(requests=1, input_tokens=7, output_tokens=3, total_tokens=10),
+            )
+        ]
+    )
+    _install_db_route_mocks(monkeypatch, async_session_factory, model_client=model_client)
+    attempts = 0
+
+    async def failing_memory_manager(session: Any, user_id: str) -> Any:
+        nonlocal attempts
+        attempts += 1
+        raise RuntimeError("automatic processing is broken")
+
+    async def usable(session: Any, user_id: str) -> bool:
+        return True
+
+    worker = AutomaticEpisodeProcessingWorker(
+        async_session_factory,
+        owner_id="user-1",
+        memory_manager=failing_memory_manager,
+        model_usable=usable,
+        rest_seconds=600,
+    )
+    app = _route_app()
+    app.state.automatic_episode_processing_worker = worker
+    worker.start()
+    try:
+        response = await chat_anima_direct_sse(
+            anima_id,
+            _chat_request(message="Hello again", run_id="run-db-failing-worker", chat_id="chat-db-failing-worker"),
+            request=Request({"type": "http", "app": app}),
+            user=RequestPrincipal(id="user-1"),
+        )
+        chunks = await _collect_chunks(response)
+    finally:
+        await worker.stop()
+
+    assert not any("event: error" in chunk for chunk in chunks)
+    assert _event_count(chunks, "run.completed") == 1
+    assert attempts >= 1

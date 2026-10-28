@@ -66,9 +66,12 @@ Boundaries:
   the ORM's indexes, though, so its repin adds one schema-only migration file that
   narrows `uq_memory_manager_runs_user_open` and adds
   `uq_memory_manager_runs_user_open_automatic`, as it did for Gesture rows (owner
-  decision below). Hosted gets R1–R4 and the capability's default `false` on repin. Cloud checks its
-  input-token estimates against the larger instructions when it repins; that is
-  Cloud's own follow-up, not part of this plan.
+  decision below). Hosted gets R1–R4 and the capability's default `false` on repin.
+  Cloud's repin also updates `tests/hosted/test_shared_routes_exclusions.py`, whose
+  hosted-excluded route count grows from 36 to 38 with the two local
+  automatic-processing routes. Cloud checks its input-token estimates against the
+  larger instructions when it repins; that is Cloud's own follow-up, not part of this
+  plan.
 - No Alembic revision: schema changes go into the ORM and `0001_baseline.sql` (G2).
 
 ## Progress
@@ -76,7 +79,7 @@ Boundaries:
 - [x] G1: owner review and authorization of this plan (2026-10-28, Phases 1–5).
 - [x] Phase 1: recall context (R1–R4). Review passed after two repair rounds; see the phase record.
 - [x] Phase 2: automatic-run semantics in the Memory Manager service (R6, R7, R10). Passed at the review #2 source; one deferred non-blocking finding; see the phase record.
-- [ ] Phase 3: local trigger, setting, status and capability (R5, R8, R9, R11 backend).
+- [x] Phase 3: local trigger, setting, status and capability (R5, R8, R9, R11 backend). Review passed after two repair rounds; see the phase record.
 - [ ] Phase 4: settings control, chat progress line and version label (R10, R11
       frontend, R13).
 - [ ] Phase 5: decision record and documentation sweep (R12).
@@ -155,6 +158,16 @@ Found while planning (2026-10-28, agent, at `da23aaaa`):
 - 2026-10-28, owner (Phase 2 review, P2-F5): keep `metadata.origin`. Hosted staging
   will be reset and has no users, so no data conversion is needed; Cloud's repin adds a
   schema-only migration file for the two indexes, like `024_hosted_gesture_rows.sql`.
+- 2026-10-28, agent (Phase 3): the threshold lives in a local-only table,
+  `episode_processing_settings` (per owner: `threshold`, `reset_at`), instead of
+  `user_settings.preferences.memory.episode_processing` as planned at G1. A settings
+  save replaces `preferences` wholesale, so a stale frontend copy could silently turn
+  Off back on; a column on `installation_settings` was tried first, but every startup
+  read of that row would then fail on a database that has not been reset. A missing
+  table reads as the defaults.
+- 2026-10-28, agent (Phase 3): the status states are `off`, `memory_off`,
+  `needs_model`, `running`, `paused`, `backing_off`, `waiting` and `ready`; the plan's
+  `idle` became `waiting` (below the threshold) and `ready` (a run starts).
 - 2026-10-28, agent (Phase 2, repair budget): the second repair round's fix for
   P2-R2-N1 regressed runtime-failed runs (P2-R3-F1), so it was reverted to the tree
   review #2 passed (`b6ebc37f`) rather than spending a third round. P2-R2-N1 is
@@ -516,7 +529,9 @@ Changes:
      batch size and start time while `running` (for R13);
    - `PUT` accepts `{"threshold": 0 | 5..50}`, rejects other values with 422, and
      stores `preferences.memory.episode_processing = {threshold, reset_at}`, setting
-     `reset_at` when the value changes; it then wakes the worker.
+     `reset_at` when the value changes; it then wakes the worker. (Superseded: the
+     threshold lives in the local `episode_processing_settings` table; see the
+     Decision Log.)
    `LocalProductPorts.user_settings_changed` also wakes it, because memory flags or the
    Memory Manager model may have changed.
 4. `RuntimeCapabilities.automatic_episode_processing: bool = False`; local reports
@@ -545,15 +560,83 @@ Checks: the new and touched tests, the Phase 2 focused suite, `uv run ruff check
 `uv run --no-sync python scripts/repository-boundary/check-python-imports.py`, then
 `python3 scripts/heavy-slot.py -- make check-test` before review.
 
-Check record: none yet.
+Check record (repository root unless noted; working trees over HEAD `a3719466`):
+
+- New worker, route and capability tests were written alongside the code; their
+  first runs failed only on fixtures (no `installation_settings` row in the test
+  database, duplicate note ids).
+- `pnpm openapi-ts` (from `src/frontend`) regenerated four files; the
+  runtime-contracts build and tests (10 passed) and `pnpm check` pass.
+- `python3 scripts/heavy-slot.py -- make check-test` at tree `121b885b`: audit, format,
+  lint, mypy (889 files) pass; pytest 5185 passed, 29 skipped.
+- At tree `06867e10` (review #1 repairs): `tests/test_automatic_episode_processing.py`
+  19 passed; `tests/test_anima_chat_sse.py` 118 passed; full `make check-test`: audit,
+  format, lint, mypy pass, pytest 5194 passed, 29 skipped.
+- At tree `7dd2971a` (review #2 repairs): the missing-table fallback test passes;
+  `tests/test_automatic_episode_processing.py` 20 passed; ruff passes.
+
+Results: the local task starts automatic runs after the turn that reaches the
+threshold, keeps to the backoff, pause and daily limit across restarts, reports its
+state through `/v1/memory/automatic-processing`, and leaves chat turns unaffected when
+it fails. Hosted reports the capability false and mounts no route.
 
 #### Code Review #1 Findings
 
-Not started.
+Independent analysis of tree `121b885b`, high-risk tier, with a separate checks agent
+(283 passed; ruff, mypy, import boundary, runtime-contracts tests, `pnpm check`, and
+`openapi-ts:check` byte-identical). Blocking:
+
+- P3-F1: the daily-limit `next_attempt_at` was sent in the owner's zone, which the
+  generated client's `z.iso.datetime()` rejects.
+- P3-F2: `off` and `memory_off` were checked before an open run, hiding a run in flight.
+- P3-F3: the task loop, startup recovery, chaining, failing passes, settle wakes, the
+  real model check and the chat-turn isolation had no tests.
+- P3-F4: new `installation_settings` columns would stop an un-reset database from
+  starting, contrary to G2 and R11's existing-installation default.
+
+Non-blocking: N1 capped pending count; N2 one-shot recovery; N3 route ignored the
+principal; N4 Cloud's excluded-route count; N5 small simplifications; N6 Testing and
+Configuration docs; N7 state names; N8 test gaps (`disable_influence`, HTTP-level
+validation); N9 the composition test starts the real worker.
 
 #### Code Review #1 Revisions
 
-Not started.
+- P3-F1, P3-F2 accepted: UTC for every status timestamp; the open-run check first;
+  tests with a Toronto owner and with processing turned off mid-run.
+- P3-F3 accepted: tests drive the real task (startup recovery then a pass, a backlog
+  to the daily limit, a failing pass, a settle waking a ten-minute rest), the real
+  model check, and an end-to-end chat turn beside a failing worker.
+- P3-F4 accepted with a design change: the separate local table (Decision Log).
+- N1, N2, N3, N6, N7 accepted; N4 recorded under Boundaries; N5 and N8 accepted in
+  part; N9 declined (the composition test already runs embedding refresh the same way).
+- Also fixed, test-only: two chat title tests never seeded their model provider and
+  passed only after other tests had; both seed it now.
+
+#### Code Review #2 Findings
+
+Targeted recheck of tree `06867e10` (336 passed; the new test file three times, 19
+passed each; a missing-table probe; ruff, mypy and the import boundary pass). All
+blocking findings fixed; no regressions. Non-blocking: R2-N1 plan records missing;
+R2-N2 the threshold PUT fails on an un-reset database; R2-N3 no checked-in test of the
+missing-table fallback; R2-N4 a backlog test seeded seconds before real UTC midnight
+could time out in the first eight seconds of a day; R2-N5 the schema imports the
+worker module for its constants.
+
+#### Code Review #2 Revisions
+
+- R2-N1 accepted: Decision Log, the Cloud follow-up and this record.
+- R2-N2 accepted: `docs/backend/operations/development.md` lists the pre-reset
+  behavior. R2-N3 accepted: `test_a_database_without_the_settings_table_reads_the_defaults`.
+- R2-N4 and R2-N5 accepted as known and left: the window is eight seconds a day, and
+  the constants have one home.
+
+#### Code Review #3 Findings
+
+Final targeted recheck of tree `7dd2971a` (the new test alone, its file with and
+without xdist: 20 passed; ruff and mypy pass). The three repairs verified; no
+regressions; no blocking findings. Non-blocking record notes only (this Progress line,
+the check record's tree, and step 3's superseded storage wording), fixed in the plan.
+Repair budget used: 2 of 2.
 
 ### Phase 4: Settings control, chat progress line and version label (R10, R11 frontend, R13)
 
@@ -649,8 +732,9 @@ Gates:
 - **G1, owner:** review this plan and authorize a phase range.
 - **G2, owner:** the new indexes reach a database only through a fresh baseline.
   Task stacks are reset freely. The owner decides whether and when to reset the main
-  stack and other existing stacks; until then they run this code, but automatic runs
-  skip while an owner run is open.
+  stack and other existing stacks; until then they run this code at the default
+  threshold, but automatic runs skip while an owner run is open and changing the
+  threshold fails.
 - **G3, owner, paid provider:** the live check from #775, with a real Memory Manager
   model on a local stack. After chatting until the threshold's notes are pending,
   `PROFILE.md` gains an automatic version, and a fresh chat with the same Anima

@@ -432,6 +432,38 @@ An automatic run always closes:
 process left open, for example after a crash between an approval's two
 transactions, as `failed` with `completion_reason = "automatic_interrupted"`.
 
+### When automatic runs start (local composition)
+
+Only the local composition starts automatic runs. `server/episode_processing.py`
+runs one lifespan task for the installation owner. At startup it closes
+interrupted runs, then checks; the local chat-turn lease
+(`LocalChatTurnLease.settle`) wakes it after every turn, once the turn's note is
+saved, and settings changes wake it too. Otherwise it rests until its next backoff
+ends, at most five minutes. Nothing on the chat path waits for it.
+
+A run starts when all of these hold, evaluated in order (the first that fails is the
+reported state):
+
+| State | Condition |
+| --- | --- |
+| `running` | An automatic run is open; its batch size and start time are reported. A run in flight finishes and stays visible even after processing is turned off. |
+| `off` | The threshold is Off (0). |
+| `memory_off` | App Settings memory or memory updates are off (`preferences.memory.disable_influence` or `disable_updates`). |
+| `needs_model` | The Memory Manager role has no tool-capable model, or its connection's key is missing. The deterministic runtime (`ANIMAMA_LLM_SKIP`) needs neither. |
+| `paused` | The last three automatic runs failed, counting back to the last completed automatic run, a processed owner-started batch or the last threshold change. Interrupted runs are skipped. |
+| `backing_off` | After a failure, until 1 hour (doubling per further failure, at most 24 hours) after it; or after 10 automatic runs today, until the owner's local midnight. |
+| `waiting` | Fewer notes are pending than the threshold. |
+| `ready` | A run starts. After a completed run the task checks again at once, so a backlog continues within the daily limit. |
+
+The threshold is stored per owner in the local `episode_processing_settings` table
+(`threshold`: NULL or no row means the default of 10, 0 means Off, otherwise 5–50),
+not in user preferences, which a settings save replaces wholesale. A database created
+before the table reads as the default and keeps running. Changing the threshold
+records `reset_at`, which lifts a pause. Timestamps in the status are UTC. Read and change it through
+[`/v1/memory/automatic-processing`](../architecture/http-api.md#automatic-episode-processing).
+Each automatic run spends the owner's Memory Manager model within the per-step request
+budget and the eight-approval bound above.
+
 ## Runtime Implementations
 
 `MemoryManagerRuntimeSelector` chooses the live runtime by the provider type of
@@ -1017,6 +1049,10 @@ service; locally its runtime is selected per request in
 
 Environment and settings:
 
+- Automatic episode processing (local composition only) has no environment
+  switch: the owner sets it through `/v1/memory/automatic-processing`, and it needs
+  the same Memory Manager model as manual runs. See
+  [When automatic runs start](#when-automatic-runs-start-local-composition).
 - `ANIMAMA_LLM_SKIP=1`: use the deterministic runtime instead of the live runtimes.
 - Memory Manager model role: `models.memory_manager_model_provider_id` in App
   Settings, else `ANIMAMA_DEFAULT_MEMORY_MANAGER_MODEL_PROVIDER_ID`, else the
@@ -1156,6 +1192,7 @@ uv run python -m pytest -q \
   tests/test_anthropic_memory_manager.py \
   tests/test_anthropic_memory_tool.py \
   tests/test_memory_episodes.py \
+  tests/test_automatic_episode_processing.py \
   tests/test_memory_file_tools.py \
   tests/test_memory_files.py
 ```

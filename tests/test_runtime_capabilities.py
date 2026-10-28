@@ -289,6 +289,7 @@ async def test_local_composition_reports_uploads_and_anima_creation(async_sessio
     assert body["provider_credentials"] and body["local_filesystem_administration"]
     assert body["native_features"] is bool(desktop_token)
     assert body["library_previews"] is True
+    assert body["automatic_episode_processing"] is True
 
 
 def test_library_previews_are_on_unless_a_runtime_turns_them_off():
@@ -390,6 +391,8 @@ def test_hosted_parity_contract_keeps_choices_independent_of_administration():
     assert capabilities.local_filesystem_administration is False
     assert capabilities.native_features is False
     assert capabilities.library_previews is False
+    # Hosted never processes episode notes in the background (spec #775).
+    assert capabilities.automatic_episode_processing is False
 
 
 @pytest.mark.parametrize(

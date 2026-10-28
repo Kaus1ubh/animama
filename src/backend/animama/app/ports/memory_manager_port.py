@@ -46,6 +46,16 @@ class MemoryManagerRepository(Protocol):
 
         raise NotImplementedError
 
+    async def list_automatic_runs(self, *, user_id: str, limit: int) -> list[MemoryManagerRun]:
+        """List the newest backend-started runs in any status, newest first."""
+
+        raise NotImplementedError
+
+    async def latest_processed_owner_episode_run(self, *, user_id: str) -> MemoryManagerRun | None:
+        """Return the owner-started episode-processing run whose batch was processed most recently."""
+
+        raise NotImplementedError
+
     async def update_run(self, run: MemoryManagerRun) -> MemoryManagerRun:
         raise NotImplementedError
 

@@ -228,6 +228,7 @@ Permissions are separate from browser support and temporary errors:
 | Model connections/catalog administration and keys          | `model_configuration`, `provider_credentials`, `web_search.configuration` | False; catalog/role reads and selections remain retained.                                |
 | Host paths, scans, file logs and server model installation | `local_filesystem_administration`                                         | False; virtual memory paths, creator assets and browser model downloads remain retained. |
 | Electron/native controls                                   | `native_features`                                                         | False; browser fullscreen/PiP use browser feature detection.                             |
+| Automatic episode processing and its status                | `automatic_episode_processing`                                            | False; owner-started Memory Manager processing remains retained.                         |
 | Gemini voice                                               | `gemini_tts`                                                              | Absent or null; the hosted adapter refuses a runtime that reports it.                    |
 
 Web search use follows the runtime fields `web_search.configured`, `backend` and

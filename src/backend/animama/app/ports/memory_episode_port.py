@@ -36,6 +36,11 @@ class MemoryEpisodeRepository(Protocol):
     ) -> list[MemoryEpisodeItem]:
         raise NotImplementedError
 
+    async def count_items(self, *, user_id: str, status: str) -> int:
+        """Count the owner's items with one status."""
+
+        raise NotImplementedError
+
     async def list_items_by_source_message_ids(
         self,
         *,

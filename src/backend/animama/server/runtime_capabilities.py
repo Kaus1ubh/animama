@@ -87,6 +87,7 @@ async def local_runtime_capabilities(app: FastAPI, session: AsyncSession) -> Run
         # The local composition mounts upload and Anima-creation routes.
         chat_file_uploads=True,
         anima_creation=True,
+        automatic_episode_processing=True,
         local_filesystem_administration=True,
         native_features=desktop,
         offline_speech_enabled=speech.enabled,
