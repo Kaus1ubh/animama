@@ -58,7 +58,10 @@ require Docker, Python, Node.js, PostgreSQL, Homebrew or a source checkout.
    saved at **Finish**. Nothing downloads
    unless you choose it,
    and downloads keep going after you finish. Choose **Finish**, then confirm
-   that you are 18 or older in the short modal before Annie's chat opens. Later launches open the last Anima you visited, or the
+   that you are 18 or older and agree to the
+   [Terms of Service](https://animama.ai/terms/) in the short modal before
+   Annie's chat opens; it also links the
+   [Privacy Notice](https://animama.ai/privacy/). Later launches open the last Anima you visited, or the
    first available Anima if that Anima has been deleted.
 
 Fresh installations create Annie and Andrew. Starter defaults do not overwrite

@@ -8,9 +8,11 @@
     "skip": "暫時略過"
   },
   "ageConfirmation": {
+    "agreement": "繼續即表示你同意<terms>服務條款</terms>，並確認已閱讀<privacy>隱私權聲明</privacy>。",
     "backToSetup": "返回設定",
     "betaNotice": "Animama 網頁版目前為測試版。桌面應用程式可提供最佳體驗。",
     "confirm": "我已年滿 18 歲",
+    "confirmAndAgree": "我已年滿 18 歲並同意",
     "decline": "我未滿 18 歲",
     "declined": "Animama 僅供 18 歲以上的成年人使用。你無法繼續聊天。",
     "errors": {

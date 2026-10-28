@@ -16,7 +16,9 @@ Text-to-Speech and the ElevenLabs key) offer "Skip for now". Finish writes chang
 Text-to-Speech preferences and opens a blocking 18+ modal on the first Anima.
 The app shell and Avatar load behind the modal and stay mounted when it closes;
 chat, microphone and Quick Chat handlers start only after confirmation.
-The modal links `/safety`; only explicit confirmation stores the name,
+The modal links `/safety` and the Terms of Service and Privacy Notice on
+animama.ai, and its confirm button also agrees to the Terms (hosted accounts
+accept them at sign-up instead); only explicit confirmation stores the name,
 age confirmation and any chosen model. Completion is idempotent and controlled by backend runtime
 context rather than browser storage. The bootstrap placeholder may be null
 before setup. An earlier skipped or unconfirmed setup reopens without resetting
