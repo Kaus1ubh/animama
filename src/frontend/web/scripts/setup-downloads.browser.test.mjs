@@ -14,26 +14,31 @@ const webRoot = fileURLToPath(new URL("..", import.meta.url));
 const fixture = path.join(webRoot, "tests/fixtures/setup-downloads");
 
 /**
- * Setup offers the Local model location only in builds with
- * `VITE_ENABLE_LOCAL_MODELS` (#694). Several tests drive local model servers, so
- * their server sets it; a second server builds the default, without Local.
+ * Setup's providers depend on two build flags: `VITE_ENABLE_LOCAL_MODELS`
+ * (default on) and `VITE_ENABLE_DEEPSEEK_HUGGINGFACE` (default off, #783).
+ * Most tests drive local servers and DeepSeek, so their server turns both on;
+ * a second server builds the default, with neither flag set.
  */
-async function startServer(localModels) {
+async function startServer(allProviders) {
   const started = await createServer({
     configFile: false,
     root: webRoot,
     publicDir: false,
     cacheDir: path.join(
       webRoot,
-      `node_modules/.vite-setup-downloads${localModels ? "" : "-default"}`,
+      `node_modules/.vite-setup-downloads${allProviders ? "" : "-default"}`,
     ),
     logLevel: "error",
     define: {
       __ANIMAMA_DEV_BUILD__: "false",
       __ANIMAMA_APP_VERSION__: '"test"',
-      // Explicit either way, so a developer's own .env cannot change the build.
-      "import.meta.env.VITE_ENABLE_LOCAL_MODELS": JSON.stringify(
-        String(localModels),
+      // Both flags are set (on, or unset) either way, so a developer's own
+      // .env cannot change the build.
+      ...Object.fromEntries(
+        [
+          "import.meta.env.VITE_ENABLE_LOCAL_MODELS",
+          "import.meta.env.VITE_ENABLE_DEEPSEEK_HUGGINGFACE",
+        ].map((key) => [key, allProviders ? '"true"' : "undefined"]),
       ),
     },
     optimizeDeps: { entries: [path.join(fixture, "main.tsx")] },
@@ -96,7 +101,7 @@ const PRESETS = [
 /**
  * Mount setup with intercepted HTTP. `options.modelConfiguration` false is
  * the hosted composition; `options.detect` maps a local preset to its models;
- * `options.localModels` false mounts the default build, which hides Local.
+ * `options.defaultBuild` mounts the build with no provider flags set.
  */
 async function mount(options = {}) {
   const page = await browser.newPage({
@@ -445,9 +450,7 @@ async function mount(options = {}) {
       json: { detail: "Unexpected fixture route" },
     });
   });
-  const origin = originOf(
-    options.localModels === false ? defaultServer : server,
-  );
+  const origin = originOf(options.defaultBuild ? defaultServer : server);
   await page.goto(`${origin}/tests/fixtures/setup-downloads/index.html`);
   try {
     await page.getByLabel("Display name", { exact: true }).waitFor();
@@ -1249,16 +1252,16 @@ test("the hosted composition's AI step offers no model choice", async () => {
   }
 });
 
-test("the default build's AI step offers only Cloud providers", async () => {
-  const { page, requests, errors } = await mount({ localModels: false });
+test("the default build's AI step offers Local but not DeepSeek or Hugging Face", async () => {
+  const { page, errors } = await mount({ defaultBuild: true });
   try {
     await welcome(page);
     await providerTab(page, "OpenAI").waitFor();
-    // One location needs no Cloud | Local strip, and no local server is searched for.
-    assert.equal(await page.getByRole("tab", { name: "Cloud" }).count(), 0);
-    assert.equal(await page.getByRole("tab", { name: "Local" }).count(), 0);
-    assert.equal(await providerTab(page, "Ollama").count(), 0);
-    assert.deepEqual(detects(requests), []);
+    await providerTab(page, "OpenRouter").waitFor();
+    assert.equal(await providerTab(page, "DeepSeek").count(), 0);
+    assert.equal(await providerTab(page, "Hugging Face").count(), 0);
+    await page.getByRole("tab", { name: "Local" }).click();
+    await providerTab(page, "Ollama").waitFor();
     assert.deepEqual(errors, []);
   } finally {
     await page.close();

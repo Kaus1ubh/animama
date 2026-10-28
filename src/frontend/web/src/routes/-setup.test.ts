@@ -49,6 +49,7 @@ const fixture = vi.hoisted(() => ({
   providers: [] as unknown[],
   desktopKeys: true,
   localModels: true,
+  deepseekHuggingface: true,
 }));
 vi.mock("@/platform/env", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/platform/env")>();
@@ -58,6 +59,9 @@ vi.mock("@/platform/env", async (importOriginal) => {
       ...actual.env,
       get enableLocalModels() {
         return fixture.localModels;
+      },
+      get enableDeepseekHuggingface() {
+        return fixture.deepseekHuggingface;
       },
     },
   };

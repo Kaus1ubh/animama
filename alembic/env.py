@@ -23,8 +23,8 @@ from animama.orm import Base  # type: ignore  # ruff: noqa: E402
 # access to the values within the .ini file in use.
 config = context.config
 
-# Interpret the config file for Python logging. Migrations also run in-process (database
-# bootstrap and tests), so leave loggers that already exist enabled.
+# Interpret the config file for Python logging. Alembic also runs inside backend
+# processes (database bootstrap, tests), so leave their existing loggers enabled.
 if config.config_file_name is not None:
     fileConfig(config.config_file_name, disable_existing_loggers=False)
 
