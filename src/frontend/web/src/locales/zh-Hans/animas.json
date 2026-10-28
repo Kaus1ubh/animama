@@ -118,6 +118,8 @@
       "sharedRegions_other": "共享部件内 {{count}} 处",
       "sources": {
         "corrected": "你的修正",
+        "estimatedBlink": "根据眨眼推测",
+        "estimatedEyeBone": "根据眼睛骨骼推测",
         "missing": "未找到",
         "names": "材质名称",
         "signals": "模型数据"

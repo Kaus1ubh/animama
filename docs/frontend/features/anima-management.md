@@ -106,8 +106,9 @@ Animama found in the Anima's Avatar and how it plays it:
   load uses when a measurement since this load changes the materials or frame
   rate. Clearing the measurements measures again ([GPU check](../runtime/avatar-animation.md#authored-liltoon-materials)).
 - **Face**: how each face part was found (model data, material names, a saved
-  correction, or not at all) and whether face landmarks and texture anchors
-  are ready.
+  correction, estimated from blinking or the eye bone for an eye without its
+  own mesh, or not at all) and whether face landmarks and
+  texture anchors are ready.
 - **Expressions**: the standard VRM expressions present (a preset that plays
   nothing counts as missing), those played through ARKit mixes or MMD morphs,
   blinks and visemes filled from the file's left and right blinks or from MMD,

@@ -67,7 +67,7 @@ Evidence in this plan and the PR is counts and pass/fail only.
 - [x] Phase 1: review renders catch wrong art (2026-10-28; review passed after two repair rounds).
 - [x] Phase 2: per-primitive shape names (2026-10-28; review passed).
 - [x] Phase 3: blink and mouth signals beyond VRM presets (2026-10-28; review passed after one repair round; owner live check pending).
-- [ ] Phase 4: eyes without separate eye geometry.
+- [x] Phase 4: eyes without separate eye geometry (2026-10-28; review passed after one repair round).
 - [ ] Phase 5: the face inside a whole-body mesh.
 - [ ] Phase 6: painted art that shows.
 - [ ] Phase 7: size-aware placement and framing.
@@ -546,8 +546,8 @@ Intended changes:
    region from the vertices the resolved blink shapes move, split into left and
    right clusters, as `detectEyesFromBlink` already does for blink islands.
 2. `AvatarFaceLandmarks.ts`: when an eye has no iris geometry, build its
-   landmark from that blink region, else from the eye bone or look-at origin
-   projected onto the face surface, sized from the face width. Mark the
+   landmark from that blink region, else from the eye bone projected onto the
+   face surface, sized from the face width. Mark the
    landmark's source so Diagnostics can say "estimated".
 3. `AvatarFaceTextureAnchors.ts`: blush, under-eye and forehead anchors and
    eye texture rects read the new landmarks; the eye texture rect comes from the
@@ -560,6 +560,125 @@ resolve on the first two.
 
 Checks: as Phase 3, plus private survey renders of ふぁふぁ (both), Maromage and
 Carol North counted with Phase 1's check.
+
+Starting source: `8357ad3a`.
+
+Implementation (2026-10-28): when detection, names and corrections still leave
+an eye missing and the face skin is known, `detectAvatarFaceParts` marks it
+`estimated`, with `estimate` naming the signal: `blink` (where `blink` moves the
+face skin on that side) or `eye_bone` (a `look_at` estimate was removed in
+review, P4-R1-F1). An eye a correction marks absent stays absent. `AvatarFaceLandmarks` builds the
+landmark from the same signal; the snapshot field appears only on estimated
+eyes, so Included snapshots are unchanged. The blink region keeps vertices that
+move at least half as far as the farthest one on that side, then the largest
+connected piece and any piece overlapping it, which drops a brow that blinking
+also lowers. Its centre is the movement-weighted midpoint between open and
+closed positions, it is sized like an iris (55% of the region's width, 67% of
+its height, measured on the Included Avatars), and its `textureRect` comes from
+the region's UVs. Bone and look-at estimates project along the face's front axis
+onto the face, at 14% of the face width, without a texture rect. Anchors needed no change. In the controller,
+estimated eyes count for eye planes, which the face-skin binding holds; iris-
+surface art still needs an iris mesh. Diagnostics, the creator's face-parts
+panel, the text report and `vrm:inspect` say what placed each estimated eye (all
+locales). New `vfx/estimatedEyes.test.ts` and `testing/removeEyeBones.ts`; docs
+in `avatar-vfx.md` ("Eyes without geometry") and `features/anima-management.md`.
+
+Check record (tree `53e11f60`):
+
+| Command | Directory | Result |
+| --- | --- | --- |
+| `timeout 900 npx vitest run src/lib/avatar src/ui tests/avatar src/lib/runtime-content` | `src/frontend/web` | 3678 passed, 2 skipped; baselines unchanged |
+| `node --test scripts/vrm-inspect.test.mjs scripts/vrm-bake-expressions.test.mjs` | `src/frontend/web` | 13/13 |
+| `npx tsc -b`; `npx tsc -p tsconfig.scripts.json --noEmit`; eslint and prettier `--check` on touched files | `src/frontend/web` | clean |
+| `timeout 900 python3 ../../scripts/heavy-slot.py -- pnpm check` | `src/frontend` | exit 0 |
+| `timeout 900 python3 ../../scripts/heavy-slot.py -- pnpm web:test:browser` | `src/frontend` | 132/132 |
+| `evidence/render-set.sh`, `--diff` against the baselines | `src/frontend/web` | 31 rendered, 0 failed; 29 at 0 px, `finger-heart-pose` 0 px against the alternate, `anger-2` 5 isolated px then 0 px on one re-render |
+
+Private calibration (counts only; Phase 1's check plus a look at the sheets),
+effects of 16 and Reactions of 6, before and after:
+
+| Avatar | Effects | Reactions | Remaining |
+| --- | --- | --- | --- |
+| ふぁふぁ (own VRM) | 3 → 16 | 1 → 6 | none |
+| ふぁふぁ (converted) | 3 → 16 | 1 → 6 | none |
+| Maromage | 3 → 12 | 0 → 5 | blush, under-eye and kiss land under its large eye dots; horns and the joy sparkle hidden (Phases 6–7) |
+| Carol North | 3 → 13 | 0 → 5 | X and dot eyes under the visibility floor at the fixed 6 cm eye plane; horns and the joy sparkle hidden (Phase 7) |
+
+#### Code Review #1 Findings
+
+Reviewed tree `53e11f60` (standard tier, initial full review); no checks rerun.
+
+- **P4-R1-F1 (required):** the `look_at` estimate is ungated in practice:
+  three-vrm fills a default `offsetFromHeadBone` of (0, 0.06, 0) when a file
+  omits it, and the repository's VRMs store exactly that default, so a
+  painted-eye Avatar without blink or eye bones that used to skip now gets eyes
+  6 cm above the head bone with no warning, and Phase 1's head box cannot see
+  the misplacement.
+- **P4-R1-F2:** bone estimates have no sanity check (coincident or swapped eye
+  bones).
+- **P4-R1-F3:** projection onto the face accepts back-of-head triangles that
+  cover an eye hole.
+- **P4-R1-F4:** an estimated eye's face-texture `textureRect` reaches the iris
+  layout on mixed Avatars.
+- **P4-R1-F5:** detection and landmarks can use different face entries, and a
+  blink estimate without a landmark does not fall back to the bone.
+- **P4-R1-F6:** blink deltas ignore bind weights, including weight-0 binds.
+- **P4-R1-F7:** welding and region measurement run twice on fallback Avatars.
+- **P4-R1-F8:** no VRM 0 or one-sided blink tests.
+- **P4-R1-F9:** the docs' face-parts statuses omit "Position estimated".
+- **P4-R1-F10:** JSDoc, a stale skip message for iris art on estimated eyes, and
+  small nits.
+
+Result: blocked on F1.
+
+#### Code Review #1 Revisions
+
+- F1 accepted: the `look_at` estimate is removed (detection, landmarks,
+  Diagnostics, locales, docs, tests).
+- F2–F10 accepted, as fixed in repair round 1 below (F7 if contained).
+
+Repair round 1 (tree `38b963c4`): the `look_at` estimate is gone everywhere;
+the docs explain why three-vrm's default look-at offset cannot place eyes.
+Detection now measures each estimated eye once, stores it on the part map as
+`eyeEstimates` (runtime only), picks the face entry the landmarks use, and falls
+back to the bone when a side has no blink region; blink pieces weld only core
+vertices (F5, F7). A bone counts only at least 10% of the face width out on its
+own side, inside the face in front view and above its lowest quarter (F2).
+Projection uses front-facing triangles in the front half of the face (F3). The
+iris layout ignores estimated eyes' rects (F4). Blink deltas skip weight-0 binds
+and scale by weight (F6). New tests: VRM 0 blink and bone estimates, one eye
+from blink and the other from its bone, head-centre bones (red without F2), a
+back-facing triangle behind an eye hole (red without F3), the iris layout and
+the iris-mesh message (F8, F10). Docs list "Position estimated" (F9).
+
+| Command | Directory | Result |
+| --- | --- | --- |
+| `timeout 900 npx vitest run src/lib/avatar src/ui tests/avatar src/lib/runtime-content` | `src/frontend/web` | 3684 passed, 2 skipped; baselines unchanged |
+| `node --test scripts/vrm-inspect.test.mjs scripts/vrm-bake-expressions.test.mjs` | `src/frontend/web` | 13/13 |
+| `npx tsc -b`; `npx tsc -p tsconfig.scripts.json --noEmit`; eslint and prettier `--check` on touched files | `src/frontend/web` | clean |
+| `timeout 900 python3 ../../scripts/heavy-slot.py -- pnpm check` | `src/frontend` | exit 0 |
+| `heart_eyes` and `--with-clip library:reaction/fear-2`, `--diff` against the baselines | `src/frontend/web` | 0 px |
+| Private calibration (counts only) | `src/frontend/web` | unchanged: ふぁふぁ 16/6, Maromage 12/5, Carol North 13/5 |
+
+#### Code Review #2 Findings
+
+Reviewed tree `38b963c4` (targeted recheck). All accepted fixes verified,
+including VRoid's own eye bones failing safe to a named skip under F2 and
+unchanged lid-box math under F6. Optional:
+
+- **P4-R2-F1:** the Diagnostics dialog still renders iris art skipped on an
+  estimated eye through `effect_face_part_missing` ("no detected left eye"),
+  while its Face table says the eye was estimated; only the English controller
+  warning changed.
+
+Result: pass.
+
+#### Code Review #2 Revisions
+
+- P4-R2-F1 deferred to Phase 6, which reworks the skip and warning paths for
+  painted art: give iris art on an estimated eye its own issue code and text.
+
+Phase 4 complete (agent-ready; no owner gate).
 
 ### Phase 5: The face inside a whole-body mesh (R3)
 
@@ -591,6 +710,9 @@ displays. Hypotheses, in order: the anchors are projected into the wrong UV
 island (overlapping or mirrored islands); the painted texture is not the one the
 face material displays; the paint lands under a primitive that hides it. Also
 check why `petrified_cracks` on ふぁふぁ draws its tone but not its crack lines.
+
+Carried from Phase 4 (P4-R2-F1): iris art skipped on an estimated eye gets its
+own Diagnostics issue code and text instead of "no detected left eye".
 
 Intended changes: fix the cause found. Add an apply-time check: a painted
 anchor whose UV falls outside the selected face island's visible triangles, or a

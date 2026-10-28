@@ -302,20 +302,60 @@ VRM specification does not define. `detectAvatarFaceParts`
 
 | Part                             | Signal                                                                                                                                                                                                                                                                         |
 | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `eye_left`, `eye_right` (irises) | Primitives with at least half their skin weight on the humanoid `leftEye`/`rightEye` bones (or whose material a look-at expression moves through a texture transform). Without either, the head-skinned primitives over the eyelids `blink` moves on the face skin and within that eye region, each side by the head's left-right axis. Iris, white and highlight are told apart by projected area and depth. One primitive may hold both eyes. |
+| `eye_left`, `eye_right` (irises) | Primitives with at least half their skin weight on the humanoid `leftEye`/`rightEye` bones (or whose material a look-at expression moves through a texture transform). Without either, the head-skinned primitives over the eyelids `blink` moves on the face skin and within that eye region, each side by the head's left-right axis. Iris, white and highlight are told apart by projected area and depth. One primitive may hold both eyes. An eye with no geometry of its own is `estimated` (see below). |
 | `face_skin`                      | The head-skinned primitive of the mesh that both `blink` and `aa` morph (presets left empty are filled from MMD, ARKit or VRChat shapes first, `faceSignals.ts`), with the most area around the eyes. A face skinned partly to the neck or body (under 90% head weight) wins instead when its head-weighted vertices cover more and blink moves it; primitives on spring joints (merged-in hair) never do.                                       |
 | `eye_highlight`                  | Separated from the iris by size and depth.                                                                                                                                                                                                                                     |
 | `eyeline`, `eyelash`             | Small primitives of the face mesh that `blink` moves almost entirely; the larger is the eye line. Islands of the face or eye primitives that `blink` moves the same way are part `regions` (triangle lists, runtime only): lashes, or each eye's largest island as its line when no line primitive exists. |
 | `hair`                           | Primitives in the head subtree with a real share of spring-joint weight (used to keep forehead and top planes clear).                                                                                                                                                          |
 
 Each part reports its `node:mesh:primitive` bindings, a source (`signals`,
-`names`, `corrected` or `missing`) and a confidence. Face landmarks span every
+`names`, `corrected`, `estimated` or `missing`) and a confidence. Face landmarks span every
 `face_skin` binding (a correction may list several), counting only the
 head-weighted vertices of one that also holds the neck or body; texture
 anchors project onto the face binding nearest the eyes. Material and node names
 (`profiles.ts`) are a fallback per part; if detection itself fails, the Avatar
 still loads with name matching and logs `avatar_face_parts_detection_failed`.
 Detection takes a few milliseconds per Avatar and never writes world matrices.
+
+### Eyes without geometry
+
+An eye painted on the face skin, or modelled inside the face primitive, has no
+mesh part to find. When the face skin is known and detection, names and any
+correction leave an eye missing, it is `estimated` with an `estimate` naming
+what places it, in this order. Detection measures the place once
+(`eyeEstimates` on the part map, on the first face skin binding as the
+landmarks take it) and the landmarks build the eye from it.
+
+- `blink`: where `blink` moves the face skin on that side. The eye's region is
+  the vertices it moves at least half as far as the farthest there (the lid and
+  lash line), keeping the connected piece with the most vertices and pieces
+  overlapping it, so a brow it also lowers is left out. The landmark sits
+  halfway between their open and closed positions, averaged by how far each
+  moves, and is sized like an iris (55% of the region's width, 67% of its
+  height, as on the Included Avatars). Its `textureRect` bounds the region's
+  UVs on the face texture.
+- `eye_bone`: the humanoid eye bone, moved along the face's front axis onto
+  the front of the face, with an iris 14% of the face's width. Only triangles
+  facing the front, in the front half of the face's depth, count, so the back
+  of the head cannot; where none covers the bone (an eye hole) the nearest
+  one's depth is used. The bone must sit at least 10% of the face's width to
+  its own side, inside the face in the front view and above its lowest
+  quarter; otherwise the eye stays missing. This assumes the bone sits behind
+  the eye, as VRChat rigs place it; VRoid's eye bones sit nearer the nose, but
+  VRoid eyes always have meshes.
+
+The VRM look-at origin does not place eyes: three-vrm fills a default offset
+when a file has none, so it says nothing about where this model's eyes are.
+
+The landmark carries the same `estimate`. Eye planes on such an Avatar hang
+from the head as usual but are held by the face skin binding, since no binding
+is an iris; blush, under-eye, mouth, forehead and top placements read the
+landmarks as for any eye. An estimated eye's `textureRect` lies on the face
+texture, so the iris layout (`resolveIrisEyeLayout`) ignores it. Iris surface
+art (`face_surface` `eyes`) still needs an iris mesh part; on an estimated eye
+it is skipped with "this avatar's left eye has no iris mesh". With neither a
+blink region nor eye bones that mark the eyes, the eyes stay missing, and eye
+effects are skipped naming them.
 
 ### Corrections
 
@@ -369,7 +409,8 @@ primitives.
 ### Missing parts
 
 An effect whose part is missing (face skin for every face effect, the covered
-eye for an eye plane, the painted part for a surface effect) is not applied.
+eye for an eye plane, which an estimated eye serves, the painted part for a
+surface effect) is not applied.
 The controller logs one `avatar_effect_face_part_unavailable` warning per
 effect and part and lists it in its snapshot warnings, which the VRM debug
 panel shows. In chat, the Gesture or Reaction continues without the effect. The
@@ -547,9 +588,12 @@ regions and the sampled skin patch. Guides affect only the preview.
 ### Face parts panel
 
 **Face parts** lists the selected Avatar's parts with their status: Detected
-with a confidence, uncertain (found by name or below 70%), Corrected (only a
-part the user changed; a saved correction also pins the required parts at
-their detected values) or Missing. **Edit** a part, then tick its mesh parts in
+with a confidence, uncertain (found by name or below 70%), Position estimated
+(an eye without a mesh part of its own, see [Eyes without
+geometry](#eyes-without-geometry)), Corrected (only a part the user changed; a
+saved correction also pins the required parts at their detected values) or
+Missing. A correction names mesh parts for both eyes, so it cannot be saved
+while an eye is only estimated. **Edit** a part, then tick its mesh parts in
 the list or choose **Pick on the avatar** and click the Avatar. **Save correction** stores it with the
 Avatar through the face-parts route and rebuilds the preview, and **Use detected
 parts** removes it. A draft correction belongs to the Avatar it was made on and
@@ -968,9 +1012,12 @@ per render; a silhouette adds one skinned draw per overlaid primitive (about
 
 - Detection is tuned on the two Included (VRoid) Avatars and tested on them
   with synthetic additions (lashes inside the face mesh, a face skinned partly
-  to the neck, no eye bones); other models may need a correction. A model with
-  neither eye bones nor a blink (a preset, or MMD, ARKit or VRChat shapes)
-  has no eyes to find.
+  to the neck, no eye bones, eyes without meshes); other models may need a
+  correction. Eyes without meshes are estimated, not measured: an estimate
+  from the eye bone is off where the bone does not sit behind the eye, and
+  one from blinking leans toward the lid above the eye and is sized like an
+  iris, so round eye dots larger than that leave blush and under-eye art
+  inside them.
   With both eye bones, eye landmarks skip islands wider than the distance
   between them, such as a dome some VRChat eye meshes put around each
   eyeball.

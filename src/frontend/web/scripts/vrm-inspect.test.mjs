@@ -142,6 +142,39 @@ test("reports where each blink and viseme comes from, and the face parts", () =>
   assert.match(text, /issues: face_parts_expressions_missing/);
 });
 
+test("says what places eyes without geometry of their own", () => {
+  const estimated = {
+    ...report,
+    loaded: {
+      ...report.loaded,
+      face: {
+        parts: {
+          ...report.loaded.face.parts,
+          face_skin: { source: "signals", bindings: 1, regions: 0 },
+          eye_left: {
+            source: "estimated",
+            bindings: 0,
+            regions: 0,
+            estimate: "blink",
+          },
+          eye_right: {
+            source: "estimated",
+            bindings: 0,
+            regions: 0,
+            estimate: "eye_bone",
+          },
+        },
+        issues: [],
+      },
+    },
+  };
+  const text = formatReport(estimated);
+  assert.match(
+    text,
+    /eye_left estimated from blinking, eye_right estimated from its eye bone,/,
+  );
+});
+
 test("says why face part detection failed", () => {
   const failed = {
     ...report,

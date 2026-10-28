@@ -24,6 +24,7 @@ import {
   type AutomaticMaterialsDecision,
 } from "../liltoon/lilToonGpuCheck";
 import type {
+  AvatarEyeEstimate,
   AvatarFacePartRole,
   AvatarFacePartSource,
 } from "../vfx/faceParts";
@@ -33,6 +34,8 @@ import { mergeAvatarIssues, type AvatarIssue } from "./issues";
 export type AvatarDiagnosticsFacePart = {
   role: AvatarFacePartRole;
   source: AvatarFacePartSource;
+  /** For an estimated eye, what places it (blinking or its bone). */
+  estimate?: AvatarEyeEstimate;
   bindingCount: number;
   /** Mesh parts that hold this part as a region (lashes in the face mesh). */
   regionCount: number;
@@ -136,6 +139,7 @@ function collectFace(avatar: Avatar): AvatarLiveDiagnostics["face"] {
       ? Object.values(map.parts).map((part) => ({
           role: part.role,
           source: part.source,
+          ...(part.estimate ? { estimate: part.estimate } : {}),
           bindingCount: part.bindings.length,
           regionCount: part.regions?.length ?? 0,
           confidence: part.confidence,

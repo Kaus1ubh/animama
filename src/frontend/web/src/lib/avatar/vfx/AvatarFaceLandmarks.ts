@@ -13,6 +13,8 @@ import type {
 import {
   createFaceVertexFilter,
   resolveAvatarFacePartEntries,
+  type AvatarEyeEstimate,
+  type AvatarEyeEstimateGeometry,
 } from "./faceParts";
 import {
   collectPrimitiveData,
@@ -47,6 +49,8 @@ type InternalEyeLandmark = {
   projectedBoxCoord: AvatarFaceBoxCoordinate;
   textureRect: AvatarFaceTextureRect | null;
   textureMirrored: boolean;
+  /** Set for an eye without geometry of its own; see the snapshot field. */
+  estimate?: AvatarEyeEstimate;
 };
 
 type PrimitiveIsland = {
@@ -288,6 +292,7 @@ export class AvatarFaceLandmarks {
       textureRect: eye.textureRect,
       // Only a mirrored eye carries the flag; VRoid's eyes read as before.
       ...(eye.textureMirrored ? { textureMirrored: true } : {}),
+      ...(eye.estimate ? { estimate: eye.estimate } : {}),
     };
   }
 
@@ -357,10 +362,11 @@ export class AvatarFaceLandmarks {
     this._faceBounds = faceBounds;
     this._faceBindingKey = faceBinding.bindingKey;
     this._faceMaterialName = faceBinding.materialName;
-    this._frontZLocal = resolveFaceFrontZ({
+    const frontZLocal = resolveFaceFrontZ({
       avatar: this._avatar,
       faceBounds,
     });
+    this._frontZLocal = frontZLocal;
     this._boxHoverClearanceLocal = 0;
     this._boxHoverFrontZLocal = this._frontZLocal;
 
@@ -382,12 +388,7 @@ export class AvatarFaceLandmarks {
     const leftKeys = new Set(parts.leftEyes.map((entry) => entry.bindingKey));
     const rightKeys = new Set(parts.rightEyes.map((entry) => entry.bindingKey));
 
-    if (eyeIslands.length === 0) {
-      this._warn(
-        { code: "landmarks_eyes_missing" },
-        "No eye iris landmark islands were derived from the current bindings.",
-      );
-    } else {
+    if (eyeIslands.length > 0) {
       this._eyes = this._assignEyes({
         anchorObject,
         faceBounds,
@@ -396,6 +397,23 @@ export class AvatarFaceLandmarks {
         isLeft: (island) => leftKeys.has(island.bindingKey),
         isRight: (island) => rightKeys.has(island.bindingKey),
       });
+    }
+    // Eyes without geometry of their own, placed where detection estimated.
+    const estimate = (side: "left" | "right") =>
+      this._eyes[side] ??
+      this._estimateEye({
+        side,
+        entries: runtimeResult.entries,
+        faceBounds,
+        frontZLocal,
+        leftSign,
+      });
+    this._eyes = { left: estimate("left"), right: estimate("right") };
+    if (eyeIslands.length === 0 && !this._eyes.left && !this._eyes.right) {
+      this._warn(
+        { code: "landmarks_eyes_missing" },
+        "No eye iris landmark islands were derived from the current bindings.",
+      );
     }
 
     const boxHoverFront = resolveBoxHoverFrontClearance({
@@ -541,6 +559,47 @@ export class AvatarFaceLandmarks {
     return { left: landmarkOf(leftIsland), right: landmarkOf(rightIsland) };
   }
 
+  /**
+   * The landmark of an eye the part map estimates (it has no eye mesh part),
+   * or null: an iris-sized box at the place detection measured
+   * (`eyeEstimates`). A `blink` eye's `textureRect` bounds its blink region's
+   * UVs on the face texture; an `eye_bone` eye has none.
+   */
+  private _estimateEye(args: {
+    side: "left" | "right";
+    entries: readonly RuntimePrimitiveBindingEntry[];
+    faceBounds: THREE.Box3;
+    frontZLocal: number;
+    leftSign: 1 | -1;
+  }): InternalEyeLandmark | null {
+    const map = this._avatar.facePartMap;
+    const part = map?.parts[`eye_${args.side}`];
+    const estimate = map?.eyeEstimates?.[args.side];
+    if (part?.source !== "estimated" || !part.estimate || !estimate) {
+      return null;
+    }
+    const face = args.entries.find(
+      (entry) => entry.bindingKey === estimate.bindingKey,
+    );
+    if (!face) return null;
+    const island: PrimitiveIsland = {
+      bindingKey: face.bindingKey,
+      materialName: face.materialName,
+      vertexCount: estimate.region?.vertices.length ?? 0,
+      // A flat box on the face: depth is not read.
+      bounds: new THREE.Box3().setFromCenterAndSize(
+        estimate.center,
+        new THREE.Vector3(estimate.width, estimate.height, 0),
+      ),
+      center: estimate.center.clone(),
+      ...estimatedTextureLayout(face, estimate, args.leftSign),
+    };
+    return {
+      ...createEyeLandmarkFromIsland(island, args.faceBounds, args.frontZLocal),
+      estimate: part.estimate,
+    };
+  }
+
   private _resolveAnchorObject(
     preferredObject: THREE.Object3D | null,
   ): THREE.Object3D | null {
@@ -572,6 +631,32 @@ function createEyeLandmarkFromIsland(
     textureRect: island.textureRect,
     textureMirrored: island.textureMirrored,
   };
+}
+
+/**
+ * Where an estimated eye's blink region lies on its face texture, and which
+ * way its art runs ({@link measureTextureLayout}); none for an eye without a
+ * region or a face without UVs.
+ */
+function estimatedTextureLayout(
+  face: RuntimePrimitiveBindingEntry,
+  estimate: AvatarEyeEstimateGeometry,
+  leftSign: 1 | -1,
+): { textureRect: AvatarFaceTextureRect | null; textureMirrored: boolean } {
+  const uv = face.object.geometry.getAttribute("uv");
+  const region = estimate.region;
+  if (!region || !(uv instanceof THREE.BufferAttribute)) {
+    return { textureRect: null, textureMirrored: false };
+  }
+  return measureTextureLayout({
+    uv,
+    mapping: TextureUvMapping.of(baseTextureOf(face.object)),
+    vertexIndices: region.vertices,
+    pointsByIndex: new Map(
+      region.vertices.map((vertex, at) => [vertex, region.points[at]!]),
+    ),
+    leftSign,
+  });
 }
 
 function resolveFaceFrontZ(args: {

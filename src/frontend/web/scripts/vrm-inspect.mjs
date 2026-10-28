@@ -160,6 +160,8 @@ function detectFaceParts(detectAvatarFaceParts, vrm, gltf) {
             source: part.source,
             bindings: part.bindings.length,
             regions: part.regions?.length ?? 0,
+            // What an eye without geometry of its own is placed from.
+            ...(part.estimate ? { estimate: part.estimate } : {}),
           },
         ]),
       ),
@@ -274,6 +276,12 @@ const SIGNAL_SOURCES = {
   none: "none",
 };
 
+/** How the report words what an estimated eye is placed from. */
+const ESTIMATES = {
+  blink: "blinking",
+  eye_bone: "its eye bone",
+};
+
 /** Print a report as readable lines. */
 export function formatReport(report) {
   const lines = [
@@ -347,7 +355,9 @@ export function formatReport(report) {
               `${role} ${part.source}` +
               (part.source === "missing"
                 ? ""
-                : ` (${part.bindings} mesh part(s)${part.regions ? `, ${part.regions} region(s)` : ""})`),
+                : part.estimate
+                  ? ` from ${ESTIMATES[part.estimate] ?? part.estimate}`
+                  : ` (${part.bindings} mesh part(s)${part.regions ? `, ${part.regions} region(s)` : ""})`),
           )
           .join(", ")}`
       : `face parts: detection failed (${face.error}); the app places effects by material names`,

@@ -163,8 +163,11 @@ export function resolveIrisEyeLayout(
   layout: EyeLayout,
   eyes: AvatarFaceLandmarksSnapshot["eyes"],
 ): EyeLayout {
-  const viewerLeft = eyes.right?.textureRect ?? null;
-  const viewerRight = eyes.left?.textureRect ?? null;
+  // An estimated eye's rect bounds face-texture UVs, not iris art.
+  const irisRect = (eye: AvatarFaceLandmarksSnapshot["eyes"]["left"]) =>
+    eye && !eye.estimate ? eye.textureRect : null;
+  const viewerLeft = irisRect(eyes.right);
+  const viewerRight = irisRect(eyes.left);
   if (!viewerLeft || !viewerRight) return layout;
   const flippedLeft = eyes.right?.textureMirrored === true;
   const flippedRight = eyes.left?.textureMirrored === true;

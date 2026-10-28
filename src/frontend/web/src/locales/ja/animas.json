@@ -118,6 +118,8 @@
       "sharedRegions_other": "共有パーツ内に {{count}}",
       "sources": {
         "corrected": "あなたの修正",
+        "estimatedBlink": "まばたきから推定",
+        "estimatedEyeBone": "目のボーンから推定",
         "missing": "見つかりません",
         "names": "マテリアル名",
         "signals": "モデルのデータ"

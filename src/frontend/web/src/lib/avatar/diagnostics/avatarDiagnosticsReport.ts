@@ -161,7 +161,9 @@ function liveLines(live: AvatarDiagnosticsReport["live"]): string[] {
     ...(face.detected
       ? face.parts.map(
           (part) =>
-            `  ${part.role}: ${part.source}, ${part.bindingCount} primitive(s)` +
+            `  ${part.role}: ${part.source}` +
+            (part.estimate ? ` from ${part.estimate}` : "") +
+            `, ${part.bindingCount} primitive(s)` +
             (part.regionCount > 0 ? ` + regions in ${part.regionCount}` : "") +
             `, confidence ${part.confidence.toFixed(2)}`,
         )

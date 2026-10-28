@@ -110,6 +110,20 @@ describe("Avatar diagnostics reports", () => {
     );
     aPose.live!.motion.restPose = null;
     expect(avatarDiagnosticsText(aPose)).toContain("Rest pose: not checked\n");
+    // An eye painted on the face says what placed it.
+    aPose.live!.face.parts = [
+      {
+        role: "eye_left",
+        source: "estimated",
+        estimate: "blink",
+        bindingCount: 0,
+        regionCount: 0,
+        confidence: 0.5,
+      },
+    ];
+    expect(avatarDiagnosticsText(aPose)).toContain(
+      "  eye_left: estimated from blink, 0 primitive(s), confidence 0.50\n",
+    );
     expect(JSON.parse(avatarDiagnosticsJson(report))).toEqual(report);
   });
 

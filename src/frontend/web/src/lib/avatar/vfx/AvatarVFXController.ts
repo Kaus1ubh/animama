@@ -81,6 +81,7 @@ import {
   AVATAR_FACE_PART_LABELS,
   createFaceVertexFilter,
   findMissingFacePart,
+  hasEstimatedEyes,
   resolveFacePartTargetRoles,
   type AvatarFacePartRole,
 } from "./faceParts";
@@ -2719,7 +2720,10 @@ export class AvatarVFXController {
         code: "effect_face_part_missing",
         params: { effectId: logicalEffectId, part },
       },
-      `Skipped "${effect.label}": this avatar has no detected ${AVATAR_FACE_PART_LABELS[part]}.`,
+      // An estimated eye is found, but has no iris mesh to paint.
+      this._avatar.facePartMap?.parts[part].source === "estimated"
+        ? `Skipped "${effect.label}": this avatar's ${AVATAR_FACE_PART_LABELS[part]} has no iris mesh.`
+        : `Skipped "${effect.label}": this avatar has no detected ${AVATAR_FACE_PART_LABELS[part]}.`,
     );
   }
 
@@ -3393,8 +3397,7 @@ export class AvatarVFXController {
       return;
     }
 
-    const effectTargetRole = getAvatarVFXTargetRole(effect);
-    if (!binding.targetRoles.includes(effectTargetRole)) {
+    if (!this._bindingServes(binding, effect)) {
       binding.warning = `Effect "${effect.label}" does not target ${binding.targetRole}.`;
       this._pushWarning(
         {
@@ -3745,6 +3748,10 @@ export class AvatarVFXController {
       }
     }
 
+    if (isEyeHoverVFXEntry(effect) && this._eyePlanesOnFace()) {
+      return this._resolveFaceFlattenBinding();
+    }
+
     return (
       Array.from(this._bindings.values()).find((binding) => {
         if (!binding.targetRoles.includes(getAvatarVFXTargetRole(effect))) {
@@ -3758,6 +3765,39 @@ export class AvatarVFXController {
         }
         return true;
       }) ?? null
+    );
+  }
+
+  /**
+   * Whether `binding` can hold `effect`: it serves the effect's target role,
+   * or the effect is an eye plane on an Avatar whose eyes have no iris mesh
+   * part (see {@link _eyePlanesOnFace}) and the binding is face skin.
+   */
+  private _bindingServes(
+    binding: BindingState,
+    effect: AvatarVFXCatalogEntry,
+  ): boolean {
+    if (binding.targetRoles.includes(getAvatarVFXTargetRole(effect))) {
+      return true;
+    }
+    return (
+      isEyeHoverVFXEntry(effect) &&
+      binding.targetRoles.includes("face_skin") &&
+      this._eyePlanesOnFace()
+    );
+  }
+
+  /**
+   * Whether eye planes are held by the face skin binding: the eyes' positions
+   * are estimated (painted or merged into the face primitive) and no binding
+   * is an iris. The planes hang from the head anchor either way.
+   */
+  private _eyePlanesOnFace(): boolean {
+    return (
+      hasEstimatedEyes(this._avatar.facePartMap ?? null) &&
+      !Array.from(this._bindings.values()).some((binding) =>
+        binding.targetRoles.includes("eye_iris"),
+      )
     );
   }
 
@@ -4784,10 +4824,7 @@ export class AvatarVFXController {
       return null;
     }
 
-    if (
-      isEyeHoverVFXEntry(effect) &&
-      !binding.targetRoles.includes("eye_iris")
-    ) {
+    if (isEyeHoverVFXEntry(effect) && !this._bindingServes(binding, effect)) {
       binding.warning = `Effect "${effect.label}" requires an eye iris target.`;
       return null;
     }

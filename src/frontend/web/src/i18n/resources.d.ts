@@ -601,6 +601,8 @@ export default interface Resources {
         "sharedRegions_other": "{{count}} inside shared parts",
         "sources": {
           "corrected": "Your correction",
+          "estimatedBlink": "Estimated from blinking",
+          "estimatedEyeBone": "Estimated from the eye bone",
           "missing": "Not found",
           "names": "Material names",
           "signals": "Model data"
@@ -2805,6 +2807,7 @@ export default interface Resources {
         "changed": "Changed, not saved",
         "corrected": "Corrected",
         "detected": "Detected · {{confidence, number(style: percent)}}",
+        "estimated": "Position estimated",
         "foundByName": "Found by name · {{confidence, number(style: percent)}}, check it",
         "insideShared": "Found inside another mesh part",
         "missing": "Missing",

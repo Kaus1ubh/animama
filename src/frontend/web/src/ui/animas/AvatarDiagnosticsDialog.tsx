@@ -23,7 +23,10 @@ import { useFormatters } from "@animama/product-ui/i18n";
 
 import type { FaceRegionSource } from "@/lib/avatar/arkitFaceExpressions";
 import type { AvatarExpressionSource } from "@/lib/avatar/diagnostics/avatarDiagnostics";
-import type { AvatarFacePartSource } from "@/lib/avatar/vfx/faceParts";
+import type {
+  AvatarEyeEstimate,
+  AvatarFacePartSource,
+} from "@/lib/avatar/vfx/faceParts";
 import {
   avatarDiagnosticsJson,
   avatarDiagnosticsText,
@@ -118,6 +121,7 @@ function materialKindLabel(
 function partSourceLabel(
   t: TFunction<"animas">,
   source: AvatarFacePartSource,
+  estimate: AvatarEyeEstimate | undefined,
 ): string {
   switch (source) {
     case "signals":
@@ -126,6 +130,10 @@ function partSourceLabel(
       return t("avatarDiagnostics.face.sources.names");
     case "corrected":
       return t("avatarDiagnostics.face.sources.corrected");
+    case "estimated":
+      return estimate === "eye_bone"
+        ? t("avatarDiagnostics.face.sources.estimatedEyeBone")
+        : t("avatarDiagnostics.face.sources.estimatedBlink");
     case "missing":
       return t("avatarDiagnostics.face.sources.missing");
   }
@@ -504,7 +512,7 @@ function FaceSection({ report }: { report: AvatarDiagnosticsReport }) {
                     part.source === "missing" && "text-muted-foreground",
                   )}
                 >
-                  {partSourceLabel(t, part.source)}
+                  {partSourceLabel(t, part.source, part.estimate)}
                 </td>
                 <td className="px-4 py-1.5 text-right tabular-nums">
                   {part.regionCount > 0

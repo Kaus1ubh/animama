@@ -118,6 +118,8 @@
       "sharedRegions_other": "共用部件內 {{count}} 處",
       "sources": {
         "corrected": "你的修正",
+        "estimatedBlink": "根據眨眼推測",
+        "estimatedEyeBone": "根據眼睛骨骼推測",
         "missing": "找不到",
         "names": "材質名稱",
         "signals": "模型資料"

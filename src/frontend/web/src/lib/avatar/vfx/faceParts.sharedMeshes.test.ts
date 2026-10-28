@@ -5,6 +5,7 @@ import type { Avatar } from "../Avatar";
 import { appendTriangle } from "../testing/appendTriangle";
 import { addBlinkStrand, blinkTargets } from "../testing/blinkStrand";
 import { loadedTestAvatar } from "../testing/loadedTestAvatar";
+import { removeEyeBones } from "../testing/removeEyeBones";
 import { buildRuntimePrimitiveBindings } from "../vrmEditorInspection";
 import type { RuntimePrimitiveBindingEntry } from "./avatarPrimitiveUtils";
 import { PrimitiveRegionHider } from "./primitiveRegionHiding";
@@ -208,18 +209,6 @@ describe("hair merged into the face mesh", () => {
     }
   });
 });
-
-/** Remove the humanoid's eye bones, as a model rigged without them. */
-function removeEyeBones(avatar: Avatar): void {
-  const humanoid = avatar.vrm!.humanoid as unknown as {
-    _rawHumanBones: { humanBones: Record<string, unknown> };
-    _normalizedHumanBones: { humanBones: Record<string, unknown> };
-  };
-  for (const rig of [humanoid._rawHumanBones, humanoid._normalizedHumanBones]) {
-    delete rig.humanBones.leftEye;
-    delete rig.humanBones.rightEye;
-  }
-}
 
 describe("a model without eye bones", () => {
   it("finds the eyes when blink moves only the upper lids", async () => {

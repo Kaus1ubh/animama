@@ -442,6 +442,7 @@
       "changed": "변경됨, 저장되지 않음",
       "corrected": "수정됨",
       "detected": "감지됨 · {{confidence, number(style: percent)}}",
+      "estimated": "위치 추정됨",
       "foundByName": "이름으로 찾음 · {{confidence, number(style: percent)}}, 확인 필요",
       "insideShared": "다른 메시 부분 안에서 찾음",
       "missing": "없음",

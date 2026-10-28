@@ -73,6 +73,14 @@ const live: AvatarLiveDiagnostics = {
         regionCount: 2,
         confidence: 0.5,
       },
+      {
+        role: "eye_left",
+        source: "estimated",
+        estimate: "eye_bone",
+        bindingCount: 0,
+        regionCount: 0,
+        confidence: 0.4,
+      },
     ],
     landmarks: "ready",
     textureAnchors: "ready",
@@ -370,6 +378,7 @@ describe("AvatarDiagnosticsDialog", () => {
     expect(dialog()?.textContent).toContain("Model data");
     expect(dialog()?.textContent).toContain("Not found");
     expect(dialog()?.textContent).toContain("2 inside shared parts");
+    expect(dialog()?.textContent).toContain("Estimated from the eye bone");
 
     click("Expressions");
     expect(dialog()?.textContent).toContain("relaxed (ARKit)");

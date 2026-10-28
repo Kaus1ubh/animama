@@ -118,6 +118,8 @@
       "sharedRegions_other": "공유 부분 안 {{count}}개",
       "sources": {
         "corrected": "사용자 수정",
+        "estimatedBlink": "눈 깜빡임으로 추정",
+        "estimatedEyeBone": "눈 본으로 추정",
         "missing": "찾지 못함",
         "names": "머티리얼 이름",
         "signals": "모델 데이터"

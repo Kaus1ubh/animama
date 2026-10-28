@@ -120,6 +120,8 @@
       "sharedRegions_other": "{{count}} inside shared parts",
       "sources": {
         "corrected": "Your correction",
+        "estimatedBlink": "Estimated from blinking",
+        "estimatedEyeBone": "Estimated from the eye bone",
         "missing": "Not found",
         "names": "Material names",
         "signals": "Model data"
