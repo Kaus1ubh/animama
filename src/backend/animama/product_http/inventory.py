@@ -13,9 +13,10 @@ Each route has one disposition:
   ``contracts/runtime-capabilities/hosted.json``, named by ``capability``.
 
 ``access`` names the port a handler needs: ``read`` or ``write`` sessions (the
-composition keeps commit authority), a ``stream`` response prepared on a write
-session that ends before the body runs, ``bytes`` delivered under the composition's
-caching policy, or the ``speech`` port without a session. A test binds it to the
+composition keeps commit authority), ``staged`` work prepared on a read session and
+then written on a short write session the handler opens, a ``stream`` response
+prepared on a write session that ends before the body runs, ``bytes`` delivered
+under the composition's caching policy, or the ``speech`` port without a session. A test binds it to the
 session each shared handler depends on; for local routes it only describes them.
 
 Entries follow the local app's route order, one per method, which matters:
@@ -31,7 +32,7 @@ from dataclasses import dataclass
 from typing import Literal
 
 Disposition = Literal["shared", "local", "hosted-excluded"]
-Access = Literal["read", "write", "stream", "bytes", "speech"]
+Access = Literal["read", "write", "staged", "stream", "bytes", "speech"]
 Stage = Literal[2, 3, 4, 5]
 # Stages whose shared routes this package serves: every stage, since chat streaming
 # (stage 5) moved. Tests keep the routers and the local composition in step with it.
@@ -119,7 +120,7 @@ ROUTES: tuple[RouteSpec, ...] = (
     _shared(2, "POST", "/v1/animas/{anima_id}/appearance:plan", "plan_appearance", "read"),
     _shared(2, "POST", "/v1/animas/{anima_id}/appearance:commit", "commit_appearance", "write"),
     # Anima runtime
-    _shared(3, "GET", "/v1/animas/{anima_id}/runtime", "get_anima_runtime", "write"),
+    _shared(3, "GET", "/v1/animas/{anima_id}/runtime", "get_anima_runtime", "staged"),
     _shared(3, "POST", "/v1/animas/{anima_id}/runtime/revisions/{revision}:renew", "renew_anima_runtime", "write"),
     _shared(
         3,

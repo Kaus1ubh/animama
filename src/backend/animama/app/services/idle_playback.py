@@ -1,10 +1,19 @@
-"""Exact-media finite playback admission shared by Idle Save, preview and mount."""
+"""Exact-media finite playback admission shared by Idle Save, preview and mount.
+
+Deriving the facts parses and validates the whole motion file in Python, so they
+are cached in process. They depend only on the motion bytes and the Gesture's
+implementation kind and ``config``, which together form the cache key; the cache
+is consulted only for bytes verified during the same request.
+"""
 
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
 import math
+import threading
+from collections import OrderedDict
 from dataclasses import dataclass
 from typing import BinaryIO, Literal, cast
 
@@ -14,7 +23,7 @@ from animama.app.services.content_file_validation import ContentFileInvalidError
 from animama.app.services.content_gltf import canonicalize_vrma_stream
 from animama.app.services.content_kind_registry import MAX_JSON_BYTES, _validate_bounded_json
 from animama.app.services.idle_clip_validation import validate_clip_v2_timeline
-from animama.domain.content_catalog import CatalogContentEntry
+from animama.domain.content_catalog import CatalogContentEntry, CatalogContentFile
 from animama.domain.content_documents import ContentDocumentError, GestureDocumentV1
 
 
@@ -29,6 +38,47 @@ class IdlePlaybackFacts:
     loop_type: Literal["once", "repeat", "pingpong"]
     eligible: bool = True
     reason: str | None = None
+
+
+# Facts and keys are a few short fields (the config is keyed by its digest), so the
+# cache is bounded by entries: far more distinct Idle Gestures than one process mounts.
+IDLE_PLAYBACK_CACHE_ENTRIES = 4096
+
+_FactsKey = tuple[str, str, str]
+
+
+class _FactsCache:
+    """Least-recently-used Idle playback facts, shared by worker threads."""
+
+    def __init__(self, max_entries: int) -> None:
+        self._max_entries = max_entries
+        self._entries: OrderedDict[_FactsKey, IdlePlaybackFacts] = OrderedDict()
+        self._lock = threading.Lock()
+
+    def get(self, key: _FactsKey) -> IdlePlaybackFacts | None:
+        with self._lock:
+            facts = self._entries.get(key)
+            if facts is not None:
+                self._entries.move_to_end(key)
+            return facts
+
+    def put(self, key: _FactsKey, facts: IdlePlaybackFacts) -> None:
+        with self._lock:
+            self._entries[key] = facts
+            self._entries.move_to_end(key)
+            while len(self._entries) > self._max_entries:
+                self._entries.popitem(last=False)
+
+
+_facts_cache = _FactsCache(IDLE_PLAYBACK_CACHE_ENTRIES)
+
+
+def _facts_key(document: GestureDocumentV1, motion: CatalogContentFile) -> _FactsKey:
+    """Every input ``derive_idle_playback`` reads: the motion bytes, implementation kind and config."""
+
+    # An authored config may be large, so the key holds only its digest.
+    config = json.dumps(document.config, sort_keys=True, separators=(",", ":"))
+    return motion.sha256, document.implementation.kind, hashlib.sha256(config.encode()).hexdigest()
 
 
 def _finite(value: object, code: str) -> float:
@@ -112,8 +162,15 @@ async def read_gesture_idle_playback(
     item: CatalogContentEntry,
     dependency_items: dict[str, CatalogContentEntry],
     store: ContentStore,
+    verified: bool = False,
 ) -> IdlePlaybackFacts:
-    """Open one exact registered motion after the caller validates its typed closure."""
+    """Open one exact registered motion after the caller validates its typed closure.
+
+    Facts already derived for the same bytes and settings are reused without
+    parsing again. ``verified`` says the caller opened and hashed this motion
+    file's registered bytes during the current request, so cached facts are used
+    without opening it again; otherwise the file is always opened and verified.
+    """
 
     motion_owner = item
     dependency_ref = document.implementation.content_dependency_ref
@@ -128,6 +185,9 @@ async def read_gesture_idle_playback(
     if len(files) != 1:
         raise ContentDocumentError("idle_motion_ambiguous", "Idle Gesture requires exactly one registered motion file")
     file = files[0]
+    key = _facts_key(document, file)
+    if verified and (cached := _facts_cache.get(key)) is not None:
+        return cached
 
     def read() -> IdlePlaybackFacts:
         opened = store.open_verified_file(
@@ -139,7 +199,11 @@ async def read_gesture_idle_playback(
             media_type=file.media_type,
         )
         try:
-            return derive_idle_playback(document, opened.handle)
+            facts = _facts_cache.get(key)
+            if facts is None:
+                facts = derive_idle_playback(document, opened.handle)
+                _facts_cache.put(key, facts)
+            return facts
         finally:
             opened.handle.close()
 
