@@ -105,10 +105,10 @@ Library's preview gating.
   `cache: "no-cache"` to `cache: "default"`, so the reply's policy decides reuse
   (see Surprises). Runtime delivery's own `no-cache` fetches are left to the
   runtime work.
-- D8 (agent, 2026-10-28): `local-http` 19.0.0 and `runtime-contracts` 0.19.0, per
-  the [compatibility policy](../../../scripts/package-sets/README.md#compatibility-policy).
-  #764 chose the same numbers concurrently; whichever pull request merges second
-  bumps again.
+- D8 (agent, 2026-10-28): a new `local-http` major and `runtime-contracts` minor,
+  per the [compatibility policy](../../../scripts/package-sets/README.md#compatibility-policy).
+  #764 took 19.0.0 and 0.19.0 and merged first, so this change takes 20.0.0 and
+  0.20.0.
 
 ## Phased implementation
 
@@ -134,8 +134,8 @@ Intended changes:
      source and the portrait URL use it.
 2. Web: regenerate the SDK; `contentThumbnailUrl` and `particleThumbnailSource`
    use `file.url`; the Anima presentation image fetch uses `cache: "default"`;
-   fixtures gain `url`. Bump `local-http` to 19.0.0 and `runtime-contracts` to
-   0.19.0 (a structural OpenAPI change and changed declarations).
+   fixtures gain `url`. Bump `local-http` to 20.0.0 and `runtime-contracts` to
+   0.20.0 (a structural OpenAPI change and changed declarations; see D8).
 3. Docs: `docs/backend/architecture/http-api.md`,
    `docs/backend/architecture/local-content-storage.md`,
    `docs/frontend/architecture/local-content-runtime.md`,
