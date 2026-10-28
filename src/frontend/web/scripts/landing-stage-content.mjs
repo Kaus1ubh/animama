@@ -382,7 +382,8 @@ const SITE_CHROME_FILE = "site-chrome.json";
 
 /**
  * The site header (`site-header.tsx`) prerendered for Animama Cloud's pages:
- * one copy marking About as the current page and one for every other page.
+ * one copy each marking About and Download as the current page, and one for
+ * every other page.
  * `site-chrome.tsx` renders the same component over it once it loads.
  */
 export async function renderSiteHeaders(server) {
@@ -401,7 +402,11 @@ export async function renderSiteHeaders(server) {
       /^(?:<link [^>]*>)+/,
       "",
     );
-  return { default: render(undefined), about: render("about") };
+  return {
+    default: render(undefined),
+    about: render("about"),
+    download: render("download"),
+  };
 }
 
 /**

@@ -543,8 +543,9 @@ as `site-chrome.json` (not required by the verifier; Cloud's build requires
 it). It is JSON with exactly these keys: `schema_version` (`1`); `script`, the
 root-relative path of the header's entry module under `/assets/`; `styles`, the
 root-relative paths of its stylesheets under `/assets/`, in load order; and
-`headers`, with `default` and `about`, the header element prerendered for
-every page and for the About page (`aria-current` on its link). The markup has
+`headers`, with `default`, `about` and `download`, the header element
+prerendered for every page and for the About and Download pages
+(`aria-current` on their links). The markup has
 no script and no inline `style` attribute. Every file it names is in the site's
 `files`.
 

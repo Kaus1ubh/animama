@@ -32,7 +32,7 @@ import { BETA_ACCESS_URL, CLOSED_BETA, SITE } from "./stops";
  */
 
 /** The site pages a header can mark as current (`aria-current`). */
-export type SitePage = "about";
+export type SitePage = "about" | "download";
 
 /**
  * The landing page's tour, when the header sits over it: Home and Download
@@ -65,10 +65,10 @@ export const focusRing = (light: boolean) =>
  * The site header: the logo on the left; on the right one liquid-glass pill
  * holding Home, About and Docs, the theme toggle and language picker, Log in
  * and Sign up (placeholders until accounts exist), and Download as its one
- * solid button. During the closed beta the page is English only and Request
- * Beta Access (the form) replaces the language picker, Log in, Sign up and
- * Download. A single soft highlight glides to whichever item the pointer is
- * over. Below 1024px the pill gives way to that button and a menu button that
+ * solid button. During the closed beta the page is English only, Request Beta
+ * Access (the form) replaces the language picker, Log in, Sign up and that
+ * button, and Download becomes a link beside About (the download page). A
+ * single soft highlight glides to whichever item the pointer is over. Below 1024px the pill gives way to that button and a menu button that
  * holds the same items (`SiteMenu`).
  *
  * Over the tour (`tour`) the header is fixed above the stage, Home and
@@ -213,6 +213,16 @@ export function SiteHeader({
           >
             About
           </a>
+          {CLOSED_BETA ? (
+            <a
+              href={SITE.download}
+              data-pill-item=""
+              aria-current={current === "download" ? "page" : undefined}
+              className={link}
+            >
+              Download
+            </a>
+          ) : null}
           <a
             href={SITE.docsUrl}
             target="_blank"
@@ -375,9 +385,10 @@ function LanguageOptions({ locale, onLocaleChange }: LocaleChoice) {
 
 /**
  * The header's items for screens narrower than the pill (below 1024px): a
- * glass menu button opening Home, About, Docs, the Avatar choice (phones
- * only, over the tour), dark mode, and the language list, Log in and Sign up
- * (none of these three during the closed beta). Toggling dark mode keeps the
+ * glass menu button opening Home, About, Download (during the closed beta),
+ * Docs, the Avatar choice (phones only, over the tour), dark mode, and the
+ * language list, Log in and Sign up (none of these three during the closed
+ * beta). Toggling dark mode keeps the
  * menu open so the change shows behind it.
  */
 function SiteMenu({
@@ -421,6 +432,11 @@ function SiteMenu({
         <DropdownMenuItem asChild>
           <a href={SITE.about}>About</a>
         </DropdownMenuItem>
+        {CLOSED_BETA ? (
+          <DropdownMenuItem asChild>
+            <a href={SITE.download}>Download</a>
+          </DropdownMenuItem>
+        ) : null}
         <DropdownMenuItem asChild>
           <a href={SITE.docsUrl} target="_blank" rel="noreferrer">
             Docs

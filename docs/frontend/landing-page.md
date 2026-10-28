@@ -121,8 +121,8 @@ Animama Cloud publishes on the same host (About, Download, Privacy, Terms and
   Tailwind setup and theme, light and dark, with the header's glass
   (`site-header.css`, which `stage.css` also imports).
 - `site-chrome.json` names the entry script and its stylesheets and holds the
-  header prerendered twice (`renderSiteHeaders`): marking About as the current
-  page, and for every other page. Cloud wraps the markup in each page's
+  header prerendered three times (`renderSiteHeaders`): marking About, then
+  Download, as the current page, and for every other page. Cloud wraps the markup in each page's
   `#site-header`, so the header shows and its links work without JavaScript;
   the script renders the same component over it.
 - Prerendered markup must not need inline `style` attributes, which the CSP

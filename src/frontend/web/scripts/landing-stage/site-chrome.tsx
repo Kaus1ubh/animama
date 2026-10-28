@@ -14,7 +14,8 @@ import { SiteHeader, type SitePage } from "./site-header";
  */
 const root = document.getElementById("site-header");
 if (root) {
-  const current: SitePage | undefined =
-    root.dataset.current === "about" ? "about" : undefined;
+  const current = ["about", "download"].includes(root.dataset.current ?? "")
+    ? (root.dataset.current as SitePage)
+    : undefined;
   createRoot(root).render(<SiteHeader current={current} />);
 }
