@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
+import json
 from typing import Annotated, BinaryIO, Literal, NoReturn
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, Response, UploadFile
@@ -27,6 +29,12 @@ from animama.product_http.ports import Ports, ReadContent, ReadRepositories, Wri
 from animama.product_http.principal import get_current_principal
 
 router = APIRouter(prefix="/v1/content", tags=["content"])
+
+# Every catalog validator includes the response's shape, so a release that reshapes
+# the catalog never revalidates a copy cached before it, even if no row changed.
+CATALOG_SHAPE = hashlib.sha256(
+    json.dumps(PyContentCatalog.model_json_schema(by_alias=True), sort_keys=True).encode()
+).hexdigest()
 
 
 def catalog_response(items: list[CatalogContentEntry]) -> PyContentCatalog:
@@ -99,13 +107,14 @@ async def list_content_catalog(
     """List Included, shared, and caller-owned entries without host paths.
 
     Clients poll this catalog for health, so it is compressed and revalidated by
-    ETag. The ETag comes from the catalog's row revisions, so an unchanged catalog
-    costs a 304 before any of its body is built.
+    ETag. The ETag comes from the catalog's row revisions and the response's shape,
+    so an unchanged catalog costs a 304 before any of its body is built.
     """
 
     encoding = negotiate_json_encoding(request, refusal_code="content_encoding_not_acceptable")
     catalog = content.catalog
-    validator = await catalog.visible_revision(user_id=user.id)
+    revision = await catalog.visible_revision(user_id=user.id)
+    validator = hashlib.sha256(f"{CATALOG_SHAPE}:{revision}".encode()).hexdigest()
 
     async def build() -> bytes:
         items = await catalog.list_visible(user_id=user.id)

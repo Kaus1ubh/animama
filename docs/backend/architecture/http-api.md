@@ -345,9 +345,10 @@ location and recovery are in [model assets](../operations/model-assets.md#downlo
   composition's JSON policy; locally that is a wire ETag (`private, no-cache`)
   and an unchanged catalog answers `If-None-Match` with 304 before any of its
   body is built. The route hands the policy a `DeferredJsonBody` whose
-  validator is `ContentCatalogService.visible_revision`: the caller's identity,
-  the catalog's Included generation and a revision of the caller's own and
-  installation-shared rows; the ETag adds the negotiated encoding. A policy
+  validator combines the response's schema with
+  `ContentCatalogService.visible_revision`: the caller's identity, the
+  catalog's Included generation and a revision of the caller's own and
+  installation-shared rows. The ETag adds the negotiated encoding. A policy
   passes that body on to `encoded_json_response`. The SQL adapter derives both
   revisions from row `updated_at` values; a composition whose Included rows are
   fixed for an application revision may override `included_generation` to

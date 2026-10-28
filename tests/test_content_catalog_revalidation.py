@@ -182,6 +182,19 @@ async def test_each_representation_has_its_own_validator(
             assert crossed.status_code == 200
 
 
+async def test_a_release_that_reshapes_the_catalog_revalidates_no_earlier_copy(
+    async_session_factory: async_sessionmaker[AsyncSession], tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    async with two_owners(async_session_factory, tmp_path) as (_ports, composition):
+        async with composition.client(composition.owners[0]) as client:
+            cached = await etag(client)
+            # The same rows, served by a release whose catalog response has another shape.
+            monkeypatch.setattr(content, "CATALOG_SHAPE", "another shape")
+            reshaped = await client.get(CATALOG, headers={**GZIP, "If-None-Match": cached})
+            assert reshaped.status_code == 200
+            assert reshaped.headers["etag"] != cached
+
+
 async def test_the_callers_own_changes_change_the_etag(
     async_session_factory: async_sessionmaker[AsyncSession], tmp_path: Path
 ) -> None:
