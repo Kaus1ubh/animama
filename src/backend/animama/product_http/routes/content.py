@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
+import json
 from collections.abc import Awaitable
 from typing import Annotated, BinaryIO, Literal, NoReturn
 
@@ -24,11 +26,17 @@ from animama.domain.content_catalog import (
 )
 from animama.domain.content_documents import ContentDocumentError
 from animama.domain.request_principal import RequestPrincipal
-from animama.product_http.delivery import negotiate_json_encoding
+from animama.product_http.delivery import DeferredJsonBody, negotiate_json_encoding
 from animama.product_http.ports import Ports, ProductPorts, ReadContent, ReadRepositories, WriteContent
 from animama.product_http.principal import get_current_principal
 
 router = APIRouter(prefix="/v1/content", tags=["content"])
+
+# Every catalog validator includes the response's shape, so a release that reshapes
+# the catalog never revalidates a copy cached before it, even if no row changed.
+CATALOG_SHAPE = hashlib.sha256(
+    json.dumps(PyContentCatalog.model_json_schema(by_alias=True), sort_keys=True).encode()
+).hexdigest()
 
 
 def catalog_response(items: list[CatalogContentEntry]) -> PyContentCatalog:
@@ -105,10 +113,23 @@ async def list_content_catalog(
     """
 
     encoding = negotiate_json_encoding(request, refusal_code="content_encoding_not_acceptable")
-    items = await content.catalog.list_visible(user_id=user.id)
-    body = catalog_response(items).model_dump_json(by_alias=True).encode("utf-8")
+    catalog = content.catalog
+    # The validator comes from row revisions and the response's shape, read before
+    # the listing, so a 304 is answered before any of the body is built.
+    revision = await catalog.visible_revision(user_id=user.id)
+    validator = hashlib.sha256(f"{CATALOG_SHAPE}:{revision}".encode()).hexdigest()
+
+    async def build() -> bytes:
+        items = await catalog.list_visible(user_id=user.id)
+        return catalog_response(items).model_dump_json(by_alias=True).encode("utf-8")
+
     return await ports.json_response(
-        request, body, encoding=encoding, headers={}, if_none_match=if_none_match, cacheable=True
+        request,
+        DeferredJsonBody(validator, build),
+        encoding=encoding,
+        headers={},
+        if_none_match=if_none_match,
+        cacheable=True,
     )
 
 

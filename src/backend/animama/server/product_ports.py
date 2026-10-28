@@ -43,7 +43,12 @@ from animama.app.services.typed_content_service import TypedContentService
 from animama.app.web_search import WebSearchToolService
 from animama.domain.content_catalog import VerifiedContentFile
 from animama.domain.request_principal import RequestPrincipal
-from animama.product_http.delivery import PackageDownloadResponse, encoded_json_response, verified_file_response
+from animama.product_http.delivery import (
+    DeferredJsonBody,
+    PackageDownloadResponse,
+    encoded_json_response,
+    verified_file_response,
+)
 from animama.product_http.ports import (
     ChatTurnAdmission,
     ChatTurnLease,
@@ -309,7 +314,7 @@ class LocalProductPorts:
     async def json_response(
         self,
         request: Request,
-        body: bytes,
+        body: bytes | DeferredJsonBody,
         *,
         encoding: str,
         headers: dict[str, str],

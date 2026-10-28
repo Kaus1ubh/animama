@@ -154,8 +154,14 @@ playback, audio graphs and avatar state before a later session mounts. Durable
 server operations keep authoritative receipts: disconnect/sign-out does not prove
 rollback. A pending or ambiguous commit is recovered by its operation identity.
 
-A lost events connection, context transport error or temporary Identity outage
-does not establish revocation. An already admitted view retains its draft and
+An events connection cut after `event: ready` reconnects without pausing
+requests; a reconnect that sends `event: ready` again needs no context read,
+because the stream reports revocation and the server refuses an ended session's
+requests. Focusing or showing a tab reads the context again, except within 60
+seconds of that tab's last read while its events stream is open or reconnecting
+after such a cut. An events connection that fails or ends before `event: ready`,
+a context transport error or a temporary Identity outage does not establish
+revocation. An already admitted view retains its draft and
 resources, suspends new product requests, and retries admission with bounded
 backoff, offering a reload that keeps saved creator drafts (unsent chat text is
 not kept). Fresh same-session admission
