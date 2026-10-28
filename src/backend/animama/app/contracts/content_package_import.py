@@ -17,7 +17,9 @@ class ImportModel(BaseModel):
 
 # ``avatar_setting_not_stored``: the package carries the sender's Avatar settings
 # (wind, materials), but this installation stores none, so the copy uses Automatic.
-type ImportItemNotice = Literal["avatar_setting_not_stored"]
+# ``avatar_extension_unsupported``: the Avatar's model uses a glTF extension this
+# runtime cannot decode yet (Draco), so it imports but cannot be shown.
+type ImportItemNotice = Literal["avatar_setting_not_stored", "avatar_extension_unsupported"]
 
 
 class ReviewedImportItem(ImportModel):

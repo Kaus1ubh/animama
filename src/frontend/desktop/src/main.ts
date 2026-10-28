@@ -69,6 +69,7 @@ import {
   createWindowsUpdateAdapter,
   verifyUpdaterPublisher,
 } from "./main-process/updates/electron-adapter.js";
+import { LoginItem } from "./main-process/login-item/login-item.js";
 
 const currentDir = dirname(fileURLToPath(import.meta.url));
 const preloadPath = join(currentDir, "preload.cjs");
@@ -397,6 +398,7 @@ else {
     }
   }
 
+  const loginItem = new LoginItem(app);
   installRuntimeIpc(callers, {
     status: () => currentStatus,
     retry: async () => {
@@ -444,6 +446,8 @@ else {
       return updates.restart();
     },
     setLocale: (locale) => shellLocale.apply(locale),
+    loginItem: () => loginItem.status(),
+    setLoginItem: (enabled) => loginItem.setEnabled(enabled),
   });
 
   /** A menu failure must never block startup or recovery. */

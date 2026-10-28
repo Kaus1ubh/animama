@@ -139,6 +139,21 @@ describe("installLilToonRenderingWhenLoaded", () => {
     expect(fake.releases).toEqual(["before", "after"]);
   });
 
+  it("releases the passes again when the GPU check cannot install", async () => {
+    const fake = fakeRuntime();
+    restoreImporter = setLilToonRuntimeImporterForTesting(
+      async () => fake.runtime,
+    );
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    // A stand-in without `getContext`: the check throws while installing.
+    installLilToonRenderingWhenLoaded(
+      { id: "no-context" } as unknown as THREE.WebGLRenderer,
+      { measureGpu: true },
+    );
+    await loadLilToonRuntime();
+    expect(fake.releases).toEqual(["no-context"]);
+  });
+
   it("keeps installing on other renderers when one fails", async () => {
     const fake = fakeRuntime();
     const enable = fake.runtime.enableRendering;
@@ -167,14 +182,34 @@ describe("installLilToonRenderingWhenLoaded", () => {
  * A one-triangle GLB whose single material carries `extension` (lilToon's
  * authored settings) beside its glTF fallback.
  */
-function triangleGlb(extension: Record<string, unknown> | null): ArrayBuffer {
+function triangleGlb(
+  extension: Record<string, unknown> | null,
+  { vertexColors = false }: { vertexColors?: boolean } = {},
+): ArrayBuffer {
   const positions = new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]);
+  // Baked outline normals as lilToon reads them: RGB (0.5, 0.5, 1) is the
+  // tangent-space normal, alpha the width.
+  const colors = new Float32Array(
+    vertexColors ? [0.5, 0.5, 1, 1, 0.5, 0.5, 1, 1, 0.5, 0.5, 1, 1] : [],
+  );
+  const binary = new Float32Array([...positions, ...colors]);
   const json = new TextEncoder().encode(
     JSON.stringify({
       asset: { version: "2.0" },
       ...(extension ? { extensionsUsed: [LILTOON_MATERIALS_EXTENSION] } : {}),
-      buffers: [{ byteLength: positions.byteLength }],
-      bufferViews: [{ buffer: 0, byteLength: positions.byteLength }],
+      buffers: [{ byteLength: binary.byteLength }],
+      bufferViews: [
+        { buffer: 0, byteLength: positions.byteLength },
+        ...(vertexColors
+          ? [
+              {
+                buffer: 0,
+                byteOffset: positions.byteLength,
+                byteLength: colors.byteLength,
+              },
+            ]
+          : []),
+      ],
       accessors: [
         {
           bufferView: 0,
@@ -184,6 +219,9 @@ function triangleGlb(extension: Record<string, unknown> | null): ArrayBuffer {
           min: [0, 0, 0],
           max: [1, 1, 0],
         },
+        ...(vertexColors
+          ? [{ bufferView: 1, componentType: 5126, count: 3, type: "VEC4" }]
+          : []),
       ],
       materials: [
         {
@@ -194,13 +232,25 @@ function triangleGlb(extension: Record<string, unknown> | null): ArrayBuffer {
             : {}),
         },
       ],
-      meshes: [{ primitives: [{ attributes: { POSITION: 0 }, material: 0 }] }],
+      meshes: [
+        {
+          primitives: [
+            {
+              attributes: {
+                POSITION: 0,
+                ...(vertexColors ? { COLOR_0: 1 } : {}),
+              },
+              material: 0,
+            },
+          ],
+        },
+      ],
       nodes: [{ mesh: 0 }],
       scenes: [{ nodes: [0] }],
     }),
   );
   const jsonLength = Math.ceil(json.length / 4) * 4;
-  const total = 12 + 8 + jsonLength + 8 + positions.byteLength;
+  const total = 12 + 8 + jsonLength + 8 + binary.byteLength;
   const glb = new DataView(new ArrayBuffer(total));
   const bytes = new Uint8Array(glb.buffer);
   glb.setUint32(0, 0x46546c67, true);
@@ -210,9 +260,9 @@ function triangleGlb(extension: Record<string, unknown> | null): ArrayBuffer {
   glb.setUint32(16, 0x4e4f534a, true);
   bytes.fill(0x20, 20, 20 + jsonLength);
   bytes.set(json, 20);
-  glb.setUint32(20 + jsonLength, positions.byteLength, true);
+  glb.setUint32(20 + jsonLength, binary.byteLength, true);
   glb.setUint32(24 + jsonLength, 0x004e4942, true);
-  bytes.set(new Uint8Array(positions.buffer), 28 + jsonLength);
+  bytes.set(new Uint8Array(binary.buffer), 28 + jsonLength);
   return glb.buffer;
 }
 
@@ -286,6 +336,65 @@ describe("lilToon fallback materials", () => {
     expect(material).toBeInstanceOf(THREE.MeshStandardMaterial);
     expect((material as THREE.MeshStandardMaterial).metalness).toBe(0);
     material.dispose();
+  });
+});
+
+/** An outline whose direction and width come from baked vertex colours. */
+const VERTEX_COLOUR_OUTLINE = {
+  specVersion: "1.3",
+  shaderVariant: "Hidden/lilToonOutline",
+  properties: { _OutlineVertexR2Width: 2, _OutlineWidth: 0.1 },
+  textures: {},
+};
+
+describe("lilToon outlines that read vertex colours", () => {
+  const FALLBACK_WARNING = "lilToon outlines read vertex colours";
+
+  it("fall back to the mesh normal when the file has no vertex colours", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const material = (await loadMaterial(
+      triangleGlb(VERTEX_COLOUR_OUTLINE),
+    )) as LilToonMaterial;
+    // A missing colour reads as white, which would push the outline along
+    // tangent + bitangent + normal through thin geometry.
+    expect(material.lilToonProperties._OutlineVertexR2Width).toBe(0);
+    const warnings = warn.mock.calls.filter(([message]) =>
+      String(message).includes(FALLBACK_WARNING),
+    );
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0]![1]).toEqual({ materials: ["Skin"] });
+    warn.mockRestore();
+    material.dispose();
+  });
+
+  it("keep their vertex colours when the file has them", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const material = (await loadMaterial(
+      triangleGlb(VERTEX_COLOUR_OUTLINE, { vertexColors: true }),
+    )) as LilToonMaterial;
+    expect(material.lilToonProperties._OutlineVertexR2Width).toBe(2);
+    expect(
+      warn.mock.calls.some(([message]) =>
+        String(message).includes(FALLBACK_WARNING),
+      ),
+    ).toBe(false);
+    warn.mockRestore();
+    material.dispose();
+  });
+
+  it("leave Simple's fallback untinted by those colours", async () => {
+    const fallback = await loadMaterial(
+      triangleGlb(VERTEX_COLOUR_OUTLINE, { vertexColors: true }),
+      false,
+    );
+    expect(fallback).toBeInstanceOf(THREE.MeshStandardMaterial);
+    expect(fallback.vertexColors).toBe(false);
+    fallback.dispose();
+
+    // Other materials keep glTF's vertex colour multiply.
+    const plain = await loadMaterial(triangleGlb(null, { vertexColors: true }));
+    expect(plain.vertexColors).toBe(true);
+    plain.dispose();
   });
 });
 

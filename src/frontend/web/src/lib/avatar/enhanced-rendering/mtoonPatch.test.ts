@@ -19,9 +19,9 @@ const NAMES = [
 ];
 
 /** A VRM 1.0 glTF: materials already carry `VRMC_materials_mtoon`. */
-function vrm1Json(): Json {
+function vrm1Json(names: readonly string[] = NAMES): Json {
   return {
-    materials: NAMES.map((name) => ({
+    materials: names.map((name) => ({
       name,
       extensions: {
         VRMC_materials_mtoon: {
@@ -89,6 +89,15 @@ describe("withEnhancedMToonPatch", () => {
     expect(iris).toEqual(
       vrm1Json().materials[2]!.extensions!.VRMC_materials_mtoon,
     );
+  });
+
+  it("keeps every material authored on a model that is not a VRoid export", async () => {
+    // VRoid-like suffixes without VRoid's face skin: retuning only these
+    // would mix two looks on one Avatar.
+    const names = ["Face", "Body_SKIN", "Hair_HAIR", "Tops_CLOTH"];
+    const json = vrm1Json(names);
+    await patch(true, json);
+    expect(json.materials).toEqual(vrm1Json(names).materials);
   });
 
   it("patches VRM 0.x materials after three-vrm converts them", async () => {

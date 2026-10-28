@@ -94,7 +94,17 @@
       "missing": "ない表情",
       "playsFaces": "気分を ARKit シェイプで再生",
       "present": "標準の表情",
-      "unresolved": "要求されたがこのアバターにないもの"
+      "unresolved": "要求されたがこのアバターにないもの",
+      "fromMmd": "{{name}}（MMD）",
+      "moods": "気分の顔",
+      "moodValue": "眉 {{brow}}・目 {{eye}}・口 {{mouth}}",
+      "regionSources": {
+        "vroid": "独自パーツ",
+        "mmd": "MMD",
+        "arkit": "ARKit",
+        "preset": "プリセット",
+        "none": "なし"
+      }
     },
     "face": {
       "confidence": "信頼度",
@@ -136,7 +146,8 @@
     "identity": {
       "included": "同梱アバター",
       "local": "ローカルアバター",
-      "unknown": "アバター"
+      "unknown": "アバター",
+      "upload": "未保存のアップロード"
     },
     "issues": {
       "anchors_face_skin_missing": "顔の肌が見つからないため、顔に描くエフェクトを配置できません。",
@@ -144,6 +155,7 @@
       "anchors_mouth_missing": "顔のテクスチャ上に口の位置が見つかりませんでした。",
       "anchors_projection_failed": "顔のテクスチャを対応付けられないため、顔に描くエフェクトを配置できません。",
       "anEffect": "エフェクト",
+      "avatar_extension_unsupported": "このファイルには glTF 拡張機能 {{extension}} が必要ですが、このアプリではまだ読み込めないため、アバターを表示できません。",
       "avatar_load_failed": "アバターを読み込めませんでした。「ファイル」で必須の拡張機能を確認してください。",
       "effect_attachment_limit": "{{effect}} を外しました：体・ステッカー・シルエットのエフェクトは同時に最大 {{limit}} 個までです。",
       "effect_face_part_missing": "{{effect}} をスキップしました：このアバターでは{{part}}が検出されていません。",
@@ -175,7 +187,9 @@
       "springs_helper_failed": "揺れものボーンのガイドを描画できませんでした。",
       "springs_metadata_missing": "ファイルに揺れものボーンの設定がないため、揺れは半分の強さになります。",
       "springs_source_unavailable": "ファイルの揺れものボーンのデータを読み取れなかったため、既定の設定を使います。",
-      "springs_unmapped_joints_other": "揺れもののジョイント {{count}} 個をファイルのデータと対応付けられませんでした。"
+      "springs_unmapped_joints_other": "揺れもののジョイント {{count}} 個をファイルのデータと対応付けられませんでした。",
+      "face_expressions_none": "このアバターには気分用の顔のシェイプ（VRoid パーツ、MMD モーフ、ARKit シェイプ、気分プリセット）がないため、顔は無表情のままです。気分は動きとエフェクトで表されます。",
+      "iris_hide_unavailable": "コンテンツが瞳を隠すよう指定しました（Fcl_EYE_Iris_Hide）が、このアバターの瞳のメッシュパーツは隠せません。見つからないか、顔の肌とメッシュパーツを共有しています。"
     },
     "json": {
       "collapseAll": "すべて折りたたむ",
@@ -193,11 +207,19 @@
     },
     "materials": {
       "label": "lilToon マテリアル",
+      "milliseconds": "{{value}} ms",
+      "nextLoad": "次回の読み込み: {{state}} · {{why}}（この読み込みの後に計測）",
       "rendered": "lilToon で描画",
+      "renderedAt": "lilToon で描画（{{fps}} fps）",
       "simple": "シンプルなマテリアル",
       "value": "{{state}} · {{why}}",
       "why": {
         "automatic": "自動で選択",
+        "automaticNotMeasured": "自動で選択: この GPU の lilToon のフレーム時間はまだ計測されていません",
+        "automaticRemeasuring": "自動で選択: この GPU は lilToon の 1 フレームに {{measured}} かかり、{{fps}} fps の上限 {{budget}} を超えました。シンプルにする前にもう一度計測します",
+        "automaticSlow": "自動で選択: この GPU は lilToon の 1 フレームに {{measured}} かかり、{{fps}} fps の上限 {{budget}} を超えました",
+        "automaticUnsupported": "自動で選択: このブラウザーでは GPU の時間を計測できません",
+        "automaticWithin": "自動で選択: この GPU は lilToon の 1 フレームを {{measured}} で描画（{{fps}} fps の上限 {{budget}} 以内）",
         "chosen": "{{mode}} に設定",
         "failed": "lilToon を読み込めませんでした"
       }
@@ -216,7 +238,16 @@
         "on": "風と上昇気流あり",
         "tunedWithout": "風と上昇気流なし：揺れものがそれらなしで調整されています"
       },
-      "windValue": "{{mode}} · {{effect}}"
+      "windValue": "{{mode}} · {{effect}}",
+      "restPoseValue": "{{arms}}・{{hands}}",
+      "arms": {
+        "tPose": "T ポーズ",
+        "normalized": "腕が T ポーズから {{degrees}}° 離れて休止、正規化済み"
+      },
+      "hands": {
+        "vroid": "手は VRoid と同じ",
+        "normalized": "手を VRoid に合わせて正規化（{{degrees}}°）"
+      }
     },
     "navigationLabel": "診断のセクション",
     "no": "いいえ",
@@ -238,7 +269,10 @@
     },
     "source": {
       "live": "チャットのステージ上",
-      "offscreen": "この画面用に読み込み"
+      "offscreen": "この画面用に読み込み",
+      "dock": "プレビューに表示中",
+      "uploadStage": "プレビューのステージ上",
+      "notLoaded": "読み込めませんでした"
     },
     "title": "アバター診断",
     "unavailable": "この Anima には確認できるアバターがありません。",

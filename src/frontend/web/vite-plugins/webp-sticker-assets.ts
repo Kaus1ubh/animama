@@ -2,7 +2,7 @@ import { realpathSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import sharp from "sharp";
-import type { Plugin } from "vite";
+import { normalizePath, type Plugin } from "vite";
 
 /** Lossy quality for sticker art; alpha stays lossless (#655). */
 const STICKER_WEBP_QUALITY = 90;
@@ -38,7 +38,7 @@ export function webpStickerAssetsPlugin({
 }: {
   stickerRoot: string;
 }): Plugin {
-  let root: string | undefined;
+  let stickerDirectory: string | undefined;
   return {
     name: "animama-webp-sticker-assets",
     apply: "build",
@@ -49,7 +49,7 @@ export function webpStickerAssetsPlugin({
         query !== "url" ||
         !file?.endsWith(".png") ||
         canonicalDirectory(path.dirname(file)) !==
-          (root ??= canonicalDirectory(stickerRoot))
+          (stickerDirectory ??= canonicalDirectory(stickerRoot))
       )
         return null;
       const master = await readFile(file);
@@ -65,7 +65,12 @@ export function webpStickerAssetsPlugin({
       const reference = this.emitFile({
         type: "asset",
         name,
-        originalFileName: file,
+        // The build manifest keys assets by this name, so keep it relative to
+        // the Vite root, as Vite's own assets are; an absolute path would ship
+        // the build machine's checkout location.
+        originalFileName: normalizePath(
+          path.relative(this.environment.config.root, file),
+        ),
         source: smaller ? webp : master,
       });
       // Vite resolves this placeholder to the hashed asset URL under the

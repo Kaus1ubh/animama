@@ -51,7 +51,7 @@
   "animaSettings": {
     "avatar": {
       "materials": {
-        "description": "lilToon은 제작자가 만든 그대로 그리고, 단순은 그리는 부담이 적습니다. 이 아바타를 사용하는 모든 곳에 적용되며 아바타를 다시 불러옵니다.",
+        "description": "lilToon은 제작자가 만든 그대로 그리고, 단순은 그리는 부담이 적습니다. 자동은 lilToon을 사용하며, 이 기기의 GPU에 필요하면 프레임 속도를 45, 30 또는 24fps로 낮춥니다. 24fps로도 너무 무거울 때만 단순을 사용합니다. 이 아바타를 사용하는 모든 곳에 적용되며 아바타를 다시 불러옵니다.",
         "label": "머티리얼",
         "modes": {
           "automatic": "자동",
@@ -286,6 +286,7 @@
     "microphone": "마이크",
     "profile": "프로필",
     "speechToText": "음성 텍스트 변환",
+    "startup": "시작",
     "textToSpeech": "텍스트 음성 변환",
     "webSearch": "웹 검색"
   },
@@ -298,6 +299,15 @@
     "label": "언어",
     "saveFailed": "언어를 변경하지 못했습니다.",
     "systemDefaultResolved": "시스템 기본값 ({{language}})"
+  },
+  "launchAtLogin": {
+    "label": "로그인 시 실행",
+    "description": "컴퓨터에 로그인하면 Animama를 자동으로 엽니다.",
+    "blocked": {
+      "macos": "시스템 설정 → 일반 → 로그인 항목 및 확장 프로그램에서 허용할 때까지 Animama는 로그인 시 열리지 않습니다.",
+      "windows": "설정 → 앱 → 시작 프로그램에서 켤 때까지 Animama는 로그인 시 열리지 않습니다."
+    },
+    "updateFailed": "로그인 시 실행 설정을 변경하지 못했습니다."
   },
   "modal": {
     "close": "앱 설정 닫기",

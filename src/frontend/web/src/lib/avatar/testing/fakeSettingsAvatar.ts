@@ -14,6 +14,8 @@ export type FakeSettingsAvatarRecord = {
   disposed: boolean;
   /** Resolve the pending load; the Avatar then has a scene. */
   finishLoad: () => void;
+  /** Reject the pending load, as an undecodable file would. */
+  failLoad: () => void;
 };
 
 export const fakeAvatars: FakeSettingsAvatarRecord[] = [];
@@ -69,6 +71,7 @@ export class FakeSettingsAvatar {
     events: [],
     disposed: false,
     finishLoad: () => undefined,
+    failLoad: () => undefined,
   };
   isDisposed = false;
   isReady = false;
@@ -91,12 +94,13 @@ export class FakeSettingsAvatar {
 
   load(spec: { springMode?: string; materialMode?: string }): Promise<void> {
     this.record.events.push(`load ${spec.springMode} ${spec.materialMode}`);
-    return new Promise<void>((resolve) => {
+    return new Promise<void>((resolve, reject) => {
       this.record.finishLoad = () => {
         this.isReady = !this.isDisposed;
         this.scene = this.isDisposed ? null : {};
         resolve();
       };
+      this.record.failLoad = () => reject(new Error("avatar_load_failed"));
     });
   }
 

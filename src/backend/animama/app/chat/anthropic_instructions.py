@@ -14,13 +14,14 @@ sections in ``memory_context``:
 - A short section describes the mid-conversation system message that carries
   the turn context, as the tagged-block paths describe their block.
 
-Every other section, and the Companion Guardrails, are shared with every
-provider unchanged.
+The Speech section also phrases how often to write audio tags per
+instruction style (``speech_tags``). Every other section, and the Companion
+Guardrails, are shared with every provider unchanged.
 """
 
 from __future__ import annotations
 
-from .memory_context import MAIN_STRUCTURED_OUTPUT_GUIDANCE
+from .memory_context import main_structured_output_guidance
 
 INSTRUCTION_STYLE_DEFAULT = "default"
 INSTRUCTION_STYLE_ANTHROPIC = "anthropic"
@@ -39,17 +40,26 @@ ANTHROPIC_TURN_CONTEXT_DESCRIPTION = (
     "holding it after the user's latest message. The application writes it, not the user."
 )
 
-ANTHROPIC_MAIN_STRUCTURED_OUTPUT_GUIDANCE = f"""\
-{MAIN_STRUCTURED_OUTPUT_GUIDANCE.strip()}
+_ANTHROPIC_TOOLS_FIRST = (
+    "The JSON output format applies to your final answer only. When you need a tool, call it first, with no text "
+    "before the call, and write the JSON once you have the results."
+)
 
-The JSON output format applies to your final answer only. When you need a tool, call it first, with no text before the call, and write the JSON once you have the results.
-"""
+
+def anthropic_main_structured_output_guidance(*, remember: bool = True) -> str:
+    """The shared response guidance plus the tools-first line; ``remember`` follows the reply schema."""
+
+    return f"{main_structured_output_guidance(remember=remember).strip()}\n\n{_ANTHROPIC_TOOLS_FIRST}\n"
+
+
+ANTHROPIC_MAIN_STRUCTURED_OUTPUT_GUIDANCE = anthropic_main_structured_output_guidance()
 
 
 __all__ = [
     "ANTHROPIC_ANIMA_MEMORIES_GUIDANCE",
     "ANTHROPIC_IDENTITY_REFERENCE",
     "ANTHROPIC_MAIN_STRUCTURED_OUTPUT_GUIDANCE",
+    "anthropic_main_structured_output_guidance",
     "ANTHROPIC_TURN_CONTEXT_DESCRIPTION",
     "INSTRUCTION_STYLE_ANTHROPIC",
     "INSTRUCTION_STYLE_DEFAULT",

@@ -51,7 +51,7 @@
   "animaSettings": {
     "avatar": {
       "materials": {
-        "description": "lilToon 依作者的設計繪製此虛擬形象；簡單材質的繪製負擔較低。適用於使用此虛擬形象的所有地方，並會重新載入它。",
+        "description": "lilToon 依作者的設計繪製此虛擬形象；簡單材質的繪製負擔較低。自動使用 lilToon，並在此裝置的 GPU 需要時將幀率降至 45、30 或 24 fps；只有連 24 fps 都負擔不了時才改用簡單材質。適用於使用此虛擬形象的所有地方，並會重新載入它。",
         "label": "材質",
         "modes": {
           "automatic": "自動",
@@ -286,6 +286,7 @@
     "microphone": "麥克風",
     "profile": "個人資料",
     "speechToText": "語音轉文字",
+    "startup": "啟動",
     "textToSpeech": "文字轉語音",
     "webSearch": "網頁搜尋"
   },
@@ -298,6 +299,15 @@
     "label": "語言",
     "saveFailed": "無法變更語言。",
     "systemDefaultResolved": "系統預設（{{language}}）"
+  },
+  "launchAtLogin": {
+    "label": "登入時啟動",
+    "description": "登入電腦時自動開啟 Animama。",
+    "blocked": {
+      "macos": "在「系統設定 → 一般 → 登入項目與延伸功能」中允許之前，Animama 不會在登入時開啟。",
+      "windows": "在「設定 → 應用程式 → 啟動」中開啟之前，Animama 不會在登入時開啟。"
+    },
+    "updateFailed": "無法變更「登入時啟動」。"
   },
   "modal": {
     "close": "關閉應用程式設定",

@@ -1,6 +1,9 @@
+import type { Client } from "@animama/runtime-contracts/sdk";
+
 import type { PyContentPreview } from "@/lib/content/catalogTypes";
 import type { ContentPreviewTarget } from "@/lib/content-preview/types";
 import type { RuntimeCatalogEntry } from "@/lib/runtime-content/types";
+import { previewCatalogItem } from "./catalogApi";
 import { contentPreviewFileUrl } from "./contentPreview";
 
 function object(value: unknown): Record<string, unknown> {
@@ -9,11 +12,11 @@ function object(value: unknown): Record<string, unknown> {
     : {};
 }
 
-/** Adapt an exact Avatar preview to the shared single-Canvas preview dock. */
-export function avatarPreviewTarget(
+/** An exact Avatar preview as a runtime Avatar entry the loaders accept. */
+function avatarPreviewEntry(
   preview: PyContentPreview,
   displayName: string,
-): ContentPreviewTarget {
+): RuntimeCatalogEntry {
   const metadata = object(preview.metadata);
   const files = preview.files.map((file) => ({
     role: file.role === "vrm" ? "model" : file.role,
@@ -26,7 +29,7 @@ export function avatarPreviewTarget(
     content_revision: file.sha256,
     url: contentPreviewFileUrl(preview, file),
   }));
-  const entry: RuntimeCatalogEntry = {
+  return {
     slot: "primary_model",
     runtime_id: `preview-avatar-${preview.preview_id}`,
     kind: "avatar_model",
@@ -37,10 +40,33 @@ export function avatarPreviewTarget(
       ...object(object(metadata.spec).presentation),
       // The Avatar item, so the preview loads with its saved settings.
       ...(preview.item_id ? { avatar_catalog_item_id: preview.item_id } : {}),
+      // Its saved face part correction, as the Anima runtime entry carries it.
+      ...(metadata.face_parts ? { face_parts: metadata.face_parts } : {}),
     },
     content_revision: preview.revision,
     source: { type: "authorized_files", files },
   };
+}
+
+/**
+ * An Avatar item's runtime entry from a fresh exact preview, for a load
+ * outside the preview dock (Diagnostics, the Library's Avatar settings).
+ */
+export async function avatarItemRuntimeEntry(
+  apiClient: Client,
+  itemId: string,
+  signal?: AbortSignal,
+): Promise<RuntimeCatalogEntry> {
+  const preview = await previewCatalogItem(apiClient, itemId, signal, "avatar");
+  return avatarPreviewEntry(preview, "");
+}
+
+/** Adapt an exact Avatar preview to the shared single-Canvas preview dock. */
+export function avatarPreviewTarget(
+  preview: PyContentPreview,
+  displayName: string,
+): ContentPreviewTarget {
+  const entry = avatarPreviewEntry(preview, displayName);
   return {
     key: `typed-avatar:${preview.preview_id}:${preview.revision}`,
     sourceType: "resolved_entry",

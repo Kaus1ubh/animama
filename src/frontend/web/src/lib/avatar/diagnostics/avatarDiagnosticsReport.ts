@@ -1,13 +1,20 @@
 import type { AvatarMaterialMode, AvatarSpringMode } from "../avatarSettings";
+import {
+  lilToonFrameBudgetMs,
+  type AutomaticMaterialsDecision,
+} from "../liltoon/lilToonGpuCheck";
 import type { AvatarFileFacts } from "./avatarFileFacts";
 import type { AvatarLiveDiagnostics } from "./avatarDiagnostics";
 import { mergeAvatarIssues, type AvatarIssue } from "./issues";
 
 export const AVATAR_DIAGNOSTICS_SCHEMA = "animama/avatar-diagnostics/1";
 
-/** Which Avatar a report describes: its content source and item id only. */
+/**
+ * Which Avatar a report describes: its content source and item id only. An
+ * unsaved upload (Create Anima) is named by kind alone, with no item id.
+ */
 export type AvatarDiagnosticsIdentity = {
-  source: "included" | "local" | null;
+  source: "included" | "local" | "upload" | null;
   itemId: string | null;
 };
 
@@ -165,6 +172,7 @@ function liveLines(live: AvatarDiagnosticsReport["live"]): string[] {
     `  Presets: ${list(expressions.presets.map((preset) => `${preset.name} (${preset.source})`))}`,
     `  Missing presets: ${list(expressions.missingPresets)}`,
     `  ARKit shapes ${expressions.arkit.resolved}/${expressions.arkit.total}; faces play through ARKit: ${expressions.arkit.playsFaces ? "yes" : "no"}`,
+    `  Mood faces (brow/eye/mouth): ${list(expressions.moods.map((mood) => `${mood.preset} ${mood.brow}/${mood.eye}/${mood.mouth}`))}`,
     `  Requested but unavailable: ${list(expressions.unresolved.names)}` +
       (expressions.unresolved.otherCount > 0
         ? ` (+${expressions.unresolved.otherCount} custom)`
@@ -174,15 +182,63 @@ function liveLines(live: AvatarDiagnosticsReport["live"]): string[] {
     `  Humanoid bones ${motion.humanoidBones}; missing required: ${list(motion.missingRequiredBones)}`,
     `  Springs: ${motion.springJoints} joints, ${motion.springColliders} colliders`,
     `  Wind setting ${motion.wind.mode}; wind and updraft ${motion.wind.ambientForces ? "on" : "off"}`,
-    `  Rest pose: ${motion.restPose ?? "not checked"}`,
+    `  Rest pose: ${
+      motion.restPose
+        ? `arms ${motion.restPose.armDegrees}° from a T-pose${motion.restPose.armsNormalized ? " (normalized)" : ""}, hands ${motion.restPose.handDegrees}° from VRoid's${motion.restPose.handsNormalized ? " (normalized)" : ""}`
+        : "not checked"
+    }`,
     ...(live.materials
       ? [
           "",
           "Materials",
           `  lilToon materials ${live.materials.lilToon} (setting ${live.materials.mode})`,
+          ...(live.materials.automatic
+            ? [`  ${automaticMaterialsLine(live.materials.automatic)}`]
+            : []),
+          ...(live.materials.nextLoad
+            ? [
+                `  Next load: ${automaticMaterialsLine(live.materials.nextLoad)} (measured since this load)`,
+              ]
+            : []),
         ]
       : []),
   ];
+}
+
+/**
+ * Why Automatic chose lilToon (at which frame rate) or Simple, in the
+ * report's plain English.
+ */
+export function automaticMaterialsLine(
+  decision: AutomaticMaterialsDecision,
+): string {
+  const chose = `Automatic chose ${
+    decision.choice === "simple"
+      ? "Simple"
+      : decision.fpsCap
+        ? `lilToon at ${decision.fpsCap} fps`
+        : "lilToon"
+  }`;
+  if (decision.reason === "not_measured")
+    return `${chose}: this GPU's lilToon frame time is not measured yet`;
+  if (decision.reason === "unsupported")
+    return `${chose}: this browser cannot time the GPU`;
+  const fps = decision.budgetFps!;
+  const budget = `the ${lilToonFrameBudgetMs(fps).toFixed(1)} ms budget for ${fps} fps`;
+  const which =
+    decision.samples === 1
+      ? "the only lilToon frame measurement"
+      : `the fastest of ${decision.samples} lilToon frame measurements`;
+  const measured = `${chose}: ${which} on this GPU took ${decision.frameMs!.toFixed(1)} ms of GPU time (${decision.pixels} pixels)`;
+  switch (decision.reason) {
+    case "fast":
+    case "capped":
+      return `${measured}, within ${budget}`;
+    case "remeasuring":
+      return `${measured}, over ${budget}; measuring again before choosing Simple`;
+    case "slow":
+      return `${measured}, over ${budget}`;
+  }
 }
 
 function settingsLines(settings: AvatarDiagnosticsSettings): string[] {

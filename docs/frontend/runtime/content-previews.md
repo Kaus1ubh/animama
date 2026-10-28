@@ -163,7 +163,9 @@ with its full support closure plus the finite playback facts from the same saved
 preview snapshot, so it plays with the clock it idles with. VRMA and clip previews honor authored
 speed and finite repetitions, retain sound/effect events and stop only their owned
 resources. Avatar and Appearance preview targets carry the exact revisioned
-model or image reference.
+model or image reference; an Avatar target also carries the item's saved
+face-part correction, so its preview shows the parts the chat uses. Stop ends
+a play still preparing: it neither starts nor reports a later failure.
 
 Included and Local sources both create an owner-scoped preview snapshot with
 opaque file memberships. No typed projection contains a hidden public content

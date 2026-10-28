@@ -1,7 +1,9 @@
+import type { VRMHumanBoneName } from "@pixiv/three-vrm";
 import * as THREE from "three";
 
 import type { Avatar } from "../Avatar";
 import { resolveHumanoidAnchorObject } from "../humanoidAnchors";
+import { avatarScale, CanonicalSkeleton } from "../poses/anatomy/arms";
 import {
   deriveAvatarVFXAnimationPreset,
   evaluateAvatarVFXAnimation,
@@ -154,6 +156,39 @@ export function measureAvatarHeight(scene: THREE.Object3D | null): number {
 }
 
 /**
+ * Sizes (`avatarScale`: rest head-bone height above the feet over 1.25 m, the
+ * measure contacts scale by) within which body effects keep their authored
+ * metres: the Included Avatars' (Annie 1.012, Andrew 1.094), widened by 10%
+ * each way. A smaller or larger model scales them by its size over the nearer
+ * edge, so they grow continuously past the band (R9). Head height rather than
+ * bounding height, so hair, ears and hats do not count.
+ */
+export const BODY_EFFECT_SCALE_BAND = { min: 0.91, max: 1.2 } as const;
+
+/** The scale body effects take on a model whose `avatarScale` is `size`. */
+export function bodyEffectScale(size: number): number {
+  if (size < BODY_EFFECT_SCALE_BAND.min)
+    return size / BODY_EFFECT_SCALE_BAND.min;
+  if (size > BODY_EFFECT_SCALE_BAND.max)
+    return size / BODY_EFFECT_SCALE_BAND.max;
+  return 1;
+}
+
+/**
+ * `bodyEffectScale` for a loaded Avatar; 1 without hips, head or feet, or
+ * with no positive head height.
+ */
+function avatarBodyEffectScale(avatar: Avatar): number {
+  const vrm = avatar.vrm;
+  const has = (bone: VRMHumanBoneName) =>
+    Boolean(vrm?.humanoid.getNormalizedBoneNode(bone));
+  if (!vrm || !has("hips") || !has("head") || !has("leftFoot")) return 1;
+  const size = avatarScale(new CanonicalSkeleton(vrm));
+  // A malformed rig (head at or below the feet) keeps the authored size.
+  return Number.isFinite(size) && size > 0 ? bodyEffectScale(size) : 1;
+}
+
+/**
  * Yaw from a normalized bone's frame to the avatar's front frame. Normalized
  * bones keep the model's axes: VRM 1 faces +Z, VRM 0 faces −Z.
  */
@@ -264,6 +299,7 @@ export class AvatarAttachmentEffects {
   private readonly _avatar: Avatar;
   private readonly _active = new Map<string, ActiveAttachment>();
   private readonly _avatarHeight: number;
+  private readonly _bodyScale: number;
   private readonly _materialOf: SilhouetteMaterialSource | undefined;
   private _nextOrder = 0;
 
@@ -278,6 +314,7 @@ export class AvatarAttachmentEffects {
   ) {
     this._avatar = avatar;
     this._avatarHeight = measureAvatarHeight(avatar.scene);
+    this._bodyScale = avatarBodyEffectScale(avatar);
     this._materialOf = options.materialOf;
   }
 
@@ -571,6 +608,8 @@ export class AvatarAttachmentEffects {
     const root = new THREE.Group();
     root.name = `AvatarBodyVFX:${entry.id}`;
     root.rotation.y = frontYaw(this._avatar);
+    // Size and offset alike, outside the Included Avatars' size band.
+    root.scale.setScalar(this._bodyScale);
     const anchor = new THREE.Group();
     anchor.position.set(entry.offset.x, entry.offset.y, entry.offset.z);
     root.add(anchor);

@@ -79,7 +79,6 @@ before(async () => {
   tools = {
     resolveArkitFacesPerMesh: web.module.resolveArkitFacesPerMesh,
     moodMixes: compositions.ARKIT_MOOD_MIXES,
-    tableShapes: compositions.ARKIT_COMPOSITION_SHAPES,
     isVroidMoodPart: compositions.isVroidMoodPart,
   };
   arkitShapes = (await web.load(path.join(webRoot, "src/lib/avatar/arkit.ts")))

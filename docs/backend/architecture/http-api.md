@@ -133,6 +133,7 @@ Local setup and host/key administration schemas remain in the server composition
   "provider_credentials": true,
   "chat_file_uploads": true,
   "anima_creation": true,
+  "library_previews": true,
   "local_filesystem_administration": true,
   "native_features": true,
   "user_file_processing": {
@@ -176,18 +177,23 @@ local server package, so any composition can return the same contract; the local
 router is a thin adapter. `runtime_kind` is presentation metadata (`desktop`,
 `self_hosted_web` or `hosted`), not an authentication mode or a feature gate;
 the local composition never reports `hosted`. Capability schema version 2 is
-exported in `local-http` contract version 17.0.0. `chat`, `model_selection` and
+exported in `local-http` contract version 20.0.0. `chat`, `model_selection` and
 `model_role_selection` admit chat and choices from the composition's catalog,
 independently of provider administration. The local adapter reports them true.
 `provider_credentials` and `local_filesystem_administration` describe owner key
 and host administration; the local adapter reports both true. `native_features`
 is true only for desktop; browser fullscreen/PiP use browser detection instead.
 See the [hosted composition handoff](../../../contracts/hosted-web.md) for its
-separate account authority, retained workflows and six exceptions.
+separate account authority, retained workflows and seven exceptions.
 `chat_file_uploads` and
 `anima_creation` report whether the composition offers chat file uploads and
 Anima creation. The local composition always reports both `true`; React hides
 the corresponding entry points only when a value is `false`.
+`library_previews` says whether Library cards load item previews (the
+`?variant=thumbnail` copy of a content file and a Particle tile's manifest tint).
+It defaults to `true`, so an adapter that omits it keeps previews; the local
+adapter reports `true`. When it is `false`, cards show their family icons and
+request none. The Library's Preview action and Avatar portraits do not depend on it.
 `model_configuration` is true when the composition's
 catalog policy enables owner models, which only the local composition does; the
 local-only [model configuration routes](#model-configuration) exist only then.
@@ -343,7 +349,19 @@ location and recovery are in [model assets](../operations/model-assets.md#downlo
   current revision, dependencies, and opaque file registrations. Content Health
   polls it, so it negotiates gzip or identity and is delivered through the
   composition's JSON policy; locally that is a wire ETag (`private, no-cache`)
-  and an unchanged catalog answers `If-None-Match` with 304.
+  and an unchanged catalog answers `If-None-Match` with 304 before any of its
+  body is built. The route hands the policy a `DeferredJsonBody` whose
+  validator combines the response's schema with
+  `ContentCatalogService.visible_revision`: the caller's identity, the
+  catalog's Included generation and a revision of the caller's own and
+  installation-shared rows. The ETag adds the negotiated encoding. A policy
+  passes that body on to `encoded_json_response` while the request's session is
+  still open. The SQL adapter derives both revisions from row `updated_at`
+  values, so every write to a catalog row must set it. Only the schema and the
+  Included generation follow releases. The SQL generation changes with a release
+  only because the local composition reconciles every row at start-up. A
+  composition that does not must override `included_generation` with a value
+  that changes with every application revision, such as that revision.
   Unsupported encodings fail with 406 `content_encoding_not_acceptable`.
 - `GET /v1/content/items/{item_id}` reads one visible item.
 - `POST /v1/content:rescan` performs an authoritative scan of registered
@@ -358,8 +376,17 @@ location and recovery are in [model assets](../operations/model-assets.md#downlo
 - `GET /v1/content/files/{file_ref}` authorizes one opaque registration,
   revalidates filesystem containment, regular-file/link state, exact size, and
   SHA-256, then streams the bytes. It accepts no path or storage key. Digest
-  ETags are evaluated only after authorization and integrity checks.
-  `?variant=thumbnail` returns a Library-sized copy instead: a PNG, JPEG or
+  ETags are evaluated only after authorization and integrity checks. The local
+  reply is `private, no-cache`.
+- `GET /v1/content/files/{file_ref}/sha256/{sha256}` does the same for an
+  Included file whose registered digest is `sha256`, and the local reply is
+  `private, max-age=31536000, immutable` (ADR 0033). A file that is not
+  Included, or whose digest has changed, is `404 content_file_not_found`, so
+  the URL never answers with other bytes; a digest that is not 64 lowercase hex
+  characters is 422. Catalog items, typed content files, Anima presentation
+  images and Avatar portraits name each file by its `url`: this route for
+  Included files, the one above for every other file.
+- On either route, `?variant=thumbnail` returns a Library-sized copy instead: a PNG, JPEG or
   WebP larger than 128 pixels on a side becomes a WebP within 128 × 128
   (first frame, aspect and alpha kept) whose ETag is its own digest; smaller
   rasters and SVG return unchanged. Decoding uses the bounded image reader
@@ -395,7 +422,7 @@ are under `/v1/content`:
 | `DELETE /package-exports/{export_id}` | Discard an inactive owned cache. |
 | `POST /package-imports` | Allocate a private stage with operation ID, filename and total byte length. |
 | `PUT /package-imports/{stage_id}/parts/{index}` | Send sequential 8 MiB binary parts (the final part may be shorter); exact retries return the original acknowledgement. |
-| `POST /package-imports/{stage_id}/review` | Seal and validate the whole archive; freeze fresh content identities, dependency copies and automatic `-2`/`-3` collision names. Each item lists `notices` about what the import leaves out: `avatar_setting_not_stored` when it carries Avatar settings this composition does not store. |
+| `POST /package-imports/{stage_id}/review` | Seal and validate the whole archive; freeze fresh content identities, dependency copies and automatic `-2`/`-3` collision names. Each item lists `notices` about what the import leaves out: `avatar_setting_not_stored` when it carries Avatar settings this composition does not store, and `avatar_extension_unsupported` when an Avatar's model uses a glTF extension the runtime cannot decode yet (Draco; it still imports). |
 | `GET /package-imports/{stage_id}` | Read received-byte progress and the public review; no private paths or install plan are exposed. |
 | `POST /package-imports/{stage_id}/commit` | Submit the operation ID and review digest to install the whole package through one recoverable content/Anima transaction. |
 | `GET /package-operations/{operation_id}` | Resolve the durable result or report pending/recovery state before another submission. |
@@ -581,7 +608,20 @@ Gesture/Reaction roots and cannot be equipped directly.
 
 `GET /v1/animas/{anima_id}/runtime` independently compiles selected roots and
 their transitive dependencies into one persisted owner-scoped exact revision.
-Concurrent reads may reuse that effective revision. The snapshot pins the
+Concurrent reads may reuse that effective revision. It compiles and projects on
+the composition's read session without locks or writes, then opens a short write
+session. It first marks files found changed for Rescan, which commits on its own,
+then locks the loadout row, rechecks the loadout revision, every pinned item and
+the complete file union, and inserts or renews the snapshot. If the loadout changed in between, or a reused
+snapshot expired meanwhile, issuance prepares again, up to three attempts in all,
+then refuses with 409 `snapshot_conflict`. An
+unexpired snapshot compiled from the same inputs (the backend build, loadout
+revision, root selections, every catalog entry the roots reach, and the owner's
+Included Avatar face-part overrides) is renewed without compiling, reading content
+bytes or projecting again; the final transaction still rechecks it like a new one.
+Byte and bundle reads that reach the server verify every file, so a file changed
+on disk without a catalog change is caught there and marked for Rescan; a browser
+reusing an immutable cached copy sends no such request (ADR 0028). The snapshot pins the
 complete admitted `catalog_item_id -> revision_sha256` map and persists one
 immutable typed catalog body; it does not copy a row for every file. Each
 member carries its canonical opaque `content_catalog_files.file_ref`. The file
@@ -608,10 +648,10 @@ size/digest bytes, and SSE, WebSockets, uploads and range streams are unaffected
 The manifest's `bundles` list advertises delivery bundles of optional members, each
 with an `id`, a `format` (`json` or `binary`), its URL, `file_refs` and total original
 bytes. `GET /v1/animas/{anima_id}/runtime/revisions/{revision}/bundles/{bundle_id}`
-serves one. Selection is deterministic and server-owned (`domain/runtime_bundles.py`),
-run on the stored catalog at issuance and again when serving, so a bundle ID (a
-SHA-256 of its format and member set) names the same members for the revision's
-life; an unknown ID returns 404. Selection takes projected optional members only,
+serves one. Selection is deterministic and server-owned (`domain/runtime_bundles.py`)
+and runs once at issuance, which stores each bundle's member list with the snapshot,
+so a bundle ID (a SHA-256 of its format and member set) names the same members for
+the revision's life; an unknown ID returns 404. Selection takes projected optional members only,
 never the Avatar's or voice's closures or descriptor/meta files. It partitions them
 into Idle JSON, Idle binary, other JSON and other binary (Idle bundles come first),
 sorts each by `file_ref` and packs it next-fit: JSON `sequence` and `manifest` files
@@ -625,8 +665,8 @@ unavailable member has `error` instead of `text`. Text preserves the original UT
 bytes, including whitespace, for browser size/SHA-256 verification. A binary bundle
 answers the frame `AMB1`, a 4-byte big-endian header length, a UTF-8 JSON header
 `{version: 1, revision, members: [{file_ref, size}]}` (or `error` instead of `size`),
-then the available members' bytes in header order. After loading the owner's issued
-snapshot, one joined query checks all of a bundle's members against the live lease,
+then the available members' bytes in header order. After loading that bundle's member
+list from the owner's issued snapshot, one joined query checks all of its members against the live lease,
 current visibility and pinned revisions. Each file is then opened and verified on
 disk, with bounded reads off the event loop. Physical changes mark the catalog
 scan-required in a write session of their own; independent good members remain
@@ -679,9 +719,9 @@ The reference includes a normalized `presentation` object with Fill/Fit,
 focal point, and zoom. These fields are revisioned presentation semantics;
 saved position strings are normalized for backward compatibility.
 
-`RuntimeImageReference.source_type` is `catalog`; its API-relative
-`/v1/content/files/{file_ref}` URL is fetched with normal authentication. Both
-Included and Local portraits use this protected route. The presentation
+`RuntimeImageReference.source_type` is `catalog`; its API-relative URL is
+fetched with normal authentication: `/v1/content/files/{file_ref}/sha256/{sha256}`
+for an Included image and `/v1/content/files/{file_ref}` for a Local one. The presentation
 revision includes selected source and crop/focal semantics, while catalog file
 integrity remains independently enforced. Detail and mutation responses retain
 `PyAnimaResponse` and do not compile the list projection.

@@ -14,6 +14,11 @@ export type PrimitiveVertexRange = {
 
 export type CollectedPrimitiveData = {
   indexed: boolean;
+  /**
+   * The number of the primitive's first triangle in the geometry's index
+   * (or vertex order), as part `regions` number triangles.
+   */
+  firstTriangle: number;
   orderedVertexIndices: number[];
   orderedPoints: THREE.Vector3[];
   pointsByIndex: Map<number, THREE.Vector3>;
@@ -73,28 +78,15 @@ export function collectPrimitiveData(args: {
     return null;
   }
 
-  const range = resolvePrimitiveVertexRange(args.avatar, args.binding);
-  const index = geometry.getIndex();
+  const order = readPrimitiveVertexOrder(args.avatar, args.binding);
   const meshObject = args.binding.object;
 
   meshObject.updateWorldMatrix(true, false);
   args.anchorObject.updateWorldMatrix(true, false);
 
-  if (index) {
-    const start = Math.max(0, range?.start ?? 0);
-    const maxCount = index.count - start;
-    const count =
-      range?.count === null || range?.count === undefined
-        ? maxCount
-        : Math.max(0, Math.min(range.count, maxCount));
-    const orderedVertexIndices: number[] = [];
-    const uniqueVertexIndexSet = new Set<number>();
-    for (let offset = 0; offset < count; offset += 1) {
-      const vertexIndex = index.getX(start + offset);
-      orderedVertexIndices.push(vertexIndex);
-      uniqueVertexIndexSet.add(vertexIndex);
-    }
-    const uniqueVertexIndices = Array.from(uniqueVertexIndexSet);
+  if (order.indexed) {
+    const orderedVertexIndices = order.vertices;
+    const uniqueVertexIndices = Array.from(new Set(orderedVertexIndices));
     const pointsByIndex = buildPointMap({
       anchorObject: args.anchorObject,
       meshObject,
@@ -106,6 +98,7 @@ export function collectPrimitiveData(args: {
       .filter((value): value is THREE.Vector3 => value !== null);
     return {
       indexed: true,
+      firstTriangle: order.firstTriangle,
       orderedVertexIndices,
       orderedPoints,
       pointsByIndex,
@@ -113,16 +106,7 @@ export function collectPrimitiveData(args: {
     };
   }
 
-  const start = Math.max(0, range?.start ?? 0);
-  const maxCount = position.count - start;
-  const count =
-    range?.count === null || range?.count === undefined
-      ? maxCount
-      : Math.max(0, Math.min(range.count, maxCount));
-  const uniqueVertexIndices = Array.from(
-    { length: count },
-    (_unused, offset) => start + offset,
-  );
+  const uniqueVertexIndices = order.vertices;
   const pointsByIndex = buildPointMap({
     anchorObject: args.anchorObject,
     meshObject,
@@ -134,11 +118,68 @@ export function collectPrimitiveData(args: {
     .filter((value): value is THREE.Vector3 => value !== null);
   return {
     indexed: false,
+    firstTriangle: order.firstTriangle,
     orderedVertexIndices: uniqueVertexIndices,
     orderedPoints,
     pointsByIndex,
     uniqueVertexIndices,
   };
+}
+
+/**
+ * `data` without some of its triangles (numbered as `firstTriangle` counts),
+ * such as part regions to leave out. The point map is shared.
+ */
+export function withoutTriangles(
+  data: CollectedPrimitiveData,
+  triangles: ReadonlySet<number>,
+): CollectedPrimitiveData {
+  if (triangles.size === 0) return data;
+  const ordered = data.orderedVertexIndices;
+  const orderedVertexIndices: number[] = [];
+  for (let offset = 0; offset + 2 < ordered.length; offset += 3) {
+    if (triangles.has(data.firstTriangle + offset / 3)) continue;
+    orderedVertexIndices.push(
+      ordered[offset]!,
+      ordered[offset + 1]!,
+      ordered[offset + 2]!,
+    );
+  }
+  return {
+    ...data,
+    orderedVertexIndices,
+    orderedPoints: orderedVertexIndices
+      .map((vertex) => data.pointsByIndex.get(vertex)?.clone() ?? null)
+      .filter((value): value is THREE.Vector3 => value !== null),
+    uniqueVertexIndices: Array.from(new Set(orderedVertexIndices)),
+  };
+}
+
+/**
+ * A primitive's triangle corners as vertex indices, in draw order: its index
+ * range within the mesh (or, unindexed, its vertex range), so a mesh that
+ * holds several primitives yields only this one's.
+ */
+function readPrimitiveVertexOrder(
+  avatar: Pick<Avatar, "sourceGltf">,
+  binding: RuntimePrimitiveBindingEntry,
+): { indexed: boolean; firstTriangle: number; vertices: number[] } {
+  const geometry = binding.object.geometry;
+  const range = resolvePrimitiveVertexRange(avatar, binding);
+  const index = geometry.getIndex();
+  const total = index
+    ? index.count
+    : (geometry.getAttribute("position")?.count ?? 0);
+  const start = Math.max(0, range?.start ?? 0);
+  const maxCount = total - start;
+  const count =
+    range?.count === null || range?.count === undefined
+      ? maxCount
+      : Math.max(0, Math.min(range.count, maxCount));
+  const vertices = Array.from({ length: Math.max(0, count) }, (_, offset) =>
+    index ? index.getX(start + offset) : start + offset,
+  );
+  return { indexed: index !== null, firstTriangle: start / 3, vertices };
 }
 
 export function resolvePrimitiveVertexRange(

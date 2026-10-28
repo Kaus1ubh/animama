@@ -275,8 +275,10 @@ R11 lilToon frame cost:
     Automatic value below).
 - Each Avatar whose file has authored lilToon materials has a **Materials**
   setting:
-  - **Automatic** (the default): lilToon, unless the machine's measured GPU
-    time says it is too slow for it, then Simple;
+  - **Automatic** (the default): lilToon, with the canvas showing the Avatar
+    capped at the highest of 60, 45, 30 or 24 fps the machine's measured GPU
+    time sustains; Simple only when even 24 fps is too slow (owner,
+    2026-10-27);
   - **lilToon:** always the authored look;
   - **Simple:** the fallback materials.
 - The Materials setting is edited beside "Wind and ambient forces", in the
@@ -395,7 +397,9 @@ Answered by the owner on 2026-10-25 (6 to 8 take the proposed defaults):
    reached, the cheap path is the default on slow GPUs. Updated 2026-10-26
    (owner): users choose per Avatar with a Materials setting (Automatic,
    lilToon, Simple; R11), whose Automatic value is that default; an app-wide
-   quality setting is added only if still needed.
+   quality setting is added only if still needed. Updated 2026-10-27 (owner):
+   Automatic keeps lilToon at a lower frame rate (45, 30 or 24 fps) before it
+   falls back to Simple.
 8. A model with no VRoid parts, MMD morphs, ARKit shapes or mood presets keeps
    a neutral face; moods show through motion and effects, and diagnostics say
    so. Lids are not lowered and mouth visemes are not used for moods.

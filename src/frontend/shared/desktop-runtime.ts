@@ -131,6 +131,19 @@ export type LocaleBridge = {
    */
   setApplied(locale: string): Promise<void>;
 };
+/**
+ * Whether the OS opens the app at login. Only packaged macOS and Windows apps
+ * offer it; `blockedBySystem` means the app asked to open at login but the OS
+ * will not run it until the user allows it there.
+ */
+export type LoginItemStatus =
+  | { available: false }
+  | { available: true; enabled: boolean; blockedBySystem: boolean };
+/** Main-window only: the OS keeps the setting, so the shell stores nothing. */
+export type LoginItemBridge = {
+  status(): Promise<LoginItemStatus>;
+  setEnabled(enabled: boolean): Promise<LoginItemStatus>;
+};
 export type UpdatesBridge = {
   status(): Promise<UpdateStatus>;
   check(): Promise<UpdateStatus>;

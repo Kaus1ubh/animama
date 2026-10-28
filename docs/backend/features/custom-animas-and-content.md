@@ -359,6 +359,27 @@ none; on import its review marks the Avatar with the notice
 `avatar_setting_not_stored` before the user confirms, and the copy uses
 Automatic. The completed import receipt is the same either way.
 
+### Avatar files in packages
+
+Uploads accept any glTF extension, but a package's VRM and VRMA files may use
+or require only the extensions in `_GLTF_EXTENSIONS`
+(`app/services/content_package_capabilities.py`); any other makes export and
+import fail with `package_definition_invalid`. Beside the standard glTF and VRM
+extensions the web loaders read (including `VRMC_springBone_extended_collider`,
+which `vrm:optimize` keeps), the list holds what converted and optimized
+Avatars carry: Mochiya Avatar Tools' `MOCHIYA_avatar_composition` and
+`MOCHIYA_materials_liltoon`, and the `EXT_meshopt_compression` and
+`KHR_draco_mesh_compression` mesh compressions. Meshopt Avatars load. The
+browser runtime does not serve the Draco decoder yet
+(`UNDECODED_GLTF_EXTENSIONS`), so a Draco Avatar imports instead of the package
+being refused: the import review marks it `avatar_extension_unsupported` before
+the user confirms, and its Diagnostics name the extension (see
+[Sharing a converted Avatar](../../frontend/runtime/vrchat-avatar-conversion.md#sharing-a-converted-avatar)).
+The web loaders' list plus the undecoded one is exactly `_GLTF_EXTENSIONS`; the
+shared `package-capabilities.json` fixture pins both sides. These names need no
+package capability, so an install from before they were accepted rejects such a
+package with the same generic error.
+
 ## Local creation boundary
 
 Create Anima creates a private live companion with editable dependencies.

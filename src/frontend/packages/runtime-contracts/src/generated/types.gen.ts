@@ -1850,7 +1850,7 @@ export type ImagePresentation = {
     zoom: number;
 };
 
-export type ImportItemNotice = 'avatar_setting_not_stored';
+export type ImportItemNotice = 'avatar_setting_not_stored' | 'avatar_extension_unsupported';
 
 /**
  * ImportedPackageItem
@@ -4621,6 +4621,10 @@ export type PyContentFile = {
      * Size Bytes
      */
     size_bytes: number;
+    /**
+     * Url
+     */
+    url: string;
 };
 
 /**
@@ -8827,6 +8831,10 @@ export type PyTypedContentFile = {
      * Size Bytes
      */
     size_bytes: number;
+    /**
+     * Url
+     */
+    url: string;
 };
 
 /**
@@ -9730,6 +9738,10 @@ export type RuntimeCapabilities = {
     chat_file_uploads: boolean;
     companion_safety: CompanionSafetyCapability;
     gemini_tts?: GeminiTtsCapability | null;
+    /**
+     * Library Previews
+     */
+    library_previews?: boolean;
     /**
      * Local Filesystem Administration
      */
@@ -12276,6 +12288,49 @@ export type StreamContentFileV1ContentFilesFileRefGetErrors = {
 export type StreamContentFileV1ContentFilesFileRefGetError = StreamContentFileV1ContentFilesFileRefGetErrors[keyof StreamContentFileV1ContentFilesFileRefGetErrors];
 
 export type StreamContentFileV1ContentFilesFileRefGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type StreamIncludedContentFileV1ContentFilesFileRefSha256Sha256GetData = {
+    body?: never;
+    headers?: {
+        /**
+         * If-None-Match
+         */
+        'If-None-Match'?: string | null;
+    };
+    path: {
+        /**
+         * File Ref
+         */
+        file_ref: string;
+        /**
+         * Sha256
+         */
+        sha256: string;
+    };
+    query?: {
+        /**
+         * Variant
+         */
+        variant?: 'thumbnail' | null;
+    };
+    url: '/v1/content/files/{file_ref}/sha256/{sha256}';
+};
+
+export type StreamIncludedContentFileV1ContentFilesFileRefSha256Sha256GetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type StreamIncludedContentFileV1ContentFilesFileRefSha256Sha256GetError = StreamIncludedContentFileV1ContentFilesFileRefSha256Sha256GetErrors[keyof StreamIncludedContentFileV1ContentFilesFileRefSha256Sha256GetErrors];
+
+export type StreamIncludedContentFileV1ContentFilesFileRefSha256Sha256GetResponses = {
     /**
      * Successful Response
      */

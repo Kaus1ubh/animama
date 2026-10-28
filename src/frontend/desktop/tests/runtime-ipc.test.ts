@@ -388,6 +388,39 @@ describe("privileged runtime IPC", () => {
     );
   });
 
+  it("changes the login item only from the main window and only with a boolean", async () => {
+    await expect(invoke("login-item:status", main.event)).resolves.toEqual({
+      available: false,
+    });
+    await expect(invoke("login-item:set", main.event, true)).rejects.toThrow(
+      "feature_unavailable",
+    );
+    const enabled = {
+      available: true,
+      enabled: true,
+      blockedBySystem: false,
+    } as const;
+    const setLoginItem = vi.fn(() => enabled);
+    operations.setLoginItem = setLoginItem;
+    await expect(invoke("login-item:set", main.event, true)).resolves.toEqual(
+      enabled,
+    );
+    expect(setLoginItem).toHaveBeenCalledWith(true);
+    for (const invalid of ["true", 1, null, { enabled: true }])
+      await expect(
+        invoke("login-item:set", main.event, invalid),
+      ).rejects.toThrow("ipc_arguments_invalid");
+    await expect(
+      invoke("login-item:set", main.event, true, "--hidden"),
+    ).rejects.toThrow("ipc_arguments_invalid");
+    const companion = caller(4, "http://127.0.0.1:41234/desktop/pip/a");
+    for (const event of [recovery.event, companion.event])
+      await expect(invoke("login-item:set", event, false)).rejects.toThrow(
+        "ipc_caller_rejected",
+      );
+    expect(setLoginItem).toHaveBeenCalledOnce();
+  });
+
   it("keeps one cleanup when a window is registered again for a reloaded page", () => {
     callers.register(recovery.window, "recovery", "data:text/html,reloaded");
     expect(

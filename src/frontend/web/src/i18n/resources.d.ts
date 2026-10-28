@@ -573,9 +573,19 @@ export default interface Resources {
         "customNames_one": "{{count}} custom name",
         "customNames_other": "{{count}} custom names",
         "fromArkit": "{{name}} (ARKit)",
+        "fromMmd": "{{name}} (MMD)",
         "missing": "Missing expressions",
+        "moodValue": "Brows {{brow}} · eyes {{eye}} · mouth {{mouth}}",
+        "moods": "Mood faces",
         "playsFaces": "Moods play through ARKit shapes",
         "present": "Standard expressions",
+        "regionSources": {
+          "arkit": "ARKit",
+          "mmd": "MMD",
+          "none": "none",
+          "preset": "preset",
+          "vroid": "own parts"
+        },
         "unresolved": "Requested but not on this Avatar"
       },
       "face": {
@@ -620,7 +630,8 @@ export default interface Resources {
       "identity": {
         "included": "Included Avatar",
         "local": "Local Avatar",
-        "unknown": "Avatar"
+        "unknown": "Avatar",
+        "upload": "Unsaved upload"
       },
       "issues": {
         "anEffect": "An effect",
@@ -628,6 +639,7 @@ export default interface Resources {
         "anchors_landmarks_unavailable": "Face landmarks are unavailable, so painted face effects cannot be placed.",
         "anchors_mouth_missing": "No mouth position was found on the face texture.",
         "anchors_projection_failed": "The face texture could not be mapped, so painted face effects cannot be placed.",
+        "avatar_extension_unsupported": "The file requires {{extension}}, a glTF extension this app cannot load yet, so the Avatar cannot be shown.",
         "avatar_load_failed": "The Avatar could not be loaded. Check its required extensions under File.",
         "effect_attachment_limit": "{{effect}} was removed: at most {{limit}} body, sticker or silhouette effects can show at once.",
         "effect_face_part_missing": "{{effect}} was skipped: this Avatar has no detected {{part, lowercase}}.",
@@ -642,6 +654,7 @@ export default interface Resources {
         "effect_unknown": "An effect is not available in this installation.",
         "effect_wrong_kind": "{{effect}} cannot be shown this way.",
         "eye_detail_not_hidden": "{{effect}} plays, but the {{part, lowercase}} inside a shared mesh part could not be hidden.",
+        "face_expressions_none": "This Avatar has no face shapes for moods (no VRoid parts, MMD morphs, ARKit shapes or mood presets), so its face stays neutral; moods show through motion and effects.",
         "face_parts_correction_digest_unknown": "The saved face part correction was ignored because this file's digest is unknown.",
         "face_parts_correction_invalid": "The saved face part correction could not be read and was ignored.",
         "face_parts_correction_other_file": "The saved face part correction was made for a different file and was ignored.",
@@ -652,6 +665,7 @@ export default interface Resources {
         "face_parts_expressions_missing": "The model has no blink or “aa” expression, so its face skin and eye details cannot be found from them.",
         "file_unavailable": "The Avatar file could not be downloaded.",
         "file_unreadable": "The Avatar file is not a readable glTF or VRM file.",
+        "iris_hide_unavailable": "Content asked to hide the irises (Fcl_EYE_Iris_Hide), but no iris mesh part of this Avatar can be hidden: none was found, or it shares a mesh part with the face skin.",
         "landmarks_anchor_missing": "No head was found to anchor face landmarks.",
         "landmarks_eyes_missing": "No eyes were found on the face, so eye effects are unavailable.",
         "landmarks_face_bounds_failed": "The face skin could not be measured.",
@@ -679,20 +693,37 @@ export default interface Resources {
       },
       "materials": {
         "label": "lilToon materials",
+        "milliseconds": "{{value}} ms",
+        "nextLoad": "Next load: {{state}} · {{why}} (measured since this load)",
         "rendered": "Rendered with lilToon",
+        "renderedAt": "Rendered with lilToon at {{fps}} fps",
         "simple": "Simple materials",
         "value": "{{state}} · {{why}}",
         "why": {
           "automatic": "chosen by Automatic",
+          "automaticNotMeasured": "chosen by Automatic: this GPU's lilToon frame time is not measured yet",
+          "automaticRemeasuring": "chosen by Automatic: this GPU drew a lilToon frame in {{measured}}, over the {{budget}} budget for {{fps}} fps; measuring again before choosing Simple",
+          "automaticSlow": "chosen by Automatic: this GPU drew a lilToon frame in {{measured}}, over the {{budget}} budget for {{fps}} fps",
+          "automaticUnsupported": "chosen by Automatic: this browser cannot time the GPU",
+          "automaticWithin": "chosen by Automatic: this GPU drew a lilToon frame in {{measured}}, within the {{budget}} budget for {{fps}} fps",
           "chosen": "set to {{mode}}",
           "failed": "lilToon could not load"
         }
       },
       "motion": {
+        "arms": {
+          "normalized": "arms rest {{degrees}}° from a T-pose, normalized",
+          "tPose": "T-pose"
+        },
+        "hands": {
+          "normalized": "hands normalized to VRoid's ({{degrees}}°)",
+          "vroid": "hands like VRoid's"
+        },
         "humanoidBones": "Humanoid bones",
         "missingBones": "Missing required bones",
         "notChecked": "Not checked yet",
         "restPose": "Rest pose",
+        "restPoseValue": "{{arms}} · {{hands}}",
         "springs": "Spring bones",
         "springsValue": "{{joints}} joints · {{colliders}} colliders",
         "wind": "Wind and ambient forces",
@@ -724,8 +755,11 @@ export default interface Resources {
         "stored": "Saved for this Avatar"
       },
       "source": {
+        "dock": "in the preview",
         "live": "on the chat stage",
-        "offscreen": "loaded for this view"
+        "notLoaded": "not loaded",
+        "offscreen": "loaded for this view",
+        "uploadStage": "on the preview stage"
       },
       "title": "Avatar diagnostics",
       "unavailable": "This Anima has no Avatar to check.",
@@ -1797,6 +1831,14 @@ export default interface Resources {
         "item": "{{name}} · {{id}}",
         "replace": "Replace this Avatar",
         "title": "This Avatar name is already used"
+      },
+      "diagnostics": {
+        "checking": "Checking this Avatar…",
+        "failed": "Animama could not load this Avatar.",
+        "noProblems": "No problems found.",
+        "problems_one": "{{count}} problem found.",
+        "problems_other": "{{count}} problems found.",
+        "view": "View diagnostics"
       },
       "discardUpload": "Discard unsaved upload",
       "emptyIncluded": "No Included Avatars are available. You can use My Content or upload a VRM.",
@@ -3731,6 +3773,8 @@ export default interface Resources {
     },
     "inventory": {
       "actions": {
+        "avatarSettings": "Avatar settings",
+        "avatarSettingsShort": "Settings",
         "createAnima": "Create Anima",
         "draft": "Draft",
         "edit": "Edit",
@@ -3743,6 +3787,12 @@ export default interface Resources {
         "stop": "Stop",
         "useInGesture": "Use in Gesture",
         "useInReaction": "Use in Reaction"
+      },
+      "avatarSettings": {
+        "description": "Settings for {{name}}. They apply wherever this Avatar is used.",
+        "diagnostics": "See what Animama found in this Avatar, and copy a report for support.",
+        "diagnosticsOnly": "See what Animama found in {{name}}.",
+        "title": "Avatar settings"
       },
       "groups": {
         "avatarEffects": "Avatar Effects",
@@ -3884,6 +3934,8 @@ export default interface Resources {
         "animaNote": "Creates a fresh companion with the reviewed content and configuration.",
         "animaUnavailable": "Importing an Anima package is unavailable here. Import content or export an existing Anima instead.",
         "avatarSettingsNotStored": "This app does not keep Avatar wind and material settings, so {{names}} will use Automatic.",
+        "avatarsNotLoadable_one": "{{names}} will be imported, but this version of Animama cannot show it yet: its model uses mesh compression the app cannot decode. Avatar Diagnostics names what it needs.",
+        "avatarsNotLoadable_other": "{{names}} will be imported, but this version of Animama cannot show them yet: their models use mesh compression the app cannot decode. Avatar Diagnostics names what they need.",
         "beingProcessed": "This import is being processed. Check its result before continuing.",
         "button": "Import",
         "changeFile": "Change file",
@@ -6023,7 +6075,7 @@ export default interface Resources {
     "animaSettings": {
       "avatar": {
         "materials": {
-          "description": "lilToon draws this Avatar as authored; Simple costs less to draw. Applies wherever the Avatar is used, and reloads it.",
+          "description": "lilToon draws this Avatar as authored; Simple costs less to draw. Automatic keeps lilToon and lowers the frame rate to 45, 30 or 24 fps when this device's GPU needs it; it uses Simple only when even 24 fps is too much. Applies wherever the Avatar is used, and reloads it.",
           "label": "Materials",
           "modes": {
             "automatic": "Automatic",
@@ -6242,6 +6294,7 @@ export default interface Resources {
       "microphone": "Microphone",
       "profile": "Profile",
       "speechToText": "Speech-to-Text",
+      "startup": "Startup",
       "textToSpeech": "Text-to-Speech",
       "webSearch": "Web search"
     },
@@ -6250,6 +6303,15 @@ export default interface Resources {
       "label": "Language",
       "saveFailed": "Failed to change the language.",
       "systemDefaultResolved": "System default ({{language}})"
+    },
+    "launchAtLogin": {
+      "blocked": {
+        "macos": "Animama will not open at login until you allow it in System Settings → General → Login Items & Extensions.",
+        "windows": "Animama will not open at login until you turn it on in Settings → Apps → Startup."
+      },
+      "description": "Open Animama automatically when you log in to your computer.",
+      "label": "Launch at login",
+      "updateFailed": "Could not change Launch at login."
     },
     "modal": {
       "close": "Close App Settings",

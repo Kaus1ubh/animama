@@ -1175,7 +1175,7 @@ export const zImagePresentation = z.object({
     zoom: z.number().gte(1).lte(4)
 });
 
-export const zImportItemNotice = z.literal('avatar_setting_not_stored');
+export const zImportItemNotice = z.enum(['avatar_setting_not_stored', 'avatar_extension_unsupported']);
 
 /**
  * ImportedPackageItem
@@ -2514,7 +2514,8 @@ export const zPyContentFile = z.object({
     relative_path: z.string(),
     role: z.string(),
     sha256: z.string(),
-    size_bytes: z.int()
+    size_bytes: z.int(),
+    url: z.string()
 });
 
 /**
@@ -5255,7 +5256,8 @@ export const zPyTypedContentFile = z.object({
     ordinal: z.int().gte(1),
     role: z.string(),
     sha256: z.string().regex(/^[0-9a-f]{64}$/),
-    size_bytes: z.int().gt(0)
+    size_bytes: z.int().gt(0),
+    url: z.string()
 });
 
 /**
@@ -6826,6 +6828,7 @@ export const zRuntimeCapabilities = z.object({
         zGeminiTtsCapability,
         z.null()
     ])),
+    library_previews: z.optional(z.boolean()).default(true),
     local_filesystem_administration: z.boolean(),
     model_configuration: z.optional(z.boolean()).default(false),
     model_role_selection: z.boolean(),
@@ -7832,6 +7835,26 @@ export const zStreamContentFileV1ContentFilesFileRefGetData = z.object({
     body: z.optional(z.never()),
     path: z.object({
         file_ref: z.string()
+    }),
+    query: z.optional(z.object({
+        variant: z.optional(z.union([
+            z.literal('thumbnail'),
+            z.null()
+        ]))
+    })),
+    headers: z.optional(z.object({
+        'If-None-Match': z.optional(z.union([
+            z.string(),
+            z.null()
+        ]))
+    }))
+});
+
+export const zStreamIncludedContentFileV1ContentFilesFileRefSha256Sha256GetData = z.object({
+    body: z.optional(z.never()),
+    path: z.object({
+        file_ref: z.string(),
+        sha256: z.string().regex(/^[0-9a-f]{64}$/)
     }),
     query: z.optional(z.object({
         variant: z.optional(z.union([

@@ -26,7 +26,7 @@ from animama.app.services.model_provider_catalog_service import ModelCatalogPoli
 from animama.app.services.model_role_resolver import ModelRoleDefaults
 from animama.domain.content_catalog import VerifiedContentFile
 from animama.domain.request_principal import RequestPrincipal
-from animama.product_http.delivery import PackageDownloadResponse
+from animama.product_http.delivery import DeferredJsonBody, PackageDownloadResponse
 from animama.product_http.ports import (
     ChatTurnAdmission,
     ChatTurnLease,
@@ -125,7 +125,7 @@ class RecordingPorts:
     async def json_response(
         self,
         request: Request,
-        body: bytes,
+        body: bytes | DeferredJsonBody,
         *,
         encoding: str,
         headers: dict[str, str],

@@ -42,10 +42,10 @@ from .direct_turn.types import DirectChatAttachmentContext
 from .memory_context import (
     ANIMA_MEMORIES_GUIDANCE,
     ANIMA_MEMORIES_WRITE_GUIDANCE,
-    MAIN_STRUCTURED_OUTPUT_GUIDANCE,
-    MEMORY_SYSTEM_GUIDANCE,
     NATIVE_MEMORY_PATCH_GUIDANCE,
     anima_name_line,
+    main_structured_output_guidance,
+    memory_system_guidance,
     render_core_companion_instruction,
 )
 
@@ -117,6 +117,8 @@ class DirectChatPromptAssembler:
         anima_name: str | None = None,
         anima_memories: str | None = None,
         anima_memories_writable: bool = False,
+        anima_memories_write_guidance: str | None = None,
+        remember_field: bool = True,
         response_format_guidance: str | None = None,
         native_memory_patch_enabled: bool = False,
         memory_map: str | None = None,
@@ -171,6 +173,8 @@ class DirectChatPromptAssembler:
             anima_name=anima_name,
             anima_memories=anima_memories,
             anima_memories_writable=anima_memories_writable,
+            anima_memories_write_guidance=anima_memories_write_guidance,
+            remember_field=remember_field,
             response_format_guidance=response_format_guidance,
             native_memory_patch_enabled=native_memory_patch_enabled,
             instruction_style=instruction_style,
@@ -247,22 +251,29 @@ def _stable_instruction_sections(
     anima_name: str | None = None,
     anima_memories: str | None = None,
     anima_memories_writable: bool = False,
+    anima_memories_write_guidance: str | None = None,
+    remember_field: bool = True,
     response_format_guidance: str | None = None,
     native_memory_patch_enabled: bool = False,
     instruction_style: str = INSTRUCTION_STYLE_DEFAULT,
     conversation_language: ConversationLanguage | None = None,
     speech_guidance: str | None = None,
 ) -> list[str]:
-    """Return the system sections that change only per Anima (or language or voice), in order, before the guardrails."""
+    """Return the system sections that change only per Anima (or language or voice), in order, before the guardrails.
+
+    ``remember_field`` and ``anima_memories_write_guidance`` serve the model benchmark's episodic-memory arms
+    (app/chat/memory_arm.py); their defaults are chat's own prompt.
+    """
 
     anthropic = instruction_style == INSTRUCTION_STYLE_ANTHROPIC
 
     guidance = response_format_guidance.strip() if isinstance(response_format_guidance, str) else ""
-    memory_guidance = MEMORY_SYSTEM_GUIDANCE.strip()
+    memory_guidance = memory_system_guidance(remember=remember_field).strip()
     # The alias is advertised only when this turn can edit MEMORIES.md; its
     # content is already in these instructions, so a read-only turn needs no path.
     if anima_memories_writable:
-        memory_guidance = f"{memory_guidance}\n\n{ANIMA_MEMORIES_WRITE_GUIDANCE.strip()}"
+        write_guidance = anima_memories_write_guidance or ANIMA_MEMORIES_WRITE_GUIDANCE
+        memory_guidance = f"{memory_guidance}\n\n{write_guidance.strip()}"
     if native_memory_patch_enabled:
         memory_guidance = f"{memory_guidance}\n\n{NATIVE_MEMORY_PATCH_GUIDANCE.strip()}"
     if anthropic:
@@ -290,7 +301,7 @@ def _stable_instruction_sections(
         sections.append(f"# Anima Memories\n\n{memories}")
     sections += [
         "# Memory Guidance\n\n" + memory_guidance,
-        "# Response Guidance\n\n" + (guidance or MAIN_STRUCTURED_OUTPUT_GUIDANCE.strip()),
+        "# Response Guidance\n\n" + (guidance or main_structured_output_guidance(remember=remember_field).strip()),
     ]
     # How `speech` is written for the selected voice, including audio tags (app/chat/speech_tags.py).
     if isinstance(speech_guidance, str) and speech_guidance.strip():

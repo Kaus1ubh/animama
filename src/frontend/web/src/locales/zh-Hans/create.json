@@ -102,7 +102,14 @@
     "search": "搜索虚拟形象",
     "searchPlaceholder": "搜索虚拟形象…",
     "showMore": "显示更多虚拟形象",
-    "upload": "上传 VRM"
+    "upload": "上传 VRM",
+    "diagnostics": {
+      "checking": "正在检查此虚拟形象…",
+      "noProblems": "未发现问题。",
+      "failed": "Animama 无法加载此虚拟形象。",
+      "view": "查看诊断",
+      "problems_other": "发现 {{count}} 个问题。"
+    }
   },
   "completion": {
     "degraded": "部分运行时内容不可用。你的 Anima 已成功创建。",

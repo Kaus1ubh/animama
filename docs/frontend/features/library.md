@@ -53,7 +53,9 @@ Tiles show the `variant=thumbnail` copy of an item's first image (a WebP of at
 most 128 pixels) and load it only near the viewport, keeping the family icon
 until it draws, or if the image is too large to preview. A Particle tile reads its
 manifest's tint only once its texture
-has loaded.
+has loaded. A runtime that reports `library_previews: false` offers no previews:
+every item tile except Avatars shows its family icon, and the Library requests no
+thumbnail, texture or manifest for it.
 
 An attention indicator exposes affected items, validation details and Retry scan
 when content is invalid, missing, awaiting a scan or unavailable. Valid content can Preview;
@@ -80,7 +82,15 @@ Avatar rows use `/v1/avatar-catalog`, which joins Avatar metadata to a valid
 catalog model and registered portrait Appearance. Each row uses that model's
 generated portrait (never an Anima's custom profile picture), falling back to an
 icon when unavailable. Preview resolves registered VRM bytes; Create Anima hands
-the Avatar to Anima creation. Entries without model files are omitted; reference-safe seed reconciliation
+the Avatar to Anima creation. **Avatar settings** (on cards with a catalog
+item, in both layouts) opens the Avatar's wind and Materials settings, the
+same rows as Anima settings, so a change applies wherever the Avatar is used,
+the preview dock included (see
+[Avatar settings](anima-management.md#avatar-settings)), and **Open
+diagnostics** for that item. Materials needs to know whether the file has
+lilToon materials; the backend keeps no file facts, so the dialog reads the
+file once per session when no surface has loaded it. The hosted app keeps no
+Avatar settings, so there the dialog offers Diagnostics only. Entries without model files are omitted; reference-safe seed reconciliation
 preserves records needed by Animas.
 
 Some Included content is **non-portable**: it plays, previews and can be

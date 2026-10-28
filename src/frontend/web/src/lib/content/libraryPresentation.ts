@@ -195,9 +195,15 @@ export function actionLibraryCard(
   };
 }
 
+/**
+ * Present one Effect or Sound. `previews` is the runtime's `library_previews`
+ * capability: without it the card carries no preview source, so its tile
+ * shows the family icon and requests no thumbnail, texture or manifest.
+ */
 export function effectLibraryCard(
   family: "particle" | "avatar-effect" | "scene" | "sound",
   value: PyCatalogViewItem,
+  previews = true,
 ): LibraryProductCard {
   return {
     key: `${family}:${value.origin}:${value.item_id}`,
@@ -205,8 +211,12 @@ export function effectLibraryCard(
     family,
     name: value.name,
     description: value.description?.trim() || "No description",
-    thumbnailUrl: value.thumbnail_url,
-    particleThumbnail: value.particle_thumbnail,
+    ...(previews
+      ? {
+          thumbnailUrl: value.thumbnail_url,
+          particleThumbnail: value.particle_thumbnail,
+        }
+      : {}),
     origin: value.origin === "builtin" ? "Built-in" : "Mine",
     sourceLabel: value.catalog_source === "included" ? "Included" : "Local",
     updateAvailable: false,

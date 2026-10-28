@@ -13,8 +13,17 @@ import { avatarSceneLights } from "./sceneCameraPresets";
  * the "Enable enhanced renderer and shaders" setting, plus lilToon's render
  * passes once an Avatar with lilToon materials has loaded. `lights={false}` keeps
  * only the tone mapping, for canvases that bring their own lights.
+ * `measureLilToonGpu` (the main Avatar canvas, never Picture in Picture or
+ * previews) times lilToon frames whenever the Materials setting's Automatic
+ * needs a measurement (`lilToonGpuCheck.ts`).
  */
-export function AvatarSceneLighting({ lights = true }: { lights?: boolean }) {
+export function AvatarSceneLighting({
+  lights = true,
+  measureLilToonGpu = false,
+}: {
+  lights?: boolean;
+  measureLilToonGpu?: boolean;
+}) {
   const gl = useThree((state) => state.gl);
   const enhanced = useEnhancedRenderingStore((state) => state.enabled);
 
@@ -24,7 +33,11 @@ export function AvatarSceneLighting({ lights = true }: { lights?: boolean }) {
   }, [gl, enhanced]);
 
   // lilToon's outline and extra passes, once an Avatar has loaded lilToon.
-  useEffect(() => installLilToonRenderingWhenLoaded(gl), [gl]);
+  useEffect(
+    () =>
+      installLilToonRenderingWhenLoaded(gl, { measureGpu: measureLilToonGpu }),
+    [gl, measureLilToonGpu],
+  );
 
   if (!lights) return null;
   const { ambientIntensity, directional } = avatarSceneLights(enhanced);

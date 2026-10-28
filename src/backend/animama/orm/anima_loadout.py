@@ -108,6 +108,7 @@ class ORMAnimaRuntimeSnapshot(SqlalchemyBase):
             "jsonb_typeof(admitted_item_revisions) = 'object'",
             name="admitted_item_revisions_object",
         ),
+        CheckConstraint("jsonb_typeof(bundles) = 'object'", name="bundles_object"),
         UniqueConstraint("owner_user_id", "anima_id", "effective_revision", name="uq_anima_runtime_snapshot_revision"),
         Index("ix_anima_runtime_snapshots_expiry", "expires_at"),
     )
@@ -124,6 +125,12 @@ class ORMAnimaRuntimeSnapshot(SqlalchemyBase):
         server_default=sa_text("'{}'::jsonb"),
     )
     catalog: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    # The delivery bundles issued with the catalog, by bundle ID: {"format", "members"},
+    # so a bundle read loads only its own members.
+    bundles: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, server_default=sa_text("'{}'::jsonb"))
+    # A digest of everything the snapshot was compiled from, so an unchanged loadout
+    # reissues it without compiling again; null when it can never be reused.
+    inputs_digest: Mapped[str | None] = mapped_column(String(64), nullable=True)
     expires_at: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         TIMESTAMP(timezone=True), nullable=False, server_default=sa_text("CURRENT_TIMESTAMP")

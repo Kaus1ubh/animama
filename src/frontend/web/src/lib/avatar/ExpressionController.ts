@@ -11,7 +11,9 @@ import {
   VOWEL5_CHANNELS,
   type Vowel5Channel,
 } from "./arkitFaceCompositions";
-import { registerArkitFace } from "./arkitFaceExpressions";
+import { ownFaceNames, registerArkitFace } from "./arkitFaceExpressions";
+import { registerIrisHideExpression } from "./irisHideExpression";
+import { registerMmdFace } from "./mmdFaceExpressions";
 import { registerMorphTargetExpressions } from "./morphTargetExpressions";
 import {
   fallbackPresetForPart,
@@ -816,9 +818,9 @@ export class ExpressionController {
       const arkitFallback = this._arkitToVrmMap[name];
       const partFallback = fallbackPresetForPart(name);
       if (
-        this._hasBlendshape(name) ||
-        (arkitFallback !== undefined && this._hasBlendshape(arkitFallback)) ||
-        (partFallback !== null && this._hasBlendshape(partFallback))
+        this._playsSomething(name) ||
+        (arkitFallback !== undefined && this._playsSomething(arkitFallback)) ||
+        (partFallback !== null && this._playsSomething(partFallback))
       ) {
         this._resolvedExpressionNames.add(name);
         continue;
@@ -997,7 +999,18 @@ export class ExpressionController {
         this._targetExpressions.set(fallbackPreset, 1.0);
       }
     }
-    this._noteUnresolvedExpressions(this._targetExpressions.keys());
+    // Note the map's own names, so one the Avatar cannot play (such as
+    // `Fcl_MTH_Large` without `jawOpen`) is reported rather than dropped; the
+    // positive moods' whole fallback (`relaxed`) replaces them by design.
+    const requested = EMOTION_INTENSITY_MAP[label]?.[safeIntensity];
+    const usedFallback =
+      config !== null &&
+      config === EMOTION_INTENSITY_FALLBACK_MAP[label]?.[safeIntensity];
+    this._noteUnresolvedExpressions(
+      requested && !usedFallback
+        ? Object.keys(requested)
+        : this._targetExpressions.keys(),
+    );
   }
 
   /**
@@ -1511,10 +1524,13 @@ export class ExpressionController {
   }
 
   private _registerArkitExpressions(): ArkitFaceCapability {
-    // ARKit shapes first: a mesh whose morph is already spelled canonically
-    // must join the canonical expression rather than own a same-named one.
-    // `Avatar.load` has usually registered them already; this is idempotent.
+    // Face names first (MMD, then ARKit): a mesh whose morph is already
+    // spelled canonically must join the canonical expression rather than own
+    // a same-named one. `prepareLoadedVrm` has usually registered them
+    // already; each step is idempotent.
+    registerMmdFace(this._vrm, ownFaceNames(this._vrm));
     const { capability, playsFacesWithArkit } = registerArkitFace(this._vrm);
+    registerIrisHideExpression(this._vrm, ownFaceNames(this._vrm));
     registerMorphTargetExpressions(this._vrm);
     if (capability.resolved.size > 0 || capability.ambiguous.size > 0) {
       logger.info("Init", "Detected ARKit face shapes on VRM avatar", {
@@ -1624,6 +1640,18 @@ export class ExpressionController {
     } catch {
       // Ignore missing or model-specific expression failures during cleanup.
     }
+  }
+
+  /**
+   * Whether an expression of this name moves something: three-vrm registers
+   * every preset, bound or not, and an empty one plays nothing. `neutral` is
+   * empty by design.
+   */
+  private _playsSomething(name: string): boolean {
+    if (!this._hasBlendshape(name)) return false;
+    if (name === "neutral") return true;
+    const expression = this._expressionManager?.getExpression(name);
+    return (expression?.binds.length ?? 0) > 0;
   }
 
   private _hasBlendshape(name: string): boolean {

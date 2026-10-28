@@ -29,6 +29,8 @@ import { itemReference } from "./createAnimaContent";
 import { sameRef, type CreateAnimaDraft } from "./createAnimaDraft";
 import { creatorErrorText } from "./createAnimaErrors";
 import { checkCreationVrm } from "./createAnimaFiles";
+import type { CreationStageAvatar } from "./CreateAnimaStage";
+import { CreateAnimaUploadDiagnostics } from "./CreateAnimaUploadDiagnostics";
 
 /** The server remains authoritative; offer only an unambiguous caller-editable collision. */
 export function avatarCollisionTarget(
@@ -47,6 +49,8 @@ export function avatarCollisionTarget(
   return matches.length === 1 ? matches[0] : undefined;
 }
 
+const UNLOADED_STAGE: CreationStageAvatar = { avatar: null, status: "loading" };
+
 export function CreateAnimaAvatarStep({
   draft,
   sources,
@@ -56,6 +60,7 @@ export function CreateAnimaAvatarStep({
   onFile,
   onSelect,
   onWorking,
+  stageAvatar = UNLOADED_STAGE,
 }: {
   draft: CreateAnimaDraft;
   sources: AnimaCreationSources;
@@ -65,6 +70,8 @@ export function CreateAnimaAvatarStep({
   onFile: (file: File | null) => void;
   onSelect: (source: ItemRevisionRef, meaningful?: boolean) => Promise<void>;
   onWorking: (working: boolean) => void;
+  /** The stage's Avatar for the chosen file, for its Diagnostics status. */
+  stageAvatar?: CreationStageAvatar;
 }) {
   const { t } = useTranslation("create");
   const formatters = useFormatters();
@@ -353,6 +360,7 @@ export function CreateAnimaAvatarStep({
                 size: formatters.fileSize(file.size),
               })}
             </p>
+            <CreateAnimaUploadDiagnostics file={file} stage={stageAvatar} />
             <label htmlFor="creation-vrm-name" className="text-sm font-medium">
               {t("avatarStep.saveAs")}
             </label>

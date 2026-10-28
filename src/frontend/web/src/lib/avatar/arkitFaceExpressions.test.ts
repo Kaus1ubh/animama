@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { ARKIT_BLENDSHAPES } from "./arkit";
 import { ARKIT_VOWEL_MIXES } from "./arkitFaceCompositions";
-import { registerArkitFace } from "./arkitFaceExpressions";
+import { arkitMixOf, registerArkitFace } from "./arkitFaceExpressions";
 import { applyEyelidClosureCorrection } from "./eyelidClosure";
 import { ExpressionController } from "./ExpressionController";
 import { morphInfluence, syntheticFaceVrm } from "./testing/syntheticFaceVrm";
@@ -61,19 +61,54 @@ describe("ARKit face expressions", () => {
     );
   });
 
-  it("leaves an Avatar missing a table shape as it was", () => {
-    const { vrm } = arkitAvatar({ omit: "noseSneerLeft" });
+  it("fills only the regions whose shapes the Avatar has", () => {
+    // Without noseSneerLeft, angry's mouth region cannot play its mix.
+    const { vrm, mesh } = arkitAvatar({ omit: "noseSneerLeft" });
+    const face = registerArkitFace(vrm);
+    const manager = vrm.expressionManager!;
+    expect(face.playsFacesWithArkit).toBe(true);
+    expect(face.moods.angry).toEqual({
+      brow: "arkit",
+      eye: "arkit",
+      mouth: "none",
+    });
+    expect(face.moods.sad).toEqual({
+      brow: "arkit",
+      eye: "arkit",
+      mouth: "arkit",
+    });
+    expect(manager.getExpression("Fcl_MTH_Angry")).toBeNull();
+    expect(arkitMixOf(manager.getExpression("Fcl_BRW_Angry")!)).not.toBeNull();
+    manager.setValue("angry", 1);
+    manager.update();
+    expect(morphInfluence(mesh, "browDown_L")).toBeGreaterThan(0);
+    expect(morphInfluence(mesh, "mouthPress_L")).toBe(0);
+  });
+
+  it("keeps an authored preset for a mood it cannot fill entirely", () => {
+    const { vrm } = arkitAvatar({ omit: "mouthShrugLower" });
     const authoredSad = vrm.expressionManager!.getExpression("sad");
     const face = registerArkitFace(vrm);
-    expect(face.playsFacesWithArkit).toBe(false);
+    expect(face.moods.sad).toEqual({
+      brow: "preset",
+      eye: "preset",
+      mouth: "preset",
+    });
     expect(vrm.expressionManager!.getExpression("sad")).toBe(authoredSad);
-    expect(vrm.expressionManager!.getExpression("happy")).toBeNull();
-    expect(vrm.expressionManager!.getExpression("Fcl_BRW_Joy")).toBeNull();
+    // Its regions still play their mixes for content keying them.
+    expect(
+      arkitMixOf(vrm.expressionManager!.getExpression("Fcl_BRW_Sorrow")!),
+    ).not.toBeNull();
   });
 
   it("leaves a VRoid face with added ARKit shapes as authored", () => {
     // A VRoid model with "Perfect Sync" shapes keeps its own parts and presets.
-    const { vrm, mesh } = arkitAvatar({ extraMorphs: ["Fcl_MTH_Fun"] });
+    const vroidParts = ["ALL", "BRW", "EYE", "MTH"].flatMap((region) =>
+      ["Joy", "Fun", "Sorrow", "Surprised", "Angry"].map(
+        (mood) => `Fcl_${region}_${mood}`,
+      ),
+    );
+    const { vrm, mesh } = arkitAvatar({ extraMorphs: vroidParts });
     const authoredSad = vrm.expressionManager!.getExpression("sad");
     const controller = new ExpressionController(vrm);
 

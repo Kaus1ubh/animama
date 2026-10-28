@@ -18,23 +18,38 @@ from animama.domain.content_catalog import ContentConflictError, ContentKind
 from animama.domain.request_principal import RequestPrincipal
 from animama.orm import ORMAnima, ORMAvatar
 from animama.product_http.routes.avatars import list_avatar_catalog
-from tests.anima_creation_service_support import AnimaCreationFixture, anima_creation_fixture, write_json
-from tests.content_package_helpers import reviewed_export, reviewed_import
+from tests.anima_creation_service_support import (
+    AnimaCreationFixture,
+    anima_creation_fixture,
+    vrm,
+    write_file,
+    write_json,
+)
+from tests.content_package_helpers import (
+    CONVERTED_AVATAR_EXTENSIONS,
+    review_import,
+    reviewed_export,
+    reviewed_import,
+)
 
 
 async def _package(
     session: AsyncSession, fixture: AnimaCreationFixture
 ) -> tuple[SQLAlchemyContentCatalog, ContentCatalogService, ContentPackageService, ExportedContentPackage]:
-    """Use the normal import UoW without creating a source or destination Anima."""
+    """Use the normal import UoW without creating a source or destination Anima.
+
+    The Local Avatar is read again from the rescan, so a test may replace its file first.
+    """
     write_json(
         fixture.paths.local_root / "appearances/picture.meta.json",
         {"name": "Portrait", "presentation": {"avatar_item_id": fixture.items["local-avatar"].id}},
     )
     catalog = SQLAlchemyContentCatalog(session)
     content = ContentCatalogService(catalog=catalog, store=fixture.store())
-    await content.rescan(user_id=fixture.owner)
+    scanned = await content.rescan(user_id=fixture.owner)
+    avatar = next(item for item in scanned.items if item.id == fixture.items["local-avatar"].id)
     uow = SQLAlchemyAnimaAggregateUnitOfWork(session)
-    await uow.avatars.resolve_catalog_avatar(user_id=fixture.owner, item=fixture.items["local-avatar"])
+    await uow.avatars.resolve_catalog_avatar(user_id=fixture.owner, item=avatar)
     await session.commit()
     packages = ContentPackageService(
         content=content,
@@ -110,6 +125,30 @@ async def test_standalone_avatar_copies_are_listed_with_portraits_and_delete_wit
         assert await async_session.get(ORMAvatar, first[1]) is None
         assert (fixture.paths.local_root / second[0].relative_locator).is_file()
         assert (fixture.paths.local_root / fixture.items["local-avatar"].relative_locator).is_file()
+
+
+@pytest.mark.parametrize("extension", CONVERTED_AVATAR_EXTENSIONS)
+async def test_avatar_file_using_a_converter_or_compression_extension_exports_and_imports(
+    async_session: AsyncSession, tmp_path: Path, extension: str
+) -> None:
+    """Converted and optimized Avatars share like any other; their bytes travel unchanged."""
+    async with anima_creation_fixture(async_session, tmp_path) as fixture:
+        original = vrm("Converted avatar", uses=extension)
+        write_file(fixture.paths.local_root / "avatars/local-avatar.vrm", original)
+        catalog, _content, packages, exported = await _package(async_session, fixture)
+        review, command = await review_import(
+            packages, user_id=fixture.owner, archive_path=exported.path, operation_id=f"import-{extension}"
+        )
+        # The review names an Avatar the runtime cannot decode; it still imports.
+        notices = {item.kind: item.notices for item in review.items}
+        undecoded = extension == "KHR_draco_mesh_compression"
+        assert notices[ContentKind.AVATAR] == (("avatar_extension_unsupported",) if undecoded else ())
+        assert all(item.notices == () for item in review.items if item.kind is not ContentKind.AVATAR)
+        result = await packages.imports.commit(**command)
+        copied_id = next(item.item_id for item in result.items if item.kind is ContentKind.AVATAR)
+        copied = await catalog.get_visible_item(item_id=copied_id, user_id=fixture.owner)
+        assert copied is not None and copied.id != fixture.items["local-avatar"].id
+        assert (fixture.paths.local_root / copied.relative_locator).read_bytes() == original
 
 
 @pytest.mark.parametrize("after_commit", [False, True])

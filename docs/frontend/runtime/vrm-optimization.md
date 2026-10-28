@@ -62,8 +62,9 @@ Animama depends on details that stock glTF optimizers remove:
   `optimize`, `quantize`, `weld` and `prune` drop `VRMC_*` extensions, MToon-only
   textures and, in testing, skins. vrm-transform's `pruneMorphTargets` deletes
   the `Fcl_*` shapes.
-- **No meshopt, Draco or KTX2.** The app registers no decoders for them. The
-  backend validator rejects KTX2 images, and texture-painted Avatar Effects need
+- **No Draco or KTX2.** The app registers no decoders for them; it decodes
+  `EXT_meshopt_compression`, which this tool does not write. The backend
+  validator rejects KTX2 images, and texture-painted Avatar Effects need
   images a canvas can draw.
 
 ## Checks

@@ -72,6 +72,14 @@
       "replace": "Replace this Avatar",
       "title": "This Avatar name is already used"
     },
+    "diagnostics": {
+      "checking": "Checking this Avatar…",
+      "failed": "Animama could not load this Avatar.",
+      "noProblems": "No problems found.",
+      "problems_one": "{{count}} problem found.",
+      "problems_other": "{{count}} problems found.",
+      "view": "View diagnostics"
+    },
     "discardUpload": "Discard unsaved upload",
     "emptyIncluded": "No Included Avatars are available. You can use My Content or upload a VRM.",
     "emptyLocal": "No Avatars in My Content yet. Upload a VRM to add one.",

@@ -4,9 +4,8 @@ Animama chats with any server that offers the OpenAI Chat Completions API. This
 guide covers running Ollama, LM Studio, llama.cpp or vLLM on the same machine
 and connecting them in App Settings → Models, including from Docker Compose.
 The settings screens themselves are described in
-[model settings](../../frontend/features/model-settings.md). Their Local tab is
-hidden unless the web build sets `VITE_ENABLE_LOCAL_MODELS=true`; for a Compose
-development stack, run `VITE_ENABLE_LOCAL_MODELS=true ./reset.sh`.
+[model settings](../../frontend/features/model-settings.md). A web build with
+`VITE_ENABLE_LOCAL_MODELS=false` hides their Local tab.
 
 ## What each job needs
 

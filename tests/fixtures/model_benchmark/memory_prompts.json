@@ -1,0 +1,104 @@
+{
+  "version": "memory-fixture-1",
+  "loadout": {
+    "path": "loadout.json",
+    "sha256": "02da6fda75bf168c0decfa4e75cf35bd6e82899d6b1982a845a73293df1e48b0"
+  },
+  "personas": [
+    {
+      "id": "annie",
+      "starter": "starter:annie"
+    }
+  ],
+  "episodic_guidance": {
+    "path": "episodic-guidance.md",
+    "sha256": "8ab82b2832f298d3f4fc9b1d6990fe707a2afe8b84b5eb8b14ba62365b9ece00"
+  },
+  "memory_fixtures": [
+    {
+      "id": "home",
+      "anima_memories": "# Memories\n\n## Our story\n- We met on a rainy Tuesday.",
+      "user_files": [
+        {
+          "path": "PROFILE.md",
+          "content": "# Profile\n\n- Likes tea.",
+          "description": "The user's durable facts"
+        }
+      ]
+    }
+  ],
+  "memory_chats": [
+    {
+      "id": "move",
+      "persona": "annie",
+      "fixture": "home",
+      "tier": "smoke",
+      "turns": [
+        "Big news: I'm moving to Kyoto next month!",
+        "Anyway, how are you?"
+      ],
+      "checklist": [
+        {
+          "id": "kyoto",
+          "kind": "keep",
+          "text": "The user is moving to Kyoto next month."
+        },
+        {
+          "id": "smalltalk",
+          "kind": "noise",
+          "text": "The user asked how the Anima is."
+        }
+      ],
+      "recall": [
+        {
+          "id": "where",
+          "message": "Remind me where I'm moving?",
+          "expect": [
+            "Kyoto"
+          ],
+          "checklist": [
+            "kyoto"
+          ]
+        }
+      ]
+    }
+  ],
+  "memory_manager": [
+    {
+      "id": "tidy",
+      "kind": "general",
+      "persona": "annie",
+      "fixture": "home",
+      "tier": "smoke",
+      "message": "Please add that I like green tea to my profile."
+    },
+    {
+      "id": "episodes",
+      "kind": "episode_processing",
+      "persona": "annie",
+      "fixture": "home",
+      "tier": "smoke",
+      "episodes": [
+        "The user is moving to Kyoto next month.",
+        "The user asked how the Anima was doing."
+      ]
+    },
+    {
+      "id": "reflect",
+      "kind": "reflection",
+      "persona": "annie",
+      "fixture": "home",
+      "tier": "smoke",
+      "turns": [
+        [
+          "I passed my driving test!",
+          "That's wonderful, congratulations!"
+        ],
+        [
+          "Let's celebrate on Friday.",
+          "Friday it is!"
+        ]
+      ]
+    }
+  ]
+}

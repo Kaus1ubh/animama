@@ -138,3 +138,42 @@ describe("CreateAnimaStage Avatar settings", () => {
     expect(fakeAvatarLoads(1)).toEqual(["load on automatic"]);
   });
 });
+
+describe("CreateAnimaStage upload Avatar state", () => {
+  async function renderUpload(onAvatarStateChange: (state: unknown) => void) {
+    setFakeSettings("automatic", "automatic");
+    await act(async () =>
+      root.render(
+        <CreateAnimaStage
+          avatar={null}
+          file={new File([new Uint8Array(4)], "upload.vrm")}
+          loadAvatar={loadAvatar as never}
+          onUpload={vi.fn()}
+          suspended={false}
+          onFinished={vi.fn()}
+          onAvatarStateChange={onAvatarStateChange}
+        />,
+      ),
+    );
+    await flush();
+  }
+
+  it("reports the upload's Avatar once it loads", async () => {
+    const states: Array<{ avatar: unknown; status: string }> = [];
+    await renderUpload((state) => states.push(state as never));
+    expect(states.at(-1)).toEqual({ avatar: null, status: "loading" });
+
+    await act(async () => fakeAvatars[0]!.finishLoad());
+    await flush();
+    expect(states.at(-1)?.status).toBe("ready");
+    expect(states.at(-1)?.avatar).not.toBeNull();
+  });
+
+  it("reports a failed load without an Avatar", async () => {
+    const states: Array<{ avatar: unknown; status: string }> = [];
+    await renderUpload((state) => states.push(state as never));
+    await act(async () => fakeAvatars[0]!.failLoad());
+    await flush();
+    expect(states.at(-1)).toEqual({ avatar: null, status: "failed" });
+  });
+});

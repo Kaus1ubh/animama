@@ -1,3 +1,4 @@
+import type { LilToonMaterial } from "@mochiya/three-liltoon";
 import type { VRMLoaderPlugin } from "@pixiv/three-vrm";
 import type * as THREE from "three";
 import type {
@@ -7,6 +8,12 @@ import type {
 } from "three/examples/jsm/loaders/GLTFLoader.js";
 
 import { createLogger } from "@/lib/logger";
+
+import { installLilToonDepthPrepass } from "./depthPrepass";
+import {
+  installLilToonGpuCheck,
+  rememberAvatarCanvasGpu,
+} from "./lilToonGpuCheck";
 
 /**
  * Authored lilToon materials through three-liltoon, loaded only when needed.
@@ -18,8 +25,10 @@ import { createLogger } from "@/lib/logger";
  * without it, including every Included Avatar's, load exactly as before.
  *
  * Once the runtime has loaded, every Avatar renderer registered with
- * `installLilToonRenderingWhenLoaded` gains lilToon's outline and extra passes;
- * renderers of sessions that never load such an Avatar are untouched.
+ * `installLilToonRenderingWhenLoaded` gains lilToon's outline and extra passes
+ * and Animama's depth pre-pass for opaque lilToon primitives
+ * (`depthPrepass.ts`); renderers of sessions that never load such an Avatar
+ * are untouched.
  *
  * If the import fails, the glTF fallback materials load in development and in
  * the review tools, and a later Avatar retries. In a built app a failed chunk
@@ -41,7 +50,10 @@ export type LilToonRuntime = {
    * `loadMaterial` and `afterRoot` when it calls them.
    */
   enhancePlugin: (plugin: VRMLoaderPlugin) => void;
-  /** Install lilToon's passes on a renderer; returns its release. */
+  /**
+   * Install lilToon's passes and the depth pre-pass on a renderer; returns
+   * their release.
+   */
   enableRendering: (renderer: THREE.WebGLRenderer) => () => void;
 };
 
@@ -74,11 +86,13 @@ export function lilToonMaterialStateOf(gltf: GLTF): LilToonMaterialState {
 }
 
 /**
- * Keep the glTF fallback of an authored lilToon material unmetallic. Mochiya
- * writes `metallicFactor` 1, which renders a lit fallback almost black without
- * an environment map; lilToon's own reflection is a toon highlight, not metal.
- * GLTFLoader extends only the materials it builds itself, so this never
- * touches a material three-liltoon built.
+ * Keep the glTF fallback of an authored lilToon material unmetallic and
+ * untinted. Mochiya writes `metallicFactor` 1, which renders a lit fallback
+ * almost black without an environment map; lilToon's own reflection is a toon
+ * highlight, not metal. Vertex colours on such materials' meshes are lilToon
+ * outline data, not glTF's colour multiply. GLTFLoader extends only the
+ * materials it builds itself, so this never touches a material three-liltoon
+ * built.
  */
 export class LilToonFallbackMaterialsPlugin implements GLTFLoaderPlugin {
   readonly name = "ANIMAMA_liltoon_fallback_materials";
@@ -102,6 +116,88 @@ export class LilToonFallbackMaterialsPlugin implements GLTFLoaderPlugin {
     }
     return Promise.resolve();
   }
+
+  /**
+   * Vertex colours on a lilToon material's meshes are outline data (baked
+   * normals and widths), not the glTF colour multiply GLTFLoader applies, so
+   * fallbacks built from such materials ignore them.
+   */
+  afterRoot(result: GLTF): Promise<void> {
+    if (!usesLilToonMaterials(this.parser.json)) return Promise.resolve();
+    const materials = (
+      this.parser.json as {
+        materials?: { extensions?: Record<string, unknown> }[];
+      }
+    ).materials;
+    result.scene.traverse((object) => {
+      const mesh = object as THREE.Mesh;
+      if (!mesh.isMesh) return;
+      for (const entry of Array.isArray(mesh.material)
+        ? mesh.material
+        : [mesh.material]) {
+        if ((entry as { isLilToonMaterial?: boolean }).isLilToonMaterial)
+          continue;
+        const index = this.parser.associations.get(entry)?.materials;
+        if (
+          index !== undefined &&
+          materials?.[index]?.extensions?.[LILTOON_MATERIALS_EXTENSION] &&
+          entry.vertexColors
+        ) {
+          entry.vertexColors = false;
+          entry.needsUpdate = true;
+        }
+      }
+    });
+    return Promise.resolve();
+  }
+}
+
+/**
+ * lilToon's outline vertex-colour mode 2 takes the outline's direction from
+ * the vertex colour's RGB (a tangent-space normal baked by the Avatar's
+ * author) and its width from the alpha. Exports that drop vertex colours
+ * leave three-liltoon reading white, which pushes the outline along tangent +
+ * bitangent + normal at about 1.7 times its width, through thin parts such as
+ * hair tips. Outlined materials on meshes without vertex colours use mode 0
+ * instead: the mesh normal (or the outline vector texture), with the width
+ * mask still applied. GLTFLoader gives meshes with and without colours their
+ * own material copies, so meshes that keep their colours draw as authored.
+ * Mode 1 (width from red) is left alone: without colours it keeps its
+ * direction and reads full width, as Unity does for a mesh without colours.
+ * Returns the names of the materials changed.
+ */
+function fallBackFromMissingOutlineColours(scene: THREE.Object3D): string[] {
+  const coloured = new Map<LilToonMaterial, boolean>();
+  scene.traverse((object) => {
+    const mesh = object as THREE.Mesh;
+    if (!mesh.isMesh) return;
+    const hasColour = mesh.geometry.hasAttribute("color");
+    for (const entry of Array.isArray(mesh.material)
+      ? mesh.material
+      : [mesh.material]) {
+      if (isVertexColourOutline(entry))
+        coloured.set(entry, (coloured.get(entry) ?? false) || hasColour);
+    }
+  });
+  const changed = new Set<string>();
+  for (const [material, hasColour] of coloured) {
+    if (hasColour) continue;
+    material.setProperty("_OutlineVertexR2Width", 0);
+    changed.add(material.name);
+  }
+  return [...changed];
+}
+
+/** An outlined lilToon material whose outline reads vertex colours (mode 2). */
+function isVertexColourOutline(
+  material: THREE.Material,
+): material is LilToonMaterial {
+  const lilToon = material as Partial<LilToonMaterial>;
+  return (
+    lilToon.isLilToonMaterial === true &&
+    lilToon.featureSet?.outline === true &&
+    Number(lilToon.lilToonProperties?._OutlineVertexR2Width ?? 0) === 2
+  );
 }
 
 async function importLilToonRuntime(): Promise<LilToonRuntime> {
@@ -123,7 +219,15 @@ async function importLilToonRuntime(): Promise<LilToonRuntime> {
           logger.warn("Load", "lilToon material warning", { ...warning }),
       });
     },
-    enableRendering: (renderer) => core.enableLilToon(renderer),
+    enableRendering: (renderer) => {
+      const releasePasses = core.enableLilToon(renderer);
+      // Outermost, so it attaches its meshes before lilToon prepares a frame.
+      const releasePrepass = installLilToonDepthPrepass(renderer);
+      return () => {
+        releasePrepass();
+        releasePasses();
+      };
+    },
   };
 }
 
@@ -166,15 +270,32 @@ export function loadLilToonRuntime(): Promise<LilToonRuntime> {
 /**
  * Install lilToon's passes on `renderer` as soon as the runtime is loaded (at
  * once if it already is). Returns a cleanup that releases the passes or stops
- * waiting.
+ * waiting. The renderer's GPU is noted at once, so the Materials setting's
+ * Automatic can look up its measurement before the next Avatar loads
+ * (`lilToonGpuCheck.ts`). With `measureGpu` (the chat canvas), the canvas
+ * also times lilToon frames whenever a measurement is due.
  */
 export function installLilToonRenderingWhenLoaded(
   renderer: THREE.WebGLRenderer,
+  { measureGpu = false }: { measureGpu?: boolean } = {},
 ): () => void {
+  rememberAvatarCanvasGpu(renderer);
   let release: (() => void) | null = null;
   const install = (runtime: LilToonRuntime) => {
     loadedListeners.delete(install);
-    release = runtime.enableRendering(renderer);
+    const releasePasses = runtime.enableRendering(renderer);
+    let releaseCheck: () => void = () => undefined;
+    try {
+      // Outermost, so it times the passes and the pre-pass as well.
+      if (measureGpu) releaseCheck = installLilToonGpuCheck(renderer);
+    } catch (error) {
+      releasePasses();
+      throw error;
+    }
+    release = () => {
+      releaseCheck();
+      releasePasses();
+    };
   };
   if (loadedRuntime) notify(install, loadedRuntime);
   else loadedListeners.add(install);
@@ -187,11 +308,24 @@ export function installLilToonRenderingWhenLoaded(
 
 /**
  * Let a VRM loader plugin build lilToon materials for files that declare the
- * extension, importing three-liltoon on demand. Other files are untouched: the
- * plugin gains no material hook.
+ * extension, importing three-liltoon on demand, and fall back from outline
+ * vertex colours such files lack (`fallBackFromMissingOutlineColours`). Other
+ * files are untouched: the plugin gains no material hook.
  */
 export function withOnDemandLilToon<T extends VRMLoaderPlugin>(plugin: T): T {
   const beforeRoot = plugin.beforeRoot.bind(plugin);
+  const afterRoot = plugin.afterRoot.bind(plugin);
+  plugin.afterRoot = async (gltf) => {
+    await afterRoot(gltf);
+    if (!usesLilToonMaterials(plugin.parser.json)) return;
+    const changed = fallBackFromMissingOutlineColours(gltf.scene);
+    if (changed.length)
+      logger.warn(
+        "Load",
+        "lilToon outlines read vertex colours the file lacks; using the mesh normal",
+        { materials: changed },
+      );
+  };
   plugin.beforeRoot = async () => {
     await beforeRoot();
     if (!usesLilToonMaterials(plugin.parser.json)) return;

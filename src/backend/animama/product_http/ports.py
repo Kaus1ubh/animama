@@ -71,6 +71,7 @@ from animama.app.services.typed_content_service import TypedContentService
 from animama.app.web_search import WebSearchToolService
 from animama.domain.content_catalog import VerifiedContentFile
 from animama.domain.request_principal import RequestPrincipal
+from animama.product_http.delivery import DeferredJsonBody
 from animama.product_http.principal import get_current_principal
 
 
@@ -575,9 +576,10 @@ class ProductPorts(Protocol):
         """Deliver verified content bytes under this composition's caching policy.
 
         ``revalidate`` marks bytes a client may keep and revalidate by ETag; other
-        bytes must not be stored. ``immutable`` marks bytes named by an exact runtime
-        revision, which a composition may let a client reuse without revalidating
-        (ADR 0028). The response owns ``file`` and closes its handle. A binary runtime
+        bytes must not be stored. ``immutable`` marks bytes whose URL names them
+        exactly, by a runtime revision (ADR 0028) or by an Included file's digest
+        (ADR 0033), which a composition may let a client reuse without revalidating.
+        The response owns ``file`` and closes its handle. A binary runtime
         bundle arrives here too, as an in-memory frame whose digest is its ETag; it is
         revalidatable and immutable only when every member was read.
         """
@@ -586,7 +588,7 @@ class ProductPorts(Protocol):
     async def json_response(
         self,
         request: Request,
-        body: bytes,
+        body: bytes | DeferredJsonBody,
         *,
         encoding: str,
         headers: dict[str, str],
@@ -597,7 +599,10 @@ class ProductPorts(Protocol):
         under this composition's caching policy.
 
         ``encoding`` is the negotiated ``gzip`` or ``identity``; ``cacheable`` marks a
-        body a client may keep and revalidate by ETag.
+        body a client may keep and revalidate by ETag. The content catalog arrives as
+        a ``DeferredJsonBody``: ``encoded_json_response`` answers a matching validator
+        with a 304 before building it. Building it reads the request's session, so
+        keep that session and its read transaction open until this returns.
         """
         ...
 

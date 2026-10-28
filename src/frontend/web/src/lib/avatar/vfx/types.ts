@@ -460,6 +460,15 @@ export type AvatarVFXModelProfile = {
       left: AvatarVFXNormalizedRect;
       right: AvatarVFXNormalizedRect;
     };
+    /**
+     * Cells whose iris UVs run mirrored against VRoid's (the eye landmark's
+     * `textureMirrored`). Everything drawn there (art, offsets and turns) is
+     * mirrored about the cell's centre, so it reads on screen as on VRoid.
+     */
+    flipped?: {
+      left: boolean;
+      right: boolean;
+    };
   };
   faceLayout?: {
     rect: AvatarVFXNormalizedRect;

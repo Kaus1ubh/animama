@@ -298,6 +298,7 @@ export async function playContentPreviewMotion({
       throw new WordedError(t("preview.errors.idleAnimationUnavailable"));
     }
     await avatar.playAnimationWithName(idle.file, idle.name, {
+      isCurrent,
       loopType: loop ? "repeat" : "once",
       loopCount: loop ? -1 : 1,
       timeScale: idle.time_scale ?? 1,
@@ -309,6 +310,8 @@ export async function playContentPreviewMotion({
   }
   if (command.type === "reaction_clip") {
     const clip = await catalog.loadReactionClip(command.runtimeId);
+    // Retired while the clip loaded: prepare and report nothing.
+    if (!isCurrent()) return false;
     if (!clip) throw new WordedError(t("preview.errors.reactionUnavailable"));
     onDependenciesLoadingChange?.(true);
     try {
@@ -325,6 +328,7 @@ export async function playContentPreviewMotion({
   }
 
   const clip = await catalog.loadPoseClip(command.runtimeId);
+  if (!isCurrent()) return false;
   if (!clip) throw new WordedError(t("preview.errors.poseClipUnavailable"));
   onDependenciesLoadingChange?.(true);
   try {

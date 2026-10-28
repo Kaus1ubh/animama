@@ -24,6 +24,7 @@ Frontend paths are relative to `src/frontend/web/src/`.
 | Parser and limits      | `lib/avatar/vfx/definition.ts`, `effect-image-limits.ts`, `effect-image.ts`, `effectSource.ts`                                                         |
 | Runtime                | `lib/avatar/vfx/AvatarVFXController.ts`, `AvatarAttachmentEffects.ts`, `silhouetteOverlay.ts`, `animation.ts`, `types.ts`                              |
 | Face parts and anchors | `lib/avatar/vfx/faceParts.ts`, `profiles.ts` (name fallback), `AvatarFaceLandmarks.ts`, `AvatarFaceTextureAnchors.ts`, `lib/avatar/humanoidAnchors.ts` |
+| Texture layouts        | `lib/avatar/vfx/textureUvMapping.ts` (UVs to image positions), `faceSkinClip.ts` (clips whole-face art to the face skin)                               |
 | Creator                | `ui/avatar-effect-creator/`, editor document `lib/avatar/vfx/editor/`, shared creator code `ui/content-creator/`                                       |
 | Template picker        | `lib/effects/effectTemplates.ts`, `ui/create/EffectTemplatePickerDialog.tsx`, thumbnails `assets/effect-templates/`                                    |
 | Conversion             | `src/backend/animama/app/services/avatar_effect_conversion.py`, `scripts/content/convert_avatar_effects.py`                                            |
@@ -208,7 +209,24 @@ replaces that instance.
 
 - **`full` and `eyes`** use the part's texture layout, so full-face art must
   match the Avatar's UV layout. `hideParts` hides other detected parts while
-  the effect is active. `eyes` art is drawn for a VRoid iris texture: one
+  the effect is active. `full` art is drawn only on the face skin's own
+  triangles of its texture: in each `face_skin` primitive on that image, the
+  face's UV island (`selectFaceIsland`, as anchors use) and the islands
+  outside its outline in the front view, such as VRoid's ears, less any
+  eye-line or lash `regions` and, in a primitive that also holds the neck or
+  body (under 90% head-weighted), the triangles not weighted to the head
+  (`createFaceVertexFilter`); a small neck island on a mostly head-weighted
+  face primitive lies outside the outline and keeps the art.
+  An inner mouth, teeth or eyes inside the face's outline are left out. The
+  clip is made only where it removes something: when another primitive's
+  material also draws the image (a texture atlas), or when those rules drop
+  triangles. Each clip triangle grows about 1–1.5 px at the texture's full
+  resolution, so filtering there leaves no seam at the island's edge. The
+  clip is built once per binding and slot as a `Path2D`; an opaque clipped
+  replacement hides the original texture only inside it. VRoid faces on
+  their own texture, the Included Avatars among them, need no clip and draw
+  as before.
+  `eyes` art is drawn for a VRoid iris texture: one
   iris per half, the art cell being the whole half, about twice the iris.
   When an iris does not sit in its half that way (inside it, roughly centred,
   covering at least 40% of it in each direction), as on an Avatar whose eyes
@@ -216,8 +234,13 @@ replaces that instance.
   eye's art in a cell 1.9 times its own iris rectangle, clipped to that
   rectangle so it cannot reach the other eye. The iris rectangle is that of
   the eye landmark's island, or of a layer over the whole eye with a larger
-  texture area (its painted art). Eyes sharing one rectangle draw the same
-  art, unmirrored.
+  texture area (its painted art). On VRoid irises the image's x grows toward
+  the Avatar's left on both eyes; an eye whose art runs the other way
+  (`textureMirrored`, mirrored UVs) has its cell `flipped`, so everything drawn
+  there (art, offsets and turns) is mirrored about the cell's centre and reads
+  as on VRoid. Eyes sharing one rectangle draw the same art, unmirrored and
+  oriented for the viewer's left eye; with mirrored UVs the other eye shows
+  it mirrored, as on VRoid.
 - **Decals** (`undereye`, `blush`, `mouth`) are placed at UV anchors that
   `AvatarFaceTextureAnchors` computes at load: a 3D landmark is projected onto
   the `face_skin` mesh and its UV is interpolated. Projection stays on the face
@@ -229,6 +252,14 @@ replaces that instance.
   reference size; it does not clip the art, so a tear can run below the eye.
   `span` stretches one image across both anchors; use it only for art drawn
   that way.
+- **Texture transforms.** Anchors, iris rectangles, the face clip and the
+  creator's surface handles read positions on the texture's image, not raw
+  UVs (`TextureUvMapping`): the UV through the base texture's transform
+  (`KHR_texture_transform` offset, scale and rotation; three-vrm ports VRM 0's
+  `_MainTex_ST` tiling to the same transform), then wrapped by its
+  `wrapS`/`wrapT` (repeat, mirrored repeat or clamp) when outside 0–1. A
+  shape (a triangle, an anchor's extent) wraps whole by one reference point.
+  An untransformed texture maps UVs inside 0–1 to themselves.
 
 ### Floating effects (`face_landmark`)
 
@@ -310,7 +341,9 @@ marks a part absent), and the VRM file's `vrm_sha256`.
 Primitive keys are stable only for identical VRM bytes. A correction whose
 `vrm_sha256` does not match the loaded file is ignored with a diagnostic, so it
 never applies to a different model; clearing it restores detection. The chat
-canvas passes the correction and the VRM digest to `Avatar.load`;
+canvas and Avatar previews (the Library dock, Included Avatars picked in the
+creators, Avatar Diagnostics) pass the correction and the VRM digest to
+`Avatar.load`;
 `Avatar.setFacePartCorrections` rebuilds the parts, landmarks, anchors and
 bindings and re-applies the active effects.
 
@@ -369,7 +402,11 @@ delegates them to `AvatarAttachmentEffects`.
   anchors (for example `chest` → `upperChest` → `spine` → `hips`). `offset` is
   in metres in the bone's frame (+x toward the viewer's right when facing the
   Avatar, +y up, +z forward, on VRM 0 and 1); `size` is the plane height in
-  metres. It faces each camera (`facing: "camera"`) or keeps the bone's
+  metres. Both are authored for the Included Avatars: a model whose
+  `avatarScale` (rest head height above the feet over 1.25 m, the measure
+  contacts use) lies outside `BODY_EFFECT_SCALE_BAND` (0.91–1.2, the Included
+  Avatars' 1.012 and 1.094 widened by 10%) scales them by its size over the
+  nearer edge. It faces each camera (`facing: "camera"`) or keeps the bone's
   orientation (`"bone"`).
 - **`sticker`**: a camera-facing image beside the head (`around: "head"`) or
   the body centre (between the hips and head). `size` and the screen-plane
@@ -822,7 +859,64 @@ and counted. The budget is a mean added frame time of at most 2 ms. A software
 WebGL renderer is refused. Options: `--frames`, `--warmup`, `--rounds`,
 `--clip`, `--effects`, `--headed`, `--json <file>`, `--rendering
 <enhanced|classic>` and `--avatar-file <a.vrm>`, which measures that VRM
-instead of the Included Avatars (not with `--reaction`).
+instead of the Included Avatars (not with `--reaction`). Further options, not
+with `--reaction`: `--materials <automatic|liltoon|simple>` loads the Avatar
+with that Materials setting; `--pixel-ratios 1,1.5,2` repeats each measurement
+at those device pixel ratios; `--fps <n>` paces frames like the app
+(`nextSceneFrame`; chat renders at 60 fps, or 30 while idle) instead of using
+every display frame; and `--saturate <n>` times batches of n frames rendered
+back to back instead (below).
+
+Pace GPU comparisons with `--fps 60`. Headless Chromium can run at 120 frames
+per second. A heavy Avatar then saturates the GPU, and the timer query also
+counts queued work, so a lilToon Avatar's GPU time reads high and changes
+inconsistently. Light loads can run at a lower GPU clock, so their absolute
+times read higher than a busy GPU's would. Compare results only from runs made
+under the same conditions. Each pass's GPU mean is kept in the JSON
+(`passes`), so another job using the GPU shows up as drift between rounds.
+
+Because a paced light frame runs at a lower clock, paced timings also narrow the
+differences between scenarios: a change that halves a frame's work can read as a
+small saving. To measure the work itself, use `--saturate 10` (1–100). Each
+sample renders that many frames back to back, waits for the GPU with a 1-pixel
+readback and reports the wall time per frame (labelled "frame (saturated)", and
+kept in `passes` in place of the GPU mean) with the submission time per frame as
+CPU time; `--fps` then sets only the animation step. Each stage first renders
+back to back for about 2 s so the clock is up, and each pass starts with idle
+gaps of 400 ms and 150 ms, so a GPU trace taken alongside (Instruments' Metal
+System Trace with `--all-processes` and a time limit that ends before the bench
+exits) can be cut into passes. Where a frame's wall time is close to its CPU
+time the run is CPU-bound and hides the GPU's share, as for the Included
+Avatars.
+
+`--breakdown <materials,features,layers,mixed|all>` breaks the Avatar's plain
+frame cost down instead (no effects). The baseline alternates with scenarios
+that each change one thing. Every scenario reports GPU and CPU time, draw
+calls and triangles from `renderer.info`. It also reports the share of the
+Avatar's pixels that change in one probe frame of the same pose:
+
+- **materials:** each glTF material hidden, and each drawn alone;
+- **features:** each lilToon feature switched off on every material that
+  uses it (toon shadow, rim, matcaps, emission, normal maps, reflection and
+  the other `_Use*` switches; the outline pass, the two-pass pre-pass,
+  blending and alpha test through the shader variant), then all but
+  transparency together. Then the runtime's depth pre-pass for opaque lilToon
+  primitives is switched off, and prototype drawing changes follow; none of
+  them ships. They are blending off on opaque materials, morph targets
+  dropped, and morph weights read from a uniform array;
+- **layers:** each structural layer hidden: the eye stack, irises, eye
+  highlights, eye-bone eye whites, eye lines, eyelashes, face skin and hair
+  as face-part detection finds them, the alpha-blended and alpha-tested
+  primitives, and the rest;
+- **mixed:** lilToon on chosen materials, with the rest drawn with the glTF
+  fallbacks of a second, Simple load of the file.
+
+`--apply <ids>` applies feature scenarios by id (for example
+`outline,shadow`) to every measurement. It measures a combination, or
+a breakdown on top of one. The output names materials by glTF index and
+layers by structure, never by the file's material or mesh names. It labels
+the Avatar with its file name, so rename a private file before sharing
+results.
 
 `--reaction <path|library:reaction/...>` measures one Reaction's Avatar,
 Particle and Scene Effects instead: the Reaction replays every `--replay`
@@ -840,7 +934,9 @@ update transforms and animated composites redraw and re-upload. The controller
 caches the original texture, cleanup fills, static layers and static segments
 between animated layers, so a tick redraws only what moves. An animated
 full-face texture is the most expensive effect; it dominates the heavy
-combination's GPU p95. Camera-facing planes and stickers compose one matrix
+combination's GPU p95. Where whole-face art needs a clip, each redraw also
+clips with the face skin's cached `Path2D` (VRoid faces on their own texture
+need none). Camera-facing planes and stickers compose one matrix
 per render; a silhouette adds one skinned draw per overlaid primitive (about
 11–13 on the Included Avatars).
 
@@ -877,11 +973,21 @@ per render; a silhouette adds one skinned draw per overlaid primitive (about
 - The mouth anchor follows the vertices the mouth shapes (`aa`, `ee`, `ih`,
   `oh`, `ou`) move most, or an estimate without them; on a face whose jaw
   moves with those shapes (Lapwing), mouth decals sit slightly low.
-- `full` art covers the face skin's whole texture. On a texture atlas it also
-  tints the other parts that primitive maps there (neck, inner mouth).
-- An iris layout assumes each eye's UVs run like VRoid's (not mirrored per
-  eye), and the painted-art layer is chosen by texture area, so a stretched
-  layer covering the whole eye can be taken for it.
+- The `full` art clip tells the face's own islands by their outline in the
+  front view: an island unwrapped apart inside the face's outline (a nose
+  patch, say) is left out with the inner mouth, and an inner part reaching
+  past the outline is kept. A face unwrapped in halves, with no island
+  spanning both eyes, keeps every island. Lower mipmap levels can still blend
+  art across an island's border, as the growth holds only at full
+  resolution.
+- An iris layout mirrors an eye whose art runs mirrored against VRoid's, but
+  `span` iris art is drawn across both cells without it; the painted-art layer
+  is chosen by texture area, so a stretched layer covering the whole eye can
+  be taken for it.
+- Texture transforms are read when the anchors, landmarks and clip are built,
+  so an expression that moves a texture (a texture-transform bind) is not
+  followed. Decal anchors assume the shade texture shares the base texture's
+  transform, and only the first UV set is read.
 - Hidden face parts and face cleanup cannot fade; they switch at half the
   event's envelope.
 - Decal quality depends on the cached anchors, and cleanup quality on the

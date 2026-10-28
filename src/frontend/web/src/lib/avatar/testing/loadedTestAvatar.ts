@@ -36,9 +36,10 @@ export async function prepareTestAvatar(
   avatar.vrm = vrm;
   avatar.sourceGltf = gltf;
   (avatar as unknown as { _vrmSha256: string })._vrmSha256 = vrmSha256;
-  const { arkitFace } = prepareLoadedVrm(vrm, { vrmSha256 });
+  const { arkitFace, restPose } = prepareLoadedVrm(vrm, { vrmSha256 });
   (avatar as unknown as { _arkitFace: typeof arkitFace })._arkitFace =
     arkitFace;
+  (avatar as unknown as { _restPose: typeof restPose })._restPose = restPose;
   await avatar.setFacePartCorrections(null);
   return avatar;
 }
