@@ -1760,15 +1760,19 @@ describe("hosted admission reads", () => {
     vi.useFakeTimers();
     const page = installBrowserPage();
     const service = hostedService();
-    // The stream is cut at 1 s and its reconnect waits about a second.
+    // The stream is cut at 1 s and reconnects 0.8-1.2 s later.
     service.events = () => readyStream({ cutAfterMs: 1_000 });
     const tab = hostedTab(service);
     try {
       await tab.controller.refresh();
-      await vi.advanceTimersByTimeAsync(1_000);
+      await vi.advanceTimersByTimeAsync(1_500);
       expect(service.eventsConnections).toBe(1);
       page.focus();
       await vi.advanceTimersByTimeAsync(0);
+      expect(service.contextReads()).toBe(1);
+      // The focus fell between the cut and the reconnect.
+      await vi.advanceTimersByTimeAsync(700);
+      expect(service.eventsConnections).toBe(2);
       expect(service.contextReads()).toBe(1);
     } finally {
       tab.close();
