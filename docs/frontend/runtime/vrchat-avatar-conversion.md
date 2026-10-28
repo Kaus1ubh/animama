@@ -77,23 +77,37 @@ change.
 
 Pick the prefab the Avatar should look like. Many Avatars ship variants, such
 as a prefab variant without the jacket; each export captures one prefab.
+Variants usually hide a garment by tagging it `EditorOnly`, which VRChat strips
+when it builds the Avatar but Mochiya exports. The script strips those objects
+first, as a build would, and logs `Stripped EditorOnly object <name>` for each.
 
 Close the project in the Unity editor first; batch mode cannot open a project
-that is already open. `Unity` below is the editor binary; on macOS it lives in
-the Hub's install folder, for example
-`/Applications/Unity/Hub/Editor/<version>/Unity.app/Contents/MacOS/Unity`.
-Then validate:
+that is already open. Then, from `src/frontend/web`, convert:
 
 ```bash
-Unity -batchmode -quit -projectPath <project> -logFile validate.log \
-  -executeMethod AnimamaBatchExport.Validate \
-  -animamaPrefab Assets/<Avatar>/Prefabs/<Avatar>.prefab \
-  -animamaName <Avatar> -animamaVersion <version> -animamaAuthor <author> \
-  -animamaCopyright "<credit>"
+pnpm -s vrm:convert-vrchat --project <project> \
+  --prefab Assets/<Avatar>/Prefabs/<Avatar>.prefab \
+  --out <private-dir>/<Avatar>.vrm \
+  --name <Avatar> --version <version> --author <author> --copyright "<credit>"
 ```
 
-The `[Animama]` lines in the log list Mochiya's report. Errors stop the export.
-Expect these warnings:
+The command:
+
+1. checks that the project's `AnimamaBatchExport.cs` matches the repository's;
+2. runs Unity in batch mode: the editor version in
+   `ProjectSettings/ProjectVersion.txt` from the Unity Hub folder, or
+   `--unity <editor>` or `ANIMAMA_UNITY_EDITOR`;
+3. runs `vrm:optimize` on the export (see [VRM optimization](vrm-optimization.md)),
+   keeping the unoptimized file beside the result as `<Avatar>.raw.vrm`;
+4. runs `vrm:inspect` on the result.
+
+The Unity log goes to `<Avatar>.export.log`, and the command prints its
+`[Animama]` lines with Mochiya's full validation report. `--validate` stops
+after validation and writes no VRM. `--no-optimize` writes the raw export to
+`--out`; keep it when comparing against Unity pixel for pixel, since the
+optimized colour textures are lossy WebP. The command never overwrites a file.
+
+Errors in the report stop the export. Expect these warnings:
 
 - **Animator state machines:** VRChat's animator state machines (gesture
   expressions, toggles) are not converted. Animama drives faces itself.
@@ -104,26 +118,22 @@ Expect these warnings:
 - **Colliders:** plane colliders are omitted, and inside-bounds colliders become
   outside colliders.
 
-Export writes a new file and refuses to overwrite one. Do not pass
-`-nographics`: the exporter reads compressed textures back through the GPU,
-and without one it writes flat grey placeholders (19 of Lapwing's 26 textures,
-including the hair colour).
-
-```bash
-Unity -batchmode -quit -projectPath <project> -logFile export.log \
-  -executeMethod AnimamaBatchExport.Export \
-  -animamaPrefab Assets/<Avatar>/Prefabs/<Avatar>.prefab \
-  -animamaOut <private-dir>/<Avatar>.vrm \
-  -animamaName <Avatar> -animamaVersion <version> -animamaAuthor <author> \
-  -animamaCopyright "<credit>"
-```
+Unity runs with graphics, never `-nographics`: the exporter reads compressed
+textures back through the GPU, and without one it writes flat grey
+placeholders (19 of Lapwing's 26 textures, including the hair colour). To run
+the export by hand, pass the same values to
+`Unity -batchmode -quit -projectPath <project> -logFile <log>
+-executeMethod AnimamaBatchExport.Export -animamaPrefab <prefab>
+-animamaOut <file>` with `-animamaName`, `-animamaVersion`, `-animamaAuthor`
+and `-animamaCopyright` (`AnimamaBatchExport.Validate` without `-animamaOut`
+only validates).
 
 VRM 1.0 requires a T-pose rest pose, and VRChat Avatars are often modelled in
 an A-pose. The script therefore poses the instance from its Unity humanoid
 T-pose first, like UniVRM's "T-Pose (unity internal)" button, and logs
 `Applied the humanoid T-pose`. Pass `-animamaKeepPose` to export the modelled
-pose instead. Animama normalizes arms that rest 10° or more from a T-pose when
-it loads them
+pose instead (`--keep-pose` in the command). Animama normalizes arms that rest
+10° or more from a T-pose when it loads them
 ([Rest normalization](avatar-animation.md#rest-normalization)), so an A-pose
 export still plays Gestures with its arms where a T-pose export's go, but other
 VRM tools expect the T-pose.
@@ -134,18 +144,14 @@ modification are prohibited.
 
 ## Check the export
 
-From `src/frontend/web`:
-
-```bash
-pnpm -s vrm:inspect <private-dir>/<Avatar>.vrm
-```
+`vrm:convert-vrchat` ends with `vrm:inspect`; run it again with
+`pnpm -s vrm:inspect <private-dir>/<Avatar>.vrm` from `src/frontend/web`.
 
 Check that:
 
 - no texture is a flat colour (a sign of a `-nographics` export);
-- the file is VRM 1.0 and under the 100 MiB upload limit. `vrm:optimize` does
-  not support Mochiya's extensions, so reduce an oversized Avatar's textures in
-  Unity and export again;
+- the file is VRM 1.0 and under the 100 MiB upload limit. If the optimized
+  file is still too large, reduce its textures in Unity and convert again;
 - every face mesh stores its names at mesh level, not "primitives only";
 - the rest pose is a T-pose: arms straight out to the sides. Avatar
   Diagnostics shows the measured rest pose under Motion ("Rest pose"); the

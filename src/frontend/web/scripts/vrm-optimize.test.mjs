@@ -10,7 +10,7 @@ import {
   viewBytes,
   writeGlb,
 } from "./vrm-optimize/glb.mjs";
-import { optimizeVrm } from "./vrm-optimize/optimize.mjs";
+import { imageRoles, optimizeVrm } from "./vrm-optimize/optimize.mjs";
 import { compareVrm } from "./vrm-optimize/verify.mjs";
 import { parseArgs } from "./vrm-optimize.mjs";
 
@@ -209,6 +209,65 @@ test("files the optimizer cannot preserve are refused", async () => {
   await assert.rejects(
     optimizeVrm(writeGlb(meshopt, document.bin)),
     /Unsupported glTF extensions: EXT_meshopt_compression/,
+  );
+});
+
+/** The fixture as a Mochiya conversion: lilToon materials and a composition record. */
+const convertedJson = (json) => {
+  const converted = structuredClone(json);
+  converted.extensionsUsed.push(
+    "MOCHIYA_avatar_composition",
+    "MOCHIYA_materials_liltoon",
+  );
+  converted.extensions.MOCHIYA_avatar_composition = {
+    specVersion: "1.0",
+    nodes: [{ node: 0, role: "body" }],
+  };
+  converted.materials[0].extensions = {
+    MOCHIYA_materials_liltoon: {
+      specVersion: "1.0",
+      textures: {
+        _MainTex: { index: 0, texCoord: 0 },
+        _ShadowStrengthMask: { index: 1, texCoord: 0 },
+      },
+    },
+  };
+  return converted;
+};
+
+test("a converted Avatar keeps Mochiya's extensions and its lilToon textures' roles", async () => {
+  const document = readGlb(source);
+  const converted = convertedJson(document.json);
+  assert.deepEqual(Object.fromEntries(imageRoles(converted)), {
+    0: "colour",
+    1: "data",
+  });
+
+  const result = await optimizeVrm(writeGlb(converted, document.bin));
+  const after = readGlb(result.bytes);
+  assert.deepEqual(
+    after.json.extensions.MOCHIYA_avatar_composition,
+    converted.extensions.MOCHIYA_avatar_composition,
+  );
+  assert.deepEqual(
+    after.json.materials[0].extensions.MOCHIYA_materials_liltoon,
+    converted.materials[0].extensions.MOCHIYA_materials_liltoon,
+  );
+  const pixels = (glb, image) =>
+    sharp(viewBytes(glb, glb.json.images[image].bufferView))
+      .ensureAlpha()
+      .raw()
+      .toBuffer();
+  assert.ok((await pixels(document, 1)).equals(await pixels(after, 1)));
+});
+
+test("a Mochiya extension that points into the binary is refused", async () => {
+  const document = readGlb(source);
+  const converted = convertedJson(document.json);
+  converted.extensions.MOCHIYA_avatar_composition.data = { bufferView: 0 };
+  await assert.rejects(
+    optimizeVrm(writeGlb(converted, document.bin)),
+    /MOCHIYA_avatar_composition references binary data/,
   );
 });
 
