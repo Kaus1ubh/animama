@@ -107,12 +107,13 @@ async def list_content_catalog(
     """List Included, shared, and caller-owned entries without host paths.
 
     Clients poll this catalog for health, so it is compressed and revalidated by
-    ETag. The ETag comes from the catalog's row revisions and the response's shape,
-    so an unchanged catalog costs a 304 before any of its body is built.
+    ETag: an unchanged catalog costs a 304 rather than the whole body.
     """
 
     encoding = negotiate_json_encoding(request, refusal_code="content_encoding_not_acceptable")
     catalog = content.catalog
+    # The validator comes from row revisions and the response's shape, read before
+    # the listing, so a 304 is answered before any of the body is built.
     revision = await catalog.visible_revision(user_id=user.id)
     validator = hashlib.sha256(f"{CATALOG_SHAPE}:{revision}".encode()).hexdigest()
 
