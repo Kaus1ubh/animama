@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
+import json
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import cast
@@ -158,6 +160,20 @@ class ContentCatalogService:
         return [
             item for item in await self._catalog.list_visible(user_id=user_id) if item.kind not in RETIRED_CONTENT_KINDS
         ]
+
+    async def visible_revision(self, *, user_id: str) -> str:
+        """Name the caller's visible catalog without listing it.
+
+        It changes whenever a row the caller sees changes and stays put otherwise.
+        The caller's identity is part of it, so no value names another owner's
+        catalog. Read it before the listing: a change between the two then shows
+        as a new revision on the next read instead of hiding behind an old one.
+        """
+
+        self.require_owner(user_id)
+        generation = await self._catalog.included_generation()
+        owned = await self._catalog.owned_and_shared_revision(user_id=user_id)
+        return hashlib.sha256(json.dumps([user_id, generation, owned]).encode()).hexdigest()
 
     async def visible_scan_result(
         self, summaries: tuple[ContentScanSummary, ...], *, user_id: str

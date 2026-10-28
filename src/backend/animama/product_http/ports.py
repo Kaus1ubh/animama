@@ -71,6 +71,7 @@ from animama.app.services.typed_content_service import TypedContentService
 from animama.app.web_search import WebSearchToolService
 from animama.domain.content_catalog import VerifiedContentFile
 from animama.domain.request_principal import RequestPrincipal
+from animama.product_http.delivery import DeferredJsonBody
 from animama.product_http.principal import get_current_principal
 
 
@@ -586,7 +587,7 @@ class ProductPorts(Protocol):
     async def json_response(
         self,
         request: Request,
-        body: bytes,
+        body: bytes | DeferredJsonBody,
         *,
         encoding: str,
         headers: dict[str, str],
@@ -597,7 +598,9 @@ class ProductPorts(Protocol):
         under this composition's caching policy.
 
         ``encoding`` is the negotiated ``gzip`` or ``identity``; ``cacheable`` marks a
-        body a client may keep and revalidate by ETag.
+        body a client may keep and revalidate by ETag. The content catalog arrives as
+        a ``DeferredJsonBody``: ``encoded_json_response`` answers a matching validator
+        with a 304 before building it.
         """
         ...
 

@@ -59,7 +59,12 @@ from animama.domain.content_catalog import VerifiedContentFile
 from animama.domain.request_principal import RequestPrincipal
 from animama.domain.user_profile import UserProfilePatch
 from animama.product_http.chat.setup_helpers import TurnSessions
-from animama.product_http.delivery import PackageDownloadResponse, encoded_json_response, verified_file_response
+from animama.product_http.delivery import (
+    DeferredJsonBody,
+    PackageDownloadResponse,
+    encoded_json_response,
+    verified_file_response,
+)
 from animama.product_http.ports import (
     ChatTurnAdmission,
     ChatTurnLease,
@@ -396,7 +401,7 @@ class DoubleCollaborators:
     async def json_response(
         self,
         request: Request,
-        body: bytes,
+        body: bytes | DeferredJsonBody,
         *,
         encoding: str,
         headers: dict[str, str],

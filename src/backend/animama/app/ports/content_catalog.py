@@ -93,6 +93,26 @@ class ContentCatalog(Protocol):
     async def list_visible(self, *, user_id: str) -> list[CatalogContentEntry]:
         raise NotImplementedError
 
+    async def included_generation(self) -> str:
+        """Name the current state of the listed Included rows, the same for every owner.
+
+        The value must change whenever any of those rows, their files or dependency
+        edges change, and whenever a release could project them differently. A
+        composition whose Included rows are fixed for an application revision may
+        return that revision.
+        """
+
+        raise NotImplementedError
+
+    async def owned_and_shared_revision(self, *, user_id: str) -> str:
+        """Name the current state of the caller's own and installation-shared listed rows.
+
+        The value must change whenever any of those rows, their files or dependency
+        edges change; other owners' rows never affect it.
+        """
+
+        raise NotImplementedError
+
     async def record_transition_failure(self, *, user_id: str, item_id: str, expected_revision: str, code: str) -> None:
         """Retain a safe repair diagnostic until the next authoritative rescan."""
 

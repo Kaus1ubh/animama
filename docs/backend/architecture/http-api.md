@@ -343,7 +343,15 @@ location and recovery are in [model assets](../operations/model-assets.md#downlo
   current revision, dependencies, and opaque file registrations. Content Health
   polls it, so it negotiates gzip or identity and is delivered through the
   composition's JSON policy; locally that is a wire ETag (`private, no-cache`)
-  and an unchanged catalog answers `If-None-Match` with 304.
+  and an unchanged catalog answers `If-None-Match` with 304 before any of its
+  body is built. The route hands the policy a `DeferredJsonBody` whose
+  validator is `ContentCatalogService.visible_revision`: the caller's identity,
+  the catalog's Included generation and a revision of the caller's own and
+  installation-shared rows; the ETag adds the negotiated encoding. A policy
+  passes that body on to `encoded_json_response`. The SQL adapter derives both
+  revisions from row `updated_at` values; a composition whose Included rows are
+  fixed for an application revision may override `included_generation` to
+  return that revision.
   Unsupported encodings fail with 406 `content_encoding_not_acceptable`.
 - `GET /v1/content/items/{item_id}` reads one visible item.
 - `POST /v1/content:rescan` performs an authoritative scan of registered

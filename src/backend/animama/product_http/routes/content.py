@@ -22,7 +22,7 @@ from animama.domain.content_catalog import (
 )
 from animama.domain.content_documents import ContentDocumentError
 from animama.domain.request_principal import RequestPrincipal
-from animama.product_http.delivery import negotiate_json_encoding
+from animama.product_http.delivery import DeferredJsonBody, negotiate_json_encoding
 from animama.product_http.ports import Ports, ReadContent, ReadRepositories, WriteContent
 from animama.product_http.principal import get_current_principal
 
@@ -99,14 +99,25 @@ async def list_content_catalog(
     """List Included, shared, and caller-owned entries without host paths.
 
     Clients poll this catalog for health, so it is compressed and revalidated by
-    ETag: an unchanged catalog costs a 304 rather than the whole body.
+    ETag. The ETag comes from the catalog's row revisions, so an unchanged catalog
+    costs a 304 before any of its body is built.
     """
 
     encoding = negotiate_json_encoding(request, refusal_code="content_encoding_not_acceptable")
-    items = await content.catalog.list_visible(user_id=user.id)
-    body = catalog_response(items).model_dump_json(by_alias=True).encode("utf-8")
+    catalog = content.catalog
+    validator = await catalog.visible_revision(user_id=user.id)
+
+    async def build() -> bytes:
+        items = await catalog.list_visible(user_id=user.id)
+        return catalog_response(items).model_dump_json(by_alias=True).encode("utf-8")
+
     return await ports.json_response(
-        request, body, encoding=encoding, headers={}, if_none_match=if_none_match, cacheable=True
+        request,
+        DeferredJsonBody(validator, build),
+        encoding=encoding,
+        headers={},
+        if_none_match=if_none_match,
+        cacheable=True,
     )
 
 
