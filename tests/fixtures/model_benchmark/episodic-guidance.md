@@ -1,0 +1,1 @@
+Edit your `MEMORIES.md` with the memory write tools at the reserved path `[self]/MEMORIES.md`; you cannot create, delete, move or rename it. Keep notable facts, events, decisions and plans from your chats there too, as small edits.

@@ -31,6 +31,12 @@ pnpm desktop:runtime:audit -- --platform darwin --arch arm64
 pnpm desktop:test -- runtime-packaging
 ```
 
+Staging first checks that `src/frontend/node_modules` matches `pnpm-lock.yaml`
+and stops before any build step if it does not, for example after pulling a
+main that changed packages. Run `pnpm install --frozen-lockfile` in
+`src/frontend`, then stage again. When a later step fails, its full output is in
+that step's log under `desktop/.desktop-runtime/<target>/`.
+
 Staging installs its pinned Python interpreter under
 `/Users/Shared/animama-build/uv-python`, not in your home directory, because
 the frozen backend records the interpreter's install paths. The native
@@ -114,7 +120,11 @@ Each staging pass clears only `desktop/.desktop-runtime/darwin-arm64`, then:
    `.vite/browser-runtime.json` alongside the coherent SPA output; packaged
    FastAPI uses them to identify fingerprinted JS/CSS eligible for immutable
    caching and to revalidate speech runtime files by digest, and serves
-   neither record.
+   neither record. The audit fails, naming the file, when any staged web file
+   contains the build user's home directory. A build step recorded an absolute
+   path, such as a Vite plugin emitting an asset with an absolute
+   `originalFileName` (manifest keys must stay relative to the web root); fix
+   that step rather than the staged copy.
    HTML validators hash the actual contents, so normalized file dates and an
    unchanged HTML length cannot keep a previous build's script fingerprints.
 5. Bundles Electron main/preload with esbuild and copies only the native input

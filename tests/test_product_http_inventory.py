@@ -39,6 +39,7 @@ PERMISSIONS = (
     "web_search.configuration",
 )
 RUNTIME_STATE = (
+    "library_previews",
     "offline_speech_enabled",
     "offline_multilingual_speech_enabled",
     "companion_safety.enabled",

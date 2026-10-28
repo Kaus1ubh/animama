@@ -75,6 +75,11 @@ class RuntimeCapabilities(BaseModel):
     """Whether chat accepts owner file uploads; the UI hides upload entry points when false."""
     anima_creation: bool
     """Whether the owner may create Animas; the UI hides every create-Anima entry point when false."""
+    library_previews: bool = True
+    """Whether Library cards load item previews; when false they show family icons and request none.
+
+    Absent means true. The Library's Preview action and Avatar portraits do not depend on it.
+    """
     local_filesystem_administration: bool
     """Whether host directories, catalog scans, paths and host logs may be administered.
 

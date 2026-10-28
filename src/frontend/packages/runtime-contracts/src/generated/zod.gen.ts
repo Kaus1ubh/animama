@@ -6828,6 +6828,7 @@ export const zRuntimeCapabilities = z.object({
         zGeminiTtsCapability,
         z.null()
     ])),
+    library_previews: z.optional(z.boolean()).default(true),
     local_filesystem_administration: z.boolean(),
     model_configuration: z.optional(z.boolean()).default(false),
     model_role_selection: z.boolean(),

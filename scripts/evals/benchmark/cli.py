@@ -1,0 +1,850 @@
+"""The benchmark's commands: ``plan`` (the dry run), ``run``, ``judge``, ``calibrate``, ``report``, ``models``
+and ``cleanup``.
+
+``plan`` needs no database or model for the built-in rows: the standard set
+comes from the catalog the code defines. A ``--config`` naming another row
+(owner-added, local or OpenRouter) reads the stack's catalog, read-only.
+``run`` runs inside the backend container of a development task stack, where
+the configured connections and keys are; it reads the model catalog in a
+read-only transaction and never reads, prints or logs keys. A prompt set
+with memory work also gets a disposable benchmark database (``memory_db``),
+dropped when the run ends; ``cleanup`` drops one a killed run left behind::
+
+    source .animama-stack.env
+    docker compose -p "$COMPOSE_PROJECT_NAME" exec animama-server python -m scripts.evals.benchmark run \\
+        --prompts <path> --standard --max-calls <n> --max-usd <usd> --price <rates> \\
+        --output-dir /app/.animama-drafts/model-benchmark/<run>
+
+Add ``-e ANIMAMA_LLM_SKIP=1`` after ``exec`` for a free run against chat's
+mock model client, which needs no approval. ``run --retry-from <run>``, with
+the earlier run's own options and caps, makes a new run that runs again every
+unit that failed on a connection error (``retry``).
+
+``judge`` runs on the host, where the Claude CLI is signed in to the owner's
+subscription; it reads the run directory and writes under its ``judge/``
+folder, and can be rerun to resume::
+
+    uv run --no-sync python -m scripts.evals.benchmark judge --run-dir .animama-drafts/model-benchmark/<run> \
+        --prompts docs/benchmarks/inputs/prompts.json --effort medium
+
+``calibrate export|import|pilot`` runs the one-time calibration the same way
+(``calibrate waive`` records that the owner skipped it),
+and ``report`` renders the public-safe report from the recorded results.
+"""
+
+from __future__ import annotations
+
+import argparse
+import asyncio
+import hashlib
+import json
+import math
+import platform
+import sys
+import time
+from collections.abc import AsyncIterator, Mapping, Sequence
+from contextlib import asynccontextmanager
+from dataclasses import dataclass
+from datetime import UTC, datetime
+from decimal import Decimal, InvalidOperation
+from pathlib import Path
+from typing import Any
+
+from agents import set_tracing_disabled
+from sqlalchemy.exc import SQLAlchemyError
+
+from animama.app.chat import DirectChatTurnSetupError, ModelClientNotFoundError
+from animama.app.model_clients import StaticModelClientRegistry
+from animama.domain import ModelProvider
+
+from ..core import catalog
+from ..core.inputs import EvalInputError
+from ..core.pricing import TokenPrices, parse_token_prices
+from . import calibrate
+from .configs import Configuration, builtin_chat_rows, capability_problem, parse_config, standard_configurations
+from .judge import (
+    DEFAULT_CONCURRENCY,
+    EFFORTS,
+    JUDGE_DIR,
+    ClaudeCli,
+    JudgeRun,
+    inputs_fingerprint,
+    load_or_plan,
+    load_plan,
+    run_judging,
+)
+from .memory_db import benchmark_database, benchmark_database_name, drop_leftover_databases, japanese_search_probe
+from .memory_runner import ARM_BOTH, ARM_MEMORIES_MD_ONLY, ARM_REMEMBER_ONLY, BenchmarkSessions
+from .options import ELEVENLABS_VOICE, PROVIDER_MODERATION
+from .planner import (
+    DEFAULT_SECONDS_PER_CALL,
+    TIME_BOUND_SECONDS,
+    BenchmarkPlan,
+    call_price,
+    estimate_first_turn_tokens,
+    estimate_usd,
+    estimated_seconds,
+    judge_estimate,
+    render_plan,
+    total_usd,
+)
+from .prompt_set import TIERS, PromptSet, load_prompt_set
+from .report import build_report, check_public_safe, criteria_keys, forbidden_texts, load_calibration, render_report
+from .results import MANIFEST, RUN_SCHEMA, TURNS, RunDirectory, read_turns
+from .retry import COUNTED_TURNS, RetryPlan, plan_retry
+from .rubrics import TRACKED_RUBRICS, RubricSet, load_rubrics
+from .runner import RunCaps, RunOutcome, TurnSink, run_benchmark
+from .scores import load_judge_results
+
+__all__ = ["main"]
+
+JUDGE_SEED = 470
+"""The seed of the judge's shuffle and opaque ids; the prompt set's held-out choice used the same number."""
+
+
+def _positive_int(value: str) -> int:
+    number = int(value)
+    if number < 1:
+        raise argparse.ArgumentTypeError("must be a positive integer")
+    return number
+
+
+def _seconds(value: str) -> float:
+    number = float(value)
+    if not math.isfinite(number) or number <= 0:
+        raise argparse.ArgumentTypeError("must be a positive number of seconds")
+    return number
+
+
+def _usd(value: str) -> Decimal:
+    try:
+        amount = Decimal(value)
+    except InvalidOperation as exc:
+        raise argparse.ArgumentTypeError("must be a number") from exc
+    if not amount.is_finite() or amount < 0:
+        raise argparse.ArgumentTypeError("must be a non-negative number")
+    return amount
+
+
+def _plan_arguments(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("--prompts", type=Path, required=True, help="prompt-set manifest (format v1)")
+    parser.add_argument("--tier", choices=TIERS, default="full", help="smoke subset or the full set")
+    parser.add_argument("--standard", action="store_true", help="every visible built-in chat row at none and low")
+    parser.add_argument("--config", action="append", default=[], help="catalog row id, optionally @effort (repeatable)")
+    parser.add_argument("--repeats", type=_positive_int, default=1, help="runs of each single-turn item")
+    parser.add_argument("--scripted-repeats", type=_positive_int, default=1, help="runs of each scripted chat")
+    parser.add_argument("--max-calls", type=_positive_int, help="hard limit on model calls, repairs included")
+    parser.add_argument(
+        "--price",
+        help="published USD rates per 1M tokens: input=…,cached_input=…,cache_write=…,output=…; prices every "
+        "configuration without a --row-price, which must then share the same catalog rates (rows the catalog does not "
+        "price all count as alike, so check their published rates)",
+    )
+    parser.add_argument(
+        "--row-price",
+        nargs=2,
+        action="append",
+        default=[],
+        metavar=("ROW_ID", "RATES"),
+        help="rates for one catalog row's configurations, in the --price format (repeatable)",
+    )
+    parser.add_argument(
+        "--seconds-per-call",
+        type=_seconds,
+        default=DEFAULT_SECONDS_PER_CALL,
+        help=f"wall-time allowance per model call (default {DEFAULT_SECONDS_PER_CALL})",
+    )
+    parser.add_argument("--judge-effort", choices=EFFORTS, default="medium", help="judge effort for the estimate")
+    parser.add_argument(
+        "--judge-concurrency",
+        type=_positive_int,
+        default=DEFAULT_CONCURRENCY,
+        help=f"parallel judge processes for the estimate (default {DEFAULT_CONCURRENCY})",
+    )
+
+
+def _parse_args(argv: Sequence[str] | None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        prog="python -m scripts.evals.benchmark",
+        description="Benchmark chat models through chat's real turn executor; see docs/benchmarks/README.md.",
+    )
+    commands = parser.add_subparsers(dest="command", required=True)
+    _plan_arguments(
+        commands.add_parser("plan", help="print the plan and estimates (no model; no database for built-in rows)")
+    )
+    run = commands.add_parser("run", help="run the benchmark (inside a development stack's backend container)")
+    _plan_arguments(run)
+    run.add_argument("--max-usd", type=_usd, help="hard limit on estimated spend in USD (needs --price or --row-price)")
+    run.add_argument("--output-dir", type=Path, required=True, help="new directory for turns.jsonl and the manifest")
+    run.add_argument(
+        "--over-time-approved",
+        action="store_true",
+        help="the owner approved this run although its estimate exceeds the 4-hour bound",
+    )
+    run.add_argument("--network-label", default="unrecorded", help="the network the run used, for the report")
+    run.add_argument(
+        "--machine-label",
+        default=platform.node(),
+        help="the machine the run used, for the report (default: this host's name, a container id in a stack)",
+    )
+    run.add_argument("--source-revision", default="unrecorded", help="the checkout's commit, for the report")
+    run.add_argument(
+        "--retry-from",
+        type=Path,
+        help="an earlier run, with the same options and caps: run again its units with connection errors and "
+        "copy its other records",
+    )
+    judge = commands.add_parser("judge", help="judge a run's replies blind through the Claude CLI (on the host)")
+    _run_arguments(judge)
+    _cli_arguments(judge)
+    judge.add_argument("--effort", choices=EFFORTS, required=True, help="the judge's reasoning effort")
+    judge.add_argument("--rubric", action="append", default=[], help="judge only this rubric's batches (repeatable)")
+    judge.add_argument("--batch", action="append", default=[], help="judge only this batch (repeatable)")
+    calibrate_ = commands.add_parser("calibrate", help="the one-time judge calibration against the owner (host)")
+    steps = calibrate_.add_subparsers(dest="step", required=True)
+    _run_arguments(steps.add_parser("export", help="draw the blind sample and write the rating sheet"))
+    imported = steps.add_parser("import", help="check and keep the owner's ratings")
+    _run_arguments(imported)
+    imported.add_argument("--ratings", type=Path, required=True, help="the filled-in ratings.json")
+    pilot = steps.add_parser("pilot", help="judge the sample at medium and high and pin the effort")
+    _run_arguments(pilot)
+    _cli_arguments(pilot)
+    waived = steps.add_parser("waive", help="record that the owner waived calibration, and the effort they chose")
+    _run_arguments(waived)
+    waived.add_argument("--effort", choices=EFFORTS, required=True, help="the judge effort the owner chose")
+    report = commands.add_parser("report", help="render the run's report from its recorded results")
+    _run_arguments(report)
+    report.add_argument("--effort", choices=EFFORTS, help="the judge results to use (default: the pinned effort)")
+    report.add_argument("--output", type=Path, help="where to write the report (default: report.md in the run)")
+    report.add_argument("--title", default="Model benchmark report", help="the report's heading")
+    report.add_argument(
+        "--recommendations",
+        type=Path,
+        help="the owner's Markdown for the Recommendations section (default: placeholders)",
+    )
+    report.add_argument(
+        "--overwrite",
+        action="store_true",
+        help="replace an existing report that differs from this one",
+    )
+    report.add_argument(
+        "--rerender",
+        action="store_true",
+        help="rebuild the report and check it matches --output byte for byte, without writing",
+    )
+    commands.add_parser("models", help="print the active chat rows of the model catalog")
+    commands.add_parser(
+        "cleanup",
+        help="drop benchmark databases a killed run left behind; a database in use, such as a running "
+        "benchmark's, is kept",
+    )
+    return parser.parse_args(argv)
+
+
+def _run_arguments(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("--run-dir", type=Path, required=True, help="a run's output directory")
+    parser.add_argument("--prompts", type=Path, required=True, help="the run's prompt-set manifest on this machine")
+    parser.add_argument("--rubrics", type=Path, default=TRACKED_RUBRICS, help="rubric file (default: the tracked one)")
+    parser.add_argument(
+        "--allow-unfinished",
+        action="store_true",
+        help="use a run whose manifest still says it is running (a run that was killed)",
+    )
+
+
+def _cli_arguments(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--concurrency",
+        type=_positive_int,
+        default=DEFAULT_CONCURRENCY,
+        help=f"parallel judge processes (default {DEFAULT_CONCURRENCY})",
+    )
+    parser.add_argument("--claude", default="claude", help="the Claude CLI executable")
+    parser.add_argument("--timeout", type=_seconds, default=900.0, help="seconds allowed for one judge call")
+
+
+def _configurations(args: argparse.Namespace, rows: Sequence[Any]) -> tuple[Configuration, ...]:
+    configurations = standard_configurations(rows) if args.standard else []
+    configurations += [parse_config(text, rows) for text in args.config]
+    if not configurations:
+        raise EvalInputError("Choose --standard and/or --config")
+    labels = [configuration.label for configuration in configurations]
+    if len(set(labels)) != len(labels):
+        raise EvalInputError("A configuration is listed twice")
+    return tuple(configurations)
+
+
+def _plan(args: argparse.Namespace, rows: Sequence[Any]) -> BenchmarkPlan:
+    prompt_set = load_prompt_set(args.prompts).for_tier(args.tier)
+    return BenchmarkPlan(
+        prompt_set=prompt_set,
+        configurations=_configurations(args, rows),
+        tier=args.tier,
+        repeats=args.repeats,
+        scripted_repeats=args.scripted_repeats,
+    )
+
+
+def _price_table(args: argparse.Namespace, plan: BenchmarkPlan) -> dict[str, TokenPrices | None]:
+    """Each runnable configuration's ``--row-price`` or ``--price`` rates; ``None`` when neither was given.
+
+    One ``--price`` may price several rows only when their catalog rates agree, so a row with other rates cannot
+    be priced, and capped, at another model's rates.
+    """
+
+    default = parse_token_prices(args.price) if args.price is not None else None
+    rows = {configuration.model_provider.id for configuration in plan.runnable}
+    row_prices: dict[str, TokenPrices] = {}
+    for row_id, rates in args.row_price:
+        if row_id not in rows:
+            raise EvalInputError(f"--row-price: {row_id!r} is not a runnable configuration's row")
+        row_prices[row_id] = parse_token_prices(rates)
+    shared = [c.model_provider for c in plan.runnable if c.model_provider.id not in row_prices]
+    if default is not None and len({_catalog_rates(row) for row in shared}) > 1:
+        names = ", ".join(sorted({row.id for row in shared}))
+        raise EvalInputError(f"--price would price rows with different catalog rates alike ({names}); add --row-price")
+    return {
+        configuration.label: row_prices.get(configuration.model_provider.id, default) for configuration in plan.runnable
+    }
+
+
+def _catalog_rates(row: ModelProvider) -> tuple[Decimal | None, Decimal | None, Decimal | None]:
+    pricing = row.pricing
+    return (
+        pricing.standard_input_price_per_million,
+        pricing.standard_cached_input_price_per_million,
+        pricing.standard_output_price_per_million,
+    )
+
+
+async def _print_plan(args: argparse.Namespace, plan: BenchmarkPlan) -> dict[str, Decimal | None]:
+    """Print the plan; return each configuration's USD estimate for the run's cap check."""
+
+    tokens = await estimate_first_turn_tokens(plan)
+    prices = _price_table(args, plan)
+    judge_lines, judge_seconds = judge_estimate(
+        plan, load_rubrics(TRACKED_RUBRICS), effort=args.judge_effort, concurrency=args.judge_concurrency
+    )
+    print(
+        render_plan(
+            plan,
+            first_turn_tokens=tokens,
+            seconds_per_call=args.seconds_per_call,
+            max_calls=args.max_calls,
+            prices=prices,
+            max_usd=getattr(args, "max_usd", None),
+            judge_lines=judge_lines,
+            judge_seconds=judge_seconds,
+        )
+    )
+    return estimate_usd(plan, first_turn_tokens=tokens, prices=prices)
+
+
+async def _plan_command(args: argparse.Namespace) -> None:
+    """The dry run. Built-in rows need no database; a ``--config`` naming any other row reads the catalog,
+    read-only, so the plan of an owner-added row runs where ``run`` does, in the stack."""
+
+    rows: Sequence[ModelProvider] = builtin_chat_rows()
+    known = {row.id for row in rows}
+    unknown = sorted({text.partition("@")[0] for text in args.config} - known)
+    if unknown:
+        try:
+            async with catalog.read_only_model_providers() as model_providers:
+                rows = await catalog.chat_model_rows(model_providers)
+        except (OSError, SQLAlchemyError) as exc:
+            raise EvalInputError(
+                f"{', '.join(unknown)} is not a built-in chat row, and the catalog could not be read "
+                f"({type(exc).__name__}); check the id, or run plan in the stack (see the models command)"
+            ) from exc
+    await _print_plan(args, _plan(args, rows))
+
+
+async def _models() -> int:
+    async with catalog.read_only_model_providers() as model_providers:
+        rows = await catalog.chat_model_rows(model_providers)
+    for row in rows:
+        connection = row.connection.name if row.connection is not None else row.connection_id
+        hidden = " (hidden)" if row.hidden else ""
+        print(f"{row.id}\t{row.model_label}\t{connection}\t{row.source}{hidden}")
+    return 0
+
+
+def _manifest(
+    args: argparse.Namespace,
+    plan: BenchmarkPlan,
+    *,
+    started_at: datetime,
+    outcome: RunOutcome | None,
+    prices: Mapping[str, TokenPrices | None],
+    database: str | None = None,
+) -> dict[str, Any]:
+    """The run's manifest; ``outcome`` is ``None`` before the run starts, when ``database`` names its database."""
+
+    return {
+        "schema": RUN_SCHEMA,
+        "started_at": started_at.isoformat(),
+        "finished_at": datetime.now(UTC).isoformat() if outcome is not None else None,
+        "aborted": outcome.aborted if outcome is not None else "running",
+        "tier": plan.tier,
+        "prompt_set": {"path": str(args.prompts), "version": plan.prompt_set.version, **plan.prompt_set.hashes},
+        "repeats": plan.repeats,
+        "scripted_repeats": plan.scripted_repeats,
+        "configurations": [
+            {
+                "label": configuration.label,
+                "model_provider_id": configuration.model_provider.id,
+                "provider_type": configuration.model_provider.provider_type,
+                "model": configuration.model_provider.model,
+                "connection_id": configuration.model_provider.connection_id,
+                "effort": configuration.effort,
+                "not_run": capability_problem(configuration),
+                "native_context_compaction": (
+                    outcome.native_context_compaction.get(configuration.label) if outcome is not None else None
+                ),
+                "served_models": outcome.served_models.get(configuration.label, []) if outcome is not None else [],
+            }
+            for configuration in plan.configurations
+        ],
+        "caps": {"max_calls": args.max_calls, "max_usd": str(args.max_usd) if args.max_usd is not None else None},
+        "over_time_approved": args.over_time_approved,
+        "price_source": {
+            label: {"rates_per_million_usd": rates.as_json()} if rates is not None else None
+            for label, rates in prices.items()
+        },
+        "calls_made": outcome.calls if outcome is not None else 0,
+        "estimated_spend_usd": str(outcome.spent_usd) if outcome is not None else "0",
+        "turns_recorded": outcome.turns if outcome is not None else 0,
+        "prompts": outcome.prompts if outcome is not None else {},
+        "benchmark_database": outcome.benchmark_database if outcome is not None else database,
+        "japanese_search_probe": outcome.japanese_search_probe if outcome is not None else None,
+        "conditions": {
+            "machine": args.machine_label,
+            "platform": platform.platform(),
+            "network": args.network_label,
+            "source_revision": args.source_revision,
+            "llm_skip": catalog.llm_skip(),
+        },
+        "options": {
+            "voice": ELEVENLABS_VOICE.provider,
+            "native_tools": [],
+            "provider_moderation": PROVIDER_MODERATION,
+            "incognito": True,
+            # Core and long-chat turns run with memory influence and updates off: no memory sections or tools.
+            "memory": "off",
+            # Memory chats, recall chats and Memory Manager runs have memory on in these arms.
+            "memory_arms": [ARM_REMEMBER_ONLY, ARM_MEMORIES_MD_ONLY, ARM_BOTH] if plan.needs_benchmark_database else [],
+        },
+    }
+
+
+def _print_progress(turn: Mapping[str, Any]) -> None:
+    outcome = f"error {turn['error']}" if turn["error"] is not None else (turn["gesture"] or "no gesture")
+    print(
+        f"[{turn['configuration']}] {turn['kind']} {turn['unit_id']} #{turn['turn']} ({turn['persona']}, "
+        f"{turn['language']}): {outcome} in {turn['latency_seconds']:.2f}s",
+        file=sys.stderr,
+    )
+
+
+async def _run(args: argparse.Namespace) -> int:
+    if args.max_calls is None or args.max_usd is None:
+        raise EvalInputError("run needs --max-calls and --max-usd: the owner-approved caps")
+    async with catalog.read_only_model_providers() as model_providers:
+        rows = await catalog.chat_model_rows(model_providers)
+    plan = _plan(args, rows)
+    estimates = await _print_plan(args, plan)
+    prices = _price_table(args, plan)
+    unpriced = [label for label, rates in prices.items() if rates is None]
+    if unpriced:
+        # The catalog records no prompt-cache-write rate, so it cannot price every call (Anthropic reports them).
+        raise EvalInputError(f"A USD cap needs --price or --row-price rates; unpriced: {', '.join(unpriced)}")
+    retry = _retry_source(args, plan, prices) if args.retry_from is not None else None
+    if plan.estimated_calls > args.max_calls:
+        raise EvalInputError(f"The plan needs {plan.estimated_calls} model calls, more than --max-calls")
+    estimated = total_usd(estimates)
+    if estimated is not None and estimated > args.max_usd:
+        raise EvalInputError(f"The plan's cost estimate ~{estimated:.4f} USD exceeds --max-usd {args.max_usd}")
+    _judge_lines, judge_seconds = judge_estimate(
+        plan, load_rubrics(TRACKED_RUBRICS), effort=args.judge_effort, concurrency=args.judge_concurrency
+    )
+    seconds = estimated_seconds(plan, seconds_per_call=args.seconds_per_call, judge_seconds=judge_seconds)
+    if seconds > TIME_BOUND_SECONDS and not args.over_time_approved:
+        raise EvalInputError("The estimate exceeds the 4-hour bound; trim the plan or pass --over-time-approved")
+    directory = RunDirectory(args.output_dir)
+    started_at = datetime.now(UTC)
+    # Filled as the run goes, so the manifest records a partial or failed run's calls, spend and reason too.
+    outcome = RunOutcome()
+    if plan.needs_benchmark_database:
+        # Named before the first manifest, so a killed run's manifest says which database `cleanup` should drop.
+        outcome.benchmark_database = benchmark_database_name(directory.path.name)
+
+    def manifest(finished: RunOutcome | None) -> dict[str, Any]:
+        data = _manifest(
+            args, plan, started_at=started_at, outcome=finished, prices=prices, database=outcome.benchmark_database
+        )
+        return retry.manifest(data, finished) if retry is not None else data
+
+    directory.write_manifest(manifest(None))
+    sink: TurnSink = directory.append_turn
+    caps = RunCaps(max_calls=args.max_calls, max_usd=args.max_usd)
+    if retry is not None:
+        for record in retry.plan.kept:
+            directory.append_turn(record)
+        sink, caps = retry.sink(directory), retry.caps
+    registry: StaticModelClientRegistry | None = None
+    try:
+        registry = catalog.build_model_client_registry()
+        async with _memory_sessions(outcome) as memory_sessions:
+            await run_benchmark(
+                plan.prompt_set,
+                plan.runnable,
+                registry=registry,
+                caps=caps,
+                prices={label: call_price(rates) for label, rates in prices.items()},
+                sink=sink,
+                repeats=args.repeats,
+                scripted_repeats=args.scripted_repeats,
+                clock=time.monotonic,
+                progress=_print_progress,
+                outcome=outcome,
+                memory_sessions=memory_sessions,
+                select=retry.plan.selects if retry is not None else None,
+            )
+    except Exception as exc:
+        if outcome.aborted == "interrupted":
+            # The run loop never started, for example the registry could not be built.
+            outcome.aborted = f"error: {exc.__class__.__name__}"
+        raise
+    finally:
+        directory.write_manifest(manifest(outcome))
+        if registry is not None:
+            await registry.aclose()
+        print(f"\nRun: {directory.path}", file=sys.stderr)
+    return 0 if outcome.aborted is None else 1
+
+
+def _comparable(manifest: Mapping[str, Any]) -> dict[str, Any]:
+    """What a retry must share with the run it retries: the inputs, configurations, options, prices, caps and
+    whether chat's mock model served it."""
+
+    identity = ("label", "model_provider_id", "provider_type", "model", "connection_id", "effort", "not_run")
+    return {
+        "tier": manifest.get("tier"),
+        "prompt set": {k: v for k, v in (manifest.get("prompt_set") or {}).items() if k != "path"},
+        "repeats": manifest.get("repeats"),
+        "scripted repeats": manifest.get("scripted_repeats"),
+        "configurations": [{key: c.get(key) for key in identity} for c in manifest.get("configurations") or ()],
+        "options": manifest.get("options"),
+        "prices": manifest.get("price_source"),
+        "caps": manifest.get("caps"),
+        "mock model": (manifest.get("conditions") or {}).get("llm_skip"),
+    }
+
+
+@dataclass(slots=True)
+class _Retry:
+    """A run that retries an earlier one: what it copies and reruns, the caps left, and its manifest additions."""
+
+    path: Path
+    earlier: dict[str, Any]
+    plan: RetryPlan
+    caps: RunCaps
+    recorded: int = 0
+
+    def sink(self, directory: RunDirectory) -> TurnSink:
+        """Record the rerun turns; the warm-ups ran again but the copied run already holds its own."""
+
+        def record(turn: dict[str, Any]) -> None:
+            if turn["kind"] != "warmup":
+                directory.append_turn(turn)
+                self.recorded += turn["kind"] in COUNTED_TURNS
+
+        return record
+
+    def manifest(self, data: dict[str, Any], outcome: RunOutcome | None) -> dict[str, Any]:
+        """The run as a whole keeps the earlier run's window and conditions; this retry is added to its list."""
+
+        earlier = self.earlier
+        calls = outcome.calls if outcome is not None else 0
+        spent = outcome.spent_usd if outcome is not None else Decimal(0)
+        attempt = {
+            "of": self.path.name,
+            "started_at": data["started_at"],
+            "finished_at": data["finished_at"],
+            "aborted": data["aborted"],
+            "conditions": data["conditions"],
+            "error_codes": self.plan.error_codes,
+            "units": sorted(f"{configuration} {key}" for configuration, key in self.plan.units),
+            "replaced_turns": self.plan.replaced,
+            "calls": calls,
+            "spent_usd": str(spent),
+        }
+        served = {c["label"]: c.get("served_models") or [] for c in earlier.get("configurations") or ()}
+        for configuration in data["configurations"]:
+            known = served.get(configuration["label"], [])
+            configuration["served_models"] = [*known, *(m for m in configuration["served_models"] if m not in known)]
+        # A retry runs only the failed units, so a run that stopped early stays partial.
+        aborted = data["aborted"] if data["aborted"] is not None else earlier.get("aborted")
+        return {
+            **data,
+            "started_at": earlier["started_at"],
+            "finished_at": earlier["finished_at"],
+            "aborted": aborted,
+            "conditions": earlier["conditions"],
+            "calls_made": int(earlier["calls_made"]) + calls,
+            "estimated_spend_usd": str(Decimal(earlier["estimated_spend_usd"]) + spent),
+            "turns_recorded": sum(record["kind"] in COUNTED_TURNS for record in self.plan.kept) + self.recorded,
+            "prompts": {**data["prompts"], **(earlier.get("prompts") or {})},
+            "retries": [*(earlier.get("retries") or ()), attempt],
+        }
+
+
+def _retry_source(args: argparse.Namespace, plan: BenchmarkPlan, prices: Mapping[str, TokenPrices | None]) -> _Retry:
+    """Check the earlier run against this one, select its units with connection errors and print the retry."""
+
+    path: Path = args.retry_from
+    try:
+        earlier = json.loads((path / MANIFEST).read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        raise EvalInputError(f"{path} is not a benchmark run ({exc})") from exc
+    if earlier.get("schema") != RUN_SCHEMA:
+        raise EvalInputError(f"{path}: unknown run schema {earlier.get('schema')!r}")
+    if earlier.get("aborted") == "running":
+        raise EvalInputError(f"{path} is still running or was killed; retry it once it ends")
+    if earlier.get("aborted") in {"max_calls", "max_usd"}:
+        # Its budget refused a call; a fresh budget for what is left would send one past the cap.
+        raise EvalInputError(f"{path} stopped at its {earlier['aborted']} cap; nothing is left for a retry")
+    last = (earlier.get("retries") or [{}])[-1]
+    if last.get("aborted") is not None:
+        # Units it never reached are no longer in its records; their failed turns are still in the run it retried.
+        raise EvalInputError(f"{path} is a retry that stopped early; retry {last['of']} instead")
+    ours = _comparable(_manifest(args, plan, started_at=datetime.now(UTC), outcome=None, prices=prices))
+    theirs = _comparable(earlier)
+    differ = [name for name, value in ours.items() if theirs[name] != value]
+    if differ:
+        raise EvalInputError(
+            f"{path} ran with other settings ({', '.join(differ)} differ); a retry repeats its options and caps"
+        )
+    try:
+        retry = plan_retry(read_turns(path))
+    except OSError as exc:
+        raise EvalInputError(f"{path} is not a benchmark run ({exc})") from exc
+    if not retry.units:
+        raise EvalInputError(f"no unit of {path} failed on a connection error; nothing to retry")
+    calls_left = args.max_calls - int(earlier["calls_made"])
+    usd_left = args.max_usd - Decimal(earlier["estimated_spend_usd"])
+    if calls_left <= 0 or usd_left <= 0:
+        raise EvalInputError(f"{path} used the caps ({earlier['calls_made']} calls, ~{earlier['estimated_spend_usd']} "
+                             "USD); nothing is left for a retry")  # fmt: skip
+    codes = ", ".join(f"{code} {count}" for code, count in retry.error_codes.items())
+    print(
+        f"Retry of {path.name}: {len(retry.units)} units with connection errors ({codes}) run again, replacing "
+        f"{retry.replaced} records; {len(retry.kept)} records copied. Caps left: {calls_left} calls, "
+        f"{usd_left} USD."
+    )
+    return _Retry(path=path, earlier=earlier, plan=retry, caps=RunCaps(max_calls=calls_left, max_usd=usd_left))
+
+
+@asynccontextmanager
+async def _memory_sessions(outcome: RunOutcome) -> AsyncIterator[BenchmarkSessions | None]:
+    """The run's disposable benchmark database when its plan has memory work, dropped when the run ends."""
+
+    name = outcome.benchmark_database
+    if name is None:
+        yield None
+        return
+    async with benchmark_database(catalog.application_database_url(), name) as factory:
+        async with factory() as session:
+            # Chat's memory search uses the english text-search configuration; record what that does to Japanese.
+            outcome.japanese_search_probe = await japanese_search_probe(session)
+        yield BenchmarkSessions(factory)
+
+
+@dataclass(frozen=True, slots=True)
+class _Run:
+    manifest: dict[str, Any]
+    turns: list[dict[str, Any]]
+    turns_sha256: str
+    prompt_set: PromptSet
+    rubrics: RubricSet
+
+
+def _open_run(args: argparse.Namespace) -> _Run:
+    """A finished run with its prompt set and rubrics, checked against the run's manifest."""
+
+    run_dir: Path = args.run_dir
+    try:
+        manifest = json.loads((run_dir / MANIFEST).read_text(encoding="utf-8"))
+        turns_bytes = (run_dir / TURNS).read_bytes()
+    except (OSError, ValueError) as exc:
+        raise EvalInputError(f"{run_dir} is not a benchmark run ({exc})") from exc
+    if manifest.get("schema") != RUN_SCHEMA:
+        raise EvalInputError(f"{run_dir}: unknown run schema {manifest.get('schema')!r}")
+    if manifest.get("aborted") == "running" and not args.allow_unfinished:
+        # A judge plan is fixed to the turns judged first, so using a run still in progress would lock it.
+        raise EvalInputError(
+            f"{run_dir} is still running or was killed; use it once it ends, or pass --allow-unfinished"
+        )
+    prompt_set = load_prompt_set(args.prompts)
+    recorded = manifest.get("prompt_set") or {}
+    changed = [key for key, value in prompt_set.hashes.items() if recorded.get(key) != value]
+    if changed:
+        raise EvalInputError(f"{args.prompts} is not the run's prompt set: {', '.join(changed)} differ")
+    return _Run(
+        manifest=manifest,
+        turns=list(read_turns(run_dir)),
+        turns_sha256=hashlib.sha256(turns_bytes).hexdigest(),
+        prompt_set=prompt_set,
+        rubrics=load_rubrics(args.rubrics),
+    )
+
+
+def _judge(args: argparse.Namespace) -> int:
+    """Judge a run at one effort; 0 when every batch is scored, 1 with missing scores, 3 when stopped early."""
+
+    run = _open_run(args)
+    prompt_set, rubrics = run.prompt_set, run.rubrics
+    plan = load_or_plan(args.run_dir, run.turns, run.turns_sha256, prompt_set, rubrics, seed=JUDGE_SEED)
+    rubric_ids, batch_ids = set(args.rubric), set(args.batch)
+    unknown = sorted(rubric_ids - {batch.rubric for batch in plan.batches}) + sorted(
+        batch_ids - {batch.id for batch in plan.batches}
+    )
+    if unknown:
+        raise EvalInputError(f"no planned batches for {', '.join(unknown)}; see {plan.directory / 'plan.json'}")
+    selected = [
+        batch
+        for batch in plan.batches
+        if (not rubric_ids or batch.rubric in rubric_ids) and (not batch_ids or batch.id in batch_ids)
+    ]
+    print(f"Judge plan: {len(plan.batches)} batches, {len(selected)} selected, effort {args.effort}", file=sys.stderr)
+    outcome = run_judging(
+        plan,
+        prompt_set,
+        rubrics,
+        effort=args.effort,
+        cli=ClaudeCli(binary=args.claude, timeout=args.timeout),
+        concurrency=args.concurrency,
+        select=lambda batch: batch in selected,
+    )
+    print(
+        f"Judged {outcome.completed} batches, skipped {outcome.skipped} already done, {outcome.missing} missing",
+        file=sys.stderr,
+    )
+    return _judging_exit(outcome)
+
+
+def _judging_exit(outcome: JudgeRun) -> int:
+    if outcome.stopped is not None:
+        follow_up = "rerun the same command to resume" if outcome.resumable else "fix this, then rerun the command"
+        print(f"Judging stopped: {outcome.stopped}. Finished batches are kept; {follow_up}.", file=sys.stderr)
+        return 3
+    return 1 if outcome.missing else 0
+
+
+def _calibrate(args: argparse.Namespace) -> int:
+    """The calibration steps (D15): draw the sample, import the owner's ratings, then pilot both efforts; or
+    record the owner's waiver (D17)."""
+
+    run = _open_run(args)
+    if args.step == "export":
+        plan = calibrate.export(args.run_dir, run.turns, run.turns_sha256, run.prompt_set, run.rubrics, seed=JUDGE_SEED)
+        items = sum(len(batch.items) for batch in plan.batches)
+        folder = args.run_dir / calibrate.CALIBRATION_DIR
+        print(f"Calibration sample: {items} items; rate them in {folder / 'sheet.md'} and fill in "
+              f"{folder / 'ratings.json'}", file=sys.stderr)  # fmt: skip
+        return 0
+    if args.step == "import":
+        rated = calibrate.import_ratings(args.run_dir, args.ratings, run.rubrics)
+        print(f"Imported ratings for {rated} items", file=sys.stderr)
+        return 0
+    if args.step == "waive":
+        calibrate.waive(args.run_dir, run.prompt_set, run.rubrics, effort=args.effort, day=datetime.now(UTC).date())
+        print(f"Calibration waived by the owner; judge at {args.effort}", file=sys.stderr)
+        return 0
+    result, stopped = calibrate.pilot(
+        args.run_dir, run.turns_sha256, run.prompt_set, run.rubrics, seed=JUDGE_SEED,
+        cli=ClaudeCli(binary=args.claude, timeout=args.timeout), concurrency=args.concurrency,
+    )  # fmt: skip
+    if result is None:
+        assert stopped is not None
+        print(f"Calibration pilot: {stopped.completed} batches judged, {stopped.missing} missing; rerun it to finish",
+              file=sys.stderr)  # fmt: skip
+        return _judging_exit(stopped)
+    print(f"Pinned judge effort: {result['pinned']} (mean weighted kappa {result['mean_kappa']})", file=sys.stderr)
+    return 0
+
+
+def _report(args: argparse.Namespace) -> int:
+    """Render the report; with --rerender, check it matches the written one byte for byte (1 when not)."""
+
+    run = _open_run(args)
+    calibration = load_calibration(args.run_dir)
+    judged = (args.run_dir / JUDGE_DIR / "plan.json").exists()
+    if judged:
+        # The scores are joined to the records by line, so the plan must come from these very inputs.
+        load_plan(args.run_dir / JUDGE_DIR, inputs_fingerprint(run.turns_sha256, run.prompt_set, run.rubrics,
+                                                               JUDGE_SEED), seed=JUDGE_SEED)  # fmt: skip
+    # Without a judge plan the run is not judged yet, whatever calibration pinned.
+    effort = (args.effort or (calibration or {}).get("pinned")) if judged else None
+    if effort is None and judged:
+        efforts = [effort for effort in EFFORTS if (args.run_dir / JUDGE_DIR / effort).is_dir()]
+        if len(efforts) != 1:
+            found = f"judge results at {', '.join(efforts)}" if efforts else "a judge plan but no judge results yet"
+            raise EvalInputError(f"{args.run_dir} has {found}; pass --effort")
+        effort = efforts[0]
+    judge = load_judge_results(args.run_dir, effort)
+    data = build_report(run.manifest, run.turns, run.prompt_set, criteria_keys(run.rubrics), judge, calibration)
+    try:
+        owner = args.recommendations.read_text(encoding="utf-8") if args.recommendations else None
+    except OSError as exc:
+        raise EvalInputError(f"cannot read the recommendations file ({exc})") from exc
+    text = render_report(data, title=args.title, recommendations=owner)
+    check_public_safe(text, forbidden_texts(run.turns, run.prompt_set))
+    output: Path = args.output or args.run_dir / "report.md"
+    same = output.exists() and output.read_text(encoding="utf-8") == text
+    if args.rerender:
+        print(f"{output} {'matches' if same else 'differs from'} the re-rendered report", file=sys.stderr)
+        return 0 if same else 1
+    if output.exists() and not same and not args.overwrite:
+        raise EvalInputError(
+            f"{output} exists and differs; pass --overwrite to replace it (owner text belongs in --recommendations)"
+        )
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(text, encoding="utf-8")
+    print(f"Report: {output}", file=sys.stderr)
+    return 0
+
+
+async def _cleanup() -> int:
+    dropped, in_use = await drop_leftover_databases(catalog.application_database_url())
+    lines = [f"dropped {name}" for name in dropped] + [f"kept {name}: in use" for name in in_use]
+    print("\n".join(lines) if lines else "no benchmark databases to drop")
+    return 0
+
+
+def main(argv: Sequence[str] | None = None) -> int:
+    args = _parse_args(argv)
+    try:
+        if args.command == "models":
+            return asyncio.run(_models())
+        if args.command == "cleanup":
+            return asyncio.run(_cleanup())
+        if args.command == "plan":
+            asyncio.run(_plan_command(args))
+            return 0
+        if args.command == "judge":
+            return _judge(args)
+        if args.command == "calibrate":
+            return _calibrate(args)
+        if args.command == "report":
+            return _report(args)
+        # The OpenAI Memory Manager runtime would otherwise export a trace of each benchmark run.
+        set_tracing_disabled(True)
+        return asyncio.run(_run(args))
+    except (EvalInputError, DirectChatTurnSetupError, ModelClientNotFoundError) as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+    except KeyboardInterrupt:
+        finished = "batches" if args.command == "judge" else "turns"
+        print(f"Interrupted; the {finished} finished so far were written.", file=sys.stderr)
+        return 130
