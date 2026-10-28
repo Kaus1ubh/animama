@@ -292,6 +292,18 @@ async def test_shared_rows_and_included_changes_change_the_etag(
             async with composition.client(other) as other_client:
                 assert await etag(other_client) != other_before_drift
 
+            # A release withdraws the Gesture: its row stays as a hidden tombstone.
+            (gestures / "catalog-revalidation.vrma").unlink()
+            async with ports.session_factory() as session:
+                async with ports.content(session, RequestPrincipal(id=owner)) as owned:
+                    await owned.catalog.rescan(user_id=owner, include_included=True)
+                await session.commit()
+            withdrawn = await client.get(CATALOG, headers=GZIP)
+            assert all(
+                item["relative_locator"] != "gestures/catalog-revalidation.vrma" for item in withdrawn.json()["items"]
+            )
+            seen.append(withdrawn.headers["etag"])
+
         assert len(set(seen)) == len(seen), seen
 
 

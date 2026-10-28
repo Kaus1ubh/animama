@@ -97,9 +97,9 @@ class ContentCatalog(Protocol):
         """Name the current state of the listed Included rows, the same for every owner.
 
         The value must change whenever any of those rows, their files or dependency
-        edges change, and whenever a release could project them differently. A
-        composition whose Included rows are fixed for an application revision may
-        return that revision.
+        edges change, and with every application release, since a release may
+        project any visible row differently. A composition whose Included rows are
+        fixed for an application revision may return that revision.
         """
 
         raise NotImplementedError
@@ -108,7 +108,8 @@ class ContentCatalog(Protocol):
         """Name the current state of the caller's own and installation-shared listed rows.
 
         The value must change whenever any of those rows, their files or dependency
-        edges change; other owners' rows never affect it.
+        edges change; other owners' rows never affect it. Releases are left to
+        ``included_generation``.
         """
 
         raise NotImplementedError

@@ -76,8 +76,8 @@ def verified_file_response(file: VerifiedContentFile, *, if_none_match: str | No
 class DeferredJsonBody:
     """JSON whose validator is known before its bytes are built.
 
-    ``validator`` is a hex digest that changes whenever ``build`` could return
-    different bytes. A client that already holds them then costs a 304 without the
+    ``validator`` is a hex digest that changes whenever the content ``build``
+    serializes changes. A client that already holds it then costs a 304 without the
     body being built, compressed or hashed.
     """
 

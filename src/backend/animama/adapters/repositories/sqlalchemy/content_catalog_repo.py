@@ -858,15 +858,21 @@ class SQLAlchemyContentCatalog(ContentCatalog):
     async def included_generation(self) -> str:
         """Name the current state of the listed Included rows, which every owner sees.
 
-        They change only with a release or a reconciliation, including a pack's
-        drift or withdrawal. A composition whose Included rows are fixed for an
-        application revision may override this to return that revision.
+        It changes with any change to those rows: a reconciliation, a pack's drift
+        or its withdrawal. It changes with a release only because a release's first
+        start reconciles every source, as the local composition's start-up does. A
+        composition that does not reconcile at start must override this with a value
+        that changes with every application revision, such as that revision.
         """
 
         return await self._rows_revision(ORMContentCatalogItem.scope == ContentScope.INCLUDED.value)
 
     async def owned_and_shared_revision(self, *, user_id: str) -> str:
-        """Name the current state of the other listed rows ``user_id`` sees: its own and installation-shared ones."""
+        """Name the current state of the other listed rows ``user_id`` sees: its own and installation-shared ones.
+
+        A release that projects these rows differently changes the Included
+        generation, which every catalog validator also names.
+        """
 
         return await self._rows_revision(
             or_(

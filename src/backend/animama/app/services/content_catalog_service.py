@@ -164,7 +164,8 @@ class ContentCatalogService:
     async def visible_revision(self, *, user_id: str) -> str:
         """Name the caller's visible catalog without listing it.
 
-        It changes whenever a row the caller sees changes and stays put otherwise.
+        It changes whenever a row the caller sees changes, and with every release
+        through the Included generation; it stays put otherwise.
         The caller's identity is part of it, so no value names another owner's
         catalog. Read it before the listing: a change between the two then shows
         as a new revision on the next read instead of hiding behind an old one.
