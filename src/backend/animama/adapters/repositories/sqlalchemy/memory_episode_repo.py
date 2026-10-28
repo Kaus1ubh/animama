@@ -6,7 +6,7 @@ from collections.abc import Iterable
 from datetime import date, datetime
 from typing import Any
 
-from sqlalchemy import RowMapping, SQLColumnExpression, select
+from sqlalchemy import RowMapping, SQLColumnExpression, select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -279,6 +279,12 @@ class SQLAlchemyMemoryEpisodeRepository(MemoryEpisodeRepository):
             for obj in rows:
                 await self._s.refresh(obj)
         return [self._orm_to_domain(obj) for obj in rows]
+
+    async def lock_batch_selection(self, *, user_id: str) -> None:
+        await self._s.execute(
+            text("SELECT pg_advisory_xact_lock(hashtextextended(:key, 0))"),
+            {"key": f"memory-episode-batch:{user_id}"},
+        )
 
     async def list_pending_items_for_update(
         self,

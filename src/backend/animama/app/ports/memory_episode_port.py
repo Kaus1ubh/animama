@@ -74,6 +74,15 @@ class MemoryEpisodeRepository(Protocol):
     ) -> list[MemoryEpisodeItem]:
         raise NotImplementedError
 
+    async def lock_batch_selection(self, *, user_id: str) -> None:
+        """Serialize fixed-batch selection for one owner until the current transaction ends.
+
+        Owner-started and automatic episode processing both take it before they check
+        for each other's open runs, so two runs never select the same pending notes.
+        """
+
+        raise NotImplementedError
+
     async def list_pending_items_for_update(
         self,
         *,

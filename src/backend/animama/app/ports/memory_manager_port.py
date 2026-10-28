@@ -32,9 +32,18 @@ class MemoryManagerRepository(Protocol):
         raise NotImplementedError
 
     async def list_open_runs(self, *, user_id: str) -> list[MemoryManagerRun]:
+        """List the owner-started runs that are active or waiting for approval."""
+
         raise NotImplementedError
 
     async def list_open_runs_for_update(self, *, user_id: str) -> list[MemoryManagerRun]:
+        """Lock and list the owner-started open runs."""
+
+        raise NotImplementedError
+
+    async def list_open_automatic_runs(self, *, user_id: str, for_update: bool = False) -> list[MemoryManagerRun]:
+        """List the backend-started runs that are still open, optionally locking them."""
+
         raise NotImplementedError
 
     async def update_run(self, run: MemoryManagerRun) -> MemoryManagerRun:

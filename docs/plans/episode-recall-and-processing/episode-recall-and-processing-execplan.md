@@ -62,10 +62,11 @@ Boundaries:
 - Core chat dispatch never depends on the worker (backend memory rule); the worker
   lives only in the local composition (`server/`), never in `product_http/` or `app/`.
 - Shared protocols that Cloud implements (`ProductPorts`, `ChatTurnServices`) gain no
-  required members, and the shared ORM gains no column, so Cloud needs no code or
-  migration change to repin. Cloud's own copy of `memory_manager_runs` keeps its
-  open-run index, which is correct there because hosted never creates automatic runs.
-  Hosted gets R1–R4 and the capability's default `false` on repin. Cloud checks its
+  required members, and the shared ORM gains no column. Cloud's hosted metadata copies
+  the ORM's indexes, though, so its repin adds one schema-only migration file that
+  narrows `uq_memory_manager_runs_user_open` and adds
+  `uq_memory_manager_runs_user_open_automatic`, as it did for Gesture rows (owner
+  decision below). Hosted gets R1–R4 and the capability's default `false` on repin. Cloud checks its
   input-token estimates against the larger instructions when it repins; that is
   Cloud's own follow-up, not part of this plan.
 - No Alembic revision: schema changes go into the ORM and `0001_baseline.sql` (G2).
@@ -74,7 +75,7 @@ Boundaries:
 
 - [x] G1: owner review and authorization of this plan (2026-10-28, Phases 1–5).
 - [x] Phase 1: recall context (R1–R4). Review passed after two repair rounds; see the phase record.
-- [ ] Phase 2: automatic-run semantics in the Memory Manager service (R6, R7, R10).
+- [x] Phase 2: automatic-run semantics in the Memory Manager service (R6, R7, R10). Passed at the review #2 source; one deferred non-blocking finding; see the phase record.
 - [ ] Phase 3: local trigger, setting, status and capability (R5, R8, R9, R11 backend).
 - [ ] Phase 4: settings control, chat progress line and version label (R10, R11
       frontend, R13).
@@ -93,7 +94,15 @@ Found while planning (2026-10-28, agent, at `da23aaaa`):
 - **Cloud migrates its own copy of the runs table.** Hosted migration
   `008_hosted_companion_memory.sql` creates `memory_manager_runs` and the same open-run
   index, so a new ORM column would need a Cloud migration at repin. The origin is
-  therefore kept in the run's `metadata` (owner decision below).
+  therefore kept in the run's `metadata` (owner decision below). Phase 2 review then
+  found that Cloud's hosted metadata (`Table.to_metadata`) copies the ORM indexes and
+  its schema test compares them with the migrated schema, so the index change itself
+  needs a Cloud schema file at repin.
+- **Alembic disabled existing loggers.** `alembic/env.py` called `fileConfig()` with
+  `disable_existing_loggers=True`, so any in-process migration (database bootstrap,
+  the fresh-install test) silenced loggers created earlier. In the full suite this
+  failed `test_model_assets` whenever the fresh-install test ran first on a worker.
+  Fixed in `4aba7a7d`.
 - **An approval holds its file's row lock across the model resume.**
   `decide_approval` commits the patch through `MemoryEntryService` (row
   `FOR UPDATE`), then calls `resume_approval_decision` before committing. While a
@@ -143,6 +152,14 @@ Found while planning (2026-10-28, agent, at `da23aaaa`):
   threshold records `reset_at`, which lifts R8's pause. Hosted has no such route.
 - 2026-10-28, agent: the recent-notes selection stops at the first note that does not
   fit the character budget, so the included notes stay a contiguous recent run.
+- 2026-10-28, owner (Phase 2 review, P2-F5): keep `metadata.origin`. Hosted staging
+  will be reset and has no users, so no data conversion is needed; Cloud's repin adds a
+  schema-only migration file for the two indexes, like `024_hosted_gesture_rows.sql`.
+- 2026-10-28, agent (Phase 2, repair budget): the second repair round's fix for
+  P2-R2-N1 regressed runtime-failed runs (P2-R3-F1), so it was reverted to the tree
+  review #2 passed (`b6ebc37f`) rather than spending a third round. P2-R2-N1 is
+  deferred: it needs two backend processes sharing one database, which the local
+  composition never runs.
 
 ## Phased implementation
 
@@ -377,15 +394,89 @@ code still runs, but its open-run index refuses an automatic run while an owner 
 is open; the worker treats that unique violation as a skip, not a failure. Reset only
 task-owned stacks; the owner decides for others (G2).
 
-Check record: none yet.
+Check record (repository root; trees are working trees over the HEAD named):
+
+- New Phase 2 tests failed first (missing service methods; the old single open-run
+  index refused an automatic run beside an owner run), then passed.
+- At tree `7d9131e1` over `c1b5134d`: `pytest -n 2` over the Memory Manager,
+  Reflection, identities, Anthropic Memory Manager, memory file tools, baseline and
+  chat SSE files: 336 passed; `ruff`, `mypy` on touched files and the import-boundary
+  check (0 forbidden edges) pass.
+- `python3 scripts/heavy-slot.py -- make check-test` at tree `7d9131e1`: audit,
+  format, lint and mypy (885 files) pass; pytest 5168 passed, 29 skipped, 1 failed
+  (`test_model_assets` log capture). Reproduced as order-dependent: running
+  `tests/test_alembic_fresh_install.py` first disables the logger through Alembic's
+  `fileConfig`. Fixed in commit `4aba7a7d`; `pytest tests/test_alembic_fresh_install.py tests/test_model_assets.py`: 77 passed.
+- At tree `b6ebc37f` over `4aba7a7d` (review #1 repairs): `pytest -n 2` over the
+  Memory Manager, Reflection, identities, Anthropic Memory Manager, episode, memory file
+  tools, baseline, model asset and chat SSE files: 419 passed; `mypy` on the touched
+  files passes. The batch-race test fails with `lock_batch_selection` made a no-op and
+  passes with it.
+
+Results: automatic runs run beside an owner run, never select the owner's batch,
+approve without holding file locks during model requests, always close, and are
+recovered at startup; chat memory writes give up after 6 seconds with `busy`.
 
 #### Code Review #1 Findings
 
-Not started.
+Independent analysis of commit `4aba7a7d` plus tree `eea26152`, high-risk tier, with a
+separate checks agent (592 passed; the Alembic-then-assets order 77 passed; ruff,
+mypy over 885 files and the import boundary pass). Blocking:
+
+- P2-F1: run creation copied caller metadata, so a client could mark its own run
+  automatic, hiding it from the Memory Manager and blocking owner processing.
+- P2-F2: the owner and automatic paths checked for each other before locking the
+  notes, so both could select the same batch.
+- P2-F3: an unexpected error after run creation left the automatic run open.
+- P2-F4: the no-lock test proposed new files, so it passed even with one transaction.
+- P2-F5: Cloud's hosted metadata copies the ORM indexes, so Cloud needs a schema
+  change at repin, contrary to the Decision Log.
+
+Non-blocking: P2-N1 owner filter differed from the index predicate; P2-N2 the
+automatic path locked owner runs; P2-N3 the resume transaction did not recheck a
+closed run; P2-N4 the recovery test seeded a pending instead of an applied approval;
+P2-N5 stale data-model and old-database docs; P2-N6 the eight-approval limit shared a
+generic message; P2-N7 runtime result metadata could overwrite the origin.
 
 #### Code Review #1 Revisions
 
-Not started.
+- P2-F1 and P2-N7 accepted: `origin` is dropped from caller metadata (backend keys
+  written last) and from runtime result metadata; route test added.
+- P2-F2 and P2-N2 accepted: a per-owner `pg_advisory_xact_lock`
+  (`lock_batch_selection`) is taken by both paths before they check for each other;
+  the automatic path locks no owner or automatic run rows. Test pauses the owner after
+  selection; verified to fail without the lock.
+- P2-F3 accepted: everything after run creation is guarded; any error closes the run
+  as failed with its detail or exception type; test with a runtime `RuntimeError`.
+- P2-F4 accepted: the probe updates a committed `PROFILE.md`, with a positive control
+  showing owner-started Auto approve holds the lock.
+- P2-F5 accepted as an owner decision: keep `metadata.origin`; Cloud adds a
+  schema-only file at repin (Decision Log).
+- P2-N1, P2-N3, P2-N4, P2-N5 and P2-N6 accepted and fixed, each with a test or doc change.
+
+#### Code Review #2 Findings
+
+Targeted recheck of tree `b6ebc37f`, rerunning the affected files (419 passed), ruff,
+mypy and the import boundary, plus probes for both race directions and a held owner
+run lock. All round-1 findings fixed; no blocking findings. Non-blocking: P2-R2-N1,
+closing a run that recovery in another process already closed overwrote its
+`completion_reason`.
+
+#### Code Review #2 Revisions
+
+- P2-R2-N1 accepted, then reverted: an early return for closed runs (tree `dc47a3a0`)
+  also skipped cleanup of runs the runtime itself had just failed (Code Review #3).
+  The source was restored to `b6ebc37f`, and P2-R2-N1 is deferred (Decision Log).
+
+#### Code Review #3 Findings
+
+Targeted recheck of tree `dc47a3a0` (153 passed; ruff and mypy pass). P2-R2-N1 fixed,
+but blocking regression P2-R3-F1: a runtime-blocked automatic run kept its proposal
+pending and lost its `completion_reason`. Repair budget exhausted.
+
+Resolution: the repair was reverted; the committed Phase 2 source is exactly tree
+`b6ebc37f`, which Code Review #2 passed with no blocking findings. Repair budget used:
+2 of 2.
 
 ### Phase 3: Local trigger, setting, status and capability (R5, R8, R9, R11 backend)
 

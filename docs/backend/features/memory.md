@@ -524,6 +524,11 @@ concurrent edit therefore returns a retryable conflict instead of overwriting
 newer content. Generated episode logs and any path under `episodes/**` return
 the stable `protected_memory_file` tool error and are not modified.
 
+Every chat memory tool call runs in its own short write session whose lock waits
+end after 6 seconds (`MEMORY_TOOL_LOCK_TIMEOUT_SECONDS`). A write to a file another
+transaction still holds, such as an owner-started Memory Manager approval resuming
+its model, returns the retryable `busy` tool error instead of stalling the turn.
+
 The model receives only the affected `path` and the total
 `replacements_applied`. If `update_description=true`, the supplied
 `description` is also stored.

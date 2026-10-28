@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import RowMapping, SQLColumnExpression, select
+from sqlalchemy import RowMapping, SQLColumnExpression, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -14,6 +14,9 @@ from animama.app.ports.memory_manager_port import (
     MemoryManagerRepositoryConflictError,
 )
 from animama.domain.memory_manager import (
+    MEMORY_MANAGER_RUN_ORIGIN_AUTOMATIC,
+    MEMORY_MANAGER_RUN_ORIGIN_KEY,
+    MEMORY_MANAGER_RUN_ORIGIN_OWNER,
     MEMORY_MANAGER_RUN_STATUS_ACTIVE,
     MEMORY_MANAGER_RUN_STATUS_WAITING_APPROVAL,
     MemoryManagerApproval,
@@ -26,7 +29,9 @@ from animama.orm.memory_manager import (
     ORMMemoryManagerRun,
 )
 
-_MEMORY_MANAGER_CONFLICT_CONSTRAINTS = frozenset({"uq_memory_manager_runs_user_open"})
+_MEMORY_MANAGER_CONFLICT_CONSTRAINTS = frozenset(
+    {"uq_memory_manager_runs_user_open", "uq_memory_manager_runs_user_open_automatic"}
+)
 
 
 def _constraint_name_from_integrity_error(exc: IntegrityError) -> str | None:
@@ -276,12 +281,16 @@ class SQLAlchemyMemoryManagerRepository(MemoryManagerRepository):
         return self._run_to_domain(obj) if obj is not None else None
 
     async def list_open_runs(self, *, user_id: str) -> list[MemoryManagerRun]:
-        return await self._list_open_runs(user_id=user_id, for_update=False)
+        return await self._list_open_runs(user_id=user_id, for_update=False, automatic=False)
 
     async def list_open_runs_for_update(self, *, user_id: str) -> list[MemoryManagerRun]:
-        return await self._list_open_runs(user_id=user_id, for_update=True)
+        return await self._list_open_runs(user_id=user_id, for_update=True, automatic=False)
 
-    async def _list_open_runs(self, *, user_id: str, for_update: bool) -> list[MemoryManagerRun]:
+    async def list_open_automatic_runs(self, *, user_id: str, for_update: bool = False) -> list[MemoryManagerRun]:
+        return await self._list_open_runs(user_id=user_id, for_update=for_update, automatic=True)
+
+    async def _list_open_runs(self, *, user_id: str, for_update: bool, automatic: bool) -> list[MemoryManagerRun]:
+        origin = ORMMemoryManagerRun.metadata_[MEMORY_MANAGER_RUN_ORIGIN_KEY].astext
         stmt = (
             select(ORMMemoryManagerRun)
             .where(
@@ -289,6 +298,10 @@ class SQLAlchemyMemoryManagerRepository(MemoryManagerRepository):
                 ORMMemoryManagerRun.status.in_(
                     (MEMORY_MANAGER_RUN_STATUS_ACTIVE, MEMORY_MANAGER_RUN_STATUS_WAITING_APPROVAL)
                 ),
+                # The same predicates as the two open-run unique indexes.
+                origin == MEMORY_MANAGER_RUN_ORIGIN_AUTOMATIC
+                if automatic
+                else func.coalesce(origin, MEMORY_MANAGER_RUN_ORIGIN_OWNER) == MEMORY_MANAGER_RUN_ORIGIN_OWNER,
             )
             .order_by(ORMMemoryManagerRun.created_at.asc(), ORMMemoryManagerRun.id.asc())
         )

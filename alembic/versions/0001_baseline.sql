@@ -1588,7 +1588,11 @@ CREATE UNIQUE INDEX uq_memory_episode_items_chat_turn_run ON memory_episode_item
 
 -- animama-statement --
 
-CREATE UNIQUE INDEX uq_memory_manager_runs_user_open ON memory_manager_runs USING btree (user_id) WHERE ((status)::text = ANY ((ARRAY['active'::character varying, 'waiting_approval'::character varying])::text[]));
+CREATE UNIQUE INDEX uq_memory_manager_runs_user_open ON memory_manager_runs USING btree (user_id) WHERE (((status)::text = ANY ((ARRAY['active'::character varying, 'waiting_approval'::character varying])::text[])) AND (COALESCE((metadata ->> 'origin'::text), 'owner'::text) = 'owner'::text));
+
+-- animama-statement --
+
+CREATE UNIQUE INDEX uq_memory_manager_runs_user_open_automatic ON memory_manager_runs USING btree (user_id) WHERE (((status)::text = ANY ((ARRAY['active'::character varying, 'waiting_approval'::character varying])::text[])) AND ((metadata ->> 'origin'::text) = 'automatic'::text));
 
 -- animama-statement --
 
