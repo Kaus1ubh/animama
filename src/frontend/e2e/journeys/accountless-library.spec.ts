@@ -185,6 +185,8 @@ test("accountless Library keeps Included files between visits @surface-library @
     includedRefs.includes(fileRef(read.url));
   const firstDigest = first.filter((read) => isDigestUrl(read.url));
   await test.step("Assert Included files are read at kept digest URLs", async () => {
+    // An empty or misread catalog would make the guard below vacuous.
+    expect(firstDigest.filter((read) => !isIncluded(read))).toEqual([]);
     expect(
       first.filter((read) => isIncluded(read) && !isDigestUrl(read.url)),
     ).toEqual([]);

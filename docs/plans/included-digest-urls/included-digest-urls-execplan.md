@@ -208,7 +208,20 @@ an independent checks reviewer (results above).
   digest URL on the first visit and served from cache on the second.
 - F8 rejected: the coroutine is awaited first inside the `try`, which keeps the
   404/409/422 mapping in one place.
-- Repair round 1 of 2; F1 and F7 go to a targeted recheck.
+- Repair round 1 of 2. Repair evidence on tree `852f3ee3` (committed as
+  `10212469`): `pnpm e2e:check:source` passed and the journey passed again
+  (136 Included reads, all digest URLs, 0 other reads; 136 of 136 from cache on
+  the second visit).
+
+#### Code Review #1 Recheck
+
+Targeted recheck of tree `852f3ee3`: F1, F3, F4, F5 and F7 verified; the F6 and
+F8 rejections judged reasonable; no regression; result pass. The recheck reran
+`pnpm e2e:check:source` and ruff check and format check on the repaired Python
+files. It suggested one non-blocking guard, applied afterwards: the journey also
+requires every digest read to name a catalog Included `file_ref`, so an empty or
+misread catalog cannot make the Included-read check vacuous (`pnpm
+e2e:check:source` passed; the journey reruns with the final candidate).
 
 ## Final integration review
 
