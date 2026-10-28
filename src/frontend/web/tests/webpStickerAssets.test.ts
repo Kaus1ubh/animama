@@ -1,4 +1,5 @@
 import {
+  mkdirSync,
   mkdtempSync,
   realpathSync,
   rmSync,
@@ -67,6 +68,7 @@ async function load(root: string, id: string) {
   const plugin = webpStickerAssetsPlugin({ stickerRoot: root });
   const emitted: Emitted[] = [];
   const context = {
+    environment: { config: { root } },
     emitFile(file: Emitted) {
       emitted.push(file);
       return `ref${emitted.length}`;
@@ -160,5 +162,42 @@ describe("WebP sticker assets", () => {
       .join("\n");
     expect(code).toContain(`/base/${sticker}`);
     expect(code).not.toContain("__VITE_ASSET__");
+  });
+
+  it("names stickers outside the Vite root relative to it in the build manifest", async () => {
+    const checkout = realpathSync(
+      await stickerRoot({ "leaf.png": await smoothPng() }),
+    );
+    const web = path.join(checkout, "web");
+    mkdirSync(web);
+    writeFileSync(
+      path.join(web, "main.ts"),
+      `const urls = import.meta.glob("../*.png", { eager: true, query: "?url", import: "default" }); console.log(urls);`,
+    );
+    writeFileSync(
+      path.join(web, "index.html"),
+      '<script type="module" src="/main.ts"></script>',
+    );
+
+    const result = await build({
+      configFile: false,
+      root: web,
+      logLevel: "silent",
+      plugins: [webpStickerAssetsPlugin({ stickerRoot: checkout })],
+      build: { write: false, minify: false, manifest: true },
+    });
+
+    if (Array.isArray(result) || !("output" in result))
+      throw new Error("expected one build output");
+    const asset = result.output.find(
+      (output) => output.fileName === ".vite/manifest.json",
+    );
+    if (asset?.type !== "asset") throw new Error("expected a build manifest");
+    const manifest = String(asset.source);
+    // Shipped manifests must not carry the build machine's checkout path.
+    expect(manifest).not.toContain(checkout);
+    const sticker = JSON.parse(manifest)["../leaf.png"];
+    expect(sticker).toMatchObject({ src: "../leaf.png" });
+    expect(sticker.file).toMatch(/^assets\/leaf-.+\.webp$/);
   });
 });

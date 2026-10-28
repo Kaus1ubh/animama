@@ -69,11 +69,13 @@ import {
 } from "../scripts/runtime/document-native.mjs";
 import {
   assertDesktopWebAssets,
+  assertNoHomeDirectoryPaths,
   assertNoIncludedAliasCopies,
   excludeDesktopWebAssets,
   excludedDesktopWebAssets,
   includedAliasRoutes,
 } from "../scripts/runtime/desktop-web.mjs";
+import { homeDirectoryNeedles } from "../scripts/runtime/release-scan.mjs";
 import { componentInventory } from "../scripts/runtime/inventory.mjs";
 import { validateUpdateCandidate } from "../src/main-process/updates/policy.js";
 import { renderRedistributionReview } from "../scripts/runtime/review-packet.mjs";
@@ -317,6 +319,32 @@ describe("desktop runtime packaging", () => {
     expect(readFileSync(path.join(root, "keep.png"), "utf8")).toBe("approved");
     expect(() => assertDesktopWebAssets(root)).not.toThrow();
     excludeDesktopWebAssets(root);
+  });
+  it("rejects staged web files that contain the build user's home directory", async () => {
+    const web = fixture();
+    const needles = homeDirectoryNeedles("/Users/builder", "darwin");
+    const manifest = (key) =>
+      writeFileSync(
+        path.join(web, ".vite/manifest.json"),
+        JSON.stringify({
+          [key]: { file: "assets/leaf-a1b2c3d4.webp", src: key },
+        }),
+      );
+    mkdirSync(path.join(web, ".vite"));
+    manifest("../../content/leaf.png");
+    // Vendored files may carry their upstream authors' paths.
+    writeFileSync(
+      path.join(web, "tokenizer.model"),
+      "/home/trainer/data/text.txt",
+    );
+    await expect(
+      assertNoHomeDirectoryPaths(web, needles),
+    ).resolves.toBeUndefined();
+
+    manifest("/Users/builder/checkout/content/leaf.png");
+    await expect(assertNoHomeDirectoryPaths(web, needles)).rejects.toThrow(
+      "Staged web file contains the build user's home directory: .vite/manifest.json",
+    );
   });
   it("keeps public stage scenes while rejecting Included alias copies", () => {
     const web = fixture();
