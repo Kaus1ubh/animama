@@ -7,7 +7,6 @@ import hashlib
 import json
 from collections import defaultdict
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
 from typing import Any
 
 from animama.app.ports.content_store import ContentStore
@@ -17,7 +16,7 @@ from animama.app.services.anima_runtime_service import (
     RuntimeSnapshotError,
 )
 from animama.domain.content_catalog import ContentIntegrityError, ContentPathError, ContentSource
-from animama.domain.runtime_bundles import BINARY_BUNDLE_MAGIC, BundleFormat, RuntimeBundle, select_runtime_bundles
+from animama.domain.runtime_bundles import BINARY_BUNDLE_MAGIC, BundleFormat, RuntimeBundle
 
 CHANGED = "runtime_file_changed_remount_required"
 
@@ -47,14 +46,10 @@ class RuntimeBundleService:
         self.store = store
 
     async def read(self, *, user_id: str, anima_id: str, revision: str, bundle_id: str) -> RuntimeBundleRead:
-        snapshot = await self.runtime.get_snapshot(user_id=user_id, anima_id=anima_id, revision=revision)
-        if snapshot is None:
-            raise RuntimeSnapshotError("runtime_file_not_found")
-        if snapshot.expires_at <= datetime.now(UTC):
-            raise RuntimeSnapshotError("runtime_remount_required")
-        bundle = next((item for item in select_runtime_bundles(snapshot.catalog) if item.id == bundle_id), None)
-        if bundle is None:
-            raise RuntimeSnapshotError("runtime_file_not_found")
+        # The members issuance stored for this bundle, from a live snapshot of this owner.
+        bundle = await self.runtime.get_bundle(
+            user_id=user_id, anima_id=anima_id, revision=revision, bundle_id=bundle_id
+        )
         # Recheck the live lease, current catalog pins, and ownership in one SQL
         # statement, rather than repeating the individual-file query for each member.
         authorizations = await self.runtime.authorize_files(
