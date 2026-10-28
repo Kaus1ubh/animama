@@ -5,7 +5,9 @@ Owner decision: 2026-10-28. Intent discovery agreed the direction recorded under
 [Open questions and decisions](#open-questions-and-decisions). On review the owner
 moved recent notes into the system instruction and made the setting a pending-note
 threshold, then accepted the revised draft and its proposed defaults.
-Authoritative source: this draft until it is published as a GitHub issue.
+Authoritative source: https://github.com/raymond-van/animama/issues/775 (this
+file is a snapshot).
+Snapshot captured: 2026-10-28T16:56:10Z, published from revision `605d5e50`.
 Source baseline: `da23aaaa`.
 
 ## Problem and intended users
@@ -251,7 +253,7 @@ against hosted quotas.
 
 ## Spec
 
-This document before publication.
+https://github.com/raymond-van/animama/issues/775
 
 ## ExecPlan
 
