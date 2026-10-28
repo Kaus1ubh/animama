@@ -9731,6 +9731,10 @@ export type RuntimeCapabilities = {
     companion_safety: CompanionSafetyCapability;
     gemini_tts?: GeminiTtsCapability | null;
     /**
+     * Library Previews
+     */
+    library_previews?: boolean;
+    /**
      * Local Filesystem Administration
      */
     local_filesystem_administration: boolean;

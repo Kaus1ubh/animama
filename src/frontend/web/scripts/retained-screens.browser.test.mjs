@@ -509,3 +509,144 @@ test("actual Library unmounts upload queries when current capability metadata is
     await f.close();
   }
 });
+
+// A runtime that offers no Library previews gets family icons and sends no
+// preview, texture or manifest request; one that omits the capability keeps
+// today's tiles. The fixture's hosted capabilities withhold previews.
+const PNG = Buffer.from(
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
+  "base64",
+);
+const previewFile = (file_ref, logical_path, media_type, role, ordinal) => ({
+  file_ref,
+  filename: logical_path,
+  logical_path,
+  media_type,
+  role,
+  ordinal,
+  size_bytes: 1,
+  sha256: "0".repeat(64),
+});
+const previewItems = {
+  "/v1/particle-effects": {
+    kind: "particle_effect",
+    name: "Sparks",
+    files: [
+      previewFile("sparks-texture", "sparks.png", "image/png", "texture", 0),
+      previewFile(
+        "sparks-manifest",
+        "sparks.quarks.json",
+        "application/json",
+        "manifest",
+        1,
+      ),
+    ],
+  },
+  "/v1/scene-effects": {
+    kind: "scene_effect",
+    name: "Sky",
+    files: [previewFile("sky-image", "sky.png", "image/png", "image", 0)],
+  },
+};
+for (const local of [false, true]) {
+  for (const offered of [false, undefined]) {
+    test(`actual ${local ? "local" : "hosted"} Library tiles when previews are ${offered === false ? "withheld" : "not declared"}`, async () => {
+      const f = await mount(
+        "/library?section=avatars",
+        { library_previews: offered },
+        1440,
+        local,
+      );
+      const requested = [],
+        fileErrors = [];
+      f.page.on("request", (request) => {
+        const url = new URL(request.url());
+        if (url.pathname.startsWith("/v1/content/files/"))
+          requested.push(url.pathname + url.search);
+      });
+      // A refused preview logs a console error against its URL.
+      f.page.on("console", (message) => {
+        if (
+          message.type() === "error" &&
+          `${message.location().url} ${message.text()}`.includes(
+            "/v1/content/files/",
+          )
+        )
+          fileErrors.push(message.text());
+      });
+      await f.page.route(
+        (url) =>
+          url.pathname in previewItems ||
+          url.pathname.startsWith("/v1/content/files/"),
+        (route) => {
+          const { pathname } = new URL(route.request().url());
+          const item = previewItems[pathname];
+          if (item)
+            return route.fulfill({
+              json: {
+                items: [
+                  {
+                    ...item,
+                    item_id: item.name,
+                    logical_key: `local:${item.kind}:${item.name}`,
+                    description: null,
+                    source: "local",
+                    editable: true,
+                    dependencies: [],
+                    revision_sha256: "r1",
+                  },
+                ],
+                next_cursor: null,
+                query: {},
+              },
+            });
+          return pathname.endsWith("-manifest")
+            ? route.fulfill({ json: {} })
+            : route.fulfill({ contentType: "image/png", body: PNG });
+        },
+      );
+      try {
+        const previewsLoaded =
+          offered === false
+            ? null
+            : Promise.all(
+                [
+                  "/v1/content/files/sparks-texture?variant=thumbnail",
+                  "/v1/content/files/sky-image?variant=thumbnail",
+                  "/v1/content/files/sparks-manifest",
+                ].map((path) =>
+                  f.page.waitForRequest((request) =>
+                    request.url().endsWith(path),
+                  ),
+                ),
+              );
+        await f.visit("/library?section=fx");
+        const tiles = {
+          Sparks: "lucide-sparkles",
+          Sky: "lucide-layers",
+        };
+        for (const name of Object.keys(tiles))
+          await f.page.getByRole("article", { name, exact: true }).waitFor();
+        if (previewsLoaded) await previewsLoaded;
+        else {
+          // No tile has an image, so nothing can start loading later either.
+          for (const [name, icon] of Object.entries(tiles)) {
+            const tile = f.page.getByRole("article", { name, exact: true });
+            assert.equal(await tile.locator("img").count(), 0, name);
+            assert.equal(await tile.locator(`svg.${icon}`).count(), 1, name);
+          }
+          await f.page.evaluate(
+            () =>
+              new Promise((done) =>
+                requestAnimationFrame(() => requestAnimationFrame(done)),
+              ),
+          );
+          assert.deepEqual(requested, []);
+        }
+        assert.deepEqual(fileErrors, []);
+      } finally {
+        await f.close();
+      }
+    });
+  }
+}

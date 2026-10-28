@@ -133,6 +133,7 @@ Local setup and host/key administration schemas remain in the server composition
   "provider_credentials": true,
   "chat_file_uploads": true,
   "anima_creation": true,
+  "library_previews": true,
   "local_filesystem_administration": true,
   "native_features": true,
   "user_file_processing": {
@@ -176,18 +177,23 @@ local server package, so any composition can return the same contract; the local
 router is a thin adapter. `runtime_kind` is presentation metadata (`desktop`,
 `self_hosted_web` or `hosted`), not an authentication mode or a feature gate;
 the local composition never reports `hosted`. Capability schema version 2 is
-exported in `local-http` contract version 18.0.0. `chat`, `model_selection` and
+exported in `local-http` contract version 19.0.0. `chat`, `model_selection` and
 `model_role_selection` admit chat and choices from the composition's catalog,
 independently of provider administration. The local adapter reports them true.
 `provider_credentials` and `local_filesystem_administration` describe owner key
 and host administration; the local adapter reports both true. `native_features`
 is true only for desktop; browser fullscreen/PiP use browser detection instead.
 See the [hosted composition handoff](../../../contracts/hosted-web.md) for its
-separate account authority, retained workflows and six exceptions.
+separate account authority, retained workflows and seven exceptions.
 `chat_file_uploads` and
 `anima_creation` report whether the composition offers chat file uploads and
 Anima creation. The local composition always reports both `true`; React hides
 the corresponding entry points only when a value is `false`.
+`library_previews` says whether Library cards load item previews (the
+`?variant=thumbnail` copy of a content file and a Particle tile's manifest tint).
+It defaults to `true`, so an adapter that omits it keeps previews; the local
+adapter reports `true`. When it is `false`, cards show their family icons and
+request none. The Library's Preview action and Avatar portraits do not depend on it.
 `model_configuration` is true when the composition's
 catalog policy enables owner models, which only the local composition does; the
 local-only [model configuration routes](#model-configuration) exist only then.

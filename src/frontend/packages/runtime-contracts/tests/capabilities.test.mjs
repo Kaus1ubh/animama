@@ -13,7 +13,7 @@ const hosted = JSON.parse(
   ),
 );
 
-test("one generated capability contract retains model choices with all six hosted exceptions", () => {
+test("one generated capability contract retains model choices with all seven hosted exceptions", () => {
   const capabilities = zRuntimeCapabilities.parse(hosted);
   assert.equal(capabilities.schema_version, 2);
   assert.equal(capabilities.chat, true);
@@ -30,6 +30,7 @@ test("one generated capability contract retains model choices with all six hoste
     assert.equal(capabilities[key], false, key);
   assert.equal(capabilities.user_file_processing.enabled, false);
   assert.equal(capabilities.web_search.configuration, false);
+  assert.equal(capabilities.library_previews, false);
   // A configured search service and browser speech availability are separate
   // from the owner's permission to administer connections and credentials.
   assert.equal(capabilities.web_search.configured, true);
