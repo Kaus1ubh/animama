@@ -6,6 +6,7 @@ export const hostedCapabilities = {
   runtime_kind: "hosted",
   chat: true,
   anima_creation: false,
+  library_previews: false,
   chat_file_uploads: false,
   provider_credentials: false,
   model_configuration: false,

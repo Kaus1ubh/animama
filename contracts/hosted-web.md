@@ -202,10 +202,10 @@ shows that a newer sign-in replaced the one it targeted.
 ## Capabilities and requests
 
 The sole wire schema is `app/contracts/runtime_capabilities.py`, exported offline
-in `local-http` version **18.0.0** with capability `schema_version: 2`. The generated
+in `local-http` version **19.0.0** with capability `schema_version: 2`. The generated
 TypeScript `RuntimeCapabilities` and validator are the same contract.
 `ProductRuntimeCapabilities` is a derived `Pick` for the existing extracted chat
-surface, not another wire schema. `runtime-contracts` is version 0.18.0 and
+surface, not another wire schema. `runtime-contracts` is version 0.19.0 and
 `product-ui` is version 0.18.0. Consumers explicitly admit
 the new contract major before adoption.
 
@@ -250,6 +250,15 @@ accepts only catalog IDs it knows must support or skip both before adopting a
 release with that catalog. Skipped, hosted Settings shows the SenseVoice section
 as not available, and the offline choice under a non-English locale shows the
 "not available on this server" notice.
+
+`library_previews` says whether the runtime offers Library item previews: the
+`?variant=thumbnail` copy of an item's first image, and a Particle tile's texture
+and manifest tint. It is on when absent. The hosted fixture reports it `false`,
+the seventh hosted exception: Library cards then show their family icons and send
+no preview, texture or manifest request. A server that does not render previews
+may refuse `?variant=thumbnail` with 422 `content_thumbnail_unsupported`; it
+receives none from the browser. The Library's Preview action, Avatar portraits and
+other images a screen loads for its own purpose stay retained.
 Content, avatar/effect runtime, memory, creators and voice stay retained without
 adding blanket permissions for implementation gaps. Unknown/missing capability
 responses keep hosted operations pending rather than granting permission. No

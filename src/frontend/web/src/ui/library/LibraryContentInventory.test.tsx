@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { renderToString } from "@/test/runtime-markup";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { hostedExclusionReasons } from "@/app/runtime/route-admission";
@@ -437,4 +438,86 @@ describe("Library avatar settings action", () => {
       if (layout === "list") expect(rows.aiko).toContain(" Settings");
     },
   );
+});
+
+describe("Library tile previews", () => {
+  const renderRows = () => {
+    vi.stubGlobal("window", { localStorage: { getItem: () => "grid" } });
+    mocks.otherRows = [
+      {
+        family: "particle",
+        origin: "builtin",
+        item_id: "sparks",
+        name: "Sparks",
+        description: "",
+        source: { type: "catalog", catalog_item_id: "sparks" },
+        thumbnail_url: "/v1/content/files/sparks-texture?variant=thumbnail",
+        particle_thumbnail: {
+          manifestUrl: "/v1/content/files/sparks-manifest",
+          texturePath: "sparks.png",
+          revision: "r1",
+        },
+      },
+      {
+        family: "scene",
+        origin: "builtin",
+        item_id: "sky",
+        name: "Sky",
+        description: "",
+        source: { type: "catalog", catalog_item_id: "sky" },
+        thumbnail_url: "/v1/content/files/sky-image?variant=thumbnail",
+      },
+    ];
+    mocks.avatars = [
+      {
+        avatar_id: "avatar-1",
+        catalog_item_id: "catalog-avatar-1",
+        name: "Aiko",
+        description: "",
+        origin: "included",
+        preview_url: "/v1/content/files/aiko-portrait",
+      },
+    ];
+    const html = renderToString(
+      <QueryClientProvider client={new QueryClient()}>
+        <LibraryContentInventory
+          search={normalizeContentLibrarySearch({})}
+          onSearchChange={() => {}}
+        />
+      </QueryClientProvider>,
+    );
+    const row = (name: string) =>
+      html.split(`aria-label="${name}"`)[1]!.split("</article>")[0]!;
+    return { sparks: row("Sparks"), sky: row("Sky"), aiko: row("Aiko") };
+  };
+
+  it.each([
+    ["unknown", undefined],
+    ["absent", {}],
+    ["on", { library_previews: true }],
+  ])("loads tile previews while the capability is %s", (_, capabilities) => {
+    mocks.capabilities = capabilities;
+    const rows = renderRows();
+    expect(rows.sparks).toContain(
+      'src="/v1/content/files/sparks-texture?variant=thumbnail"',
+    );
+    expect(rows.sky).toContain(
+      'src="/v1/content/files/sky-image?variant=thumbnail"',
+    );
+  });
+
+  it("shows family icons and asks for no preview when the runtime offers none", () => {
+    mocks.capabilities = { library_previews: false };
+    const rows = renderRows();
+    for (const [row, icon] of [
+      [rows.sparks, "lucide-sparkles"],
+      [rows.sky, "lucide-layers"],
+    ] as const) {
+      expect(row).toContain(icon);
+      expect(row).not.toContain("<img");
+      expect(row).not.toContain("/v1/content/files/");
+    }
+    // An Avatar portrait is the item's own image, not a Library preview.
+    expect(rows.aiko).toContain('src="/v1/content/files/aiko-portrait"');
+  });
 });
