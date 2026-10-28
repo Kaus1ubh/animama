@@ -392,8 +392,10 @@ every admitted catalog item to its revision. A changed or broken root and its
 dependents are omitted; unrelated roots and text chat remain available.
 Canonical path, role, media type, size, and digest facts remain registered once
 in `content_catalog_files`; runtime issuance does not copy them into per-file
-rows. Immediately before insertion, one set-based check proves the complete
-item/file union still matches the compiled descriptor.
+rows. Compilation takes no locks and writes nothing. A short final transaction
+locks the loadout row, confirms its revision is the one compiled, and one
+set-based check proves the complete item/file union still matches the compiled
+descriptor before insertion.
 
 The runtime file route resolves the canonical `file_ref`, its parent item, and
 the snapshot pin in one read-only database statement. It rejects expired,

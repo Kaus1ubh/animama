@@ -581,7 +581,12 @@ Gesture/Reaction roots and cannot be equipped directly.
 
 `GET /v1/animas/{anima_id}/runtime` independently compiles selected roots and
 their transitive dependencies into one persisted owner-scoped exact revision.
-Concurrent reads may reuse that effective revision. The snapshot pins the
+Concurrent reads may reuse that effective revision. It compiles and projects on
+the composition's read session without locks or writes, then opens a short write
+session that locks the loadout row, rechecks the loadout revision, every pinned
+item and the complete file union, marks files found changed for Rescan, and
+inserts or renews the snapshot. A loadout changed in between is compiled again,
+up to three attempts in all, then refused with 409 `snapshot_conflict`. The snapshot pins the
 complete admitted `catalog_item_id -> revision_sha256` map and persists one
 immutable typed catalog body; it does not copy a row for every file. Each
 member carries its canonical opaque `content_catalog_files.file_ref`. The file

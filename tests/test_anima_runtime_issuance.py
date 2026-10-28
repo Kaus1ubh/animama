@@ -5,15 +5,16 @@ from __future__ import annotations
 import json
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from uuid import uuid4
 
-from sqlalchemy import delete, select
+import pytest
+from sqlalchemy import delete, func, select, update
 
 from animama.adapters.content_store import FilesystemContentStore
 from animama.adapters.repositories.sqlalchemy.content_catalog_repo import SQLAlchemyContentCatalog
-from animama.app.services.anima_runtime_service import AnimaRuntimeService
+from animama.app.services.anima_runtime_service import AnimaRuntimeService, PreparedRuntime, RuntimeSnapshotError
 from animama.app.services.content_catalog_service import ContentCatalogService
 from animama.app.services.runtime_bundle_service import RuntimeBundleService
 from animama.domain.anima_loadout import idle_slot_key
@@ -147,3 +148,114 @@ async def test_a_bundle_read_loads_only_its_own_members(async_session, tmp_path:
         assert [member["file_ref"] for member in json.loads(read.body)["members"]] == advertised["file_refs"]
         assert len(statements) == 2
         assert not any("anima_runtime_snapshots.catalog" in statement for statement in statements)
+
+
+def _writes_or_locks(statements: list[str]) -> list[str]:
+    return [
+        statement
+        for statement in statements
+        if any(word in statement.upper() for word in ("FOR SHARE", "FOR UPDATE", "INSERT ", "UPDATE ", "DELETE "))
+    ]
+
+
+async def test_preparation_takes_no_lock_and_writes_nothing(async_session, tmp_path: Path) -> None:  # noqa: ANN001
+    async with runtime_fixture(async_session, tmp_path) as fixture:
+        service = fixture.service(async_session)
+        with counted_statements(async_session) as statements:
+            prepared = await service.prepare(user_id=fixture.owner, anima_id=fixture.anima_id)
+        assert statements and _writes_or_locks(statements) == []
+        assert prepared.loadout_revision == 1
+
+
+async def test_the_final_transaction_locks_rechecks_and_writes_only(async_session, tmp_path: Path) -> None:  # noqa: ANN001
+    async with runtime_fixture(async_session, tmp_path) as fixture:
+        service = fixture.service(async_session)
+        expected = await service.issue(user_id=fixture.owner, anima_id=fixture.anima_id)
+        prepared = await service.prepare(user_id=fixture.owner, anima_id=fixture.anima_id)
+        await async_session.rollback()
+        with counted_statements(async_session) as statements:
+            issued = await service.commit(prepared, user_id=fixture.owner)
+        assert issued is not None
+        assert issued["effective_revision"] == expected["effective_revision"]
+        assert issued["content_descriptor"] == expected["content_descriptor"]
+        # The loadout lock is the transaction's first statement; the catalog is not listed again.
+        assert "FROM anima_loadouts" in statements[0] and "FOR SHARE" in statements[0]
+        assert not any("content_catalog_dependencies" in statement for statement in statements)
+        assert len(statements) <= 6
+
+
+async def test_a_loadout_change_after_preparation_reissues_the_new_loadout(
+    async_session,  # noqa: ANN001
+    async_session_factory,  # noqa: ANN001
+    tmp_path: Path,
+) -> None:
+    async with runtime_fixture(async_session, tmp_path) as fixture:
+        service = fixture.service(async_session)
+        stale = await service.prepare(user_id=fixture.owner, anima_id=fixture.anima_id)
+        await async_session.rollback()
+        async with async_session_factory() as editor:
+            await editor.execute(
+                update(ORMAnimaLoadout).where(ORMAnimaLoadout.anima_id == fixture.anima_id).values(revision=2)
+            )
+            await editor.commit()
+        assert await service.commit(stale, user_id=fixture.owner) is None
+        await async_session.rollback()
+        issued = await service.issue(user_id=fixture.owner, anima_id=fixture.anima_id)
+        assert issued["loadout_revision"] == 2
+
+
+async def test_a_loadout_that_keeps_changing_is_refused_as_a_conflict(
+    async_session,  # noqa: ANN001
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async with runtime_fixture(async_session, tmp_path) as fixture:
+        service = fixture.service(async_session)
+        prepare = service.prepare
+
+        async def outdated(**kwargs: str) -> PreparedRuntime:
+            prepared = await prepare(**kwargs)
+            return replace(prepared, loadout_revision=prepared.loadout_revision - 1)
+
+        monkeypatch.setattr(service, "prepare", outdated)
+        with pytest.raises(RuntimeSnapshotError, match="snapshot_conflict"):
+            await service.issue(user_id=fixture.owner, anima_id=fixture.anima_id)
+        assert (
+            await async_session.scalar(select(func.count()).where(ORMAnimaRuntimeSnapshot.anima_id == fixture.anima_id))
+            == 0
+        )
+
+
+async def test_changed_files_found_while_preparing_are_marked_when_committing(
+    async_session,  # noqa: ANN001
+    tmp_path: Path,
+) -> None:
+    async with runtime_fixture(async_session, tmp_path) as fixture:
+        wave = fixture.items["wave"]
+        path = fixture.root / wave.files[0].relative_path
+        path.write_bytes(path.read_bytes() + b" ")
+        service = fixture.service(async_session)
+        prepared = await service.prepare(user_id=fixture.owner, anima_id=fixture.anima_id)
+        assert ("runtime_source_changed", wave.id) in [
+            (item.code, item.item_id) for item in prepared.descriptor.diagnostics
+        ]
+        status = select(ORMContentCatalogItem.status).where(ORMContentCatalogItem.id == wave.id)
+        assert await async_session.scalar(status) == "valid"
+        await async_session.rollback()
+        issued = await service.commit(prepared, user_id=fixture.owner)
+        assert issued is not None
+        assert await async_session.scalar(status) == "scan_required"
+
+
+@pytest.mark.parametrize("owner", ["another-owner", None])
+async def test_preparation_refuses_another_owners_or_a_missing_anima(
+    async_session,  # noqa: ANN001
+    tmp_path: Path,
+    owner: str | None,
+) -> None:
+    async with runtime_fixture(async_session, tmp_path) as fixture:
+        service = fixture.service(async_session)
+        with pytest.raises(RuntimeSnapshotError, match="anima_not_found"):
+            await service.prepare(
+                user_id=owner or fixture.owner, anima_id=fixture.anima_id if owner else "missing-anima"
+            )

@@ -93,6 +93,27 @@ class RuntimeContentClosureCompiler:
         visible_items: list[CatalogContentEntry] | None = None,
         mark_scan_required: bool = True,
     ) -> RuntimeContentDescriptor:
+        descriptor, changed = await self.compile_with_changes(
+            user_id=user_id, loadout_revision=loadout_revision, selections=selections, visible_items=visible_items
+        )
+        if mark_scan_required:
+            for source, paths in changed.items():
+                await self._catalog.mark_scan_required(source=source, relative_paths=paths)
+        return descriptor
+
+    async def compile_with_changes(
+        self,
+        *,
+        user_id: str,
+        loadout_revision: int,
+        selections: tuple[RuntimeContentRootSelection, ...],
+        visible_items: list[CatalogContentEntry] | None = None,
+    ) -> tuple[RuntimeContentDescriptor, dict[ContentSource, tuple[str, ...]]]:
+        """Compile without writing; also return the files that changed since their last scan.
+
+        The caller decides when to mark those paths for Rescan.
+        """
+
         items = visible_items if visible_items is not None else await self._catalog.list_visible(user_id=user_id)
         by_id = {item.id: item for item in items}
         diagnostics: list[RuntimeContentDiagnostic] = []
@@ -191,10 +212,6 @@ class RuntimeContentClosureCompiler:
                     idle_playback=idle_playback,
                 )
             )
-
-        if mark_scan_required:
-            for source, paths in changed_paths.items():
-                await self._catalog.mark_scan_required(source=source, relative_paths=tuple(sorted(paths)))
 
         admitted_roots: list[RuntimeContentRoot] = []
         admitted_entries: dict[str, CatalogContentEntry] = {}
@@ -301,7 +318,7 @@ class RuntimeContentClosureCompiler:
                 {"root_id": item.root_id, "code": item.code, "item_id": item.item_id} for item in diagnostics
             ],
         }
-        return RuntimeContentDescriptor(
+        descriptor = RuntimeContentDescriptor(
             loadout_revision=loadout_revision,
             roots=tuple(admitted_roots),
             entries=entries,
@@ -311,6 +328,7 @@ class RuntimeContentClosureCompiler:
             total_bytes=sum(member.size_bytes for member in ordered_members),
             revision=f"rcd2-{_digest(identity)}",
         )
+        return descriptor, {source: tuple(sorted(paths)) for source, paths in changed_paths.items()}
 
     @staticmethod
     def _resolve(

@@ -5,12 +5,12 @@ from __future__ import annotations
 import asyncio
 import hashlib
 from io import BytesIO
-from typing import Annotated, NoReturn
+from typing import Annotated, Any, NoReturn
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request, Response
 
 from animama.app.contracts.runtime_content import PyAnimaRuntime, PyRuntimeLease
-from animama.app.services.anima_runtime_service import RuntimeSnapshotError
+from animama.app.services.anima_runtime_service import ISSUE_ATTEMPTS, RuntimeSnapshotError
 from animama.app.services.runtime_bundle_service import RuntimeBundleService
 from animama.domain.content_catalog import (
     ContentIntegrityError,
@@ -20,7 +20,7 @@ from animama.domain.content_catalog import (
 )
 from animama.domain.request_principal import RequestPrincipal
 from animama.product_http.delivery import negotiate_json_encoding
-from animama.product_http.ports import Ports, ReadContent, WriteContent
+from animama.product_http.ports import Ports, ProductPorts, ReadContent, WriteContent
 from animama.product_http.principal import get_current_principal
 
 router = APIRouter(tags=["anima-runtime"])
@@ -31,20 +31,36 @@ def _raise_runtime(exc: RuntimeSnapshotError) -> NoReturn:
     raise HTTPException(status_code=status_code, detail={"code": exc.code}) from exc
 
 
+async def _issue(ports: ProductPorts, user: RequestPrincipal, anima_id: str) -> dict[str, Any]:
+    """Compile on a read session, then fence and write on a separate, short write session.
+
+    A composition that serializes an owner's writes holds that lock only for the
+    commit. A loadout that changes in between is prepared again.
+    """
+
+    for _attempt in range(ISSUE_ATTEMPTS):
+        async with ports.read_session(user) as session, ports.content(session, user) as content:
+            prepared = await content.runtime.prepare(user_id=user.id, anima_id=anima_id)
+        async with ports.write_session(user) as session, ports.content(session, user) as content:
+            issued = await content.runtime.commit(prepared, user_id=user.id)
+        if issued is not None:
+            return issued
+    raise RuntimeSnapshotError("snapshot_conflict")
+
+
 @router.get("/v1/animas/{anima_id}/runtime", response_model=PyAnimaRuntime)
 async def get_anima_runtime(
     request: Request,
     response: Response,
     anima_id: str,
     user: Annotated[RequestPrincipal, Depends(get_current_principal)],
-    content: WriteContent,
     ports: Ports,
 ) -> Response:
     """Compile and issue the exact current Content Catalog mount."""
 
     encoding = negotiate_json_encoding(request, refusal_code="runtime_encoding_not_acceptable")
     try:
-        runtime = await content.runtime.issue(user_id=user.id, anima_id=anima_id)
+        runtime = await _issue(ports, user, anima_id)
     except RuntimeSnapshotError as exc:
         _raise_runtime(exc)
     body = PyAnimaRuntime.model_validate(runtime).model_dump_json(by_alias=True).encode("utf-8")

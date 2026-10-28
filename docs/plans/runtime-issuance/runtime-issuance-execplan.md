@@ -296,6 +296,22 @@ on the read session and writes on the write session.
 Checks: phase tests, runtime/route tests, ruff, mypy, full pre-push suite before
 review; benchmark at 0 and 2 ms (lock-hold time).
 
+Route inventory: the issuance route no longer holds a write session for the whole
+request, so its `access` is now `staged` (prepared on a read session, written on a
+short write session the handler opens); the inventory test asserts such a route
+never depends on the write-session dependency. Other `access` values are unchanged.
+
+Check record (repository root; working tree `25c8f424` before the phase commit):
+
+- `uv run --no-sync pytest -q -p no:randomly -n 4` over the issuance, delivery,
+  shared-route owner isolation, item admission, bundle, closure, creation, face-part,
+  Pocket voice, voice export, inventory, consumer, Idle pool, Reaction pool,
+  owner-contract, creation batching and starter test files: 195 passed (`25c8f424`).
+- `ruff check`, `ruff format --check` (backend and tests) and the full `mypy` run:
+  pass (`25c8f424`).
+- `uv run --no-sync python scripts/repository-boundary/consumers/product_http.py`:
+  205 inventory routes, 144 shared mounted, no local imports.
+
 ### Phase 4: Reissue an unchanged snapshot without recompiling
 
 Review tier: high risk (persistence and the issuance security recheck).

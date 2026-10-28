@@ -11,7 +11,7 @@ from pathlib import PurePosixPath
 from typing import Any
 from uuid import uuid4
 
-from sqlalchemy import delete, func, select, update
+from sqlalchemy import Select, delete, func, select, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -51,6 +51,8 @@ from animama.orm.content_catalog import (
 )
 
 LEASE = timedelta(hours=24)
+# Issuance prepares again when the loadout changes before its commit, this many times in all.
+ISSUE_ATTEMPTS = 3
 RUNTIME_PROJECTION_VERSION = 5
 SNAPSHOT_CLEANUP_BATCH_SIZE = 100
 
@@ -76,12 +78,41 @@ class RuntimeFileAuthorization:
     source_mount_id: str | None = None
 
 
+@dataclass(frozen=True, slots=True)
+class PreparedRuntime:
+    """A compiled and projected snapshot, made before any lock or write."""
+
+    anima_id: str
+    loadout_revision: int
+    descriptor: RuntimeContentDescriptor
+    catalog_body: dict[str, Any]
+    catalog_digest: str
+    effective_revision: str
+    bundles: list[RuntimeBundle]
+    # Files that no longer match the catalog; the commit marks them for Rescan.
+    changed_paths: dict[ContentSource, tuple[str, ...]]
+
+
 class RuntimeSnapshotError(Exception):
     """Stable runtime issuance or lease failure."""
 
     def __init__(self, code: str) -> None:
         super().__init__(code)
         self.code = code
+
+
+def _owned_loadout_revision(*, user_id: str, anima_id: str) -> Select[tuple[int]]:
+    """The revision of the owner's loadout for an Anima the owner holds."""
+
+    return (
+        select(ORMAnimaLoadout.revision)
+        .join(ORMAnima, ORMAnima.id == ORMAnimaLoadout.anima_id)
+        .where(
+            ORMAnimaLoadout.anima_id == anima_id,
+            ORMAnimaLoadout.owner_user_id == user_id,
+            ORMAnima.user_id == user_id,
+        )
+    )
 
 
 def _canonical(value: Any) -> str:
@@ -157,74 +188,109 @@ class AnimaRuntimeService:
         self.store = store
 
     async def issue(self, *, user_id: str, anima_id: str) -> dict[str, Any]:
-        """Compile, fence, and atomically issue one item-pinned runtime snapshot."""
+        """Prepare and commit one item-pinned runtime snapshot on this session.
+
+        A composition with separate read and write sessions calls ``prepare`` and
+        ``commit`` itself, so its write session is open only for the commit.
+        """
+
+        for _attempt in range(ISSUE_ATTEMPTS):
+            prepared = await self.prepare(user_id=user_id, anima_id=anima_id)
+            issued = await self.commit(prepared, user_id=user_id)
+            if issued is not None:
+                return issued
+            # Release the stale commit's loadout lock before preparing again.
+            await self.session.rollback()
+        raise RuntimeSnapshotError("snapshot_conflict")
+
+    async def prepare(self, *, user_id: str, anima_id: str) -> PreparedRuntime:
+        """Compile and project the owner's current loadout, taking no lock and writing nothing.
+
+        ``commit`` fences the result against the loadout and catalog as they are then.
+        """
 
         if self.store is None:
             raise RuntimeSnapshotError("runtime_content_store_unavailable")
-
-        now = datetime.now(UTC)
-        loadout = (
-            await self.session.execute(
-                select(ORMAnimaLoadout)
-                .join(ORMAnima, ORMAnima.id == ORMAnimaLoadout.anima_id)
-                .where(
-                    ORMAnimaLoadout.anima_id == anima_id,
-                    ORMAnimaLoadout.owner_user_id == user_id,
-                    ORMAnima.user_id == user_id,
-                )
-                .with_for_update(read=True, of=ORMAnimaLoadout)
-            )
-        ).scalar_one_or_none()
-        if loadout is None:
+        # Read the revision before the bindings: an unchanged revision at commit
+        # proves the bindings read here are that revision's.
+        loadout_revision = await self.session.scalar(_owned_loadout_revision(user_id=user_id, anima_id=anima_id))
+        if loadout_revision is None:
             raise RuntimeSnapshotError("anima_not_found")
 
         visible = await self.catalog.list_visible(user_id=user_id)
         selection_plan = await self._selections(anima_id=anima_id, visible=visible)
-        descriptor = await RuntimeContentClosureCompiler(
+        descriptor, changed_paths = await RuntimeContentClosureCompiler(
             catalog=self.catalog,
             store=self.store,
-        ).compile(
+        ).compile_with_changes(
             user_id=user_id,
-            loadout_revision=loadout.revision,
+            loadout_revision=loadout_revision,
             selections=selection_plan.roots,
             visible_items=visible,
         )
         admitted_item_revisions = validate_admitted_item_revisions(descriptor.admitted_item_revisions)
         catalog_body = self._project_catalog(
-            loadout_revision=loadout.revision,
+            loadout_revision=loadout_revision,
             descriptor=descriptor,
             visible=visible,
         )
         await self._apply_included_avatar_face_parts(user_id=user_id, catalog_body=catalog_body)
         identity_body = {
             "projection_version": RUNTIME_PROJECTION_VERSION,
-            "loadout_revision": loadout.revision,
+            "loadout_revision": loadout_revision,
             "admitted_item_revisions": admitted_item_revisions,
             "root_contexts": [{"root_id": root.root_id, "context": root.context} for root in descriptor.roots],
             "catalog": catalog_body,
         }
         catalog_digest = _sha(identity_body)
-        effective_revision = f"tr{RUNTIME_PROJECTION_VERSION}-{catalog_digest}"
-        expires_at = now + LEASE
-        bundles = select_runtime_bundles(catalog_body)
-
-        await self._recheck_admission(
-            user_id=user_id,
+        return PreparedRuntime(
+            anima_id=anima_id,
+            loadout_revision=loadout_revision,
             descriptor=descriptor,
+            catalog_body=catalog_body,
+            catalog_digest=catalog_digest,
+            effective_revision=f"tr{RUNTIME_PROJECTION_VERSION}-{catalog_digest}",
+            bundles=select_runtime_bundles(catalog_body),
+            changed_paths=changed_paths,
         )
-        snapshot_id = str(uuid4())
+
+    async def commit(self, prepared: PreparedRuntime, *, user_id: str) -> dict[str, Any] | None:
+        """Fence and write a prepared snapshot in one short transaction, then commit.
+
+        Locks the loadout row first and returns ``None``, writing nothing, when the
+        loadout changed after preparation, so the caller prepares again. Otherwise it
+        marks the files preparation found changed for Rescan, rechecks every pin and
+        file, inserts the snapshot or renews its identical twin, and commits.
+        """
+
+        now = datetime.now(UTC)
+        anima_id = prepared.anima_id
+        loadout_revision = await self.session.scalar(
+            _owned_loadout_revision(user_id=user_id, anima_id=anima_id).with_for_update(read=True, of=ORMAnimaLoadout)
+        )
+        if loadout_revision is None:
+            raise RuntimeSnapshotError("anima_not_found")
+        if loadout_revision != prepared.loadout_revision:
+            return None
+        for source, paths in prepared.changed_paths.items():
+            await self.catalog.mark_scan_required(source=source, relative_paths=paths)
+        await self._recheck_admission(user_id=user_id, descriptor=prepared.descriptor)
+
+        admitted_item_revisions = prepared.descriptor.admitted_item_revisions
+        effective_revision = prepared.effective_revision
+        expires_at = now + LEASE
         result = await self.session.execute(
             insert(ORMAnimaRuntimeSnapshot)
             .values(
-                id=snapshot_id,
+                id=str(uuid4()),
                 owner_user_id=user_id,
                 anima_id=anima_id,
-                loadout_revision=loadout.revision,
+                loadout_revision=loadout_revision,
                 effective_revision=effective_revision,
-                catalog_digest=catalog_digest,
+                catalog_digest=prepared.catalog_digest,
                 admitted_item_revisions=admitted_item_revisions,
-                catalog=catalog_body,
-                bundles=_stored_bundles(bundles),
+                catalog=prepared.catalog_body,
+                bundles=_stored_bundles(prepared.bundles),
                 expires_at=expires_at,
                 created_at=now,
                 updated_at=now,
@@ -238,48 +304,46 @@ class AnimaRuntimeService:
             )
             .returning(ORMAnimaRuntimeSnapshot.id)
         )
-        winner_id = result.scalar_one_or_none()
-        if winner_id:
-            await self.cleanup_expired(now=now)
-            await self.session.commit()
-            return _runtime_response(
-                catalog_body,
-                bundles=bundles,
-                anima_id=anima_id,
-                effective_revision=effective_revision,
-                lease_expires_at=expires_at,
+        if result.scalar_one_or_none() is None:
+            # The same revision is already issued. Its digest covers the whole
+            # catalog body, so comparing digests and pins proves it is identical.
+            winner = (
+                await self.session.execute(
+                    select(
+                        ORMAnimaRuntimeSnapshot.id,
+                        ORMAnimaRuntimeSnapshot.catalog_digest,
+                        ORMAnimaRuntimeSnapshot.admitted_item_revisions,
+                    ).where(
+                        ORMAnimaRuntimeSnapshot.owner_user_id == user_id,
+                        ORMAnimaRuntimeSnapshot.anima_id == anima_id,
+                        ORMAnimaRuntimeSnapshot.effective_revision == effective_revision,
+                    )
+                )
+            ).one_or_none()
+            if (
+                winner is None
+                or winner.catalog_digest != prepared.catalog_digest
+                or dict(winner.admitted_item_revisions) != admitted_item_revisions
+            ):
+                raise RuntimeSnapshotError("snapshot_conflict")
+            renewed = await self.session.execute(
+                update(ORMAnimaRuntimeSnapshot)
+                .where(ORMAnimaRuntimeSnapshot.id == winner.id)
+                .values(expires_at=expires_at, updated_at=now)
+                .returning(ORMAnimaRuntimeSnapshot.expires_at)
             )
-
-        winner = await self.get_snapshot(
-            user_id=user_id,
-            anima_id=anima_id,
-            revision=effective_revision,
-        )
-        if winner is None:
-            raise RuntimeSnapshotError("snapshot_conflict")
-        if (
-            winner.catalog_digest != catalog_digest
-            or dict(winner.admitted_item_revisions) != admitted_item_revisions
-            or dict(winner.catalog) != catalog_body
-        ):
-            raise RuntimeSnapshotError("snapshot_conflict")
-        renewed = await self.session.execute(
-            update(ORMAnimaRuntimeSnapshot)
-            .where(ORMAnimaRuntimeSnapshot.id == winner.id)
-            .values(expires_at=expires_at, updated_at=now)
-            .returning(ORMAnimaRuntimeSnapshot.expires_at)
-        )
-        renewed_expires_at = renewed.scalar_one_or_none()
-        if renewed_expires_at is None:
-            raise RuntimeSnapshotError("snapshot_conflict")
+            renewed_expires_at = renewed.scalar_one_or_none()
+            if renewed_expires_at is None:
+                raise RuntimeSnapshotError("snapshot_conflict")
+            expires_at = renewed_expires_at
         await self.cleanup_expired(now=now)
         await self.session.commit()
         return _runtime_response(
-            dict(winner.catalog),
-            bundles=bundles,
+            prepared.catalog_body,
+            bundles=prepared.bundles,
             anima_id=anima_id,
             effective_revision=effective_revision,
-            lease_expires_at=renewed_expires_at,
+            lease_expires_at=expires_at,
         )
 
     async def _recheck_admission(
@@ -767,7 +831,9 @@ class AnimaRuntimeService:
 
 
 __all__ = [
+    "ISSUE_ATTEMPTS",
     "AnimaRuntimeService",
+    "PreparedRuntime",
     "RuntimeFileAuthorization",
     "RuntimeSnapshotError",
 ]
