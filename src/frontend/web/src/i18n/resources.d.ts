@@ -6512,9 +6512,11 @@ export default interface Resources {
       "skip": "Skip for now"
     },
     "ageConfirmation": {
+      "agreement": "By continuing, you agree to the <terms>Terms of Service</terms> and confirm that you have read the <privacy>Privacy Notice</privacy>.",
       "backToSetup": "Back to setup",
       "betaNotice": "Animama on the web is in beta. The desktop app gives the best experience.",
       "confirm": "I am 18 or older",
+      "confirmAndAgree": "I am 18 or older and agree",
       "decline": "I'm under 18",
       "declined": "Animama is only for adults 18 and older. You can't continue to chat.",
       "errors": {
