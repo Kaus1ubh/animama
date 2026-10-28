@@ -583,9 +583,9 @@ Gesture/Reaction roots and cannot be equipped directly.
 their transitive dependencies into one persisted owner-scoped exact revision.
 Concurrent reads may reuse that effective revision. It compiles and projects on
 the composition's read session without locks or writes, then opens a short write
-session that locks the loadout row, rechecks the loadout revision, every pinned
-item and the complete file union, marks files found changed for Rescan, and
-inserts or renews the snapshot. If the loadout changed in between, or a reused
+session. It first marks files found changed for Rescan, which commits on its own,
+then locks the loadout row, rechecks the loadout revision, every pinned item and
+the complete file union, and inserts or renews the snapshot. If the loadout changed in between, or a reused
 snapshot expired meanwhile, issuance prepares again, up to three attempts in all,
 then refuses with 409 `snapshot_conflict`. An
 unexpired snapshot compiled from the same inputs (the backend build, loadout

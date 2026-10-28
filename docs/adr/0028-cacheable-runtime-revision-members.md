@@ -58,8 +58,9 @@ Manifests, JSON bundles, previews and other private bytes keep their policies.
   unchanged loadout's unexpired snapshot is renewed without compiling, so a change
   the watcher misses goes unnoticed on cache hits until the catalog changes (a
   watcher event, the start-up scan or a manual Rescan), the backend build changes,
-  a read reaches the server, or the snapshot lapses after 24 hours without an
-  issue. A client holding a good cached copy keeps using the exact bytes its
+  a read reaches the server, or the snapshot lapses 24 hours after its last issue or
+  lease renewal (a mounted Anima renews its lease, so its snapshot does not lapse
+  while it stays mounted). A client holding a good cached copy keeps using the exact bytes its
   revision names, and every copy is verified against the revision's digests before
   use.
 - A remote self-hosted installation behind an operator's authentication boundary

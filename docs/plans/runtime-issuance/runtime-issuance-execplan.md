@@ -75,8 +75,9 @@ writes a cProfile of the reissues.
 - [x] Phase 3: compile outside the write transaction (reviewed with Phase 4).
 - [x] Phase 4: reissue an unchanged snapshot without recompiling (high-risk review
   of Phases 3–4 passed after one repair round; full suite passed).
-- [ ] Final integration review (round 1 repaired; recheck pending), full pre-push
-  suite and PR.
+- [x] Final integration review (passed after one repair round) and full pre-push
+  suite on `c9d13c2b`.
+- [ ] PR and owner review (ADR 0028 amendment, exact-head merge approval).
 
 ## Surprises & Discoveries
 
@@ -125,7 +126,8 @@ writes a cProfile of the reissues.
   issuance rehashes every member on each mount, which justified year-long
   immutable caching of runtime members. With reuse, a disk change the watcher
   misses goes unnoticed on cache hits until the catalog or build changes, a read
-  reaches the server, or the snapshot lapses. Integrity holds (the client verifies
+  reaches the server, or the snapshot lapses 24 hours after its last issue or lease
+  renewal (never while the Anima stays mounted and renewing). Integrity holds (the client verifies
   every cached copy against the revision's digests). ADR 0028 carries a dated
   amendment of that consequence; the alternative is hashing the members on reuse
   too (one worker-thread call, about 50 MB for a starter Anima).
@@ -530,6 +532,24 @@ baseline agree, and no private references appear.
 - Verification: the issuance and closure test files, 50 passed; ruff, format
   check and full mypy pass. Repair rounds used: 1 of 2.
 
+### Code Review #2 (repair recheck)
+
+High-risk recheck of `c9d13c2b` (tree `4729cdbb`): the ten runtime and chat-turn
+test files, 153 passed; ruff, mypy on the changed files and the import-boundary
+check (0 forbidden edges) pass; every measurement cell matches the raw logs; an
+exported copy with marking moved back after the lock fails the new event-order
+test and the committed code passes it. Every round-1 finding is fixed, with no
+regression. Notes applied as wording fixes: the HTTP API listed marking after the
+lock; ADR 0028 bounded the lapse by issues although lease renewal also extends it;
+the measurement labels name the measured revisions; "no measurable regression"
+replaces an overstatement, and the 2 ms first-issue result is stated. Result: pass,
+1 of 2 repair rounds used.
+
+Full pre-push suite on `c9d13c2b` (tree `4729cdbb`) in a detached validation
+checkout, `python3 scripts/heavy-slot.py -- make check-test`: typed-content audit,
+format check, ruff and mypy pass; pytest 4968 passed, 29 skipped;
+`check-python-imports.py`: 0 forbidden edges.
+
 ### Measurements
 
 `scripts/perf/runtime_issuance.py --issues 10`, both supplied starters (1,199
@@ -537,7 +557,10 @@ members, 49–50 MB, no diagnostics, 14 bundles, 1.91 MB response on every run),
 an Apple M5 shared with other sessions' suites. Ranges span the two starters (and
 rounds); issue and bundle figures are medians per run.
 
-Baseline (`62fd8394`) against the final candidate, alternated over two rounds:
+Baseline (`62fd8394`) against this change (measured at `644b3f53`; the later
+commits change only the order of marking changed files, which runs no statements
+when nothing changed, and documentation), alternated over two rounds. Statement
+counts at 2 ms equal those at 0 ms:
 
 | 0 ms round trip | Baseline | This change |
 | --- | --- | --- |
@@ -565,6 +588,9 @@ reads, so its issuance figures differ from Phase 1's only by noise):
 | Phase 3 `b9db3c5d` | 351–408 ms (51–62 ms, 10) | 321–336 ms (272–287 ms, 30–31 ms, 12) | 14–16 ms |
 | Final | 305–379 ms (49–55 ms, 11) | 114–159 ms (90–125 ms, 9–10 ms, 11) | 13–16 ms |
 
+Final is `c9d13c2b`'s code (the working tree before that commit); Phases 1–3
+are their commits.
+
 | 2 ms | First issue (lock) | Reissue (CPU, lock) | Bundle read |
 | --- | --- | --- | --- |
 | Baseline | 639–850 ms (559–785 ms) | 760–956 ms (529–681 ms, 648–865 ms) | 85–90 ms |
@@ -575,9 +601,10 @@ reads, so its issuance figures differ from Phase 1's only by noise):
 
 The final candidate's first issue at 2 ms looked slower than Phase 3's single run,
 so the two were alternated for three more rounds: Phase 3 533–1198 ms, final
-438–956 ms. The ranges overlap, so the compile path did not regress; it gains one
-statement (the reuse lookup) and, once per process, the build identity's source
-hash (about 20 ms in a worker thread).
+438–956 ms (medians 722 and 758 ms), so there is no measurable regression on the
+compile path; it gains one statement (the reuse lookup) and, once per process, the
+build identity's source hash (about 20 ms in a worker thread). At 2 ms a first
+issue is not faster than the baseline overall; only its lock hold shrinks.
 
 ## Validation and acceptance
 
