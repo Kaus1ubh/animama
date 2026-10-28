@@ -14,25 +14,16 @@ import { createPortal, flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
 import {
   Apple,
-  ArrowRight,
   ArrowUpRight,
   BookOpen,
   ChevronsLeft,
   ChevronsRight,
   Brain,
-  Menu,
-  Moon,
   Monitor,
-  Sun,
 } from "lucide-react";
 
 import { Message, MessageContent } from "@animama/product-ui/components";
 import { AnimamaI18nProvider } from "@animama/product-ui/i18n";
-import {
-  SUPPORTED_LOCALES,
-  localeNativeName,
-  type UiLocale,
-} from "@animama/runtime-contracts/locale";
 
 import { TRACKED_EMOTIONS, type TrackedEmotion } from "@/lib/emotion";
 import { cn } from "@/lib/utils";
@@ -40,15 +31,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/ui/components/avatar";
 import { Button } from "@/ui/components/button";
 import MessageLoaderV2 from "@/ui/components/message-loader-v2";
 import {
-  DropdownMenu,
-  DropdownMenuCheckboxItem,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
 } from "@/ui/components/dropdown-menu";
 import { TextEffect, type TextEffectProps } from "@/ui/components/text-effect";
 import {
@@ -60,9 +44,9 @@ import {
 import type { StageController, StageState } from "./controller";
 import { MoodBloom } from "./mood-bloom";
 import { PROGRAM } from "./program";
-import { LocaleFlag } from "./flags";
 import { TextShimmer } from "./text-shimmer";
 import { SocialIcon } from "./social-icons";
+import { SiteHeader, focusRing } from "./site-header";
 import {
   BETA_ACCESS_URL,
   CLOSED_BETA,
@@ -130,7 +114,24 @@ function Overlay({ controller }: { controller: StageController }) {
       >
         Skip to content
       </a>
-      <Header light={light} state={state} controller={controller} />
+      <SiteHeader
+        light={light}
+        tour={{
+          scrollToStop: (index) => controller.scrollToStop(index),
+          lastStop: STAGE_STOPS.length - 1,
+          avatarSwitcher: (
+            <AvatarSwitcher
+              state={state}
+              light={light}
+              controller={controller}
+            />
+          ),
+          // The stills show her only.
+          avatarOptions: state.fallback ? null : (
+            <AvatarOptions state={state} controller={controller} />
+          ),
+        }}
+      />
       <ProgressThread
         active={active}
         light={light}
@@ -413,406 +414,6 @@ function ProgressThread({
     </nav>
   );
 }
-
-/**
- * Keyboard focus ring for chrome over the stop's backdrop: white over the
- * twilight stop's light ink, where the theme ring falls below 3:1.
- */
-const focusRing = (light: boolean) =>
-  light ? "focus-visible:ring-white" : "focus-visible:ring-ring";
-
-/**
- * The site header: the logo on the left; on the right one liquid-glass pill
- * holding Home (back to the start of the tour), About and Docs, the theme toggle and
- * language picker, Log in and Sign up (placeholders until accounts exist),
- * and Download as its one solid button. During the closed beta the page is
- * English only and Request Beta Access (the form) replaces the language
- * picker, Log in, Sign up and Download. A single soft
- * highlight glides to whichever item the pointer is over. Below 1024px the
- * pill gives way to that button and a menu button that holds the same items
- * (`SiteMenu`). The Avatar switcher sits to the left of either.
- */
-function Header({
-  light,
-  state,
-  controller,
-}: {
-  light: boolean;
-  state: StageState;
-  controller: StageController;
-}) {
-  const pill = useRef<HTMLElement>(null);
-  const [glow, setGlow] = useState<{ x: number; w: number } | null>(null);
-  const theme = useThemeMode();
-  const [locale, setLocale] = useState<UiLocale>("en");
-  /** Move the highlight to the item under the pointer (or keyboard focus). */
-  const track = (event: { target: EventTarget }) => {
-    const item = (event.target as HTMLElement).closest("[data-pill-item]");
-    const box = pill.current?.getBoundingClientRect();
-    if (!item || !box) return;
-    const rect = item.getBoundingClientRect();
-    setGlow({ x: rect.left - box.left, w: rect.width });
-  };
-  const link = cn(
-    "relative z-10 cursor-pointer rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors outline-none focus-visible:ring-2",
-    focusRing(light),
-    light
-      ? "text-white"
-      : "text-foreground/75 hover:text-foreground dark:text-foreground/80 dark:hover:text-foreground",
-  );
-  const divider = (
-    <span
-      aria-hidden="true"
-      className={cn(
-        "mx-1.5 h-4 w-px",
-        light ? "bg-white/25" : "bg-foreground/15",
-      )}
-    />
-  );
-  const primary = (className: string) =>
-    CLOSED_BETA ? (
-      <Button
-        asChild
-        data-pill-item=""
-        className={cn("group relative z-10 rounded-full", className)}
-      >
-        <a href={BETA_ACCESS_URL} target="_blank" rel="noreferrer">
-          {/* Shorter on phones, so the logo keeps its room. */}
-          <span className="max-sm:hidden">Request Beta Access</span>
-          <span className="sm:hidden">Request access</span>
-          <ArrowUpRight
-            aria-hidden="true"
-            className="transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
-          />
-        </a>
-      </Button>
-    ) : (
-      <Button
-        data-pill-item=""
-        className={cn("group relative z-10 rounded-full", className)}
-        onClick={() => controller.scrollToStop(STAGE_STOPS.length - 1)}
-      >
-        Download
-        <ArrowRight
-          aria-hidden="true"
-          className="transition-transform group-hover:translate-x-0.5"
-        />
-      </Button>
-    );
-  return (
-    <header className="fixed inset-x-0 top-0 z-40 flex items-center justify-between px-5 py-4 md:px-10 md:py-5">
-      <Wordmark light={light} />
-      <div className="flex items-center gap-3">
-        <AvatarSwitcher state={state} light={light} controller={controller} />
-        <nav
-          ref={pill}
-          aria-label="Site"
-          data-ink={light ? "light" : "dark"}
-          onPointerOver={track}
-          onFocus={track}
-          onPointerLeave={() => setGlow(null)}
-          onBlur={() => setGlow(null)}
-          className="liquid-glass relative hidden items-center gap-0.5 rounded-full p-1 lg:flex"
-        >
-          <span
-            aria-hidden="true"
-            className={cn(
-              "pill-glow pointer-events-none absolute inset-y-1 left-0 rounded-full",
-              glow ? "opacity-100" : "opacity-0",
-            )}
-            style={
-              glow ? { translate: `${glow.x}px 0`, width: glow.w } : undefined
-            }
-          />
-          <button
-            type="button"
-            data-pill-item=""
-            className={link}
-            onClick={() => controller.scrollToStop(0)}
-          >
-            Home
-          </button>
-          <a href={SITE.about} data-pill-item="" className={link}>
-            About
-          </a>
-          <a
-            href={DOCS_URL}
-            target="_blank"
-            rel="noreferrer"
-            data-pill-item=""
-            className={link}
-          >
-            Docs
-          </a>
-          {divider}
-          <ThemeToggle light={light} theme={theme} />
-          {CLOSED_BETA ? null : (
-            <LanguagePicker
-              locale={locale}
-              onLocaleChange={setLocale}
-              light={light}
-            />
-          )}
-          {CLOSED_BETA ? null : (
-            <>
-              {divider}
-              <button type="button" data-pill-item="" className={link}>
-                Log in
-              </button>
-              <button type="button" data-pill-item="" className={link}>
-                Sign up
-              </button>
-            </>
-          )}
-          {primary("ml-1 hover:brightness-105")}
-        </nav>
-        {/* Narrow-only, as `hidden max-lg:flex`: the Scene layers' later `.flex`
-          would override `lg:hidden`. */}
-        <div className="hidden items-center gap-2 max-lg:flex">
-          {primary("max-sm:px-3 max-sm:[&>svg]:hidden")}
-          <SiteMenu
-            light={light}
-            state={state}
-            controller={controller}
-            theme={theme}
-            locale={locale}
-            onLocaleChange={setLocale}
-          />
-        </div>
-      </div>
-    </header>
-  );
-}
-
-const THEME_KEY = "landing-stage-theme";
-
-type ThemeMode = { dark: boolean; toggle: () => void };
-
-/**
- * Light and dark mode, using the app's own `.dark` theme. The choice is
- * remembered in this browser (`index.html` applies it before first paint).
- */
-function useThemeMode(): ThemeMode {
-  const [dark, setDark] = useState(() =>
-    document.documentElement.classList.contains("dark"),
-  );
-  const toggle = () => {
-    const next = !dark;
-    document.documentElement.classList.toggle("dark", next);
-    try {
-      localStorage.setItem(THEME_KEY, next ? "dark" : "light");
-    } catch {
-      // Private windows may refuse storage; the toggle still works.
-    }
-    setDark(next);
-  };
-  return { dark, toggle };
-}
-
-function ThemeToggle({
-  light,
-  theme: { dark, toggle },
-}: {
-  light: boolean;
-  theme: ThemeMode;
-}) {
-  const Icon = dark ? Sun : Moon;
-  return (
-    <button
-      type="button"
-      onClick={toggle}
-      aria-label={dark ? "Switch to light mode" : "Switch to dark mode"}
-      aria-pressed={dark}
-      data-pill-item=""
-      className={cn(
-        "relative z-10 flex size-8 cursor-pointer items-center justify-center rounded-full transition-colors outline-none focus-visible:ring-2",
-        focusRing(light),
-        light
-          ? "text-white"
-          : "text-foreground/75 hover:text-foreground dark:text-foreground/80 dark:hover:text-foreground",
-      )}
-    >
-      <Icon className="size-4" aria-hidden="true" />
-    </button>
-  );
-}
-
-/**
- * Language menu: the current locale's flag, opening a list of the app's UI
- * Locales by flag and their own names. The landing copy is English-only for
- * now, so a choice is only remembered for the menu.
- */
-type LocaleChoice = {
-  locale: UiLocale;
-  onLocaleChange: (locale: UiLocale) => void;
-};
-
-function LanguagePicker({
-  locale,
-  onLocaleChange,
-  light,
-}: LocaleChoice & { light: boolean }) {
-  return (
-    <DropdownMenu modal={false}>
-      <DropdownMenuTrigger
-        data-pill-item=""
-        className={cn(
-          "relative z-10 flex size-8 cursor-pointer items-center justify-center rounded-full outline-none focus-visible:ring-2",
-          focusRing(light),
-        )}
-        aria-label={`Language: ${localeNativeName(locale)}`}
-      >
-        <LocaleFlag locale={locale} className="size-5" />
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="z-50 min-w-44">
-        <LanguageOptions locale={locale} onLocaleChange={onLocaleChange} />
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-}
-
-/** The app's UI Locales by flag and their own names, as menu radio items. */
-function LanguageOptions({ locale, onLocaleChange }: LocaleChoice) {
-  return (
-    <DropdownMenuRadioGroup
-      value={locale}
-      onValueChange={(value) => onLocaleChange(value as UiLocale)}
-    >
-      {SUPPORTED_LOCALES.map((option) => (
-        <DropdownMenuRadioItem
-          key={option}
-          value={option}
-          lang={option}
-          className="gap-2.5"
-        >
-          <LocaleFlag locale={option} className="size-4" />
-          {localeNativeName(option)}
-        </DropdownMenuRadioItem>
-      ))}
-    </DropdownMenuRadioGroup>
-  );
-}
-
-/**
- * The header's items for screens narrower than the pill (below 1024px): a
- * glass menu button opening Home, About, Docs, the Avatar choice (phones
- * only), dark mode, and the language list, Log in and Sign up (none of
- * these three during the closed beta). Toggling dark mode keeps the menu open so the change
- * shows behind it.
- */
-function SiteMenu({
-  light,
-  state,
-  controller,
-  theme,
-  locale,
-  onLocaleChange,
-}: LocaleChoice & {
-  light: boolean;
-  state: StageState;
-  controller: StageController;
-  theme: ThemeMode;
-}) {
-  return (
-    <DropdownMenu modal={false}>
-      <DropdownMenuTrigger
-        aria-label="Menu"
-        data-ink={light ? "light" : "dark"}
-        className={cn(
-          "liquid-glass flex size-9 cursor-pointer items-center justify-center rounded-full outline-none focus-visible:ring-2",
-          focusRing(light),
-          light ? "text-white" : "text-foreground",
-        )}
-      >
-        <Menu className="size-4.5" aria-hidden="true" />
-      </DropdownMenuTrigger>
-      <DropdownMenuContent
-        align="end"
-        sideOffset={8}
-        className="z-50 w-60 max-w-[calc(100vw-2.5rem)]"
-      >
-        <DropdownMenuItem onSelect={() => controller.scrollToStop(0)}>
-          Home
-        </DropdownMenuItem>
-        <DropdownMenuItem asChild>
-          <a href={SITE.about}>About</a>
-        </DropdownMenuItem>
-        <DropdownMenuItem asChild>
-          <a href={DOCS_URL} target="_blank" rel="noreferrer">
-            Docs
-          </a>
-        </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        {/* Phone-only, as `hidden max-sm:block` (see the header's note);
-            none with the stills, which show her only. */}
-        {state.fallback ? null : (
-          <div className="hidden max-sm:block">
-            <DropdownMenuLabel className="text-muted-foreground text-xs font-medium">
-              Avatar
-            </DropdownMenuLabel>
-            <AvatarOptions state={state} controller={controller} />
-            <DropdownMenuSeparator />
-          </div>
-        )}
-        <DropdownMenuCheckboxItem
-          checked={theme.dark}
-          onCheckedChange={theme.toggle}
-          onSelect={(event) => event.preventDefault()}
-        >
-          Dark mode
-        </DropdownMenuCheckboxItem>
-        {CLOSED_BETA ? null : (
-          <>
-            <DropdownMenuSeparator />
-            <DropdownMenuLabel className="text-muted-foreground text-xs font-medium">
-              Language
-            </DropdownMenuLabel>
-            <LanguageOptions locale={locale} onLocaleChange={onLocaleChange} />
-          </>
-        )}
-        {CLOSED_BETA ? null : (
-          <>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem>Log in</DropdownMenuItem>
-            <DropdownMenuItem>Sign up</DropdownMenuItem>
-          </>
-        )}
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-}
-
-/**
- * The app's logo: speech-bubble mark and rounded wordmark. The mark's `alt`
- * names the lockup; a bare `span` cannot take `aria-label`, and the wordmark
- * beside it is a decorative mask.
- */
-function Wordmark({ light }: { light: boolean }) {
-  return (
-    <span className="flex shrink-0 items-center gap-2">
-      <img
-        src="/brand/animama-mark.png"
-        alt="Animama"
-        className="size-9 md:size-12"
-      />
-      <span
-        aria-hidden="true"
-        className={cn(
-          "block h-8 w-[92px] transition-colors duration-500 md:h-11 md:w-[132px]",
-          light ? "bg-white" : "bg-foreground",
-        )}
-        style={wordmarkMask}
-      />
-    </span>
-  );
-}
-
-const wordmarkMask = {
-  maskImage: "url(/brand/animama-wordmark.png)",
-  maskSize: "contain",
-  maskPosition: "center",
-  maskRepeat: "no-repeat",
-} as const;
 
 /** The stage layer between the backdrop and the Avatar canvas. */
 const heroLayer = document.getElementById("hero-layer") as HTMLDivElement;

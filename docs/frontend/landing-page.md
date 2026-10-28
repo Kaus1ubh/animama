@@ -21,8 +21,9 @@ pnpm -s landing:preview --port 4320
   reload, and reads files by local path. It listens on 127.0.0.1 only and
   must never be deployed.
 - `landing:build` writes the public site to `web/dist-landing/`
-  (`--out <dir>` for elsewhere). It fails if a clip or effect does not
-  resolve, or if the output contains a source map or a local path.
+  (`--out <dir>` for elsewhere), including the site header for Animama
+  Cloud's pages (below). It fails if a clip or effect does not resolve, or if
+  the output contains a source map or a local path.
 - `landing:preview` serves only a build, applying its `_headers`, as the host
   will. Run the page there before a package set ships it.
 - `landing:stills` recaptures the fallback's stills (below). It starts its
@@ -105,6 +106,36 @@ themselves. The emotion mascots and brand marks are copied from
 `licenses/third-party/art-vroid-review.json`), third-party artwork notices
 when any shipped texture is third-party, and the licence of every npm package
 with code or fonts in the bundle.
+
+## The site header on Cloud's pages
+
+Every page on animama.ai shows the same header: `site-header.tsx`. The
+overlay renders it over the tour (`tour`: fixed, Home and Download scroll the
+stops, the Avatar choice shows), and the build also makes it for the pages
+Animama Cloud publishes on the same host (About, Download, Privacy, Terms and
+404), where it sits at the top of the page and Home and Download are links:
+
+- `site-chrome.tsx` is a separate Vite build, so it carries only the header's
+  code (about 100 kB of compressed JavaScript, mostly React and the menus)
+  rather than chunks shared with the stage. `site-chrome.css` holds the app's
+  Tailwind setup and theme, light and dark, with the header's glass
+  (`site-header.css`, which `stage.css` also imports).
+- `site-chrome.json` names the entry script and its stylesheets and holds the
+  header prerendered twice (`renderSiteHeaders`): marking About as the current
+  page, and for every other page. Cloud wraps the markup in each page's
+  `#site-header`, so the header shows and its links work without JavaScript;
+  the script renders the same component over it.
+- Prerendered markup must not need inline `style` attributes, which the CSP
+  refuses: the wordmark's mask is the `.wordmark-mask` class.
+- The header imports nothing from product-ui's components bundle, which would
+  bring its Markdown rendering along; its solid button copies product-ui's
+  `Button` classes (`solidButton`).
+- The saved theme is one key (`landing-stage-theme`) for the whole site;
+  Cloud's pages load `theme.js` before paint as `index.html` does.
+
+Changing the header's links or buttons (Request Beta Access, Log in, Sign up)
+changes every page, through the next package set and Cloud repin. Cloud's own
+build fails if a pinned site has no `site-chrome.json`.
 
 ## Security headers
 

@@ -563,6 +563,7 @@ export const SITE = {
    * `apps/landing-web`); the development server does not serve them.
    */
   about: "/about/",
+  download: "/download",
   privacy: "/privacy/",
   terms: "/terms/",
   /** The public contact address, forwarded by the domain's email routing. */

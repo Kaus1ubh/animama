@@ -1,0 +1,14 @@
+/*
+ * Styles for the header Animama Cloud's pages load from this site
+ * (`site-chrome.tsx`): the app's Tailwind setup and Anima theme, light and
+ * dark, with the header's components and glass. Tailwind's base styles come
+ * with them, so a page loading this sheet styles its own content on top.
+ */
+@import "tailwindcss" source(none);
+@import "tw-animate-css";
+@import "@animama/product-ui/theme.css";
+@import "../../src/styles/globals.css";
+@import "./site-header.css";
+@source "./site-header.tsx";
+@source "./flags.tsx";
+@source "../../src/ui/components/dropdown-menu.tsx";

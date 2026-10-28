@@ -19,7 +19,9 @@ import {
   pagePlugin,
   programPlugin,
   renderPageHtml,
+  renderSiteHeaders,
   resolveStageProgram,
+  siteChromePlugin,
   siteIcons,
   stageDir,
   stageViteConfig,
@@ -36,7 +38,9 @@ import {
  * definitions bundled into the JavaScript and their files (textures, Avatars,
  * portraits) copied under content-hashed names; the emotion mascots and
  * brand marks; the page's `static/` files (including the `_headers` the host
- * applies); icons, `robots.txt`, `sitemap.xml` and `notices.txt`. Nothing in
+ * applies); icons, `robots.txt`, `sitemap.xml` and `notices.txt`; and the
+ * site header for Animama Cloud's pages (`site-chrome.json`, its script and
+ * styles). Nothing in
  * it calls the stage server. The build fails if a source does not resolve or
  * the output holds a local path or a source map.
  */
@@ -73,10 +77,12 @@ export async function buildLanding({
   });
   let content;
   let page;
+  let headers;
   let site;
   try {
     content = await resolveStageProgram(server);
     page = await renderPageHtml(server);
+    headers = await renderSiteHeaders(server);
     site = await server.ssrLoadModule("/scripts/landing-stage/stops.ts");
   } finally {
     await server.close();
@@ -120,6 +126,34 @@ export async function buildLanding({
         name: "animama-landing-modules",
         generateBundle() {
           moduleIds = [...this.getModuleIds()];
+        },
+      },
+    ],
+  });
+  // The site header Animama Cloud's pages load, as its own build so it
+  // carries only the header's code rather than chunks shared with the stage.
+  await build({
+    ...stageViteConfig({ root: stageDir }),
+    mode: "production",
+    publicDir: false,
+    base: "/",
+    logLevel: "warn",
+    build: {
+      outDir,
+      emptyOutDir: false,
+      sourcemap: false,
+      assetsInlineLimit: 0,
+      reportCompressedSize: false,
+      rollupOptions: {
+        input: { "site-chrome": path.join(stageDir, "site-chrome.tsx") },
+      },
+    },
+    plugins: [
+      siteChromePlugin(() => headers),
+      {
+        name: "animama-site-chrome-modules",
+        generateBundle() {
+          moduleIds.push(...this.getModuleIds());
         },
       },
     ],

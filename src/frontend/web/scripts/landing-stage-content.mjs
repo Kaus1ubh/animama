@@ -376,3 +376,74 @@ export function pagePlugin(getPage) {
     },
   };
 }
+
+/** The file Animama Cloud reads to put the site header on its pages. */
+const SITE_CHROME_FILE = "site-chrome.json";
+
+/**
+ * The site header (`site-header.tsx`) prerendered for Animama Cloud's pages:
+ * one copy marking About as the current page and one for every other page.
+ * `site-chrome.tsx` renders the same component over it once it loads.
+ */
+export async function renderSiteHeaders(server) {
+  // Node loads React (CommonJS, which the module runner cannot evaluate);
+  // the header's own React imports resolve to the same copy.
+  const [{ createElement }, { renderToStaticMarkup }, { SiteHeader }] =
+    await Promise.all([
+      import("react"),
+      import("react-dom/server"),
+      server.ssrLoadModule("/scripts/landing-stage/site-header.tsx"),
+    ]);
+  // React hoists a preload link for the logo ahead of the header; the page
+  // loads it from the header itself.
+  const render = (current) =>
+    renderToStaticMarkup(createElement(SiteHeader, { current })).replace(
+      /^(?:<link [^>]*>)+/,
+      "",
+    );
+  return { default: render(undefined), about: render("about") };
+}
+
+/**
+ * Writes `site-chrome.json` beside the build: the header's entry script, every
+ * stylesheet it loads, and its prerendered markup (`renderSiteHeaders`).
+ * Animama Cloud wraps each of its pages' `#site-header` around that markup and
+ * links the styles and script (see the hosted contract's landing site archive).
+ */
+export function siteChromePlugin(getHeaders) {
+  return {
+    name: "animama-site-chrome",
+    generateBundle(_, bundle) {
+      const entry = Object.values(bundle).find(
+        (file) =>
+          file.type === "chunk" && file.isEntry && file.name === "site-chrome",
+      );
+      if (!entry) this.error("The site header entry was not built.");
+      // Its own stylesheets and those of every chunk it imports.
+      const styles = new Set();
+      const seen = new Set();
+      const visit = (chunk) => {
+        if (seen.has(chunk.fileName)) return;
+        seen.add(chunk.fileName);
+        for (const css of chunk.viteMetadata?.importedCss ?? [])
+          styles.add(`/${css}`);
+        for (const name of chunk.imports) visit(bundle[name]);
+      };
+      visit(entry);
+      this.emitFile({
+        type: "asset",
+        fileName: SITE_CHROME_FILE,
+        source: `${JSON.stringify(
+          {
+            schema_version: 1,
+            script: `/${entry.fileName}`,
+            styles: [...styles],
+            headers: getHeaders(),
+          },
+          null,
+          2,
+        )}\n`,
+      });
+    },
+  };
+}
