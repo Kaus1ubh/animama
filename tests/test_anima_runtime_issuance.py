@@ -14,7 +14,7 @@ from typing import Any
 from uuid import uuid4
 
 import pytest
-from sqlalchemy import delete, func, select, update
+from sqlalchemy import delete, event, func, select, update
 
 import animama
 from animama.adapters.content_store import FilesystemContentStore
@@ -299,9 +299,29 @@ async def test_changed_files_found_while_preparing_are_marked_when_committing(
         status = select(ORMContentCatalogItem.status).where(ORMContentCatalogItem.id == wave.id)
         assert await async_session.scalar(status) == "valid"
         await async_session.rollback()
-        issued = await service.commit(prepared, user_id=fixture.owner)
+        events: list[str] = []
+
+        def statement(_conn, _cursor, text, _parameters, _context, _executemany):  # noqa: ANN001, ANN202
+            events.append(text)
+
+        def committed(_conn) -> None:  # noqa: ANN001
+            events.append("COMMIT")
+
+        engine = async_session.bind.sync_engine
+        event.listen(engine, "before_cursor_execute", statement)
+        event.listen(engine, "commit", committed)
+        try:
+            issued = await service.commit(prepared, user_id=fixture.owner)
+        finally:
+            event.remove(engine, "before_cursor_execute", statement)
+            event.remove(engine, "commit", committed)
         assert issued is not None
         assert await async_session.scalar(status) == "scan_required"
+        # Marking commits before the loadout lock, which is then held until the snapshot is written.
+        lock = next(index for index, text in enumerate(events) if "FROM anima_loadouts" in text)
+        write = next(index for index, text in enumerate(events) if "INSERT INTO anima_runtime_snapshots" in text)
+        assert "COMMIT" in events[:lock]
+        assert "COMMIT" not in events[lock:write]
 
 
 @pytest.mark.parametrize("owner", ["another-owner", None])

@@ -5,6 +5,11 @@
 - Retrospective: no
 - Original decision date: 2026-10-21, through the owner's approval of decision P-7 in the [scene content loading ExecPlan](../plans/scene-content-loading/scene-content-loading-execplan.md) for [#630](https://github.com/raymond-van/animama/issues/630)
 - Decision basis: Explicit owner decision
+- Amended: 2026-10-28, issuance renews an unchanged loadout's unexpired snapshot
+  without hashing its members again, as
+  [#699](https://github.com/raymond-van/animama/issues/699) proposes, so the drift
+  consequence below now depends on reads that reach the server. The cache policy is
+  unchanged. Owner review of this consequence is pending in the delivering PR.
 
 ## Context
 
@@ -46,13 +51,17 @@ Manifests, JSON bundles, previews and other private bytes keep their policies.
   under the same revision, and it is verified again before use. The local app is
   accountless and loopback-only (ADR 0002), so that profile can already open the
   app. `private` keeps shared proxies from storing the bytes.
-- Drift is still found on every mount: runtime issuance, which is never cached,
-  hashes every member on disk and marks a changed file for rescan, and the
-  host-notification watcher reports changes too. Only a change between issuance and
-  a member's read in the same mount goes unnoticed on a cache hit, because the file
-  route's and the bundle route's own drift checks (`mark_scan_required` after a
-  failed verified read) run only on requests that reach the server. A client holding
-  a good cached copy keeps using the exact bytes its revision names.
+- Drift is found by the host-notification watcher, by any issuance that compiles
+  (it hashes every member on disk and marks a changed file for rescan), and by the
+  file and bundle routes' own checks (`mark_scan_required` after a failed verified
+  read) on requests that reach the server. Since the 2026-10-28 amendment, an
+  unchanged loadout's unexpired snapshot is renewed without compiling, so a change
+  the watcher misses goes unnoticed on cache hits until the catalog changes (a
+  watcher event, the start-up scan or a manual Rescan), the backend build changes,
+  a read reaches the server, or the snapshot lapses after 24 hours without an
+  issue. A client holding a good cached copy keeps using the exact bytes its
+  revision names, and every copy is verified against the revision's digests before
+  use.
 - A remote self-hosted installation behind an operator's authentication boundary
   (ADR 0002) keeps these cached bytes in the browser after that boundary's session
   ends, as it keeps other browser-retained data; they are keyed by revision URLs.

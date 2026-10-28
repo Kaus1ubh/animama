@@ -93,6 +93,8 @@ class RuntimeContentClosureCompiler:
         visible_items: list[CatalogContentEntry] | None = None,
         mark_scan_required: bool = True,
     ) -> RuntimeContentDescriptor:
+        """Compile the selections, marking files that changed since their last scan for Rescan unless told not to."""
+
         descriptor, changed = await self.compile_with_changes(
             user_id=user_id, loadout_revision=loadout_revision, selections=selections, visible_items=visible_items
         )

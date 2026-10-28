@@ -393,10 +393,10 @@ every admitted catalog item to its revision. A changed or broken root and its
 dependents are omitted; unrelated roots and text chat remain available.
 Canonical path, role, media type, size, and digest facts remain registered once
 in `content_catalog_files`; runtime issuance does not copy them into per-file
-rows. Compilation takes no locks and writes nothing. A short final transaction
-locks the loadout row, confirms its revision is the one compiled, and one
-set-based check proves the complete item/file union still matches the compiled
-descriptor before insertion. Issuing an unchanged loadout again renews its unexpired
+rows. Compilation takes no locks and writes nothing. Files it found changed are
+marked for Rescan first; then a short final transaction locks the loadout row,
+confirms its revision is the one compiled, and one set-based check proves the
+complete item/file union still matches the compiled descriptor before insertion. Issuing an unchanged loadout again renews its unexpired
 snapshot after the same checks, without compiling or reopening files (see the
 [HTTP API](http-api.md)). Idle playback facts are cached in process by the motion
 file's SHA-256 and the Gesture's implementation and settings.

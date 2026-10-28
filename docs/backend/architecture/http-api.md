@@ -592,8 +592,9 @@ unexpired snapshot compiled from the same inputs (the backend build, loadout
 revision, root selections, every catalog entry the roots reach, and the owner's
 Included Avatar face-part overrides) is renewed without compiling, reading content
 bytes or projecting again; the final transaction still rechecks it like a new one.
-Byte and bundle reads verify every file, so a file changed on disk without a
-catalog change is caught there and marked for Rescan. The snapshot pins the
+Byte and bundle reads that reach the server verify every file, so a file changed
+on disk without a catalog change is caught there and marked for Rescan; a browser
+reusing an immutable cached copy sends no such request (ADR 0028). The snapshot pins the
 complete admitted `catalog_item_id -> revision_sha256` map and persists one
 immutable typed catalog body; it does not copy a row for every file. Each
 member carries its canonical opaque `content_catalog_files.file_ref`. The file

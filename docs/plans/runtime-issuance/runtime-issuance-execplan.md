@@ -75,7 +75,8 @@ writes a cProfile of the reissues.
 - [x] Phase 3: compile outside the write transaction (reviewed with Phase 4).
 - [x] Phase 4: reissue an unchanged snapshot without recompiling (high-risk review
   of Phases 3–4 passed after one repair round; full suite passed).
-- [ ] Final integration review, full pre-push suite and PR.
+- [ ] Final integration review (round 1 repaired; recheck pending), full pre-push
+  suite and PR.
 
 ## Surprises & Discoveries
 
@@ -116,13 +117,21 @@ writes a cProfile of the reissues.
   with their contexts, every catalog entry the closures visit (all fields except
   `scanned_at`, so a rescan that changes nothing keeps reuse) or its absence, and
   the owner's Included Avatar face-part override. A reused snapshot is not
-  reopened and hashed at issuance, as R2 proposes; every bundle and file read
-  still verifies size and SHA-256 and marks changed files for Rescan, after which
-  the catalog differs and the next issue recompiles. A compile that finds changed
-  files stores no inputs digest.
+  reopened and hashed at issuance, as R2 proposes; every bundle and file read that
+  reaches the server still verifies size and SHA-256 and marks changed files for
+  Rescan, after which the catalog differs and the next issue recompiles. A compile
+  that finds changed files stores no inputs digest.
+- 2026-10-28 (agent; owner review pending in the PR): ADR 0028 argued that
+  issuance rehashes every member on each mount, which justified year-long
+  immutable caching of runtime members. With reuse, a disk change the watcher
+  misses goes unnoticed on cache hits until the catalog or build changes, a read
+  reaches the server, or the snapshot lapses. Integrity holds (the client verifies
+  every cached copy against the revision's digests). ADR 0028 carries a dated
+  amendment of that consequence; the alternative is hashing the members on reuse
+  too (one worker-thread call, about 50 MB for a starter Anima).
 - 2026-10-28 (agent): Idle playback facts are keyed by the motion file's SHA-256,
-  the implementation kind and the Gesture's canonical `config`, the only
-  document inputs `derive_idle_playback` reads. This is exact for unsaved
+  the implementation kind and the SHA-256 of the Gesture's canonical `config`,
+  the only document inputs `derive_idle_playback` reads. This is exact for unsaved
   documents (Save, preview) as well as revisions. Issuance uses a cached value
   without reopening the motion file only after its compile verified that file;
   other callers still open and verify the file and skip only the parse.
@@ -376,8 +385,9 @@ Changes:
 
 - `prepare` computes the inputs digest after the selections and looks for an
   unexpired snapshot of the same owner, Anima and digest. If one exists it loads
-  that snapshot's catalog and skips verification, compile, Idle
-  playback, projection, face parts and the identity hash.
+  that snapshot's catalog and skips verification, compile, Idle playback,
+  projection, applying face parts (the overrides are still read for the digest)
+  and the identity hash.
 - `commit` of a reuse locks and checks the loadout revision, rechecks admission
   with the stored pins and their current entries' files, renews the lease (only while it is
   still unexpired) and commits; if the row expired or vanished meanwhile, issuance
@@ -414,8 +424,8 @@ Check record (repository root; working tree `13bb462a` before the phase commit):
 
 Phase 4 rewrites Phase 3's `prepare` and `commit`, so one high-risk review covered
 `git diff 0c261861 752c37b6` (tree `0843e144`). The full pre-push suite for these
-phases runs once on `752c37b6`, which contains Phase 3, rather than once per phase;
-its result is recorded below when it completes.
+phases ran once on `752c37b6`, which contains Phase 3, rather than once per phase;
+its result is recorded after Code Review #2.
 
 #### Code Review #1 Findings
 
@@ -482,6 +492,93 @@ check, ruff and mypy pass; pytest 4956 passed, 29 skipped.
 Covers R1–R5 together against the issue's acceptance, then the full pre-push
 suite once on the final candidate; its results go in the PR.
 
+### Code Review #1 Findings
+
+Reviewed `644b3f53` (tree `6b0bbedd`) against `62fd8394`, reusing every recorded
+check. Integration verified: the Idle cache's `verified=True` holds on every path,
+stored bundles agree with advertised ones on the compile, conflict and reuse
+paths, the session split and reuse retries write nothing before a `None` commit,
+response fields, leases, diagnostics and refusals are unchanged, the schema and
+baseline agree, and no private references appear.
+
+- F-1 (blocking): ADR 0028 justified year-long immutable member caching with
+  "runtime issuance… hashes every member on disk" on every mount; reuse removes that
+  without amending the ADR, and the HTTP API doc said reads verify every file
+  although a browser cache hit sends no request.
+- F-2 (blocking): the plan did not yet show each change's effect on issuance and
+  bundle time, statements and lock time at 0 and 2 ms, or the compile path's lock.
+- N-1: marking changed files commits the session (`_complete_write`), which released
+  the loadout lock before the recheck and insert, so "one short transaction" was not
+  exact when files had changed (the old compile had the same gap).
+- N-2: `compile`'s wrapper had no docstring. N-3: plan wording (Idle key, face-part
+  reads, suite note, Outcomes). N-4: no record of the import-boundary check.
+  N-5: the inputs digest's docstring overstated repr equality.
+
+### Code Review #1 Revisions
+
+- F-1: ADR 0028 has a dated amendment of its drift consequence and an index note;
+  the Decision Log records the trade-off for owner review; the HTTP API doc says
+  reads that reach the server verify, and that a cached copy sends no request.
+- F-2: measurements below.
+- N-1: `commit` marks changed files for Rescan before taking the loadout lock, so
+  the lock is held from the revision check through the write;
+  `test_changed_files_found_while_preparing_are_marked_when_committing` asserts no
+  commit falls between the lock and the snapshot insert. This is a code change in
+  a high-risk scope, so it is rechecked as Code Review #2.
+- N-2, N-3, N-5: fixed. N-4: `scripts/repository-boundary/check-python-imports.py`:
+  0 forbidden edges, 302 shared modules.
+- Verification: the issuance and closure test files, 50 passed; ruff, format
+  check and full mypy pass. Repair rounds used: 1 of 2.
+
+### Measurements
+
+`scripts/perf/runtime_issuance.py --issues 10`, both supplied starters (1,199
+members, 49–50 MB, no diagnostics, 14 bundles, 1.91 MB response on every run), on
+an Apple M5 shared with other sessions' suites. Ranges span the two starters (and
+rounds); issue and bundle figures are medians per run.
+
+Baseline (`62fd8394`) against the final candidate, alternated over two rounds:
+
+| 0 ms round trip | Baseline | This change |
+| --- | --- | --- |
+| First issue | 405–702 ms, lock 340–636 ms, 9 statements | 346–388 ms, lock 45–62 ms, 11 statements |
+| Reissue | 456–521 ms, CPU 411–466 ms | 161–203 ms, CPU 131–171 ms |
+| Reissue loadout lock | 345–415 ms | 9–12 ms |
+| Reissue statements | 11 | 11 |
+| Bundle read | 25–34 ms, CPU 19–23 ms, 2 statements | 14–16 ms, CPU 11–12 ms, 2 statements |
+
+| 2 ms round trip | Baseline | This change |
+| --- | --- | --- |
+| First issue | 510–1054 ms, lock 454–970 ms | 554–948 ms, lock 110–124 ms |
+| Reissue | 620–651 ms, CPU 456–500 ms | 224–370 ms, CPU 123–188 ms |
+| Reissue loadout lock | 530–597 ms | 30–38 ms |
+| Bundle read | 66–80 ms | 27–32 ms |
+
+Each change, one alternated round (single runs are noisy; Phase 2 changes bundle
+reads, so its issuance figures differ from Phase 1's only by noise):
+
+| 0 ms | First issue (lock, statements) | Reissue (CPU, lock, statements) | Bundle read |
+| --- | --- | --- | --- |
+| Baseline | 603–628 ms (536–571 ms, 9) | 610–682 ms (523–579 ms, 515–563 ms, 11) | 36–40 ms |
+| Phase 1 `8d3b4b76` | 559–590 ms (486–521 ms, 9) | 489–624 ms (392–491 ms, 379–546 ms, 11) | 36–48 ms |
+| Phase 2 `4d0ba00d` | 348–365 ms (296–325 ms, 9) | 356–359 ms (307–315 ms, 270–291 ms, 11) | 13–14 ms |
+| Phase 3 `b9db3c5d` | 351–408 ms (51–62 ms, 10) | 321–336 ms (272–287 ms, 30–31 ms, 12) | 14–16 ms |
+| Final | 305–379 ms (49–55 ms, 11) | 114–159 ms (90–125 ms, 9–10 ms, 11) | 13–16 ms |
+
+| 2 ms | First issue (lock) | Reissue (CPU, lock) | Bundle read |
+| --- | --- | --- | --- |
+| Baseline | 639–850 ms (559–785 ms) | 760–956 ms (529–681 ms, 648–865 ms) | 85–90 ms |
+| Phase 1 | 666–832 ms (584–737 ms) | 453–534 ms (306–355 ms, 407–416 ms) | 72–77 ms |
+| Phase 2 | 586–820 ms (509–746 ms) | 626–664 ms (387–427 ms, 536–549 ms) | 30–34 ms |
+| Phase 3 | 366–380 ms (100–101 ms) | 374–402 ms (239–269 ms, 84–85 ms) | 25–26 ms |
+| Final | 795–947 ms (149–162 ms) | 325–387 ms (153–192 ms, 36–39 ms) | 30–33 ms |
+
+The final candidate's first issue at 2 ms looked slower than Phase 3's single run,
+so the two were alternated for three more rounds: Phase 3 533–1198 ms, final
+438–956 ms. The ranges overlap, so the compile path did not regress; it gains one
+statement (the reuse lookup) and, once per process, the build identity's source
+hash (about 20 ms in a worker thread).
+
 ## Validation and acceptance
 
 - Automated: the phase tests above and the full backend suite (`make check-test`).
@@ -501,4 +598,16 @@ restores the previous behavior after another reset.
 
 ## Outcomes & Retrospective
 
-Pending.
+Delivered R1–R5. On a starter Anima a reissue does about a third of the work it
+did, the loadout lock is held for milliseconds instead of the whole issue, and a
+bundle read no longer loads the 2 MB catalog. What remains of a reissue is the
+visible-catalog listing (the subject of #761), the inputs digest, decoding the
+stored catalog and building the 2 MB response (overlay, validation, gzip).
+
+Remaining limitations: a reused snapshot is not rehashed at issuance (ADR 0028
+amendment, owner review pending); a composition whose read sessions lag its
+primary sees refusals or conflicts rather than wrong snapshots; development
+databases need a reset. Follow-ups: chat turn setup still loads a snapshot's whole
+catalog; a cheap catalog version from #761 could let a reuse skip the listing; the
+build identity (`_backend_build`) could become shared so the catalog validator can
+include it; the runtime JSON bundle fetch uses `cache: "no-cache"`.

@@ -175,7 +175,9 @@ def _inputs_digest(
     every catalog entry reachable from the roots (whether admitted or not) or its
     absence, and the owner's Included Avatar face-part overrides. An entry's
     ``scanned_at`` is left out: a rescan that changes nothing keeps the digest.
-    Dataclass reprs of the catalog's own values are equal exactly when the values are.
+    Entries are fingerprinted by their dataclass reprs: different values give
+    different reprs, and the catalog decodes its JSON in a fixed key order, so equal
+    entries give equal ones (a mismatch would only cost a compile).
     """
 
     entries: dict[str, str | None] = {}
@@ -409,13 +411,16 @@ class AnimaRuntimeService:
     async def commit(self, prepared: PreparedRuntime, *, user_id: str) -> dict[str, Any] | None:
         """Fence and write a prepared snapshot in one short transaction, then commit.
 
-        Locks the loadout row first and returns ``None``, writing nothing, when the
-        loadout changed after preparation or a reused snapshot expired meanwhile, so
-        the caller prepares again. Otherwise it marks the files preparation found
-        changed for Rescan, rechecks every pin and file, inserts the snapshot or renews
-        the reused or identical one, and commits.
+        First marks the files preparation found changed for Rescan, which the catalog
+        commits on its own. Then it locks the loadout row and returns ``None``, writing
+        nothing more, when the loadout changed after preparation or a reused snapshot
+        expired meanwhile, so the caller prepares again. Otherwise it rechecks every
+        pin and file, inserts the snapshot or renews the reused or identical one, and
+        commits, holding the loadout lock throughout.
         """
 
+        for source, paths in prepared.changed_paths.items():
+            await self.catalog.mark_scan_required(source=source, relative_paths=paths)
         now = datetime.now(UTC)
         anima_id = prepared.anima_id
         loadout_revision = await self.session.scalar(
@@ -425,8 +430,6 @@ class AnimaRuntimeService:
             raise RuntimeSnapshotError("anima_not_found")
         if loadout_revision != prepared.loadout_revision:
             return None
-        for source, paths in prepared.changed_paths.items():
-            await self.catalog.mark_scan_required(source=source, relative_paths=paths)
         await self._recheck_admission(user_id=user_id, pins=prepared.admitted_item_revisions, members=prepared.members)
 
         admitted_item_revisions = prepared.admitted_item_revisions
