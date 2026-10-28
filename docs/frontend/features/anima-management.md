@@ -107,7 +107,8 @@ Animama found in the Anima's Avatar and how it plays it:
   rate. Clearing the measurements measures again ([GPU check](../runtime/avatar-animation.md#authored-liltoon-materials)).
 - **Face**: how each face part was found (model data, material names, a saved
   correction, estimated from blinking or the eye bone for an eye without its
-  own mesh, or not at all) and whether face landmarks and
+  own mesh, the head of a whole-body mesh part for a face painted on a
+  one-mesh Avatar, or not at all) and whether face landmarks and
   texture anchors are ready.
 - **Expressions**: the standard VRM expressions present (a preset that plays
   nothing counts as missing), those played through ARKit mixes or MMD morphs,

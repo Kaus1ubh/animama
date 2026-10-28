@@ -40,6 +40,8 @@ export function avatarIssueText(
       t("avatarDiagnostics.issues.face_parts_detection_failed"),
     face_parts_expressions_missing: () =>
       t("avatarDiagnostics.issues.face_parts_expressions_missing"),
+    face_parts_whole_body_head_missing: () =>
+      t("avatarDiagnostics.issues.face_parts_whole_body_head_missing"),
     face_parts_correction_invalid: () =>
       t("avatarDiagnostics.issues.face_parts_correction_invalid"),
     face_parts_correction_schema_unsupported: () =>

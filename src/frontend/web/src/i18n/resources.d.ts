@@ -603,6 +603,7 @@ export default interface Resources {
           "corrected": "Your correction",
           "estimatedBlink": "Estimated from blinking",
           "estimatedEyeBone": "Estimated from the eye bone",
+          "headRegion": "Head of a whole-body mesh part",
           "missing": "Not found",
           "names": "Material names",
           "signals": "Model data"
@@ -667,6 +668,7 @@ export default interface Resources {
         "face_parts_correction_unknown_bindings_other": "The saved correction for {{part, lowercase}} names {{count}} mesh parts this model does not have.",
         "face_parts_detection_failed": "Face parts could not be detected, so effects are placed by material names.",
         "face_parts_expressions_missing": "The model has no blink or “aa” expression, nor MMD, ARKit or VRChat shapes that stand in for them, so its face skin and eye details cannot be found from them.",
+        "face_parts_whole_body_head_missing": "One mesh part holds the whole body, but no forward-facing part of it skinned to the head bone moves when the model blinks or opens its mouth, so its face cannot be found and Avatar Effects on the face are skipped.",
         "file_unavailable": "The Avatar file could not be downloaded.",
         "file_unreadable": "The Avatar file is not a readable glTF or VRM file.",
         "iris_hide_unavailable": "Content asked to hide the irises (Fcl_EYE_Iris_Hide), but no iris mesh part of this Avatar can be hidden: none was found, or it shares a mesh part with the face skin.",

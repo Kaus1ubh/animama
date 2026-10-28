@@ -147,23 +147,34 @@ export function inspectDocument(document, fileBytes, resolveMeshTargetNames) {
  * Each face part role's source and how many mesh parts (and regions inside
  * shared ones) hold it, as `Avatar.load` detects them after the load-time
  * installs; null with the failure's code and message when detection throws,
- * which the app survives by falling back to material names.
+ * which the app survives by falling back to material names. As in
+ * Diagnostics, a mesh part holding only a region of the part counts as a
+ * region, and face skin that is the head of a whole-body mesh part says so.
  */
 function detectFaceParts(detectAvatarFaceParts, vrm, gltf) {
   try {
     const map = detectAvatarFaceParts(vrm, gltf, {});
     return {
       parts: Object.fromEntries(
-        Object.values(map.parts).map((part) => [
-          part.role,
-          {
-            source: part.source,
-            bindings: part.bindings.length,
-            regions: part.regions?.length ?? 0,
-            // What an eye without geometry of its own is placed from.
-            ...(part.estimate ? { estimate: part.estimate } : {}),
-          },
-        ]),
+        Object.values(map.parts).map((part) => {
+          const regionKeys = new Set(
+            (part.regions ?? []).map((region) => region.bindingKey),
+          );
+          return [
+            part.role,
+            {
+              source: part.source,
+              bindings: part.bindings.filter((key) => !regionKeys.has(key))
+                .length,
+              regions: part.regions?.length ?? 0,
+              // What an eye without geometry of its own is placed from.
+              ...(part.estimate ? { estimate: part.estimate } : {}),
+              ...(part.role === "face_skin" && regionKeys.size > 0
+                ? { headRegion: true }
+                : {}),
+            },
+          ];
+        }),
       ),
       issues: map.issues.map((issue) => issue.code),
     };
@@ -357,7 +368,9 @@ export function formatReport(report) {
                 ? ""
                 : part.estimate
                   ? ` from ${ESTIMATES[part.estimate] ?? part.estimate}`
-                  : ` (${part.bindings} mesh part(s)${part.regions ? `, ${part.regions} region(s)` : ""})`),
+                  : part.headRegion
+                    ? " (the head of a whole-body mesh part)"
+                    : ` (${part.bindings} mesh part(s)${part.regions ? `, ${part.regions} region(s)` : ""})`),
           )
           .join(", ")}`
       : `face parts: detection failed (${face.error}); the app places effects by material names`,

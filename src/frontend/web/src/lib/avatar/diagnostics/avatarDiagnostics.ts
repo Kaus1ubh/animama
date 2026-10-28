@@ -36,8 +36,17 @@ export type AvatarDiagnosticsFacePart = {
   source: AvatarFacePartSource;
   /** For an estimated eye, what places it (blinking or its bone). */
   estimate?: AvatarEyeEstimate;
+  /**
+   * For face skin, true when it is the head region of a mesh part that holds
+   * the whole body (`findFaceSkinRegion`).
+   */
+  headRegion?: true;
+  /** Mesh parts that are this part throughout. */
   bindingCount: number;
-  /** Mesh parts that hold this part as a region (lashes in the face mesh). */
+  /**
+   * Mesh parts that hold this part as a region (lashes in the face mesh, the
+   * face in a whole-body mesh).
+   */
   regionCount: number;
   confidence: number;
 };
@@ -136,14 +145,24 @@ function collectFace(avatar: Avatar): AvatarLiveDiagnostics["face"] {
   return {
     detected: map !== null,
     parts: map
-      ? Object.values(map.parts).map((part) => ({
-          role: part.role,
-          source: part.source,
-          ...(part.estimate ? { estimate: part.estimate } : {}),
-          bindingCount: part.bindings.length,
-          regionCount: part.regions?.length ?? 0,
-          confidence: part.confidence,
-        }))
+      ? Object.values(map.parts).map((part) => {
+          const regionKeys = new Set(
+            (part.regions ?? []).map((region) => region.bindingKey),
+          );
+          return {
+            role: part.role,
+            source: part.source,
+            ...(part.estimate ? { estimate: part.estimate } : {}),
+            ...(part.role === "face_skin" && regionKeys.size > 0
+              ? { headRegion: true as const }
+              : {}),
+            // A binding the part holds only a region of counts as a region.
+            bindingCount: part.bindings.filter((key) => !regionKeys.has(key))
+              .length,
+            regionCount: part.regions?.length ?? 0,
+            confidence: part.confidence,
+          };
+        })
       : [],
     landmarks: avatar.getFaceLandmarksSnapshot()?.status ?? "unavailable",
     textureAnchors:

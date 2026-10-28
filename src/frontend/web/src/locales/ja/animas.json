@@ -120,6 +120,7 @@
         "corrected": "あなたの修正",
         "estimatedBlink": "まばたきから推定",
         "estimatedEyeBone": "目のボーンから推定",
+        "headRegion": "全身のメッシュパーツの頭部",
         "missing": "見つかりません",
         "names": "マテリアル名",
         "signals": "モデルのデータ"
@@ -181,6 +182,7 @@
       "face_parts_correction_unknown_bindings_other": "{{part}}の保存された修正は、このモデルにないメッシュパーツを {{count}} 個指定しています。",
       "face_parts_detection_failed": "顔のパーツを検出できなかったため、エフェクトはマテリアル名で配置されます。",
       "face_parts_expressions_missing": "モデルに瞬きまたは「aa」の表情も、その代わりになる MMD・ARKit・VRChat のシェイプもないため、顔の肌と目の細部をそこから見つけられません。",
+      "face_parts_whole_body_head_missing": "1つのメッシュパーツが体全体を含んでいますが、頭のボーンにスキンされた前向きの部分に、まばたきや口の開きで動く箇所がないため、顔を見つけられず、顔のアバターエフェクトはスキップされます。",
       "file_unavailable": "アバターのファイルをダウンロードできませんでした。",
       "file_unreadable": "アバターのファイルは読み取り可能な glTF または VRM ファイルではありません。",
       "landmarks_anchor_missing": "顔のランドマークを固定する頭が見つかりませんでした。",

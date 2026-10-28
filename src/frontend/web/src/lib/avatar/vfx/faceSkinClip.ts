@@ -4,6 +4,7 @@ import type { Avatar } from "../Avatar";
 import { selectFaceIsland } from "./AvatarFaceTextureAnchors";
 import {
   collectPrimitiveData,
+  onlyTriangles,
   withoutTriangles,
   type RuntimePrimitiveBindingEntry,
 } from "./avatarPrimitiveUtils";
@@ -26,11 +27,18 @@ export type FaceSkinClipSource = {
   texture: THREE.Texture;
   /**
    * `createFaceVertexFilter`'s test for a primitive that also holds neck or
-   * body vertices; null for a head-skinned one, all of whose triangles count.
+   * body vertices; null for a head-skinned one, all of whose triangles count,
+   * and for one with a `headRegion`.
    */
   keepVertex: ((vertex: number) => boolean) | null;
   /** Its eye-line and lash part `regions` (triangle numbers), left out. */
   regions: ReadonlySet<number>;
+  /**
+   * For a primitive that holds the whole body, the face skin's head region
+   * (`findFaceSkinRegion`, triangle numbers): only it counts, and only its
+   * face island. Null for a face primitive.
+   */
+  headRegion?: ReadonlySet<number> | null;
 };
 
 /**
@@ -45,7 +53,10 @@ export type FaceSkinClipSource = {
  * (`selectFaceIsland`): an inner mouth, teeth or eyes inside the outline are
  * left out, VRoid's ears kept. A primitive that also holds the neck or body
  * keeps only the triangles whose corners all pass its `keepVertex` (the
- * island's, should none pass). `complete` is whether every triangle of every
+ * island's, should none pass). One that holds the whole body keeps only the
+ * face island of its `headRegion` (all of the region without one), so a
+ * fringe, hood or hair skinned to the head in front of the face is left out
+ * with the rest of the body. `complete` is whether every triangle of every
  * primitive was kept, as on a VRoid face: the clip then removes nothing the
  * face's own texture shows.
  */
@@ -75,14 +86,23 @@ export function collectFaceSkinClipTriangles(args: {
       anchorObject: args.anchorObject ?? source.entry.object,
     });
     if (!all) return unclipped;
-    const primitiveData = withoutTriangles(all, source.regions);
+    const headRegion = source.headRegion ?? null;
+    // One filter: a filtered primitive no longer numbers its triangles.
+    const primitiveData = headRegion
+      ? onlyTriangles(
+          all,
+          new Set(
+            [...headRegion].filter((triangle) => !source.regions.has(triangle)),
+          ),
+        )
+      : withoutTriangles(all, source.regions);
     const island = args.landmarks
       ? selectFaceIsland({
           primitiveData,
           position,
           uv,
           landmarks: args.landmarks,
-          withOuterIslands: true,
+          withOuterIslands: !headRegion,
         })
       : primitiveData.orderedVertexIndices;
     let kept = island;

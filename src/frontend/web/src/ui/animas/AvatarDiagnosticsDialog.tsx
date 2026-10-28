@@ -122,10 +122,14 @@ function partSourceLabel(
   t: TFunction<"animas">,
   source: AvatarFacePartSource,
   estimate: AvatarEyeEstimate | undefined,
+  headRegion: boolean,
 ): string {
   switch (source) {
     case "signals":
-      return t("avatarDiagnostics.face.sources.signals");
+      // Face skin found as the head of a mesh part that holds the whole body.
+      return headRegion
+        ? t("avatarDiagnostics.face.sources.headRegion")
+        : t("avatarDiagnostics.face.sources.signals");
     case "names":
       return t("avatarDiagnostics.face.sources.names");
     case "corrected":
@@ -512,7 +516,12 @@ function FaceSection({ report }: { report: AvatarDiagnosticsReport }) {
                     part.source === "missing" && "text-muted-foreground",
                   )}
                 >
-                  {partSourceLabel(t, part.source, part.estimate)}
+                  {partSourceLabel(
+                    t,
+                    part.source,
+                    part.estimate,
+                    part.headRegion === true,
+                  )}
                 </td>
                 <td className="px-4 py-1.5 text-right tabular-nums">
                   {part.regionCount > 0

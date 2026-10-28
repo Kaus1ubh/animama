@@ -175,6 +175,31 @@ test("says what places eyes without geometry of their own", () => {
   );
 });
 
+test("says when the face is the head of a whole-body mesh part", () => {
+  const wholeBody = {
+    ...report,
+    loaded: {
+      ...report.loaded,
+      face: {
+        parts: {
+          ...report.loaded.face.parts,
+          face_skin: {
+            source: "signals",
+            bindings: 0,
+            regions: 1,
+            headRegion: true,
+          },
+        },
+        issues: [],
+      },
+    },
+  };
+  assert.match(
+    formatReport(wholeBody),
+    /face parts: face_skin signals \(the head of a whole-body mesh part\),/,
+  );
+});
+
 test("says why face part detection failed", () => {
   const failed = {
     ...report,

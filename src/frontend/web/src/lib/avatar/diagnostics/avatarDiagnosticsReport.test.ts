@@ -124,6 +124,20 @@ describe("Avatar diagnostics reports", () => {
     expect(avatarDiagnosticsText(aPose)).toContain(
       "  eye_left: estimated from blink, 0 primitive(s), confidence 0.50\n",
     );
+    // A face in a whole-body primitive says it is that primitive's head.
+    aPose.live!.face.parts = [
+      {
+        role: "face_skin",
+        source: "signals",
+        headRegion: true,
+        bindingCount: 0,
+        regionCount: 1,
+        confidence: 0.6,
+      },
+    ];
+    expect(avatarDiagnosticsText(aPose)).toContain(
+      "  face_skin: signals (head of a whole-body primitive), 0 primitive(s) + regions in 1, confidence 0.60\n",
+    );
     expect(JSON.parse(avatarDiagnosticsJson(report))).toEqual(report);
   });
 

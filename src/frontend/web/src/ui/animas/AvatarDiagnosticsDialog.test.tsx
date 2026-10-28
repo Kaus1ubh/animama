@@ -455,6 +455,47 @@ describe("AvatarDiagnosticsDialog", () => {
     );
   });
 
+  it("says a face was found as the head of a whole-body mesh part", () => {
+    const wholeBody = structuredClone(report);
+    wholeBody.live!.face.parts = [
+      {
+        role: "face_skin",
+        source: "signals",
+        headRegion: true,
+        bindingCount: 0,
+        regionCount: 1,
+        confidence: 0.6,
+      },
+    ];
+    diagnostics.view = {
+      state: { status: "ready", report: wholeBody, issues: [], live: false },
+      effectNames: new Map(),
+    };
+    render();
+    click("Open diagnostics");
+    click("Face");
+    expect(dialog()?.textContent).toContain("Head of a whole-body mesh part");
+    expect(dialog()?.textContent).toContain("1 inside a shared part");
+  });
+
+  it("says when a whole-body mesh part has no face on its head", () => {
+    diagnostics.view = {
+      state: {
+        status: "ready",
+        report,
+        issues: [{ code: "face_parts_whole_body_head_missing" }],
+        live: false,
+      },
+      effectNames: new Map(),
+    };
+    render();
+    click("Open diagnostics");
+    click("Warnings (1)");
+    expect(dialog()?.textContent).toContain(
+      "One mesh part holds the whole body, but no forward-facing part of it skinned to the head bone moves",
+    );
+  });
+
   it("expands and collapses the Raw JSON tree", () => {
     render();
     click("Open diagnostics");

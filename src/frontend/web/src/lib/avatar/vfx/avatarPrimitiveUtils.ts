@@ -128,17 +128,38 @@ export function collectPrimitiveData(args: {
 
 /**
  * `data` without some of its triangles (numbered as `firstTriangle` counts),
- * such as part regions to leave out. The point map is shared.
+ * such as part regions to leave out. The point map is shared. Filter
+ * `collectPrimitiveData`'s result once: the triangles left are no longer
+ * numbered from `firstTriangle`.
  */
 export function withoutTriangles(
   data: CollectedPrimitiveData,
   triangles: ReadonlySet<number>,
 ): CollectedPrimitiveData {
   if (triangles.size === 0) return data;
+  return filterTriangles(data, (triangle) => !triangles.has(triangle));
+}
+
+/**
+ * `data` with only some of its triangles (numbered as `firstTriangle` counts),
+ * such as the face skin's head region of a whole-body primitive. The point
+ * map is shared; filter once, as for {@link withoutTriangles}.
+ */
+export function onlyTriangles(
+  data: CollectedPrimitiveData,
+  triangles: ReadonlySet<number>,
+): CollectedPrimitiveData {
+  return filterTriangles(data, (triangle) => triangles.has(triangle));
+}
+
+function filterTriangles(
+  data: CollectedPrimitiveData,
+  keep: (triangle: number) => boolean,
+): CollectedPrimitiveData {
   const ordered = data.orderedVertexIndices;
   const orderedVertexIndices: number[] = [];
   for (let offset = 0; offset + 2 < ordered.length; offset += 3) {
-    if (triangles.has(data.firstTriangle + offset / 3)) continue;
+    if (!keep(data.firstTriangle + offset / 3)) continue;
     orderedVertexIndices.push(
       ordered[offset]!,
       ordered[offset + 1]!,

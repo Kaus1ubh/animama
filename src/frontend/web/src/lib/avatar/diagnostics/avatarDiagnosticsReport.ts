@@ -163,6 +163,7 @@ function liveLines(live: AvatarDiagnosticsReport["live"]): string[] {
           (part) =>
             `  ${part.role}: ${part.source}` +
             (part.estimate ? ` from ${part.estimate}` : "") +
+            (part.headRegion ? " (head of a whole-body primitive)" : "") +
             `, ${part.bindingCount} primitive(s)` +
             (part.regionCount > 0 ? ` + regions in ${part.regionCount}` : "") +
             `, confidence ${part.confidence.toFixed(2)}`,

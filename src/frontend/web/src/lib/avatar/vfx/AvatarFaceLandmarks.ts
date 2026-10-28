@@ -12,6 +12,7 @@ import type {
 } from "./landmark-types";
 import {
   createFaceVertexFilter,
+  findFaceSkinRegion,
   resolveAvatarFacePartEntries,
   type AvatarEyeEstimate,
   type AvatarEyeEstimateGeometry,
@@ -1243,8 +1244,8 @@ function measureTextureLayout(args: {
 
 /**
  * A primitive's bounds in anchor space. A face primitive that also holds the
- * neck or body counts only its head-weighted vertices
- * (`createFaceVertexFilter`).
+ * neck or body counts only its head-weighted vertices, or its head region's
+ * when it holds the whole body (`createFaceVertexFilter`).
  */
 function computePrimitiveBoundsInAnchorSpace(args: {
   avatar: Avatar;
@@ -1254,7 +1255,11 @@ function computePrimitiveBoundsInAnchorSpace(args: {
   const primitiveData = collectPrimitiveData(args);
   if (!primitiveData) return null;
   const keep = args.avatar.vrm
-    ? createFaceVertexFilter(args.avatar.vrm, args.binding.object)
+    ? createFaceVertexFilter(
+        args.avatar.vrm,
+        args.binding.object,
+        findFaceSkinRegion(args.avatar.facePartMap, args.binding.bindingKey),
+      )
     : null;
   if (!keep) return createBoxFromPoints(primitiveData.orderedPoints);
   const points = primitiveData.uniqueVertexIndices

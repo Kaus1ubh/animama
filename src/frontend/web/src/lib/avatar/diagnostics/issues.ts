@@ -23,6 +23,7 @@ export const AVATAR_ISSUE_CODES = [
   // Face parts (`vfx/faceParts.ts`, `Avatar`, `runtimeAvatarFaceParts.ts`).
   "face_parts_detection_failed",
   "face_parts_expressions_missing",
+  "face_parts_whole_body_head_missing",
   "face_parts_correction_invalid",
   "face_parts_correction_schema_unsupported",
   "face_parts_correction_other_file",

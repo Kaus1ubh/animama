@@ -120,6 +120,7 @@
         "corrected": "你的修正",
         "estimatedBlink": "根據眨眼推測",
         "estimatedEyeBone": "根據眼睛骨骼推測",
+        "headRegion": "全身網格部件的頭部",
         "missing": "找不到",
         "names": "材質名稱",
         "signals": "模型資料"
@@ -181,6 +182,7 @@
       "face_parts_correction_unknown_bindings_other": "{{part}}的已儲存修正指定了此模型沒有的 {{count}} 個網格部件。",
       "face_parts_detection_failed": "無法識別臉部部位，因此依材質名稱放置特效。",
       "face_parts_expressions_missing": "模型沒有眨眼或「aa」表情，也沒有可替代它們的 MMD、ARKit 或 VRChat 形態，因此無法據此找到臉部皮膚和眼部細節。",
+      "face_parts_whole_body_head_missing": "一個網格部件包含整個身體，但其中蒙皮到頭部骨骼、朝向前方的部分在眨眼或張嘴時都不會移動，因此無法找到臉部，臉部的形象特效將被略過。",
       "file_unavailable": "無法下載虛擬形象檔案。",
       "file_unreadable": "虛擬形象檔案不是可讀取的 glTF 或 VRM 檔案。",
       "landmarks_anchor_missing": "找不到用來固定臉部特徵點的頭部。",

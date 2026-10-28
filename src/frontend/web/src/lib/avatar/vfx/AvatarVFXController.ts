@@ -80,6 +80,7 @@ import { matchAvatarTargetRole } from "./avatarRuntimeTargeting";
 import {
   AVATAR_FACE_PART_LABELS,
   createFaceVertexFilter,
+  findFaceSkinRegion,
   findMissingFacePart,
   hasEstimatedEyes,
   resolveFacePartTargetRoles,
@@ -370,6 +371,12 @@ const EYE_HOVER_AUTO_DISABLED_ROLES: AvatarVFXTargetRole[] = [
 ];
 /** Hidden roles whose parts can also be regions of a shared primitive. */
 const DETAIL_REGION_ROLES = ["eyeline", "eyelash"] as const;
+/**
+ * Roles hidden region by region when a part is a region of a shared
+ * primitive: the eye details, and face skin that is the head region of a
+ * primitive holding the whole body.
+ */
+const HIDDEN_REGION_ROLES = [...DETAIL_REGION_ROLES, "face_skin"] as const;
 const HOVER_BACKDROP_STRIPPED_TEXTURE_PROPS = [
   "alphaMap",
   "normalMap",
@@ -1237,7 +1244,10 @@ function resolveAnchoredTexturePlacementInstances(args: {
 /**
  * Where a texture effect draws on one slot's canvas, in its pixels. Whole-face
  * art covers the face rectangle, clipped to the face skin's own triangles
- * when `faceClip` (read only for that art) returns their path.
+ * when `faceClip` (read only for that art) returns their path; where the clip
+ * is `faceClipRequired` (a face inside a whole-body primitive, whose body
+ * shares the texture) and cannot be built, it is not drawn. Anchored decals
+ * are clipped to `decalClip` when it returns one (the same faces).
  */
 function resolveTextureEffectPlacements(args: {
   image: CanvasImageSource;
@@ -1246,6 +1256,8 @@ function resolveTextureEffectPlacements(args: {
   profile: AvatarVFXModelProfile;
   faceTextureAnchors: AvatarFaceTextureAnchorsSnapshot | null;
   faceClip?: () => Path2D | null;
+  faceClipRequired?: boolean;
+  decalClip?: () => Path2D | null;
 }): {
   placements: TexturePixelPlacementInstance[];
   warning?: string;
@@ -1344,12 +1356,14 @@ function resolveTextureEffectPlacements(args: {
         warning: resolved.warning,
       };
     }
+    const clipPath = args.decalClip?.() ?? null;
     return {
       placements: resolved.instances.map((instance) => ({
         label: instance.label,
         mirrorX: instance.mirrorX,
         ...(instance.effectMirror ? { effectMirror: true } : {}),
         rect: toPixelFloatRect(size, instance.rect),
+        ...(clipPath ? { clipPath } : {}),
       })),
     };
   }
@@ -1361,6 +1375,14 @@ function resolveTextureEffectPlacements(args: {
   const faceRect = profile.faceLayout?.rect;
   if (!faceRect) return { placements: [] };
   const clipPath = args.faceClip?.() ?? null;
+  if (!clipPath && args.faceClipRequired) {
+    // Unclipped, the art would cover the body sharing the face's texture.
+    return {
+      placements: [],
+      warning:
+        "Whole-face art is not drawn: the face is the head of a mesh part that holds the whole body, and its outline on the texture could not be read.",
+    };
+  }
   return {
     placements: [
       {
@@ -2767,6 +2789,31 @@ export class AvatarVFXController {
     return clip;
   }
 
+  /**
+   * The face skin's clip for decals and eye and mouth cleanup on a face that
+   * is the head region of a primitive holding the whole body: the body shares
+   * its texture, so art reaching past the face's island would paint it. Null
+   * on other faces, where they draw unclipped.
+   */
+  private _faceRegionClip(
+    binding: BindingState,
+    slot: BindingTextureState,
+  ): Path2D | null {
+    return this._faceIsHeadRegion(binding)
+      ? this._faceSkinClip(binding, slot)
+      : null;
+  }
+
+  /**
+   * Whether `binding` is face skin only as its head region: its primitive
+   * holds the whole body (`findFaceSkinRegion`).
+   */
+  private _faceIsHeadRegion(binding: BindingState): boolean {
+    return (
+      findFaceSkinRegion(this._avatar.facePartMap, binding.bindingKey) !== null
+    );
+  }
+
   private _resolveFaceSkinClip(
     binding: BindingState,
     slot: BindingTextureState,
@@ -2791,13 +2838,17 @@ export class AvatarVFXController {
       const texture = face.textureSlots.find(
         (candidate) => candidate.texture.source === image,
       )?.texture;
+      const headRegion = findFaceSkinRegion(map, face.bindingKey);
       return texture
         ? [
             {
               entry: face.entry,
               texture,
-              keepVertex: createFaceVertexFilter(vrm, face.object),
+              keepVertex: headRegion
+                ? null
+                : createFaceVertexFilter(vrm, face.object),
               regions: regions.get(face.bindingKey) ?? new Set<number>(),
+              headRegion: headRegion ? new Set(headRegion.triangles) : null,
             },
           ]
         : [];
@@ -2806,14 +2857,21 @@ export class AvatarVFXController {
     const shared = Array.from(this._textureImageUsers.get(image) ?? []).some(
       (key) => !faceKeys.has(key),
     );
-    const { triangles, complete } = collectFaceSkinClipTriangles({
-      avatar: this._avatar,
-      anchorObject: this._avatar.faceLandmarks?.getAnchorObject() ?? null,
-      landmarks: this._avatar.getFaceLandmarksSnapshot(),
-      sources,
-    });
-    if ((!shared && complete) || triangles.length === 0) return null;
-    return createClipPath(dilateClipTriangles(triangles, slot));
+    // Measured as drawn without effects: an effect hiding face skin collapses
+    // its triangles in place, and the clip outlives that effect.
+    const { triangles, complete } = this._regionHider.withRegionsShown(() =>
+      collectFaceSkinClipTriangles({
+        avatar: this._avatar,
+        anchorObject: this._avatar.faceLandmarks?.getAnchorObject() ?? null,
+        landmarks: this._avatar.getFaceLandmarksSnapshot(),
+        sources,
+      }),
+    );
+    if (!shared && complete) return null;
+    // No triangle left to draw through counts as unreadable: unclipped as
+    // before, or, on a face inside a whole-body primitive, not drawn.
+    const dilated = dilateClipTriangles(triangles, slot);
+    return dilated.length > 0 ? createClipPath(dilated) : null;
   }
 
   /**
@@ -2975,6 +3033,8 @@ export class AvatarVFXController {
           profile: this._placementProfile(),
           faceTextureAnchors: anchors,
           faceClip: () => (slot ? this._faceSkinClip(binding, slot) : null),
+          faceClipRequired: this._faceIsHeadRegion(binding),
+          decalClip: () => (slot ? this._faceRegionClip(binding, slot) : null),
         });
         if (resolved.placements.length) layer.placements = resolved.placements;
       }
@@ -3687,6 +3747,8 @@ export class AvatarVFXController {
         profile: this._placementProfile(),
         faceTextureAnchors: args.faceTextureAnchors,
         faceClip: () => this._faceSkinClip(args.binding, slotState),
+        faceClipRequired: this._faceIsHeadRegion(args.binding),
+        decalClip: () => this._faceRegionClip(args.binding, slotState),
       });
       if (drawResult.placements.length === 0) {
         textureDrawWarning = textureDrawWarning ?? drawResult.warning ?? null;
@@ -4361,11 +4423,17 @@ export class AvatarVFXController {
         }
 
         if (shouldApplyFlattenToSlot && staticSegments[0]) {
+          const context = staticSegments[0].context;
+          // On a face inside a whole-body primitive the cleanup keeps to the
+          // face, like its decals.
+          const regionClip = this._faceRegionClip(binding, slotState);
+          context.save();
+          if (regionClip) context.clip(regionClip);
           if (flattenState.shouldRenderEyes) {
             flattenState.eyeRegions.forEach((region) => {
               if (!flattenColorForSlot) return;
               drawFeatheredFlattenEllipse({
-                context: staticSegments[0].context,
+                context,
                 region,
                 fillColor: flattenColorForSlot,
                 width: slotState.width,
@@ -4379,13 +4447,14 @@ export class AvatarVFXController {
             flattenColorForSlot
           ) {
             drawFeatheredFlattenEllipse({
-              context: staticSegments[0].context,
+              context,
               region: flattenState.mouthRegion,
               fillColor: flattenColorForSlot,
               width: slotState.width,
               height: slotState.height,
             });
           }
+          context.restore();
         }
 
         const base = staticSegments[0]?.context;
@@ -4701,12 +4770,18 @@ export class AvatarVFXController {
     disableTargetRoles: AvatarVFXTargetRole[],
   ): string[] {
     if (disableTargetRoles.length === 0) return [];
-    this._hideDetailRegions(sourceEffectId, disableTargetRoles);
+    this._hideRegions(sourceEffectId, sourceBinding, disableTargetRoles);
 
+    const map = this._avatar.facePartMap;
     const disabledBindingKeys: string[] = [];
     this._bindings.forEach((binding) => {
       if (binding.bindingKey === sourceBinding?.bindingKey) return;
-      if (!bindingIsHiddenByRoles(binding.targetRoles, disableTargetRoles)) {
+      // Face skin that is only a head region is hidden as that region, not
+      // with the whole body its primitive holds.
+      const roles = findFaceSkinRegion(map, binding.bindingKey)
+        ? binding.targetRoles.filter((role) => role !== "face_skin")
+        : binding.targetRoles;
+      if (!bindingIsHiddenByRoles(roles, disableTargetRoles)) {
         return;
       }
       if (binding.autoDisableSources.size === 0) {
@@ -4757,18 +4832,28 @@ export class AvatarVFXController {
   }
 
   /**
-   * Hide the eye lines and lashes kept inside the face or eye primitives
-   * (part `regions`), which hiding whole primitives cannot reach.
+   * Hide the parts kept as regions of shared primitives (part `regions`),
+   * which hiding whole primitives cannot reach: eye lines and lashes inside
+   * the face or eye primitives, and face skin that is the head region of a
+   * primitive holding the whole body. The face the effect's own art is on
+   * (`sourceBinding`) stays visible, as a hidden binding would.
    */
-  private _hideDetailRegions(
+  private _hideRegions(
     sourceEffectId: string,
+    sourceBinding: BindingState | null,
     roles: readonly AvatarVFXTargetRole[],
   ): void {
     const map = this._avatar.facePartMap;
     if (!map) return;
-    for (const role of DETAIL_REGION_ROLES) {
+    for (const role of HIDDEN_REGION_ROLES) {
       if (!roles.includes(role)) continue;
       for (const region of map.parts[role].regions ?? []) {
+        if (
+          role === "face_skin" &&
+          region.bindingKey === sourceBinding?.bindingKey
+        ) {
+          continue;
+        }
         const binding = this._bindings.get(region.bindingKey);
         if (!binding) continue;
         const hidden = this._regionHider.hide(

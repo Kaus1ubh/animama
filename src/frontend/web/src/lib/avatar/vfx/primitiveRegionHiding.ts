@@ -67,6 +67,20 @@ export class PrimitiveRegionHider {
     }
   }
 
+  /**
+   * Run `read` with every hidden triangle drawn as it was, then hide them
+   * again: for measuring a primitive as it is rather than as active effects
+   * leave it (the face skin's clip, which is cached).
+   */
+  withRegionsShown<T>(read: () => T): T {
+    for (const state of this._geometries.values()) write(state, new Set());
+    try {
+      return read();
+    } finally {
+      for (const state of this._geometries.values()) write(state);
+    }
+  }
+
   /** Restore every hidden triangle, as before a rebuild or disposal. */
   restoreAll(): void {
     for (const state of this._geometries.values()) {
@@ -77,12 +91,11 @@ export class PrimitiveRegionHider {
   }
 }
 
-/** Write each touched triangle as hidden (degenerate) or as it was. */
-function write(state: HiddenGeometry): void {
-  const hidden = new Set<number>();
-  for (const triangles of state.sources.values()) {
-    for (const triangle of triangles) hidden.add(triangle);
-  }
+/**
+ * Write each touched triangle as hidden (degenerate) or as it was: hidden
+ * when any source hides it, unless `hidden` names the set to write instead.
+ */
+function write(state: HiddenGeometry, hidden = hiddenBySources(state)): void {
   for (const [triangle, [a, b, c]] of state.original) {
     const at = triangle * 3;
     if (hidden.has(triangle)) {
@@ -96,4 +109,13 @@ function write(state: HiddenGeometry): void {
     }
   }
   state.index.needsUpdate = true;
+}
+
+/** Every triangle some source hides. */
+function hiddenBySources(state: HiddenGeometry): Set<number> {
+  const hidden = new Set<number>();
+  for (const triangles of state.sources.values()) {
+    for (const triangle of triangles) hidden.add(triangle);
+  }
+  return hidden;
 }

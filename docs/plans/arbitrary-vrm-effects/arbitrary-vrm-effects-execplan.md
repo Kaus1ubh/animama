@@ -68,7 +68,7 @@ Evidence in this plan and the PR is counts and pass/fail only.
 - [x] Phase 2: per-primitive shape names (2026-10-28; review passed).
 - [x] Phase 3: blink and mouth signals beyond VRM presets (2026-10-28; review passed after one repair round; owner live check pending).
 - [x] Phase 4: eyes without separate eye geometry (2026-10-28; review passed after one repair round).
-- [ ] Phase 5: the face inside a whole-body mesh.
+- [x] Phase 5: the face inside a whole-body mesh (2026-10-28; review passed after two repair rounds).
 - [ ] Phase 6: painted art that shows.
 - [ ] Phase 7: size-aware placement and framing.
 - [ ] Phase 8: rig and material fallbacks (deferrable, Q3).
@@ -699,6 +699,179 @@ a warning.
 Checks: as Phase 3, plus private survey renders of Olivia, Polybot and Carol
 North.
 
+Starting source: `4990aa83`.
+
+Implementation (2026-10-28): when no head-skinned or partly-head face skin is
+found, the candidates are primitives that both `blink` and `aa` morph with under
+half their skin weight on the head. The head region is the triangles whose three
+corners are mainly head-skinned (`createBoneClassifier`), that wind forward and
+whose centre lies in the front half of the head's depth; `blink` or `aa` must
+move one of its vertices, and the candidate covering the most eye-window area
+wins. The region then narrows to the face's own UV island plus the islands inside
+its outline (painted eyes and mouth), because a hood rim in front of a face
+otherwise became its front. It is stored as `parts.face_skin.regions`, and
+landmark bounds, eye-bone estimates, texture anchors and the face clip read it
+(`findFaceSkinRegion`). Whole-face art is painted into the texture, so the clip
+keeps it to that island; on whole-body faces decals and the eye and mouth
+cleanup are clipped too. A whole-body candidate without such a region reports
+`face_parts_whole_body_head_missing` (all locales), and a correction naming it as
+face skin keeps to its head region. The anchors' island rule moved to new
+`vfx/faceIsland.ts`. New `testing/wholeBodyVrm.ts` and `vfx/wholeBodyFace.test.ts`;
+docs in `avatar-vfx.md` ("Faces inside a whole-body mesh") and
+`features/anima-management.md`. Detection takes about 5 ms on the largest
+survey mesh, at load only.
+
+Check record (tree `2fa30ac1`):
+
+| Command | Directory | Result |
+| --- | --- | --- |
+| `timeout 900 npx vitest run src/lib/avatar src/ui tests/avatar src/lib/runtime-content` | `src/frontend/web` | 3693 passed, 2 skipped; baselines unchanged |
+| `npx tsc -b`; `npx tsc -p tsconfig.scripts.json --noEmit`; eslint and prettier `--check` on touched files | `src/frontend/web` | clean |
+| `timeout 900 python3 ../../scripts/heavy-slot.py -- pnpm check` | `src/frontend` | exit 0 |
+| `timeout 900 python3 ../../scripts/heavy-slot.py -- pnpm web:test:browser` | `src/frontend` | 132/132 |
+| `evidence/render-set.sh`, `--diff` against the baselines | `src/frontend/web` | 31 rendered, 0 failed; all at 0 px (`finger-heart-pose` against the alternate) |
+
+Private calibration (counts only; effects of 16, Reactions of 6):
+
+| Avatar | Before | After | Remaining |
+| --- | --- | --- | --- |
+| Olivia | 1, 1 | 14, 5 | tear and under-eye too small (sized from thin painted eyes) |
+| Polybot | 1, 0 | 10, 3 | blush, kiss, tear and under-eye draw nothing even unclipped (Phase 6); X and dot eyes small (Phase 7) |
+| Carol North, Maromage, ふぁふぁ | unchanged | unchanged | renders 0 px against before |
+
+By eye: Red Face and stone stay on Olivia's and Polybot's faces with hood, shell,
+clothes and body untouched. Carol North, just over half head-weighted, keeps the
+older partly-head path, so whole-face art also tints her hair and ears.
+
+#### Code Review #1 Findings
+
+Reviewed tree `2fa30ac1` (standard tier, initial full review); the reviewer
+reran `node --test scripts/vrm-inspect.test.mjs` (6/6) after the island-rule
+move and confirmed by reading that the refactors leave other faces unchanged.
+
+- **P5-R1-F1 (required):** `hideParts: ["face_skin"]` on a whole-body face hides
+  the whole body primitive, because the binding now carries the face-skin role
+  and auto-disable hides whole bindings.
+- **P5-R1-F2:** the under-50%-head trigger leaves single-mesh Avatars with a
+  detailed head (Carol North at 52%) on the partly-head path, which tints hair,
+  ears and any head-skinned hat; a "holds body weight below the neck" trigger
+  matches R3 better.
+- **P5-R1-F3:** a small head-skinned primitive of the same mesh can take the
+  face from a whole-body mesh (pre-existing).
+- **P5-R1-F4:** the whole-body clip fails open (whole-body tint) when the UVs
+  are interleaved.
+- **P5-R1-F5:** the name fallback can assign a whole-body primitive as face skin
+  without a region.
+- **P5-R1-F6:** no eye-bone, VRM 0, Carol-boundary or hide tests.
+- **P5-R1-F7:** `vrm:inspect` does not mark a head-region face skin.
+- Carry-over: Polybot's blush, kiss, tear and under-eye now apply and draw
+  nothing, a false success until Phase 6's apply-time check.
+
+Result: blocked on F1.
+
+#### Code Review #1 Revisions
+
+- F1 accepted: hide only the region's triangles through the region hider.
+- F2 accepted as an implementation choice within R3: route face primitives
+  that hold substantial weight below the neck to the head-region path, with a
+  boundary test and a fresh private calibration; if no threshold separates the
+  survey Avatars cleanly, report instead of forcing it.
+- F3 deferred: documented as a limitation; no survey Avatar has it.
+- F4, F5, F6, F7 accepted.
+- Carry-over recorded under Phase 6.
+
+Repair round 1 (tree `7bf48113`): a binding whose face skin is a head region no
+longer counts the face-skin role as a whole binding, and hiding face skin hides
+only the region's triangles (F1, test fails before the fix). Whole-face art on
+a head-region face is not placed, with a warning, when its clip cannot be built
+(F4). Face skin found by name or correction keeps to the head region when one
+can be measured; otherwise a corrected primitive stays whole and a name match is
+dropped (F5). Tests run on a synthetic VRM 0 as well, and cover the eye-bone
+branch (F6). `vrm:inspect` marks head-region face skin (F7). Docs updated,
+including the F3 limitation.
+
+F2 was tried and held back. A below-neck skin share of 0.35 separates the survey
+Avatars (Carol North 0.46; Maromage 0.26; ふぁふぁ, HAOLAN and the Included
+Avatars about 0; Olivia 0.77, Polybot 0.69) and stops Carol's hair and ear tint,
+but it cost her three eye effects: estimated-eye planes sit 35% of the way
+toward the face front, and the narrowed face front puts them behind the surface
+over her eyes. Decision (agent, 2026-10-28): reverted, and moved to Phase 7
+together with placing estimated-eye planes in front of the measured surface;
+Carol's hair and ear tint stays a documented limitation until then.
+
+| Command | Directory | Result |
+| --- | --- | --- |
+| `timeout 900 npx vitest run src/lib/avatar src/ui tests/avatar src/lib/runtime-content` | `src/frontend/web` | 3701 passed, 2 skipped; baselines unchanged |
+| `npx tsc -b`; `npx tsc -p tsconfig.scripts.json --noEmit`; eslint and prettier `--check` on touched files | `src/frontend/web` | clean |
+| `node --test scripts/vrm-inspect.test.mjs` | `src/frontend/web` | 7/7 |
+| `timeout 900 python3 ../../scripts/heavy-slot.py -- pnpm check` | `src/frontend` | exit 0 |
+| `timeout 900 python3 ../../scripts/heavy-slot.py -- pnpm web:test:browser` | `src/frontend` | 132/132 |
+| `face_red`, `petrified_cracks`, `heart_eyes`, `eye_confused_swirl`, `--diff` against the baselines | `src/frontend/web` | 0 px (the changes act only on head-region faces, which Included Avatars lack) |
+| Private calibration (counts only) | `src/frontend/web` | unchanged: Olivia 14/5, Polybot 10/3, Carol North 13/5, Maromage 12/5, ふぁふぁ 16/6, HAOLAN 11/4 |
+
+#### Code Review #2 Findings
+
+Reviewed tree `7bf48113` (targeted recheck). A scratch Vitest experiment on the
+`wholeBodyFace.test.ts` harness confirmed the implementer's open note:
+
+- **P5-R2-F1 (required):** the face clip is cached per binding and first built
+  while a `hideParts: ["face_skin"]` effect has collapsed the region, so an
+  empty clip is cached; afterwards Red Face applies with no warning and draws
+  nothing (control without the hide: 200 triangles).
+- **P5-R2-F2 (required):** region hiding ignores the source binding, so Red Face
+  with "Hide face skin" hides its own region, and eye art bound to the
+  whole-body face hides the whole face.
+- **P5-R2-F3:** the head-missing warning can be wrong when a head region exists
+  that blink and aa do not move, since the name rule then keeps it.
+- **P5-R2-F4:** the deferred limitation should name ears and head-skinned hats
+  or hoods, not only hair; the deferral needs owner acceptance.
+
+Result: blocked on F1 and F2. Repair round 2 is the last.
+
+#### Code Review #2 Revisions
+
+- F1, F2 accepted: build the clip from the original triangles and treat an
+  empty clip as unreadable; keep the source binding's own face region visible;
+  tests for both sequences.
+- F3 accepted: drop the name match in that case too.
+- F4 accepted: docs name ears and head-skinned hats or hoods. The F2 deferral is
+  listed for owner acceptance in Phase 9.
+
+Repair round 2 (tree `78ce77b8`): the face clip is measured with hidden regions
+shown again (`withRegionsShown` in `vfx/primitiveRegionHiding.ts`), and a clip
+with no triangles left is unreadable, so a head-region face skips whole-face art
+with a warning (F1). Region hiding skips the face region the effect's own art is
+on (F2). A whole-body primitive matched by name needs a head region that blink or
+the mouth moves, shared with detection as `faceExpressionsMove` (F3). Docs per
+F4. Each guard fails its test when removed.
+
+| Command | Directory | Result |
+| --- | --- | --- |
+| `timeout 900 npx vitest run src/lib/avatar src/ui tests/avatar src/lib/runtime-content` | `src/frontend/web` | 3707 passed, 2 skipped; baselines unchanged |
+| `npx tsc -b`; `npx tsc -p tsconfig.scripts.json --noEmit`; eslint and prettier `--check` on touched files | `src/frontend/web` | clean |
+| `node --test scripts/vrm-inspect.test.mjs` | `src/frontend/web` | 7/7 |
+| `timeout 900 python3 ../../scripts/heavy-slot.py -- pnpm check` | `src/frontend` | exit 0 |
+| `timeout 900 python3 ../../scripts/heavy-slot.py -- pnpm web:test:browser` | `src/frontend` | 132/132 |
+| `face_red`, `petrified_cracks`, `heart_eyes`, `eye_confused_swirl`, `--diff` against the baselines | `src/frontend/web` | 0 px |
+| Private Olivia and Polybot (counts only) | `src/frontend/web` | 14/5 and 10/3, renders 0 px against round 1 |
+
+#### Code Review #3 Findings
+
+Reviewed tree `78ce77b8` (final targeted recheck). F1–F4 resolved; the
+reviewer's scratch reproduction now builds a 200-triangle clip while the face is
+hidden and Red Face afterwards covers the face with no warnings; Red Face with
+"Hide face skin" hides none of its own face. Optional P5-R3-F1: a non-whole-body
+face whose clip triangles all vanish (fully degenerate UVs) now gets whole-face
+art unclipped instead of none; not a practical case. Result: pass.
+
+#### Code Review #3 Revisions
+
+P5-R3-F1: no change (degenerate-UV faces only; Included Avatars have real clip
+triangles). Repair budget used up.
+
+Phase 5 complete (agent-ready; no owner gate in this phase; the Carol North
+limitation goes to Phase 7, then owner acceptance in Phase 9 if it remains).
+
 ### Phase 6: Painted art that shows (R4)
 
 Review tier: standard. This phase starts with a bounded investigation.
@@ -710,6 +883,9 @@ displays. Hypotheses, in order: the anchors are projected into the wrong UV
 island (overlapping or mirrored islands); the painted texture is not the one the
 face material displays; the paint lands under a primitive that hides it. Also
 check why `petrified_cracks` on ふぁふぁ draws its tone but not its crack lines.
+
+Carried from Phase 5: Polybot's blush, kiss, tear and under-eye now apply and
+draw nothing; the apply-time check must turn them into named skips or fix them.
 
 Carried from Phase 4 (P4-R2-F1): iris art skipped on an estimated eye gets its
 own Diagnostics issue code and text instead of "no detected left eye".
@@ -741,7 +917,12 @@ Intended changes:
 3. Head contacts in `poses/anatomy/arms.ts` scale by measured head size when it
    differs from the body-height estimate; Particle Effects scale by body height
    relative to the Included Avatars.
-4. The chat camera presets (`sceneCameraPresets.ts`) frame Portrait and close
+4. Carried from Phase 5 (P5-R1-F2): place estimated-eye planes in front of the
+   measured surface over each eye, then route face primitives that hold more
+   than about a third of their skin weight below the neck (not the neck) to the
+   head-region path, so whole-face art stops tinting Carol North's hair and ears
+   without losing her eye effects.
+5. The chat camera presets (`sceneCameraPresets.ts`) frame Portrait and close
    presets from the measured head and face bounds instead of fixed offsets, and
    the review renders inherit that framing.
 
@@ -780,8 +961,10 @@ integration review.
    geometry, whole-body faces, size-aware placement) and
    `docs/frontend/runtime/vrchat-avatar-conversion.md` (what converted Avatars
    need), describing current behavior only.
-3. Owner gates: the live blink and lip-sync check (Phase 3) and review of the
-   private survey sheets.
+3. Owner gates: the live blink and lip-sync check (Phase 3), review of the
+   private survey sheets, and acceptance of any limitation left open (for
+   example whole-face art tinting the hair, ears or a head-skinned hat on a
+   single mesh that is mostly head, if Phase 7 does not resolve it).
 
 ## Final integration review
 

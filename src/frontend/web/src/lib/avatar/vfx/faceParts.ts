@@ -27,6 +27,7 @@ import {
   resolveEyeIrisTargetBindings,
   resolveFaceTargetBinding,
 } from "./avatarRuntimeTargeting";
+import { findFaceIslandTriangles } from "./faceIsland";
 import { resolveAvatarVFXModelProfile } from "./profiles";
 import {
   isAttachmentVFXEntry,
@@ -104,7 +105,8 @@ export type AvatarEyeEstimateGeometry = {
 
 /**
  * Triangles of one primitive that hold a part drawn inside another part's
- * primitive (lash strands in the face mesh, say), as triangle numbers in that
+ * primitive (lash strands in the face mesh, say), or the face skin's head
+ * region of a primitive that also holds the body, as triangle numbers in that
  * primitive's index buffer. Runtime only: corrections and packages name whole
  * primitives.
  */
@@ -117,7 +119,12 @@ export type AvatarFacePart = {
   role: AvatarFacePartRole;
   /** glTF `node:mesh:primitive` keys, as `buildRuntimePrimitiveBindings` emits. */
   bindings: string[];
-  /** Eye lines and lashes inside the face or eye primitives; see the type. */
+  /**
+   * Eye lines and lashes inside the face or eye primitives; see the type.
+   * On face skin, the head region of a binding whose primitive also holds
+   * the body: the face is only those triangles of it
+   * ({@link findFaceSkinRegion}).
+   */
   regions?: AvatarFacePartRegion[];
   source: AvatarFacePartSource;
   /** For an `estimated` eye, what its position comes from. */
@@ -164,6 +171,11 @@ export type DetectAvatarFacePartsOptions = {
 const HEAD_SKINNED_MIN_SHARE = 0.9;
 /** "Mostly" skinned to a bone class. */
 const MAJORITY_SHARE = 0.5;
+/**
+ * Confidence in a face found as the head region of a whole-body primitive:
+ * its outline comes from skinning and facing, not from the face's own mesh.
+ */
+const WHOLE_BODY_FACE_CONFIDENCE = 0.6;
 /** A primitive weighted ≥80% to one eye bone holds only that eye. */
 const SINGLE_EYE_SHARE = 0.8;
 /** VRoid bangs root on the head bone, so a spring share marks hair. */
@@ -333,6 +345,7 @@ export function detectAvatarFaceParts(
   }
 
   applyCorrections(context, parts, options);
+  keepFaceSkinToHead(context, parts);
   const eyeEstimates = estimateMissingEyes(context, parts);
   return {
     parts,
@@ -504,19 +517,48 @@ export function resolveAvatarFacePartEntries(
 /**
  * For a face primitive that also holds neck or body vertices (under 90% of its
  * skin weight on the head), a test keeping its head-weighted vertices, so face
- * bounds come from the face. Null for a head-skinned primitive, whose bounds
- * use every vertex.
+ * bounds come from the face. A whole-body primitive whose face is its head
+ * `region` (see {@link findFaceSkinRegion}) keeps that region's vertices.
+ * Null for a head-skinned primitive, whose bounds use every vertex.
  */
 export function createFaceVertexFilter(
   vrm: VRM,
   mesh: THREE.Mesh,
+  region: AvatarFacePartRegion | null = null,
 ): ((vertex: number) => boolean) | null {
+  if (region) {
+    const index = mesh.geometry.getIndex();
+    const vertices = new Set<number>();
+    for (const triangle of region.triangles) {
+      for (let corner = 0; corner < 3; corner += 1) {
+        const at = triangle * 3 + corner;
+        vertices.add(index ? index.getX(at) : at);
+      }
+    }
+    return (vertex) => vertices.has(vertex);
+  }
   const classify = createBoneClassifier(vrm);
   if (measureSkinShares(mesh, classify).head >= HEAD_SKINNED_MIN_SHARE) {
     return null;
   }
   const head = measureVertexClassShares(mesh, classify, "head");
   return (vertex) => (head[vertex] ?? 0) >= MAJORITY_SHARE;
+}
+
+/**
+ * The face skin's region in one of its primitives: set when that primitive
+ * also holds the body (one mesh for the whole Avatar), whose face is then only
+ * its head region. Null for a primitive that is face skin throughout.
+ */
+export function findFaceSkinRegion(
+  map: Pick<AvatarFacePartMap, "parts"> | null,
+  bindingKey: string,
+): AvatarFacePartRegion | null {
+  return (
+    map?.parts.face_skin.regions?.find(
+      (region) => region.bindingKey === bindingKey,
+    ) ?? null
+  );
 }
 
 /** Whether eye lines or lashes were found as geometry (primitives or regions). */
@@ -810,7 +852,11 @@ function estimateMissingEyes(
       };
     } else {
       estimate = "eye_bone";
-      surface ??= measureFaceSurface(context, face);
+      surface ??= measureFaceSurface(
+        context,
+        face,
+        findFaceSkinRegion({ parts }, face.bindingKey),
+      );
       geometry = surface && estimateEyeFromBone(context, side, face, surface);
     }
     if (!geometry) continue;
@@ -838,31 +884,27 @@ type FaceSurface = {
   front: number;
 };
 
+/**
+ * A face skin primitive's surface. A face that is the head region of a
+ * whole-body primitive (`region`) is only that region's triangles.
+ */
 function measureFaceSurface(
   context: Context,
   face: RuntimePrimitiveBindingEntry,
+  region: AvatarFacePartRegion | null,
 ): FaceSurface | null {
   const mesh = face.object;
-  const geometry = mesh.geometry;
-  const index = geometry.getIndex();
   const points = anchorSpacePoints(context, mesh);
-  const count = index ? index.count : points.length;
-  const range = resolvePrimitiveVertexRange({ sourceGltf: context.gltf }, face);
-  const start = Math.max(0, range?.start ?? 0);
-  const end = Math.min(
-    count,
-    range?.count === null || range?.count === undefined
-      ? count
-      : start + range.count,
-  );
+  const all = readPrimitiveTriangles(context, face);
+  const inRegion = region ? new Set(region.triangles) : null;
   const corners: number[] = [];
-  for (let at = start; at + 2 < end; at += 3) {
-    for (let offset = 0; offset < 3; offset += 1) {
-      corners.push(index ? index.getX(at + offset) : at + offset);
-    }
-  }
+  all.triangles.forEach((triangle, at) => {
+    if (inRegion && !inRegion.has(triangle)) return;
+    corners.push(...all.corners.slice(at * 3, at * 3 + 3));
+  });
   // Bounds from head-weighted vertices, as the landmarks' face bounds.
-  const keep = createFaceVertexFilter(context.vrm, mesh) ?? (() => true);
+  const keep =
+    createFaceVertexFilter(context.vrm, mesh, region) ?? (() => true);
   const bounds = new THREE.Box3();
   for (const vertex of corners) {
     if (keep(vertex) && points[vertex]) bounds.expandByPoint(points[vertex]);
@@ -1134,7 +1176,7 @@ function detectFromSignals(context: Context): {
   const partlyHead = faceMeshCandidates
     .filter(
       (candidate) =>
-        candidate.shares.head >= MAJORITY_SHARE &&
+        !holdsBody(candidate.shares) &&
         candidate.shares.head < HEAD_SKINNED_MIN_SHARE &&
         candidate.shares.spring_head < HAIR_MIN_SPRING_SHARE &&
         measureMorphDisplacement(candidate.entry.object, blink).max > 0,
@@ -1157,7 +1199,8 @@ function detectFromSignals(context: Context): {
     partlyHead[0] && partlyHead[0].score > (headSkinned[0]?.score ?? 0)
       ? [...partlyHead, ...headSkinned].sort((a, b) => b.score - a.score)
       : headSkinned;
-  const faceSkin = faceCandidates[0]?.entry ?? null;
+  let faceSkin = faceCandidates[0]?.entry ?? null;
+  let headRegion: HeadRegion | null = null;
   if (faceSkin) {
     const runnerUp = faceCandidates[1]?.score ?? 0;
     const clear = faceCandidates[0].score >= runnerUp * 2;
@@ -1165,6 +1208,25 @@ function detectFromSignals(context: Context): {
       bindings: [faceSkin.bindingKey],
       confidence: (window ? 0.9 : 0.7) * (clear ? 1 : 0.7),
     };
+  } else {
+    const wholeBody = detectWholeBodyFace(context, {
+      candidates: faceMeshCandidates,
+      classify,
+      window,
+      blink,
+      aa,
+    });
+    if (wholeBody) {
+      faceSkin = wholeBody.entry;
+      headRegion = wholeBody.region;
+      parts.face_skin = {
+        bindings: [faceSkin.bindingKey],
+        regions: [
+          { bindingKey: faceSkin.bindingKey, triangles: headRegion.triangles },
+        ],
+        confidence: WHOLE_BODY_FACE_CONFIDENCE * (wholeBody.clear ? 1 : 0.7),
+      };
+    }
   }
 
   // No eye bones or look-at textures: find the eyes where blink moves the
@@ -1194,7 +1256,8 @@ function detectFromSignals(context: Context): {
   // Eye lines and lashes: small face-mesh primitives the blink moves strongly.
   if (faceSkin) {
     const reference = measureMorphDisplacement(faceSkin.object, blink);
-    const faceArea = measure(faceSkin).area;
+    // A whole-body primitive's face is its head region.
+    const faceArea = headRegion?.area ?? measure(faceSkin).area;
     const details = faceMeshCandidates
       .filter((candidate) => candidate.entry !== faceSkin)
       .filter((candidate) => {
@@ -1475,12 +1538,55 @@ function splitTriangleIslands(
   context: Context,
   entry: RuntimePrimitiveBindingEntry,
 ): TriangleIsland[] {
+  const position = entry.object.geometry.getAttribute("position");
+  if (!position) return [];
+  const all = readPrimitiveTriangles(context, entry);
+  const weld = createPositionWeld(position);
+  const sets = new UnionFind();
+  for (let at = 0; at + 2 < all.corners.length; at += 3) {
+    const a = weld(all.corners[at]!);
+    sets.union(a, weld(all.corners[at + 1]!));
+    sets.union(a, weld(all.corners[at + 2]!));
+  }
+  const islands = new Map<number, TriangleIsland & { seen: Set<number> }>();
+  all.triangles.forEach((triangle, at) => {
+    const root = sets.find(weld(all.corners[at * 3]!));
+    let island = islands.get(root);
+    if (!island) {
+      island = { triangles: [], vertices: [], corners: [], seen: new Set() };
+      islands.set(root, island);
+    }
+    island.triangles.push(triangle);
+    for (let offset = 0; offset < 3; offset += 1) {
+      const vertex = all.corners[at * 3 + offset]!;
+      island.corners.push(vertex);
+      if (!island.seen.has(vertex)) {
+        island.seen.add(vertex);
+        island.vertices.push(vertex);
+      }
+    }
+  });
+  return Array.from(islands.values(), ({ triangles, vertices, corners }) => ({
+    triangles,
+    vertices,
+    corners,
+  }));
+}
+
+/**
+ * One primitive's triangles: their numbers in the geometry's index buffer
+ * (vertex order for an unindexed primitive) and three corner vertex indices
+ * each, over the primitive's own index range of a mesh that holds several.
+ */
+function readPrimitiveTriangles(
+  context: Pick<Context, "gltf">,
+  entry: RuntimePrimitiveBindingEntry,
+): { triangles: number[]; corners: number[] } {
   const geometry = entry.object.geometry;
   const index = geometry.getIndex();
-  const position = geometry.getAttribute("position");
-  if (!position) return [];
-  const corner = (at: number) => (index ? index.getX(at) : at);
-  const count = index ? index.count : position.count;
+  const count = index
+    ? index.count
+    : (geometry.getAttribute("position")?.count ?? 0);
   const range = resolvePrimitiveVertexRange(
     { sourceGltf: context.gltf },
     entry,
@@ -1492,36 +1598,296 @@ function splitTriangleIslands(
       ? count
       : start + range.count,
   );
-  const weld = createPositionWeld(position);
-  const sets = new UnionFind();
+  const triangles: number[] = [];
+  const corners: number[] = [];
   for (let at = start; at + 2 < end; at += 3) {
-    const a = weld(corner(at));
-    sets.union(a, weld(corner(at + 1)));
-    sets.union(a, weld(corner(at + 2)));
-  }
-  const islands = new Map<number, TriangleIsland & { seen: Set<number> }>();
-  for (let at = start; at + 2 < end; at += 3) {
-    const root = sets.find(weld(corner(at)));
-    let island = islands.get(root);
-    if (!island) {
-      island = { triangles: [], vertices: [], corners: [], seen: new Set() };
-      islands.set(root, island);
-    }
-    island.triangles.push(at / 3);
+    triangles.push(at / 3);
     for (let offset = 0; offset < 3; offset += 1) {
-      const vertex = corner(at + offset);
-      island.corners.push(vertex);
-      if (!island.seen.has(vertex)) {
-        island.seen.add(vertex);
-        island.vertices.push(vertex);
-      }
+      corners.push(index ? index.getX(at + offset) : at + offset);
     }
   }
-  return Array.from(islands.values(), ({ triangles, vertices, corners }) => ({
+  return { triangles, corners };
+}
+
+/** A whole-body primitive's face: see {@link measureHeadRegion}. */
+type HeadRegion = {
+  /** Triangle numbers, in index order. */
+  triangles: number[];
+  /** Three corner vertex indices per triangle. */
+  corners: number[];
+  /** The corner vertices. */
+  vertices: Set<number>;
+  /** Their area projected on the head's front plane, in m². */
+  area: number;
+  /** The same inside the eye window, when there is one. */
+  eyeWindowArea: number;
+};
+
+/**
+ * The head region of a primitive that also holds the body (one mesh for the
+ * whole Avatar, its face painted on): the triangles whose corners are all
+ * skinned mainly to the head (or its non-spring descendants) and which face
+ * forward, with their centre in the front
+ * {@link FACE_FRONT_DEPTH_SHARE} of the head's depth. The back and sides of
+ * the head, the neck, the body and hair on spring joints are left out; see
+ * {@link keepFaceIsland} for what in front of the face goes too. Null when
+ * no triangle qualifies.
+ */
+function measureHeadRegion(
+  context: Context,
+  entry: RuntimePrimitiveBindingEntry,
+  classify: (bone: THREE.Object3D | null) => BoneClass,
+  window: EyeWindow | null,
+): HeadRegion | null {
+  const mesh = entry.object;
+  const head = measureVertexClassShares(mesh, classify, "head");
+  const isHead = (vertex: number) => (head[vertex] ?? 0) >= MAJORITY_SHARE;
+  const points = anchorSpacePoints(context, mesh);
+  const all = readPrimitiveTriangles(context, entry);
+  let minZ = Infinity;
+  let maxZ = -Infinity;
+  for (const vertex of all.corners) {
+    const point = points[vertex];
+    if (!point || !isHead(vertex)) continue;
+    minZ = Math.min(minZ, point.z);
+    maxZ = Math.max(maxZ, point.z);
+  }
+  if (minZ > maxZ) return null;
+  const sign = context.frontSign;
+  const front = sign > 0 ? maxZ : minZ;
+  const depth = maxZ - minZ;
+  // A mirroring transform flips the winding of front faces.
+  const winding = composeWorldMatrix(mesh).determinant() < 0 ? -1 : 1;
+  const normal = new THREE.Vector3();
+  const edge = new THREE.Vector3();
+  const triangles: number[] = [];
+  const corners: number[] = [];
+  all.triangles.forEach((triangle, at) => {
+    const ends = all.corners.slice(at * 3, at * 3 + 3);
+    if (!ends.every(isHead)) return;
+    const [a, b, c] = ends.map((vertex) => points[vertex]);
+    if (!a || !b || !c) return;
+    const centreZ = (a.z + b.z + c.z) / 3;
+    if ((front - centreZ) * sign > depth * FACE_FRONT_DEPTH_SHARE) return;
+    normal.subVectors(b, a).cross(edge.subVectors(c, a));
+    if (normal.z * sign * winding <= 0) return;
+    triangles.push(triangle);
+    corners.push(...ends);
+  });
+  return triangles.length > 0
+    ? summarizeHeadRegion(points, triangles, corners, window)
+    : null;
+}
+
+/** A head region of these triangles, with its vertices and areas. */
+function summarizeHeadRegion(
+  points: readonly THREE.Vector3[],
+  triangles: number[],
+  corners: number[],
+  window: EyeWindow | null,
+): HeadRegion {
+  const region: HeadRegion = {
     triangles,
-    vertices,
     corners,
-  }));
+    vertices: new Set(corners),
+    area: 0,
+    eyeWindowArea: 0,
+  };
+  const centroid = new THREE.Vector3();
+  for (let at = 0; at + 2 < corners.length; at += 3) {
+    const a = points[corners[at]!];
+    const b = points[corners[at + 1]!];
+    const c = points[corners[at + 2]!];
+    if (!a || !b || !c) continue;
+    const projected =
+      Math.abs((b.x - a.x) * (c.y - a.y) - (c.x - a.x) * (b.y - a.y)) / 2;
+    region.area += projected;
+    centroid
+      .copy(a)
+      .add(b)
+      .add(c)
+      .multiplyScalar(1 / 3);
+    if (window && isInsideWindow(centroid, window)) {
+      region.eyeWindowArea += projected;
+    }
+  }
+  return region;
+}
+
+/**
+ * A head region narrowed to the face: its UV island between the eyes and the
+ * islands inside that island's outline (eyes, mouth, brows), chosen as
+ * texture anchors choose it (`findFaceIslandTriangles`). A fringe, hood rim or
+ * visor in front of the face is its own island and goes, so it neither sets
+ * the face's front nor takes its anchors and art. The eyes are where blink
+ * moves the primitive on each side, else the humanoid eye bones; without
+ * both, or without such an island, the region stays as it is.
+ */
+function keepFaceIsland(
+  context: Context,
+  entry: RuntimePrimitiveBindingEntry,
+  region: HeadRegion,
+  window: EyeWindow | null,
+): HeadRegion {
+  const mesh = entry.object;
+  const position = mesh.geometry.getAttribute("position");
+  const uv = mesh.geometry.getAttribute("uv");
+  const eyes = locateWholeBodyEyes(context, mesh);
+  if (
+    !eyes ||
+    !(position instanceof THREE.BufferAttribute) ||
+    !(uv instanceof THREE.BufferAttribute)
+  ) {
+    return region;
+  }
+  const points = anchorSpacePoints(context, mesh);
+  const keep = findFaceIslandTriangles({
+    corners: region.corners,
+    pointOf: (vertex) => points[vertex],
+    position,
+    uv,
+    seed: eyes[0].clone().add(eyes[1]).multiplyScalar(0.5),
+    eyes,
+    withIslands: "inner",
+  });
+  if (!keep) return region;
+  const triangles: number[] = [];
+  const corners: number[] = [];
+  keep.forEach((kept, at) => {
+    if (!kept) return;
+    triangles.push(region.triangles[at]!);
+    corners.push(...region.corners.slice(at * 3, at * 3 + 3));
+  });
+  return summarizeHeadRegion(points, triangles, corners, window);
+}
+
+/**
+ * Both eyes of a whole-body primitive's face, in anchor space: the middle of
+ * where blink moves it on each side ({@link measureBlinkRegions}, as
+ * estimated eyes take them), else the humanoid eye bones. Null when neither
+ * gives both.
+ */
+function locateWholeBodyEyes(
+  context: Context,
+  mesh: THREE.Mesh,
+): [THREE.Vector3, THREE.Vector3] | null {
+  const blink = measureBlinkRegions(
+    context,
+    mesh,
+    collectPlayingMorphBinds(context.vrm, "blink", mesh),
+  );
+  if (blink.left && blink.right) return [blink.left.center, blink.right.center];
+  const humanoid = context.vrm.humanoid;
+  const left = humanoid?.getNormalizedBoneNode("leftEye") ?? null;
+  const right = humanoid?.getNormalizedBoneNode("rightEye") ?? null;
+  if (!left || !right) return null;
+  // Normalized nodes, as the landmarks read them (see resolveEyeWindow).
+  context.anchor.updateWorldMatrix(true, false);
+  return [
+    context.anchor.worldToLocal(left.getWorldPosition(new THREE.Vector3())),
+    context.anchor.worldToLocal(right.getWorldPosition(new THREE.Vector3())),
+  ];
+}
+
+/**
+ * Whether a face mesh also holds the body: under {@link MAJORITY_SHARE} of
+ * its skin weight is on the head. Its face is then its head region
+ * ({@link measureHeadRegion}), so whole-face art and decals leave the body,
+ * clothes and hair alone.
+ */
+function holdsBody(shares: SkinShares): boolean {
+  return shares.head < MAJORITY_SHARE;
+}
+
+/**
+ * The face of an Avatar whose face mesh also holds its body: among the
+ * primitives blink and aa morph that hold the body ({@link holdsBody}), the
+ * one whose head region
+ * ({@link measureHeadRegion}) either expression moves and that covers the
+ * most of the eye window (or of the front view without one). Reports when
+ * such primitives exist but none has a head region they move, so face
+ * effects are skipped for a named reason.
+ */
+function detectWholeBodyFace(
+  context: Context,
+  args: {
+    candidates: readonly Candidate[];
+    classify: (bone: THREE.Object3D | null) => BoneClass;
+    window: EyeWindow | null;
+    blink: Map<THREE.Object3D, number[]>;
+    aa: Map<THREE.Object3D, number[]>;
+  },
+): {
+  entry: RuntimePrimitiveBindingEntry;
+  region: HeadRegion;
+  clear: boolean;
+} | null {
+  const wholeBody = args.candidates.filter((candidate) =>
+    holdsBody(candidate.shares),
+  );
+  if (wholeBody.length === 0) return null;
+  const found = wholeBody
+    .flatMap(({ entry }) => {
+      const region = measureHeadRegion(
+        context,
+        entry,
+        args.classify,
+        args.window,
+      );
+      if (!region || !faceExpressionsMove(entry, region, args)) return [];
+      const score = args.window ? region.eyeWindowArea : region.area;
+      return score > 0 ? [{ entry, region, score }] : [];
+    })
+    .sort((a, b) => b.score - a.score);
+  if (!found[0]) {
+    report(
+      context,
+      { code: "face_parts_whole_body_head_missing" },
+      "A mesh part holding the whole body carries the blink and aa shapes, but none of its forward-facing triangles skinned to the head bone moves with them; its face cannot be found.",
+    );
+    return null;
+  }
+  return {
+    entry: found[0].entry,
+    region: keepFaceIsland(
+      context,
+      found[0].entry,
+      found[0].region,
+      args.window,
+    ),
+    clear: found[0].score >= (found[1]?.score ?? 0) * 2,
+  };
+}
+
+/**
+ * Whether blinking or the aa mouth moves a head region: the face is where the
+ * Avatar blinks or speaks.
+ */
+function faceExpressionsMove(
+  entry: RuntimePrimitiveBindingEntry,
+  region: HeadRegion,
+  binds: {
+    blink: Map<THREE.Object3D, number[]>;
+    aa: Map<THREE.Object3D, number[]>;
+  },
+): boolean {
+  return (
+    morphMovesAny(entry.object, binds.blink, region.vertices) ||
+    morphMovesAny(entry.object, binds.aa, region.vertices)
+  );
+}
+
+/** Whether any of an expression's morph targets moves a vertex of `vertices`. */
+function morphMovesAny(
+  mesh: THREE.Mesh,
+  binds: Map<THREE.Object3D, number[]>,
+  vertices: ReadonlySet<number>,
+): boolean {
+  const displacement = morphDisplacements(mesh, binds);
+  for (const vertex of vertices) {
+    if ((displacement[vertex] ?? 0) > MOVED_EPSILON) return true;
+  }
+  return false;
 }
 
 /**
@@ -2223,6 +2589,61 @@ function applyCorrections(
       detected: parts[role],
     };
   }
+}
+
+/**
+ * Corrections and material names name whole primitives. Face skin they give a
+ * primitive that also holds the body ({@link holdsBody}) keeps to that
+ * primitive's head region, as a detected one does. Without a head region to
+ * measure, a corrected primitive stays face skin whole (the user chose it).
+ * A primitive found by its name needs what detection needs, a head region
+ * that blinking or the aa mouth moves, or it is not face skin: a whole-body
+ * mesh detection rejected cannot become the face by its material's name.
+ */
+function keepFaceSkinToHead(
+  context: Context,
+  parts: Record<AvatarFacePartRole, AvatarFacePart>,
+): void {
+  const face = parts.face_skin;
+  if (face.source !== "corrected" && face.source !== "names") return;
+  const classify = createBoneClassifier(context.vrm);
+  const binds = {
+    blink: collectMorphBinds(context.vrm, "blink"),
+    aa: collectMorphBinds(context.vrm, "aa"),
+  };
+  const regions: AvatarFacePartRegion[] = [];
+  const dropped = new Set<string>();
+  for (const entry of selectFacePartEntries(
+    { parts },
+    ["face_skin"],
+    context.entries,
+  )) {
+    if (!holdsBody(measureSkinShares(entry.object, classify))) continue;
+    const measured = measureHeadRegion(context, entry, classify, null);
+    const region =
+      face.source === "names" &&
+      measured &&
+      !faceExpressionsMove(entry, measured, binds)
+        ? null
+        : measured;
+    if (region) {
+      regions.push({
+        bindingKey: entry.bindingKey,
+        triangles: keepFaceIsland(context, entry, region, null).triangles,
+      });
+    } else if (face.source === "names") {
+      dropped.add(entry.bindingKey);
+    }
+  }
+  const bindings = face.bindings.filter((key) => !dropped.has(key));
+  parts.face_skin =
+    bindings.length === 0
+      ? { role: "face_skin", bindings: [], source: "missing", confidence: 0 }
+      : {
+          ...face,
+          bindings,
+          ...(regions.length > 0 ? { regions } : {}),
+        };
 }
 
 function unique<T>(values: readonly T[]): T[] {
