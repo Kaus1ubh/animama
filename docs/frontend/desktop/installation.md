@@ -43,10 +43,10 @@ require Docker, Python, Node.js, PostgreSQL, Homebrew or a source checkout.
    a nonblank name is private personalization, not a
    username or credential.
 5. **AI** chooses the model your Animas chat with: **Cloud** (OpenAI or
-   Anthropic with your key, or another provider), with a tab per provider.
-   Builds with [local models](../features/model-settings.md#connections)
-   enabled also offer **Local** (a running Ollama, LM Studio, llama.cpp or vLLM
-   server, or a custom one); a local server's tab looks for it when opened. The model
+   Anthropic with your key, or another provider) or **Local** (a running
+   Ollama, LM Studio, llama.cpp or vLLM server, or a custom one), each with a
+   tab per provider; [build flags](../features/model-settings.md#connections)
+   can change which are offered. A local server's tab looks for it when opened. The model
    you set up last (saving the OpenAI key, saving the Anthropic key for Claude
    Haiku 5.5, or adding a model) becomes the default Chat model, and the
    starter Animas switch to it. **Skip for now** keeps the default.
@@ -71,9 +71,9 @@ key in its Voice step. After setup, the OpenAI and Anthropic keys are on their
 cards in App Settings → Models, and the ElevenLabs key is in App Settings →
 Voice. The Gemini key for [Gemini voices](../runtime/gemini-tts.md), which setup
 does not ask for, is in App Settings → Voice when Gemini is chosen. All four are
-also in App Settings → API Keys; each place edits the same saved key. Other model servers, such as DeepSeek or OpenRouter (or, where local models
-are enabled, a local Ollama, LM Studio or llama.cpp server), are added in App
-Settings → Models, with their key (if any) on the connection. Text chat through an
+also in App Settings → API Keys; each place edits the same saved key. Other model servers, such as OpenRouter or a local Ollama, LM Studio or
+llama.cpp server, are added in App Settings → Models (Cloud or Local), with
+their key (if any) on the connection. Text chat through an
 external model requires that provider to be configured and reachable and can
 incur its charges. There is no bundled offline chat model; a local server on
 this computer keeps chat fully local. The app reaches local servers at

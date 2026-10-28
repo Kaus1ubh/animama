@@ -348,7 +348,7 @@ describe("Cloud and Local tabs", () => {
     credential_state?: PyModelConnection["credential_state"];
   };
 
-  it("offers Local only behind its flag or for an existing local connection", () => {
+  it("hides Local only behind its flag, except for an existing local connection", () => {
     const cloud: Conn = {
       source: "owner",
       preset: "openrouter",
@@ -451,7 +451,7 @@ describe("Cloud and Local tabs", () => {
       { id: "remote2", ...owner("custom", "https://api.other.test/v1") },
       { id: "odd", ...owner("unknown-preset", "https://odd.test/v1") },
     ];
-    const cloud = locationProviderGroups(connections, "cloud");
+    const cloud = locationProviderGroups(connections, "cloud", true);
     expect(cloud.map((group) => group.entry.id)).toEqual([
       "openai",
       "anthropic",
@@ -481,6 +481,33 @@ describe("Cloud and Local tabs", () => {
     ]);
     expect(local[3].connections.map((item) => item.id)).toEqual(["vllm"]);
     expect(local[4].connections.map((item) => item.id)).toEqual(["lan"]);
+  });
+
+  it("offers DeepSeek and Hugging Face only behind their flag or for an existing connection", () => {
+    const ids = (connections: Conn[]) =>
+      locationProviderGroups(connections, "cloud", false).map(
+        (group) => group.entry.id,
+      );
+    expect(ids([])).toEqual([
+      "openai",
+      "anthropic",
+      "openrouter",
+      "custom-cloud",
+    ]);
+    expect(ids([owner("huggingface", "https://router.hf.co/v1")])).toEqual([
+      "openai",
+      "anthropic",
+      "huggingface",
+      "openrouter",
+      "custom-cloud",
+    ]);
+  });
+
+  it("keeps the chosen provider tab only while it is offered", () => {
+    const groups = locationProviderGroups([], "cloud", false);
+    expect(defaultLocationProvider(groups, "openrouter")).toBe("openrouter");
+    // A removed DeepSeek connection's tab is gone with the flag off.
+    expect(defaultLocationProvider(groups, "deepseek")).toBe("openai");
   });
 
   it("marks providers connected, counting built-in connections only with their key", () => {
