@@ -64,7 +64,7 @@ Evidence in this plan and the PR is counts and pass/fail only.
 ## Progress
 
 - [x] Spec and plan agreed by the owner; Q1–Q3 answered (2026-10-27).
-- [ ] Phase 1: review renders catch wrong art.
+- [x] Phase 1: review renders catch wrong art (2026-10-28; review passed after two repair rounds).
 - [ ] Phase 2: per-primitive shape names.
 - [ ] Phase 3: blink and mouth signals beyond VRM presets.
 - [ ] Phase 4: eyes without separate eye geometry.
@@ -158,6 +158,146 @@ browser tests); all 16 survey effects and 6 Reactions on both Included Avatars
 still pass. Completion: the new failures fire on the synthetic cases, nothing
 changes for passing renders, and the private RadDollV3 renders fail on the 10
 effects the survey found by eye (count recorded, no images).
+
+Starting source: `414ac263`; Included baselines rendered on tree `d9456bf9`
+(source identical to `b8fed9a5`): 31 renders, 0 failed.
+
+Implementation (2026-10-27): after each sheet, the Avatars that have not
+already failed are captured again with the same pose, time and camera. Face
+art (`face_surface`, `face_landmark`) is re-applied with transparent stand-in
+images, the baseline `effects check` already uses, so face options such as
+closed eyes appear in both captures. Body, sticker and silhouette art is left
+out. Reactions replay their clip with the art swapped the same way. The head
+region is the box around vertices skinned mainly to the head and eye bones,
+measured before effects apply and projected per tile. "Draws nothing" means
+under 0.1% of a tile (`VISIBLE_SHARE`) changes inside the region in every
+tile. "Mostly outside" means under 50% of the changed pixels in the front and
+3/4 views fall inside it. Particle and Scene Effects stay out of both captures:
+confetti and Scene layers vary between identical captures. Files:
+`scripts/effect-render.mjs`, new `scripts/effect-render/headRegion.ts`,
+`scripts/effect-render/render.ts`, `scripts/effect-check.mjs` (shared
+stand-in and pixel delta), `vfx/faceParts.ts` (exports `createBoneClassifier`),
+tests `scripts/effect-render.test.mjs` (new) and
+`scripts/effect-render.browser.test.mjs`, and docs
+`docs/frontend/runtime/avatar-vfx.md` and
+`.agents/skills/animama-avatar-vfx/references/how.md`.
+
+Check record (tree `41e19f25`, working tree before review):
+
+| Command | Directory | Result |
+| --- | --- | --- |
+| `timeout 900 python3 ../../scripts/heavy-slot.py -- pnpm web:test:browser` | `src/frontend` | 132/132 |
+| `timeout 900 python3 ../../scripts/heavy-slot.py -- pnpm check` | `src/frontend` | exit 0 |
+| `node --test scripts/effect-render.test.mjs scripts/effect-render-sources.test.mjs scripts/effects.test.mjs` | `src/frontend/web` | 53/53 |
+| `npx vitest run src/lib/avatar/vfx` | `src/frontend/web` | 241/241 |
+| `npx tsc -p tsconfig.scripts.json --noEmit`; eslint and prettier `--check` on touched files | `src/frontend/web` | clean |
+| 16 survey effects and 6 Reactions on the Included Avatars, `--diff` against the baselines | `src/frontend/web` | 22 pass, 0 differing pixels |
+| Private calibration on RadDollV3 (counts only) | `src/frontend/web` | 13 of 13 expected failures caught, 8 of 8 expected passes, `mouth_w` not caught (lands inside the head) |
+
+Discovery: on this revision Red Face on Carol North stays on the head; the
+whole-body tint the survey saw on `9a97029a` does not reproduce (PR #744's
+later commits), so the Carol calibration case no longer applies.
+
+#### Code Review #1 Findings
+
+Reviewed tree `41e19f25` (standard tier, initial full review). The reviewer
+reused the check record and rendered 34 more Included face and hover effects
+and one Reaction.
+
+- **P1-R1-F1 (required):** mouth-landmark art got the bare head rect, so
+  Included `puff`, which sits beside the mouth by design, failed "mostly outside
+  the head" (34.2% inside), as did the Reaction `disappointment-2` (38.0%);
+  `effects:render --all-included` would exit 1. 33 of the 34 other effects
+  passed.
+- **P1-R1-F2 (required):** a sheet's Avatar Effects were judged together (one
+  widest region, summed pixels). In a Reaction such as `love-3` (blush and an
+  arrow sticker) an invisible blush passes, and whole-face tints mixed with body
+  art are never judged for "outside the head". 35 Included Reactions play two
+  or more Avatar Effects.
+- Non-blocking: the unused `peakAt` (the message names no tile); with no head
+  box the message still says "on the head"; "mostly outside" is skipped for a
+  `--views face` run and tiny eye art on small front-only tiles can fall under
+  the floor, undocumented; clip events that override an effect's attachment are
+  judged by the base definition (no Included content does this); a small
+  duplication in `effect-check.mjs`.
+
+Result: blocked on F1 and F2.
+
+#### Code Review #1 Revisions
+
+- P1-R1-F1 accepted: art floating beside a face feature uses the grown hover
+  region; only surface-painted art uses the bare head rect. Calibration widened
+  to `--all-included`.
+- P1-R1-F2 accepted: each Avatar Effect is measured against its own baseline,
+  in which only that effect is stood in.
+- Non-blocking: the message names the peak tile; the no-head-box wording names
+  the region used; the docs note the view and tile-size limits; the
+  `effect-check.mjs` duplication is removed. Deferred: attachment overrides in
+  clips (no content uses them).
+- Found by the wider calibration and fixed in the same round, since both failed
+  correct Included content: body and sticker art is judged only when the centre
+  of its art plane falls inside a tile (hand-held art hangs out of frame in the
+  rest pose; `idea_bulb_fingertip` with `--with-clip library:have-an-idea`
+  passes in frame), and a clip-played effect is judged only where it was active
+  in a rendered frame (`puff` starts after 2 s in `bored-wait` and
+  `stretch-break`). `headRegion.ts` became `scripts/effect-render/tileLayout.ts`;
+  `vfx/AvatarAttachmentEffects.ts` exports `ATTACHMENT_PLANE_NAME_PREFIX`.
+
+Repair check record (tree `2a6e1ca0`):
+
+| Command | Directory | Result |
+| --- | --- | --- |
+| `node --test scripts/effect-render.test.mjs scripts/effect-render-sources.test.mjs scripts/effects.test.mjs` | `src/frontend/web` | 53/53 |
+| `npx vitest run src/lib/avatar/vfx` | `src/frontend/web` | 241/241 |
+| `npx tsc -p tsconfig.scripts.json --noEmit`; eslint and prettier `--check` on touched files | `src/frontend/web` | clean |
+| `timeout 900 python3 ../../scripts/heavy-slot.py -- pnpm web:test:browser` | `src/frontend` | 132/132 |
+| `timeout 900 python3 ../../scripts/heavy-slot.py -- pnpm check` | `src/frontend` | exit 0 |
+| 16 survey effects and 6 Reactions, `--diff` against the baselines | `src/frontend/web` | 22 pass; 21 at 0 differing pixels, `idea_bulb` 1 px in one tile, 0 px on two re-renders (render flake) |
+| `pnpm -s effects:render --all-included` | `src/frontend/web` | 109/109 |
+| 35 Included Reactions with two or more Avatar Effects, `annoyance-2`, `disappointment-2` | `src/frontend/web` | 37/37 |
+| The 6 Gestures that play `puff`, `--with-clip` | `src/frontend/web` | 6/6 |
+| Private RadDollV3 (counts only) | `src/frontend/web` | 9 of 9 and 4 of 4 expected failures caught, 8 of 8 expected passes; `love-3` fails naming only the blush |
+
+#### Code Review #2 Findings
+
+Reviewed tree `2a6e1ca0` (targeted recheck). P1-R1-F1 and F2 resolved: every
+landmark kind maps to the grown region while a disc pushed below the chin still
+fails, and each effect gets its own baseline with aligned indices. The two new
+exemptions show no false pass: a probe of 6 Included body and sticker effects
+judged the on-screen ones (`kira_star`, `tehe_star`, `soul_wisp`,
+`gloomy_cloud`, `question_mark`) and skipped only the hand-held `rose`; an
+effect that fails to apply already fails through its warning. Optional:
+
+- **P1-R2-F1:** unjudged effects print nothing, so a survey cannot tell "passed"
+  from "not judged".
+- **P1-R2-F2:** no test asserts that on-screen body and sticker art is judged
+  (`artSeen`), which depends on a plane-name lookup across the runtime and
+  script boundary.
+- **P1-R2-F3:** a stale `HEAD_HOVER_MARGIN` comment and a broken docstring wrap.
+
+Result: pass.
+
+#### Code Review #2 Revisions
+
+All three accepted as small fixes in repair round 2: a non-failing `Note:` line
+per unjudged Avatar and effect (`artNote`, unit-tested; one docs sentence), an
+`artSeen` assertion in the body, sticker and silhouette browser test, and the
+comment fixes. The coordinator verified them by reading the change and the
+check record below; no further reviewer round (repair budget: one round left,
+unused).
+
+Repair round 2 check record (tree `a4eb079f`):
+
+| Command | Directory | Result |
+| --- | --- | --- |
+| `node --test scripts/effect-render.test.mjs scripts/effect-render-sources.test.mjs scripts/effects.test.mjs` | `src/frontend/web` | 54/54 |
+| `npx tsc -p tsconfig.scripts.json --noEmit`; eslint and prettier `--check` on touched files | `src/frontend/web` | clean |
+| `timeout 900 python3 ../../scripts/heavy-slot.py -- pnpm web:test:browser` | `src/frontend` | 132/132 |
+| `heart_eyes` and `--with-clip library:reaction/joy-2`, `--diff` against the baselines | `src/frontend/web` | 0 differing pixels |
+
+Phase 1 complete (agent-ready; no owner gate in this phase). Known limit carried
+to later phases: art inside the head but in the wrong place (RadDollV3's w
+mouth, head art on Carol North and Polybot) is not caught by this check.
 
 ### Phase 2: Per-primitive shape names (R6)
 

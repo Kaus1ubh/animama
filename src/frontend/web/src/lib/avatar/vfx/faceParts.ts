@@ -154,7 +154,17 @@ const EYE_REGION_MARGIN = 0.25;
 const LOOK_AT_EXPRESSIONS = ["lookLeft", "lookRight", "lookUp", "lookDown"];
 const HAIR_NAME_PATTERN = /hair|bang|fringe/i;
 
-type BoneClass = "eye_left" | "eye_right" | "head" | "spring_head" | "other";
+/**
+ * Where a bone sits relative to the humanoid head: an eye bone (or below
+ * one), another bone under the head, a spring bone under the head (hair,
+ * ears, accessories), or anywhere else.
+ */
+export type BoneClass =
+  | "eye_left"
+  | "eye_right"
+  | "head"
+  | "spring_head"
+  | "other";
 
 type EyeSide = "left" | "right" | "both";
 
@@ -1242,7 +1252,12 @@ function measureMorphDisplacement(
   return { movedShare: moved / displacement.length, max };
 }
 
-function createBoneClassifier(
+/**
+ * A cached {@link BoneClass} lookup for `vrm`'s raw bones. Face part
+ * detection weighs skinning by it; the review renders (`effects:render`)
+ * find the head's vertices with it.
+ */
+export function createBoneClassifier(
   vrm: VRM,
 ): (bone: THREE.Object3D | null) => BoneClass {
   const humanoid = vrm.humanoid;

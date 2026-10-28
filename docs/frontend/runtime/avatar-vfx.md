@@ -767,7 +767,25 @@ and sounds on Included Gestures and Reactions, use `pnpm -s content:tune`
   with a warning), and
   `--together` applies every source on one sheet.
 - The run exits 1 when an effect leaves a controller warning or no active
-  effect.
+  effect, or when an Avatar Effect's art (applied directly or played by the
+  clip) draws nothing visible or mostly outside the head; the failure names
+  the effect. Each Avatar Effect is judged on its own: every tile is rendered
+  again without only its art, as `effects check` does (a face effect keeps
+  its face options with transparent stand-in images, and a Reaction plays
+  the same clip, so its mood face and other effects are in both). Changed
+  pixels (a channel off by more than 8) count where the art belongs: within
+  the head's projected bounds for art painted on the face, those bounds
+  grown by half on each side for art placed at the eyes, mouth, forehead or
+  top, anywhere for body, sticker and silhouette art. Art must change 0.1% of
+  a tile there in at least one tile, so tiny eye art can fall under it on
+  small front-only tiles. Face and landmark art must keep at least half of
+  its changes there in the front and ¾ views; a `--views face` run skips
+  that test, because the face view shows only the head. Body and sticker
+  art centred outside every tile (art in a hand below the frame in the rest
+  pose; check it with `--with-clip <gesture>`) and a clip's effect not
+  active at any rendered time are not judged; the run prints a `Note:` line
+  for each. Particle and Scene Effects are left out of these
+  captures and keep only the warning and active-effect checks.
 - `--all-included` renders every Included Avatar Effect. `--thumbnail`
   renders an Avatar Effect on Annie with the portrait head framing, keeping
   the effect's own expression state.

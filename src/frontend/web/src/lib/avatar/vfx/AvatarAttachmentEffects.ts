@@ -128,6 +128,12 @@ const scratchUp = new THREE.Vector3();
 const scratchHead = new THREE.Vector3();
 
 /**
+ * Name prefix of a body or sticker effect's art plane, followed by its
+ * applied effect ID; the review renders find the art in the scene by it.
+ */
+export const ATTACHMENT_PLANE_NAME_PREFIX = "AvatarAttachmentVFX:";
+
+/**
  * The avatar's standing height in its scene's units, from the meshes' bind
  * pose bounds. Measured once at load; stickers and silhouette tiles scale by
  * it so they keep a readable size on any model.
@@ -248,7 +254,7 @@ function createPlane(args: {
   if (entry.appearance.tint) material.color.set(entry.appearance.tint);
   configureEffectBlend(material, entry.appearance.blend);
   const mesh = new THREE.Mesh(new THREE.PlaneGeometry(width, height), material);
-  mesh.name = `AvatarAttachmentVFX:${entry.id}`;
+  mesh.name = `${ATTACHMENT_PLANE_NAME_PREFIX}${entry.id}`;
   mesh.rotation.z = entry.rotation;
   mesh.renderOrder = args.renderOrder;
   mesh.frustumCulled = false;

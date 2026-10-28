@@ -237,7 +237,8 @@ From `src/frontend/web`, with no running stack:
   renders contact sheets on both Included Avatars (front, ¾ and face at several
   times). `--with-clip library:<gesture>` checks that body, sticker and silhouette
   art follows motion; `--together` combines sources. It exits 1 on a controller
-  warning, such as a missing face part.
+  warning, such as a missing face part, and when the art draws nothing
+  visible or draws mostly outside the head.
 - `pnpm -s animation:preview <effect folder | library:avatar-effect/<name>>`
   plays the effect live on both Avatars in the browser, with camera presets,
   scrubbing and review notes; `--duration <s>` applies it for a set time. Keep a

@@ -1,17 +1,20 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
-import sharp from "sharp";
 
-import { BUDGETS, checkImage, readMetadata } from "./effect-assets.mjs";
+import { BUDGETS, checkImage } from "./effect-assets.mjs";
 import {
   AVATARS,
   DEFAULT_THRESHOLD,
   DEFAULT_TILE,
   VIEW_NAMES,
+  VISIBLE_SHARE,
+  artBaselineEffect,
   avatarFileUrl,
   captureStage,
+  countChangedPixels,
   pageEffect,
   pageSources,
+  rawRgba,
   sourceRoots,
   withRendererPage,
 } from "./effect-render.mjs";
@@ -46,8 +49,6 @@ import {
  */
 
 export const DEFAULT_CHECK_TIMES = [0.25, 1];
-/** Share of a tile's pixels the effect must change on each Avatar. */
-export const VISIBLE_SHARE = 0.001;
 
 /** Particles a Particle Effect may declare, as the runtime caps them. */
 export const RUNTIME_PARTICLE_LIMIT = 512;
@@ -69,22 +70,6 @@ export function budgetForDefinition(definition) {
 }
 
 const shortAvatar = (id) => id.replace("AvatarSample_", "");
-
-/** A fully transparent PNG data URL the size of `file`. */
-async function transparentStandIn(file) {
-  const { width, height } = await readMetadata(file);
-  const png = await sharp({
-    create: {
-      width,
-      height,
-      channels: 4,
-      background: { r: 0, g: 0, b: 0, alpha: 0 },
-    },
-  })
-    .png()
-    .toBuffer();
-  return `data:image/png;base64,${png.toString("base64")}`;
-}
 
 /**
  * Each texture URL of a Quarks manifest, mapped to `particle-sheet` when an
@@ -335,27 +320,15 @@ export function sceneImageLines(effect) {
 
 /** Pixels of each tile in `applied` that differ from `baseline`. */
 async function differingPixels(applied, baseline, threshold) {
-  const raw = (png) => sharp(png).ensureAlpha().raw().toBuffer();
   const counts = [];
   for (const [time, views] of applied.entries()) {
     const row = [];
     for (const [view, png] of views.entries()) {
       const [after, before] = await Promise.all([
-        raw(png),
-        raw(baseline[time][view]),
+        rawRgba(png),
+        rawRgba(baseline[time][view]),
       ]);
-      let count = 0;
-      for (let offset = 0; offset < after.length; offset += 4) {
-        for (let channel = 0; channel < 4; channel += 1)
-          if (
-            Math.abs(after[offset + channel] - before[offset + channel]) >
-            threshold
-          ) {
-            count += 1;
-            break;
-          }
-      }
-      row.push(count);
+      row.push(countChangedPixels(after, before, { threshold }).changed);
     }
     counts.push(row);
   }
@@ -499,23 +472,10 @@ export async function checkEffects({
               ...(await sceneLimitLines(effect, server)),
             );
           const applied = await pageSources([effect], { fsUrl, imageUrl });
-          // Face effects change the face (closed eyes, cleanup) whatever the
-          // art: compare against transparent stand-ins. Other attachments,
-          // Particle and Scene Effects compare against the bare Avatar (a
-          // tinted silhouette fills even with transparent art).
-          const kind = effect.definition?.attachment?.kind;
-          const baselineEffects =
-            kind === "face_landmark" || kind === "face_surface"
-              ? [
-                  {
-                    ...applied.effects[0],
-                    imageUrl: await transparentStandIn(effect.imagePath),
-                    otherImageUrl: effect.otherImagePath
-                      ? await transparentStandIn(effect.otherImagePath)
-                      : null,
-                  },
-                ]
-              : [];
+          // Face effects compare against transparent stand-ins; other
+          // attachments, Particle and Scene Effects against the bare Avatar.
+          const standIn = await artBaselineEffect(effect, applied.effects[0]);
+          const baselineEffects = standIn ? [standIn] : [];
           // A --with-clip Gesture poses both captures; its effect events
           // are not played (no clip media), so only the effect differs.
           const common = {
