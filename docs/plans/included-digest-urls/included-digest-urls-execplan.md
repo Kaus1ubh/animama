@@ -62,8 +62,10 @@ Library's preview gating.
 
 ## Progress
 
-- [ ] Phase 1: digest URLs served and named; web adoption; tests and docs.
-- [ ] Final integration review and the full pre-push suite.
+- [x] Phase 1: digest URLs served and named; web adoption; tests and docs
+  (`10212469`, `88a57a37`, `1d883cc2`, `069c7673`; `main` merged at `4b669f03`,
+  `9e722513` and `a75db09d`).
+- [x] Final integration review (pass) and the full pre-push suite (pass).
 
 ## Surprises & Discoveries
 
@@ -117,7 +119,11 @@ Library's preview gating.
 Review tier: high risk (a public API and shared contracts, the generated client,
 and what browsers keep).
 
-Starting source: `main` at `62fd8394`, branch `perf/included-digest-urls`.
+Starting source: `main` at `62fd8394`, branch `perf/included-digest-urls`;
+`main` was merged in three times: `f7a1ba01` (a desktop-staging fix) before the
+final review, then `981182d9` (#761's catalog validator and #762, import-only
+conflict in `routes/content.py`) and `bdb7cddd` (#764's Library previews
+capability, which took `local-http` 19.0.0 first; see D8).
 
 Intended changes:
 
@@ -225,7 +231,24 @@ e2e:check:source` passed; the journey reruns with the final candidate).
 
 ## Final integration review
 
-Not started.
+Code Review #2 (final integration, high-risk tier) of `4b669f03` against
+`f7a1ba01`, running no checks: all six acceptance criteria met in code; docs,
+contracts, ADR and versions agree; no private names; result pass. Non-blocking:
+
+- N1: rerun the journey on the final candidate. Done: passed on a stack rebuilt at `069c7673` (136 Included reads, all digest URLs, 0 other reads; 136 of 136 from the browser cache on the second visit).
+- N2: ADR 0033 said every client reads the server's URL, but voice sample playback
+  still reads by `file_ref`. Fixed in `1d883cc2` (docs only).
+- N3: these plan records. Done here.
+- N4: the issue's scene criterion is met for content-file reads (presentation
+  images and portraits). A scene's remaining revalidations are runtime delivery
+  reads (JSON bundles and two revision-member fetches with `cache: "no-cache"` in
+  `runtimeContentDelivery.ts`), outside this plan; the pull request names them
+  as a follow-up.
+
+The full pre-push suite first passed on `4b669f03` (tree `c839d0a9`). After the
+later merges it ran once more on the final candidate: tree `205f2dbf` (HEAD `069c7673`). From `src/frontend`, `pnpm verify` passed (635 test files, 6,025 tests), `pnpm web:test:browser` passed (136 of 136), and `pnpm prettier:check`, `pnpm openapi-ts:check` and `pnpm e2e:check:source` passed. Root `make check-test` failed twice on one test, `tests/test_model_assets.py::test_an_interrupted_http_body_logs_its_cause_and_resumes_with_a_range` (5,093 passed, 1 failed). The test passes alone and with its own file, this branch does not touch it, and `main` at `bdb7cddd` fails it identically in a clean detached worktree (5,090 passed, 1 failed), so the failure comes from `main`'s test ordering, not this change.
+
+Package-set compatibility on the final candidate: `build.py build` of `bdb7cddd` (base) and `069c7673` (candidate), then `build.py compare`, reported "Compatibility policy passed".
 
 ## Validation and acceptance
 
@@ -251,4 +274,9 @@ digest-URL reply holds exact bytes for that digest, which stay correct for it.
 
 ## Outcomes & Retrospective
 
-Not yet delivered.
+Delivered for review: Included content files have digest-keyed URLs that the
+browser keeps, and the descriptors name them. The Library's FX section reads 136
+Included files on a first visit and sends none of them on a second. Lessons: a
+client's `cache: "no-cache"` silently defeats an immutable reply, so cache
+evidence must come from a browser (CDP wire status), not response headers alone;
+the runtime delivery helpers have the same pattern and are the follow-up.
