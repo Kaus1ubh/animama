@@ -255,6 +255,45 @@ replaces that instance.
   except on a face inside a whole-body mesh, whose decals keep to the face.
   `span` stretches one image across both anchors; use it only for art drawn
   that way.
+- **Covered anchors.** Art painted on the skin does not show under a surface
+  modelled just in front of it, up to 10% of the eyes' spacing in front along
+  the face's front axis (`FaceCover` in `faceCover.ts`): the face primitive's
+  triangles outside its island (eye dots, a low-poly eye shape, a nose) and
+  the iris, white and highlight parts. Hair in its own primitives is not
+  counted, but hair, a hood or a hat in the face primitive is, when it lies
+  outside the face's island that close (a whole-body or partly head-weighted
+  face). Eye-line and lash parts are left out, since their strands are
+  usually cut out of a texture; eye-line and lash regions of the face
+  primitive count only when the face material is opaque. An under-eye or
+  cheek anchor under a surface moves down in steps of 1% of the eye spacing
+  until nothing covers it, by at most half the spacing, and then half its
+  reference height further where that stays uncovered, so the art sits below
+  eyes modelled larger than their estimate. A mouth anchor counts as covered
+  only when the points half its width to either side are covered too, since
+  mouth art reaches past a nose over its centre. An anchor still covered keeps
+  `covered: true` in the snapshot, and decals placed on it are skipped with
+  `effect_anchor_covered`; the load log lists the anchors moved and left
+  covered. Anchors nothing covers, the Included Avatars' among them, stay
+  where they were.
+- **Darkening art on a dark face.** Before a `multiply` decal is drawn, its
+  change is estimated per colour channel from means: multiply scales each
+  channel of the surface by the art's, so at opacity `o` a channel changes by
+  about `o × S × (1 − A × T)` from the surface's mean colour `S` under the
+  decal (the brightest of its placements), the art's mean colour `A` and its
+  tint `T`. Where the largest channel change is under 8/255 (the step the
+  review renders count as visible), the decal is skipped with
+  `effect_surface_too_dark`: Included `shiver_undereye` on the neutral dark
+  grey screen of a low-poly robot face, say (about 7/255). It changes the red
+  channel of the Included Avatars' skin by about 34/255 and of the darkest
+  survey skin by about 25/255. Being an estimate from means, it can skip
+  art that would show faintly on a few lighter pixels of a mixed surface.
+  Whole-face art is not checked.
+- **What the face shows.** Painted `face_skin` art needs the face material to
+  draw a base colour texture (`map`) through the first UV set, the one anchors
+  and the clip read, and, for an overlay, one whose image can be painted.
+  Otherwise (a texture read through a second UV set, or art that would reach
+  only MToon's shade texture, which shows in shadow) the effect is skipped
+  with `effect_face_texture_hidden`.
 - **Texture transforms.** Anchors, iris rectangles, the face clip and the
   creator's surface handles read positions on the texture's image, not raw
   UVs (`TextureUvMapping`): the UV through the base texture's transform
@@ -305,7 +344,7 @@ VRM specification does not define. `detectAvatarFaceParts`
 
 | Part                             | Signal                                                                                                                                                                                                                                                                         |
 | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `eye_left`, `eye_right` (irises) | Primitives with at least half their skin weight on the humanoid `leftEye`/`rightEye` bones (or whose material a look-at expression moves through a texture transform). Without either, the head-skinned primitives over the eyelids `blink` moves on the face skin and within that eye region, each side by the head's left-right axis. Iris, white and highlight are told apart by projected area and depth. One primitive may hold both eyes. An eye with no geometry of its own is `estimated` (see below). |
+| `eye_left`, `eye_right` (irises) | Primitives with at least half their skin weight on the humanoid `leftEye`/`rightEye` bones (or whose material a look-at expression moves through a texture transform). Without either, the primitives skinned to the head (eye bones included, as an eye mesh may skin only its irises to them) within that eye region with a triangle behind an eyelid `blink` moves on the face skin: its outline meets the lid's in the front view and a corner lies no deeper than 15% of the lids' width behind the lid's front, so an eye card larger than the lid counts; sides follow the head's left-right axis. A part deep inside the head or beside it (ears) whose outline merely spans the lids does not count. Iris, white and highlight are told apart by projected area and depth. One primitive may hold both eyes. An eye with no geometry of its own is `estimated` (see below). |
 | `face_skin`                      | The head-skinned primitive of the mesh that both `blink` and `aa` morph (presets left empty are filled from MMD, ARKit or VRChat shapes first, `faceSignals.ts`), with the most area around the eyes. A face skinned partly to the neck or jaw (under 90% head weight) wins instead when its head-weighted vertices cover more and blink moves it; primitives on spring joints (merged-in hair) never do. With neither, a primitive they morph with under half its weight on the head is face skin as its head region (see below). |
 | `eye_highlight`                  | Separated from the iris by size and depth.                                                                                                                                                                                                                                     |
 | `eyeline`, `eyelash`             | Small primitives of the face mesh that `blink` moves almost entirely; the larger is the eye line. Islands of the face or eye primitives that `blink` moves the same way are part `regions` (triangle lists, runtime only): lashes, or each eye's largest island as its line when no line primitive exists. |
@@ -357,7 +396,8 @@ is an iris; blush, under-eye, mouth, forehead and top placements read the
 landmarks as for any eye. An estimated eye's `textureRect` lies on the face
 texture, so the iris layout (`resolveIrisEyeLayout`) ignores it. Iris surface
 art (`face_surface` `eyes`) still needs an iris mesh part; on an estimated eye
-it is skipped with "this avatar's left eye has no iris mesh". With neither a
+it is skipped with `effect_iris_mesh_missing` ("this avatar's left eye has no
+iris mesh"). With neither a
 blink region nor eye bones that mark the eyes, the eyes stay missing, and eye
 effects are skipped naming them.
 
@@ -1084,8 +1124,12 @@ per render; a silhouette adds one skinned draw per overlaid primitive (about
   estimated, not measured: an estimate
   from the eye bone is off where the bone does not sit behind the eye, and
   one from blinking leans toward the lid above the eye and is sized like an
-  iris, so round eye dots larger than that leave blush and under-eye art
-  inside them.
+  iris; blush and under-eye art move below eye dots or shapes larger than
+  that ([Painted effects](#painted-effects-face_surface)), but art sized from
+  the estimate stays small: dot and X eyes, tears and under-eye art can fall
+  under the review renders' visibility floor on Avatars whose modelled or
+  painted eyes are larger or thinner than an iris (low-poly and chibi
+  Avatars, eyes modelled inside the face).
   With both eye bones, eye landmarks skip islands wider than the distance
   between them, such as a dome some VRChat eye meshes put around each
   eyeball.

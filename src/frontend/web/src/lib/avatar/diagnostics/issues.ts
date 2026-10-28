@@ -54,6 +54,14 @@ export const AVATAR_ISSUE_CODES = [
   "effect_placement_failed",
   "effect_attachment_limit",
   "effect_face_part_missing",
+  // Iris art on an eye estimated on the face, which has no iris mesh part.
+  "effect_iris_mesh_missing",
+  // Painted face art that would not show: its anchor lies under eyes or a
+  // nose modelled over the skin, the face shows no paintable texture, or
+  // darkening art lies on a face too dark for it to change.
+  "effect_anchor_covered",
+  "effect_face_texture_hidden",
+  "effect_surface_too_dark",
   "effect_target_unresolved",
   "effect_target_incompatible",
   "effect_overlay_required",

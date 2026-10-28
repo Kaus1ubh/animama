@@ -642,3 +642,26 @@ describe("a face inside a whole-body primitive", () => {
     expect(clips).toEqual([]);
   });
 });
+
+describe.each([1, 0] as const)(
+  "eye cards larger than the lids on a VRM %s whole-body Avatar",
+  (vrm) => {
+    it("are found as the eyes, though no corner lies within a lid", async () => {
+      const avatar = await loadWholeBodyAvatar({ vrm, eyeCards: true });
+      // Each card is one quad reaching past its stroke and the lid blink
+      // closes over it on every side.
+      const cards = buildRuntimePrimitiveBindings(avatar).entries.find(
+        (entry) => entry.materialName === "Eyes",
+      )!;
+      expect(cards.object.geometry.getAttribute("position").count).toBe(8);
+
+      const parts = avatar.facePartMap!.parts;
+      for (const role of ["eye_left", "eye_right"] as const) {
+        expect(parts[role]).toMatchObject({
+          source: "signals",
+          bindings: [cards.bindingKey],
+        });
+      }
+    });
+  },
+);

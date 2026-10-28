@@ -99,6 +99,14 @@ export function avatarIssueText(
       }),
     effect_face_part_missing: () =>
       t("avatarDiagnostics.issues.effect_face_part_missing", { effect, part }),
+    effect_iris_mesh_missing: () =>
+      t("avatarDiagnostics.issues.effect_iris_mesh_missing", { effect, part }),
+    effect_anchor_covered: () =>
+      t("avatarDiagnostics.issues.effect_anchor_covered", { effect }),
+    effect_face_texture_hidden: () =>
+      t("avatarDiagnostics.issues.effect_face_texture_hidden", { effect }),
+    effect_surface_too_dark: () =>
+      t("avatarDiagnostics.issues.effect_surface_too_dark", { effect }),
     effect_target_unresolved: () =>
       t("avatarDiagnostics.issues.effect_target_unresolved", { effect }),
     effect_target_incompatible: () =>

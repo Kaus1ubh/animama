@@ -26,6 +26,12 @@ export type WholeBodyOptions = {
    * skinned to its eye bone, as a model with separate eyes keeps them.
    */
   irises?: boolean;
+  /**
+   * A second mesh of eye cards instead: one four-vertex quad behind each eye
+   * stroke, skinned to the head and a little larger than the stroke and the
+   * lid blink closes, as low-poly Avatars model eyes.
+   */
+  eyeCards?: boolean;
   /** `blink` and `aa` stay bound to the body but move nothing. */
   still?: boolean;
   /** The one material's name (default "Body"). */
@@ -269,6 +275,9 @@ export function wholeBodyVrmBytes(options: WholeBodyOptions = {}): Uint8Array {
   if (options.irises && options.eyes !== "bones") {
     throw new Error('Irises need eye bones (eyes: "bones")');
   }
+  if (options.irises && options.eyeCards) {
+    throw new Error("Irises and eye cards are alternatives");
+  }
   const headJoint: Joint = options.headBone ?? "head";
   const mesh = new PrimitiveBuilder();
   const uv = WHOLE_BODY_UV;
@@ -346,12 +355,24 @@ export function wholeBodyVrmBytes(options: WholeBodyOptions = {}): Uint8Array {
       joint: at === 0 ? "leftEye" : "rightEye",
     });
   });
-  return encodeWholeBodyGlb(mesh, irises, options);
+  const cards = options.eyeCards ? new PrimitiveBuilder() : null;
+  for (const [x, y] of WHOLE_BODY_EYES) {
+    // 2 mm wider than the stroke on each side, 1 mm above it and below where
+    // blink lowers it, between the face and the stroke.
+    cards?.grid({
+      origin: [x - 0.017, y - 0.01, WHOLE_BODY_HEAD.half[2] + 0.0002],
+      u: [0.034, 0, 0],
+      v: [0, 0.016, 0],
+      uv: uv.irises,
+      joint: headJoint,
+    });
+  }
+  return encodeWholeBodyGlb(mesh, irises ?? cards, options);
 }
 
 function encodeWholeBodyGlb(
   mesh: PrimitiveBuilder,
-  irises: PrimitiveBuilder | null,
+  eyes: PrimitiveBuilder | null,
   options: WholeBodyOptions,
 ): Uint8Array {
   // A VRM 0 file holds the model turned half a turn about y, facing -z.
@@ -474,8 +495,8 @@ function encodeWholeBodyGlb(
       primitives: [primitive(mesh, 0, true)],
       extras: { targetNames: ["blink", "aa"] },
     },
-    ...(irises
-      ? [{ name: "Eyes", primitives: [primitive(irises, 1, false)] }]
+    ...(eyes
+      ? [{ name: "Eyes", primitives: [primitive(eyes, 1, false)] }]
       : []),
   ];
   const inverseBindMatrices = accessor({
@@ -508,7 +529,7 @@ function encodeWholeBodyGlb(
       };
     }),
     { name: "Body", mesh: 0, skin: 0 },
-    ...(irises ? [{ name: "Eyes", mesh: 1, skin: 0 }] : []),
+    ...(eyes ? [{ name: "Eyes", mesh: 1, skin: 0 }] : []),
   ];
   const morphBind = (index: number) => ({
     morphTargetBinds: [{ node: meshNode, index, weight: 1 }],

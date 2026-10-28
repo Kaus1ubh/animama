@@ -199,6 +199,13 @@ const MOVED_EPSILON = 1e-4;
 /** How far past the eyelids an eye layer found without eye bones may reach. */
 const EYE_REGION_MARGIN = 0.25;
 /**
+ * How deep behind its lid's front an eye layer found without eye bones may
+ * lie, as a share of the two lids' width. Eye meshes sit just behind the
+ * lids; a part hidden inside the head (an inner mouth, a spare pupil) or
+ * beside it (ears) can reach into the lids' outline from far deeper.
+ */
+const EYE_LAYER_MAX_DEPTH = 0.15;
+/**
  * An eye's blink region holds the vertices blink moves at least this share as
  * far as the farthest one on its side: the upper lid and lash line, without
  * the skin around them that moves a little with it.
@@ -1372,11 +1379,13 @@ function mergeEyeGroups(groups: readonly EyeParts[]): EyeParts {
 }
 
 /**
- * Eyes on a model without eye bones or look-at textures: blink moves each
- * eyelid on the face skin, which marks each eye's region (sides by the head's
- * left-right axis). Head-skinned primitives over one region hold that eye,
- * over both hold both; lines and lashes (which blink moves) and spring hair
- * are left out. Their iris, white and highlight follow the eye-bone rules.
+ * Eyes on a model without eye-bone primitives or look-at textures: blink
+ * moves each eyelid on the face skin, which marks each eye's region (sides by
+ * the head's left-right axis). Primitives skinned to the head (eye bones
+ * included: an eye mesh may skin only its irises to them) with vertices
+ * behind a lid, near its front, hold that eye, behind both hold both; lines
+ * and lashes (which blink moves) and spring hair are left out. Their iris,
+ * white and highlight follow the eye-bone rules.
  */
 function detectEyesFromBlink(
   context: Context,
@@ -1393,18 +1402,43 @@ function detectEyesFromBlink(
   const lids = measureLidBoxes(context, args.faceSkin.object, args.blink);
   if (lids.left.isEmpty() || lids.right.isEmpty()) return null;
 
-  const overlaps = (box: THREE.Box3, lid: THREE.Box3) =>
-    box.min.x <= lid.max.x &&
-    box.max.x >= lid.min.x &&
-    box.min.y <= lid.max.y &&
-    box.max.y >= lid.min.y;
   // An eye layer lies within the eyes' region; glasses, a fringe or a mouth
   // primitive reaching over an eye extend well past it.
   const region = lids.left.clone().union(lids.right);
-  const margin = region
-    .getSize(new THREE.Vector3())
-    .multiplyScalar(EYE_REGION_MARGIN);
-  region.expandByVector(margin);
+  const regionSize = region.getSize(new THREE.Vector3());
+  // A lid's box spans every vertex blink moves, which on some models reaches
+  // across the whole head; its front is the lid itself.
+  const maxDepth = regionSize.x * EYE_LAYER_MAX_DEPTH;
+  const sign = context.frontSign;
+  // Whether a triangle of a primitive lies behind `lid`: its outline in the
+  // front view meets the lid's, and a corner lies no deeper than `maxDepth`
+  // behind the lid's front. An eye card larger than the lid has one; a part
+  // whose outline only spans the lid from deep inside the head or beside it
+  // (ears) has none.
+  const behind = (
+    points: readonly THREE.Vector3[],
+    corners: readonly number[],
+    lid: THREE.Box3,
+  ) => {
+    const front = Math.max(lid.min.z * sign, lid.max.z * sign) - maxDepth;
+    for (let at = 0; at + 2 < corners.length; at += 3) {
+      const triangle = [0, 1, 2].map((corner) => points[corners[at + corner]!]);
+      if (triangle.some((point) => !point)) continue;
+      const xs = triangle.map((point) => point!.x);
+      const ys = triangle.map((point) => point!.y);
+      if (
+        Math.max(...xs) >= lid.min.x &&
+        Math.min(...xs) <= lid.max.x &&
+        Math.max(...ys) >= lid.min.y &&
+        Math.min(...ys) <= lid.max.y &&
+        Math.max(...triangle.map((point) => point!.z * sign)) >= front
+      ) {
+        return true;
+      }
+    }
+    return false;
+  };
+  region.expandByVector(regionSize.multiplyScalar(EYE_REGION_MARGIN));
   const within = (box: THREE.Box3) =>
     box.min.x >= region.min.x &&
     box.max.x <= region.max.x &&
@@ -1413,7 +1447,12 @@ function detectEyesFromBlink(
   const sides = new Map<RuntimePrimitiveBindingEntry, EyeSide>();
   for (const { entry, shares } of args.candidates) {
     if (entry === args.faceSkin) continue;
-    if (shares.head < HEAD_SKINNED_MIN_SHARE) continue;
+    if (
+      shares.head + shares.eye_left + shares.eye_right <
+      HEAD_SKINNED_MIN_SHARE
+    ) {
+      continue;
+    }
     if (shares.spring_head >= HAIR_MIN_SPRING_SHARE) continue;
     if (
       measureMorphDisplacement(entry.object, args.blink).movedShare >=
@@ -1421,12 +1460,12 @@ function detectEyesFromBlink(
     ) {
       continue;
     }
-    const box = new THREE.Box3().setFromPoints(
-      anchorSpacePoints(context, entry.object),
-    );
+    const points = anchorSpacePoints(context, entry.object);
+    const box = new THREE.Box3().setFromPoints(points);
     if (box.isEmpty() || !within(box)) continue;
-    const left = overlaps(box, lids.left);
-    const right = overlaps(box, lids.right);
+    const { corners } = readPrimitiveTriangles(context, entry);
+    const left = behind(points, corners, lids.left);
+    const right = behind(points, corners, lids.right);
     if (left || right) {
       sides.set(entry, left && right ? "both" : left ? "left" : "right");
     }

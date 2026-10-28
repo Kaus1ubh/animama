@@ -69,7 +69,7 @@ Evidence in this plan and the PR is counts and pass/fail only.
 - [x] Phase 3: blink and mouth signals beyond VRM presets (2026-10-28; review passed after one repair round; owner live check pending).
 - [x] Phase 4: eyes without separate eye geometry (2026-10-28; review passed after one repair round).
 - [x] Phase 5: the face inside a whole-body mesh (2026-10-28; review passed after two repair rounds).
-- [ ] Phase 6: painted art that shows.
+- [x] Phase 6: painted art that shows (2026-10-28; review passed after two repair rounds).
 - [ ] Phase 7: size-aware placement and framing.
 - [ ] Phase 8: rig and material fallbacks (deferrable, Q3).
 - [ ] Phase 9: acceptance, documentation and owner gates.
@@ -91,6 +91,11 @@ Evidence in this plan and the PR is counts and pass/fail only.
   fresh render at 0 px. `idea_bulb` showed the same kind of one-pixel run-to-run
   variation in Phase 1. Comparisons now pass at 0 px against either the
   baseline or `evidence/baseline-alt/`.
+- 2026-10-28 (agent): `count-on-fingers` also renders in two variants one pixel
+  apart (channel delta 50) on unchanged source: a fresh render of `main`
+  matched the baseline while Phase 5's commit gave the other variant, and the
+  Phase 6 working tree gave each variant on different runs. The second variant
+  is kept in `evidence/baseline-alt/`.
 - 2026-10-28 (agent): `main` moved past the survey revision `9a97029a`. MMD
   まばたき already filled an empty `blink` (commit `4af907b2`), so HAOLAN's face
   is found before Phase 3, and Red Face on Carol North stays on her head. The
@@ -903,12 +908,197 @@ Checks: as Phase 3, plus private RadDollV3 and ふぁふぁ renders.
 Recovery: if the cause needs a change to how art is painted for all Avatars,
 stop and ask the owner before changing Included output.
 
+Starting source: `ec311656`.
+
+Investigation (2026-10-28): neither overlapping or mirrored UV islands nor a
+wrong texture slot caused the failures (RadDollV3's face is VRM 0 MToon with the
+same image in its main and shade slots, identity transforms and one UV set).
+Two causes:
+
+- **Eyes from the wrong part.** `detectEyesFromBlink` accepted any head-skinned
+  part whose bounding box overlapped a lid box, and blink lid boxes can span the
+  whole head. RadDollV3's real eye mesh, skinned 56% to the head and 44% to the
+  eye bones, qualified for neither path, so a tiny transparent part 3–4 cm inside
+  the head became both eyes; the face island then fell back to every face
+  triangle, anchors projected onto the inner eye socket 9 mm behind the face, and
+  the mouth reference smeared across the cheek. HAOLAN's ear mesh became its eyes.
+- **Anchors under modelled eye shapes.** Under-eye and cheek anchors seeded from
+  an iris-sized estimate landed under eye geometry modelled 0.3–6.6 mm in front
+  of the skin (Polybot's eye capsules, Maromage's eye dots).
+
+Also found: whole-face art is laid out over the whole texture image (VRoid's
+dedicated face texture) and clipped to the face island, so on ふぁふぁ, whose face
+island covers about 12% of the image, the crack strokes fall outside the face.
+Mapping VRoid-layout art onto other face layouts is an owner question (Phase 9).
+
+Implementation: an eye part must now have vertices inside a lid's outline and
+no deeper than 15% of the lids' width behind the lid front, and eye-bone weight
+counts as head weight. New `vfx/faceCover.ts` lists the triangles that can hide
+skin art (the face primitive outside its island, and eye mesh parts; not hair);
+covered under-eye and cheek anchors slide down until uncovered, within half the
+eye spacing, and the mouth counts as covered only when both sides of it are.
+Apply-time skips: decals on a still-covered anchor (`effect_anchor_covered`),
+painted face art when the face material has no UV-0 `map` an overlay can paint
+(`effect_face_texture_hidden`), and iris art on an estimated eye
+(`effect_iris_mesh_missing`, carried P4-R2-F1); all localized. New
+`vfx/paintedFaceArt.test.ts` (VRM 1 and 0) and detection tests, red before the
+fix; docs in `avatar-vfx.md`.
+
+Check record (tree `67d325bd`):
+
+| Command | Directory | Result |
+| --- | --- | --- |
+| `timeout 900 npx vitest run src/lib/avatar src/ui tests/avatar src/lib/runtime-content` | `src/frontend/web` | 3717 passed, 2 skipped; baselines unchanged |
+| `npx tsc -b`; `npx tsc -p tsconfig.scripts.json --noEmit`; eslint and prettier `--check` on touched files | `src/frontend/web` | clean |
+| `python3 ../../scripts/heavy-slot.py -- pnpm check` | `src/frontend` | exit 0 |
+| `python3 ../../scripts/heavy-slot.py -- pnpm web:test:browser` | `src/frontend` | 132/132 |
+| `evidence/render-set.sh`, `--diff` against the baselines | `src/frontend/web` | 31/31 at 0 px after re-rendering `joy-2` (slot timeout) and `cover-face-and-peek` (1 px once) |
+
+Private calibration (counts only; effects of 16, Reactions of 6):
+
+| Avatar | Effects | Reactions | Remaining |
+| --- | --- | --- | --- |
+| RadDollV3 | 7 → 16 | 2 → 6 | none; by eye, every piece of art in place |
+| HAOLAN | 11 → 15 | 4 → 6 | dot eyes too small |
+| Polybot | 10 → 12 | 3 → 4 | X and dot eyes, tear and under-eye too small or invisible on its dark screen; joy sparkle |
+| Maromage | 12 → 15 | 5 → 5 | horns and joy sparkle hidden |
+| ふぁふぁ, Alicia, Olivia, Carol North | unchanged | unchanged | ふぁふぁ crack lines (owner question); Olivia small tear and under-eye; Carol per Phase 7 |
+
+#### Code Review #1 Findings
+
+Reviewed tree `67d325bd` (standard tier, initial full review); no checks
+rerun. The reviewer measured the anchor-lowering loop in isolation: 13 ms,
+87 ms and 441 ms for 200 projections over 2k, 10k and 30k island triangles.
+
+- **P6-R1-F1 (required):** Polybot's under-eye and tear art still applies and
+  draws nothing with no warning; the Included `shiver_undereye` uses a multiply
+  blend, which cannot show on a near-black surface.
+- **P6-R1-N1:** the eye-part rule needs a vertex inside the lid box, which
+  rejects a low-poly eye card larger than the lid opening.
+- **P6-R1-N2:** alpha-cutout eyeline and eyelash parts count as cover, pushing
+  art that used to show between the strands lower.
+- **P6-R1-N3:** the lowering loop costs steps × island triangles, unmeasured
+  against the load-time constraint.
+- **P6-R1-N4–N6:** docs on the clearance bound and merged hair; the covered
+  warning's standalone wording; a temporary field used as a hidden argument.
+
+Result: blocked on F1.
+
+#### Code Review #1 Revisions
+
+- F1 accepted: an apply-time check skips darkening-blend art over a surface too
+  dark to change visibly, with a named localized issue. Art that is merely too
+  small to clear the visibility floor (Polybot's X and dot eyes and tear,
+  HAOLAN's dot eyes, Olivia's tear and under-eye) goes to Phase 7's sizing and
+  is listed in the docs' limitations meanwhile.
+- N1–N6 accepted, including per-Avatar counts of lowered and covered anchors
+  and load-time numbers for the lowering search.
+
+Repair round 1 (tree `803a8376`): multiply decals get an estimated visible
+change from the face's original `map` under each placement and skip with
+`effect_surface_too_dark` below 8/255 (F1; all locales). An eye part now needs a
+triangle whose outline meets a lid within the depth limit, so a four-vertex eye
+card larger than the lid opening is found (N1, VRM 1 and 0 tests). Separate
+eyeline and lash parts no longer count as cover; eyeline and lash regions inside
+the face primitive count unless the face material is see-through, because on
+Polybot, Maromage and Olivia the covering eye shapes are such regions (N2). The
+lowering search projects onto the island triangles near the anchor's path (N3).
+Docs, standalone warnings and an explicit coverage argument (N4–N6).
+
+| Command | Directory | Result |
+| --- | --- | --- |
+| `timeout 900 npx vitest run src/lib/avatar src/ui tests/avatar src/lib/runtime-content` | `src/frontend/web` | 3722 passed, 2 skipped; baselines unchanged |
+| `npx tsc -b`; `npx tsc -p tsconfig.scripts.json --noEmit`; eslint and prettier `--check` on touched files | `src/frontend/web` | clean |
+| `python3 ../../scripts/heavy-slot.py -- pnpm check` | `src/frontend` | exit 0 |
+| `python3 ../../scripts/heavy-slot.py -- pnpm web:test:browser` | `src/frontend` | 132/132 |
+| `evidence/render-set.sh` | `src/frontend/web` | 31 at 0 px against the baseline or the alternate (`count-on-fingers` variant attributed to render variation; see Surprises) |
+
+Anchors lowered after the round (none left covered on any survey Avatar):
+under-eye on Olivia and HAOLAN; under-eye and blush on Polybot and Maromage;
+none on Alicia, Carol North, RadDollV3 or ふぁふぁ. Anchor build on the largest
+survey face (HAOLAN, island 2,044 of 11,422 triangles) 36.9 ms before the N3
+change and 38.4 ms after; a synthetic worst case fell from 34.3 ms to 21.9 ms.
+Private calibration unchanged except Polybot's under-eye art, now a named skip.
+
+#### Code Review #2 Findings
+
+Reviewed tree `803a8376` (targeted recheck).
+
+- **P6-R2-F1 (required):** the multiply check multiplies luminances against a
+  per-channel threshold, so it skips visible art on dark skin: the icy-blue
+  under-eye art on dark-brown skin changes the red channel by about 15/255 but
+  is estimated at 6/255 and skipped.
+- **P6-R2-N1:** no tests for the see-through rule or the lash-part exclusion;
+  lilToon cut-out may not set `alphaTest`; confirm what moved HAOLAN's and
+  Olivia's under-eye anchors.
+- **P6-R2-N2:** the lowering comment's "exactly" overstates one fallback case.
+- **P6-R2-N3:** the plan lacks a pre-Phase 6 anchor-build time for the largest
+  face (recorded in repair round 2).
+
+Result: blocked on F1; one repair round left.
+
+#### Code Review #2 Revisions
+
+- F1 accepted: estimate per channel and compare the largest change; tests with
+  coloured art on a dark coloured face; docs wording.
+- N1, N2, N3 accepted.
+
+Repair round 2 (tree `aabe700e`): the multiply check now estimates
+`opacity × max over channels of S̄ × (1 − Ā·T)` from alpha-weighted mean colours
+of the face under the placement and of the tinted art, and skips below 8/255
+(F1). With the under-eye art: Polybot's grey screen 7.1–7.6/255 (skipped),
+Carol North's skin 25.4/255, Included skins 33.8–35.2/255 (drawn); tests with
+coloured art cover dark-brown skin (drawn, red under the luminance estimate),
+near-black (skipped) and a normal blend (drawn). three-liltoon materials in any
+non-opaque render mode count as see-through for the cover rule, with tests for
+opaque, alpha-test, lilToon cut-out and blended faces and for eyeline parts
+staying out of the cover (N1). Probes: HAOLAN's under-eye anchor moves out from
+under the eye islands inside its face mesh; Olivia's, Polybot's and Maromage's
+from under opaque eyeline or lash regions. The lowering search tests points
+outside its path against the whole cover (N2).
+
+| Command | Directory | Result |
+| --- | --- | --- |
+| `timeout 590 npx vitest run src/lib/avatar src/ui tests/avatar src/lib/runtime-content` | `src/frontend/web` | 3728 passed, 2 skipped |
+| `npx tsc -b`; `npx tsc -p tsconfig.scripts.json --noEmit`; eslint and prettier `--check` on touched files | `src/frontend/web` | clean |
+| `python3 ../../scripts/heavy-slot.py -- pnpm check` | `src/frontend` | exit 0 |
+| The browser suite's own steps in two halves through heavy-slot (`pnpm web:test:browser` exceeds the foreground limit) | `src/frontend/web` | 32/32 and 100/100 |
+| `shiver_undereye`, `blush`, `single_tear`, `kiss_mark`, `--with-clip library:reaction/fear-2`, `--diff` against the baselines | `src/frontend/web` | 0 px, no warnings |
+| Private calibration (counts only) | `src/frontend/web` | unchanged from round 1 |
+
+Load cost (N3): HAOLAN, the largest survey face, builds anchors in 20.9–22.8 ms
+on `ec311656` and 27.9–30.5 ms after Phase 6, and rebuilds its face in
+46.9–49.2 ms and 61.7–64.4 ms (shared, noisy machine; on `ec311656` its ears
+were taken as eyes). The reviewer measured the Included Avatars' anchor build at
+19.7–28.1 ms, of which the new cover build is 1.5–2.3 ms, once per load.
+
+#### Code Review #3 Findings
+
+Reviewed tree `aabe700e` (final targeted recheck). F1's formula matches how the
+decal is drawn (art × tint, multiply blend, compared per channel); the lilToon
+`renderMode` check reads the right fields; the lowering search is exact. Load
+cost acceptable: about 2 ms once per load on Included Avatars, and +15 ms once
+for a fallback Avatar. Optional: an unused `blinks` parameter in a test helper
+(P6-R3-N1); per-triangle allocations in two fallback loops (P6-R3-N2). Result:
+pass.
+
+#### Code Review #3 Revisions
+
+P6-R3-N1 and N2: no change (dead test parameter is harmless; the fallback cost
+is acceptable). Repair budget used up.
+
+Phase 6 complete (agent-ready). Owner question for Phase 9: how VRoid-layout
+whole-face art should map onto other face layouts (ふぁふぁ's crack lines).
+
 ### Phase 7: Size-aware placement and framing (R7)
 
 Review tier: standard.
 
 Intended changes:
 
+0. Carried from Phase 6 (P6-R1-F1): size decals and eye overlays so that tears,
+   under-eye marks and X and dot eyes on Polybot, HAOLAN and Olivia clear the
+   visibility floor.
 1. Measure, once at load, head size (face skin bounds, else the head bone to
    the top of the head mesh), eye size (Phase 4 landmarks) and body height.
 2. Hover planes and box placements (`AvatarVFXController.ts`) size from eye and
@@ -961,7 +1151,10 @@ integration review.
    geometry, whole-body faces, size-aware placement) and
    `docs/frontend/runtime/vrchat-avatar-conversion.md` (what converted Avatars
    need), describing current behavior only.
-3. Owner gates: the live blink and lip-sync check (Phase 3), review of the
+3. Owner decision carried from Phase 6: how whole-face art laid out for VRoid's
+   dedicated face texture maps onto faces whose island covers a small part of a
+   shared texture (on ふぁふぁ the crack strokes fall outside the face).
+4. Owner gates: the live blink and lip-sync check (Phase 3), review of the
    private survey sheets, and acceptance of any limitation left open (for
    example whole-face art tinting the hair, ears or a head-skinned hat on a
    single mesh that is mostly head, if Phase 7 does not resolve it).

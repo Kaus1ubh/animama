@@ -12,6 +12,7 @@ import {
 } from "../motion-authoring/testing/includedAvatars";
 import { loadedTestAvatar } from "../testing/loadedTestAvatar";
 import { removeEyeBones } from "../testing/removeEyeBones";
+import { StubCanvas } from "../testing/stubCanvas";
 import { buildRuntimePrimitiveBindings } from "../vrmEditorInspection";
 import { AvatarVFXController } from "./AvatarVFXController";
 import type { RuntimePrimitiveBindingEntry } from "./avatarPrimitiveUtils";
@@ -29,35 +30,6 @@ vi.mock("./effect-image", () => ({ loadEffectImage: vi.fn() }));
  * the face), painted eyes with eye bones but no blink, painted eyes with only
  * a look-at origin, and painted eyes with none of these.
  */
-
-/** A canvas whose 2D context accepts every call, enough for composites. */
-class StubCanvas {
-  width = 256;
-  height = 256;
-  getContext() {
-    const state: Record<string | symbol, unknown> = {
-      globalAlpha: 1,
-      globalCompositeOperation: "source-over",
-      fillStyle: "",
-      getImageData: (
-        _x: number,
-        _y: number,
-        width: number,
-        height: number,
-      ) => ({
-        data: new Uint8ClampedArray(width * height * 4).fill(200),
-      }),
-      createRadialGradient: () => ({ addColorStop: () => {} }),
-    };
-    return new Proxy(state, {
-      get: (target, key) => (key in target ? target[key] : () => {}),
-      set: (target, key, value) => {
-        target[key] = value;
-        return true;
-      },
-    });
-  }
-}
 
 beforeEach(() => {
   vi.spyOn(console, "info").mockImplementation(() => {});
@@ -492,7 +464,7 @@ describe("an eye without an iris mesh", () => {
     ]);
     expect(controller.getSnapshot().issues).toEqual([
       {
-        code: "effect_face_part_missing",
+        code: "effect_iris_mesh_missing",
         params: { effectId: "iris-art", part: "eye_left" },
       },
     ]);

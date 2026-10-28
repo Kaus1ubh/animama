@@ -699,7 +699,11 @@ function getObjectPositionInAnchorSpace(
   return point;
 }
 
-function resolveFrontAxisSign(args: {
+/**
+ * Which way the face looks along the head anchor's z axis: −1 when `frontZLocal`
+ * is the bounds' minimum z (VRM 0 heads face −Z), +1 otherwise.
+ */
+export function resolveFrontAxisSign(args: {
   faceBounds: THREE.Box3;
   frontZLocal: number;
 }): FrontAxisSign {

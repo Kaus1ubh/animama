@@ -23,12 +23,15 @@ import {
   type CollectedPrimitiveData,
   type RuntimePrimitiveBindingEntry,
 } from "./avatarPrimitiveUtils";
+import { resolveFrontAxisSign } from "./AvatarFaceLandmarks";
+import { FaceCover, type FaceCoverTriangle } from "./faceCover";
 import { findFaceIslandTriangles } from "./faceIsland";
 import {
   findFaceSkinRegion,
   hasEyeDetailGeometry,
   measureEyelidBounds,
   resolveAvatarFacePartEntries,
+  selectFacePartEntries,
 } from "./faceParts";
 import {
   baseTextureOf,
@@ -60,6 +63,28 @@ const FLATTEN_MOUTH_WIDTH_RATIO = 1.35;
 const FLATTEN_MOUTH_HEIGHT_RATIO = 1.7;
 const FLATTEN_SAMPLE_WIDTH_RATIO = 0.2;
 const FLATTEN_SAMPLE_HEIGHT_RATIO = 0.14;
+/**
+ * A covered under-eye or cheek anchor moves down in steps of this share of
+ * the distance between the eyes, at most {@link UNCOVER_MAX_DROP_RATIO} of it.
+ */
+const UNCOVER_STEP_RATIO = 0.01;
+const UNCOVER_MAX_DROP_RATIO = 0.5;
+/**
+ * How near (a share of the eye spacing) the island triangles a lowered anchor
+ * is projected onto must lie to its path; a projection farther away than
+ * this is redone over the whole island, so results match it exactly.
+ */
+const UNCOVER_SEARCH_RADIUS_RATIO = 0.25;
+
+/**
+ * The cover anchors are checked against while being built, and which anchors
+ * it moved down or left covered (for the load log).
+ */
+type AnchorCoverage = {
+  cover: FaceCover | null;
+  lowered: string[];
+  covered: string[];
+};
 
 type FaceProjectionData = {
   bindingKey: string;
@@ -74,6 +99,8 @@ type FaceProjectionData = {
   orderedVertexIndices: number[];
   pointsByIndex: Map<number, THREE.Vector3>;
   uniqueVertexIndices: number[];
+  /** Every triangle of the face primitive, the island's and the others'. */
+  primitive: CollectedPrimitiveData;
   faceBounds: THREE.Box3;
   /** Where the face's UVs land on its texture's image. */
   mapping: TextureUvMapping;
@@ -207,6 +234,26 @@ function computeBoundsFromPoints(
     }
   });
   return hasPoint ? bounds : null;
+}
+
+/**
+ * Whether a material lets what lies behind show: blended or cut out, by
+ * three's `transparent` or `alphaTest`, or a three-liltoon render mode other
+ * than opaque (its cut-out mode need not set `alphaTest`).
+ */
+function isSeeThrough(material: THREE.Material): boolean {
+  const lilToon = material as {
+    isLilToonMaterial?: boolean;
+    renderMode?: unknown;
+  };
+  if (
+    lilToon.isLilToonMaterial &&
+    typeof lilToon.renderMode === "string" &&
+    lilToon.renderMode !== "opaque"
+  ) {
+    return true;
+  }
+  return material.transparent || material.alphaTest > 0;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -428,6 +475,16 @@ export class AvatarFaceTextureAnchors {
       return;
     }
 
+    const coverage: AnchorCoverage = {
+      cover: this._buildFaceCover({
+        projection,
+        faceLandmarks,
+        entries: runtimeResult.entries,
+      }),
+      lowered: [],
+      covered: [],
+    };
+
     // No line or lash geometry: they are likely painted into the face
     // texture, so eye cleanup covers each eyelid blink moves.
     const map = this._avatar.facePartMap;
@@ -482,11 +539,13 @@ export class AvatarFaceTextureAnchors {
             side: "left",
             eye: faceLandmarks.eyes.left,
             projection,
+            coverage,
           }),
           right: this._resolveUnderEyeAnchor({
             side: "right",
             eye: faceLandmarks.eyes.right,
             projection,
+            coverage,
           }),
         },
         blush: {
@@ -495,12 +554,14 @@ export class AvatarFaceTextureAnchors {
             eye: faceLandmarks.eyes.left,
             mouth,
             projection,
+            coverage,
           }),
           right: this._resolveBlushAnchor({
             side: "right",
             eye: faceLandmarks.eyes.right,
             mouth,
             projection,
+            coverage,
           }),
         },
         mouth: {
@@ -509,9 +570,11 @@ export class AvatarFaceTextureAnchors {
                 anchor: "mouth",
                 side: null,
                 source: mouth.source,
+                uncover: "mark",
                 localSeedPoint: mouth.localPoint,
                 referenceSizeLocal: mouth.referenceSizeLocal,
                 projection,
+                coverage,
               })
             : null,
         },
@@ -552,6 +615,8 @@ export class AvatarFaceTextureAnchors {
       hasUnderEyeRight: Boolean(snapshot.anchors.undereye.right),
       hasBlushLeft: Boolean(snapshot.anchors.blush.left),
       hasBlushRight: Boolean(snapshot.anchors.blush.right),
+      lowered: coverage.lowered,
+      covered: coverage.covered,
       warnings: snapshot.warnings,
     });
   }
@@ -611,16 +676,16 @@ export class AvatarFaceTextureAnchors {
       binding: args.binding,
       anchorObject: args.anchorObject,
     });
+    if (!collected) return null;
     // The face of a primitive that also holds the body is its head region.
     const region = findFaceSkinRegion(
       this._avatar.facePartMap,
       args.binding.bindingKey,
     );
-    const primitiveData =
-      collected && region
-        ? onlyTriangles(collected, new Set(region.triangles))
-        : collected;
-    if (!primitiveData || primitiveData.orderedVertexIndices.length === 0) {
+    const primitiveData = region
+      ? onlyTriangles(collected, new Set(region.triangles))
+      : collected;
+    if (primitiveData.orderedVertexIndices.length === 0) {
       return null;
     }
     const position = geometry.getAttribute("position");
@@ -655,6 +720,7 @@ export class AvatarFaceTextureAnchors {
       orderedVertexIndices,
       pointsByIndex: primitiveData.pointsByIndex,
       uniqueVertexIndices: Array.from(new Set(orderedVertexIndices)),
+      primitive: collected,
       faceBounds,
       mapping: TextureUvMapping.of(baseTextureOf(args.binding.object)),
     };
@@ -664,8 +730,9 @@ export class AvatarFaceTextureAnchors {
     side: AvatarVFXSide;
     eye: AvatarFaceEyeLandmarkSnapshot | null;
     projection: FaceProjectionData;
+    coverage: AnchorCoverage;
   }): AvatarFaceTextureAnchorSnapshot | null {
-    const { eye, side, projection } = args;
+    const { eye, side, projection, coverage } = args;
     if (!eye) return null;
     const localSeedPoint = toVector3(eye.centerLocal);
     localSeedPoint.y =
@@ -674,12 +741,14 @@ export class AvatarFaceTextureAnchors {
       anchor: "undereye",
       side,
       source: "geometric",
+      uncover: "lower",
       localSeedPoint,
       referenceSizeLocal: {
         width: clampMin(eye.boundsLocal.size.x * UNDER_EYE_WIDTH_RATIO, 0.02),
         height: clampMin(eye.boundsLocal.size.y * UNDER_EYE_HEIGHT_RATIO, 0.02),
       },
       projection,
+      coverage,
     });
   }
 
@@ -688,8 +757,9 @@ export class AvatarFaceTextureAnchors {
     eye: AvatarFaceEyeLandmarkSnapshot | null;
     mouth: MouthAnchorCandidate | null;
     projection: FaceProjectionData;
+    coverage: AnchorCoverage;
   }): AvatarFaceTextureAnchorSnapshot | null {
-    const { eye, mouth, projection, side } = args;
+    const { eye, mouth, projection, side, coverage } = args;
     if (!eye || !mouth) return null;
     const eyePoint = toVector3(eye.centerLocal);
 
@@ -705,12 +775,14 @@ export class AvatarFaceTextureAnchors {
       anchor: "blush",
       side,
       source: "geometric",
+      uncover: "lower",
       localSeedPoint,
       referenceSizeLocal: {
         width: clampMin(eye.boundsLocal.size.x * BLUSH_WIDTH_RATIO, 0.03),
         height: clampMin(eye.boundsLocal.size.y * BLUSH_HEIGHT_RATIO, 0.03),
       },
       projection,
+      coverage,
     });
   }
 
@@ -991,19 +1063,60 @@ export class AvatarFaceTextureAnchors {
     return bind.primitives.some((primitive) => primitive === faceMesh);
   }
 
+  /**
+   * A decal anchor: `localSeedPoint` projected onto the face's island. Where
+   * a surface covers that point (`coverage.cover`: eyes or a nose modelled
+   * over the skin), `uncover: "lower"` moves the anchor down until art there
+   * shows ({@link _lowerUncovered}), and an anchor still covered is marked
+   * `covered`, so painted art skips it. With `uncover: "mark"` (the mouth,
+   * whose art reaches past a nose over its centre) it is marked only when
+   * its sides are covered too. Moved and covered anchors are noted in
+   * `coverage`.
+   */
   private _createAnchorSnapshot(args: {
     anchor: "undereye" | "blush" | "mouth";
     side: AvatarVFXSide | null;
     source: AvatarFaceTextureAnchorSource;
+    uncover: "lower" | "mark";
     localSeedPoint: THREE.Vector3;
     referenceSizeLocal: AvatarFaceTextureReferenceSize;
     projection: FaceProjectionData;
+    coverage: AnchorCoverage;
   }): AvatarFaceTextureAnchorSnapshot | null {
-    const projected = this._projectPointToFaceSurface(
+    const seedProjected = this._projectPointToFaceSurface(
       args.projection,
       args.localSeedPoint,
     );
-    if (!projected) return null;
+    if (!seedProjected) return null;
+    let projected = seedProjected;
+    const { cover } = args.coverage;
+    let covered = cover?.covers(projected.localPoint) ?? false;
+    if (cover && covered && args.uncover === "mark") {
+      const centre = seedProjected.localPoint;
+      const halfWidth = args.referenceSizeLocal.width / 2;
+      covered = [-halfWidth, halfWidth].every((dx) => {
+        const side = this._projectPointToFaceSurface(
+          args.projection,
+          centre.clone().setX(centre.x + dx),
+        );
+        return side !== null && cover.covers(side.localPoint);
+      });
+    }
+    const name = args.side ? `${args.anchor}.${args.side}` : args.anchor;
+    if (cover && covered && args.uncover === "lower") {
+      const lowered = this._lowerUncovered({
+        projection: args.projection,
+        seed: args.localSeedPoint,
+        clearance: args.referenceSizeLocal.height / 2,
+        cover,
+      });
+      if (lowered) {
+        projected = lowered;
+        covered = false;
+        args.coverage.lowered.push(name);
+      }
+    }
+    if (covered) args.coverage.covered.push(name);
     const referenceSizeUv = this._projectReferenceSizeUv({
       projection: args.projection,
       localPoint: projected.localPoint,
@@ -1022,7 +1135,189 @@ export class AvatarFaceTextureAnchors {
       uv: toImageCoordinate(args.projection.mapping, projected.uv),
       referenceSizeLocal: args.referenceSizeLocal,
       referenceSizeUv,
+      ...(covered ? { covered: true as const } : {}),
     };
+  }
+
+  /**
+   * The first point on the face below `seed`, in steps of
+   * {@link UNCOVER_STEP_RATIO} of the eye spacing, that nothing covers, then
+   * lowered by `clearance` more where that stays uncovered, so the art's top
+   * clears the cover too; null when no step within
+   * {@link UNCOVER_MAX_DROP_RATIO} of the eye spacing is uncovered. Under-eye
+   * and cheek art belongs below eyes modelled larger than their estimate (eye
+   * dots, a low-poly eye shape).
+   *
+   * Each step projects onto the island triangles near the seed's path and
+   * tests the cover triangles there, read once, so the search costs about one
+   * projection over the island however many steps it takes. A step whose
+   * nearest point lies farther than the search radius is projected over the
+   * whole island, and a point outside the path is tested against the whole
+   * cover, so each step gives the result a full projection and test would.
+   */
+  private _lowerUncovered(args: {
+    projection: FaceProjectionData;
+    seed: THREE.Vector3;
+    clearance: number;
+    cover: FaceCover;
+  }): ProjectedUvPoint | null {
+    const { projection, seed } = args;
+    const spacing = args.cover.eyeSpacing;
+    if (spacing <= EPSILON) return null;
+    const step = spacing * UNCOVER_STEP_RATIO;
+    const maxDrop = spacing * UNCOVER_MAX_DROP_RATIO;
+    const radius = spacing * UNCOVER_SEARCH_RADIUS_RATIO;
+    const path = {
+      minX: seed.x - radius,
+      maxX: seed.x + radius,
+      minY: seed.y - maxDrop - args.clearance - radius,
+      maxY: seed.y + radius,
+    };
+    const near = this._islandTrianglesWithin(projection, path);
+    const nearCover = args.cover.within(path);
+    // Every cover triangle over a point inside the path meets the path.
+    const covered = (point: THREE.Vector3) =>
+      (point.x >= path.minX &&
+      point.x <= path.maxX &&
+      point.y >= path.minY &&
+      point.y <= path.maxY
+        ? nearCover
+        : args.cover
+      ).covers(point);
+    const lowered = (drop: number) => {
+      const target = seed.clone().setY(seed.y - drop);
+      const found = this._projectPointToFaceSurface(projection, target, near);
+      return found && found.localPoint.distanceTo(target) <= radius
+        ? found
+        : this._projectPointToFaceSurface(projection, target);
+    };
+    for (let drop = step; drop <= maxDrop + EPSILON; drop += step) {
+      const point = lowered(drop);
+      if (!point || covered(point.localPoint)) continue;
+      const clear = lowered(drop + args.clearance);
+      return clear && !covered(clear.localPoint) ? clear : point;
+    }
+    return null;
+  }
+
+  /**
+   * The island triangles (offsets into `orderedVertexIndices`) whose outline
+   * in the front view meets `box`.
+   */
+  private _islandTrianglesWithin(
+    projection: FaceProjectionData,
+    box: { minX: number; maxX: number; minY: number; maxY: number },
+  ): number[] {
+    const offsets: number[] = [];
+    const corners = projection.orderedVertexIndices;
+    for (let offset = 0; offset + 2 < projection.count; offset += 3) {
+      const points = [0, 1, 2].map((corner) =>
+        projection.pointsByIndex.get(corners[offset + corner]!),
+      );
+      if (points.some((point) => !point)) continue;
+      const xs = points.map((point) => point!.x);
+      const ys = points.map((point) => point!.y);
+      if (
+        Math.max(...xs) >= box.minX &&
+        Math.min(...xs) <= box.maxX &&
+        Math.max(...ys) >= box.minY &&
+        Math.min(...ys) <= box.maxY
+      ) {
+        offsets.push(offset);
+      }
+    }
+    return offsets;
+  }
+
+  /**
+   * What may cover art painted on the face ({@link FaceCover}): the face
+   * primitive's triangles outside the face's own island (eyes, dots or a
+   * nose kept in the face mesh) and the iris, white and highlight mesh parts.
+   * Eye-line and lash parts are left out: their strands are usually cut out
+   * of a texture, so art between them shows. Eye-line and lash regions of the
+   * face primitive count only when the face material is opaque, where the
+   * region is solid geometry (painted-on eye shapes that blink moves). Null
+   * without both eyes, whose spacing scales it.
+   */
+  private _buildFaceCover(args: {
+    projection: FaceProjectionData;
+    faceLandmarks: AvatarFaceLandmarksSnapshot;
+    entries: readonly RuntimePrimitiveBindingEntry[];
+  }): FaceCover | null {
+    const { projection, faceLandmarks } = args;
+    const eyeSpacing = resolveInterocularDistance(faceLandmarks);
+    if (!eyeSpacing || faceLandmarks.frontZLocal === null) return null;
+    const key = (corners: readonly number[], at: number) =>
+      `${corners[at]},${corners[at + 1]},${corners[at + 2]}`;
+    const island = new Set<string>();
+    for (let at = 0; at + 2 < projection.count; at += 3) {
+      island.add(key(projection.orderedVertexIndices, at));
+    }
+    const map = this._avatar.facePartMap;
+    const faceMaterial = [projection.meshObject.material].flat()[0];
+    const strands =
+      faceMaterial && isSeeThrough(faceMaterial)
+        ? new Set(
+            (["eyeline", "eyelash"] as const).flatMap((role) =>
+              (map?.parts[role].regions ?? [])
+                .filter((region) => region.bindingKey === projection.bindingKey)
+                .flatMap((region) => region.triangles),
+            ),
+          )
+        : null;
+    const triangles: FaceCoverTriangle[] = [];
+    const addTriangles = (
+      data: CollectedPrimitiveData,
+      skip: (at: number) => boolean,
+    ) => {
+      const corners = data.orderedVertexIndices;
+      for (let at = 0; at + 2 < corners.length; at += 3) {
+        if (skip(at)) continue;
+        const a = data.pointsByIndex.get(corners[at]!);
+        const b = data.pointsByIndex.get(corners[at + 1]!);
+        const c = data.pointsByIndex.get(corners[at + 2]!);
+        if (a && b && c) triangles.push([a, b, c]);
+      }
+    };
+    const face = projection.primitive;
+    addTriangles(
+      face,
+      (at) =>
+        island.has(key(face.orderedVertexIndices, at)) ||
+        (strands?.has(face.firstTriangle + at / 3) ?? false),
+    );
+    const whites = new Set(map?.eyeWhite ?? []);
+    const eyeLayers = new Set([
+      ...selectFacePartEntries(
+        map,
+        ["eye_left", "eye_right", "eye_highlight"],
+        args.entries,
+      ),
+      ...args.entries.filter((entry) => whites.has(entry.bindingKey)),
+    ]);
+    for (const entry of eyeLayers) {
+      if (entry.bindingKey === projection.bindingKey) continue;
+      const data = collectPrimitiveData({
+        avatar: this._avatar,
+        binding: entry,
+        anchorObject: projection.anchorObject,
+      });
+      if (data) addTriangles(data, () => false);
+    }
+    return new FaceCover({
+      triangles,
+      frontSign: resolveFrontAxisSign({
+        faceBounds: projection.faceBounds,
+        frontZLocal: faceLandmarks.frontZLocal,
+      }),
+      eyeSpacing,
+      near: {
+        minX: projection.faceBounds.min.x,
+        maxX: projection.faceBounds.max.x,
+        minY: projection.faceBounds.min.y,
+        maxY: projection.faceBounds.max.y,
+      },
+    });
   }
 
   private _createFlattenRegionSnapshot(args: {
@@ -1103,9 +1398,14 @@ export class AvatarFaceTextureAnchors {
     };
   }
 
+  /**
+   * The point of the face island nearest `localPoint`, with its UV; over the
+   * island triangles at `offsets` (into `orderedVertexIndices`) when given.
+   */
   private _projectPointToFaceSurface(
     projection: FaceProjectionData,
     localPoint: THREE.Vector3,
+    offsets?: readonly number[],
   ): ProjectedUvPoint | null {
     const triangle = new THREE.Triangle();
     const a = new THREE.Vector3();
@@ -1122,7 +1422,10 @@ export class AvatarFaceTextureAnchors {
     let found = false;
     let bestDistanceSq = Infinity;
 
-    for (let offset = 0; offset + 2 < projection.count; offset += 3) {
+    const total = offsets ? offsets.length : projection.count / 3;
+    for (let at = 0; at < total; at += 1) {
+      const offset = offsets ? offsets[at]! : at * 3;
+      if (offset + 2 >= projection.count) continue;
       const first = projection.orderedVertexIndices[offset];
       const second = projection.orderedVertexIndices[offset + 1];
       const third = projection.orderedVertexIndices[offset + 2];

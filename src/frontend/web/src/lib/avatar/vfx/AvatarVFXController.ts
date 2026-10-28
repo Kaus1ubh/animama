@@ -608,6 +608,134 @@ function getRenderableMainMaterial(object: THREE.Mesh): THREE.Material | null {
   return material instanceof THREE.Material ? material : null;
 }
 
+/**
+ * Whether art painted on a face skin binding's textures shows: its material
+ * draws a base color texture (`map`) through the first UV set, the image face
+ * anchors and clips are measured on, and an overlay can paint it. Painted
+ * into MToon's shade texture alone, art would show only in shadow.
+ */
+function showsPaintedFaceArt(
+  binding: Pick<BindingState, "textureSlots">,
+  applyMode: AvatarVFXApplyMode,
+): boolean {
+  const map = binding.textureSlots.find((slot) => slot.slot === "map");
+  return (
+    map !== undefined &&
+    map.texture.channel === 0 &&
+    (applyMode !== "overlay" || map.canOverlay)
+  );
+}
+
+/**
+ * The least change, as a share of full brightness, a multiply-blended decal
+ * must make in some colour channel for it to show: 8 of 255, the largest
+ * channel step the review renders (`effects:render`) count as a visible
+ * change. Included `shiver_undereye` (opacity 0.45, art mean about 0.69,
+ * 0.85, 0.98) changes the red channel of the Included Avatars' skin under its
+ * anchors by about 34/255 and of the darkest survey skin by about 25/255;
+ * the neutral dark grey screen of a low-poly robot face by about 7/255.
+ */
+const MULTIPLY_MIN_VISIBLE_CHANGE = 8 / 255;
+/** Longest side, in pixels, an image is reduced to before its mean is read. */
+const COLOR_SAMPLE_SIZE = 64;
+
+/** A colour as three channels, 0–1 each. */
+type Rgb = readonly [number, number, number];
+
+/**
+ * The mean colour (0–1 per channel, weighted by alpha, on the stored values)
+ * of `image` within `rect` (its pixels, clamped to the image), or null when
+ * it cannot be read. The area is reduced to at most
+ * {@link COLOR_SAMPLE_SIZE} pixels a side first.
+ */
+function meanImageColor(image: CanvasImageSource, rect: PixelRect): Rgb | null {
+  const size = getImageSize(image);
+  if (!size) return null;
+  const x = clampNumber(Math.floor(rect.x), 0, size.width - 1);
+  const y = clampNumber(Math.floor(rect.y), 0, size.height - 1);
+  const width = clampNumber(Math.ceil(rect.width), 1, size.width - x);
+  const height = clampNumber(Math.ceil(rect.height), 1, size.height - y);
+  const scale = Math.min(1, COLOR_SAMPLE_SIZE / Math.max(width, height));
+  const sampleWidth = Math.max(1, Math.round(width * scale));
+  const sampleHeight = Math.max(1, Math.round(height * scale));
+  try {
+    const { context } = createCanvas(sampleWidth, sampleHeight);
+    context.drawImage(
+      image,
+      x,
+      y,
+      width,
+      height,
+      0,
+      0,
+      sampleWidth,
+      sampleHeight,
+    );
+    const pixels = context.getImageData(0, 0, sampleWidth, sampleHeight).data;
+    let weight = 0;
+    const totals = [0, 0, 0];
+    for (let at = 0; at < pixels.length; at += 4) {
+      const alpha = pixels[at + 3]! / 255;
+      if (alpha <= 0) continue;
+      weight += alpha;
+      for (let channel = 0; channel < 3; channel += 1) {
+        totals[channel]! += alpha * pixels[at + channel]!;
+      }
+    }
+    if (weight <= 0) return null;
+    return [
+      totals[0]! / weight / 255,
+      totals[1]! / weight / 255,
+      totals[2]! / weight / 255,
+    ];
+  } catch {
+    return null;
+  }
+}
+
+/** A `#rrggbb` tint as channels; white when it cannot be read. */
+function tintColor(tint: string): Rgb {
+  const value = Number.parseInt(tint.slice(1, 7), 16);
+  if (!Number.isFinite(value)) return [1, 1, 1];
+  return [
+    ((value >> 16) & 255) / 255,
+    ((value >> 8) & 255) / 255,
+    (value & 255) / 255,
+  ];
+}
+
+/**
+ * An estimate of how much a multiply-blended decal changes the surface it is
+ * painted on, as a share of full brightness in the channel it changes most:
+ * multiply scales each channel of the surface by the art's, so at opacity
+ * `o` a channel changes by `o × S × (1 − A × T)` from the surface's mean
+ * `S`, the art's mean `A` and the tint `T` in that channel. The brightest
+ * placement counts. Means, not per-pixel values, so a decal over a mixed
+ * surface may still show a little where this says it does not. Null when
+ * the images cannot be read.
+ */
+function multiplyDecalChange(args: {
+  effect: AvatarVFXCatalogEntry;
+  art: CanvasImageSource;
+  surface: CanvasImageSource;
+  placements: readonly TexturePixelPlacementInstance[];
+}): number | null {
+  const size = getImageSize(args.art);
+  const art = size ? meanImageColor(args.art, { x: 0, y: 0, ...size }) : null;
+  const surfaces = args.placements
+    .map((placement) => meanImageColor(args.surface, placement.rect))
+    .filter((value): value is Rgb => value !== null);
+  if (!art || surfaces.length === 0) return null;
+  const appearance = resolveAppearance(args.effect);
+  const tint = appearance.tint ? tintColor(appearance.tint) : [1, 1, 1];
+  const changes = surfaces.flatMap((surface) =>
+    surface.map(
+      (value, channel) => value * (1 - art[channel]! * tint[channel]!),
+    ),
+  );
+  return appearance.opacity * Math.max(...changes);
+}
+
 function getTextureImageSource(
   texture: THREE.Texture,
 ): CanvasImageSource | null {
@@ -1102,6 +1230,33 @@ function createAnchoredTexturePlacementRect(args: {
   };
 }
 
+/** `text` with its first letter lower-cased, to follow a colon. */
+function lowerFirst(text: string): string {
+  return text.charAt(0).toLowerCase() + text.slice(1);
+}
+
+/**
+ * Why painted face art is skipped with its own Diagnostics finding rather
+ * than `effect_placement_failed`.
+ */
+type TexturePlacementSkip =
+  | "effect_anchor_covered"
+  | "effect_face_texture_hidden"
+  | "effect_surface_too_dark";
+
+/** The result of an anchored decal whose anchor lies under other surfaces. */
+function coveredAnchorPlacement(anchor: string): {
+  instances: TexturePlacementInstance[];
+  warning: string;
+  skip: TexturePlacementSkip;
+} {
+  return {
+    instances: [],
+    warning: `The ${anchor} texture anchor lies under other parts of this avatar (eyes or a nose modelled over the skin), so art painted there would not show.`,
+    skip: "effect_anchor_covered",
+  };
+}
+
 function resolveAnchoredTexturePlacementInstances(args: {
   effect: AvatarFaceAnchoredVFXEntry;
   faceTextureAnchors: AvatarFaceTextureAnchorsSnapshot;
@@ -1109,6 +1264,7 @@ function resolveAnchoredTexturePlacementInstances(args: {
 }): {
   instances: TexturePlacementInstance[];
   warning?: string;
+  skip?: TexturePlacementSkip;
 } {
   const { effect, faceTextureAnchors } = args;
   if (faceTextureAnchors.status !== "ready") {
@@ -1130,6 +1286,7 @@ function resolveAnchoredTexturePlacementInstances(args: {
         warning: "No mouth texture anchor was resolved for the active avatar.",
       };
     }
+    if (mouthAnchor.covered) return coveredAnchorPlacement(textureAnchor);
     return {
       instances: [
         {
@@ -1164,6 +1321,9 @@ function resolveAnchoredTexturePlacementInstances(args: {
   }
 
   if (resolveTextureLayout(effect) === "span") {
+    if (leftAnchor.covered || rightAnchor.covered) {
+      return coveredAnchorPlacement(textureAnchor);
+    }
     const centerUv = {
       u: (leftAnchor.uv.u + rightAnchor.uv.u) * 0.5,
       v: (leftAnchor.uv.v + rightAnchor.uv.v) * 0.5,
@@ -1209,6 +1369,12 @@ function resolveAnchoredTexturePlacementInstances(args: {
   const oppositeSide = resolveOppositeSide(primarySide);
   const primaryAnchor = primarySide === "left" ? leftAnchor : rightAnchor;
   const oppositeAnchor = oppositeSide === "left" ? leftAnchor : rightAnchor;
+  if (
+    primaryAnchor.covered ||
+    (effect.requiresMirror && oppositeAnchor.covered)
+  ) {
+    return coveredAnchorPlacement(textureAnchor);
+  }
 
   const instances: TexturePlacementInstance[] = [
     {
@@ -1261,6 +1427,7 @@ function resolveTextureEffectPlacements(args: {
 }): {
   placements: TexturePixelPlacementInstance[];
   warning?: string;
+  skip?: TexturePlacementSkip;
 } {
   const { image, effect, size, profile, faceTextureAnchors } = args;
 
@@ -1354,6 +1521,7 @@ function resolveTextureEffectPlacements(args: {
       return {
         placements: [],
         warning: resolved.warning,
+        ...(resolved.skip ? { skip: resolved.skip } : {}),
       };
     }
     const clipPath = args.decalClip?.() ?? null;
@@ -2737,13 +2905,17 @@ export class AvatarVFXController {
       part,
       avatar: this._sourceKey,
     });
+    // An estimated eye is found, but has no iris mesh to paint.
+    const estimated =
+      this._avatar.facePartMap?.parts[part].source === "estimated";
     this._pushWarning(
       {
-        code: "effect_face_part_missing",
+        code: estimated
+          ? "effect_iris_mesh_missing"
+          : "effect_face_part_missing",
         params: { effectId: logicalEffectId, part },
       },
-      // An estimated eye is found, but has no iris mesh to paint.
-      this._avatar.facePartMap?.parts[part].source === "estimated"
+      estimated
         ? `Skipped "${effect.label}": this avatar's ${AVATAR_FACE_PART_LABELS[part]} has no iris mesh.`
         : `Skipped "${effect.label}": this avatar has no detected ${AVATAR_FACE_PART_LABELS[part]}.`,
     );
@@ -3646,11 +3818,16 @@ export class AvatarVFXController {
       faceTextureAnchors,
     });
     if (builtLayerCanvases.layerCanvases.size === 0) {
-      binding.warning =
-        builtLayerCanvases.warning ??
-        `No compatible ${applyMode} texture slots were available.`;
+      // A skip names the effect, then why (a sentence of its own elsewhere).
+      binding.warning = builtLayerCanvases.skip
+        ? `Skipped "${effect.label}": ${lowerFirst(builtLayerCanvases.warning ?? "")}`
+        : (builtLayerCanvases.warning ??
+          `No compatible ${applyMode} texture slots were available.`);
       this._pushWarning(
-        { code: "effect_placement_failed", params: { effectId: effect.id } },
+        {
+          code: builtLayerCanvases.skip ?? "effect_placement_failed",
+          params: { effectId: effect.id },
+        },
         binding.warning,
       );
       return;
@@ -3728,12 +3905,25 @@ export class AvatarVFXController {
   }): {
     layerCanvases: Map<AvatarVFXTextureSlot, EffectLayerCanvasState>;
     warning: string | null;
+    skip?: TexturePlacementSkip;
   } {
     const layerCanvases = new Map<
       AvatarVFXTextureSlot,
       EffectLayerCanvasState
     >();
+    if (
+      getAvatarVFXTargetRole(args.effect) === "face_skin" &&
+      !showsPaintedFaceArt(args.binding, args.applyMode)
+    ) {
+      return {
+        layerCanvases,
+        warning:
+          "The face skin's material shows no base color texture through its first UV set, so art painted on it would not show.",
+        skip: "effect_face_texture_hidden",
+      };
+    }
     let textureDrawWarning: string | null = null;
+    let skip: TexturePlacementSkip | undefined;
 
     args.binding.textureSlots.forEach((slotState) => {
       if (args.applyMode === "overlay" && !slotState.canOverlay) {
@@ -3752,6 +3942,7 @@ export class AvatarVFXController {
       });
       if (drawResult.placements.length === 0) {
         textureDrawWarning = textureDrawWarning ?? drawResult.warning ?? null;
+        skip = skip ?? drawResult.skip;
         return;
       }
 
@@ -3765,9 +3956,38 @@ export class AvatarVFXController {
       });
     });
 
+    // Multiply art darkens: on a surface too dark it changes nothing visible.
+    const mapLayer = layerCanvases.get("map");
+    const mapTexture = args.binding.textureSlots.find(
+      (slot) => slot.slot === "map",
+    )?.texture;
+    const surface = mapTexture ? getTextureImageSource(mapTexture) : null;
+    if (
+      mapLayer &&
+      surface &&
+      isAnchoredFaceTextureEffect(args.effect) &&
+      resolveAppearance(args.effect).blend === "multiply"
+    ) {
+      const change = multiplyDecalChange({
+        effect: args.effect,
+        art: args.effectImage,
+        surface,
+        placements: mapLayer.placements,
+      });
+      if (change !== null && change < MULTIPLY_MIN_VISIBLE_CHANGE) {
+        return {
+          layerCanvases: new Map(),
+          warning:
+            "It darkens the face where it is painted, and the face there is too dark for the change to show.",
+          skip: "effect_surface_too_dark",
+        };
+      }
+    }
+
     return {
       layerCanvases,
       warning: textureDrawWarning,
+      ...(layerCanvases.size === 0 && skip ? { skip } : {}),
     };
   }
 

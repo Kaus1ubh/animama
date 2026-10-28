@@ -496,6 +496,46 @@ describe("AvatarDiagnosticsDialog", () => {
     );
   });
 
+  it("says why painted face art was skipped", () => {
+    diagnostics.view = {
+      state: {
+        status: "ready",
+        report,
+        issues: [
+          {
+            code: "effect_iris_mesh_missing",
+            params: { effectId: "fx-1", part: "eye_left" },
+          },
+          { code: "effect_anchor_covered", params: { effectId: "fx-2" } },
+          { code: "effect_face_texture_hidden", params: { effectId: "fx-3" } },
+          { code: "effect_surface_too_dark", params: { effectId: "fx-4" } },
+        ],
+        live: false,
+      },
+      effectNames: new Map([
+        ["fx-1", "Sparkle"],
+        ["fx-2", "Blush"],
+        ["fx-3", "Red Face"],
+        ["fx-4", "Shiver"],
+      ]),
+    };
+    render();
+    click("Open diagnostics");
+    click("Warnings (4)");
+    expect(dialog()?.textContent).toContain(
+      "Sparkle was skipped: this Avatar's left eye was estimated on the face and has no iris mesh part to paint on.",
+    );
+    expect(dialog()?.textContent).toContain(
+      "Blush was skipped: where it is painted on the face lies under other parts of this Avatar",
+    );
+    expect(dialog()?.textContent).toContain(
+      "Red Face was skipped: the face skin's material shows no base color texture",
+    );
+    expect(dialog()?.textContent).toContain(
+      "Shiver was skipped: it darkens the face where it is painted, and the face there is too dark for the change to show.",
+    );
+  });
+
   it("expands and collapses the Raw JSON tree", () => {
     render();
     click("Open diagnostics");
