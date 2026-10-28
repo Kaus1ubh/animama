@@ -380,6 +380,17 @@ applied change from the run remains and coverage is still at this run's
 boundary, restores the coverage the run started from. General runs may edit
 `MEMORIES.md` when the owner asks but never move coverage.
 
+## Benchmark memory arms
+
+`EpisodicMemoryArm` (`app/chat/memory_arm.py`) lets the [model
+benchmark](../../benchmarks/README.md#memory-arms) compare how episodic memory
+is saved: with the `remember` field only (`MEMORIES.md` read-only), with
+`MEMORIES.md` writes only (no `remember` in the schema or guidance, and the
+benchmark's candidate write guidance), or both. It exists for benchmarking
+only: it is passed to `DirectChatTurnExecutor`'s constructor, production
+wiring never passes it, and no request option can set it. The default arm
+leaves chat's prompts, reply schema and tools unchanged.
+
 ## Runtime Implementations
 
 `MemoryManagerRuntimeSelector` chooses the live runtime by the provider type of

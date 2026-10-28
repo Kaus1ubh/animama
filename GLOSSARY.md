@@ -308,6 +308,20 @@ A run of turns with the same installation owner, across Animas, where each turn
 starts less than 30 minutes after the previous one. AI-notice reminders are
 measured from its start or the last notice, whichever is later.
 
+## Benchmark run
+
+One approved execution of the [model benchmark](docs/benchmarks/README.md)
+over a fixed set of configurations (a catalog chat row at a reasoning effort)
+and one prompt-set version. It produces raw results, judge scores and one
+report; quality compares across runs of the same prompt-set version and judge
+series, latency only within a run.
+
+## Benchmark area
+
+A group of related benchmark measures: core turns, long chats, in-chat memory
+with the episodic-memory arms, or the Memory Manager. The word avoids
+"domain", which names domain documentation and the backend `domain` layer.
+
 ## Using these terms
 
 For implemented behavior, consult the [backend](docs/backend/README.md) and

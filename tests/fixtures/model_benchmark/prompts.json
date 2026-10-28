@@ -1,0 +1,16 @@
+{
+  "version": "fixture-1",
+  "loadout": {"path": "loadout.json", "sha256": "02da6fda75bf168c0decfa4e75cf35bd6e82899d6b1982a845a73293df1e48b0"},
+  "personas": [
+    {"id": "neutral", "name": "Sora", "identity": "Sora is a friendly, curious and even-tempered companion."},
+    {"id": "annie", "starter": "starter:annie"}
+  ],
+  "items": [
+    {"id": "greet", "message": "Hi there!", "acceptable": ["wave"], "tags": ["greeting"], "tier": "smoke"},
+    {"id": "choice", "message": "Should I take the new job or stay?", "acceptable": ["think", null], "tags": ["advice"]},
+    {"id": "greet-ja", "language": "ja", "pair_id": "greet", "message": "こんにちは！", "acceptable": ["wave"], "tags": ["greeting"], "tier": "smoke", "held_out": true}
+  ],
+  "scripted_chats": [
+    {"id": "weekend", "persona": "annie", "tier": "smoke", "turns": ["I had a rough week.", "Work was just a lot.", "Thanks, that helps."]}
+  ]
+}

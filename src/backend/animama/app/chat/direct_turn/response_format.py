@@ -5,12 +5,13 @@ from typing import Any
 
 from pydantic import BaseModel
 
-from animama.app.chat.anthropic_instructions import ANTHROPIC_MAIN_STRUCTURED_OUTPUT_GUIDANCE
+from animama.app.chat.anthropic_instructions import anthropic_main_structured_output_guidance
 from animama.app.chat.api_standard import ANTHROPIC_MESSAGES_PROVIDER_TYPE
-from animama.app.chat.memory_context import MAIN_STRUCTURED_OUTPUT_GUIDANCE
+from animama.app.chat.memory_context import main_structured_output_guidance
 from animama.app.main_structured_response import (
     MAIN_STRUCTURED_RESPONSE_FORMAT,
     MAIN_STRUCTURED_RESPONSE_KIND,
+    MAIN_STRUCTURED_RESPONSE_PART_REMEMBER,
     build_main_structured_prompt,
     build_main_structured_response_json_schema,
 )
@@ -77,16 +78,18 @@ def main_structured_response_guidance(
     A JSON schema constrains the reply shape; JSON mode and prompt-only rows
     also get the schema and an example in the prompt. Anthropic rows with
     strict structured output get the shared guidance plus a line that keeps
-    tool calls ahead of the JSON answer.
+    tool calls ahead of the JSON answer. The guidance describes ``remember`` only
+    when ``output_type`` has it (the model benchmark's arms, app/chat/memory_arm.py).
     """
 
+    remember = MAIN_STRUCTURED_RESPONSE_PART_REMEMBER in output_type.model_fields
     if (
         model_provider.provider_type == ANTHROPIC_MESSAGES_PROVIDER_TYPE
         and model_provider.capabilities.structured_output_transport == STRUCTURED_OUTPUT_TRANSPORT_JSON_SCHEMA
         and supports_structured_reply(model_provider)
     ):
-        return ANTHROPIC_MAIN_STRUCTURED_OUTPUT_GUIDANCE.strip()
-    guidance = MAIN_STRUCTURED_OUTPUT_GUIDANCE.strip()
+        return anthropic_main_structured_output_guidance(remember=remember).strip()
+    guidance = main_structured_output_guidance(remember=remember).strip()
     if (
         model_provider.capabilities.structured_output_transport == STRUCTURED_OUTPUT_TRANSPORT_JSON_OBJECT
         or not supports_structured_reply(model_provider)
