@@ -31,6 +31,12 @@ pnpm desktop:runtime:audit -- --platform darwin --arch arm64
 pnpm desktop:test -- runtime-packaging
 ```
 
+Staging first checks that `src/frontend/node_modules` matches `pnpm-lock.yaml`
+and stops before any build step if it does not, for example after pulling a
+main that changed packages. Run `pnpm install --frozen-lockfile` in
+`src/frontend`, then stage again. When a later step fails, its full output is in
+that step's log under `desktop/.desktop-runtime/<target>/`.
+
 Staging installs its pinned Python interpreter under
 `/Users/Shared/animama-build/uv-python`, not in your home directory, because
 the frozen backend records the interpreter's install paths. The native
