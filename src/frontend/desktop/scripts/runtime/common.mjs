@@ -21,6 +21,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { createRequire } from "node:module";
+import { homedir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { assertPrivateWindowsDirectory, systemPath } from "./windows-acl.mjs";
@@ -340,11 +341,13 @@ export function assertPrivatePythonInstallDir() {
 
 export function pythonEnvironment() {
   return {
+    // macOS purges files from old entries under /private/tmp, which leaves uv
+    // a cache that fails installs; ~/Library/Caches is persistent and private.
     UV_CACHE_DIR:
       process.env.UV_CACHE_DIR ||
       (process.platform === "win32"
         ? path.join(buildRoot, "uv-cache")
-        : "/private/tmp/animama-uv-cache"),
+        : path.join(homedir(), "Library", "Caches", "Animama", "uv-cache")),
     UV_PYTHON_INSTALL_DIR: PYTHON_INSTALL_DIR,
     UV_PROJECT_ENVIRONMENT: path.join(cacheRoot, "build-venv", hostTarget),
     PYTHONHASHSEED: "0",

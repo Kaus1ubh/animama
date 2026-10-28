@@ -40,6 +40,10 @@ location needs to exist on the user's Mac. Staging refuses to run if
 account or writable by others; remove or fix that directory rather than
 bypassing the check.
 
+Downloaded Python packages are cached in `~/Library/Caches/Animama/uv-cache`;
+set `UV_CACHE_DIR` to use another directory. Avoid `/private/tmp`: macOS deletes
+files from old entries there, and uv then fails with a missing `dist-info` file.
+
 The strict target parser rejects cross-builds and unsupported combinations before
 deleting outputs or downloading dependencies. For Windows, see
 [Native Windows build](#native-windows-build). `desktop:dist:mac` and `desktop:smoke:mac` use the
