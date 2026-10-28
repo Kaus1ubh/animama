@@ -210,6 +210,21 @@
   },
   "behavior": {
     "appDefaultLabel": "{{label}} (app default)",
+    "automaticProcessing": {
+      "dailyLimit": "Daily limit reached. Processing continues tomorrow.",
+      "description": "Fold notes from your chats into your memory files once this many are waiting.",
+      "label": "Process episode notes automatically",
+      "memoryOff": "Turn on Memory and Memory updates to process notes automatically.",
+      "needsModel": "Needs a Memory Manager model that supports tools. Choose one in the Models settings.",
+      "notes_one": "After {{count}} note",
+      "notes_other": "After {{count}} notes",
+      "off": "Off",
+      "paused": "Paused after repeated failures. Change this setting to try again. Last error: {{error}}",
+      "retrying": "Retrying later after a failure. Last error: {{error}}",
+      "running_one": "Crystallizing {{count}} note into memory…",
+      "running_other": "Crystallizing {{count}} notes into memory…",
+      "updateFailed": "Failed to update automatic note processing."
+    },
     "blockedByMemory": "Turn Memory on to allow memory updates.",
     "flags": {
       "emotion_updates": {

@@ -186,6 +186,7 @@
     "contentProgress": "애니메이션과 효과 불러오는 중({{completed}}/{{total}})",
     "download": "{{item}} 다운로드 중({{size}})",
     "downloadProgress": "{{item}} 다운로드 중({{size}} 중 {{percent}})",
+    "episodeProcessing_other": "메모 {{count}}개를 기억으로 정리하는 중…",
     "speechToText": "음성 텍스트 변환(Parakeet) 불러오는 중",
     "textToSpeech": "텍스트 음성 변환(PocketTTS) 불러오는 중",
     "textToSpeechStep": "텍스트 음성 변환(PocketTTS) 불러오는 중, {{total}}단계 중 {{step}}단계"

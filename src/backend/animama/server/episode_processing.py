@@ -223,8 +223,10 @@ class AutomaticEpisodeProcessingWorker:
                 return replace(base, state="backing_off", last_error=last_error, next_attempt_at=next_attempt)
             base = replace(base, last_error=last_error)
         if runs_today >= EPISODE_PROCESSING_DAILY_RUN_LIMIT:
-            # Reported in UTC, like every timestamp in the status.
-            return replace(base, state="backing_off", next_attempt_at=_utc(local_midnight + timedelta(days=1)))
+            # Not a failure retry, so no error; reported in UTC, like every timestamp in the status.
+            return replace(
+                base, state="backing_off", last_error=None, next_attempt_at=_utc(local_midnight + timedelta(days=1))
+            )
         if pending_count < threshold:
             return replace(base, state="waiting")
         return base

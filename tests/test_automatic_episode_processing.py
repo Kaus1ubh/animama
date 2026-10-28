@@ -301,16 +301,22 @@ async def test_at_most_ten_automatic_runs_start_per_local_day(
 ) -> None:
     harness = _harness(async_session_factory)
     await _notes(async_session, harness.owner_id, 10)
-    for index in range(10):
+    for index in range(9):
         started = _NOW.replace(hour=1) + timedelta(minutes=index)
         await _automatic_run(
             async_session, harness.owner_id, status="completed", started_at=started, completed_at=started
         )
+    # The tenth run failed long enough ago that its backoff has passed: the wait is the daily limit.
+    failed_at = _NOW.replace(hour=2)
+    await _automatic_run(
+        async_session, harness.owner_id, status="failed", started_at=failed_at, completed_at=failed_at, error="boom"
+    )
 
     status = await harness.worker.status()
 
     assert (status.state, status.runs_today) == ("backing_off", 10)
     assert status.next_attempt_at == datetime(2026, 10, 29, tzinfo=UTC)
+    assert status.last_error is None
 
 
 @pytest.mark.asyncio

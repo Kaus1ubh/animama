@@ -72,6 +72,7 @@ import {
 } from "@/ui/settings/AboutSettings";
 import {
   AppBehaviorSetting,
+  AutomaticEpisodeProcessingSetting,
   behaviorLabel,
   ResetAppSettingsSetting,
 } from "@/ui/settings/BehaviorDataSettings";
@@ -161,6 +162,7 @@ import {
   availableSettingsSections,
   type SettingsSearchEntry,
 } from "@/ui/settings/settings-search";
+import { useAutomaticEpisodeProcessingAvailable } from "@/query/hooks/useAutomaticEpisodeProcessing";
 import { useRuntimeCapabilities } from "@/query/hooks/useRuntimeCapabilities";
 import { fetchRuntimeCapabilities } from "@/query/runtime-capabilities";
 import {
@@ -620,6 +622,8 @@ export function ApplicationSettingsModal({
   const [isInitializing, setIsInitializing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const runtimeCapabilities = useRuntimeCapabilities();
+  const automaticEpisodeProcessingAvailable =
+    useAutomaticEpisodeProcessingAvailable();
   // The offline choice runs the owner's engine, else the UI Locale's
   // (Parakeet for English, SenseVoice otherwise), which is also the
   // recommended one; read through `i18n` so both follow a language switch.
@@ -1796,6 +1800,15 @@ export function ApplicationSettingsModal({
         render: () => <AppBehaviorSetting flag={flag} disabled={isBusy} />,
       }),
     ),
+    {
+      id: "behavior-automatic-episode-processing",
+      section: "Memory & Emotion",
+      ...inGroup("animaDefaults"),
+      label: t("behavior.automaticProcessing.label"),
+      keywords: ["memory", "episode", "notes", "memory manager", "automatic"],
+      hidden: !automaticEpisodeProcessingAvailable,
+      render: () => <AutomaticEpisodeProcessingSetting disabled={isBusy} />,
+    },
     {
       id: "safety",
       section: "Safety",

@@ -188,6 +188,8 @@
     "contentProgress": "Loading animations and effects ({{completed}}/{{total}})",
     "download": "Downloading {{item}} ({{size}})",
     "downloadProgress": "Downloading {{item}}: {{percent}} of {{size}}",
+    "episodeProcessing_one": "Crystallizing {{count}} note into memory…",
+    "episodeProcessing_other": "Crystallizing {{count}} notes into memory…",
     "speechToText": "Loading Speech-to-Text (Parakeet)",
     "textToSpeech": "Loading Text-to-Speech (PocketTTS)",
     "textToSpeechStep": "Loading Text-to-Speech (PocketTTS), step {{step}} of {{total}}"

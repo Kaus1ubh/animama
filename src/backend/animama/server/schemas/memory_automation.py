@@ -36,7 +36,8 @@ class PyAutomaticEpisodeProcessingStatus(BaseModel):
     """The setting and what automatic processing will do next.
 
     ``batch_size`` and ``started_at`` are set only while ``state`` is ``running``;
-    ``next_attempt_at`` while ``backing_off``; ``last_error`` after a failed run.
+    ``next_attempt_at`` while ``backing_off``; ``last_error`` after a failed run,
+    except during the daily-limit wait, which reports none.
     """
 
     threshold: int

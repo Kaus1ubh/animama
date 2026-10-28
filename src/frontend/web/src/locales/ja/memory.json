@@ -340,6 +340,7 @@
   },
   "versions": {
     "afterRevert": "復元後 · バージョン {{version}}",
+    "automaticUpdate": "エピソードのメモからの自動更新",
     "back": "戻る",
     "changesIn": "バージョン {{version}} の変更",
     "confirmRevert": "復元を確定",

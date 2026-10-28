@@ -34,6 +34,22 @@ export function memoryVersionSubtitle(version: number) {
     : t("versions.range", { from: version - 1, to: version });
 }
 
+/** The change provenance automatic episode processing writes (backend `AUTOMATIC_EPISODE_PROCESSING_TRIGGER`). */
+const AUTOMATIC_EPISODE_PROCESSING_TRIGGER = "automatic_episode_processing";
+
+/** The version's operation, or that automatic episode processing wrote it. */
+export function memoryVersionChangeLabel(
+  version: Pick<PyMemoryEntryVersionSummary, "operation" | "change_metadata">,
+) {
+  const t = getI18n().getFixedT(null, "memory");
+  if (
+    version.change_metadata?.trigger === AUTOMATIC_EPISODE_PROCESSING_TRIGGER
+  ) {
+    return t("versions.automaticUpdate");
+  }
+  return memoryVersionOperationLabel(version.operation);
+}
+
 export function memoryVersionOperationLabel(
   operation: PyMemoryEntryVersionSummary["operation"],
 ) {

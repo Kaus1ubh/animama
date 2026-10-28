@@ -80,8 +80,8 @@ Boundaries:
 - [x] Phase 1: recall context (R1–R4). Review passed after two repair rounds; see the phase record.
 - [x] Phase 2: automatic-run semantics in the Memory Manager service (R6, R7, R10). Passed at the review #2 source; one deferred non-blocking finding; see the phase record.
 - [x] Phase 3: local trigger, setting, status and capability (R5, R8, R9, R11 backend). Review passed after two repair rounds; see the phase record.
-- [ ] Phase 4: settings control, chat progress line and version label (R10, R11
-      frontend, R13).
+- [x] Phase 4: settings control, chat progress line and version label (R10, R11
+      frontend, R13). Review passed after one repair round; see the phase record.
 - [ ] Phase 5: decision record and documentation sweep (R12).
 - [ ] Final integration review and full pre-push suite.
 - [ ] G3: live manual check with a real Memory Manager model.
@@ -173,6 +173,15 @@ Found while planning (2026-10-28, agent, at `da23aaaa`):
   review #2 passed (`b6ebc37f`) rather than spending a third round. P2-R2-N1 is
   deferred: it needs two backend processes sharing one database, which the local
   composition never runs.
+- 2026-10-28, agent (Phase 4, P4-F5): the status query polls every 5 seconds while the
+  page is visible, with no extra refetch when a turn completes. A run starts after the
+  turn has settled, so a turn-complete refetch would usually read the state before the
+  run opens; the poll alone meets R13's "within a few seconds".
+- 2026-10-28, agent (Phase 4, P4-F5): while memory or memory updates are off the
+  control stays enabled and explains why nothing runs, which is what R11 asks for.
+  The owner can still choose a threshold for when memory is turned back on. The
+  explanation comes from the status poll, so it can trail a Memory toggle by up to 5
+  seconds.
 
 ## Phased implementation
 
@@ -675,15 +684,91 @@ during an automatic run, and see the label after it, all with `ANIMAMA_LLM_SKIP=
 (the deterministic runtime); then
 `python3 ../../scripts/heavy-slot.py -- pnpm e2e:test:fast` against a built stack.
 
-Check record: none yet.
+Check record (`src/frontend` unless noted; working trees over HEAD `43a1b29a`):
+
+- `pnpm verify` at an early Phase 4 tree: 636 files, 6030 tests passed, build passes.
+- At tree `8aadfb2c` (submitted for review): vitest on the three changed test files
+  (15 passed), `pnpm check` (exit 0), `pnpm web:lint` (clean), `pnpm i18n:extract` then
+  `pnpm i18n:check` (complete).
+- Browser check on task stack `animama-erp` (development mode, `ANIMAMA_LLM_SKIP=1`) at
+  desktop width, then a narrow layout: the setting stores Off and thresholds; with memory off it
+  explains why nothing runs; an open automatic run shows "Crystallizing 7 notes into
+  memory…" above the chat input; five seeded notes at threshold 5 produced a real
+  automatic run whose `PROFILE.md` version reads "Automatic update from episode notes".
+- `python3 ../../scripts/heavy-slot.py -- pnpm e2e:test:fast` against `animama-erp`
+  rebuilt in production mode with `--purge`: 38 passed, 2 failed (a face-parts request
+  ended with a socket hang-up; Included Library thumbnails were requested again on a
+  second visit). Rerun alone, both spec files passed (6 tests). Neither touches Phase 4
+  code; both are attributed to load on the shared machine.
+- At tree `56b32ac6` (review #1 repairs): backend
+  `tests/test_automatic_episode_processing.py` 20 passed, ruff passes; vitest on 10
+  files 135 passed; `pnpm check`, `pnpm web:lint`, Prettier and `pnpm i18n:check` pass.
+  The new capability-gate test fails with `available &&` removed.
+- At tree `8abea50d` (review #2 notes): vitest on the new settings test and
+  `hosted-composition.test.ts` 106 passed; the new fail-closed case fails with the
+  hosted guard removed; ESLint, Prettier and ruff pass on the touched files.
+
+Results: local App Settings offers "Process episode notes automatically" (Off or 5–50)
+with its state and last error; the chat shows the crystallizing line only while an
+automatic run is processing; version history labels automatic versions. Without the
+capability the control is hidden and the status is never requested, and hosted
+admission refuses a runtime that reports it.
 
 #### Code Review #1 Findings
 
-Not started.
+Independent analysis of tree `8aadfb2c`, standard tier, reusing the check record (no
+reruns; the e2e run was still in progress). R10, R11 and R13 behave as written.
+Blocking:
+
+- P4-F1: the plan's tests for the capability gate and the control were missing; the
+  chat test's "without the capability" case only returned no data, so removing the
+  hook's gate or the settings entry's `hidden` flag left every test passing.
+
+Non-blocking: P4-F2 the daily-limit wait could read as a failure retry, because the
+backend kept `last_error`; P4-F3 backend error texts lack final punctuation, so the
+paused message read badly with the error mid-sentence; P4-F4 the Select went from
+uncontrolled to controlled when the status loaded; P4-F5 plan deviations to record
+(5-second polling, explanation without disabling); P4-F6 hosted admission did not fail
+closed on the new capability; P4-F7 a degraded-playback warning replaces the loading
+lines, hiding the progress line for that Anima; P4-F8 the zh catalogs used 情景记忆 for
+episodes against `terms.json`'s 经历 / 經歷; P4-F9 small simplifications (reuse the
+availability hook, a required `episodeProcessing` field, no "Crystallizing 0 notes").
 
 #### Code Review #1 Revisions
 
-Not started.
+- P4-F1 accepted: `AutomaticEpisodeProcessingSetting.test.tsx` renders the real hooks
+  and control (no GET without the capability, one with it, the PUT round-trip and
+  cached result, the paused description, disabled while busy or loading), and the
+  settings entry uses the same tested availability hook.
+- P4-F2 accepted: the backend reports no `last_error` during the daily-limit wait; the
+  daily-limit test covers a failure whose backoff has passed.
+- P4-F3 accepted: every locale ends the paused and retry texts with "Last error:
+  {{error}}".
+- P4-F4 accepted in part: the Select's value is `""` until the status loads. A failed
+  GET still shows a disabled control with the generic description; the next poll
+  retries it.
+- P4-F5 accepted: both deviations are in the Decision Log.
+- P4-F6 accepted: one line in `hosted-composition.ts`.
+- P4-F7 recorded as a known edge: the warning's precedence predates this change, and
+  the run's result still appears in version history.
+- P4-F8 and P4-F9 accepted.
+
+#### Code Review #2 Findings
+
+Targeted recheck of tree `56b32ac6` (vitest on 11 files including the chat and hosted
+files that import the changed modules: 143 passed; the new test alone without
+warnings). Every repair verified; no regressions; no blocking findings. Non-blocking:
+the status schema and backend docs did not say the daily-limit wait reports no
+`last_error`; the hosted fail-closed line had no test; the new test file did not reset
+its mocked status between tests or clear its first query client.
+
+#### Code Review #2 Revisions
+
+All three accepted and verified by the coordinator (trivial repairs, tree `8abea50d`):
+a clause in `PyAutomaticEpisodeProcessingStatus` and the `backing_off` row of the
+Memory Manager doc; a case in the fail-closed test, shown to fail without the guard;
+the status reset in `beforeEach` and `client.clear()` before the second render. Repair
+budget used: 1 of 2.
 
 ### Phase 5: Decision record and documentation sweep (R12)
 
