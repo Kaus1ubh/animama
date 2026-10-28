@@ -24,6 +24,9 @@ const fixture = vi.hoisted(() => ({
     total_bytes?: number;
     bytes_downloaded?: number;
   }[],
+  automatic: undefined as
+    | { state: string; batch_size?: number | null }
+    | undefined,
 }));
 
 vi.mock("@/ui/app/AnimaRouteProviders", () => ({
@@ -32,6 +35,10 @@ vi.mock("@/ui/app/AnimaRouteProviders", () => ({
 vi.mock("@/hooks/use-pocket-tts-runtime", () => ({
   POCKET_LOADING_STEP_COUNT: 5,
   usePocketTtsRuntime: () => fixture.pocket,
+}));
+vi.mock("@/query/hooks/useAutomaticEpisodeProcessing", () => ({
+  AUTOMATIC_EPISODE_PROCESSING_POLL_MS: 5_000,
+  useAutomaticEpisodeProcessing: () => ({ data: fixture.automatic }),
 }));
 vi.mock("@/query/hooks/useModelAssets", () => ({
   useOperatorManagedModelAssets: () => false,
@@ -44,6 +51,7 @@ const idle: ChatLoadingStatus = {
   textToSpeech: null,
   speechToText: false,
   downloads: [],
+  episodeProcessing: null,
 };
 
 /** The rendered status lines, in order. */
@@ -141,6 +149,18 @@ describe("useChatLoadingStatus", () => {
     };
     fixture.pocket = { ready: false, phase: "idle", loadingStep: null };
     fixture.assets = [];
+    fixture.automatic = undefined;
+  });
+
+  it("shows the progress line only while an automatic run is working", () => {
+    fixture.mounted.playbackStatus = "ready";
+    fixture.automatic = { state: "running", batch_size: 12 };
+    expect(routeLines()).toEqual(["Crystallizing 12 notes into memory…"]);
+    fixture.automatic = { state: "waiting", batch_size: null };
+    expect(routeLines()).toEqual([]);
+    // Without the capability the query never runs and has no data.
+    fixture.automatic = undefined;
+    expect(routeLines()).toEqual([]);
   });
 
   it("shows the Avatar first, then content progress once it is visible", () => {

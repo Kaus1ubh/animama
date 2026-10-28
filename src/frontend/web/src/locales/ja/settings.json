@@ -210,6 +210,19 @@
   },
   "behavior": {
     "appDefaultLabel": "{{label}}（アプリのデフォルト）",
+    "automaticProcessing": {
+      "dailyLimit": "本日の上限に達しました。明日続けます。",
+      "description": "チャットのメモがこの件数たまったら、記憶ファイルにまとめます。",
+      "label": "エピソードのメモを自動で処理",
+      "memoryOff": "自動で処理するには、記憶と記憶の更新をオンにしてください。",
+      "needsModel": "ツールに対応した記憶マネージャーのモデルが必要です。モデルの設定で選択してください。",
+      "notes_other": "{{count}} 件ごと",
+      "off": "オフ",
+      "paused": "失敗が続いたため一時停止しました。この設定を変更すると再試行します。最後のエラー: {{error}}",
+      "retrying": "失敗したため、後で再試行します。最後のエラー: {{error}}",
+      "running_other": "{{count}} 件のメモを記憶にまとめています…",
+      "updateFailed": "メモの自動処理の設定を更新できませんでした。"
+    },
     "blockedByMemory": "記憶の更新を許可するには、記憶をオンにしてください。",
     "flags": {
       "emotion_updates": {

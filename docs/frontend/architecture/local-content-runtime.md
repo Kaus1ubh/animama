@@ -248,7 +248,10 @@ its setup step (the worker's five status stages, matched by text in
 `use-pocket-tts-runtime.ts`), Parakeet while dictation or Voice Mode starts,
 and any Parakeet CPU/GPU or Voice Clone encoder download, wherever it was
 started (`ui/app/ModelDownloads.tsx`). Local reads say "Loading"; downloads say
-"Downloading", with size and progress. Pocket voices are small and are not
+"Downloading", with size and progress. Where the runtime reports
+`automatic_episode_processing`, the chat checks `/v1/memory/automatic-processing`
+every five seconds while the page is visible and adds "Crystallizing N notes into
+memory…" while an automatic run works. Pocket voices are small and are not
 listed. Chat readiness is not repeated there: the composer disables Send until
 chat is ready. A missing or invalid optional
 root is excluded from playback with its dependents; unrelated content and text

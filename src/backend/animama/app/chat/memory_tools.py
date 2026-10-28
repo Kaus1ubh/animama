@@ -1259,8 +1259,14 @@ def _tool_error(code: str, message: str, **extra: Any) -> str:
     )
 
 
+# Returned when a memory write waited too long for a file another transaction holds,
+# such as a Memory Manager approval; the turn continues and the model may retry later.
+MEMORY_TOOL_BUSY_RESULT = _tool_error("busy", "The file is being updated; try again later.", retryable=True)
+
+
 __all__ = [
     "DirectChatMemoryToolService",
+    "MEMORY_TOOL_BUSY_RESULT",
     "MEMORY_TOOL_APPLY_PATCH",
     "MEMORY_TOOL_LIST_FILES",
     "MEMORY_TOOL_READ_FILES",

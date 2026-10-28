@@ -340,6 +340,7 @@
   },
   "versions": {
     "afterRevert": "还原后 · 版本 {{version}}",
+    "automaticUpdate": "来自经历笔记的自动更新",
     "back": "返回",
     "changesIn": "版本 {{version}} 中的更改",
     "confirmRevert": "确认还原",

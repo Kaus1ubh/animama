@@ -177,14 +177,14 @@ local server package, so any composition can return the same contract; the local
 router is a thin adapter. `runtime_kind` is presentation metadata (`desktop`,
 `self_hosted_web` or `hosted`), not an authentication mode or a feature gate;
 the local composition never reports `hosted`. Capability schema version 2 is
-exported in `local-http` contract version 20.0.0. `chat`, `model_selection` and
+exported in `local-http` contract version 21.0.0. `chat`, `model_selection` and
 `model_role_selection` admit chat and choices from the composition's catalog,
 independently of provider administration. The local adapter reports them true.
 `provider_credentials` and `local_filesystem_administration` describe owner key
 and host administration; the local adapter reports both true. `native_features`
 is true only for desktop; browser fullscreen/PiP use browser detection instead.
 See the [hosted composition handoff](../../../contracts/hosted-web.md) for its
-separate account authority, retained workflows and seven exceptions.
+separate account authority, retained workflows and eight exceptions.
 `chat_file_uploads` and
 `anima_creation` report whether the composition offers chat file uploads and
 Anima creation. The local composition always reports both `true`; React hides
@@ -238,6 +238,19 @@ telemetry. The local composition never reports it, even with its
 `^(/[A-Za-z0-9_-]+)+$`, and the web app posts bounded OTLP/HTTP JSON metrics and
 error logs to `{path}/metrics` and `{path}/logs`; see
 [browser telemetry](../../frontend/architecture/overview.md#browser-telemetry).
+
+## Automatic Episode Processing
+
+Local composition only (`automatic_episode_processing` capability). See
+[automatic episode processing](../features/memory-manager-and-episodic-memory.md#when-automatic-runs-start-local-composition).
+
+- `GET /v1/memory/automatic-processing`: `{threshold, state, pending_count,
+  runs_today, last_error, next_attempt_at, batch_size, started_at}`. `state` is
+  `off`, `memory_off`, `needs_model`, `running`, `paused`, `backing_off`,
+  `waiting` or `ready`; `batch_size` and `started_at` are set while `running`.
+- `PUT /v1/memory/automatic-processing`: `{threshold}`, 0 (Off) or 5–50; other
+  values fail validation (422). A changed value lifts a failure pause. Returns the
+  status and starts a check at once.
 
 ## Web Search
 

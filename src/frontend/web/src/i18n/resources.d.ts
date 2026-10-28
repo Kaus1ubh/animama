@@ -1594,6 +1594,8 @@ export default interface Resources {
       "contentProgress": "Loading animations and effects ({{completed}}/{{total}})",
       "download": "Downloading {{item}} ({{size}})",
       "downloadProgress": "Downloading {{item}}: {{percent}} of {{size}}",
+      "episodeProcessing_one": "Crystallizing {{count}} note into memory…",
+      "episodeProcessing_other": "Crystallizing {{count}} notes into memory…",
       "speechToText": "Loading Speech-to-Text (Parakeet)",
       "textToSpeech": "Loading Text-to-Speech (PocketTTS)",
       "textToSpeechStep": "Loading Text-to-Speech (PocketTTS), step {{step}} of {{total}}"
@@ -4477,6 +4479,7 @@ export default interface Resources {
     },
     "versions": {
       "afterRevert": "After Revert · Version {{version}}",
+      "automaticUpdate": "Automatic update from episode notes",
       "back": "Back",
       "changesIn": "Changes in Version {{version}}",
       "confirmRevert": "Confirm Revert",
@@ -6216,6 +6219,21 @@ export default interface Resources {
     },
     "behavior": {
       "appDefaultLabel": "{{label}} (app default)",
+      "automaticProcessing": {
+        "dailyLimit": "Daily limit reached. Processing continues tomorrow.",
+        "description": "Fold notes from your chats into your memory files once this many are waiting.",
+        "label": "Process episode notes automatically",
+        "memoryOff": "Turn on Memory and Memory updates to process notes automatically.",
+        "needsModel": "Needs a Memory Manager model that supports tools. Choose one in the Models settings.",
+        "notes_one": "After {{count}} note",
+        "notes_other": "After {{count}} notes",
+        "off": "Off",
+        "paused": "Paused after repeated failures. Change this setting to try again. Last error: {{error}}",
+        "retrying": "Retrying later after a failure. Last error: {{error}}",
+        "running_one": "Crystallizing {{count}} note into memory…",
+        "running_other": "Crystallizing {{count}} notes into memory…",
+        "updateFailed": "Failed to update automatic note processing."
+      },
       "blockedByMemory": "Turn Memory on to allow memory updates.",
       "flags": {
         "emotion_updates": {

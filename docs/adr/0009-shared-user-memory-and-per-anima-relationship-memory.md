@@ -1,6 +1,7 @@
 # 0009: Shared user memory and per-Anima relationship memory
 
-- Status: accepted
+- Status: accepted; the rejection of automatic background consolidation is
+  superseded for shared user memory by [0034](0034-automatic-episode-processing-and-profile-context.md)
 - Recorded: 2026-09-26
 - Retrospective: no
 - Original decision date: 2026-09-26 (owner decisions during Anima memories discovery)

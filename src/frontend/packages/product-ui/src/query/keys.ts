@@ -217,6 +217,9 @@ export const queryKeys = {
   /** The installation's application web search backend (local composition). */
   webSearchSettings: (userId: string) =>
     ["web-search-settings", userId] as const,
+  /** The owner's automatic episode-processing setting and state (local composition). */
+  automaticEpisodeProcessing: (userId: string) =>
+    ["automatic-episode-processing", userId] as const,
   userFiles: {
     all: (userId: string) => ["user-files", userId] as const,
     list: (userId: string) =>

@@ -357,6 +357,8 @@ async def _memory_turn(
                     commit_on_write=False,
                 ),
                 animas=repositories.animas,
+                memory_episodes=repositories.memory_episodes,
+                user_settings=repositories.user_settings,
             ),
             memory_tool_service=SessionBackedMemoryToolService(
                 sessions,  # type: ignore[arg-type]

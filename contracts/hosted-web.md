@@ -210,11 +210,11 @@ shows that a newer sign-in replaced the one it targeted.
 ## Capabilities and requests
 
 The sole wire schema is `app/contracts/runtime_capabilities.py`, exported offline
-in `local-http` version **20.0.0** with capability `schema_version: 2`. The generated
+in `local-http` version **21.0.0** with capability `schema_version: 2`. The generated
 TypeScript `RuntimeCapabilities` and validator are the same contract.
 `ProductRuntimeCapabilities` is a derived `Pick` for the existing extracted chat
-surface, not another wire schema. `runtime-contracts` is version 0.20.0 and
-`product-ui` is version 0.18.0. Consumers explicitly admit
+surface, not another wire schema. `runtime-contracts` is version 0.21.0 and
+`product-ui` is version 0.19.0. Consumers explicitly admit
 the new contract major before adoption.
 
 Permissions are separate from browser support and temporary errors:
@@ -228,6 +228,7 @@ Permissions are separate from browser support and temporary errors:
 | Model connections/catalog administration and keys          | `model_configuration`, `provider_credentials`, `web_search.configuration` | False; catalog/role reads and selections remain retained.                                |
 | Host paths, scans, file logs and server model installation | `local_filesystem_administration`                                         | False; virtual memory paths, creator assets and browser model downloads remain retained. |
 | Electron/native controls                                   | `native_features`                                                         | False; browser fullscreen/PiP use browser feature detection.                             |
+| Automatic episode processing and its status                | `automatic_episode_processing`                                            | False; owner-started Memory Manager processing remains retained.                         |
 | Gemini voice                                               | `gemini_tts`                                                              | Absent or null; the hosted adapter refuses a runtime that reports it.                    |
 
 Web search use follows the runtime fields `web_search.configured`, `backend` and

@@ -249,6 +249,16 @@ covered by an applied Reflection and proposes a curated edit of its Anima
 memories. It never runs automatically. Turns count as covered only once its change
 is applied.
 
+## Automatic episode processing
+
+In the local composition, Memory Manager episode processing that the backend
+starts by itself once the owner's pending episode notes (saved by chat's
+`remember` field) reach the App Settings threshold. It approves its own proposals,
+writes only shared user memory such as `PROFILE.md`, and labels each change in
+version history as an automatic update from episode notes. Distinct from
+**Reflection**, which stays owner-started; hosted has no automatic processing. See
+[ADR 0034](docs/adr/0034-automatic-episode-processing-and-profile-context.md).
+
 ## Model connection
 
 An endpoint the installation reaches models through: a base URL, how its key is

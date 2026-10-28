@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import sys
+import uuid
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from typing import Any, cast
@@ -243,7 +244,9 @@ def test_write_tools_carry_the_description_maintenance_rule(name: str) -> None:
 
 def test_memory_guidance_prompts_searching_past_chats_before_answering_from_memory() -> None:
     assert "Notes from past chats with this user are logged there" in MEMORY_SYSTEM_GUIDANCE
-    assert f"`{MEMORY_TOOL_SEARCH_MEMORY_FILES}` searches that log" in MEMORY_SYSTEM_GUIDANCE
+    assert f"`{MEMORY_TOOL_SEARCH_MEMORY_FILES}` searches the whole log" in MEMORY_SYSTEM_GUIDANCE
+    assert "your most recent ones from other chats appear under Recent Notes" in MEMORY_SYSTEM_GUIDANCE
+    assert "appears under User Profile, so read it only to edit it or, when it is cut," in MEMORY_SYSTEM_GUIDANCE
     assert "search or read memory before you answer a question about the user's news, plans, projects" in (
         MEMORY_SYSTEM_GUIDANCE
     )
@@ -2382,3 +2385,47 @@ async def test_reading_a_missing_self_memories_names_the_repair_action(async_ses
     error = read["errors"][0]
     assert (error["path"], error["code"], error["retryable"]) == (_SELF_MEMORIES, "not_found", False)
     assert "repair" in error["message"]
+
+
+@pytest.mark.asyncio
+async def test_a_chat_memory_write_gives_up_on_a_locked_file_with_a_busy_error(
+    async_session,
+    async_session_factory,
+) -> None:
+    from sqlalchemy import select
+
+    from animama.orm import ORMMemoryEntry
+    from animama.product_http.chat.session_services import SessionBackedMemoryToolService
+    from tests.product_http_support import local_turn_sessions
+
+    owner_id = f"user-{uuid.uuid4()}"
+    entry = await _memory_service(async_session).put_file_by_path(
+        user_id=owner_id, path="PROFILE.md", content="# About me\n", kind="user_profile"
+    )
+    await async_session.commit()
+    tools = SessionBackedMemoryToolService(
+        local_turn_sessions(async_session_factory, owner_id), max_file_bytes=32 * 1024, lock_timeout_seconds=0.2
+    )
+    context = replace(_context(), user_id=owner_id)
+
+    async with async_session_factory() as holder:
+        # Another transaction, such as a Memory Manager approval, holds the file's row lock.
+        await holder.execute(select(ORMMemoryEntry.id).where(ORMMemoryEntry.id == entry.id).with_for_update())
+        result = _loads(
+            await tools.execute(
+                tool_name=MEMORY_TOOL_WRITE_FILE,
+                arguments={
+                    "path": "PROFILE.md",
+                    "mode": "replace",
+                    "content": "# About me\n\nSam",
+                    "description": None,
+                },
+                context=context,
+                tool_call_id="call-busy",
+            )
+        )
+        await holder.rollback()
+
+    assert result["ok"] is False
+    assert result["code"] == "busy"
+    assert result["retryable"] is True

@@ -186,6 +186,7 @@
     "contentProgress": "正在載入動畫和特效（{{completed}}/{{total}}）",
     "download": "正在下載{{item}}（{{size}}）",
     "downloadProgress": "正在下載{{item}}（{{size}}，已完成 {{percent}}）",
+    "episodeProcessing_other": "正在將 {{count}} 則筆記整理進記憶…",
     "speechToText": "正在載入語音轉文字（Parakeet）",
     "textToSpeech": "正在載入文字轉語音（PocketTTS）",
     "textToSpeechStep": "正在載入文字轉語音（PocketTTS），第 {{step}} 步，共 {{total}} 步"

@@ -45,6 +45,21 @@ MEMORY_MANAGER_RUN_STATUSES = frozenset(
     }
 )
 
+# Who started a run, kept in ``metadata["origin"]``: absent for the owner, or "automatic" for
+# a backend-started episode-processing run (spec #775, R7). The open-run unique indexes are
+# keyed on it, so one owner run and one automatic run may be open at the same time.
+MEMORY_MANAGER_RUN_ORIGIN_KEY = "origin"
+MEMORY_MANAGER_RUN_ORIGIN_AUTOMATIC = "automatic"
+# The value the owner-run index assumes when the key is absent.
+MEMORY_MANAGER_RUN_ORIGIN_OWNER = "owner"
+
+
+def memory_manager_run_is_automatic(run: MemoryManagerRun) -> bool:
+    """Whether the backend started ``run`` rather than the owner."""
+
+    return dict(run.metadata or {}).get(MEMORY_MANAGER_RUN_ORIGIN_KEY) == MEMORY_MANAGER_RUN_ORIGIN_AUTOMATIC
+
+
 MEMORY_MANAGER_MESSAGE_ROLE_USER = "user"
 MEMORY_MANAGER_MESSAGE_ROLE_ASSISTANT = "assistant"
 MEMORY_MANAGER_MESSAGE_ROLE_SYSTEM = "system"
@@ -486,6 +501,10 @@ def _task_datetime(value: object, *, field_name: str) -> datetime:
 
 __all__ = [
     "AnimaMemoryReflection",
+    "MEMORY_MANAGER_RUN_ORIGIN_AUTOMATIC",
+    "MEMORY_MANAGER_RUN_ORIGIN_KEY",
+    "MEMORY_MANAGER_RUN_ORIGIN_OWNER",
+    "memory_manager_run_is_automatic",
     "MEMORY_MANAGER_APPROVAL_STATUS_APPROVED",
     "MEMORY_MANAGER_APPROVAL_STATUS_PENDING",
     "MEMORY_MANAGER_APPROVAL_STATUS_REJECTED",

@@ -340,6 +340,7 @@
   },
   "versions": {
     "afterRevert": "還原後 · 版本 {{version}}",
+    "automaticUpdate": "來自經歷筆記的自動更新",
     "back": "返回",
     "changesIn": "版本 {{version}} 的變更",
     "confirmRevert": "確認還原",

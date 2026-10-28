@@ -3632,6 +3632,61 @@ export type PyArchivePassageUpdate = {
 };
 
 /**
+ * PyAutomaticEpisodeProcessingStatus
+ *
+ * The setting and what automatic processing will do next.
+ *
+ * ``batch_size`` and ``started_at`` are set only while ``state`` is ``running``;
+ * ``next_attempt_at`` while ``backing_off``; ``last_error`` after a failed run.
+ */
+export type PyAutomaticEpisodeProcessingStatus = {
+    /**
+     * Batch Size
+     */
+    batch_size?: number | null;
+    /**
+     * Last Error
+     */
+    last_error?: string | null;
+    /**
+     * Next Attempt At
+     */
+    next_attempt_at?: string | null;
+    /**
+     * Pending Count
+     */
+    pending_count: number;
+    /**
+     * Runs Today
+     */
+    runs_today: number;
+    /**
+     * Started At
+     */
+    started_at?: string | null;
+    /**
+     * State
+     */
+    state: 'off' | 'memory_off' | 'needs_model' | 'running' | 'paused' | 'backing_off' | 'waiting' | 'ready';
+    /**
+     * Threshold
+     */
+    threshold: number;
+};
+
+/**
+ * PyAutomaticEpisodeProcessingUpdate
+ *
+ * ``threshold`` is 0 for Off, or the number of pending notes (5–50) that starts a run.
+ */
+export type PyAutomaticEpisodeProcessingUpdate = {
+    /**
+     * Threshold
+     */
+    threshold: number;
+};
+
+/**
  * PyAvailableModels
  */
 export type PyAvailableModels = {
@@ -9727,6 +9782,10 @@ export type RuntimeCapabilities = {
      * Anima Creation
      */
     anima_creation: boolean;
+    /**
+     * Automatic Episode Processing
+     */
+    automatic_episode_processing?: boolean;
     browser_telemetry?: BrowserTelemetryCapability | null;
     /**
      * Chat
@@ -13398,6 +13457,47 @@ export type RepairAnimaMemoriesV1MemoryAnimaMemoriesAnimaIdRepairPostResponses =
 };
 
 export type RepairAnimaMemoriesV1MemoryAnimaMemoriesAnimaIdRepairPostResponse = RepairAnimaMemoriesV1MemoryAnimaMemoriesAnimaIdRepairPostResponses[keyof RepairAnimaMemoriesV1MemoryAnimaMemoriesAnimaIdRepairPostResponses];
+
+export type GetAutomaticEpisodeProcessingV1MemoryAutomaticProcessingGetData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/v1/memory/automatic-processing';
+};
+
+export type GetAutomaticEpisodeProcessingV1MemoryAutomaticProcessingGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: PyAutomaticEpisodeProcessingStatus;
+};
+
+export type GetAutomaticEpisodeProcessingV1MemoryAutomaticProcessingGetResponse = GetAutomaticEpisodeProcessingV1MemoryAutomaticProcessingGetResponses[keyof GetAutomaticEpisodeProcessingV1MemoryAutomaticProcessingGetResponses];
+
+export type UpdateAutomaticEpisodeProcessingV1MemoryAutomaticProcessingPutData = {
+    body: PyAutomaticEpisodeProcessingUpdate;
+    path?: never;
+    query?: never;
+    url: '/v1/memory/automatic-processing';
+};
+
+export type UpdateAutomaticEpisodeProcessingV1MemoryAutomaticProcessingPutErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type UpdateAutomaticEpisodeProcessingV1MemoryAutomaticProcessingPutError = UpdateAutomaticEpisodeProcessingV1MemoryAutomaticProcessingPutErrors[keyof UpdateAutomaticEpisodeProcessingV1MemoryAutomaticProcessingPutErrors];
+
+export type UpdateAutomaticEpisodeProcessingV1MemoryAutomaticProcessingPutResponses = {
+    /**
+     * Successful Response
+     */
+    200: PyAutomaticEpisodeProcessingStatus;
+};
+
+export type UpdateAutomaticEpisodeProcessingV1MemoryAutomaticProcessingPutResponse = UpdateAutomaticEpisodeProcessingV1MemoryAutomaticProcessingPutResponses[keyof UpdateAutomaticEpisodeProcessingV1MemoryAutomaticProcessingPutResponses];
 
 export type DebugSearchMemoryFilesV1MemoryDebugSearchMemoryFilesPostData = {
     body: PySearchMemoryFilesDebugRequest;

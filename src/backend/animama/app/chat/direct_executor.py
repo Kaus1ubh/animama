@@ -455,6 +455,7 @@ class DirectChatTurnExecutor:
             memory_context = await memory_context_service.build_context(
                 user_id=request.user_id,
                 anima_id=request.anima_id,
+                chat_id=request.chat_id,
                 chat_metadata=getattr(chat, "metadata", {}),
                 request_options=request.options,
             )
@@ -1224,6 +1225,9 @@ class DirectChatTurnExecutor:
             and self._episodic_memory_arm.anima_memories_writes
             and getattr(memory_context, "anima_memories_version", None) is not None,
             anima_memories_write_guidance=self._episodic_memory_arm.anima_memories_write_guidance,
+            user_profile=getattr(memory_context, "user_profile", None),
+            user_profile_truncated=getattr(memory_context, "user_profile_truncated", False),
+            recent_notes=getattr(memory_context, "recent_notes", ()),
             remember_field=self._episodic_memory_arm.remember,
             response_format_guidance=response_format_guidance,
             native_memory_patch_enabled=native_memory_patch_enabled,

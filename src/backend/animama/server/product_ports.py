@@ -71,6 +71,7 @@ from animama.server.embedding_refresh import (
     wake_embedding_refresh,
 )
 from animama.server.embeddings import role_embedder
+from animama.server.episode_processing import wake_automatic_episode_processing
 from animama.server.gemini_tts_service import LocalGeminiSpeech
 from animama.server.installation_personalization import (
     FirstRunIncompleteError,
@@ -134,11 +135,15 @@ def local_product_content(
 class LocalChatTurnLease:
     """The local guard admits every turn: one owner, no metering and no session lease."""
 
+    def __init__(self, app: FastAPI) -> None:
+        self._app = app
+
     async def check(self) -> None:
         return None
 
     async def settle(self, outcome: ChatTurnOutcome) -> None:
-        return None
+        # The turn and its episode note are saved by now; check whether enough notes are pending.
+        wake_automatic_episode_processing(self._app)
 
 
 class LocalChatTurnServices:
@@ -263,7 +268,7 @@ class LocalProductPorts:
         )
 
     async def admit_chat_turn(self, principal: RequestPrincipal, admission: ChatTurnAdmission) -> ChatTurnLease:
-        return LocalChatTurnLease()
+        return LocalChatTurnLease(self._app)
 
     def chat_turn(self, principal: RequestPrincipal, lease: ChatTurnLease) -> LocalChatTurnServices:
         return LocalChatTurnServices(self._app, principal)
@@ -350,6 +355,8 @@ class LocalProductPorts:
     def user_settings_changed(self, principal: RequestPrincipal) -> None:
         # The embeddings role may have changed; re-check stored vectors now.
         wake_embedding_refresh(self._app)
+        # Memory flags or the Memory Manager model may have changed too.
+        wake_automatic_episode_processing(self._app)
 
     async def embedding_refresh_status(
         self, session: AsyncSession, principal: RequestPrincipal, embedding_model_id: str | None

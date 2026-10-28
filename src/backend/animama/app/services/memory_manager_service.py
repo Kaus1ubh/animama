@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from dataclasses import replace
+from dataclasses import dataclass, replace
 from datetime import UTC, datetime
-from typing import Any, NoReturn
+from typing import Any, Literal, NoReturn
 
 from animama.app.ports.memory_manager_runtime import (
     MEMORY_MANAGER_RUNTIME_OUTCOME_BLOCKED,
@@ -32,6 +32,8 @@ from animama.domain.memory_manager import (
     MEMORY_MANAGER_RUN_KIND_EPISODE_PROCESSING,
     MEMORY_MANAGER_RUN_KIND_GENERAL,
     MEMORY_MANAGER_RUN_KIND_REFLECTION,
+    MEMORY_MANAGER_RUN_ORIGIN_AUTOMATIC,
+    MEMORY_MANAGER_RUN_ORIGIN_KEY,
     MEMORY_MANAGER_RUN_STATUS_ACTIVE,
     MEMORY_MANAGER_RUN_STATUS_COMPLETED,
     MEMORY_MANAGER_RUN_STATUS_FAILED,
@@ -48,6 +50,7 @@ from animama.domain.memory_manager import (
     MemoryManagerRun,
     MemoryManagerRunSnapshot,
     format_turn_count,
+    memory_manager_run_is_automatic,
     new_memory_manager_approval_id,
     new_memory_manager_message_id,
     new_memory_manager_run_id,
@@ -80,6 +83,14 @@ _USER_MEMORY_KIND = "user_memory"
 _USAGE_COUNTER_KEYS = frozenset({"requests", "input_tokens", "output_tokens", "total_tokens"})
 _SUPERSEDED_COMPLETION_REASON = "superseded_by_new_run"
 _EPISODE_PROCESSING_BATCH_SIZE = 50
+# How an automatic run ended (run metadata "completion_reason") and why a proposal it
+# left was closed unapplied (approval operation_metadata "closed_reason").
+AUTOMATIC_COMPLETION_PROCESSED = "automatic_processed"
+AUTOMATIC_COMPLETION_CLOSED = "automatic_closed"
+AUTOMATIC_COMPLETION_INTERRUPTED = "automatic_interrupted"
+# The change provenance of versions an automatic run writes (spec #775, R10).
+AUTOMATIC_EPISODE_PROCESSING_TRIGGER = "automatic_episode_processing"
+_AUTOMATIC_PROCESSING_IN_PROGRESS = "Automatic memory processing is in progress; try again shortly"
 # Safety cap on the turns one Reflection reads; later turns wait for the next Reflection.
 REFLECTION_MAX_TURNS = 400
 # Budget for the turn text one Reflection reads (about 50K tokens), counted after each side
@@ -108,6 +119,24 @@ class MemoryManagerNotFoundError(MemoryManagerError):
 
 class MemoryManagerConflictError(MemoryManagerError):
     """Raised when a manager state transition is not allowed."""
+
+
+AutomaticEpisodeProcessingStatus = Literal["completed", "failed", "skipped"]
+
+
+@dataclass(frozen=True, slots=True)
+class AutomaticEpisodeProcessingOutcome:
+    """The result of one backend-started episode-processing attempt.
+
+    ``reason`` names why a run was skipped (``no_pending_episodes``,
+    ``owner_processing_in_progress`` or ``automatic_run_open``) or holds a failed
+    run's error.
+    """
+
+    status: AutomaticEpisodeProcessingStatus
+    run_id: str | None = None
+    batch_size: int = 0
+    reason: str | None = None
 
 
 class MemoryManagerService:
@@ -160,9 +189,10 @@ class MemoryManagerService:
                 status=MEMORY_MANAGER_RUN_STATUS_ACTIVE,
                 kind=MEMORY_MANAGER_RUN_KIND_GENERAL,
                 model_provider_id=self._runtime.model_provider_id,
+                # The origin is backend-owned: a caller cannot mark its own run automatic.
                 metadata={
+                    **{key: value for key, value in (metadata or {}).items() if key != MEMORY_MANAGER_RUN_ORIGIN_KEY},
                     "runtime": self._runtime.name,
-                    **dict(metadata or {}),
                 },
             )
             stored = await self._memory_manager.create_run(run)
@@ -199,28 +229,15 @@ class MemoryManagerService:
             open_runs = await self._memory_manager.list_open_runs_for_update(user_id=user_id)
             if any(run.status == MEMORY_MANAGER_RUN_STATUS_WAITING_APPROVAL for run in open_runs):
                 raise MemoryManagerConflictError("Resolve the pending memory approval before processing episodes")
+            # An automatic run holds its own batch; selecting now would review the same notes
+            # twice. The selection lock makes this check see an automatic run created meanwhile.
+            await self._memory_episodes.lock_batch_selection(user_id=user_id)
+            if await self._memory_manager.list_open_automatic_runs(user_id=user_id):
+                raise MemoryManagerConflictError(_AUTOMATIC_PROCESSING_IN_PROGRESS)
 
-            candidates = await self._memory_episodes.select_pending_batch_for_update(
-                user_id=user_id,
-                limit=_EPISODE_PROCESSING_BATCH_SIZE + 1,
-            )
-            if not candidates:
+            task = await self._select_episode_batch(user_id=user_id)
+            if task is None:
                 raise MemoryManagerConflictError("No pending episodes are available to process")
-
-            selected = candidates[:_EPISODE_PROCESSING_BATCH_SIZE]
-            started_at = datetime.now(UTC)
-            task = MemoryManagerEpisodeTaskState(
-                status=MEMORY_MANAGER_EPISODE_TASK_STATUS_PROCESSING,
-                items=tuple(
-                    MemoryManagerEpisodeTaskItem(
-                        episode_item_id=item.id,
-                        ref=f"E{index:02d}",
-                    )
-                    for index, item in enumerate(selected, start=1)
-                ),
-                has_more=len(candidates) > _EPISODE_PROCESSING_BATCH_SIZE,
-                started_at=started_at,
-            )
 
             await self._supersede_open_runs(open_runs)
 
@@ -367,6 +384,264 @@ class MemoryManagerService:
             run_id=stored.id,
             content=f"Reflect on {format_turn_count(task.turn_count)} with {anima_name}.",
             auto_approve_diffs=auto_approve_diffs,
+        )
+
+    async def _select_episode_batch(self, *, user_id: str) -> MemoryManagerEpisodeTaskState | None:
+        """Lock the oldest pending notes and build a fixed batch's task state, or None when none are pending."""
+
+        assert self._memory_episodes is not None
+        candidates = await self._memory_episodes.select_pending_batch_for_update(
+            user_id=user_id,
+            limit=_EPISODE_PROCESSING_BATCH_SIZE + 1,
+        )
+        if not candidates:
+            return None
+        selected = candidates[:_EPISODE_PROCESSING_BATCH_SIZE]
+        return MemoryManagerEpisodeTaskState(
+            status=MEMORY_MANAGER_EPISODE_TASK_STATUS_PROCESSING,
+            items=tuple(
+                MemoryManagerEpisodeTaskItem(
+                    episode_item_id=item.id,
+                    ref=f"E{index:02d}",
+                )
+                for index, item in enumerate(selected, start=1)
+            ),
+            has_more=len(candidates) > _EPISODE_PROCESSING_BATCH_SIZE,
+            started_at=datetime.now(UTC),
+        )
+
+    async def run_automatic_episode_processing(self, *, user_id: str) -> AutomaticEpisodeProcessingOutcome:
+        """Process the oldest pending notes in a backend-started run, approving its own proposals.
+
+        The run never touches the owner's runs: one owner run and one automatic run may
+        be open together. Each proposal is approved in its own transaction before the
+        runtime resumes, so no file row stays locked during a model request. The run
+        always closes: completed once its batch is processed, otherwise failed, with
+        any proposal it could not apply closed unapplied and its notes left pending.
+        """
+
+        if self._memory_episodes is None:
+            raise MemoryManagerValidationError("Episode processing is not configured")
+        try:
+            # The selection lock serializes this check against owner-started processing.
+            # Nothing here locks an owner run, so a run that is mid-request never delays it.
+            await self._memory_episodes.lock_batch_selection(user_id=user_id)
+            if await self._memory_manager.list_open_automatic_runs(user_id=user_id):
+                await self._rollback_if_enabled()
+                return AutomaticEpisodeProcessingOutcome(status="skipped", reason="automatic_run_open")
+            owner_runs = await self._memory_manager.list_open_runs(user_id=user_id)
+            if any(_episode_task_is_processing(run) for run in owner_runs):
+                await self._rollback_if_enabled()
+                return AutomaticEpisodeProcessingOutcome(status="skipped", reason="owner_processing_in_progress")
+            task = await self._select_episode_batch(user_id=user_id)
+            if task is None:
+                await self._rollback_if_enabled()
+                return AutomaticEpisodeProcessingOutcome(status="skipped", reason="no_pending_episodes")
+            stored = await self._memory_manager.create_run(
+                MemoryManagerRun(
+                    id=new_memory_manager_run_id(),
+                    user_id=user_id,
+                    status=MEMORY_MANAGER_RUN_STATUS_ACTIVE,
+                    kind=MEMORY_MANAGER_RUN_KIND_EPISODE_PROCESSING,
+                    task_state=task.to_dict(),
+                    model_provider_id=self._runtime.model_provider_id,
+                    metadata={
+                        "runtime": self._runtime.name,
+                        MEMORY_MANAGER_RUN_ORIGIN_KEY: MEMORY_MANAGER_RUN_ORIGIN_AUTOMATIC,
+                    },
+                )
+            )
+            await self._commit_if_enabled()
+        except MemoryManagerRepositoryConflictError:
+            # Another automatic run won the race, or a database created before the
+            # origin-scoped indexes refuses a second open run.
+            await self._rollback_if_enabled()
+            return AutomaticEpisodeProcessingOutcome(status="skipped", reason="automatic_run_open")
+        except Exception:
+            await self._rollback_if_enabled()
+            raise
+
+        self._log.info(
+            "MemoryManagerService.automatic_episode_processing.started",
+            user_id=user_id,
+            run_id=stored.id,
+            batch_size=task.batch_size,
+        )
+        try:
+            stop_error = await self._process_automatic_run(
+                user_id=user_id, run_id=stored.id, batch_size=task.batch_size
+            )
+        except Exception as exc:
+            # Whatever went wrong, the run must close so it never blocks later processing.
+            await self._rollback_if_enabled()
+            self._log.exception(
+                "MemoryManagerService.automatic_episode_processing.error", user_id=user_id, run_id=stored.id
+            )
+            stop_error = (
+                exc.detail
+                if isinstance(exc, MemoryManagerError)
+                else f"Automatic processing failed ({type(exc).__name__})"
+            )
+        return await self._close_automatic_run(
+            user_id=user_id,
+            run_id=stored.id,
+            batch_size=task.batch_size,
+            stop_error=stop_error,
+        )
+
+    async def _process_automatic_run(self, *, user_id: str, run_id: str, batch_size: int) -> str | None:
+        """Send the batch message and approve each proposal; return why the chain stopped early, if it did."""
+
+        await self.append_user_message(
+            user_id=user_id,
+            run_id=run_id,
+            content=f"Process {batch_size} pending episodes.",
+        )
+        for _ in range(_MAX_AUTO_APPROVALS_PER_MESSAGE):
+            snapshot = await self.get_run_snapshot(user_id=user_id, run_id=run_id)
+            if snapshot.run.status != MEMORY_MANAGER_RUN_STATUS_WAITING_APPROVAL:
+                return None
+            pending = next(
+                (item for item in snapshot.approvals if item.status == MEMORY_MANAGER_APPROVAL_STATUS_PENDING),
+                None,
+            )
+            if pending is None:
+                return None
+            try:
+                await self._approve_automatic_proposal(user_id=user_id, approval_id=pending.id)
+            except MemoryManagerError as exc:
+                return exc.detail
+        snapshot = await self.get_run_snapshot(user_id=user_id, run_id=run_id)
+        if any(item.status == MEMORY_MANAGER_APPROVAL_STATUS_PENDING for item in snapshot.approvals):
+            return f"Automatic processing reached its limit of {_MAX_AUTO_APPROVALS_PER_MESSAGE} approvals"
+        return None
+
+    async def _approve_automatic_proposal(self, *, user_id: str, approval_id: str) -> None:
+        """Commit one approval, then resume the runtime in a second transaction.
+
+        A crash between the two leaves the run open with its change applied;
+        ``fail_interrupted_automatic_runs`` closes it at the next startup.
+        """
+
+        try:
+            decided, run, runtime = await self._apply_decision(
+                user_id=user_id,
+                approval_id=approval_id,
+                status=MEMORY_MANAGER_APPROVAL_STATUS_APPROVED,
+                feedback=None,
+            )
+            await self._commit_if_enabled()
+        except Exception:
+            await self._rollback_if_enabled()
+            raise
+        try:
+            locked = await self._memory_manager.get_run_for_update(user_id=user_id, run_id=run.id)
+            if locked is None:
+                raise MemoryManagerNotFoundError("Memory manager run not found")
+            # Recovery may have closed the run between the two transactions; never reopen it.
+            if locked.status in {MEMORY_MANAGER_RUN_STATUS_COMPLETED, MEMORY_MANAGER_RUN_STATUS_FAILED}:
+                raise MemoryManagerConflictError("Memory manager run is closed")
+            await self._resume_after_decision(
+                run=locked,
+                approval=decided,
+                runtime=runtime,
+                decision="approve",
+                feedback=None,
+            )
+            await self._commit_if_enabled()
+        except Exception:
+            await self._rollback_if_enabled()
+            raise
+
+    async def _close_automatic_run(
+        self,
+        *,
+        user_id: str,
+        run_id: str,
+        batch_size: int,
+        stop_error: str | None,
+    ) -> AutomaticEpisodeProcessingOutcome:
+        """Complete a processed automatic run, or fail it and close any proposal it left unapplied."""
+
+        try:
+            run = await self._memory_manager.get_run_for_update(user_id=user_id, run_id=run_id)
+            if run is None:
+                raise MemoryManagerNotFoundError("Memory manager run not found")
+            processed = _episode_task_status(run) == MEMORY_MANAGER_EPISODE_TASK_STATUS_PROCESSED
+            if processed and run.status == MEMORY_MANAGER_RUN_STATUS_ACTIVE:
+                await self._memory_manager.update_run(
+                    replace(
+                        run,
+                        status=MEMORY_MANAGER_RUN_STATUS_COMPLETED,
+                        completed_at=datetime.utcnow(),
+                        metadata={**dict(run.metadata or {}), "completion_reason": AUTOMATIC_COMPLETION_PROCESSED},
+                    )
+                )
+                await self._commit_if_enabled()
+                self._log.info(
+                    "MemoryManagerService.automatic_episode_processing.completed", user_id=user_id, run_id=run_id
+                )
+                return AutomaticEpisodeProcessingOutcome(status="completed", run_id=run_id, batch_size=batch_size)
+            error = run.error if run.status == MEMORY_MANAGER_RUN_STATUS_FAILED else None
+            error = error or stop_error or "Automatic processing stopped before it finished its batch"
+            await self._fail_automatic_run(run, error=error, completion_reason=AUTOMATIC_COMPLETION_CLOSED)
+            await self._commit_if_enabled()
+        except Exception:
+            await self._rollback_if_enabled()
+            raise
+        self._log.warning(
+            "MemoryManagerService.automatic_episode_processing.failed", user_id=user_id, run_id=run_id, error=error
+        )
+        return AutomaticEpisodeProcessingOutcome(status="failed", run_id=run_id, batch_size=batch_size, reason=error)
+
+    async def fail_interrupted_automatic_runs(self, *, user_id: str) -> int:
+        """Close automatic runs left open by an earlier process; return how many were closed.
+
+        Only the backend that starts automatic runs calls this, at startup, before it
+        starts another. Applied changes stay; the notes stay pending for a later run.
+        """
+
+        try:
+            runs = await self._memory_manager.list_open_automatic_runs(user_id=user_id, for_update=True)
+            for run in runs:
+                await self._fail_automatic_run(
+                    run,
+                    error="Automatic processing was interrupted",
+                    completion_reason=AUTOMATIC_COMPLETION_INTERRUPTED,
+                )
+            await self._commit_if_enabled()
+        except Exception:
+            await self._rollback_if_enabled()
+            raise
+        return len(runs)
+
+    async def _fail_automatic_run(self, run: MemoryManagerRun, *, error: str, completion_reason: str) -> None:
+        """Close an automatic run as failed and its pending proposals as rejected, without resuming the runtime."""
+
+        decided_at = datetime.utcnow()
+        approvals = await self._memory_manager.list_approvals_for_update(user_id=run.user_id, run_id=run.id)
+        for approval in approvals:
+            if approval.status != MEMORY_MANAGER_APPROVAL_STATUS_PENDING:
+                continue
+            await self._memory_manager.update_approval(
+                replace(
+                    approval,
+                    status=MEMORY_MANAGER_APPROVAL_STATUS_REJECTED,
+                    decided_at=decided_at,
+                    operation_metadata={
+                        **dict(approval.operation_metadata or {}),
+                        "closed_reason": AUTOMATIC_COMPLETION_CLOSED,
+                    },
+                )
+            )
+        await self._memory_manager.update_run(
+            replace(
+                run,
+                status=MEMORY_MANAGER_RUN_STATUS_FAILED,
+                error=error,
+                completed_at=decided_at,
+                metadata={**dict(run.metadata or {}), "completion_reason": completion_reason},
+            )
         )
 
     async def _supersede_open_runs(self, open_runs: list[MemoryManagerRun]) -> None:
@@ -526,57 +801,18 @@ class MemoryManagerService:
         if status != MEMORY_MANAGER_APPROVAL_STATUS_REJECTED and clean_feedback is not None:
             raise MemoryManagerValidationError("Feedback is only allowed when rejecting an approval")
         try:
-            approval = await self._memory_manager.get_approval_for_update(user_id=user_id, approval_id=approval_id)
-            if approval is None:
-                raise MemoryManagerNotFoundError("Memory manager approval not found")
-            if approval.status != MEMORY_MANAGER_APPROVAL_STATUS_PENDING:
-                raise MemoryManagerConflictError("Memory manager approval is already decided")
-            run = await self._memory_manager.get_run_for_update(user_id=user_id, run_id=approval.run_id)
-            if run is None:
-                raise MemoryManagerNotFoundError("Memory manager run not found")
-            # Resume on the model that proposed the change. Without it, an
-            # approval changes nothing (the owner can restore the model or
-            # reject), and a rejection ends the review without resuming.
-            runtime: MemoryManagerRuntime | None
-            try:
-                runtime = await self._runtime.for_run(run)
-            except MemoryManagerPinnedModelUnavailableError as exc:
-                if status == MEMORY_MANAGER_APPROVAL_STATUS_APPROVED:
-                    raise MemoryManagerConflictError(exc.detail) from exc
-                runtime = None
-            committed_entry_id = approval.target_entry_id
-            applied_version = approval.applied_version
-            if status == MEMORY_MANAGER_APPROVAL_STATUS_APPROVED:
-                committed = await self._commit_approval_patch(user_id=user_id, approval=approval, run=run)
-                committed_entry_id = committed.id
-                applied_version = committed.version
-
-            decided = replace(
-                approval,
+            stored, run, runtime = await self._apply_decision(
+                user_id=user_id,
+                approval_id=approval_id,
                 status=status,
-                target_entry_id=committed_entry_id,
-                applied_version=applied_version,
-                decision_feedback=clean_feedback,
-                decided_at=datetime.utcnow(),
+                feedback=clean_feedback,
             )
-            stored = await self._memory_manager.update_approval(decided)
-            try:
-                if runtime is None:
-                    runtime_result = self._pinned_model_gone_result()
-                else:
-                    runtime_result = await runtime.resume_approval_decision(
-                        run=run,
-                        approval=stored,
-                        decision=decision.strip().lower(),
-                        feedback=clean_feedback,
-                    )
-            except MemoryManagerRuntimeError as exc:
-                # The pinned row's runtime ran the resume, which may differ from the role's.
-                runtime_result = self._runtime_failure_result(exc, runtime_name=runtime.name if runtime else None)
-            await self._persist_runtime_result(
+            await self._resume_after_decision(
                 run=run,
-                result=runtime_result,
-                source_message_id=self._approval_source_message_id(approval),
+                approval=stored,
+                runtime=runtime,
+                decision=decision.strip().lower(),
+                feedback=clean_feedback,
             )
             await self._commit_if_enabled()
         except Exception:
@@ -590,6 +826,86 @@ class MemoryManagerService:
         )
         snapshot = await self.get_run_snapshot(user_id=user_id, run_id=stored.run_id)
         return next(item for item in snapshot.approvals if item.id == stored.id)
+
+    async def _apply_decision(
+        self,
+        *,
+        user_id: str,
+        approval_id: str,
+        status: str,
+        feedback: str | None,
+    ) -> tuple[MemoryManagerApproval, MemoryManagerRun, MemoryManagerRuntime | None]:
+        """Lock one pending approval and its run, commit an approved patch and record the decision.
+
+        Returns the decided approval, its run and the runtime that resumes it (None
+        when its pinned model is gone and the decision is a rejection).
+        """
+
+        approval = await self._memory_manager.get_approval_for_update(user_id=user_id, approval_id=approval_id)
+        if approval is None:
+            raise MemoryManagerNotFoundError("Memory manager approval not found")
+        if approval.status != MEMORY_MANAGER_APPROVAL_STATUS_PENDING:
+            raise MemoryManagerConflictError("Memory manager approval is already decided")
+        run = await self._memory_manager.get_run_for_update(user_id=user_id, run_id=approval.run_id)
+        if run is None:
+            raise MemoryManagerNotFoundError("Memory manager run not found")
+        # Resume on the model that proposed the change. Without it, an
+        # approval changes nothing (the owner can restore the model or
+        # reject), and a rejection ends the review without resuming.
+        runtime: MemoryManagerRuntime | None
+        try:
+            runtime = await self._runtime.for_run(run)
+        except MemoryManagerPinnedModelUnavailableError as exc:
+            if status == MEMORY_MANAGER_APPROVAL_STATUS_APPROVED:
+                raise MemoryManagerConflictError(exc.detail) from exc
+            runtime = None
+        committed_entry_id = approval.target_entry_id
+        applied_version = approval.applied_version
+        if status == MEMORY_MANAGER_APPROVAL_STATUS_APPROVED:
+            committed = await self._commit_approval_patch(user_id=user_id, approval=approval, run=run)
+            committed_entry_id = committed.id
+            applied_version = committed.version
+
+        decided = replace(
+            approval,
+            status=status,
+            target_entry_id=committed_entry_id,
+            applied_version=applied_version,
+            decision_feedback=feedback,
+            decided_at=datetime.utcnow(),
+        )
+        stored = await self._memory_manager.update_approval(decided)
+        return stored, run, runtime
+
+    async def _resume_after_decision(
+        self,
+        *,
+        run: MemoryManagerRun,
+        approval: MemoryManagerApproval,
+        runtime: MemoryManagerRuntime | None,
+        decision: str,
+        feedback: str | None,
+    ) -> None:
+        """Resume the runtime with a recorded decision and persist its result."""
+
+        try:
+            if runtime is None:
+                runtime_result = self._pinned_model_gone_result()
+            else:
+                runtime_result = await runtime.resume_approval_decision(
+                    run=run,
+                    approval=approval,
+                    decision=decision,
+                    feedback=feedback,
+                )
+        except MemoryManagerRuntimeError as exc:
+            # The pinned row's runtime ran the resume, which may differ from the role's.
+            runtime_result = self._runtime_failure_result(exc, runtime_name=runtime.name if runtime else None)
+        await self._persist_runtime_result(
+            run=run,
+            result=runtime_result,
+            source_message_id=self._approval_source_message_id(approval),
+        )
 
     async def undo_approval(
         self,
@@ -856,7 +1172,10 @@ class MemoryManagerService:
 
         approvals = await self._memory_manager.list_approvals(user_id=run.user_id, run_id=run.id)
         has_pending = any(item.status == MEMORY_MANAGER_APPROVAL_STATUS_PENDING for item in approvals)
-        result_metadata = dict(result.metadata or {})
+        # The origin is backend-owned; a runtime result cannot change it.
+        result_metadata = {
+            key: value for key, value in (result.metadata or {}).items() if key != MEMORY_MANAGER_RUN_ORIGIN_KEY
+        }
         result_model = result_metadata.get("model")
         result_provider = result_metadata.get("model_provider")
         # The row that ran this step proposed any new approval, so it becomes the pin.
@@ -1010,7 +1329,7 @@ class MemoryManagerService:
     ) -> MemoryEntry:
         try:
             clean_path, anima_file = self._validate_approval_target_path(approval.target_path)
-            change_metadata = self._approval_change_metadata(approval)
+            change_metadata = self._approval_change_metadata(approval, run=run)
             if anima_file is not None:
                 return await self._commit_anima_file_approval(
                     user_id=user_id,
@@ -1207,7 +1526,7 @@ class MemoryManagerService:
         )
 
     @staticmethod
-    def _approval_change_metadata(approval: MemoryManagerApproval) -> dict[str, Any]:
+    def _approval_change_metadata(approval: MemoryManagerApproval, *, run: MemoryManagerRun) -> dict[str, Any]:
         """Return safe provenance for the version produced by one approval."""
 
         metadata: dict[str, Any] = {
@@ -1215,6 +1534,9 @@ class MemoryManagerService:
             "source_id": approval.id,
             "run_id": approval.run_id,
         }
+        if memory_manager_run_is_automatic(run):
+            # Version history labels these as automatic updates from episode notes.
+            metadata["trigger"] = AUTOMATIC_EPISODE_PROCESSING_TRIGGER
         operation_metadata = dict(approval.operation_metadata or {})
         for key in ("runtime", "source_message_id"):
             value = operation_metadata.get(key)
@@ -1384,6 +1706,21 @@ class MemoryManagerService:
         raise MemoryManagerNotFoundError(detail)
 
 
+def _episode_task_status(run: MemoryManagerRun) -> str | None:
+    """The status of an episode-processing run's fixed batch, or None for other runs."""
+
+    if run.kind != MEMORY_MANAGER_RUN_KIND_EPISODE_PROCESSING or run.task_state is None:
+        return None
+    try:
+        return MemoryManagerEpisodeTaskState.from_dict(run.task_state).status
+    except ValueError:
+        return None
+
+
+def _episode_task_is_processing(run: MemoryManagerRun) -> bool:
+    return _episode_task_status(run) == MEMORY_MANAGER_EPISODE_TASK_STATUS_PROCESSING
+
+
 def _turns_within_char_budget(turns: list[AnimaHistoryTurn]) -> list[AnimaHistoryTurn]:
     """Keep the oldest turns whose read text fits ``REFLECTION_MAX_BATCH_CHARS``, always at least one.
 
@@ -1400,6 +1737,11 @@ def _turns_within_char_budget(turns: list[AnimaHistoryTurn]) -> list[AnimaHistor
 
 
 __all__ = [
+    "AUTOMATIC_COMPLETION_CLOSED",
+    "AUTOMATIC_COMPLETION_INTERRUPTED",
+    "AUTOMATIC_COMPLETION_PROCESSED",
+    "AUTOMATIC_EPISODE_PROCESSING_TRIGGER",
+    "AutomaticEpisodeProcessingOutcome",
     "MemoryManagerConflictError",
     "MemoryManagerError",
     "MemoryManagerNotFoundError",

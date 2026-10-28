@@ -36,6 +36,11 @@ class MemoryEpisodeRepository(Protocol):
     ) -> list[MemoryEpisodeItem]:
         raise NotImplementedError
 
+    async def count_items(self, *, user_id: str, status: str) -> int:
+        """Count the owner's items with one status."""
+
+        raise NotImplementedError
+
     async def list_items_by_source_message_ids(
         self,
         *,
@@ -43,6 +48,23 @@ class MemoryEpisodeRepository(Protocol):
         source_message_ids: Iterable[str],
     ) -> list[MemoryEpisodeItem]:
         """List the owner's items captured from any of these chat messages, oldest first."""
+
+        raise NotImplementedError
+
+    async def list_recent_items_for_anima(
+        self,
+        *,
+        user_id: str,
+        source_anima_id: str,
+        exclude_chat_id: str | None,
+        since_local_date: date,
+        limit: int,
+    ) -> list[MemoryEpisodeItem]:
+        """List the owner's newest items from one Anima on or after a local date, newest first.
+
+        Pending and processed items both qualify; items from ``exclude_chat_id``
+        (the chat being answered, whose turns are already in its history) do not.
+        """
 
         raise NotImplementedError
 
@@ -55,6 +77,15 @@ class MemoryEpisodeRepository(Protocol):
         processed_at: datetime | None,
         processed_by_run_id: str | None,
     ) -> list[MemoryEpisodeItem]:
+        raise NotImplementedError
+
+    async def lock_batch_selection(self, *, user_id: str) -> None:
+        """Serialize fixed-batch selection for one owner until the current transaction ends.
+
+        Owner-started and automatic episode processing both take it before they check
+        for each other's open runs, so two runs never select the same pending notes.
+        """
+
         raise NotImplementedError
 
     async def list_pending_items_for_update(
