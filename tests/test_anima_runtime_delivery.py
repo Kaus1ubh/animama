@@ -5,6 +5,7 @@ from __future__ import annotations
 import gzip
 import hashlib
 import json
+from contextlib import asynccontextmanager
 from datetime import UTC, datetime, timedelta
 from io import BytesIO
 from pathlib import Path
@@ -25,6 +26,7 @@ from animama.product_http.principal import get_current_principal
 from animama.product_http.routes import anima_runtime
 from animama.server.config import Settings
 from animama.server.local_runtime import initialize_local_runtime
+from animama.server.product_ports import LocalProductPorts
 from tests.local_http_client import local_client
 from tests.product_http_support import install_local_ports
 
@@ -198,3 +200,46 @@ async def test_issuance_prepares_again_while_the_loadout_keeps_changing(
     assert response.status_code == 409
     assert json.loads(body)["detail"]["code"] == "snapshot_conflict"
     assert runtime_http.calls == [("owner", "anima")] * ISSUE_ATTEMPTS
+
+
+async def test_issuance_prepares_on_the_read_session_and_commits_on_the_write_session(
+    runtime_http: SimpleNamespace, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    sessions = {kind: SimpleNamespace(kind=kind, commit=AsyncMock()) for kind in ("read", "write")}
+    used: list[tuple[str, str]] = []
+
+    def opener(kind: str):  # noqa: ANN202
+        @asynccontextmanager
+        async def session(_self, _principal):  # noqa: ANN001, ANN202
+            used.append(("open", kind))
+            yield sessions[kind]
+            used.append(("close", kind))
+
+        return session
+
+    monkeypatch.setattr(LocalProductPorts, "read_session", opener("read"))
+    monkeypatch.setattr(LocalProductPorts, "write_session", opener("write"))
+    prepare, commit = AnimaRuntimeService.prepare, AnimaRuntimeService.commit
+
+    async def recorded_prepare(self, **kwargs):  # noqa: ANN001, ANN003, ANN202
+        used.append(("prepare", self.session.kind))
+        return await prepare(self, **kwargs)
+
+    async def recorded_commit(self, prepared, **kwargs):  # noqa: ANN001, ANN003, ANN202
+        used.append(("commit", self.session.kind))
+        return await commit(self, prepared, **kwargs)
+
+    monkeypatch.setattr(AnimaRuntimeService, "prepare", recorded_prepare)
+    monkeypatch.setattr(AnimaRuntimeService, "commit", recorded_commit)
+    async with local_client(runtime_http.app) as client:
+        response, _ = await _wire(client, "identity")
+    assert response.status_code == 200
+    # The write session opens only after the read session that prepared has closed.
+    assert used == [
+        ("open", "read"),
+        ("prepare", "read"),
+        ("close", "read"),
+        ("open", "write"),
+        ("commit", "write"),
+        ("close", "write"),
+    ]

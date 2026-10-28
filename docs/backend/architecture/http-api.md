@@ -585,8 +585,9 @@ Concurrent reads may reuse that effective revision. It compiles and projects on
 the composition's read session without locks or writes, then opens a short write
 session that locks the loadout row, rechecks the loadout revision, every pinned
 item and the complete file union, marks files found changed for Rescan, and
-inserts or renews the snapshot. A loadout changed in between is compiled again,
-up to three attempts in all, then refused with 409 `snapshot_conflict`. An
+inserts or renews the snapshot. If the loadout changed in between, or a reused
+snapshot expired meanwhile, issuance prepares again, up to three attempts in all,
+then refuses with 409 `snapshot_conflict`. An
 unexpired snapshot compiled from the same inputs (the backend build, loadout
 revision, root selections, every catalog entry the roots reach, and the owner's
 Included Avatar face-part overrides) is renewed without compiling, reading content

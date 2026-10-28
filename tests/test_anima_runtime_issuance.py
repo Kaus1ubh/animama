@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import re
+import sys
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, replace
@@ -15,6 +16,7 @@ from uuid import uuid4
 import pytest
 from sqlalchemy import delete, func, select, update
 
+import animama
 from animama.adapters.content_store import FilesystemContentStore
 from animama.adapters.repositories.sqlalchemy.content_catalog_repo import SQLAlchemyContentCatalog
 from animama.app.ports.avatar_face_parts import AvatarFacePartOverride
@@ -208,11 +210,25 @@ async def test_preparation_takes_no_lock_and_writes_nothing(async_session, tmp_p
         assert prepared.loadout_revision == 1
 
 
-async def test_the_final_transaction_locks_rechecks_and_writes_only(async_session, tmp_path: Path) -> None:  # noqa: ANN001
+@pytest.mark.parametrize("reused", [False, True])
+async def test_the_final_transaction_locks_rechecks_and_writes_only(
+    async_session,  # noqa: ANN001
+    tmp_path: Path,
+    reused: bool,
+) -> None:
     async with runtime_fixture(async_session, tmp_path) as fixture:
         service = fixture.service(async_session)
         expected = await service.issue(user_id=fixture.owner, anima_id=fixture.anima_id)
+        if not reused:
+            # A snapshot without an inputs digest is never reused, so this compiles.
+            await async_session.execute(
+                update(ORMAnimaRuntimeSnapshot)
+                .where(ORMAnimaRuntimeSnapshot.anima_id == fixture.anima_id)
+                .values(inputs_digest=None)
+            )
+            await async_session.commit()
         prepared = await service.prepare(user_id=fixture.owner, anima_id=fixture.anima_id)
+        assert (prepared.reused_snapshot_id is not None) is reused
         await async_session.rollback()
         with counted_statements(async_session) as statements:
             issued = await service.commit(prepared, user_id=fixture.owner)
@@ -391,11 +407,13 @@ async def test_each_changed_input_compiles_again(async_session, tmp_path: Path, 
         assert again["effective_revision"] != first["effective_revision"]
 
 
+@pytest.mark.parametrize("change", [{"revision_sha256": "0" * 64}, {"owner_user_id": "another-owner"}])
 async def test_a_reused_snapshot_is_fenced_like_a_fresh_one(
     async_session,  # noqa: ANN001
     async_session_factory,  # noqa: ANN001
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
+    change: dict[str, str],
 ) -> None:
     async with runtime_fixture(async_session, tmp_path) as fixture:
         service = fixture.service(async_session)
@@ -408,9 +426,10 @@ async def test_a_reused_snapshot_is_fenced_like_a_fresh_one(
             await editor.execute(
                 update(ORMContentCatalogItem)
                 .where(ORMContentCatalogItem.id == fixture.items["wave"].id)
-                .values(revision_sha256="0" * 64)
+                .values(**change)
             )
             await editor.commit()
+        # A changed or now foreign pinned item is refused, as for a fresh compile.
         with pytest.raises(RuntimeSnapshotError, match="runtime_remount_required"):
             await service.commit(prepared, user_id=fixture.owner)
 
@@ -505,6 +524,10 @@ def _changed(name: str, inputs: dict[str, Any]) -> dict[str, Any]:
     by_id = dict(inputs["by_id"])
     if name == "build":
         return {**inputs, "build": "upgraded"}
+    if name == "avatar":
+        [root, missing] = inputs["selections"]
+        avatar = RuntimeContentRootSelection("avatar", "support", ContentKind.AVATAR, context={"avatar_id": "other"})
+        return {**inputs, "selections": (root, missing, avatar)}
     if name == "loadout":
         return {**inputs, "loadout_revision": 2}
     if name == "context":
@@ -532,6 +555,8 @@ def _changed(name: str, inputs: dict[str, Any]) -> dict[str, Any]:
     "change",
     [
         "build",
+        "projection_version",
+        "avatar",
         "loadout",
         "context",
         "missing_item_appears",
@@ -542,9 +567,16 @@ def _changed(name: str, inputs: dict[str, Any]) -> dict[str, Any]:
         "face_part_override",
     ],
 )
-def test_the_inputs_digest_changes_with_every_compile_input(change: str) -> None:
+def test_the_inputs_digest_changes_with_every_compile_input(change: str, monkeypatch: pytest.MonkeyPatch) -> None:
     inputs = _digest_inputs()
-    assert _digest(_changed(change, inputs)) != _digest(inputs)
+    before = _digest(inputs)
+    if change == "projection_version":
+        monkeypatch.setattr(
+            anima_runtime_service, "RUNTIME_PROJECTION_VERSION", anima_runtime_service.RUNTIME_PROJECTION_VERSION + 1
+        )
+        assert _digest(inputs) != before
+        return
+    assert _digest(_changed(change, inputs)) != before
 
 
 def test_the_inputs_digest_ignores_scan_times_and_unrelated_entries() -> None:
@@ -556,3 +588,37 @@ def test_the_inputs_digest_ignores_scan_times_and_unrelated_entries() -> None:
     }
     unrelated = {**inputs["by_id"], "unrelated": entry("unrelated")}
     assert _digest({**inputs, "by_id": rescanned}) == _digest(inputs) == _digest({**inputs, "by_id": unrelated})
+
+
+def _build_identity() -> str:
+    return anima_runtime_service._backend_build.__wrapped__()  # noqa: SLF001
+
+
+def test_a_frozen_build_is_identified_by_its_executable(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    executable = tmp_path / "Animama"
+    executable.write_bytes(b"release one")
+    # A frozen build's modules live in its executable; its package directory holds
+    # only data files, some of which are Python (the packaged Alembic scripts).
+    package = tmp_path / "_internal/animama"
+    (package / "resources/runtime/alembic").mkdir(parents=True)
+    (package / "resources/runtime/alembic/env.py").write_bytes(b"unchanged by upgrades")
+    monkeypatch.setattr(animama, "__file__", str(package / "__init__.pyc"))
+    monkeypatch.setattr(sys, "frozen", True, raising=False)
+    monkeypatch.setattr(sys, "executable", str(executable))
+    first = _build_identity()
+    executable.write_bytes(b"release two, upgraded")
+    assert _build_identity() != first
+
+
+@pytest.mark.parametrize("suffix", [".py", ".pyc"])
+def test_a_package_is_identified_by_its_modules(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, suffix: str) -> None:
+    package = tmp_path / "animama"
+    package.mkdir()
+    (package / f"__init__{suffix}").write_bytes(b"init")
+    module = package / f"projection{suffix}"
+    module.write_bytes(b"version one")
+    monkeypatch.setattr(animama, "__file__", str(package / f"__init__{suffix}"))
+    first = _build_identity()
+    assert _build_identity() == first
+    module.write_bytes(b"version two")
+    assert _build_identity() != first

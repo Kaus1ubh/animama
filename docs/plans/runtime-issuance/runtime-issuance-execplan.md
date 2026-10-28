@@ -70,9 +70,11 @@ writes a cProfile of the reissues.
 - [x] Investigation and baseline (2026-10-28), recorded below.
 - [x] Phase 1: one verification call per compile and cached Idle playback facts
   (standard review passed after one trivial repair).
-- [ ] Phase 2: bundle reads load only their own members.
-- [ ] Phase 3: compile outside the write transaction.
-- [ ] Phase 4: reissue an unchanged snapshot without recompiling.
+- [x] Phase 2: bundle reads load only their own members (high-risk review round 1
+  repaired; recheck pending).
+- [x] Phase 3: compile outside the write transaction (reviewed with Phase 4).
+- [x] Phase 4: reissue an unchanged snapshot without recompiling (round 1 repaired;
+  recheck and full suite pending).
 - [ ] Final integration review, full pre-push suite and PR.
 
 ## Surprises & Discoveries
@@ -407,6 +409,54 @@ Check record (repository root; working tree `13bb462a` before the phase commit):
   the reissues leaves the visible-catalog listing, the 2 MB response (overlay,
   validation, gzip), bundle selection, the stored catalog's decode and the inputs
   digest.
+
+### Phases 3 and 4: Code Review #1
+
+Phase 4 rewrites Phase 3's `prepare` and `commit`, so one high-risk review covered
+`git diff 0c261861 752c37b6` (tree `0843e144`). The full pre-push suite for these
+phases runs once on `752c37b6`, which contains Phase 3, rather than once per phase;
+its result is recorded below when it completes.
+
+#### Code Review #1 Findings
+
+The analysis reused the Phase 4 check record (tree `13bb462a`, which differs from
+`752c37b6` only in this plan) and confirmed: every write to bindings or
+`anima.avatar_id` locks the loadout row and increments its revision in the same
+transaction, so an unchanged revision under `FOR SHARE` proves the prepared
+bindings; the inputs digest covers everything compile, Idle playback, projection
+and face-part application read; every new query is owner-scoped and a reuse always
+passes the recheck; a lagging read session yields refusals, never wrong pins; the
+`staged` access value is compatible with known consumers.
+
+- P34-F1 (blocking): in the frozen desktop build the package directory holds the
+  packaged Alembic `.py` scripts but no module sources, so `_backend_build` hashed
+  only those and never reached the executable fallback; the identity did not change
+  across upgrades. A `.pyc`-only install would have fallen back to the interpreter.
+- P34-N1: after Phase 4 the final-transaction test exercised only the reuse commit.
+- P34-N2: no test gave the route distinct read and write sessions.
+- P34-N3: no test for an Avatar or projection-version change, or for a pinned item
+  becoming foreign between `prepare` and a reuse commit.
+- P34-N4: the reuse renewal updated by snapshot ID only.
+- P34-N5: the HTTP API doc omitted that an expired reuse also retries.
+- P34-N6: the retry loop appears in `issue()` and the route (accepted; `issue()`
+  serves single-session callers).
+
+#### Code Review #1 Revisions
+
+- P34-F1: a frozen build is identified by its executable first; otherwise the
+  package's `.py` modules, or its `.pyc` modules when it ships none. Tests cover a
+  frozen layout with packaged Alembic scripts and source and compiled packages.
+- P34-N1: the test runs both the compile commit (stored digest cleared) and the
+  reuse commit.
+- P34-N2: `test_issuance_prepares_on_the_read_session_and_commits_on_the_write_session`
+  records each session's open, use and close.
+- P34-N3: digest tests add Avatar selection and projection-version changes; the
+  reuse fence test also covers a pinned item that became another owner's.
+- P34-N4: the renewal also filters owner and Anima.
+- P34-N5: wording fixed.
+- Verification (working tree `5d496fab`): the runtime test set, 320 passed; ruff,
+  format check and full mypy pass. Repair rounds used: 1 of 2; the recheck is
+  Code Review #2.
 
 ## Final integration review
 

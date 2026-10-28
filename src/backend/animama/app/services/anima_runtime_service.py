@@ -143,18 +143,21 @@ def _sha(value: Any) -> str:
 def _backend_build() -> str:
     """Identify the running backend code, so a reused snapshot never outlives an upgrade.
 
-    Hashes the package's Python sources; a frozen build without them uses its executable.
+    A frozen build keeps its modules inside its executable, so the executable
+    identifies it. Otherwise the package's Python sources do, or its compiled modules
+    where it ships no sources.
     """
 
-    package = Path(animama.__file__).parent
     digest = hashlib.sha256()
-    sources = sorted(package.rglob("*.py")) if package.is_dir() else []
-    for source in sources:
-        digest.update(source.relative_to(package).as_posix().encode())
-        digest.update(source.read_bytes())
-    if not sources:
+    if getattr(sys, "frozen", False):
         executable = Path(sys.executable).stat()
         digest.update(f"{sys.executable}|{executable.st_size}|{executable.st_mtime_ns}".encode())
+        return digest.hexdigest()
+    package = Path(animama.__file__).parent
+    modules = sorted(package.rglob("*.py")) or sorted(package.rglob("*.pyc"))
+    for module in modules:
+        digest.update(module.relative_to(package).as_posix().encode())
+        digest.update(module.read_bytes())
     return digest.hexdigest()
 
 
@@ -434,6 +437,8 @@ class AnimaRuntimeService:
                 update(ORMAnimaRuntimeSnapshot)
                 .where(
                     ORMAnimaRuntimeSnapshot.id == prepared.reused_snapshot_id,
+                    ORMAnimaRuntimeSnapshot.owner_user_id == user_id,
+                    ORMAnimaRuntimeSnapshot.anima_id == anima_id,
                     ORMAnimaRuntimeSnapshot.expires_at > now,
                 )
                 .values(expires_at=expires_at, updated_at=now)
