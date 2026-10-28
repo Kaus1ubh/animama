@@ -61,6 +61,12 @@ export type AvatarFaceEyeLandmarkSnapshot = {
    * moves; an eye placed from its bone has none.
    */
   estimate?: AvatarEyeEstimate;
+  /**
+   * Present for an estimated eye: the depth (z) of the face surface's front
+   * over the eye and around it, so art hovering over the eye sits in front of
+   * the face there rather than at a fixed share of the face's depth.
+   */
+  surfaceFrontZLocal?: number;
 };
 
 export type AvatarFaceLandmarksSnapshot = {

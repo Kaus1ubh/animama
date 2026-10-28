@@ -117,6 +117,10 @@ export function buildSceneCameraPreset(
     options?.avatar?.getCameraAnchorY("head") ??
     fallbackSettings?.position.y ??
     1.2;
+  // Portrait presets are framed for the Included Avatars' heads; a big head
+  // (chibi, mascot, robot) scales their offsets from the head bone and their
+  // distance by its face's size, so the camera shows the face, not the chin.
+  const head = options?.avatar?.getHeadFramingScale() ?? 1;
 
   switch (preset) {
     case "full-body":
@@ -153,14 +157,14 @@ export function buildSceneCameraPreset(
           positionYBone: "head",
           positionYOffset: 0,
           orbitTargetYBone: "head",
-          orbitTargetYOffset: -0.1,
+          orbitTargetYOffset: -0.1 * head,
         },
         settings: {
           // Leave enough headroom for Reaction VFX while retaining a facial
           // expression-focused composition.
-          position: { x: 0, y: headY, z: 1.6 },
+          position: { x: 0, y: headY, z: 1.6 * head },
           fov: 35,
-          orbitTarget: { x: 0, y: headY - 0.1, z: 0 },
+          orbitTarget: { x: 0, y: headY - 0.1 * head, z: 0 },
         },
       };
     case "portrait-close":
@@ -172,7 +176,7 @@ export function buildSceneCameraPreset(
           orbitTargetYOffset: 0,
         },
         settings: {
-          position: { x: 0, y: headY, z: 0.8 },
+          position: { x: 0, y: headY, z: 0.8 * head },
           fov: 35,
           orbitTarget: { x: 0, y: headY, z: 0 },
         },

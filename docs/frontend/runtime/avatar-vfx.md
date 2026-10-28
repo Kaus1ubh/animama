@@ -314,6 +314,42 @@ sit just in front of the iris landmarks; mouth planes start at the projected
 mouth point, sized from its anchor; forehead and top planes use positions around
 the face bounds, clear of detected hair.
 
+Planes follow the Avatar's measured size ([Size-aware
+placement](#size-aware-placement)). Eye planes are 6 cm high, scaled up by eyes
+taller than 4 cm (the Included irises are 2.4–3.3 cm), and an estimated eye's
+plane also stays a twentieth of the eye spacing in front of the face surface
+measured over it. Forehead and top planes are 8 cm high; on a big-headed Avatar
+they scale with the face, and the top-edge row moves from the face's top to
+the top of the head box (ears, hat or hood included), so horns or a crown sit
+on a robot's head rather than its screen.
+
+### Size-aware placement
+
+`avatarProportions.ts` measures each VRM once, at load and after a face part
+correction, before effects or poses change it:
+
+- The face's size: the larger of the height and width of the face's UV island
+  within the face bounds (0.220–0.223 m on the Included Avatars), which
+  `Avatar` registers from its texture anchors. Ears, hats, hoods and hair the
+  face mesh carries are left out. Without a face, the head box below stands
+  in, against the Included head boxes' 0.25 m.
+- The head box: vertices skinned mainly to the head and eye bones, in the
+  normalized head bone's space, as the review renders judge "on the head".
+  Accessories skinned to the head count; head art keeps clear of it.
+- `avatarScale`: the head bone above the feet over 1.25 m.
+
+The face's share of the head bone's height decides how far placement follows
+it: up to 0.3 nothing changes (the Included Avatars measure 0.16–0.18, anime
+proportions up to about 0.25); from 0.4 (twice the Included share: chibi,
+mascot and robot Avatars) placement uses the face's size over the Included
+face (`headSized`), ramping between. That scales box planes, body planes on
+the head bone, stickers around the head (below), head-anchored Particle
+Effects ([Avatar Particle Effects](avatar-particle-vfx.md)), hand contacts on
+the head ([Avatar animation](avatar-animation.md)), and the chat's Portrait
+presets, which scale their offsets from the head bone and their distance, so
+they frame the face; the review renders' face view and `animation:render`
+follow suit.
+
 Eye planes default to closing the eyes (`forceBlink` holds `blink` at 1 at full intensity; a fading event weights it, see the fades section),
 hiding eye highlights, lines and lashes (`hideEyeDetails`) and cleaning up the
 painted eye area (`faceCleanup`). `skinBackdrop`, off by default, adds a
@@ -544,13 +580,17 @@ delegates them to `AvatarAttachmentEffects`.
   `avatarScale` (rest head height above the feet over 1.25 m, the measure
   contacts use) lies outside `BODY_EFFECT_SCALE_BAND` (0.91–1.2, the Included
   Avatars' 1.012 and 1.094 widened by 10%) scales them by its size over the
-  nearer edge. It faces each camera (`facing: "camera"`) or keeps the bone's
-  orientation (`"bone"`).
+  nearer edge. On the `head` bone of a big-headed Avatar they scale by the
+  head's size instead ([Size-aware placement](#size-aware-placement)), so a
+  sparkle stays beside the head. It faces each camera (`facing: "camera"`) or
+  keeps the bone's orientation (`"bone"`).
 - **`sticker`**: a camera-facing image beside the head (`around: "head"`) or
   the body centre (between the hips and head). `size` and the screen-plane
   `offset` are fractions of the Avatar's height, measured at load from the bind
-  pose, so stickers stay readable on any model. They ignore depth (render order
-  960), so the Avatar never hides them.
+  pose, so stickers stay readable on any model; around a big head they are
+  fractions of 1.6 m (the Included Avatars' height) times the head scale, so
+  they keep beside it. They ignore depth (render order 960), so the Avatar never
+  hides them.
 - **`silhouette`**: art drawn only over the Avatar's visible pixels. Each
   depth-writing primitive gets an overlay mesh sharing its geometry, skeleton
   and live morph weights (render order 940, `LessEqual` depth with a small
@@ -1114,22 +1154,30 @@ per render; a silhouette adds one skinned draw per overlaid primitive (about
   and UV islands: a face unwrapped on one island with a fringe or hood rim
   takes the effect's art there too, and a cheek or chin skinned partly to the
   neck, facing sideways or unwrapped apart from the face stays unpainted. A
-  face mesh skinned at least half to the head (a VRChat face with its neck,
-  or one mesh for a big-headed chibi) keeps every head-weighted triangle
-  instead, so whole-face art also tints its ears and any hair, hat or hood
-  skinned to the head bone. A small
+  face mesh is taken as a whole-body mesh when under half its skin weight is
+  on the head or over 35% is below the neck (a one-mesh chibi). One skinned at
+  least half to the head with little body weight (a VRChat face with its neck,
+  or a mascot whose face mesh carries a small body) keeps every head-weighted
+  triangle instead, so whole-face art also tints its ears and any hair, hat or
+  hood skinned to the head bone. A small
   head-skinned primitive that `blink` and `aa` also morph (in the same mesh,
   say) takes the face from a whole-body primitive, because the whole-body
   rule applies only when no other face skin qualifies. Eyes without meshes are
   estimated, not measured: an estimate
   from the eye bone is off where the bone does not sit behind the eye, and
   one from blinking leans toward the lid above the eye and is sized like an
-  iris; blush and under-eye art move below eye dots or shapes larger than
-  that ([Painted effects](#painted-effects-face_surface)), but art sized from
-  the estimate stays small: dot and X eyes, tears and under-eye art can fall
-  under the review renders' visibility floor on Avatars whose modelled or
-  painted eyes are larger or thinner than an iris (low-poly and chibi
-  Avatars, eyes modelled inside the face).
+  iris, but at least 30% of the eye spacing wide and high; blush and
+  under-eye art move below eye dots or shapes larger than that ([Painted
+  effects](#painted-effects-face_surface)), the cheek as far down as the
+  under-eye art so they stay apart. Painted eyes much larger or smaller than
+  that still get art sized for the estimate.
+- Size-aware placement scales by the face's UV island, so a face unwrapped
+  with its ears, hat or hood on one island counts them, and an Avatar loaded
+  without a face falls back to the head box, which counts every ear, hat, hood
+  or hair skinned to the head bone without hair bones. The head box, ears
+  included, still sets where top-edge art sits. A big head's art is placed by
+  scaling about the head bone, which assumes the bone sits at the skull's
+  base as on VRoid models.
   With both eye bones, eye landmarks skip islands wider than the distance
   between them, such as a dome some VRChat eye meshes put around each
   eyeball.

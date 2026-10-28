@@ -301,6 +301,41 @@ function resolveEyeMidpoint(
   );
 }
 
+/**
+ * The bounds of a face's island points, clipped to its face bounds (an
+ * island that fell back to every triangle of a primitive that also holds the
+ * body stays within the face). Null when nothing is left.
+ */
+function measureFaceExtent(projection: FaceProjectionData): THREE.Box3 | null {
+  const island = new THREE.Box3();
+  for (const vertex of projection.uniqueVertexIndices) {
+    const point = projection.pointsByIndex.get(vertex);
+    if (point) island.expandByPoint(point);
+  }
+  island.intersect(projection.faceBounds);
+  return island.isEmpty() ? null : island;
+}
+
+/** Where an eye's under-eye anchor is seeded: just below the eye. */
+function underEyeSeedY(eye: AvatarFaceEyeLandmarkSnapshot): number {
+  return (
+    eye.boundsLocal.min.y - eye.boundsLocal.size.y * UNDER_EYE_Y_OFFSET_RATIO
+  );
+}
+
+/**
+ * How far below its seed an under-eye anchor that `lowered` moved out from
+ * under a cover lies; 0 when it was not lowered.
+ */
+function loweredBy(
+  eye: AvatarFaceEyeLandmarkSnapshot | null,
+  anchor: AvatarFaceTextureAnchorSnapshot | null,
+  lowered: boolean,
+): number {
+  if (!lowered || !eye || !anchor) return 0;
+  return Math.max(0, underEyeSeedY(eye) - anchor.localPoint.y);
+}
+
 function resolveInterocularDistance(
   snapshot: AvatarFaceLandmarksSnapshot,
 ): number | null {
@@ -402,6 +437,7 @@ export class AvatarFaceTextureAnchors {
   private _snapshot: AvatarFaceTextureAnchorsSnapshot = createEmptySnapshot();
   private _warnings: string[] = [];
   private _issues: AvatarIssue[] = [];
+  private _faceExtent: THREE.Box3 | null = null;
 
   constructor(avatar: Avatar) {
     this._avatar = avatar;
@@ -412,10 +448,22 @@ export class AvatarFaceTextureAnchors {
     return this._snapshot;
   }
 
+  /**
+   * The face itself, in the face landmarks' head space: the bounds of the
+   * face's UV island (the triangles anchors project onto) within the face
+   * bounds, so ears, a hat or hood and hair in the face mesh are left out.
+   * The Avatar's size-aware placement measures the face by it. Null until
+   * built or without a face.
+   */
+  getFaceExtent(): THREE.Box3 | null {
+    return this._faceExtent?.clone() ?? null;
+  }
+
   dispose(): void {
     this._warnings = [];
     this._issues = [];
     this._snapshot = createEmptySnapshot();
+    this._faceExtent = null;
   }
 
   /** Record a finding as dev-panel text and as a stable code. */
@@ -475,6 +523,8 @@ export class AvatarFaceTextureAnchors {
       return;
     }
 
+    this._faceExtent = measureFaceExtent(projection);
+
     const coverage: AnchorCoverage = {
       cover: this._buildFaceCover({
         projection,
@@ -527,6 +577,34 @@ export class AvatarFaceTextureAnchors {
         })
       : null;
 
+    const underEye = {
+      left: this._resolveUnderEyeAnchor({
+        side: "left",
+        eye: faceLandmarks.eyes.left,
+        projection,
+        coverage,
+      }),
+      right: this._resolveUnderEyeAnchor({
+        side: "right",
+        eye: faceLandmarks.eyes.right,
+        projection,
+        coverage,
+      }),
+    };
+    const blushOn = (side: AvatarVFXSide) =>
+      this._resolveBlushAnchor({
+        side,
+        eye: faceLandmarks.eyes[side],
+        mouth,
+        projection,
+        coverage,
+        drop: loweredBy(
+          faceLandmarks.eyes[side],
+          underEye[side],
+          coverage.lowered.includes(`undereye.${side}`),
+        ),
+      });
+
     const snapshot: AvatarFaceTextureAnchorsSnapshot = {
       status: "ready",
       warnings: [...this._warnings],
@@ -534,36 +612,8 @@ export class AvatarFaceTextureAnchors {
       faceBindingKey: faceBinding.bindingKey,
       faceMaterialName: faceBinding.materialName,
       anchors: {
-        undereye: {
-          left: this._resolveUnderEyeAnchor({
-            side: "left",
-            eye: faceLandmarks.eyes.left,
-            projection,
-            coverage,
-          }),
-          right: this._resolveUnderEyeAnchor({
-            side: "right",
-            eye: faceLandmarks.eyes.right,
-            projection,
-            coverage,
-          }),
-        },
-        blush: {
-          left: this._resolveBlushAnchor({
-            side: "left",
-            eye: faceLandmarks.eyes.left,
-            mouth,
-            projection,
-            coverage,
-          }),
-          right: this._resolveBlushAnchor({
-            side: "right",
-            eye: faceLandmarks.eyes.right,
-            mouth,
-            projection,
-            coverage,
-          }),
-        },
+        undereye: underEye,
+        blush: { left: blushOn("left"), right: blushOn("right") },
         mouth: {
           center: mouth
             ? this._createAnchorSnapshot({
@@ -735,8 +785,7 @@ export class AvatarFaceTextureAnchors {
     const { eye, side, projection, coverage } = args;
     if (!eye) return null;
     const localSeedPoint = toVector3(eye.centerLocal);
-    localSeedPoint.y =
-      eye.boundsLocal.min.y - eye.boundsLocal.size.y * UNDER_EYE_Y_OFFSET_RATIO;
+    localSeedPoint.y = underEyeSeedY(eye);
     return this._createAnchorSnapshot({
       anchor: "undereye",
       side,
@@ -758,6 +807,12 @@ export class AvatarFaceTextureAnchors {
     mouth: MouthAnchorCandidate | null;
     projection: FaceProjectionData;
     coverage: AnchorCoverage;
+    /**
+     * How far the under-eye anchor on this side moved down out from under a
+     * cover; the cheek's seed moves down as far, so the two stay apart
+     * instead of both landing on the first uncovered spot.
+     */
+    drop: number;
   }): AvatarFaceTextureAnchorSnapshot | null {
     const { eye, mouth, projection, side, coverage } = args;
     if (!eye || !mouth) return null;
@@ -767,7 +822,8 @@ export class AvatarFaceTextureAnchors {
       eye.boundsLocal.min.y - eye.boundsLocal.size.y * BLUSH_Y_OFFSET_RATIO;
     const localSeedPoint = new THREE.Vector3(
       eyePoint.x,
-      THREE.MathUtils.lerp(lowerEyeY, mouth.localPoint.y, BLUSH_MOUTH_Y_LERP),
+      THREE.MathUtils.lerp(lowerEyeY, mouth.localPoint.y, BLUSH_MOUTH_Y_LERP) -
+        args.drop,
       eyePoint.z,
     );
 

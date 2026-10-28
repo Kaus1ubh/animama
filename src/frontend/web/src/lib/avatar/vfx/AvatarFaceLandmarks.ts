@@ -52,6 +52,8 @@ type InternalEyeLandmark = {
   textureMirrored: boolean;
   /** Set for an eye without geometry of its own; see the snapshot field. */
   estimate?: AvatarEyeEstimate;
+  /** An estimated eye's surface front; see the snapshot field. */
+  surfaceFrontZ?: number;
 };
 
 type PrimitiveIsland = {
@@ -294,6 +296,9 @@ export class AvatarFaceLandmarks {
       // Only a mirrored eye carries the flag; VRoid's eyes read as before.
       ...(eye.textureMirrored ? { textureMirrored: true } : {}),
       ...(eye.estimate ? { estimate: eye.estimate } : {}),
+      ...(eye.surfaceFrontZ !== undefined
+        ? { surfaceFrontZLocal: eye.surfaceFrontZ }
+        : {}),
     };
   }
 
@@ -598,6 +603,9 @@ export class AvatarFaceLandmarks {
     return {
       ...createEyeLandmarkFromIsland(island, args.faceBounds, args.frontZLocal),
       estimate: part.estimate,
+      ...(estimate.surfaceFront !== undefined
+        ? { surfaceFrontZ: estimate.surfaceFront }
+        : {}),
     };
   }
 

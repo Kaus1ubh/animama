@@ -1,9 +1,12 @@
-import type { VRMHumanBoneName } from "@pixiv/three-vrm";
 import * as THREE from "three";
 
 import type { Avatar } from "../Avatar";
 import { resolveHumanoidAnchorObject } from "../humanoidAnchors";
-import { avatarScale, CanonicalSkeleton } from "../poses/anatomy/arms";
+import {
+  headSized,
+  measureAvatarProportions,
+  type AvatarProportions,
+} from "../avatarProportions";
 import {
   deriveAvatarVFXAnimationPreset,
   evaluateAvatarVFXAnimation,
@@ -53,6 +56,9 @@ import type {
  * - Stickers are camera-facing quads beside the head or body centre, sized and
  *   offset in fractions of the avatar's height; they ignore depth so the
  *   avatar never hides them.
+ * - On a big-headed Avatar (`avatarProportions.ts`), planes on the head bone
+ *   and stickers around the head size and place by the head instead, so they
+ *   stay beside it.
  * - Silhouette overlays are described in `silhouetteOverlay.ts`.
  *
  * Camera-facing planes are oriented in `onBeforeRender`, so every camera that
@@ -162,37 +168,12 @@ export function measureAvatarHeight(scene: THREE.Object3D | null): number {
 }
 
 /**
- * Sizes (`avatarScale`: rest head-bone height above the feet over 1.25 m, the
- * measure contacts scale by) within which body effects keep their authored
- * metres: the Included Avatars' (Annie 1.012, Andrew 1.094), widened by 10%
- * each way. A smaller or larger model scales them by its size over the nearer
- * edge, so they grow continuously past the band (R9). Head height rather than
- * bounding height, so hair, ears and hats do not count.
+ * The Included Avatars' height (m, 1.57–1.70): a big-headed Avatar's stickers
+ * around its head are measured in this times its head scale (its face's size
+ * over theirs) instead of its own height ({@link headSized}), so they keep
+ * beside the head at the head's size.
  */
-export const BODY_EFFECT_SCALE_BAND = { min: 0.91, max: 1.2 } as const;
-
-/** The scale body effects take on a model whose `avatarScale` is `size`. */
-export function bodyEffectScale(size: number): number {
-  if (size < BODY_EFFECT_SCALE_BAND.min)
-    return size / BODY_EFFECT_SCALE_BAND.min;
-  if (size > BODY_EFFECT_SCALE_BAND.max)
-    return size / BODY_EFFECT_SCALE_BAND.max;
-  return 1;
-}
-
-/**
- * `bodyEffectScale` for a loaded Avatar; 1 without hips, head or feet, or
- * with no positive head height.
- */
-function avatarBodyEffectScale(avatar: Avatar): number {
-  const vrm = avatar.vrm;
-  const has = (bone: VRMHumanBoneName) =>
-    Boolean(vrm?.humanoid.getNormalizedBoneNode(bone));
-  if (!vrm || !has("hips") || !has("head") || !has("leftFoot")) return 1;
-  const size = avatarScale(new CanonicalSkeleton(vrm));
-  // A malformed rig (head at or below the feet) keeps the authored size.
-  return Number.isFinite(size) && size > 0 ? bodyEffectScale(size) : 1;
-}
+export const HEAD_STICKER_REFERENCE_HEIGHT = 1.6;
 
 /**
  * Yaw from a normalized bone's frame to the avatar's front frame. Normalized
@@ -305,7 +286,6 @@ export class AvatarAttachmentEffects {
   private readonly _avatar: Avatar;
   private readonly _active = new Map<string, ActiveAttachment>();
   private readonly _avatarHeight: number;
-  private readonly _bodyScale: number;
   private readonly _materialOf: SilhouetteMaterialSource | undefined;
   private _nextOrder = 0;
 
@@ -320,7 +300,6 @@ export class AvatarAttachmentEffects {
   ) {
     this._avatar = avatar;
     this._avatarHeight = measureAvatarHeight(avatar.scene);
-    this._bodyScale = avatarBodyEffectScale(avatar);
     this._materialOf = options.materialOf;
   }
 
@@ -516,7 +495,7 @@ export class AvatarAttachmentEffects {
       placements: [placement],
       offsetSpace: null,
       surface: null,
-      unitLength: this._avatarHeight * scratchScale.y,
+      unitLength: this._stickerUnit(active.entry.around) * scratchScale.y,
     };
   }
 
@@ -581,6 +560,39 @@ export class AvatarAttachmentEffects {
     }
   }
 
+  /**
+   * The scale of a body plane on `bone`: the body's size outside the
+   * Included Avatars' band, and on the head of a big-headed Avatar its head
+   * size ({@link headSized}).
+   */
+  private _bodyPlaneScale(bone: AvatarBodyVFXEntry["bone"]): number {
+    const proportions = this._proportions;
+    return bone === "head"
+      ? headSized(proportions, proportions.bodyScale, proportions.headScale)
+      : proportions.bodyScale;
+  }
+
+  /**
+   * The length (scene units) sticker offsets and sizes are measured in: the
+   * Avatar's height, or around a big head its head scale times
+   * {@link HEAD_STICKER_REFERENCE_HEIGHT}.
+   */
+  private _stickerUnit(around: AvatarStickerVFXEntry["around"]): number {
+    const proportions = this._proportions;
+    return around === "head"
+      ? headSized(
+          proportions,
+          this._avatarHeight,
+          proportions.headScale * HEAD_STICKER_REFERENCE_HEIGHT,
+        )
+      : this._avatarHeight;
+  }
+
+  /** The Avatar's measured proportions, as its face is now registered. */
+  private get _proportions(): AvatarProportions {
+    return measureAvatarProportions(this._avatar.vrm);
+  }
+
   private _build(
     entry: AvatarVFXAttachmentEntry,
     art: CanvasImageSource,
@@ -614,8 +626,9 @@ export class AvatarAttachmentEffects {
     const root = new THREE.Group();
     root.name = `AvatarBodyVFX:${entry.id}`;
     root.rotation.y = frontYaw(this._avatar);
-    // Size and offset alike, outside the Included Avatars' size band.
-    root.scale.setScalar(this._bodyScale);
+    // Size and offset alike, outside the Included Avatars' size band; on the
+    // head of a big-headed Avatar, by the head's size about the head bone.
+    root.scale.setScalar(this._bodyPlaneScale(entry.bone));
     const anchor = new THREE.Group();
     anchor.position.set(entry.offset.x, entry.offset.y, entry.offset.z);
     root.add(anchor);
@@ -706,13 +719,14 @@ export class AvatarAttachmentEffects {
     root.name = `AvatarStickerVFX:${entry.id}`;
     root.add(plane.animatedGroup);
     const stickerOffset = { ...entry.offset };
+    const unit = this._stickerUnit(entry.around);
     const worldMatrix = (
       camera: THREE.Camera,
       target: THREE.Matrix4,
       still = false,
     ) => {
       scratchScale.setFromMatrixScale(scene.matrixWorld);
-      const height = this._avatarHeight * scratchScale.y;
+      const height = unit * scratchScale.y;
       camera.getWorldQuaternion(scratchQuaternion);
       scratchRight.set(1, 0, 0).applyQuaternion(scratchQuaternion);
       scratchUp.set(0, 1, 0).applyQuaternion(scratchQuaternion);

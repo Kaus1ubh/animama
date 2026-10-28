@@ -1,6 +1,7 @@
 import type { VRM, VRMHumanBoneName, VRMPose } from "@pixiv/three-vrm";
 import { MathUtils, Quaternion, Vector3 } from "three";
 
+import { headSized, measureAvatarProportions } from "../../avatarProportions";
 import { cloneVRMPose } from "../animaPose";
 import {
   JOINT_DEFINITIONS,
@@ -311,7 +312,10 @@ export function solvedContactWindows(
  * it writes the upper and lower arm of each side with an active contact into
  * `humanoid`, over the windows from `solvedContactWindows`. Null when the clip
  * has no solved contact or the rig lacks the bones a solve needs (it then
- * plays its authored arms rather than failing).
+ * plays its authored arms rather than failing). Offsets scale with the
+ * Avatar's size (`avatarScale`); offsets from the head scale with a big
+ * head's face size instead (`avatarProportions.ts`), so hands reach a chibi
+ * Avatar's cheeks rather than stopping inside its head or at its chest.
  */
 function armContactSolver(
   clip: AnimaPoseClipV2,
@@ -334,6 +338,11 @@ function armContactSolver(
       solvers[side] = new ArmReachSolver(skeleton, side);
   if (!solvers.left && !solvers.right) return null;
   const scale = avatarScale(skeleton);
+  // Offsets from the head (cheeks, the face's front) follow a big head's face
+  // size; `scale` then multiplies them back out (`contactTargetPosition`).
+  const proportions = measureAvatarProportions(vrm);
+  const headFactor =
+    headSized(proportions, scale, proportions.headScale) / scale;
   const pose = new SkeletonPose(skeleton);
 
   const fitted = solvedContactWindows(clip)
@@ -345,7 +354,14 @@ function armContactSolver(
         point: contact.point,
         target: contact.target as VRMHumanBoneName,
         targetPoint: contact.targetPoint,
-        offset: contact.offset,
+        offset:
+          contact.offset && contact.target === "head" && headFactor !== 1
+            ? [
+                contact.offset[0] * headFactor,
+                contact.offset[1] * headFactor,
+                contact.offset[2] * headFactor,
+              ]
+            : contact.offset,
         weight: 0,
       };
       // Reused every frame: only `weight` changes.

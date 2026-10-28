@@ -1124,6 +1124,88 @@ Checks: as Phase 3; `animation:render` of the 9 Gesture renders on both
 Included Avatars at 0 differing pixels; private Carol North, Polybot, Maromage
 and Olivia renders.
 
+Starting source: `08d55b63`.
+
+Implementation (2026-10-29): new `avatarProportions.ts` measures each VRM once
+at load: the head box (vertices skinned mainly to the head and eye bones, shared
+with the review renders), head size and `headScale` (over 0.25 m; Included heads
+measure 0.241–0.252 m), `framingScale`, body and contact scales, and a
+`bigHead` weight from head size over head-bone height (0 up to 0.30, 1 from 0.40;
+Included Avatars 0.18–0.20, the adult survey Avatars at most 0.28, Carol North,
+Polybot and Maromage 1). Every size rule goes through `headSized`, which returns
+today's value at weight 0, so adult Avatars behave as before. On big heads, box
+hovers grow with the head and the top row sits on the head box's top, head body
+planes and head stickers scale with the head, and head contacts in
+`poses/animaPoseClip/prepareV2.ts` scale with it. Eye planes grow only for eyes
+taller than the Included irises; estimated eyes are at least 0.3 × the eye
+spacing; the cheek start drops with a lowered under-eye anchor. Particle Effects
+place a copy scaled by body size. Estimated-eye planes sit in front of the
+measured surface over the eye. The bone classifier, now in `vfx/boneClasses.ts`,
+has a neck class, and a face primitive with over 35% of its weight below the
+neck takes the head-region path (carried P5-R1-F2). Portrait camera presets, the
+review's face view and `animation:render` frame big heads by the measured head.
+Docs: `avatar-vfx.md` ("Size-aware placement"), `avatar-animation.md`,
+`avatar-particle-vfx.md`.
+
+Check record (tree `9cb607f9`):
+
+| Command | Directory | Result |
+| --- | --- | --- |
+| `timeout 590 npx vitest run src/lib/avatar src/ui tests/avatar src/lib/runtime-content` | `src/frontend/web` | 3755 passed, 2 skipped; baselines unchanged |
+| `npx tsc -b`; `npx tsc -p tsconfig.scripts.json --noEmit`; eslint and prettier `--check` on touched files | `src/frontend/web` | clean |
+| `node --test scripts/vrm-inspect.test.mjs scripts/effect-render.test.mjs scripts/effect-render-sources.test.mjs` | `src/frontend/web` | 27/27 |
+| `python3 ../../scripts/heavy-slot.py -- pnpm check` | `src/frontend` | exit 0 |
+| The browser suite's own steps in two halves through heavy-slot | `src/frontend/web` | 32/32 and 100/100 |
+| `evidence/render-set.sh` | `src/frontend/web` | 31 rendered, 0 failed; all at 0 px against the baseline or the alternate (`cover-face-and-peek` 2 px once, 0 px on re-render) |
+
+Private calibration (failures of 16 effects and 6 Reactions, before and after):
+
+| Avatar | Before | After | By eye |
+| --- | --- | --- | --- |
+| Carol North | 3, 1 | 0, 0 | horns on her hair, bulb beside the head, X eyes cover her eyes; whole-face art no longer tints hair and ears; hands reach her cheeks in `kyaa-hands-on-cheeks`; face view frames the face |
+| Polybot | 4, 2 | 1, 0 | only the named dark-surface skip remains; horns on its head, bulb beside it |
+| Maromage | 1, 1 | 2, 0 | sparkle visible; dot eyes and w mouth drawn correctly but under the review floor, because its tall ear makes the head box 0.64 m high and the views frame loosely; horns float above the ear tip |
+| Olivia | 2, 1 | 0, 0 | under-eye art and tear visible |
+| HAOLAN | 1, 0 | 0, 0 | dot eyes show in full |
+| RadDollV3, ふぁふぁ, Alicia | 0, 0 | 0, 0 | unchanged |
+
+#### Code Review #1 Findings
+
+Reviewed tree `9cb607f9` (standard tier, initial full review); no checks
+rerun. The reviewer confirmed the Included Avatars stay unchanged (weight 0,
+every scale exactly 1, eye heights 2.4–3.3 cm under the 3.6 cm growth point).
+
+- **P7-R1-F1 (required):** Particle Effects anchored to the head scale only by
+  body size, so on big heads they sit inside the head. 27 of 45 Included
+  Particle Effects anchor to the head, used by about 20 Included Reactions
+  outside the survey's six.
+- **P7-R1-F2 (required):** the head measure counts head-skinned ears, hats and
+  hoods, unlike plan item 1, with no decision recorded. Maromage's ear makes its
+  head box 0.64 m tall, so cameras sit about 2.5 times further away and its small
+  features fall under the review floor, while sizes and contact offsets inflate;
+  adult Avatars sit close to the ramp start, so a tall head-skinned hat could
+  push one onto it.
+- Optional: record which adult Avatars' eye planes grew; a camera reset of y
+  when the head anchor is missing; a silent catch in the measurement; a loose
+  comment; tests for the "never moved backward" branch and a VRM 0 routing case;
+  a browser load timing for Phase 9.
+
+Reviewer's view on Maromage: do not frame only the face in the review, since
+the chat's Portrait preset would still frame it loosely; measure the face
+instead.
+
+Result: blocked on F1 and F2.
+
+#### Code Review #1 Revisions
+
+- F1 accepted: head-anchored Particle Effects scale with the head.
+- F2 accepted (decision, agent, 2026-10-29): framing, sizes, contacts and the
+  big-head weight follow a face measure that leaves accessories out (the
+  landmarks' face bounds, with the head box as fallback); the head box only keeps
+  head art clear of the head's top.
+- Optional items accepted, except the browser load timing, which moves to
+  Phase 9.
+
 ### Phase 8: Rig and material fallbacks (R8, deferrable)
 
 Review tier: standard.

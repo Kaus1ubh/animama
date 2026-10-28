@@ -665,3 +665,67 @@ describe.each([1, 0] as const)(
     });
   },
 );
+
+/** Skin weight shares of a primitive by joint name (its skeleton's bones). */
+function jointShares(
+  entry: RuntimePrimitiveBindingEntry,
+): Record<string, number> {
+  const mesh = entry.object as THREE.SkinnedMesh;
+  const skinIndex = mesh.geometry.getAttribute("skinIndex");
+  const skinWeight = mesh.geometry.getAttribute("skinWeight");
+  const shares: Record<string, number> = {};
+  let total = 0;
+  for (let vertex = 0; vertex < skinIndex.count; vertex += 1) {
+    for (let slot = 0; slot < 4; slot += 1) {
+      const weight = skinWeight.getComponent(vertex, slot);
+      if (weight <= 0) continue;
+      const bone = mesh.skeleton.bones[skinIndex.getComponent(vertex, slot)]!;
+      shares[bone.name] = (shares[bone.name] ?? 0) + weight;
+      total += weight;
+    }
+  }
+  for (const name of Object.keys(shares)) shares[name]! /= total;
+  return shares;
+}
+
+describe("a face mesh mostly skinned to the head that also holds the body", () => {
+  // Like a one-mesh chibi Avatar: most skin weight on the head, the rest on
+  // the neck and below it. Over 35% below the neck (3 torso subdivisions)
+  // its face is the head region; under it (2), the head-weighted primitive.
+  it.each([
+    [1, 2, false],
+    [1, 3, true],
+    [0, 2, false],
+    [0, 3, true],
+  ] as const)(
+    "on VRM %i with %i torso subdivisions takes the head region as the face: %s",
+    async (vrm, torsoSegments, headRegion) => {
+      const avatar = await loadWholeBodyAvatar({ vrm, torsoSegments });
+      const body = bodyEntry(avatar);
+      const shares = jointShares(body);
+      const head = Object.entries(shares)
+        .filter(([name]) => /head/i.test(name))
+        .reduce((sum, [, share]) => sum + share, 0);
+      const below = Object.entries(shares)
+        .filter(([name]) => /chest/i.test(name))
+        .reduce((sum, [, share]) => sum + share, 0);
+      expect(head).toBeGreaterThan(0.5);
+      expect(below > 0.35).toBe(headRegion);
+
+      const regions = avatar.facePartMap!.parts.face_skin.regions;
+      if (headRegion) {
+        // The face, not the fringe of hair in front of it.
+        expect(countParts(body, regions![0]!.triangles)).toEqual({
+          face: 200,
+          eyeStrokes: 4,
+        });
+      } else {
+        expect(regions).toBeUndefined();
+      }
+      // Eye art still lands on the painted eyes either way.
+      const { controller, applied } = await applyAll(avatar, [HEART_EYES]);
+      expect(applied).toEqual([true]);
+      expect(controller.getSnapshot().warnings).toEqual([]);
+    },
+  );
+});

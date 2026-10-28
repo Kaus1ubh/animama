@@ -348,9 +348,13 @@ palm down, like VRoid's; the idle pose bends it as on the Included Avatars.
 
 Contact offsets scale with `avatarScale` (rest head height above the feet over
 1.25 m), and the solver reaches with the model's own arm lengths, so a
-uniformly larger model solves the same arm turns. Head proportions are not
-measured separately, so a model whose head is unusually large or small for its
-height places face contacts proportionally to its height.
+uniformly larger model solves the same arm turns. Offsets from the `head` of a
+big-headed Avatar (chibi, mascot or robot proportions, measured at load by
+`avatarProportions.ts`; see [Size-aware
+placement](avatar-vfx.md#size-aware-placement)) scale with its face's size
+instead, so hands reach its cheeks rather than stopping inside the head at the
+jaw. Adult and anime proportions, the Included Avatars among them, are
+unaffected.
 
 ### Pose and clip JSON artifacts
 

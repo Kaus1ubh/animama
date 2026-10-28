@@ -56,6 +56,11 @@ import {
 } from "./placementGuideText";
 
 import type { Avatar } from "../Avatar";
+import {
+  headSized,
+  measureAvatarProportions,
+  type AvatarProportions,
+} from "../avatarProportions";
 import type {
   AvatarFaceTextureAnchorSnapshot,
   AvatarFaceTextureAnchorsSnapshot,
@@ -343,9 +348,27 @@ const SUPPORTED_TEXTURE_SLOTS: AvatarVFXTextureSlot[] = [
   "shadeMultiplyTexture",
 ];
 
+/**
+ * Hover plane heights (m) at the Included Avatars' size. Eye planes grow with
+ * eyes larger than {@link EYE_HOVER_REFERENCE_EYE_HEIGHT}, box planes with a
+ * big head ({@link headSized}).
+ */
 const EYE_HOVER_PLANE_HEIGHT = 0.06;
 const BOX_HOVER_PLANE_HEIGHT = 0.08;
+/**
+ * The largest eye the fixed eye plane fits (m): the Included Avatars' irises
+ * are 0.024-0.033 m high, and adult proportions measure up to about 0.038 m.
+ * A larger eye (a chibi's or a robot's) scales the plane by its height over
+ * this, so eye overlays keep covering it.
+ */
+const EYE_HOVER_REFERENCE_EYE_HEIGHT = 0.04;
 const EYE_HOVER_SURFACE_LERP = 0.35;
+/**
+ * How far in front of the face's surface an estimated eye's plane stays, as a
+ * share of the distance between the eyes: an eye without its own mesh has no
+ * depth of its own, and the face may bulge in front of it.
+ */
+const EYE_HOVER_SURFACE_CLEARANCE = 0.05;
 const MOUTH_HOVER_SURFACE_LERP = 0.1;
 const HOVER_SKIN_BACKDROP_TEXTURE_SIZE = 256;
 const HOVER_SKIN_BACKDROP_WIDTH_SCALE = 1.0;
@@ -1783,13 +1806,45 @@ function getTextureSlotSnapshots(
   }));
 }
 
+/**
+ * Where an eye's hover plane sits: part way from the eye toward the face's
+ * front. An estimated eye's plane also stays at least
+ * {@link EYE_HOVER_SURFACE_CLEARANCE} of the eye spacing in front of the face
+ * surface measured over it (`surfaceFrontZLocal`), which a narrow face front
+ * or a bulging eye shape can put in front of that point.
+ */
 function resolveEyeHoverPosition(
   eye: AvatarFaceEyeLandmarkSnapshot,
+  surface: { frontSign: 1 | -1; spacing: number },
 ): THREE.Vector3 {
-  return lerpVector3(
+  const position = lerpVector3(
     toVector3(eye.centerLocal),
     toVector3(eye.projectedFrontLocal),
     EYE_HOVER_SURFACE_LERP,
+  );
+  if (eye.surfaceFrontZLocal === undefined) return position;
+  const clear =
+    eye.surfaceFrontZLocal +
+    surface.frontSign * surface.spacing * EYE_HOVER_SURFACE_CLEARANCE;
+  if ((clear - position.z) * surface.frontSign > 0) position.z = clear;
+  return position;
+}
+
+/**
+ * Eye hover planes' height: {@link EYE_HOVER_PLANE_HEIGHT}, grown for eyes
+ * taller on average than {@link EYE_HOVER_REFERENCE_EYE_HEIGHT}.
+ */
+function resolveEyeHoverPlaneHeight(
+  faceLandmarks: AvatarFaceLandmarksSnapshot,
+): number {
+  const heights = [faceLandmarks.eyes.left, faceLandmarks.eyes.right]
+    .filter((eye) => eye !== null)
+    .map((eye) => eye.boundsLocal.size.y);
+  if (heights.length === 0) return EYE_HOVER_PLANE_HEIGHT;
+  const mean =
+    heights.reduce((sum, height) => sum + height, 0) / heights.length;
+  return (
+    EYE_HOVER_PLANE_HEIGHT * Math.max(1, mean / EYE_HOVER_REFERENCE_EYE_HEIGHT)
   );
 }
 
@@ -1835,11 +1890,18 @@ function resolveAvatarLeftRightEdges(
   };
 }
 
+/**
+ * Where a box hover sits. Rows and columns follow the face's bounds and eyes;
+ * the top-edge row sits on the face's top, and on a big-headed Avatar
+ * ({@link headSized}) moves up to the top of the head, so head art clears a
+ * head, hood or helmet that rises well above the face.
+ */
 function resolveBoxHoverPosition(args: {
   faceLandmarks: AvatarFaceLandmarksSnapshot;
   placement: AvatarVFXHoverPlacement;
+  proportions: AvatarProportions;
 }): THREE.Vector3 | null {
-  const { faceLandmarks, placement } = args;
+  const { faceLandmarks, placement, proportions } = args;
   const faceBounds = faceLandmarks.faceBoundsLocal;
   const leftEye = faceLandmarks.eyes.left;
   const rightEye = faceLandmarks.eyes.right;
@@ -1855,6 +1917,8 @@ function resolveBoxHoverPosition(args: {
   const topY = faceBounds.max.y;
   const foreheadY = lerpNumber(eyeLineY, topY, 0.4);
   const topRowY = lerpNumber(eyeLineY, topY, 0.75);
+  const headTopY = proportions.headBox?.max.y ?? topY;
+  const topEdgeY = headSized(proportions, topY, Math.max(topY, headTopY));
   const edgeColumns = resolveAvatarLeftRightEdges(faceLandmarks);
   if (!edgeColumns) return null;
 
@@ -1875,15 +1939,15 @@ function resolveBoxHoverPosition(args: {
     case "top-right":
       return new THREE.Vector3(rightEyeSurface.x, topRowY, frontZ);
     case "top-edge-left-corner":
-      return new THREE.Vector3(edgeColumns.leftX, topY, frontZ);
+      return new THREE.Vector3(edgeColumns.leftX, topEdgeY, frontZ);
     case "top-edge-left":
-      return new THREE.Vector3(edgeX(0.25), topY, frontZ);
+      return new THREE.Vector3(edgeX(0.25), topEdgeY, frontZ);
     case "top-edge-middle":
-      return new THREE.Vector3(edgeX(0.5), topY, frontZ);
+      return new THREE.Vector3(edgeX(0.5), topEdgeY, frontZ);
     case "top-edge-right":
-      return new THREE.Vector3(edgeX(0.75), topY, frontZ);
+      return new THREE.Vector3(edgeX(0.75), topEdgeY, frontZ);
     case "top-edge-right-corner":
-      return new THREE.Vector3(edgeColumns.rightX, topY, frontZ);
+      return new THREE.Vector3(edgeColumns.rightX, topEdgeY, frontZ);
     default:
       return null;
   }
@@ -1911,6 +1975,7 @@ function resolveHoverPlacementInstances(args: {
   effect: AvatarHoverVFXEntry;
   faceLandmarks: AvatarFaceLandmarksSnapshot;
   faceTextureAnchors: AvatarFaceTextureAnchorsSnapshot | null;
+  proportions: AvatarProportions;
 }): HoverPlacementInstance[] | null {
   const { effect, faceLandmarks, faceTextureAnchors } = args;
   const frontSign = resolveHoverFrontSign(faceLandmarks);
@@ -1919,8 +1984,12 @@ function resolveHoverPlacementInstances(args: {
     const rightEye = faceLandmarks.eyes.right;
     if (!leftEye || !rightEye) return null;
 
-    const leftHover = resolveEyeHoverPosition(leftEye);
-    const rightHover = resolveEyeHoverPosition(rightEye);
+    const surface = {
+      frontSign,
+      spacing: Math.abs(leftEye.centerLocal.x - rightEye.centerLocal.x),
+    };
+    const leftHover = resolveEyeHoverPosition(leftEye, surface);
+    const rightHover = resolveEyeHoverPosition(rightEye, surface);
     const side = effect.side ?? "right";
     if (effect.requiresMirror) {
       const primaryPosition = side === "left" ? leftHover : rightHover;
@@ -2015,6 +2084,7 @@ function resolveHoverPlacementInstances(args: {
     const position = resolveBoxHoverPosition({
       faceLandmarks,
       placement: effect.placement,
+      proportions: args.proportions,
     });
     if (!position) return null;
     return [
@@ -2274,6 +2344,7 @@ export class AvatarVFXController {
           },
           faceLandmarks: landmarks,
           faceTextureAnchors: anchors,
+          proportions: measureAvatarProportions(this._avatar.vrm),
         });
         if (!references?.length)
           result.messages.push(placementGuideMessage("hoverAnchorUnavailable"));
@@ -3421,6 +3492,7 @@ export class AvatarVFXController {
       effect,
       faceLandmarks,
       faceTextureAnchors: this._avatar.getFaceTextureAnchorsSnapshot(),
+      proportions: measureAvatarProportions(this._avatar.vrm),
     });
     if (!placements) return false;
     const scaleX = resolveStaticScaleComponent(effect.transform.scale.x);
@@ -5167,10 +5239,12 @@ export class AvatarVFXController {
       }
     }
 
+    const proportions = measureAvatarProportions(this._avatar.vrm);
     const placements = resolveHoverPlacementInstances({
       effect,
       faceLandmarks,
       faceTextureAnchors,
+      proportions,
     });
     if (!placements || placements.length === 0) {
       binding.warning = `Effect "${effect.label}" did not resolve any hover placements.`;
@@ -5205,7 +5279,7 @@ export class AvatarVFXController {
     const resolvedPlacements = placements
       .map((placement) => {
         if (isEyeHoverVFXEntry(effect)) {
-          const planeHeight = EYE_HOVER_PLANE_HEIGHT;
+          const planeHeight = resolveEyeHoverPlaneHeight(faceLandmarks);
           return {
             placement,
             planeSize: {
@@ -5216,7 +5290,9 @@ export class AvatarVFXController {
           };
         }
         if (isBoxHoverVFXEntry(effect)) {
-          const planeHeight = BOX_HOVER_PLANE_HEIGHT;
+          const planeHeight =
+            BOX_HOVER_PLANE_HEIGHT *
+            headSized(proportions, 1, proportions.headScale);
           return {
             placement,
             planeSize: {

@@ -1,8 +1,8 @@
 import * as THREE from "three";
 
 import type { Avatar } from "@/lib/avatar";
+import { measureHeadBounds } from "@/lib/avatar/avatarProportions";
 import { ATTACHMENT_PLANE_NAME_PREFIX } from "@/lib/avatar/vfx/AvatarAttachmentEffects";
-import { createBoneClassifier } from "@/lib/avatar/vfx/faceParts";
 
 /*
  * Where the Avatar is in a review tile, for checking where an effect's art
@@ -29,66 +29,17 @@ export type TileLayout = {
 };
 
 /**
- * Share of a vertex's skin weight on the head and eye bones that makes it
- * part of the head. Hair and other spring bones under the head do not count,
- * so long hair does not stretch the head down the body.
- */
-const HEAD_VERTEX_SHARE = 0.5;
-
-const HEAD_CLASSES = new Set(["head", "eye_left", "eye_right"]);
-
-/**
  * Measure the head box of `avatar` in its current pose: the bounds, in raw
  * head-bone space, of every visible vertex skinned mainly to the head or eye
- * bones (an unskinned mesh counts when it hangs below the head). Measure
- * before effects apply, so effect geometry is not part of it. Null without a
- * head bone or head vertices.
+ * bones ({@link measureHeadBounds}). Measure before effects apply, so effect
+ * geometry is not part of it. Null without a head bone or head vertices.
  */
 export function measureHeadBox(avatar: Avatar): HeadBox | null {
   const vrm = avatar.vrm;
   const bone = vrm?.humanoid.getRawBoneNode("head") ?? null;
   if (!vrm || !bone) return null;
-  const classify = createBoneClassifier(vrm);
-  const isHead = (node: THREE.Object3D | null) =>
-    HEAD_CLASSES.has(classify(node));
-  vrm.scene.updateMatrixWorld(true);
-  const toHead = bone.matrixWorld.clone().invert();
-  const box = new THREE.Box3();
-  const point = new THREE.Vector3();
-  vrm.scene.traverseVisible((object) => {
-    if (!(object instanceof THREE.Mesh)) return;
-    const geometry = object.geometry as THREE.BufferGeometry;
-    const position = geometry.getAttribute("position");
-    if (!position) return;
-    const skinIndex = geometry.getAttribute("skinIndex");
-    const skinWeight = geometry.getAttribute("skinWeight");
-    const skinned =
-      object instanceof THREE.SkinnedMesh && skinIndex && skinWeight
-        ? object
-        : null;
-    if (!skinned && !isHead(object.parent)) return;
-    const bones = skinned?.skeleton.bones ?? [];
-    for (let vertex = 0; vertex < position.count; vertex += 1) {
-      if (skinned) {
-        let total = 0;
-        let head = 0;
-        for (let slot = 0; slot < skinIndex.itemSize; slot += 1) {
-          const weight = skinWeight.getComponent(vertex, slot);
-          if (weight <= 0) continue;
-          total += weight;
-          if (isHead(bones[skinIndex.getComponent(vertex, slot)] ?? null))
-            head += weight;
-        }
-        if (total <= 0 || head / total < HEAD_VERTEX_SHARE) continue;
-      }
-      // Skinning and morphs as they are now, in the mesh's space.
-      object.getVertexPosition(vertex, point);
-      box.expandByPoint(
-        point.applyMatrix4(object.matrixWorld).applyMatrix4(toHead),
-      );
-    }
-  });
-  return box.isEmpty() ? null : { bone, box };
+  const box = measureHeadBounds(vrm, bone);
+  return box ? { bone, box } : null;
 }
 
 /** Whether `point` (world space) is in front of `camera`. */

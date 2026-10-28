@@ -15,6 +15,7 @@ import type { GLTF } from "three/examples/jsm/loaders/GLTFLoader.js";
 
 import type { Avatar } from "../Avatar";
 import { addAvatarIssue, type AvatarIssue } from "../diagnostics/issues";
+import { createBoneClassifier, type BoneClass } from "./boneClasses";
 import { buildRuntimePrimitiveBindings } from "../vrmEditorInspection";
 import {
   readVertexPosition,
@@ -101,6 +102,12 @@ export type AvatarEyeEstimateGeometry = {
    * rest positions, for the eye's texture rect on the face texture.
    */
   region?: { vertices: number[]; points: THREE.Vector3[] };
+  /**
+   * The depth (anchor-space z) of the face surface's front over the eye and
+   * one eye size around it, so art hovering over the eye can sit in front
+   * of it. Unset when the face surface cannot be read.
+   */
+  surfaceFront?: number;
 };
 
 /**
@@ -172,6 +179,13 @@ const HEAD_SKINNED_MIN_SHARE = 0.9;
 /** "Mostly" skinned to a bone class. */
 const MAJORITY_SHARE = 0.5;
 /**
+ * A face primitive with more of its skin weight than this below the neck
+ * (spine, chest, hips, limbs; not the neck) also holds the body, even when
+ * most of it is on the head, as on a one-mesh chibi Avatar (about half below
+ * the neck). Separate face meshes hold about none.
+ */
+const BODY_SKIN_SHARE = 0.35;
+/**
  * Confidence in a face found as the head region of a whole-body primitive:
  * its outline comes from skinning and facing, not from the face's own mesh.
  */
@@ -229,6 +243,14 @@ const BLINK_IRIS_HEIGHT_SHARE = 0.67;
  */
 const BONE_IRIS_FACE_WIDTH_SHARE = 0.14;
 /**
+ * An estimated eye is at least this share of the distance between the eyes
+ * wide and high: the Included Avatars' irises measure 0.33-0.43 of it, and a
+ * blink region can be much smaller than the painted or modelled eye (a lid
+ * line, the lower half of an eye dot), which sized overlays and decals too
+ * small to see.
+ */
+const ESTIMATED_EYE_MIN_SPACING_SHARE = 0.3;
+/**
  * An eye bone marks an eye only this share of the face's width or more to its
  * own side of the centre line (the Included eyes sit about 0.19 out), above
  * the face's lowest {@link EYE_BONE_MIN_HEIGHT_SHARE} and inside its front view.
@@ -243,18 +265,6 @@ const FACE_FRONT_DEPTH_SHARE = 0.5;
 
 const LOOK_AT_EXPRESSIONS = ["lookLeft", "lookRight", "lookUp", "lookDown"];
 const HAIR_NAME_PATTERN = /hair|bang|fringe/i;
-
-/**
- * Where a bone sits relative to the humanoid head: an eye bone (or below
- * one), another bone under the head, a spring bone under the head (hair,
- * ears, accessories), or anywhere else.
- */
-export type BoneClass =
-  | "eye_left"
-  | "eye_right"
-  | "head"
-  | "spring_head"
-  | "other";
 
 type EyeSide = "left" | "right" | "both";
 
@@ -856,6 +866,9 @@ function estimateMissingEyes(
         width: size.x * BLINK_IRIS_WIDTH_SHARE,
         height: size.y * BLINK_IRIS_HEIGHT_SHARE,
         region: { vertices: region.vertices, points: region.points },
+        // The lids, open or closed (eye art closes them), as a first front.
+        surfaceFront:
+          context.frontSign > 0 ? region.bounds.max.z : region.bounds.min.z,
       };
     } else {
       estimate = "eye_bone";
@@ -877,7 +890,61 @@ function estimateMissingEyes(
     };
     estimates[side] = geometry;
   }
+  const left = estimates.left;
+  const right = estimates.right;
+  if (left && right) {
+    const least =
+      Math.abs(left.center.x - right.center.x) *
+      ESTIMATED_EYE_MIN_SPACING_SHARE;
+    for (const eye of [left, right]) {
+      eye.width = Math.max(eye.width, least);
+      eye.height = Math.max(eye.height, least);
+    }
+  }
+  const placed = [left, right].filter((eye) => eye !== undefined);
+  if (placed.length > 0) {
+    surface ??= measureFaceSurface(
+      context,
+      face,
+      findFaceSkinRegion({ parts }, face.bindingKey),
+    );
+    if (surface) {
+      for (const eye of placed) {
+        eye.surfaceFront = measureSurfaceFront(context, surface, eye);
+      }
+    }
+  }
   return estimates;
+}
+
+/**
+ * The frontmost depth of the face surface over an estimated eye: projected
+ * along the face's front axis ({@link projectOntoFaceFront}) at its centre
+ * and at a 3 × 3 grid one eye width and height around it, which covers the
+ * hover art drawn over the eye, and the front of a `blink` eye's lids, open
+ * or closed (`surfaceFront` as estimated).
+ */
+function measureSurfaceFront(
+  context: Pick<Context, "frontSign">,
+  surface: FaceSurface,
+  eye: AvatarEyeEstimateGeometry,
+): number {
+  let front =
+    eye.surfaceFront === undefined
+      ? -Infinity
+      : eye.surfaceFront * context.frontSign;
+  for (const dx of [-1, 0, 1]) {
+    for (const dy of [-1, 0, 1]) {
+      const point = new THREE.Vector3(
+        eye.center.x + dx * eye.width,
+        eye.center.y + dy * eye.height,
+        eye.center.z,
+      );
+      const z = projectOntoFaceFront(context, surface, point).z;
+      front = Math.max(front, z * context.frontSign);
+    }
+  }
+  return front * context.frontSign;
 }
 
 /** A face skin primitive's triangles and head-weighted bounds, in anchor space. */
@@ -1830,12 +1897,12 @@ function locateWholeBodyEyes(
 
 /**
  * Whether a face mesh also holds the body: under {@link MAJORITY_SHARE} of
- * its skin weight is on the head. Its face is then its head region
- * ({@link measureHeadRegion}), so whole-face art and decals leave the body,
- * clothes and hair alone.
+ * its skin weight is on the head, or over {@link BODY_SKIN_SHARE} is below
+ * the neck. Its face is then its head region ({@link measureHeadRegion}), so
+ * whole-face art and decals leave the body, clothes, hair and ears alone.
  */
 function holdsBody(shares: SkinShares): boolean {
-  return shares.head < MAJORITY_SHARE;
+  return shares.head < MAJORITY_SHARE || shares.other > BODY_SKIN_SHARE;
 }
 
 /**
@@ -2153,43 +2220,6 @@ function measureMorphDisplacement(
   return { movedShare: moved / displacement.length, max };
 }
 
-/**
- * A cached {@link BoneClass} lookup for `vrm`'s raw bones. Face part
- * detection weighs skinning by it; the review renders (`effects:render`)
- * find the head's vertices with it.
- */
-export function createBoneClassifier(
-  vrm: VRM,
-): (bone: THREE.Object3D | null) => BoneClass {
-  const humanoid = vrm.humanoid;
-  const head = humanoid?.getRawBoneNode("head") ?? null;
-  const leftEye = humanoid?.getRawBoneNode("leftEye") ?? null;
-  const rightEye = humanoid?.getRawBoneNode("rightEye") ?? null;
-  const springs = new Set<THREE.Object3D>();
-  vrm.springBoneManager?.joints.forEach((joint) => springs.add(joint.bone));
-  const cache = new Map<THREE.Object3D, BoneClass>();
-  return (bone) => {
-    if (!bone || !head) return "other";
-    const cached = cache.get(bone);
-    if (cached) return cached;
-    let side: BoneClass | null = null;
-    let underHead = false;
-    for (let node: THREE.Object3D | null = bone; node; node = node.parent) {
-      if (node === leftEye) side ??= "eye_left";
-      if (node === rightEye) side ??= "eye_right";
-      if (node === head) {
-        underHead = true;
-        break;
-      }
-    }
-    const result: BoneClass = !underHead
-      ? "other"
-      : (side ?? (springs.has(bone) ? "spring_head" : "head"));
-    cache.set(bone, result);
-    return result;
-  };
-}
-
 /** Normalized skin-weight shares per bone class; unskinned meshes use their parent. */
 function measureSkinShares(
   mesh: THREE.Mesh,
@@ -2200,6 +2230,7 @@ function measureSkinShares(
     eye_right: 0,
     head: 0,
     spring_head: 0,
+    neck: 0,
     other: 0,
   };
   const geometry = mesh.geometry;

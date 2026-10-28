@@ -7,6 +7,11 @@ import type {
 } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { createAvatarGltfLoader } from "./avatarGltfLoader";
 import { AnimationManager } from "./AnimationManager";
+import {
+  headSized,
+  measureAvatarProportions,
+  setAvatarFaceSize,
+} from "./avatarProportions";
 import { releaseModelScene } from "./releaseModelScene";
 import type { AvatarFaceDebugBox } from "./vfx/AvatarFaceDebugBox";
 import { DEBUG_ENABLED } from "@/platform/env";
@@ -655,6 +660,7 @@ export class Avatar {
     this._detectFaceParts(spec.facePartCorrections ?? null);
     this.faceLandmarks = new AvatarFaceLandmarks(this);
     this.faceTextureAnchors = new AvatarFaceTextureAnchors(this);
+    this._measureProportions();
     this.vfxController = new AvatarVFXController(this, this._mediaCatalog);
     this._unsubscribeVfxDiagnostics = this.vfxController.subscribe(() =>
       this._notifyDiagnostics(),
@@ -878,9 +884,31 @@ export class Avatar {
     this.faceLandmarks?.dispose();
     this.faceLandmarks = new AvatarFaceLandmarks(this);
     this.faceTextureAnchors = new AvatarFaceTextureAnchors(this);
+    this._measureProportions();
     this.setFaceDebugBoxVisible(this._faceDebugVisible);
     await this.vfxController?.refreshFaceParts();
     this._notifyDiagnostics();
+  }
+
+  /**
+   * Register the measured face for size-aware placement and measure the
+   * model's proportions (`avatarProportions.ts`), at load and after a face
+   * correction, before effects or Gestures change the model. Effects,
+   * contacts and camera presets read the cached result.
+   */
+  private _measureProportions(): void {
+    const vrm = this.vrm;
+    if (!vrm) return;
+    setAvatarFaceSize(vrm, this.faceTextureAnchors?.getFaceExtent() ?? null);
+    const proportions = measureAvatarProportions(vrm);
+    if (proportions.bigHead > 0) {
+      logger.info("Load", "Head art and framing follow a big head", {
+        measuredFrom: proportions.measuredFrom,
+        headSize: proportions.headSize,
+        avatarScale: proportions.avatarScale,
+        bigHead: proportions.bigHead,
+      });
+    }
   }
 
   private _detectFaceParts(
@@ -2534,6 +2562,16 @@ export class Avatar {
     const headNode = this.vrm.humanoid.getNormalizedBoneNode("head");
     if (!headNode) return null;
     return headNode.getWorldPosition(new THREE.Vector3());
+  }
+
+  /**
+   * How much larger than the Included Avatars' framing the chat's head
+   * presets frame this Avatar: 1 for adult proportions, a big head's face
+   * size over theirs (`avatarProportions.ts`), so Portrait shows its face.
+   */
+  getHeadFramingScale(): number {
+    const proportions = measureAvatarProportions(this.vrm);
+    return headSized(proportions, 1, proportions.headScale);
   }
 
   getCameraAnchorY(anchor: "hips" | "chest" | "head"): number | null {

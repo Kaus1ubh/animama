@@ -410,6 +410,14 @@ export function AvatarSceneHost({
   useEffect(() => {
     sceneCameraBindingsRef.current = sceneCameraBindings;
   }, [sceneCameraBindings]);
+  const selectedCameraPresetRef = useRef(selectedCameraPreset);
+  useEffect(() => {
+    selectedCameraPresetRef.current = selectedCameraPreset;
+  }, [selectedCameraPreset]);
+  const sceneCameraSettingsRef = useRef(sceneCameraSettings);
+  useEffect(() => {
+    sceneCameraSettingsRef.current = sceneCameraSettings;
+  }, [sceneCameraSettings]);
   const handleAvatarInstanceChange = useCallback(
     (avatar: Avatar | null) => {
       avatarRuntimeRef.current = avatar;
@@ -417,6 +425,19 @@ export function AvatarSceneHost({
       // PiP frames each new Avatar from its preset below.
       if (!avatar || mode === "pip") return;
 
+      // A chosen preset frames the new Avatar afresh: a big head moves the
+      // camera back as well as to its head (`buildSceneCameraPreset`).
+      const preset = selectedCameraPresetRef.current;
+      if (preset) {
+        // Without a head bone the current height stays, as when sampling.
+        const nextPreset = buildSceneCameraPreset(preset, {
+          avatar,
+          fallbackSettings: sceneCameraSettingsRef.current,
+        });
+        setSceneCameraSettings(nextPreset.settings);
+        setSceneCameraBindings(nextPreset.bindings);
+        return;
+      }
       setSceneCameraSettings((current) =>
         sampleSceneCameraBindings(
           current,

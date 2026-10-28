@@ -226,10 +226,30 @@ describe.each([1, 0] as const)(
       expect(active).toEqual(["blush", "undereye"]);
     });
 
+    it("keeps cheek art below under-eye art when shapes push both down", async () => {
+      const avatar = await loadWholeBodyAvatar({ vrm });
+      // Shapes reaching 4.5 cm below the eyes cover both anchors' seeds.
+      await addEyeShapes(avatar, 0.045);
+
+      // The cheek moves down as far as the under-eye art did, so the two
+      // stay apart rather than meeting at the first uncovered spot.
+      const { undereye, blush } =
+        avatar.getFaceTextureAnchorsSnapshot()!.anchors;
+      for (const side of ["left", "right"] as const) {
+        const under = undereye[side]!;
+        expect(under.covered).toBeUndefined();
+        expect(blush[side]!.covered).toBeUndefined();
+        expect(blush[side]!.localPoint.y).toBeLessThan(
+          under.localPoint.y - under.referenceSizeLocal.height,
+        );
+      }
+    });
+
     it("skips under-eye and cheek art covered too far down, saying why", async () => {
       const avatar = await loadWholeBodyAvatar({ vrm });
-      // Shapes reaching 8 cm below the eyes, further than the art may move.
-      await addEyeShapes(avatar, 0.08);
+      // Shapes reaching 10 cm below the eyes, further than the art may move
+      // (half the 10 cm eye spacing below eyes estimated 3 cm high).
+      await addEyeShapes(avatar, 0.1);
 
       for (const anchor of cheekAnchors(avatar)) {
         expect(anchor.covered).toBe(true);

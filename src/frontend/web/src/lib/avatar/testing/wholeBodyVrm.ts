@@ -36,6 +36,24 @@ export type WholeBodyOptions = {
   still?: boolean;
   /** The one material's name (default "Body"). */
   materialName?: string;
+  /**
+   * Scale the head, its face, eyes, mouth, fringe and eye parts about the
+   * head bone (default 1). At 2 the head is about twice the adult share of
+   * the Avatar's height, as on chibi Avatars.
+   */
+  headScale?: number;
+  /**
+   * A hat of this height (m) on top of the head, skinned to the head and on
+   * its own UV island, as an accessory the head mesh carries (none by
+   * default).
+   */
+  hat?: number;
+  /**
+   * Subdivisions of each torso face (default 6). Fewer leave less of the
+   * primitive's skin weight below the neck: 2 keeps it under a third, with
+   * most of the weight on the head, as on a one-mesh chibi; 3 just over it.
+   */
+  torsoSegments?: number;
 };
 
 /**
@@ -79,6 +97,7 @@ export const WHOLE_BODY_UV = {
   headBottom: { u0: 0.52, v0: 0.48, u1: 0.62, v1: 0.5 },
   fringe: { u0: 0.76, v0: 0.48, u1: 0.96, v1: 0.5 },
   eyeStrokes: { u0: 0.2, v0: 0.52, u1: 0.3, v1: 0.56 },
+  hat: { u0: 0.36, v0: 0.52, u1: 0.46, v1: 0.58 },
   irises: { u0: 0.2, v0: 0.58, u1: 0.24, v1: 0.6 },
   neck: { u0: 0.02, v0: 0.52, u1: 0.12, v1: 0.58 },
   torsoFront: { u0: 0.02, v0: 0.62, u1: 0.32, v1: 0.98 },
@@ -140,12 +159,13 @@ function humanoidBones(options: WholeBodyOptions): (typeof BONES)[number][] {
   if (options.eyes !== "bones") return [...BONES];
   const head = boneWorldPositions(BONES).get("head")!;
   const z = WHOLE_BODY_HEAD.half[2] - EYE_BONE_DEPTH;
+  const scale = options.headScale ?? 1;
   return [
     ...BONES,
     ...WHOLE_BODY_EYES.map(([x, y], at): (typeof BONES)[number] => [
       at === 0 ? "leftEye" : "rightEye",
       "head",
-      [x - head[0], y - head[1], z - head[2]],
+      [(x - head[0]) * scale, (y - head[1]) * scale, (z - head[2]) * scale],
     ]),
   ];
 }
@@ -216,6 +236,21 @@ class PrimitiveBuilder {
         const d = at(row + 1, column);
         this.indices.push(a, b, c, a, c, d);
       }
+    }
+  }
+
+  /**
+   * Scale the vertices from index `first` on (and their morph movement)
+   * about `pivot` by `scale`.
+   */
+  scaleFrom(first: number, pivot: Vec3, scale: number): void {
+    if (scale === 1) return;
+    for (let at = first * 3; at < this.positions.length; at += 1) {
+      const axis = at % 3;
+      this.positions[at] =
+        pivot[axis]! + (this.positions[at]! - pivot[axis]!) * scale;
+      this.blink[at] = this.blink[at]! * scale;
+      this.aa[at] = this.aa[at]! * scale;
     }
   }
 
@@ -295,6 +330,7 @@ export function wholeBodyVrmBytes(options: WholeBodyOptions = {}): Uint8Array {
     },
     omit: ["top", "bottom"],
   });
+  const headStart = mesh.positions.length / 3;
   // Painted eye strokes just in front of the face, which blink lowers.
   for (const [x, y] of WHOLE_BODY_EYES) {
     mesh.grid({
@@ -331,6 +367,26 @@ export function wholeBodyVrmBytes(options: WholeBodyOptions = {}): Uint8Array {
     uv: uv.fringe,
     joint: headJoint,
   });
+  if (options.hat) {
+    const top = WHOLE_BODY_HEAD.center[1] + WHOLE_BODY_HEAD.half[1];
+    mesh.box({
+      center: [0, top + options.hat / 2, 0],
+      half: [0.08, options.hat / 2, 0.08],
+      joint: headJoint,
+      uv: {
+        front: uv.hat,
+        back: uv.hat,
+        right: uv.hat,
+        left: uv.hat,
+        top: uv.hat,
+        bottom: uv.hat,
+      },
+      omit: ["bottom"],
+    });
+  }
+  const headScale = options.headScale ?? 1;
+  const headBone = boneWorldPositions(BONES).get("head")!;
+  mesh.scaleFrom(headStart, headBone, headScale);
   mesh.box({
     center: [0, 1.15, 0],
     half: [0.15, 0.25, 0.1],
@@ -343,7 +399,7 @@ export function wholeBodyVrmBytes(options: WholeBodyOptions = {}): Uint8Array {
       top: uv.torsoSides,
       bottom: uv.torsoSides,
     },
-    segments: 6,
+    segments: options.torsoSegments ?? 6,
   });
   const irises = options.irises ? new PrimitiveBuilder() : null;
   WHOLE_BODY_EYES.forEach(([x, y], at) => {
@@ -367,6 +423,8 @@ export function wholeBodyVrmBytes(options: WholeBodyOptions = {}): Uint8Array {
       joint: headJoint,
     });
   }
+  irises?.scaleFrom(0, headBone, headScale);
+  cards?.scaleFrom(0, headBone, headScale);
   return encodeWholeBodyGlb(mesh, irises ?? cards, options);
 }
 

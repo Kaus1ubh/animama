@@ -219,7 +219,13 @@ similarly named built-in effect.
 Supported anchors are `root`, `hips`, `spine`, `chest`, `neck`, `head`,
 `leftHand`, `rightHand`, `leftFoot`, and `rightFoot`. `transform.offset` is in
 avatar-local meters. `transform.depthOffset` is avatar-local Z: positive means
-in front of the avatar and negative means behind.
+in front of the avatar and negative means behind. Offsets and `transform.scale`
+are authored for the Included Avatars: on a model outside their size band
+(`bodyEffectScale` in `lib/avatar/avatarProportions.ts`, as body Avatar
+Effects use) the controller places them scaled by its size, and an effect
+anchored at the `head` of a big-headed Avatar by its face's size
+([Size-aware placement](avatar-vfx.md#size-aware-placement)), so stars or a
+cloud stay outside the head. Snapshots keep the authored transform.
 
 Avatar-local means the Avatar frame: the Avatar scene's axes with +X toward the
 Avatar's left, +Y up and +Z forward, for VRM 0 and VRM 1 alike. three-vrm turns

@@ -76,6 +76,8 @@ const SETTLE_SEC = 1;
  * Face view distance in metres: tighter than the chat's Portrait (close)
  * preset (0.8 m) so eye and mouth artwork is legible. Emote hovers far above
  * the head may be cropped here; the front and 3/4 views show them whole.
+ * Like the chat's presets, it and the aim scale with a big head
+ * (`Avatar.getHeadFramingScale`).
  */
 const FACE_DISTANCE = 0.55;
 /** The head bone sits at the skull base; aim this far above it, at the face. */
@@ -423,11 +425,12 @@ export function placeCamera(
 ): void {
   camera.fov = framing.fov;
   if (view === "face") {
+    const head = avatar.getHeadFramingScale();
     // Follow the current head so a playing Gesture stays framed.
     const face = (avatar.getHeadPosition() ?? framing.target.clone()).add(
-      new THREE.Vector3(0, FACE_AIM_ABOVE_HEAD_BONE, 0),
+      new THREE.Vector3(0, FACE_AIM_ABOVE_HEAD_BONE * head, 0),
     );
-    camera.position.set(face.x, face.y, face.z + FACE_DISTANCE);
+    camera.position.set(face.x, face.y, face.z + FACE_DISTANCE * head);
     camera.lookAt(face);
   } else {
     const offset = framing.position
