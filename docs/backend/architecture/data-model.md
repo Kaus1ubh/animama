@@ -267,8 +267,10 @@ projection; canonical file facts remain registered once in
 `content_catalog_files`. The snapshot also stores the immutable typed catalog
 body and its digest, and `bundles`, the delivery bundles issued with it (each
 bundle's format and member list by bundle ID), so a bundle read loads only its
-own members. Response URLs and the current lease expiry are overlaid when the
-snapshot is read. There is no per-runtime file-membership table.
+own members. `inputs_digest` digests everything the snapshot was compiled from, so
+issuing an unchanged loadout again renews it instead of compiling; it is null for a
+compile that found changed files. Response URLs and the current lease expiry are
+overlaid when the snapshot is read. There is no per-runtime file-membership table.
 
 Chat turn setup authorizes the issued snapshot and consumes its persisted
 Gesture/Reaction inventory instead of rebuilding against mutable catalog

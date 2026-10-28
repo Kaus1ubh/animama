@@ -154,6 +154,7 @@ CREATE TABLE anima_runtime_snapshots (
     updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     admitted_item_revisions jsonb DEFAULT '{}'::jsonb NOT NULL,
     bundles jsonb DEFAULT '{}'::jsonb NOT NULL,
+    inputs_digest character varying(64),
     CONSTRAINT ck_anima_runtime_snapshots_admitted_item_revisions_object CHECK ((jsonb_typeof(admitted_item_revisions) = 'object'::text)),
     CONSTRAINT ck_anima_runtime_snapshots_bundles_object CHECK ((jsonb_typeof(bundles) = 'object'::text))
 );

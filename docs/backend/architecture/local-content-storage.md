@@ -386,7 +386,8 @@ dependencies and are rejected as direct equipment. No loadout write copies
 bytes or hot-swaps an active mount.
 
 Runtime issuance resolves each selected root independently, reopens and hashes
-its complete dependency closure, deduplicates members, enforces budgets, and
+its complete dependency closure (all of a compile's files in one worker-thread
+call), deduplicates members, enforces budgets, and
 persists one exact internal revision, safe diagnostics, and a bounded map of
 every admitted catalog item to its revision. A changed or broken root and its
 dependents are omitted; unrelated roots and text chat remain available.
@@ -395,7 +396,10 @@ in `content_catalog_files`; runtime issuance does not copy them into per-file
 rows. Compilation takes no locks and writes nothing. A short final transaction
 locks the loadout row, confirms its revision is the one compiled, and one
 set-based check proves the complete item/file union still matches the compiled
-descriptor before insertion.
+descriptor before insertion. Issuing an unchanged loadout again renews its unexpired
+snapshot after the same checks, without compiling or reopening files (see the
+[HTTP API](http-api.md)). Idle playback facts are cached in process by the motion
+file's SHA-256 and the Gesture's implementation and settings.
 
 The runtime file route resolves the canonical `file_ref`, its parent item, and
 the snapshot pin in one read-only database statement. It rejects expired,

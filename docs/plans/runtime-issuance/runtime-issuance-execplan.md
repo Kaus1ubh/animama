@@ -124,10 +124,17 @@ writes a cProfile of the reissues.
   documents (Save, preview) as well as revisions. Issuance uses a cached value
   without reopening the motion file only after its compile verified that file;
   other callers still open and verify the file and skip only the parse.
-- 2026-10-28 (agent): the snapshot table gains `bundles` (ordered JSON list of
-  issued bundles and their members), `inputs_digest` and `members_digest`
-  (nullable; a row without them is never reused). The baseline SQL changes, so
-  existing development databases must be reset, as for earlier baseline edits.
+- 2026-10-28 (agent): the snapshot table gains `bundles` (each issued bundle's
+  format and members by bundle ID) and a nullable `inputs_digest` (a row without
+  one is never reused). A reuse rebuilds the fenced file union from the current
+  catalog entries of its pins, which the matching digest proves unchanged, so no
+  stored member digest is needed. The baseline SQL changes, so existing
+  development databases must be reset, as for earlier baseline edits.
+- 2026-10-28 (agent): the inputs digest includes an identity of the running
+  backend code (a hash of the package's Python sources, or the executable of a
+  frozen build). `RUNTIME_PROJECTION_VERSION` has not changed since the repository
+  split while the projection has, so without it a reissue after an upgrade could
+  renew a body the new code would project differently, indefinitely.
 
 ## Phased implementation
 
@@ -281,8 +288,6 @@ Changes:
   returns `None` if its revision changed, marks changed paths for Rescan, rechecks
   admission, inserts or renews the snapshot, runs the bounded cleanup and commits.
   The conflict path compares digests and pins without loading the stored catalog.
-- `_recheck_admission` compares a digest of the locked file union with the
-  descriptor's (`members_digest`), equivalent to today's set comparison.
 - The route prepares in `ports.read_session` and commits in `ports.write_session`,
   each with its own `ports.content`, retrying per the Decision Log.
 
@@ -322,10 +327,10 @@ Changes:
 
 - `prepare` computes the inputs digest after the selections and looks for an
   unexpired snapshot of the same owner, Anima and digest. If one exists it loads
-  that snapshot's catalog and bundles and skips verification, compile, Idle
+  that snapshot's catalog and skips verification, compile, Idle
   playback, projection, face parts and the identity hash.
 - `commit` of a reuse locks and checks the loadout revision, rechecks admission
-  with the stored pins and `members_digest`, renews the lease (only while it is
+  with the stored pins and their current entries' files, renews the lease (only while it is
   still unexpired) and commits; if the row expired or vanished meanwhile, issuance
   prepares again and compiles.
 - A fresh compile stores its inputs digest (none after changed files); the
@@ -341,6 +346,20 @@ recompiles; the inputs digest is stable across two catalog loads.
 
 Checks: phase tests, runtime tests, ruff, mypy, full pre-push suite before
 review; benchmark at 0 and 2 ms.
+
+Check record (repository root; working tree `13bb462a` before the phase commit):
+
+- `uv run --no-sync pytest -q -p no:randomly -n 4` over the issuance, delivery,
+  shared-route owner isolation, item admission, bundle, closure, creation,
+  face-part, Pocket voice, voice export, inventory, consumer, Idle pool, Reaction
+  pool, owner-contract, creation batching, starter, baseline and Idle playback
+  test files: 308 passed.
+- `ruff check`, `ruff format --check` and the full `mypy` run: pass.
+- Benchmark, 0 ms (machine shared with other suites): reissue median 203–235 ms,
+  CPU 169–201 ms, loadout lock 15.6–17.9 ms; first issue 460–471 ms. A profile of
+  the reissues leaves the visible-catalog listing, the 2 MB response (overlay,
+  validation, gzip), bundle selection, the stored catalog's decode and the inputs
+  digest.
 
 ## Final integration review
 

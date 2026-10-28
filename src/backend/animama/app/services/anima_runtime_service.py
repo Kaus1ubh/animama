@@ -2,23 +2,29 @@
 
 from __future__ import annotations
 
+import asyncio
+import functools
 import hashlib
 import json
+import sys
 from collections import defaultdict
-from dataclasses import dataclass
+from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime, timedelta
-from pathlib import PurePosixPath
+from pathlib import Path, PurePosixPath
 from typing import Any
 from uuid import uuid4
 
 from sqlalchemy import Select, delete, func, select, update
 from sqlalchemy.dialects.postgresql import insert
+from sqlalchemy.engine import Row
 from sqlalchemy.ext.asyncio import AsyncSession
 
+import animama
 from animama.adapters.repositories.sqlalchemy.avatar_face_part_override_repo import (
     SQLAlchemyAvatarFacePartOverrideRepository,
 )
 from animama.adapters.repositories.sqlalchemy.content_catalog_repo import SQLAlchemyContentCatalog
+from animama.app.ports.avatar_face_parts import AvatarFacePartOverride
 from animama.app.ports.content_store import ContentStore
 from animama.app.services.avatar_face_parts import override_face_parts
 from animama.app.services.content_access_policy import ContentAccessPolicy
@@ -35,6 +41,7 @@ from animama.domain.content_catalog import (
 from animama.domain.runtime_bundles import JSON_BUNDLE_MAX_MEMBERS, RuntimeBundle, select_runtime_bundles
 from animama.domain.runtime_content_descriptor import (
     RuntimeContentDescriptor,
+    RuntimeContentMember,
     RuntimeContentRootSelection,
     validate_admitted_item_revisions,
 )
@@ -80,17 +87,23 @@ class RuntimeFileAuthorization:
 
 @dataclass(frozen=True, slots=True)
 class PreparedRuntime:
-    """A compiled and projected snapshot, made before any lock or write."""
+    """A snapshot ready to commit, compiled or reused, made before any lock or write."""
 
     anima_id: str
     loadout_revision: int
-    descriptor: RuntimeContentDescriptor
+    admitted_item_revisions: dict[str, str]
+    # The admitted items' canonical files, which the commit fences.
+    members: tuple[RuntimeContentMember, ...]
     catalog_body: dict[str, Any]
     catalog_digest: str
     effective_revision: str
     bundles: list[RuntimeBundle]
+    # What the snapshot was compiled from (``_inputs_digest``); ``None`` after changed files.
+    inputs_digest: str | None
     # Files that no longer match the catalog; the commit marks them for Rescan.
-    changed_paths: dict[ContentSource, tuple[str, ...]]
+    changed_paths: dict[ContentSource, tuple[str, ...]] = field(default_factory=dict)
+    # An unexpired snapshot of the same inputs, which the commit renews instead of inserting.
+    reused_snapshot_id: str | None = None
 
 
 class RuntimeSnapshotError(Exception):
@@ -121,6 +134,86 @@ def _canonical(value: Any) -> str:
 
 def _sha(value: Any) -> str:
     return hashlib.sha256(_canonical(value).encode()).hexdigest()
+
+
+@functools.cache
+def _backend_build() -> str:
+    """Identify the running backend code, so a reused snapshot never outlives an upgrade.
+
+    Hashes the package's Python sources; a frozen build without them uses its executable.
+    """
+
+    package = Path(animama.__file__).parent
+    digest = hashlib.sha256()
+    sources = sorted(package.rglob("*.py")) if package.is_dir() else []
+    for source in sources:
+        digest.update(source.relative_to(package).as_posix().encode())
+        digest.update(source.read_bytes())
+    if not sources:
+        executable = Path(sys.executable).stat()
+        digest.update(f"{sys.executable}|{executable.st_size}|{executable.st_mtime_ns}".encode())
+    return digest.hexdigest()
+
+
+def _inputs_digest(
+    *,
+    build: str,
+    loadout_revision: int,
+    selections: tuple[RuntimeContentRootSelection, ...],
+    by_id: dict[str, CatalogContentEntry],
+    overrides: dict[str, AvatarFacePartOverride],
+) -> str:
+    """Digest everything a compile and projection of these selections read.
+
+    That is the code, the loadout revision, each root selection and its context,
+    every catalog entry reachable from the roots (whether admitted or not) or its
+    absence, and the owner's Included Avatar face-part overrides. An entry's
+    ``scanned_at`` is left out: a rescan that changes nothing keeps the digest.
+    Dataclass reprs of the catalog's own values are equal exactly when the values are.
+    """
+
+    entries: dict[str, str | None] = {}
+    pending = [selection.catalog_item_id for selection in selections]
+    while pending:
+        item_id = pending.pop()
+        if item_id in entries:
+            continue
+        item = by_id.get(item_id)
+        entries[item_id] = None if item is None else repr(replace(item, scanned_at=None))
+        if item is not None:
+            pending.extend(item.dependency_item_ids)
+    return _sha(
+        {
+            "build": build,
+            "projection_version": RUNTIME_PROJECTION_VERSION,
+            "loadout_revision": loadout_revision,
+            "selections": [
+                [selection.slot_key, selection.catalog_item_id, selection.kind.value, selection.context]
+                for selection in selections
+            ],
+            "entries": sorted(entries.items()),
+            "face_part_overrides": sorted((item_id, repr(value)) for item_id, value in overrides.items()),
+        }
+    )
+
+
+def _admitted_members(pins: dict[str, str], by_id: dict[str, CatalogContentEntry]) -> tuple[RuntimeContentMember, ...]:
+    """The canonical files of the admitted items, as their compile listed them."""
+
+    return tuple(
+        RuntimeContentMember(
+            file_ref=file.file_ref,
+            item_id=item_id,
+            source=file.source,
+            relative_path=file.relative_path,
+            role=file.role,
+            media_type=file.media_type,
+            size_bytes=file.size_bytes,
+            sha256=file.sha256,
+        )
+        for item_id in pins
+        for file in by_id[item_id].files
+    )
 
 
 def _stored_bundles(bundles: list[RuntimeBundle]) -> dict[str, Any]:
@@ -206,7 +299,9 @@ class AnimaRuntimeService:
     async def prepare(self, *, user_id: str, anima_id: str) -> PreparedRuntime:
         """Compile and project the owner's current loadout, taking no lock and writing nothing.
 
-        ``commit`` fences the result against the loadout and catalog as they are then.
+        An unexpired snapshot compiled from the same inputs is reused instead, without
+        compiling, reading content bytes or projecting. ``commit`` fences either result
+        against the loadout and catalog as they are then.
         """
 
         if self.store is None:
@@ -218,7 +313,32 @@ class AnimaRuntimeService:
             raise RuntimeSnapshotError("anima_not_found")
 
         visible = await self.catalog.list_visible(user_id=user_id)
+        by_id = {item.id: item for item in visible}
         selection_plan = await self._selections(anima_id=anima_id, visible=visible)
+        overrides = await self._included_avatar_overrides(user_id=user_id, selections=selection_plan.roots, by_id=by_id)
+        inputs_digest = _inputs_digest(
+            build=await asyncio.to_thread(_backend_build),
+            loadout_revision=loadout_revision,
+            selections=selection_plan.roots,
+            by_id=by_id,
+            overrides=overrides,
+        )
+        reused = await self._reusable_snapshot(user_id=user_id, anima_id=anima_id, inputs_digest=inputs_digest)
+        if reused is not None:
+            pins = dict(reused.admitted_item_revisions)
+            return PreparedRuntime(
+                anima_id=anima_id,
+                loadout_revision=loadout_revision,
+                admitted_item_revisions=pins,
+                members=_admitted_members(pins, by_id),
+                catalog_body=dict(reused.catalog),
+                catalog_digest=reused.catalog_digest,
+                effective_revision=reused.effective_revision,
+                bundles=select_runtime_bundles(reused.catalog),
+                inputs_digest=inputs_digest,
+                reused_snapshot_id=reused.id,
+            )
+
         descriptor, changed_paths = await RuntimeContentClosureCompiler(
             catalog=self.catalog,
             store=self.store,
@@ -234,7 +354,7 @@ class AnimaRuntimeService:
             descriptor=descriptor,
             visible=visible,
         )
-        await self._apply_included_avatar_face_parts(user_id=user_id, catalog_body=catalog_body)
+        self._apply_included_avatar_face_parts(catalog_body=catalog_body, overrides=overrides)
         identity_body = {
             "projection_version": RUNTIME_PROJECTION_VERSION,
             "loadout_revision": loadout_revision,
@@ -246,21 +366,48 @@ class AnimaRuntimeService:
         return PreparedRuntime(
             anima_id=anima_id,
             loadout_revision=loadout_revision,
-            descriptor=descriptor,
+            admitted_item_revisions=admitted_item_revisions,
+            members=descriptor.members,
             catalog_body=catalog_body,
             catalog_digest=catalog_digest,
             effective_revision=f"tr{RUNTIME_PROJECTION_VERSION}-{catalog_digest}",
             bundles=select_runtime_bundles(catalog_body),
+            # Files found changed will be marked for Rescan, so these inputs are already stale.
+            inputs_digest=None if changed_paths else inputs_digest,
             changed_paths=changed_paths,
         )
+
+    async def _reusable_snapshot(self, *, user_id: str, anima_id: str, inputs_digest: str) -> Row[Any] | None:
+        """The owner's unexpired snapshot of this Anima compiled from the same inputs."""
+
+        return (
+            await self.session.execute(
+                select(
+                    ORMAnimaRuntimeSnapshot.id,
+                    ORMAnimaRuntimeSnapshot.effective_revision,
+                    ORMAnimaRuntimeSnapshot.catalog_digest,
+                    ORMAnimaRuntimeSnapshot.admitted_item_revisions,
+                    ORMAnimaRuntimeSnapshot.catalog,
+                )
+                .where(
+                    ORMAnimaRuntimeSnapshot.owner_user_id == user_id,
+                    ORMAnimaRuntimeSnapshot.anima_id == anima_id,
+                    ORMAnimaRuntimeSnapshot.inputs_digest == inputs_digest,
+                    ORMAnimaRuntimeSnapshot.expires_at > datetime.now(UTC),
+                )
+                .order_by(ORMAnimaRuntimeSnapshot.expires_at.desc())
+                .limit(1)
+            )
+        ).one_or_none()
 
     async def commit(self, prepared: PreparedRuntime, *, user_id: str) -> dict[str, Any] | None:
         """Fence and write a prepared snapshot in one short transaction, then commit.
 
         Locks the loadout row first and returns ``None``, writing nothing, when the
-        loadout changed after preparation, so the caller prepares again. Otherwise it
-        marks the files preparation found changed for Rescan, rechecks every pin and
-        file, inserts the snapshot or renews its identical twin, and commits.
+        loadout changed after preparation or a reused snapshot expired meanwhile, so
+        the caller prepares again. Otherwise it marks the files preparation found
+        changed for Rescan, rechecks every pin and file, inserts the snapshot or renews
+        the reused or identical one, and commits.
         """
 
         now = datetime.now(UTC)
@@ -274,11 +421,32 @@ class AnimaRuntimeService:
             return None
         for source, paths in prepared.changed_paths.items():
             await self.catalog.mark_scan_required(source=source, relative_paths=paths)
-        await self._recheck_admission(user_id=user_id, descriptor=prepared.descriptor)
+        await self._recheck_admission(user_id=user_id, pins=prepared.admitted_item_revisions, members=prepared.members)
 
-        admitted_item_revisions = prepared.descriptor.admitted_item_revisions
+        admitted_item_revisions = prepared.admitted_item_revisions
         effective_revision = prepared.effective_revision
         expires_at = now + LEASE
+        if prepared.reused_snapshot_id is not None:
+            renewed_expires_at = await self.session.scalar(
+                update(ORMAnimaRuntimeSnapshot)
+                .where(
+                    ORMAnimaRuntimeSnapshot.id == prepared.reused_snapshot_id,
+                    ORMAnimaRuntimeSnapshot.expires_at > now,
+                )
+                .values(expires_at=expires_at, updated_at=now)
+                .returning(ORMAnimaRuntimeSnapshot.expires_at)
+            )
+            if renewed_expires_at is None:
+                return None
+            await self.cleanup_expired(now=now)
+            await self.session.commit()
+            return _runtime_response(
+                prepared.catalog_body,
+                bundles=prepared.bundles,
+                anima_id=anima_id,
+                effective_revision=effective_revision,
+                lease_expires_at=renewed_expires_at,
+            )
         result = await self.session.execute(
             insert(ORMAnimaRuntimeSnapshot)
             .values(
@@ -291,6 +459,7 @@ class AnimaRuntimeService:
                 admitted_item_revisions=admitted_item_revisions,
                 catalog=prepared.catalog_body,
                 bundles=_stored_bundles(prepared.bundles),
+                inputs_digest=prepared.inputs_digest,
                 expires_at=expires_at,
                 created_at=now,
                 updated_at=now,
@@ -329,7 +498,8 @@ class AnimaRuntimeService:
             renewed = await self.session.execute(
                 update(ORMAnimaRuntimeSnapshot)
                 .where(ORMAnimaRuntimeSnapshot.id == winner.id)
-                .values(expires_at=expires_at, updated_at=now)
+                # Later issues of these inputs reuse it.
+                .values(expires_at=expires_at, updated_at=now, inputs_digest=prepared.inputs_digest)
                 .returning(ORMAnimaRuntimeSnapshot.expires_at)
             )
             renewed_expires_at = renewed.scalar_one_or_none()
@@ -350,13 +520,13 @@ class AnimaRuntimeService:
         self,
         *,
         user_id: str,
-        descriptor: RuntimeContentDescriptor,
+        pins: dict[str, str],
+        members: tuple[RuntimeContentMember, ...],
     ) -> None:
         """Fence compiled pins and the complete canonical file union in one query."""
 
-        pins = descriptor.admitted_item_revisions
         if not pins:
-            if descriptor.members:
+            if members:
                 raise RuntimeSnapshotError("runtime_remount_required")
             return
         rows = (
@@ -438,7 +608,7 @@ class AnimaRuntimeService:
                 member.size_bytes,
                 member.sha256,
             )
-            for member in descriptor.members
+            for member in members
         }
         if actual_files != expected_files:
             raise RuntimeSnapshotError("runtime_remount_required")
@@ -604,7 +774,32 @@ class AnimaRuntimeService:
             visible=visible,
         )
 
-    async def _apply_included_avatar_face_parts(self, *, user_id: str, catalog_body: dict[str, Any]) -> None:
+    async def _included_avatar_overrides(
+        self,
+        *,
+        user_id: str,
+        selections: tuple[RuntimeContentRootSelection, ...],
+        by_id: dict[str, CatalogContentEntry],
+    ) -> dict[str, AvatarFacePartOverride]:
+        """The owner's face-part overrides of the Included Avatars these selections name."""
+
+        avatar_ids = [
+            selection.catalog_item_id
+            for selection in selections
+            if selection.kind is ContentKind.AVATAR
+            and (item := by_id.get(selection.catalog_item_id)) is not None
+            and item.source is ContentSource.INCLUDED
+        ]
+        if not avatar_ids:
+            return {}
+        return await SQLAlchemyAvatarFacePartOverrideRepository(self.session).list_for_items(
+            owner_user_id=user_id, avatar_item_ids=avatar_ids
+        )
+
+    @staticmethod
+    def _apply_included_avatar_face_parts(
+        *, catalog_body: dict[str, Any], overrides: dict[str, AvatarFacePartOverride]
+    ) -> None:
         """Project the owner's current Included Avatar override into the snapshot body.
 
         The projection already carries a Local sidecar correction. The override
@@ -617,12 +812,7 @@ class AnimaRuntimeService:
             return
         if source.get("source") != ContentSource.INCLUDED.value:
             return
-        item_id = str(source.get("item_id"))
-        override = (
-            await SQLAlchemyAvatarFacePartOverrideRepository(self.session).list_for_items(
-                owner_user_id=user_id, avatar_item_ids=[item_id]
-            )
-        ).get(item_id)
+        override = overrides.get(str(source.get("item_id")))
         if override is None:
             return
         face_parts = override_face_parts(

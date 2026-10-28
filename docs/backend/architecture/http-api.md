@@ -586,7 +586,13 @@ the composition's read session without locks or writes, then opens a short write
 session that locks the loadout row, rechecks the loadout revision, every pinned
 item and the complete file union, marks files found changed for Rescan, and
 inserts or renews the snapshot. A loadout changed in between is compiled again,
-up to three attempts in all, then refused with 409 `snapshot_conflict`. The snapshot pins the
+up to three attempts in all, then refused with 409 `snapshot_conflict`. An
+unexpired snapshot compiled from the same inputs (the backend build, loadout
+revision, root selections, every catalog entry the roots reach, and the owner's
+Included Avatar face-part overrides) is renewed without compiling, reading content
+bytes or projecting again; the final transaction still rechecks it like a new one.
+Byte and bundle reads verify every file, so a file changed on disk without a
+catalog change is caught there and marked for Rescan. The snapshot pins the
 complete admitted `catalog_item_id -> revision_sha256` map and persists one
 immutable typed catalog body; it does not copy a row for every file. Each
 member carries its canonical opaque `content_catalog_files.file_ref`. The file
