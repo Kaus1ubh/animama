@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, replace
@@ -160,7 +161,34 @@ async def test_a_bundle_read_loads_only_its_own_members(async_session, tmp_path:
         assert read.complete and read.format == "json"
         assert [member["file_ref"] for member in json.loads(read.body)["members"]] == advertised["file_refs"]
         assert len(statements) == 2
-        assert not any("anima_runtime_snapshots.catalog" in statement for statement in statements)
+        assert not any(re.search(r"anima_runtime_snapshots\.catalog\b", statement) for statement in statements)
+
+
+@pytest.mark.parametrize("case", ["unknown_bundle", "malformed_bundle", "other_revision", "expired"])
+async def test_a_bundle_read_keeps_its_refusals(async_session, tmp_path: Path, case: str) -> None:  # noqa: ANN001
+    async with runtime_fixture(async_session, tmp_path) as fixture:
+        service = fixture.service(async_session)
+        issued = await service.issue(user_id=fixture.owner, anima_id=fixture.anima_id)
+        [advertised] = issued["bundles"]
+        revision, bundle_id = issued["effective_revision"], advertised["id"]
+        if case == "unknown_bundle":
+            bundle_id = "0" * 64
+        elif case == "malformed_bundle":
+            bundle_id = "not-a-bundle\x00"
+        elif case == "other_revision":
+            revision = f"{revision[:-1]}0" if revision[-1] != "0" else f"{revision[:-1]}1"
+        else:
+            await async_session.execute(
+                update(ORMAnimaRuntimeSnapshot)
+                .where(ORMAnimaRuntimeSnapshot.anima_id == fixture.anima_id)
+                .values(expires_at=datetime.now(UTC) - timedelta(seconds=1))
+            )
+            await async_session.commit()
+        expected = "runtime_remount_required" if case == "expired" else "runtime_file_not_found"
+        with pytest.raises(RuntimeSnapshotError, match=expected):
+            await RuntimeBundleService(service, fixture.store).read(
+                user_id=fixture.owner, anima_id=fixture.anima_id, revision=revision, bundle_id=bundle_id
+            )
 
 
 def _writes_or_locks(statements: list[str]) -> list[str]:

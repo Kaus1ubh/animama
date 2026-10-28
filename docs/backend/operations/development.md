@@ -135,7 +135,7 @@ preparation fail with `relation "avatar_face_part_overrides" does not exist`;
 without `avatar_setting_overrides` (per-owner Avatar settings), the Avatar
 settings routes and package export or import of Avatars fail the same way.
 Without the runtime snapshot columns `bundles` and `inputs_digest`, runtime
-issuance and bundle reads fail with `column ... does not exist`. Run
+issuance, bundle reads and chat turns fail with `column ... does not exist`. Run
 `./reset.sh --purge` (with `--name` and `--base-port` for a named stack), or the
 database-only reset below when Local content and private data must survive.
 

@@ -6,6 +6,7 @@ import asyncio
 import functools
 import hashlib
 import json
+import re
 import sys
 from collections import defaultdict
 from dataclasses import dataclass, field, replace
@@ -18,6 +19,7 @@ from sqlalchemy import Select, delete, func, select, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.engine import Row
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import defer
 
 import animama
 from animama.adapters.repositories.sqlalchemy.avatar_face_part_override_repo import (
@@ -62,6 +64,7 @@ LEASE = timedelta(hours=24)
 ISSUE_ATTEMPTS = 3
 RUNTIME_PROJECTION_VERSION = 5
 SNAPSHOT_CLEANUP_BATCH_SIZE = 100
+_BUNDLE_ID = re.compile(r"[0-9a-f]{64}")
 
 
 @dataclass(frozen=True, slots=True)
@@ -499,7 +502,12 @@ class AnimaRuntimeService:
                 update(ORMAnimaRuntimeSnapshot)
                 .where(ORMAnimaRuntimeSnapshot.id == winner.id)
                 # Later issues of these inputs reuse it.
-                .values(expires_at=expires_at, updated_at=now, inputs_digest=prepared.inputs_digest)
+                .values(
+                    expires_at=expires_at,
+                    updated_at=now,
+                    bundles=_stored_bundles(prepared.bundles),
+                    inputs_digest=prepared.inputs_digest,
+                )
                 .returning(ORMAnimaRuntimeSnapshot.expires_at)
             )
             renewed_expires_at = renewed.scalar_one_or_none()
@@ -833,7 +841,10 @@ class AnimaRuntimeService:
     ) -> ORMAnimaRuntimeSnapshot | None:
         return (
             await self.session.execute(
-                select(ORMAnimaRuntimeSnapshot).where(
+                select(ORMAnimaRuntimeSnapshot)
+                # Callers read the catalog and lease; bundle reads use get_bundle.
+                .options(defer(ORMAnimaRuntimeSnapshot.bundles, raiseload=True))
+                .where(
                     ORMAnimaRuntimeSnapshot.owner_user_id == user_id,
                     ORMAnimaRuntimeSnapshot.anima_id == anima_id,
                     ORMAnimaRuntimeSnapshot.effective_revision == revision,
@@ -844,6 +855,9 @@ class AnimaRuntimeService:
     async def get_bundle(self, *, user_id: str, anima_id: str, revision: str, bundle_id: str) -> RuntimeBundle:
         """One issued bundle's members from a live snapshot, without loading its catalog."""
 
+        if not _BUNDLE_ID.fullmatch(bundle_id):
+            # Issued IDs are SHA-256 hex digests; anything else names no bundle.
+            raise RuntimeSnapshotError("runtime_file_not_found")
         row = (
             await self.session.execute(
                 select(ORMAnimaRuntimeSnapshot.expires_at, ORMAnimaRuntimeSnapshot.bundles[bundle_id]).where(

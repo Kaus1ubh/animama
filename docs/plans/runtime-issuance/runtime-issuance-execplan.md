@@ -238,8 +238,9 @@ Requirements: R4.
 
 Changes:
 
-- `anima_runtime_snapshots.bundles jsonb NOT NULL DEFAULT '[]'`: the ordered
-  bundles `select_runtime_bundles` chose at issuance (`id`, `format`, `members`).
+- `anima_runtime_snapshots.bundles jsonb NOT NULL DEFAULT '{}'` (an object check):
+  each bundle `select_runtime_bundles` chose at issuance, `{format, members}` by
+  bundle ID.
   Issuance computes the selection once and uses it for both the response and the
   column.
 - `RuntimeBundleService.read` selects the lease expiry and only the requested
@@ -271,6 +272,52 @@ Check record (repository root; working tree `fb377ef1` before the phase commit):
   templates`: pass (`fb377ef1`).
 - The baseline's reviewed fingerprint in `tests/test_alembic_fresh_install.py`
   changes with the new column.
+- Full pre-push suite on `4d0ba00d` (tree `1a122f56`), in a detached validation
+  checkout through `scripts/heavy-slot.py -- make check-test`: typed-content audit,
+  format check, ruff and mypy pass; pytest 4930 passed, 29 skipped.
+- Benchmark (machine shared with other suites, so issue times are inflated): bundle
+  read median 28–33 ms at 0 ms round trip (baseline 34–35 ms) and 34–36 ms at
+  2 ms (baseline 71 ms); bundle CPU 16–18 ms (baseline 20–23 ms). Issuance's
+  statements are unchanged; its insert now also carries the bundle lists.
+
+#### Code Review #1 Findings
+
+Analysis of `git diff 8d3b4b76 0c261861` and an independent checks rerun on
+`4d0ba00d` (tree `1a122f56`), high-risk tier. The checks reviewer reran the phase
+tests (46 passed), ruff and mypy, compared the baseline SQL's and the ORM's
+`anima_runtime_snapshots` in throwaway PostgreSQL schemas (identical apart from
+column order), and showed the new bundle test fails against the pre-Phase-2 read.
+
+- P2-F1 (blocking): `domain/runtime_bundles.py`'s docstring still said serving
+  reselects bundles from the stored catalog.
+- P2-F2: the conflict path advertised freshly selected bundles while renewing a
+  row whose stored lists were not compared, so a later selection change or a
+  composition that added the column to live rows could advertise unstored IDs.
+- P2-F3: the real bundle lookup's unknown, expired and other-revision refusals had
+  no database-backed test; the route test's fake reimplemented them.
+- P2-F4: the development guide omitted that chat turns also fail without the column.
+- P2-F5: `get_snapshot` (chat turn setup) now also loads the bundle lists.
+- P2-F6: this plan's bullet described an ordered list and lacked the benchmark.
+- P2-F7: a bundle ID with a NUL byte now reaches SQL (likely a 500 instead of 404).
+- Checks: the new test's catalog check also matched `catalog_digest`.
+
+#### Code Review #1 Revisions
+
+- P2-F1: the docstring says serving reads the stored lists, which outlive later
+  selection changes.
+- P2-F2: renewing an identical snapshot also rewrites its stored bundle lists.
+- P2-F3: `test_a_bundle_read_keeps_its_refusals` covers an unknown, a malformed and
+  an other-revision bundle and an expired lease against the database.
+- P2-F4: the guide names chat turns.
+- P2-F5: `get_snapshot` defers the bundle lists (`raiseload`).
+- P2-F6: bullet and benchmark recorded above.
+- P2-F7: `get_bundle` refuses anything but a 64-character lowercase hex ID before
+  querying, as `runtime_file_not_found`.
+- Checks finding: the test matches `anima_runtime_snapshots.catalog` on a word
+  boundary.
+- Verification: the issuance, bundle and owner-contract test files, 46 passed;
+  ruff and format pass. Repair rounds used: 1 of 2; the high-risk recheck is
+  recorded as Code Review #2.
 
 ### Phase 3: Compile outside the write transaction
 
