@@ -70,7 +70,7 @@ Evidence in this plan and the PR is counts and pass/fail only.
 - [x] Phase 4: eyes without separate eye geometry (2026-10-28; review passed after one repair round).
 - [x] Phase 5: the face inside a whole-body mesh (2026-10-28; review passed after two repair rounds).
 - [x] Phase 6: painted art that shows (2026-10-28; review passed after two repair rounds).
-- [ ] Phase 7: size-aware placement and framing.
+- [x] Phase 7: size-aware placement and framing (2026-10-29; review passed after one repair round).
 - [ ] Phase 8: rig and material fallbacks (deferrable, Q3).
 - [ ] Phase 9: acceptance, documentation and owner gates.
 - [ ] Final integration review, full pre-push suite, PR.
@@ -1201,10 +1201,63 @@ Result: blocked on F1 and F2.
 - F1 accepted: head-anchored Particle Effects scale with the head.
 - F2 accepted (decision, agent, 2026-10-29): framing, sizes, contacts and the
   big-head weight follow a face measure that leaves accessories out (the
-  landmarks' face bounds, with the head box as fallback); the head box only keeps
-  head art clear of the head's top.
+  face's UV island clipped to the face bounds (the bounds alone still include
+  Maromage's ear, 0.64 m against 0.34 m), with the head box as fallback); the
+  head box only keeps head art clear of the head's top.
 - Optional items accepted, except the browser load timing, which moves to
   Phase 9.
+
+Repair round 1 (tree `244a21e1`): head-anchored Particle Effects scale with
+the head (`particleVFXPlacementScale`; chibi test fails without it). The face
+size comes from `AvatarFaceTextureAnchors.getFaceExtent()`, registered at load
+and after a face-part correction; `headScale` (reference 0.22 m), the big-head
+weight and framing follow it, and `animation:render` builds an `Avatar` to
+measure the face the same way. Measured faces: Included 0.220–0.223 m (share
+0.16–0.18, weight 0); Carol North 0.56 m, Polybot 0.32 m, Maromage 0.43 m
+(weight 1); the adult survey Avatars 0.16–0.25 m (shares 0.15–0.20, well below
+the 0.30 ramp start). Eye planes now grow only above 0.04 m, because Alicia's
+0.038 m eyes would otherwise have grown; they grow on Carol North, Polybot and
+Maromage only. A failed head measure is logged once; skinned meshes without
+head or eye bones are skipped (Included head-box measure 3.6–5.8 ms cold); the
+camera keeps its height when an Avatar has no head anchor.
+
+| Command | Directory | Result |
+| --- | --- | --- |
+| `timeout 590 npx vitest run src/lib/avatar src/ui tests/avatar src/lib/runtime-content` | `src/frontend/web` | 3761 passed, 2 skipped; baselines unchanged |
+| `npx tsc -b`; `npx tsc -p tsconfig.scripts.json --noEmit`; eslint and prettier `--check` on touched files | `src/frontend/web` | clean |
+| `node --test scripts/vrm-inspect.test.mjs scripts/effect-render.test.mjs scripts/effect-render-sources.test.mjs` | `src/frontend/web` | 27/27 |
+| `python3 ../../scripts/heavy-slot.py -- pnpm check` | `src/frontend` | exit 0 |
+| The browser suite's own steps in two halves through heavy-slot | `src/frontend/web` | 32/32 and 100/100 |
+| `evidence/render-set.sh`, `--diff` against the baselines | `src/frontend/web` | 31 rendered, 0 failed; all at 0 px against the baseline or the alternate |
+
+Private calibration (failures of 16 effects and 6 Reactions): Carol North 0, 0;
+Polybot 1, 0 (the named dark-surface skip); Maromage 1, 0 (`blank-dot-eyes`
+drawn correctly but 56 px against the 82 px review floor; `mouth_w` now passes);
+the other five 0, 0. By eye, head-anchored particles (`dizzy-stars`,
+`rain-cloud`, `star-burst`) sit above Carol North's, Polybot's and Maromage's
+heads.
+
+#### Code Review #2 Findings
+
+Reviewed tree `244a21e1` (targeted recheck). F1 and F2 resolved; the face is
+registered before any clip is prepared; Included Avatars unchanged. Optional:
+the plan wording of the F2 decision (P7-R2-N1); measuring the head box lazily
+would remove its 3.6–5.8 ms from Included loads (P7-R2-N2); after a face
+correction on a big-headed Avatar the selected camera preset and a placed head
+sticker update only on the next apply (P7-R2-N3); no contact test on the face
+path (P7-R2-N4). Result: pass.
+
+#### Code Review #2 Revisions
+
+P7-R2-N1 corrected in the F2 revision above. P7-R2-N2 deferred to Phase 9 with
+the load-time gate. P7-R2-N3 and N4: no change (they settle on the next apply;
+the face path feeds the same scale into contacts). Repair budget: one round
+used.
+
+Phase 7 complete (agent-ready; code in `6dac2f7f`, this record in the next
+commit). For owner review in Phase 9: Maromage's dot eyes stay under the review
+floor, and its horns sit above its ear tip because head-top art follows the
+head box.
 
 ### Phase 8: Rig and material fallbacks (R8, deferrable)
 
