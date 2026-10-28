@@ -29,10 +29,12 @@ exact revision (ADR 0028).
   is kept the same way, since it derives from the exact source digest.
 - Catalog items, typed content files, Anima presentation images and Avatar portraits
   name each file by a `url`: the digest path for an Included file and
-  `/v1/content/files/{file_ref}` for every other file. Clients read the URL they are
-  given instead of building one from `file_ref`, with a cache mode that lets the
-  reply's policy decide reuse (`<img>` loads, and `cache: "default"` for the
-  Anima presentation image fetch, which used `no-cache`).
+  `/v1/content/files/{file_ref}` for every other file. Library thumbnails, particle
+  manifests and Anima presentation images read the URL they are given instead of
+  building one from `file_ref`, with a cache mode that lets the reply's policy
+  decide reuse (`<img>` loads, and `cache: "default"` for the presentation image
+  fetch, which used `no-cache`). Readers that still name a file by `file_ref`, such
+  as voice sample playback, keep the revalidated reply.
 - Owner and installation-shared files, previews, runtime manifests and bundles keep
   their policies. Nothing is offered to shared caches: the policy stays `private`.
 
