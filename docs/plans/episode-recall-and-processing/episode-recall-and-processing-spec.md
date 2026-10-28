@@ -8,7 +8,8 @@ threshold, then accepted the revised draft and its proposed defaults. During
 ExecPlan review the same day the owner added R13 (a progress line in chat).
 Authoritative source: https://github.com/raymond-van/animama/issues/775 (this
 file is a snapshot).
-Snapshot captured: 2026-10-28T16:56:10Z, published from revision `605d5e50`.
+Snapshot captured: 2026-10-28T18:03:01Z, updated from revision `12b0a9b6` (first
+published 2026-10-28T16:56:10Z from `605d5e50`).
 Source baseline: `da23aaaa`.
 
 ## Problem and intended users

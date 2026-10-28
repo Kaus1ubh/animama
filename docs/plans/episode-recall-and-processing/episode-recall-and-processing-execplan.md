@@ -1,9 +1,9 @@
 # Recall recent episode notes and process them automatically
 
 Source agreement: [#775](https://github.com/raymond-van/animama/issues/775), agreed by
-the owner on 2026-10-28; snapshot `episode-recall-and-processing-spec.md` captured
-2026-10-28T16:56:10Z from revision `605d5e50`. Requirement IDs R1–R12 refer to the
-issue.
+the owner on 2026-10-28 and updated the same day with R13; snapshot
+`episode-recall-and-processing-spec.md` captured 2026-10-28T18:03:01Z from revision
+`12b0a9b6`. Requirement IDs R1–R13 refer to the issue.
 Authorized scope: none yet. This plan awaits owner review (gate G1); implementation
 starts only after the owner authorizes a phase range.
 Planning baseline: `da23aaaa` (`main`, after #735).
@@ -15,7 +15,8 @@ After this work a chat turn carries `PROFILE.md` and the current Anima's recent
 composition, pending notes reach curated memory without the owner opening the Memory
 Manager: a backend task starts episode processing once the owner's pending notes
 reach a threshold, approves its own proposals and records them as labelled versions
-(R5–R11). A new ADR records the change to ADR 0009 (R12).
+(R5–R11), while the chat shows "Crystallizing N notes into memory…" above its input
+(R13). A new ADR records the change to ADR 0009 (R12).
 
 Orientation, by area:
 
@@ -44,7 +45,9 @@ Orientation, by area:
 - **Capabilities.** `app/contracts/runtime_capabilities.py` (`RuntimeCapabilities`,
   fields default to off for other compositions).
 - **Frontend.** `src/frontend/web/src/ui/settings/BehaviorDataSettings.tsx` (Memory and
-  Memory updates controls), `src/frontend/web/src/ui/memory/MemoryVersionsDialog.tsx`
+  Memory updates controls), `src/frontend/web/src/ui/main/chat/ChatLoadingStatus.tsx`
+  (the status lines above the chat input, such as model downloads),
+  `src/frontend/web/src/ui/memory/MemoryVersionsDialog.tsx`
   (version history; summaries already carry `change_metadata`), locales under
   `src/frontend/web/src/locales/`, generated client under
   `src/frontend/packages/runtime-contracts/src/generated` (regenerate with
@@ -55,10 +58,12 @@ Boundaries:
 - Core chat dispatch never depends on the worker (backend memory rule); the worker
   lives only in the local composition (`server/`), never in `product_http/` or `app/`.
 - Shared protocols that Cloud implements (`ProductPorts`, `ChatTurnServices`) gain no
-  required members, so Cloud keeps building at its current pin. Hosted gets R1–R4 and
-  the capability's default `false` on repin, and never starts automatic runs. Cloud
-  checks its input-token estimates against the larger instructions when it repins;
-  that is Cloud's own follow-up, not part of this plan.
+  required members, and the shared ORM gains no column, so Cloud needs no code or
+  migration change to repin. Cloud's own copy of `memory_manager_runs` keeps its
+  open-run index, which is correct there because hosted never creates automatic runs.
+  Hosted gets R1–R4 and the capability's default `false` on repin. Cloud checks its
+  input-token estimates against the larger instructions when it repins; that is
+  Cloud's own follow-up, not part of this plan.
 - No Alembic revision: schema changes go into the ORM and `0001_baseline.sql` (G2).
 
 ## Progress
@@ -67,7 +72,8 @@ Boundaries:
 - [ ] Phase 1: recall context (R1–R4).
 - [ ] Phase 2: automatic-run semantics in the Memory Manager service (R6, R7, R10).
 - [ ] Phase 3: local trigger, setting, status and capability (R5, R8, R9, R11 backend).
-- [ ] Phase 4: settings control and version label (R10, R11 frontend).
+- [ ] Phase 4: settings control, chat progress line and version label (R10, R11
+      frontend, R13).
 - [ ] Phase 5: decision record and documentation sweep (R12).
 - [ ] Final integration review and full pre-push suite.
 - [ ] G3: live manual check with a real Memory Manager model.
@@ -79,15 +85,24 @@ Found while planning (2026-10-28, agent, at `da23aaaa`):
 - **One open run per owner is a database invariant.** The partial unique index
   `uq_memory_manager_runs_user_open` (status `active` or `waiting_approval`) allows a
   single open run, and the Memory Manager UI keeps the owner's run open until New.
-  R7 therefore needs a run origin in the schema, not just metadata (Phase 2).
+  R7 therefore needs a run origin that the index can see (Phase 2).
+- **Cloud migrates its own copy of the runs table.** Hosted migration
+  `008_hosted_companion_memory.sql` creates `memory_manager_runs` and the same open-run
+  index, so a new ORM column would need a Cloud migration at repin. The origin is
+  therefore kept in the run's `metadata` (owner decision below).
 - **An approval holds its file's row lock across the model resume.**
   `decide_approval` commits the patch through `MemoryEntryService` (row
   `FOR UPDATE`), then calls `resume_approval_decision` before committing. While a
   resume runs, a chat memory-tool write to the same file waits. Owner-started Auto
   approve has the same behavior today; automatic runs make it likely, because they
-  start while the owner is chatting. Phase 2 bounds the chat side's wait (R6). The
-  general fix, no transaction across Memory Manager model requests, is a separate
-  refactor that is not filed yet.
+  start while the owner is chatting. Phase 2 commits automatic approvals before
+  resuming and bounds the chat side's wait (R6). The general fix, no transaction
+  across any Memory Manager model request, is a separate refactor that is not filed
+  yet.
+- **The local turn lease settles after the note is saved.** `LocalChatTurnLease.settle`
+  (`server/product_ports.py`) runs once per turn after the stream body, including
+  recording and episode capture, has finished. It is local, so it can wake the worker
+  without a shared-protocol change.
 - **Provenance is already exposed.** Version summaries return `change_metadata`, so
   R10 needs only a new key and a UI label, with no contract change.
 - **Settings preferences are free-form JSON.** `PyUserSettingsUpdate.preferences` is
@@ -102,22 +117,26 @@ Found while planning (2026-10-28, agent, at `da23aaaa`):
 
 - 2026-10-28, owner: spec agreed as published in #775, including its proposed
   defaults (bounds, backoff, daily limit, threshold range 5–50, default 10).
-- 2026-10-28, agent (proposed for G1): store `origin` (`owner` | `automatic`) on
-  `memory_manager_runs` and scope the open-run unique index to owner runs, with a
-  second index allowing one open automatic run per owner. Rationale: R7 forbids
+- 2026-10-28, owner (plan review): record a run's origin as `metadata.origin`
+  (`owner` when absent, or `automatic`) rather than a new column, so Cloud needs no
+  migration. The local open-run unique index becomes owner-only on that key, and a
+  second index allows one open automatic run per owner. Rationale: R7 forbids
   superseding or waiting for an owner run, which the current index makes impossible.
-- 2026-10-28, agent (proposed for G1): the worker polls every 30 seconds and also
-  wakes on settings changes, instead of a hook on the chat path. Rationale: a turn
-  hook would add a required member to `ChatTurnServices`, which Cloud implements, and
-  30 seconds meets "right after" in practice. The owner may ask for an immediate hook
-  instead.
+- 2026-10-28, owner (plan review): automatic runs commit each approved change in its
+  own short transaction before the model resumes, so they hold no file lock during a
+  model request. Chat memory-tool writes also give up after 6 seconds of lock wait
+  with a retryable tool error, as a backstop for owner-started Auto approve.
+- 2026-10-28, owner (plan review): R13's progress line sits with the loading status
+  lines above the chat input (spec updated as R13).
+- 2026-10-28, agent, after the owner asked whether Cloud must adopt the planned
+  30-second poll: the worker wakes from `LocalChatTurnLease.settle` at the end of each
+  local turn, on settings changes and at startup, and otherwise rests until its next
+  backoff expiry, at most 5 minutes. This starts runs right after the threshold note
+  with no shared-protocol change, and Cloud adopts nothing.
 - 2026-10-28, agent (proposed for G1): the threshold is read and written through a
   local-only route (`/v1/memory/automatic-processing`), stored under
   `user_settings.preferences.memory.episode_processing`. A write that changes the
   threshold records `reset_at`, which lifts R8's pause. Hosted has no such route.
-- 2026-10-28, agent (proposed for G1): chat memory-tool writes set a short PostgreSQL
-  `lock_timeout` and return a retryable tool error on timeout, so a turn never waits
-  on a Memory Manager transaction.
 - 2026-10-28, agent: the recent-notes selection stops at the first note that does not
   fit the character budget, so the included notes stay a contiguous recent run.
 
@@ -212,12 +231,13 @@ independent.
 
 Changes:
 
-1. Schema (ORM and `0001_baseline.sql`, kept consistent): `memory_manager_runs.origin`
-   `VARCHAR NOT NULL DEFAULT 'owner'` with a check for `owner` or `automatic`; replace
-   `uq_memory_manager_runs_user_open` with the same index restricted to
-   `origin = 'owner'`, and add `uq_memory_manager_runs_user_open_automatic` on
-   `user_id` for open automatic runs. Domain `MemoryManagerRun.origin` and the mapper
-   follow.
+1. Origin and indexes (ORM index definitions and `0001_baseline.sql`, kept
+   consistent; no new column): a run's origin is `metadata.origin`, `automatic` for
+   automatic runs and absent for owner runs, read through one domain helper. Narrow
+   `uq_memory_manager_runs_user_open` to
+   `COALESCE(metadata->>'origin', 'owner') = 'owner'`, and add
+   `uq_memory_manager_runs_user_open_automatic` on `user_id` for open runs whose
+   origin is `automatic`.
 2. Owner paths see only owner runs: `list_open_runs(_for_update)` and therefore
    `get_current_run_snapshot`, `create_run`, `create_episode_processing_run`,
    `create_reflection_run` and supersession. Owner-started episode processing returns
@@ -228,9 +248,13 @@ Changes:
    snapshot, and:
    - skips when an owner-started episode-processing task is still `processing`, when
      no notes are pending, or when an automatic run is already open;
-   - otherwise creates an `origin = 'automatic'` `episode_processing` run with the
-     existing batch selection, without touching owner runs, and runs it with Auto
-     approve;
+   - otherwise creates an automatic `episode_processing` run with the existing batch
+     selection, without touching owner runs, and runs it with Auto approve;
+   - approves each proposal in two transactions that reuse `decide_approval`'s
+     helpers: the first locks the approval, commits the patch and records the
+     decision; the second resumes the runtime and persists its result. No file row
+     stays locked during a model request. A crash between the two leaves an open
+     automatic run, which startup recovery (step 5) closes;
    - when Auto approve stops with a pending approval (ceiling, conflict, invalid
      target), records it `rejected` with an `automatic_closed` reason and no runtime
      resume, then marks the run `failed` with a stable error; applied changes stay
@@ -241,10 +265,11 @@ Changes:
 5. Add `fail_interrupted_automatic_runs(user_id)`: marks open automatic runs `failed`
    with an `interrupted` reason, so a restart frees the automatic slot and owner
    processing. Interrupted runs do not count toward R8's pause.
-6. Bound chat's wait (R6): the short-lived sessions that execute chat memory tools
-   (`product_http/chat/session_services.py`) set `SET LOCAL lock_timeout` (about 2
-   seconds) before a write. A lock timeout (SQLSTATE `55P03`) returns a retryable
-   tool error, "the file is being updated; try again later", and the turn continues.
+6. Backstop for chat (R6): the short-lived sessions that execute chat memory tools
+   (`product_http/chat/session_services.py`) set `SET LOCAL lock_timeout = '6s'`
+   before a write. A lock timeout (SQLSTATE `55P03`) returns a retryable tool error,
+   "the file is being updated; try again later", and the turn continues. This covers
+   owner-started Auto approve, which keeps today's single transaction.
 7. Docs: `memory-manager-and-episodic-memory.md` (run origin, automatic runs, the new
    409, recovery and status rules) and the chat memory tools section of `memory.md`.
 
@@ -257,7 +282,10 @@ the database constraint tests:
 - a leftover proposal closed unapplied with its notes pending and the earlier
   approvals applied;
 - a second open automatic run rejected by the index;
-- interrupted-run recovery;
+- interrupted-run recovery, including a crash between an automatic approval's two
+  transactions;
+- no file row lock held while an automatic run's runtime resumes (a test runtime
+  attempts a `NOWAIT` lock on the patched entry from another session);
 - the provenance key;
 - a chat memory write against a row locked by another session returning the busy
   tool error within the bound.
@@ -267,9 +295,10 @@ Checks: the focused Memory Manager suite listed in
 `uv run ruff check`; `python3 scripts/heavy-slot.py -- make check-test` before review.
 A fresh database is needed (G2); the test suite creates its own.
 
-Recovery: the baseline edit does not reach existing databases; on an old database the
-new code fails on the missing column. Reset only task-owned stacks; the owner decides
-for others (G2).
+Recovery: the index edit does not reach existing databases. On an old database the
+code still runs, but its open-run index refuses an automatic run while an owner run
+is open; the worker treats that unique violation as a skip, not a failure. Reset only
+task-owned stacks; the owner decides for others (G2).
 
 Check record: none yet.
 
@@ -292,9 +321,11 @@ Changes:
 
 1. `server/episode_processing.py`: `AutomaticEpisodeProcessingWorker`, started in
    `initialize_accountless_runtime` and stopped with the other lifespan tasks, following
-   `embedding_refresh.py`. On start it calls `fail_interrupted_automatic_runs`. Each
-   pass (every 30 seconds, or on `wake()`) evaluates the installation owner and starts
-   a run only when every condition holds:
+   `embedding_refresh.py`. On start it calls `fail_interrupted_automatic_runs` and
+   makes a first pass. `LocalChatTurnLease.settle` wakes it at the end of every local
+   turn, after the turn's note is saved; between wakes it rests until the next backoff
+   expiry, at most 5 minutes. Each pass evaluates the installation owner and starts a
+   run only when every condition holds:
    - a threshold N is set (absent means 10; `0` means Off);
    - App Settings memory and memory updates are on;
    - the Memory Manager role resolves a tool-capable model whose key is present;
@@ -313,7 +344,8 @@ Changes:
 3. Local router `server/routers/memory_automation.py`:
    - `GET /v1/memory/automatic-processing` returns the threshold and a state:
      `off`, `idle`, `running`, `backing_off`, `paused`, `needs_model` or
-     `memory_off`, with the last error, next attempt time and runs today;
+     `memory_off`, with the last error, next attempt time and runs today, plus the
+     batch size and start time while `running` (for R13);
    - `PUT` accepts `{"threshold": 0 | 5..50}`, rejects other values with 422, and
      stores `preferences.memory.episode_processing = {threshold, reset_at}`, setting
      `reset_at` when the value changes; it then wakes the worker.
@@ -329,7 +361,7 @@ Changes:
 Tests first, with the deterministic runtime and an injected clock, in a new
 `tests/test_automatic_episode_processing.py`, plus `tests/test_product_http_runtime_capabilities.py`:
 
-- below and at the threshold; Off;
+- below and at the threshold, including a wake from the local turn lease; Off;
 - memory off and memory updates off;
 - no usable model;
 - one run at a time;
@@ -355,7 +387,7 @@ Not started.
 
 Not started.
 
-### Phase 4: Settings control and version label (R10, R11 frontend)
+### Phase 4: Settings control, chat progress line and version label (R10, R11 frontend, R13)
 
 Review tier: standard. It changes UI behavior over an already reviewed API.
 
@@ -369,19 +401,27 @@ Changes:
    status line for `paused`, `needs_model`, `backing_off` and `memory_off`, with the
    last error where present. While memory or memory updates are off it is disabled
    with an explanation, like Memory updates.
-2. `MemoryVersionsDialog.tsx`: label versions whose
+2. `ChatLoadingStatus.tsx` (R13): a new `episodeProcessing: { noteCount } | null`
+   item, rendered with the existing loading lines as "Crystallizing {{count}} notes
+   into memory…". While the capability is true and the page is visible, a query
+   reads the status route when a turn completes and every 10 seconds; the item is set
+   only while the state is `running`.
+3. `MemoryVersionsDialog.tsx`: label versions whose
    `change_metadata.trigger === "automatic_episode_processing"` as automatic updates
    from episode notes, keeping diff and Revert unchanged.
-3. Strings in every locale under `src/frontend/web/src/locales/`.
-4. Frontend docs where settings behavior is described.
+4. Strings in every locale under `src/frontend/web/src/locales/`.
+5. Frontend docs where settings behavior and chat status lines are described.
 
 Tests: component tests for the control (hidden without the capability, value
-round-trip, disabled states, status lines) and the version label.
+round-trip, disabled states, status lines), for the progress line in
+`ChatLoadingStatus.test.tsx` (shown with its count while `running`, hidden otherwise
+and without the capability), and for the version label.
 
 Checks: `pnpm verify`; then a browser check on a disposable task stack
 (`./reset.sh --name erp --base-port <free base>`) at desktop width, then a narrow
-layout: set the threshold, see the state, and see the label after an automatic run
-with `ANIMAMA_LLM_SKIP=1` (the deterministic runtime); then
+layout: set the threshold, see the state, see the progress line above the chat input
+during an automatic run, and see the label after it, all with `ANIMAMA_LLM_SKIP=1`
+(the deterministic runtime); then
 `python3 ../../scripts/heavy-slot.py -- pnpm e2e:test:fast` against a built stack.
 
 Check record: none yet.
@@ -417,7 +457,7 @@ Check record: none yet.
 
 ## Final integration review
 
-One independent review of combined acceptance across R1–R12, covering Phase 5
+One independent review of combined acceptance across R1–R13, covering Phase 5
 explicitly and reusing still-valid phase evidence. It runs no checks of its own. After
 its repairs, the full pre-push suite runs once on the final candidate as a heavy job:
 `python3 scripts/heavy-slot.py -- make check-test` from the root, and from
@@ -434,13 +474,15 @@ Each #775 acceptance criterion maps to:
 - R8–R9: Phase 3 tests.
 - R10–R11: Phases 2–4 tests and the Phase 4 browser check.
 - R12: Phase 5.
+- R13: Phase 4 tests and browser check, over Phase 3's status route.
 
 Gates:
 
 - **G1, owner:** review this plan and authorize a phase range.
-- **G2, owner:** the baseline change needs a fresh database. Task stacks are reset
-  freely; the owner decides whether and when to reset the main stack and other
-  existing stacks, which must not run this code until then.
+- **G2, owner:** the new indexes reach a database only through a fresh baseline.
+  Task stacks are reset freely. The owner decides whether and when to reset the main
+  stack and other existing stacks; until then they run this code, but automatic runs
+  skip while an owner run is open.
 - **G3, owner, paid provider:** the live check from #775, with a real Memory Manager
   model on a local stack. After chatting until the threshold's notes are pending,
   `PROFILE.md` gains an automatic version, and a fresh chat with the same Anima
@@ -461,7 +503,7 @@ so pushes wait for the owner.
   is recorded with its reason, so nothing waits for the owner.
 - Applied automatic changes are ordinary versions; Revert restores any earlier one.
 - Turning the setting Off stops new runs; a run in flight completes or fails normally.
-- The schema change has no in-place migration (G2). Back up a stack before resetting
+- The index change has no in-place migration (G2). Back up a stack before resetting
   it, using the database operations guide.
 
 ## Outcomes & Retrospective
