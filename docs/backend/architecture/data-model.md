@@ -265,8 +265,10 @@ owner/Anima/effective revision. Its bounded `admitted_item_revisions` JSON
 object pins every admitted catalog item to the revision used by the typed
 projection; canonical file facts remain registered once in
 `content_catalog_files`. The snapshot also stores the immutable typed catalog
-body and its digest, while response URLs and the current lease expiry are
-overlaid when it is read. There is no per-runtime file-membership table.
+body and its digest, and `bundles`, the delivery bundles issued with it (each
+bundle's format and member list by bundle ID), so a bundle read loads only its
+own members. Response URLs and the current lease expiry are overlaid when the
+snapshot is read. There is no per-runtime file-membership table.
 
 Chat turn setup authorizes the issued snapshot and consumes its persisted
 Gesture/Reaction inventory instead of rebuilding against mutable catalog

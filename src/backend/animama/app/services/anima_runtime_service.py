@@ -32,7 +32,7 @@ from animama.domain.content_catalog import (
     ContentSource,
     ContentStatus,
 )
-from animama.domain.runtime_bundles import JSON_BUNDLE_MAX_MEMBERS, select_runtime_bundles
+from animama.domain.runtime_bundles import JSON_BUNDLE_MAX_MEMBERS, RuntimeBundle, select_runtime_bundles
 from animama.domain.runtime_content_descriptor import (
     RuntimeContentDescriptor,
     RuntimeContentRootSelection,
@@ -92,9 +92,16 @@ def _sha(value: Any) -> str:
     return hashlib.sha256(_canonical(value).encode()).hexdigest()
 
 
+def _stored_bundles(bundles: list[RuntimeBundle]) -> dict[str, Any]:
+    """The snapshot's ``bundles`` column: each bundle's format and members by its ID."""
+
+    return {bundle.id: {"format": bundle.format, "members": list(bundle.members)} for bundle in bundles}
+
+
 def _runtime_response(
     catalog_body: dict[str, Any],
     *,
+    bundles: list[RuntimeBundle],
     anima_id: str,
     effective_revision: str,
     lease_expires_at: datetime,
@@ -129,7 +136,7 @@ def _runtime_response(
                 "file_refs": bundle.file_refs,
                 "total_bytes": bundle.total_bytes,
             }
-            for bundle in select_runtime_bundles(catalog_body)
+            for bundle in bundles
         ],
         "effective_revision": effective_revision,
         "lease_expires_at": lease_expires_at.isoformat(),
@@ -199,6 +206,7 @@ class AnimaRuntimeService:
         catalog_digest = _sha(identity_body)
         effective_revision = f"tr{RUNTIME_PROJECTION_VERSION}-{catalog_digest}"
         expires_at = now + LEASE
+        bundles = select_runtime_bundles(catalog_body)
 
         await self._recheck_admission(
             user_id=user_id,
@@ -216,6 +224,7 @@ class AnimaRuntimeService:
                 catalog_digest=catalog_digest,
                 admitted_item_revisions=admitted_item_revisions,
                 catalog=catalog_body,
+                bundles=_stored_bundles(bundles),
                 expires_at=expires_at,
                 created_at=now,
                 updated_at=now,
@@ -235,6 +244,7 @@ class AnimaRuntimeService:
             await self.session.commit()
             return _runtime_response(
                 catalog_body,
+                bundles=bundles,
                 anima_id=anima_id,
                 effective_revision=effective_revision,
                 lease_expires_at=expires_at,
@@ -266,6 +276,7 @@ class AnimaRuntimeService:
         await self.session.commit()
         return _runtime_response(
             dict(winner.catalog),
+            bundles=bundles,
             anima_id=anima_id,
             effective_revision=effective_revision,
             lease_expires_at=renewed_expires_at,
@@ -575,6 +586,27 @@ class AnimaRuntimeService:
                 )
             )
         ).scalar_one_or_none()
+
+    async def get_bundle(self, *, user_id: str, anima_id: str, revision: str, bundle_id: str) -> RuntimeBundle:
+        """One issued bundle's members from a live snapshot, without loading its catalog."""
+
+        row = (
+            await self.session.execute(
+                select(ORMAnimaRuntimeSnapshot.expires_at, ORMAnimaRuntimeSnapshot.bundles[bundle_id]).where(
+                    ORMAnimaRuntimeSnapshot.owner_user_id == user_id,
+                    ORMAnimaRuntimeSnapshot.anima_id == anima_id,
+                    ORMAnimaRuntimeSnapshot.effective_revision == revision,
+                )
+            )
+        ).one_or_none()
+        if row is None:
+            raise RuntimeSnapshotError("runtime_file_not_found")
+        expires_at, stored = row
+        if expires_at <= datetime.now(UTC):
+            raise RuntimeSnapshotError("runtime_remount_required")
+        if not isinstance(stored, dict):
+            raise RuntimeSnapshotError("runtime_file_not_found")
+        return RuntimeBundle(id=bundle_id, format=stored["format"], members=tuple(stored["members"]))
 
     async def renew(self, *, user_id: str, anima_id: str, revision: str) -> datetime:
         """Atomically extend one still-live lease without touching its pins/body."""

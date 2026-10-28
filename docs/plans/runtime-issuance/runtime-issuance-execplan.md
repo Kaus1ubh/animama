@@ -250,6 +250,21 @@ Checks: phase tests, `tests/test_anima_runtime_bundles.py`,
 `tests/test_anima_runtime_item_admission.py`, ruff, mypy, the full pre-push suite
 (high risk) before review; benchmark at 0 and 2 ms.
 
+Check record (repository root; working tree `fb377ef1` before the phase commit):
+
+- `uv run --no-sync pytest -q -p no:randomly -n 4 tests/test_anima_runtime_issuance.py
+  tests/test_anima_runtime_bundles.py tests/test_anima_runtime_item_admission.py
+  tests/test_alembic_fresh_install.py tests/test_anima_runtime_delivery.py
+  tests/test_product_http_anima_runtime.py tests/test_avatar_face_parts.py
+  tests/test_pocket_voice_content.py tests/test_content_package_voice_export.py
+  tests/test_anima_runtime_closure.py tests/test_runtime_catalog_owner_contract.py`:
+  88 passed (`fb377ef1`).
+- `uv run --no-sync ruff check src/backend/animama tests`; `uv run --no-sync mypy
+  src/backend/animama tests --exclude web-ui --exclude deprecated --exclude
+  templates`: pass (`fb377ef1`).
+- The baseline's reviewed fingerprint in `tests/test_alembic_fresh_install.py`
+  changes with the new column.
+
 ### Phase 3: Compile outside the write transaction
 
 Review tier: high risk (concurrency, persistence and a shared route).

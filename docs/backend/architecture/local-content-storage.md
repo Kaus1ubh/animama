@@ -346,13 +346,14 @@ Runtime delivery bundles aggregate delivery only; creator files remain individua
 editable and retain their catalog refs and revisions. Bundles select small
 executable JSON sequences and manifests and small PNG, JPEG and WebP images outside
 the Avatar's and voice's closures, Idle members first (limits in the
-[HTTP API](http-api.md)). Every request checks the existing owner snapshot,
+[HTTP API](http-api.md)). Issuance stores each bundle's member list with the
+snapshot. Every request reads only that list from the live owner snapshot,
 bulk-authorizes current catalog pins, then reopens and verifies each source file
 before considering a 304. JSON text retains original bytes; images keep their exact
 bytes in a framed body. One changed file produces an isolated error and
 scan-required marking. Complete JSON bundles use private revalidation and gzip,
 complete binary bundles the immutable policy;
-mixed errors use `no-store`. Bundles create no files, schema, lease extensions,
+mixed errors use `no-store`. Bundles create no files, lease extensions,
 shared cross-Anima caches, or backup requirements. VRM/VRMA, audio and larger files
 retain their individual byte routes.
 
