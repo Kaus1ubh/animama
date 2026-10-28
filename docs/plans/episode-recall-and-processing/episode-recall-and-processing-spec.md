@@ -4,7 +4,8 @@ Status: Agreed
 Owner decision: 2026-10-28. Intent discovery agreed the direction recorded under
 [Open questions and decisions](#open-questions-and-decisions). On review the owner
 moved recent notes into the system instruction and made the setting a pending-note
-threshold, then accepted the revised draft and its proposed defaults.
+threshold, then accepted the revised draft and its proposed defaults. During
+ExecPlan review the same day the owner added R13 (a progress line in chat).
 Authoritative source: https://github.com/raymond-van/animama/issues/775 (this
 file is a snapshot).
 Snapshot captured: 2026-10-28T16:56:10Z, published from revision `605d5e50`.
@@ -50,8 +51,8 @@ Include:
 - Automatic episode processing in the local composition once a set number of notes
   (default 10) are pending, with automatic approval, bounded retries and cost
   limits (R5–R9).
-- Automatic changes identified in file version history, and an App Settings
-  control (R10–R11).
+- Automatic changes identified in file version history, an App Settings control,
+  and a progress line above the chat input while a run works (R10, R11, R13).
 - Updated documentation, glossary and a decision record (R12).
 
 Non-goals:
@@ -149,6 +150,11 @@ Non-goals:
   memory or memory updates are off, and shows a paused or missing-model state with
   the last error (R8). An existing backlog is processed under R8's daily limit. The
   hosted composition shows no control and never starts automatic runs.
+- **R13. Progress line.** While an automatic run is processing, the chat view shows
+  "Crystallizing N notes into memory…" among the status lines above the chat input,
+  where N is the run's batch size. The line appears within a few seconds of the run
+  starting and disappears when it ends; failures are reported only beside the
+  setting (R11). Hosted never shows it.
 
 ### Records
 
@@ -211,6 +217,9 @@ Non-goals:
 - [ ] R10–R11: version history shows the automatic label and Revert works; the
       setting defaults to 10, accepts Off and 5–50, Off starts no runs, and the
       hosted composition seam neither exposes the control nor starts runs.
+- [ ] R13: component tests show the progress line with the run's note count while
+      a run is processing and no line otherwise or without the capability; the
+      browser check shows it above the chat input during an automatic run.
 - [ ] Manual check on a local stack with a live Memory Manager model: after
       chatting until the threshold's notes are pending, `PROFILE.md` gains an automatic version,
       and a fresh chat with the same Anima recalls a recent note without searching.
@@ -239,6 +248,8 @@ Agreed, 2026-10-28 (owner, intent discovery):
 - Recent notes go in the system instruction rather than the per-turn context,
   because note text never changes and status is not shown (owner review of the
   draft, 2026-10-28).
+- Added after publication (owner, 2026-10-28, ExecPlan review): R13's progress line
+  above the chat input, styled like the existing loading status lines.
 
 Proposed defaults for owner review: R1's bounds (20 notes, 3,000 characters, 14
 whole days, current chat excluded), R4's 16 KiB bound, R7's closure of leftover
