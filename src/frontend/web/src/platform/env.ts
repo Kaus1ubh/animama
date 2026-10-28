@@ -11,10 +11,11 @@ function readString(key: string): string | null {
   return trimmed.length > 0 ? trimmed : null;
 }
 
-function readBooleanFlag(key: string): boolean {
+/** Reads `1`/`true` as on; any other set value is off, and an unset key is `fallback`. */
+function readBooleanFlag(key: string, fallback = false): boolean {
   const value = metaEnv[key];
   if (typeof value === "boolean") return value;
-  if (typeof value !== "string") return false;
+  if (typeof value !== "string") return fallback;
   return value === "1" || value.toLowerCase() === "true";
 }
 
@@ -34,6 +35,10 @@ export const env = {
   disableWebuiTelemetry: readBooleanFlag("VITE_DISABLE_WEBUI_TELEMETRY"),
   disableWebuiTraces: readBooleanFlag("VITE_DISABLE_WEBUI_TRACES"),
   enableDebugPanel: DEBUG_ENABLED,
-  /** Offers the Local model servers (Ollama, LM Studio, llama.cpp, vLLM). */
-  enableLocalModels: readBooleanFlag("VITE_ENABLE_LOCAL_MODELS"),
+  /** Offers the Local model servers (Ollama, LM Studio, llama.cpp, vLLM); on unless set off. */
+  enableLocalModels: readBooleanFlag("VITE_ENABLE_LOCAL_MODELS", true),
+  /** Offers the DeepSeek and Hugging Face Cloud providers; off unless set on. */
+  enableDeepseekHuggingface: readBooleanFlag(
+    "VITE_ENABLE_DEEPSEEK_HUGGINGFACE",
+  ),
 } as const;

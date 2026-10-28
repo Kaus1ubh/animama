@@ -389,7 +389,7 @@ function ModelChooser({
     local: locationProviderGroups(allConnections, "local"),
   };
   const activeProvider = (where: SetupModelLocation) =>
-    providerTab[where] ?? defaultLocationProvider(groups[where]);
+    defaultLocationProvider(groups[where], providerTab[where]);
 
   /** Show a new connection's provider tab and add its first model. */
   const connected = (saved: PyModelConnection) => {
