@@ -84,7 +84,8 @@ Boundaries:
       frontend, R13). Review passed after one repair round; see the phase record.
 - [x] Phase 5: decision record and documentation sweep (R12). Light tier; covered by
       the final integration review.
-- [ ] Final integration review and full pre-push suite.
+- [x] Final integration review and full pre-push suite (passed after one repair round;
+      suite passed at `27754066`).
 - [ ] G3: live manual check with a real Memory Manager model.
 
 ## Surprises & Discoveries
@@ -857,6 +858,29 @@ show an empty Select; FI-N4 Outcomes and Progress need updating after the suite.
   multiples of 5.
 - FI-N4 accepted: updated with the suite results.
 
+#### Final Review #2 Findings
+
+Targeted recheck of `27754066` (inspection only). FI-F1 resolved: `local-http` gets a
+new major for its structural change, both npm packages whose declarations changed are
+bumped, `discover-client` (no imports from the changed packages) and the Python wheel
+(version-rollback check only) need none, and no stale version string remains outside
+`docs/plans`. FI-N1 and FI-N2 accurate; no regressions; no blocking findings. Repair
+budget used: 1 of 2.
+
+#### Full pre-push suite
+
+At `27754066`, clean tree before and after, each step through `scripts/heavy-slot.py`:
+
+- `make check-test` (root): audit, format and lint pass; mypy reports no issues in 889
+  files; pytest 5203 passed, 29 skipped (278 s).
+- `pnpm verify` (`src/frontend`): 637 files passed, 1 skipped; 6038 tests passed,
+  2 skipped; build passes (176 s).
+- `pnpm web:test:browser` (`src/frontend`): 136 passed, 0 failed (678 s).
+- `pnpm prettier:check` (`src/frontend`): passes.
+
+Not run: the package-set `compare` (full local validation), hosted Validation, and the
+full `pnpm e2e:test`; `pnpm e2e:test:fast` ran in Phase 4 (see its record).
+
 ## Validation and acceptance
 
 Each #775 acceptance criterion maps to:
@@ -902,4 +926,17 @@ so pushes wait for the owner.
 
 ## Outcomes & Retrospective
 
-Not started.
+Delivered on `feat/episode-recall-and-processing` (not pushed), 2026-10-28: R1–R13
+across Phases 1–5. Every reviewed phase and the final integration review passed within
+the repair bound; the full pre-push suite passed on `27754066`. Owner gates remain: G2
+(reset existing stacks to the new baseline when convenient) and G3 (the paid live
+check); hosted Validation runs only with owner approval. Cloud follow-ups at repin: a
+schema-only migration for the split open-run indexes, the hosted-excluded route count
+(36 to 38), admitting `local-http` 21 and the new package versions, and its own
+input-token estimates for the larger instructions.
+
+What went well: keeping the run origin in metadata avoided a Cloud column migration,
+and committing automatic approvals before the model resumes removed the lock-hold risk
+that worried the owner. What to repeat: the final review caught the contract-version
+bump that no planned check covers; future plans that change OpenAPI or package
+declarations should list the version bump as a phase step.
