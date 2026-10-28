@@ -274,7 +274,7 @@ async def test_removal_control_blocks_live_jobs_and_preserves_the_queue(async_se
 
 @pytest.mark.parametrize("desktop_token", ["c" * 64, None])
 async def test_local_composition_reports_uploads_and_anima_creation(async_session, tmp_path, desktop_token):
-    """Local desktop and self-hosted web both admit uploads and Anima creation."""
+    """Local desktop and self-hosted web both admit uploads and Anima creation and keep Library previews."""
 
     app = _app(async_session, tmp_path)
     app.state.runtime_settings = app.state.runtime_settings.model_copy(

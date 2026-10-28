@@ -250,19 +250,21 @@ accepts only catalog IDs it knows must support or skip both before adopting a
 release with that catalog. Skipped, hosted Settings shows the SenseVoice section
 as not available, and the offline choice under a non-English locale shows the
 "not available on this server" notice.
-
-`library_previews` says whether the runtime offers Library item previews: the
-`?variant=thumbnail` copy of an item's first image, and a Particle tile's texture
-and manifest tint. It is on when absent. The hosted fixture reports it `false`,
-the seventh hosted exception: Library cards then show their family icons and send
-no preview, texture or manifest request. A server that does not render previews
-may refuse `?variant=thumbnail` with 422 `content_thumbnail_unsupported`; it
-receives none from the browser. The Library's Preview action, Avatar portraits and
-other images a screen loads for its own purpose stay retained.
 Content, avatar/effect runtime, memory, creators and voice stay retained without
 adding blanket permissions for implementation gaps. Unknown/missing capability
 responses keep hosted operations pending rather than granting permission. No
 frontend flag replaces server admission.
+
+`library_previews` says whether the runtime offers Library item previews: the
+`?variant=thumbnail` copy of an item's first image, and a Particle tile's texture
+and manifest tint. Unlike the permissions above, it is runtime state that withholds
+no route: it is on when absent, and the hosted adapter accepts either value. The
+hosted fixture reports it `false`, the seventh hosted exception: Library cards then
+show their family icons and send no preview, texture or manifest request. A server
+that does not render previews may refuse `?variant=thumbnail` with 422
+`content_thumbnail_unsupported`; it receives none from the browser. The Library's
+Preview action, Avatar portraits and other images a screen loads for its own
+purpose stay retained.
 
 Each SDK call uses its injected client/transport. Application compositions do not
 configure the compatibility default client. All browser

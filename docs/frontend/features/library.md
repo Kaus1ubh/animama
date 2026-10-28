@@ -54,8 +54,8 @@ most 128 pixels) and load it only near the viewport, keeping the family icon
 until it draws, or if the image is too large to preview. A Particle tile reads its
 manifest's tint only once its texture
 has loaded. A runtime that reports `library_previews: false` offers no previews:
-every tile shows its family icon, and the Library requests no thumbnail, texture
-or manifest for it.
+every item tile except Avatars shows its family icon, and the Library requests no
+thumbnail, texture or manifest for it.
 
 An attention indicator exposes affected items, validation details and Retry scan
 when content is invalid, missing, awaiting a scan or unavailable. Valid content can Preview;
