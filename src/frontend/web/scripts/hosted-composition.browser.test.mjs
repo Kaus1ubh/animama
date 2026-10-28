@@ -646,6 +646,21 @@ test("common rejected admission states withhold the private shell", async () => 
   }
 });
 
+test("an idle tab whose events stream is cut after each ready reads the runtime context only on load", async () => {
+  const { page, calls } = await mount();
+  const count = (path) => calls.filter((call) => call.path === path).length;
+  try {
+    await page.getByText("Your Animas will appear here").waitFor();
+    // The fixture's events reply ends right after `ready`, as a proxy cutting the
+    // stream would, so the tab reconnects about once a second.
+    await page.waitForTimeout(6_000);
+    assert.ok(count("/v1/hosted/events") >= 4);
+    assert.equal(count("/v1/hosted/runtime-context"), 1);
+  } finally {
+    await page.close();
+  }
+});
+
 test("account controls stay hidden without a central account URL", async () => {
   const restricted = await mount("/library", "paused", undefined, {
     accountUrl: false,
