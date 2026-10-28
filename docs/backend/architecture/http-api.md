@@ -608,10 +608,10 @@ size/digest bytes, and SSE, WebSockets, uploads and range streams are unaffected
 The manifest's `bundles` list advertises delivery bundles of optional members, each
 with an `id`, a `format` (`json` or `binary`), its URL, `file_refs` and total original
 bytes. `GET /v1/animas/{anima_id}/runtime/revisions/{revision}/bundles/{bundle_id}`
-serves one. Selection is deterministic and server-owned (`domain/runtime_bundles.py`),
-run on the stored catalog at issuance and again when serving, so a bundle ID (a
-SHA-256 of its format and member set) names the same members for the revision's
-life; an unknown ID returns 404. Selection takes projected optional members only,
+serves one. Selection is deterministic and server-owned (`domain/runtime_bundles.py`)
+and runs once at issuance, which stores each bundle's member list with the snapshot,
+so a bundle ID (a SHA-256 of its format and member set) names the same members for
+the revision's life; an unknown ID returns 404. Selection takes projected optional members only,
 never the Avatar's or voice's closures or descriptor/meta files. It partitions them
 into Idle JSON, Idle binary, other JSON and other binary (Idle bundles come first),
 sorts each by `file_ref` and packs it next-fit: JSON `sequence` and `manifest` files
@@ -625,8 +625,8 @@ unavailable member has `error` instead of `text`. Text preserves the original UT
 bytes, including whitespace, for browser size/SHA-256 verification. A binary bundle
 answers the frame `AMB1`, a 4-byte big-endian header length, a UTF-8 JSON header
 `{version: 1, revision, members: [{file_ref, size}]}` (or `error` instead of `size`),
-then the available members' bytes in header order. After loading the owner's issued
-snapshot, one joined query checks all of a bundle's members against the live lease,
+then the available members' bytes in header order. After loading that bundle's member
+list from the owner's issued snapshot, one joined query checks all of its members against the live lease,
 current visibility and pinned revisions. Each file is then opened and verified on
 disk, with bounded reads off the event loop. Physical changes mark the catalog
 scan-required in a write session of their own; independent good members remain
