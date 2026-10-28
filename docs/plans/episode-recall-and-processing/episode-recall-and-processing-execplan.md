@@ -82,7 +82,8 @@ Boundaries:
 - [x] Phase 3: local trigger, setting, status and capability (R5, R8, R9, R11 backend). Review passed after two repair rounds; see the phase record.
 - [x] Phase 4: settings control, chat progress line and version label (R10, R11
       frontend, R13). Review passed after one repair round; see the phase record.
-- [ ] Phase 5: decision record and documentation sweep (R12).
+- [x] Phase 5: decision record and documentation sweep (R12). Light tier; covered by
+      the final integration review.
 - [ ] Final integration review and full pre-push suite.
 - [ ] G3: live manual check with a real Memory Manager model.
 
@@ -182,6 +183,8 @@ Found while planning (2026-10-28, agent, at `da23aaaa`):
   The owner can still choose a threshold for when memory is turned back on. The
   explanation comes from the status poll, so it can trail a Memory toggle by up to 5
   seconds.
+- 2026-10-28, agent (Phase 5): the decision record is ADR 0034, not 0033 as planned;
+  0033 (digest-keyed Included content URLs) landed on `main` first.
 
 ## Phased implementation
 
@@ -776,12 +779,12 @@ Review tier: light. Documentation only; the final integration review covers it.
 
 Changes:
 
-- `docs/adr/0033-automatic-episode-processing-and-profile-context.md` (accepted, owner
+- `docs/adr/0034-automatic-episode-processing-and-profile-context.md` (accepted, owner
   decision 2026-10-28 through #775). It permits automatic consolidation of shared user
   memory from episode notes in the local composition, records `PROFILE.md` and recent
   notes in every turn's instructions, and keeps `MEMORIES.md` free of background
   rewrites. Index it in `docs/adr/README.md` and mark ADR 0009 "accepted; partly
-  superseded by 0033".
+  superseded by 0034".
 - `GLOSSARY.md`: an "Automatic episode processing" entry; check the Reflection and
   Anima memories entries still read correctly.
 - A reader-value sweep of the docs touched in Phases 1–4 for repetition or stale
@@ -789,7 +792,18 @@ Changes:
 
 Checks: link check by reading; no tests.
 
-Check record: none yet.
+Check record (over HEAD `fc95db7c`):
+
+- ADR 0034 added and indexed; ADR 0009's status links it, and the index marks 0009
+  "accepted; partly superseded by 0034". The index rows keep the table's width.
+- `GLOSSARY.md` gains "Automatic episode processing"; the Anima memories and Reflection
+  entries still read correctly (Reflection stays owner-started).
+- Sweep of the docs touched in Phases 1–4: one gap fixed, the Memory Manager's
+  `Process episodes` refusal while an automatic run processes
+  (`docs/frontend/features/anima-memory.md`). No repetition or stale statement found
+  elsewhere.
+- Every new link resolves to a file in the repository (checked with `test -e`).
+  Prettier is not run on Markdown.
 
 ## Final integration review
 

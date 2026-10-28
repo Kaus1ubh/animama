@@ -281,7 +281,8 @@ Manager behavior without reviewing the batch again. If more pending items exist,
 `Process episodes` remains available for a new specialized batch; starting it
 supersedes the current active conversation, while an unresolved approval blocks
 the action. A stale no-work response refreshes the pending count without
-replacing the current conversation.
+replacing the current conversation. While an automatic run is processing, the
+backend refuses the action with `409` and the toast shows its reason.
 
 While an Anima's `MEMORIES.md` is selected, in either work mode, the Work-pane
 header shows `Reflect` beside `Manual | Memory Manager` (accessible name
