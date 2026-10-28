@@ -613,11 +613,11 @@ export const STAGE_STOPS: StageStop[] = withBetaCopy([
     label: "Intro",
     followCursor: true,
     title: "Meet your Anima",
-    body: "AI companions that feel alive with their own behaviors, emotions and memories.",
+    body: "AI companions that move, feel and remember.",
     links: [
-      { word: "behaviors", stop: "gestures" },
-      { word: "emotions", stop: "emotion" },
-      { word: "memories", stop: "memory" },
+      { word: "move", stop: "gestures" },
+      { word: "feel", stop: "emotion" },
+      { word: "remember", stop: "memory" },
     ],
     camera: {
       yaw: 0,
@@ -644,7 +644,7 @@ export const STAGE_STOPS: StageStop[] = withBetaCopy([
     accent: "#2f9fd0",
     label: "Behaviors",
     title: "Body Language",
-    body: "From laughing at your jokes to romantic gestures: **over 300 unique gestures and reactions**, picked as {subject} talks.",
+    body: "From goofy antics to romantic gestures: **over 300 unique gestures and reactions**, picked as {subject} talks.",
     camera: {
       yaw: 16,
       distance: 1.25,
