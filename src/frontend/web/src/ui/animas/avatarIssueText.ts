@@ -31,6 +31,8 @@ export function avatarIssueText(
       t("avatarDiagnostics.issues.avatar_extension_unsupported", {
         extension: String(params.extension ?? ""),
       }),
+    morph_target_names_mismatched: () =>
+      t("avatarDiagnostics.issues.morph_target_names_mismatched", { count }),
     avatar_load_failed: () => t("avatarDiagnostics.issues.avatar_load_failed"),
     scene_bindings_unavailable: () =>
       t("avatarDiagnostics.issues.scene_bindings_unavailable"),

@@ -1,4 +1,5 @@
 import { LILTOON_MATERIALS_EXTENSION } from "../liltoon/lilToon";
+import { resolveMeshTargetNames } from "../primitiveTargetNames";
 import { unloadableGltfExtensions } from "./avatarGltfExtensions";
 import type { AvatarIssue } from "./issues";
 
@@ -30,6 +31,11 @@ export type AvatarFileFacts = {
   primitiveCount: number;
   /** Primitives with morph targets (face shapes, usually). */
   morphedPrimitiveCount: number;
+  /**
+   * Meshes whose primitives store disagreeing morph-target name lists (and no
+   * mesh-level names), so their targets load unnamed (`primitiveTargetNames.ts`).
+   */
+  mismatchedMorphNameMeshCount: number;
   materialCount: number;
   materialKinds: Record<AvatarMaterialKind, number>;
   textures: AvatarTextureFacts[];
@@ -260,9 +266,8 @@ export function readAvatarFileFacts(
   const container = readContainer(bytes);
   if (!container) return null;
   const { json, bin } = container;
-  const meshes = asArray(json.meshes).map((mesh) =>
-    asArray(asRecord(mesh)?.primitives),
-  );
+  const meshDefs = asArray(json.meshes);
+  const meshes = meshDefs.map((mesh) => asArray(asRecord(mesh)?.primitives));
   const primitives = meshes.flat().map((primitive) => asRecord(primitive));
   return {
     byteLength: bytes.byteLength,
@@ -275,6 +280,9 @@ export function readAvatarFileFacts(
     morphedPrimitiveCount: primitives.filter(
       (primitive) => asArray(primitive?.targets).length > 0,
     ).length,
+    mismatchedMorphNameMeshCount: meshDefs.filter(
+      (mesh) => resolveMeshTargetNames(mesh).source === "mismatched",
+    ).length,
     materialCount: asArray(json.materials).length,
     materialKinds: readMaterialKinds(json),
     textures: readTextures(json, bin),
@@ -282,14 +290,24 @@ export function readAvatarFileFacts(
 }
 
 /**
- * What an Avatar file's facts report before any load: an unreadable file, or
+ * What an Avatar file's facts report before any load: an unreadable file,
  * each glTF extension it needs that the runtime cannot load (the load then
- * fails rather than drawing the file without it).
+ * fails rather than drawing the file without it), and meshes whose morph
+ * targets load unnamed because their per-primitive names disagree with each
+ * other or with the targets.
  */
 export function avatarFileIssues(facts: AvatarFileFacts | null): AvatarIssue[] {
   if (!facts) return [{ code: "file_unreadable" }];
-  return unloadableGltfExtensions(facts).map((extension) => ({
-    code: "avatar_extension_unsupported",
-    params: { extension },
-  }));
+  const issues: AvatarIssue[] = unloadableGltfExtensions(facts).map(
+    (extension) => ({
+      code: "avatar_extension_unsupported",
+      params: { extension },
+    }),
+  );
+  if (facts.mismatchedMorphNameMeshCount > 0)
+    issues.push({
+      code: "morph_target_names_mismatched",
+      params: { count: facts.mismatchedMorphNameMeshCount },
+    });
+  return issues;
 }

@@ -125,6 +125,7 @@ const report = buildAvatarDiagnosticsReport({
     meshCount: 3,
     primitiveCount: 17,
     morphedPrimitiveCount: 2,
+    mismatchedMorphNameMeshCount: 0,
     materialCount: 12,
     materialKinds: { mtoon: 10, liltoon: 2, unlit: 0, pbr: 0 },
     textures: [
@@ -416,6 +417,26 @@ describe("AvatarDiagnosticsDialog", () => {
     click("Warnings (2)");
     expect(dialog()?.textContent).toContain(
       "The file requires KHR_draco_mesh_compression, a glTF extension this app cannot load yet, so the Avatar cannot be shown.",
+    );
+  });
+
+  it("says when stored shape key names disagree", () => {
+    diagnostics.view = {
+      state: {
+        status: "ready",
+        report,
+        issues: [
+          { code: "morph_target_names_mismatched", params: { count: 1 } },
+        ],
+        live: false,
+      },
+      effectNames: new Map(),
+    };
+    render();
+    click("Open diagnostics");
+    click("Warnings (1)");
+    expect(dialog()?.textContent).toContain(
+      "1 mesh stores shape key names that disagree with each other or with its shape keys, so those shape keys stay unnamed",
     );
   });
 

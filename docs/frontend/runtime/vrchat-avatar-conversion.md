@@ -146,7 +146,8 @@ Check that:
 - the file is VRM 1.0 and under the 100 MiB upload limit. `vrm:optimize` does
   not support Mochiya's extensions, so reduce an oversized Avatar's textures in
   Unity and export again;
-- every face mesh stores its names at mesh level, not "primitives only";
+- no face mesh reports its names as "primitives, mismatched" (its mesh parts
+  name the shapes differently, so they load unnamed);
 - the rest pose is a T-pose: arms straight out to the sides. Avatar
   Diagnostics shows the measured rest pose under Motion ("Rest pose"); the
   Gesture renders below show the arms after Animama's normalization, so they

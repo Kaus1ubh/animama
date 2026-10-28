@@ -189,6 +189,8 @@
       "landmarks_eyes_missing": "No eyes were found on the face, so eye effects are unavailable.",
       "landmarks_face_bounds_failed": "The face skin could not be measured.",
       "landmarks_face_skin_missing": "No face skin was found, so face landmarks are unavailable.",
+      "morph_target_names_mismatched_one": "{{count}} mesh stores shape key names that disagree with each other or with its shape keys, so those shape keys stay unnamed and any MMD morphs or ARKit shapes among them cannot be used.",
+      "morph_target_names_mismatched_other": "{{count}} meshes store shape key names that disagree with each other or with their shape keys, so those shape keys stay unnamed and any MMD morphs or ARKit shapes among them cannot be used.",
       "scene_bindings_unavailable": "The loaded model's mesh parts could not be listed.",
       "springs_helper_failed": "A spring bone guide could not be drawn.",
       "springs_metadata_missing": "The file has no spring bone settings, so springs move at half strength.",

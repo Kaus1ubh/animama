@@ -7,8 +7,9 @@ import { formatReport, inspectVrm } from "./vrm-inspect.mjs";
 /**
  * "Face" names its ARKit-style morph targets at mesh level, as three.js reads
  * them, and authors one expression under an ARKit name; "Body" names its
- * target only per primitive. One material carries the Mochiya lilToon
- * extension.
+ * target only per primitive, which the Avatar loaders apply; "Hair" stores a
+ * per-primitive list that does not fit its one target, so it loads unnamed.
+ * One material carries the Mochiya lilToon extension.
  */
 const fixture = () =>
   faceFixtureVrm({
@@ -18,6 +19,11 @@ const fixture = () =>
         names: ["MouthSmile_L", "Jaw_Open", "vrc.v_aa", "eyeBlinkLeft"],
       },
       { name: "Body", names: ["browInnerUp"], perPrimitive: true },
+      {
+        name: "Hair",
+        names: ["cheekPuff"],
+        perPrimitive: ["cheekPuff", "mouthClose"],
+      },
     ],
     json: {
       extensionsUsed: ["VRMC_vrm", "MOCHIYA_materials_liltoon"],
@@ -66,12 +72,19 @@ test("lists each mesh's morph names, their storage and size", () => {
         morphNames: "primitives only",
         targetNames: ["browInnerUp"],
       },
+      {
+        name: "Hair",
+        morphTargets: 1,
+        morphNames: "primitives, mismatched",
+        targetNames: [],
+      },
     ],
   );
   // Positions plus one shared target accessor: 2 × 4 vertices × 12 bytes.
   assert.equal(report.meshes[0].bytes, 96);
   const text = formatReport(report);
-  assert.match(text, /Body: .*three\.js ignores these names/);
+  assert.match(text, /Body: .*names stored: primitives only\n/);
+  assert.match(text, /Hair: .*so they load unnamed/);
   assert.match(text, /MouthSmile_L, Jaw_Open, vrc\.v_aa, eyeBlinkLeft/);
 });
 
@@ -91,20 +104,21 @@ test("reports version, extensions, materials and authored expressions", () => {
   });
 });
 
-test("resolves ARKit shapes from the names three.js loads", () => {
+test("resolves ARKit shapes from the names the Avatar loaders produce", () => {
   const { arkit } = report.loaded;
-  assert.equal(arkit.resolved, 3);
+  assert.equal(arkit.resolved, 4);
   assert.deepEqual(arkit.authored, ["eyeBlinkLeft"]);
   assert.deepEqual(arkit.renamed, {
     jawOpen: ["Jaw_Open"],
     mouthSmileLeft: ["MouthSmile_L"],
   });
-  // The primitive-only name never reaches the app.
-  assert.ok(arkit.missing.includes("browInnerUp"));
+  // The per-primitive name reaches the app; the mismatched list does not.
+  assert.ok(!arkit.missing.includes("browInnerUp"));
+  assert.ok(arkit.missing.includes("cheekPuff"));
   assert.equal(arkit.total, 52);
-  // Three shapes are far short of the table, so the app keeps its presets.
+  // Four shapes are far short of the table, so the app keeps its presets.
   assert.equal(arkit.playsFacesWithArkit, false);
   const text = formatReport(report);
-  assert.match(text, /ARKit shapes: 3 of 52/);
+  assert.match(text, /ARKit shapes: 4 of 52/);
   assert.match(text, /Animama plays the file's presets/);
 });

@@ -80,6 +80,11 @@ before(async () => {
     resolveArkitFacesPerMesh: web.module.resolveArkitFacesPerMesh,
     moodMixes: compositions.ARKIT_MOOD_MIXES,
     isVroidMoodPart: compositions.isVroidMoodPart,
+    resolveMeshTargetNames: (
+      await web.load(
+        path.join(webRoot, "src/lib/avatar/primitiveTargetNames.ts"),
+      )
+    ).resolveMeshTargetNames,
   };
   arkitShapes = (await web.load(path.join(webRoot, "src/lib/avatar/arkit.ts")))
     .ARKIT_BLENDSHAPES;
@@ -107,7 +112,7 @@ test("writes presets from the ARKit mixes on every mesh with the shape", () => {
   assert.ok(report.missingShapes.includes("jawOpen"));
   assert.ok(!report.missingShapes.includes("noseSneerLeft"));
   assert.deepEqual(report.ambiguousShapes, []);
-  assert.equal(report.primitiveOnlyMeshes, 0);
+  assert.equal(report.mismatchedNameMeshes, 0);
   assert.equal(report.animamaPlaysBakedPresets, true);
   const preset = json.extensions.VRMC_vrm.expressions.preset;
   const sad = Object.fromEntries(
@@ -150,20 +155,28 @@ test("--replace overwrites authored presets but keeps an authored neutral", () =
   );
 });
 
-test("reports ambiguous shapes and meshes named only per primitive", () => {
-  const { json } = readGlb(
-    faceFixtureVrm({
-      meshes: [
-        { name: "Face", names: ["MouthSmile_L", "mouth_smile_left"] },
-        { name: "Hair", names: ["jawOpen"], perPrimitive: true },
-      ],
-    }).bytes,
-  );
-  // Two nodes share the per-primitive mesh; it still counts once.
-  json.nodes.push({ mesh: 1 });
+test("binds names stored per primitive and reports mismatched lists", () => {
+  const { bytes, meshNode } = faceFixtureVrm({
+    meshes: [
+      { name: "Face", names: ["MouthSmile_L", "mouth_smile_left"] },
+      { name: "Brows", names: ["browInnerUp"], perPrimitive: true },
+      // The list does not fit the one target, so the app leaves it unnamed.
+      { name: "Hair", names: ["jawOpen"], perPrimitive: ["jawOpen", "x"] },
+    ],
+  });
+  const { json } = readGlb(bytes);
+  // Two nodes share the mismatched mesh; it still counts once.
+  json.nodes.push({ mesh: 2 });
   const report = bakeExpressions(json, tools);
-  assert.equal(report.primitiveOnlyMeshes, 1);
+  assert.equal(report.mismatchedNameMeshes, 1);
   assert.ok(report.missingShapes.includes("jawOpen"));
+  // The per-primitive name binds like a mesh-level one.
+  assert.ok(!report.missingShapes.includes("browInnerUp"));
+  const sad = json.extensions.VRMC_vrm.expressions.preset.sad;
+  assert.deepEqual(
+    sad.morphTargetBinds.filter(({ node }) => node === meshNode + 1),
+    [{ node: meshNode + 1, index: 0, weight: 0.9 }],
+  );
   assert.deepEqual(report.ambiguousShapes, ["mouthSmileLeft"]);
   assert.ok(!report.missingShapes.includes("mouthSmileLeft"));
 });

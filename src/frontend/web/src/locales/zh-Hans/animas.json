@@ -183,6 +183,7 @@
       "landmarks_eyes_missing": "面部未找到眼睛，因此眼部特效不可用。",
       "landmarks_face_bounds_failed": "无法测量面部皮肤。",
       "landmarks_face_skin_missing": "未找到面部皮肤，因此面部特征点不可用。",
+      "morph_target_names_mismatched_other": "有 {{count}} 个网格的形态键名称在网格部件之间或与形态键数量不一致，因此这些形态键保持未命名，其中的 MMD 变形或 ARKit 形态都无法使用。",
       "scene_bindings_unavailable": "无法列出已加载模型的网格部件。",
       "springs_helper_failed": "无法绘制弹簧骨骼参考线。",
       "springs_metadata_missing": "文件没有弹簧骨骼设置，因此弹簧以一半强度摆动。",

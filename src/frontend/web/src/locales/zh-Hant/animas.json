@@ -183,6 +183,7 @@
       "landmarks_eyes_missing": "臉部找不到眼睛，因此眼部特效無法使用。",
       "landmarks_face_bounds_failed": "無法測量臉部皮膚。",
       "landmarks_face_skin_missing": "找不到臉部皮膚，因此臉部特徵點無法使用。",
+      "morph_target_names_mismatched_other": "有 {{count}} 個網格的形態鍵名稱在網格部件之間或與形態鍵數量不一致，因此這些形態鍵保持未命名，其中的 MMD 變形或 ARKit 形態都無法使用。",
       "scene_bindings_unavailable": "無法列出已載入模型的網格部件。",
       "springs_helper_failed": "無法繪製彈簧骨骼參考線。",
       "springs_metadata_missing": "檔案沒有彈簧骨骼設定，因此彈簧以一半強度擺動。",

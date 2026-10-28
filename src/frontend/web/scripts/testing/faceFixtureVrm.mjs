@@ -17,7 +17,9 @@ const REQUIRED_BONES = [
 /**
  * A minimal VRM 1.0 GLB that three-vrm loads, for VRM script tests. Each mesh
  * has one primitive whose morph targets all share one displacement; `names`
- * are stored at mesh level (as three.js reads them) unless `perPrimitive`.
+ * are stored at mesh level (as three.js reads them) unless `perPrimitive`
+ * stores them on the primitive instead (or, given a list, stores that list,
+ * to model one that disagrees with the targets).
  *
  * @param options.meshes Mesh name, morph-target names and name storage.
  * @param options.json Extra top-level JSON merged over the defaults; its
@@ -79,7 +81,15 @@ export function faceFixtureVrm({ meshes, json: extra = {}, vrm = {} }) {
         {
           attributes: { POSITION: 0 },
           targets: names.map(() => ({ POSITION: 1 })),
-          ...(perPrimitive ? { extras: { targetNames: names } } : {}),
+          ...(perPrimitive
+            ? {
+                extras: {
+                  targetNames: Array.isArray(perPrimitive)
+                    ? perPrimitive
+                    : names,
+                },
+              }
+            : {}),
         },
       ],
       ...(perPrimitive ? {} : { extras: { targetNames: names } }),

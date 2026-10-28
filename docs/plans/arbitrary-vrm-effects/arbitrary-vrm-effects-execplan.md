@@ -65,7 +65,7 @@ Evidence in this plan and the PR is counts and pass/fail only.
 
 - [x] Spec and plan agreed by the owner; Q1–Q3 answered (2026-10-27).
 - [x] Phase 1: review renders catch wrong art (2026-10-28; review passed after two repair rounds).
-- [ ] Phase 2: per-primitive shape names.
+- [x] Phase 2: per-primitive shape names (2026-10-28; review passed).
 - [ ] Phase 3: blink and mouth signals beyond VRM presets.
 - [ ] Phase 4: eyes without separate eye geometry.
 - [ ] Phase 5: the face inside a whole-body mesh.
@@ -317,6 +317,74 @@ Tests: a synthetic glTF (`testing/glb.ts`) with names only on primitives loads
 with those names; a file with mesh-level names is unchanged; mismatched lists
 warn. Checks: `npx vitest run src/lib/avatar tests/avatar`; Included baselines
 at 0 differing pixels for one effect and one Gesture (loader change only).
+
+Starting source: `69bd1e3f`.
+
+Implementation (2026-10-28): new `primitiveTargetNames.ts`. A pure
+`resolveMeshTargetNames` rule: mesh-level names always win; per-primitive lists
+apply only when all are strings, identical and as long as every primitive's
+target list. `PrimitiveTargetNamesPlugin`, a `GLTFLoader` `afterRoot` hook, maps
+loaded meshes to glTF meshes through `parser.associations` and sets
+`morphTargetDictionary`. three-vrm binds expressions by index, and Animama's own
+lookups read the dictionary, so no other place needs the names. The plugin is
+registered once in `configureAvatarGltfLoader.ts`, which the runtime loader
+(lilToon and Simple), the headless loader behind `vrm:inspect`, `vrm:optimize`
+and the motion CLI, `animation-render` and the `vrm-optimize` compare page
+already share; `Avatar.ts` needed no change. Mismatched lists leave names alone
+and add the file issue `morph_target_names_mismatched` (from
+`diagnostics/avatarFileFacts.ts`, in every locale). `vrm:inspect` and
+`vrm-bake-expressions` use the same rule (the latter's report field
+`primitiveOnlyMeshes` became `mismatchedNameMeshes`). Docs:
+`docs/frontend/runtime/avatar-animation.md` and
+`docs/frontend/runtime/vrchat-avatar-conversion.md`.
+
+Check record (tree `75964557`):
+
+| Command | Directory | Result |
+| --- | --- | --- |
+| `timeout 900 npx vitest run src/lib/avatar src/ui tests/avatar` | `src/frontend/web` | 3471 passed, 2 skipped |
+| `node --test scripts/vrm-inspect.test.mjs scripts/vrm-bake-expressions.test.mjs scripts/vrm-optimize.test.mjs` | `src/frontend/web` | 18/18 |
+| `npx tsc -p tsconfig.scripts.json --noEmit`; eslint and prettier `--check` on touched files | `src/frontend/web` | clean |
+| `timeout 900 python3 ../../scripts/heavy-slot.py -- pnpm check` | `src/frontend` | exit 0 |
+| `timeout 900 python3 ../../scripts/heavy-slot.py -- pnpm web:test:browser` | `src/frontend` | 132/132 |
+| `heart_eyes` and the `double-thumbs-up` Gesture, `--diff` against the baselines | `src/frontend/web` | 0 differing pixels |
+| Private Maromage (counts only) | `src/frontend/web` | 87 of 87 shapes named (all numeric before); 13 MMD standard names found; surprised now plays from MMD morphs |
+
+#### Code Review #1 Findings
+
+Reviewed tree `75964557` (standard tier, initial full review). The reviewer
+checked the name rule against glTF's equal-target-count rule, three r182's
+associations for multi-primitive, skinned and cloned meshes, plugin ordering at
+all four loader call sites (no other `GLTFLoader` exists), and the Included
+Avatars' GLB JSON (mesh-level names, so the plugin returns before traversing).
+No blocking findings. Optional:
+
+- **P2-R1-F1:** the mismatched-names text says mesh parts "name them
+  differently", but the rule also covers one part whose list does not fit its
+  shapes.
+- **P2-R1-F2:** a third local copy of `asRecord`/`asArray`.
+- **P2-R1-F3:** for mesh-level names the rule returns the raw array under a
+  `string[]` type (unchanged behaviour).
+- **P2-R1-F4:** no skinned-mesh fixture.
+
+Result: pass.
+
+#### Code Review #1 Revisions
+
+- P2-R1-F1 accepted, fixed by the coordinator: the Diagnostics text in all five
+  locales, the `vrm:inspect` note and the `avatarFileFacts.ts` comment now say
+  the stored names disagree with each other or with the shapes. Verified:
+  `npx vitest run src/ui/animas src/lib/avatar/diagnostics` 137/137 and
+  `node --test scripts/vrm-inspect.test.mjs` pass (`src/frontend/web`);
+  `pnpm i18n:check` exit 0 (`src/frontend`); tree `addf4a77` before this record.
+- P2-R1-F2 rejected: the per-module helpers follow the existing pattern;
+  consolidating three tiny functions is not worth a cross-module edit here.
+- P2-R1-F3 rejected: unchanged from the previous behaviour and harmless where it
+  is read.
+- P2-R1-F4 deferred: three builds skinned meshes on the same association path;
+  Phase 3's synthetic Avatars will load skinned fixtures through this plugin.
+
+Phase 2 complete (agent-ready; no owner gate).
 
 ### Phase 3: Blink and mouth signals beyond VRM presets (R1, R5)
 

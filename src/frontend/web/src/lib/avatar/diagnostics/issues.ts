@@ -14,6 +14,9 @@ export const AVATAR_ISSUE_CODES = [
   // A glTF extension the file needs that the runtime cannot load
   // (`avatarGltfExtensions.ts`); read from the file, before any load.
   "avatar_extension_unsupported",
+  // Meshes whose primitives name their morph targets differently, which load
+  // unnamed (`primitiveTargetNames.ts`); read from the file, before any load.
+  "morph_target_names_mismatched",
   "avatar_load_failed",
   // The live scene's primitives could not be listed.
   "scene_bindings_unavailable",

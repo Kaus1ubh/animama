@@ -183,6 +183,7 @@
       "landmarks_eyes_missing": "얼굴에서 눈을 찾지 못해 눈 효과를 사용할 수 없습니다.",
       "landmarks_face_bounds_failed": "얼굴 피부의 크기를 측정할 수 없습니다.",
       "landmarks_face_skin_missing": "얼굴 피부를 찾지 못해 얼굴 랜드마크를 사용할 수 없습니다.",
+      "morph_target_names_mismatched_other": "메시 {{count}}개의 셰이프 키 이름이 메시 부분끼리 또는 셰이프 키 수와 맞지 않아 해당 셰이프 키는 이름 없이 남으며, 그 안의 MMD 모프나 ARKit 셰이프를 사용할 수 없습니다.",
       "scene_bindings_unavailable": "불러온 모델의 메시 부분 목록을 만들 수 없습니다.",
       "springs_helper_failed": "스프링 본 가이드를 그릴 수 없습니다.",
       "springs_metadata_missing": "파일에 스프링 본 설정이 없어 스프링이 절반 세기로 움직입니다.",

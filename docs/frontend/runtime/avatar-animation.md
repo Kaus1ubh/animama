@@ -986,9 +986,12 @@ resolution for a file before import, including shapes found under another
 spelling, ARKit-named expressions the file authors itself, and whether
 Animama will play the Avatar's faces as ARKit mixes. It also reports
 the VRM version, extensions, materials, images, and each mesh's size and
-morph-target names with where they are stored: three.js reads only mesh-level
-`extras.targetNames`, so names stored only per primitive never reach the app.
-Add `--json` for the full report.
+morph-target names with where they are stored. three.js reads only mesh-level
+`extras.targetNames`; every Avatar loader (`configureAvatarGltfLoader`) also
+applies names some exporters store per primitive when all of a mesh's
+primitives agree (`primitiveTargetNames.ts`). A mesh whose primitives disagree
+("primitives, mismatched") loads unnamed, and Diagnostics reports it from the
+file (`morph_target_names_mismatched`). Add `--json` for the full report.
 
 ### `ProceduralAnimationController`
 

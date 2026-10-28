@@ -183,6 +183,7 @@
       "landmarks_eyes_missing": "顔に目が見つからないため、目のエフェクトは利用できません。",
       "landmarks_face_bounds_failed": "顔の肌の大きさを測れませんでした。",
       "landmarks_face_skin_missing": "顔の肌が見つからないため、顔のランドマークは利用できません。",
+      "morph_target_names_mismatched_other": "{{count}} 個のメッシュでシェイプキーの名前がメッシュパーツ間またはシェイプキーの数と一致しないため、それらのシェイプキーは名前のないままとなり、含まれる MMD モーフや ARKit シェイプを使えません。",
       "scene_bindings_unavailable": "読み込んだモデルのメッシュパーツを一覧にできませんでした。",
       "springs_helper_failed": "揺れものボーンのガイドを描画できませんでした。",
       "springs_metadata_missing": "ファイルに揺れものボーンの設定がないため、揺れは半分の強さになります。",

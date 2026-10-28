@@ -16,8 +16,9 @@ import {
  *
  * It reads only. The report covers the VRM version, extensions, materials,
  * images, each mesh's size and morph-target names with where they are stored
- * (three.js reads mesh-level `extras.targetNames` only), the expressions the
- * file authors, and the ARKit face shapes the app resolves after loading.
+ * (mesh level, or per primitive, which Animama applies when the primitives
+ * agree; `primitiveTargetNames.ts`), the expressions the file authors, and the
+ * ARKit face shapes the app resolves after loading.
  * Use it on converted Avatars before importing them; see
  * docs/frontend/runtime/avatar-animation.md.
  */
@@ -29,21 +30,16 @@ const USAGE = "Usage: pnpm -s vrm:inspect <file.vrm> [--json]";
 export const VRM_UPLOAD_LIMIT_BYTES = 100 * 1024 * 1024;
 
 /**
- * Where a mesh keeps its morph-target names, as three.js will see them, and
- * the names themselves (from the primitives when only they carry them).
+ * How the report words where a mesh's morph-target names come from, by
+ * `resolveMeshTargetNames` source.
  */
-function morphNames(mesh) {
-  const targets = mesh.primitives?.[0]?.targets?.length ?? 0;
-  if (targets === 0) return { storage: "no morph targets", names: [] };
-  if (Array.isArray(mesh.extras?.targetNames))
-    return { storage: "mesh", names: mesh.extras.targetNames };
-  const primitive = mesh.primitives.find((candidate) =>
-    Array.isArray(candidate.extras?.targetNames),
-  );
-  return primitive
-    ? { storage: "primitives only", names: primitive.extras.targetNames }
-    : { storage: "none", names: [] };
-}
+const NAME_STORAGE = {
+  none: "no morph targets",
+  mesh: "mesh",
+  primitives: "primitives only",
+  mismatched: "primitives, mismatched",
+  unnamed: "none",
+};
 
 /** The bytes an accessor's data occupies, counting sparse storage as stored. */
 function accessorBytes(accessor) {
@@ -94,8 +90,13 @@ function authoredExpressions(json) {
   };
 }
 
-/** Summarize a GLB document's JSON without loading it. */
-export function inspectDocument(document, fileBytes) {
+/**
+ * Summarize a GLB document's JSON without loading it.
+ *
+ * @param resolveMeshTargetNames From `primitiveTargetNames.ts`, the rule the
+ *   Avatar loaders apply.
+ */
+export function inspectDocument(document, fileBytes, resolveMeshTargetNames) {
   const { json } = document;
   const vrmVersion = json.extensions?.VRMC_vrm
     ? `VRM ${json.extensions.VRMC_vrm.specVersion}`
@@ -120,13 +121,13 @@ export function inspectDocument(document, fileBytes) {
     extensionsUsed: json.extensionsUsed ?? [],
     extensionsRequired: json.extensionsRequired ?? [],
     meshes: (json.meshes ?? []).map((mesh) => {
-      const { storage, names } = morphNames(mesh);
+      const { source, names } = resolveMeshTargetNames(mesh);
       return {
         name: mesh.name ?? "",
         primitives: mesh.primitives?.length ?? 0,
         bytes: meshBytes(json, mesh),
         morphTargets: mesh.primitives?.[0]?.targets?.length ?? 0,
-        morphNames: storage,
+        morphNames: NAME_STORAGE[source],
         targetNames: names,
       };
     }),
@@ -143,72 +144,81 @@ export function inspectDocument(document, fileBytes) {
 
 /**
  * Load the file as the app does and resolve its ARKit face shapes, mesh by
- * mesh, from the morph-target names three.js produced.
+ * mesh, from the morph-target names the loader produced.
+ *
+ * @param web A `loadWebModule` handle on `headlessVrm.ts`.
  */
-async function inspectLoadedFace(bytes) {
-  const web = await loadWebModule(
-    path.join(webRoot, "src/lib/avatar/motion-authoring/headlessVrm.ts"),
+async function inspectLoadedFace(web, bytes) {
+  const { resolveArkitFacesPerMesh } = await web.load(
+    path.join(webRoot, "src/lib/avatar/arkitFaceCapability.ts"),
   );
-  try {
-    const { resolveArkitFacesPerMesh } = await web.load(
-      path.join(webRoot, "src/lib/avatar/arkitFaceCapability.ts"),
-    );
-    const { ownFaceNames, registerArkitFace } = await web.load(
-      path.join(webRoot, "src/lib/avatar/arkitFaceExpressions.ts"),
-    );
-    const { registerMmdFace } = await web.load(
-      path.join(webRoot, "src/lib/avatar/mmdFaceExpressions.ts"),
-    );
-    const vrm = await web.module.loadHeadlessVrm(
-      bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength),
-    );
-    const meshNames = [];
-    vrm.scene.traverse((object) => {
-      if (object.isMesh && object.morphTargetDictionary)
-        meshNames.push(Object.keys(object.morphTargetDictionary));
-    });
-    const { capability } = resolveArkitFacesPerMesh(meshNames);
-    // The app keeps an expression the file already authors under an ARKit
-    // name instead of binding the resolved morph targets.
-    const authored = [...capability.resolved.keys()].filter((canonical) =>
-      vrm.expressionManager?.getExpression(canonical),
-    );
-    // The same decisions `Avatar.load` makes, MMD morphs first (after
-    // `authored` is read, since registering adds the canonical names).
-    registerMmdFace(vrm, ownFaceNames(vrm));
-    const { playsFacesWithArkit, moods } = registerArkitFace(vrm);
-    return {
-      morphNames: new Set(meshNames.flat()).size,
-      arkit: {
-        resolved: capability.resolved.size,
-        total: capability.resolved.size + capability.missing.length,
-        playsFacesWithArkit,
-        // Each mood preset's region sources (brow, eye, mouth).
-        moods,
-        authored,
-        // Shapes found under another name, to check the matching by eye.
-        renamed: Object.fromEntries(
-          [...capability.resolved].filter(
-            ([canonical, morphs]) =>
-              !authored.includes(canonical) &&
-              (morphs.length !== 1 || morphs[0] !== canonical),
-          ),
+  const { ownFaceNames, registerArkitFace } = await web.load(
+    path.join(webRoot, "src/lib/avatar/arkitFaceExpressions.ts"),
+  );
+  const { registerMmdFace } = await web.load(
+    path.join(webRoot, "src/lib/avatar/mmdFaceExpressions.ts"),
+  );
+  const vrm = await web.module.loadHeadlessVrm(
+    bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength),
+  );
+  const meshNames = [];
+  vrm.scene.traverse((object) => {
+    if (object.isMesh && object.morphTargetDictionary)
+      meshNames.push(Object.keys(object.morphTargetDictionary));
+  });
+  const { capability } = resolveArkitFacesPerMesh(meshNames);
+  // The app keeps an expression the file already authors under an ARKit
+  // name instead of binding the resolved morph targets.
+  const authored = [...capability.resolved.keys()].filter((canonical) =>
+    vrm.expressionManager?.getExpression(canonical),
+  );
+  // The same decisions `Avatar.load` makes, MMD morphs first (after
+  // `authored` is read, since registering adds the canonical names).
+  registerMmdFace(vrm, ownFaceNames(vrm));
+  const { playsFacesWithArkit, moods } = registerArkitFace(vrm);
+  return {
+    morphNames: new Set(meshNames.flat()).size,
+    arkit: {
+      resolved: capability.resolved.size,
+      total: capability.resolved.size + capability.missing.length,
+      playsFacesWithArkit,
+      // Each mood preset's region sources (brow, eye, mouth).
+      moods,
+      authored,
+      // Shapes found under another name, to check the matching by eye.
+      renamed: Object.fromEntries(
+        [...capability.resolved].filter(
+          ([canonical, morphs]) =>
+            !authored.includes(canonical) &&
+            (morphs.length !== 1 || morphs[0] !== canonical),
         ),
-        missing: capability.missing,
-        ambiguous: Object.fromEntries(capability.ambiguous),
-      },
-    };
-  } finally {
-    await web.close();
-  }
+      ),
+      missing: capability.missing,
+      ambiguous: Object.fromEntries(capability.ambiguous),
+    },
+  };
 }
 
 /** The full report for a VRM file's bytes. */
 export async function inspectVrm(bytes) {
-  return {
-    ...inspectDocument(readGlb(bytes), bytes.byteLength),
-    loaded: await inspectLoadedFace(bytes),
-  };
+  const web = await loadWebModule(
+    path.join(webRoot, "src/lib/avatar/motion-authoring/headlessVrm.ts"),
+  );
+  try {
+    const { resolveMeshTargetNames } = await web.load(
+      path.join(webRoot, "src/lib/avatar/primitiveTargetNames.ts"),
+    );
+    return {
+      ...inspectDocument(
+        readGlb(bytes),
+        bytes.byteLength,
+        resolveMeshTargetNames,
+      ),
+      loaded: await inspectLoadedFace(web, bytes),
+    };
+  } finally {
+    await web.close();
+  }
 }
 
 const megabytes = (bytes) => `${(bytes / 1e6).toFixed(2)} MB`;
@@ -229,9 +239,9 @@ export function formatReport(report) {
   );
   for (const mesh of report.meshes) {
     const warning =
-      mesh.morphNames === "primitives only"
-        ? " — three.js ignores these names"
-        : mesh.morphNames === "none"
+      mesh.morphNames === NAME_STORAGE.mismatched
+        ? " — the stored names disagree with each other or with the shapes, so they load unnamed"
+        : mesh.morphNames === NAME_STORAGE.unnamed
           ? " — unnamed"
           : "";
     lines.push(
