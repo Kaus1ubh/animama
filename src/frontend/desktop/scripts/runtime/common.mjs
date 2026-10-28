@@ -230,6 +230,36 @@ export function pnpmCommand(args, execpath = process.env.npm_execpath) {
     : ["pnpm", args];
 }
 
+/**
+ * Fail before the slow native and backend steps when the frontend install no
+ * longer matches its lockfile, as after pulling a main that changed packages.
+ * pnpm's own read-only status check compares the install with the lockfile,
+ * package manifests and pnpm settings.
+ */
+export function assertFrontendDependenciesCurrent(root = frontendRoot) {
+  const [command, args] = pnpmCommand(["exec", "node", "-e", ""]);
+  const result = spawnSync(command, args, {
+    cwd: root,
+    // pnpm sets this to false for commands its scripts run, and in a workspace
+    // that environment value overrides a command-line option.
+    env: {
+      ...process.env,
+      npm_config_verify_deps_before_run: "error",
+      pnpm_config_verify_deps_before_run: "error",
+    },
+    encoding: "utf8",
+  });
+  if (result.error) throw result.error;
+  if (result.status === 0) return;
+  const output = `${result.stdout ?? ""}${result.stderr ?? ""}`;
+  const reason =
+    output.match(/ERR_PNPM_\w+\s+(.+)/u)?.[1].trim() || output.trim();
+  throw new Error(
+    `Frontend dependencies in ${root} do not match pnpm-lock.yaml (${reason}). ` +
+      "Run `pnpm install --frozen-lockfile` there, then stage again.",
+  );
+}
+
 /** Each native target has its own pinned compiler inputs and minimum OS. */
 export function nativeLockFile(target) {
   return path.join(

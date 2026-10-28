@@ -1,6 +1,7 @@
 import { mkdirSync, rmSync } from "node:fs";
 import path from "node:path";
 import {
+  assertFrontendDependenciesCurrent,
   buildPython,
   cacheRoot,
   copyTree,
@@ -57,6 +58,7 @@ const logged = (name, command, argv, options = {}) => {
 };
 
 try {
+  assertFrontendDependenciesCurrent();
   syncBuildEnvironment();
   logged(
     "starter-content",
