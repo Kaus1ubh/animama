@@ -453,7 +453,7 @@ reported state):
 | `paused` | The last three automatic runs failed, counting back to the last completed automatic run, a processed owner-started batch or the last threshold change. Interrupted runs are skipped. |
 | `backing_off` | After a failure, until 1 hour (doubling per further failure, at most 24 hours) after it; or after 10 automatic runs today, until the owner's local midnight, with no `last_error`. |
 | `waiting` | Fewer notes are pending than the threshold. |
-| `ready` | A run starts. After a completed run the task checks again at once, so a backlog continues within the daily limit. |
+| `ready` | A run starts. After a completed run the task checks again at once, so a backlog continues within the daily limit. While an owner-started batch is still processing, for example waiting for an approval, the pass skips and the state stays `ready` until that batch ends. |
 
 The threshold is stored per owner in the local `episode_processing_settings` table
 (`threshold`: NULL or no row means the default of 10, 0 means Off, otherwise 5–50),

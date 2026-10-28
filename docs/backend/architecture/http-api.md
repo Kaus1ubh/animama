@@ -177,14 +177,14 @@ local server package, so any composition can return the same contract; the local
 router is a thin adapter. `runtime_kind` is presentation metadata (`desktop`,
 `self_hosted_web` or `hosted`), not an authentication mode or a feature gate;
 the local composition never reports `hosted`. Capability schema version 2 is
-exported in `local-http` contract version 20.0.0. `chat`, `model_selection` and
+exported in `local-http` contract version 21.0.0. `chat`, `model_selection` and
 `model_role_selection` admit chat and choices from the composition's catalog,
 independently of provider administration. The local adapter reports them true.
 `provider_credentials` and `local_filesystem_administration` describe owner key
 and host administration; the local adapter reports both true. `native_features`
 is true only for desktop; browser fullscreen/PiP use browser detection instead.
 See the [hosted composition handoff](../../../contracts/hosted-web.md) for its
-separate account authority, retained workflows and seven exceptions.
+separate account authority, retained workflows and eight exceptions.
 `chat_file_uploads` and
 `anima_creation` report whether the composition offers chat file uploads and
 Anima creation. The local composition always reports both `true`; React hides

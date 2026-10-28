@@ -814,6 +814,49 @@ its repairs, the full pre-push suite runs once on the final candidate as a heavy
 `src/frontend` `pnpm verify`, `pnpm web:test:browser` and `pnpm prettier:check`. Its
 results go in the PR.
 
+Before the review the branch merged `main` at `27aff591` (`617b49d8`); the one
+conflict was a comment in `alembic/env.py`, where `main` had landed the same logger fix,
+resolved to `main`'s wording. After the merge, ruff passes on `app/chat` and the 16 test
+files that import the chat context, instruction and executor modules pass (548).
+
+#### Final Review #1 Findings
+
+Independent review of `617b49d8` against `27aff591`, reusing the phase records (no
+reruns; it resolved all 18 new Markdown links). R1–R13 hold across phases, `main`'s chat
+changes integrate with Phase 1's sections, and Phase 5's records are accurate. Blocking:
+
+- FI-F1: `local-http`, `@animama/runtime-contracts` and `@animama/product-ui` kept their
+  versions although the OpenAPI schema (two routes, two schemas, a capability field) and
+  both packages' declarations changed. The package-set `compare` in full local
+  validation and hosted promotion would reject the set; the planned suite does not run
+  it. The "seven hosted exceptions" statements were also stale.
+
+Non-blocking: FI-N1 the status reports `ready` while an owner-started batch is still
+processing and every pass skips; FI-N2 the prompt-caching rows for the profile and
+recent notes omit the Responses chain miss, and "per owner" is not one of the listed
+classes; FI-N3 a threshold written outside the UI that is not a multiple of 5 would
+show an empty Select; FI-N4 Outcomes and Progress need updating after the suite.
+
+#### Final Review #1 Revisions
+
+- FI-F1 accepted, following `069c7673`: `local-http` 21.0.0, `runtime-contracts` 0.21.0,
+  `product-ui` 0.19.0 (its `./query` exports gain the new key), with the version
+  statements in `contracts/hosted-web.md` and `docs/backend/architecture/http-api.md`;
+  "eight hosted exceptions" in `contracts/README.md`, `http-api.md`, `routing.md` and
+  both capability tests, and the runtime-contracts test asserts the new capability is
+  false in the hosted fixture. Checks: runtime-contracts tests pass, product-ui builds,
+  `tests/test_runtime_capabilities.py` 29 passed, the inventory and validation-policy
+  tests 56 passed. The package-set `compare` itself was not run locally (it builds two
+  full package sets); its rule is the version check above.
+- FI-N1 accepted as documentation: the `ready` row of the state table says the pass
+  skips until the owner's batch ends. A separate state was not added; R7 allows the
+  skip.
+- FI-N2 accepted: both rows note the Responses chain miss, and the profile row is per
+  installation.
+- FI-N3 declined: the route accepts 5–50 but only this control writes it, and it offers
+  multiples of 5.
+- FI-N4 accepted: updated with the suite results.
+
 ## Validation and acceptance
 
 Each #775 acceptance criterion maps to:

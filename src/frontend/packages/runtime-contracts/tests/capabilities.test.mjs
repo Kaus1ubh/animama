@@ -13,7 +13,7 @@ const hosted = JSON.parse(
   ),
 );
 
-test("one generated capability contract retains model choices with all seven hosted exceptions", () => {
+test("one generated capability contract retains model choices with all eight hosted exceptions", () => {
   const capabilities = zRuntimeCapabilities.parse(hosted);
   assert.equal(capabilities.schema_version, 2);
   assert.equal(capabilities.chat, true);
@@ -26,6 +26,7 @@ test("one generated capability contract retains model choices with all seven hos
     "provider_credentials",
     "local_filesystem_administration",
     "native_features",
+    "automatic_episode_processing",
   ])
     assert.equal(capabilities[key], false, key);
   assert.equal(capabilities.user_file_processing.enabled, false);

@@ -369,7 +369,7 @@ def test_capability_contract_is_neutral_and_admits_hosted_presentation():
 
 
 def test_hosted_parity_contract_keeps_choices_independent_of_administration():
-    """The seven exceptions never imply loss of chat or operator-catalog choices."""
+    """The eight exceptions never imply loss of chat or operator-catalog choices."""
 
     import json
     from pathlib import Path
