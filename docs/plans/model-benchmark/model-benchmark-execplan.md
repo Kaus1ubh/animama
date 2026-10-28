@@ -4,7 +4,7 @@ Status: In progress. G1 passed on 2026-10-25 and G2 on 2026-10-26.
 Phases 1–9 are done and the final integration review passed; the full
 pre-push suite runs on the final candidate. G3 passed on 2026-10-26; the
 owner waived G4 and moved the judge to Claude Fable 5.1 the same day (D17).
-The first decision run's report, with the owner's recommendations, is
+The first decision run's report, with the owner's decisions (D18), is
 tracked at [`docs/benchmarks/2026-10-26-first-decision-run.md`](../../benchmarks/2026-10-26-first-decision-run.md).
 
 Source agreement: the spec, published as the body of
@@ -540,6 +540,27 @@ were rechecked on `18d2bebd`.
     table and the docstrings; `__all__` is sorted. Verified by the
     coordinator: 189 benchmark tests, `ruff check`, `ruff format --check`,
     `make mypy` and `mypy scripts/evals` pass.
+- **D18 (owner, 2026-10-27 and 2026-10-28). The owner's recommendations.**
+  After reading the report, the owner replaced the agent's recommendations
+  with their own decisions, which the tracked report now carries:
+  - Claude Haiku 5.5 and GPT-6 Luna are both first-class supported models,
+    with chat instructions tuned for each. The hosted web app launches on
+    Haiku 5.5 at the app's default chat effort, medium. The owner prefers
+    Luna's Gesture fit.
+  - Emotional intensity should follow Haiku's shape, a little flatter:
+    Strong on 10–15% of core turns and Intense on about 5%. This conflicts
+    with the prompt's default intensity and the expression rubric's
+    intensity guide, which need revising; a rubric revision starts a new
+    results series.
+  - Haiku's audio tags are good; Luna's need work.
+  - Memory keeps both `MEMORIES.md` and the remember tool (arm (c)), not
+    the remember tool alone. Remember notes reach curated memory only when
+    the owner runs the Memory Manager, so their processing should be
+    automated.
+  - The next run follows the instruction tuning and covers efforts low and
+    medium for both models, with the memory arms, after
+    [#739](https://github.com/raymond-van/animama/pull/739) improved memory
+    search and the prompt to search.
 
 ## Implementation orientation
 
@@ -3055,8 +3076,8 @@ visible built-in rows):
 | Calibration export | `calibrate export` on the retry run: 36 items. The owner then waived G4 (D17); `calibrate waive --effort medium` is recorded in the run |
 | Judging | `judge --effort medium` with Claude Fable 5.1 on the host: 19:45 to 20:37 UTC (52 minutes), 204 of 205 batches; `expression-0008` came back missing one item on all three attempts, and a rerun scored it. 205 batches scored, no missing items; served model `claude-fable-5-1`, CLI `2.1.310 (Claude Code)` |
 | Report | `report`, then `report --rerender`: written and byte-identical, before the owner's recommendations |
-| Recommendations | On 2026-10-27 the owner asked for the agent's recommendations and adopted them as written. They are kept as `recommendations.md` in the run |
-| Tracked report | `report --recommendations … --overwrite` in the run, then `--output docs/benchmarks/2026-10-26-first-decision-run.md`: written, and the safety check passed. `report --rerender` with the same file matches byte for byte, and the run's `report.md` is identical |
+| Recommendations | On 2026-10-27 the owner asked for the agent's recommendations and adopted them as written. On 2026-10-28 the owner replaced them with their own decisions (D18). They are kept as `recommendations.md` in the run |
+| Tracked report | `report --recommendations … --overwrite` in the run, then `--output docs/benchmarks/2026-10-26-first-decision-run.md`: written, and the safety check passed. `report --rerender` with the same file matches byte for byte, and the run's `report.md` is identical. Rendered again on 2026-10-28 with the D18 recommendations: only the Recommendations section changed, with the same checks |
 | Wall time | 70 minutes of contestant calls, 3.5 minutes of retry and 52 minutes of judging: about 2.1 hours against the 4-hour bound, with no calibration |
 
 The retry run is the run of record: calibration, judging and the report use
@@ -3068,12 +3089,18 @@ revision, and
 links the tracked report.
 
 Check record: the report and re-render steps above. The full pre-push suite
-runs on the final candidate.
+runs on the final candidate. On 2026-10-27, Auto-fix merged `main` with
+#739 into the branch as `0a0bc7cf`. Its one conflict, in
+`src/backend/animama/app/chat/memory_context.py`, kept #739's search
+guidance byte-identical in the shared memory guidance and gave the
+`MEMORIES.md`-only arm the same search paragraph. The full suite passed on
+it; the PR records the results.
 
 Commits: `2cd7cf7d` (`feat(evals)[p9]: retry units that failed on connection
 errors`), `f09aef59` (`docs(evals)[p9]: record the paid run and its retry`),
 `2436d279` (`feat(evals)[p9]: judge with Fable 5.1 and record the owner's G4
-waiver`) and `docs(evals)[p9]: record the first model benchmark`.
+waiver`), `docs(evals)[p9]: record the first model benchmark` and
+`docs(evals)[p9]: record the owner's recommendations`.
 
 #### Code Review #1 Findings
 
@@ -3309,13 +3336,14 @@ Delivered: the benchmark tooling, skill and documentation (Phases 1–8), and
 the first decision run (Phase 9) with its
 [tracked report](../../benchmarks/2026-10-26-first-decision-run.md).
 
-- **Default model.** The recommendations choose GPT-6 Luna at effort low.
-  - Its reply quality is not distinguishable from Claude Haiku 5.5's.
-  - Its expression ranks above Haiku's.
-  - It uses about 40% fewer input tokens per turn.
+- **Models.** Reply quality was not distinguishable between GPT-6 Luna and
+  Claude Haiku 5.5. Luna's expression ranked higher and it used about 40%
+  fewer input tokens per turn. The owner made both models first-class, with
+  Haiku 5.5 at medium as the hosted default (D18).
 - **Episodic memory.** Capture through the remember tool kept every
-  must-keep entry, while MEMORIES.md alone kept almost none. Recall is not
-  yet a design signal; see the 2026-10-27 discovery.
+  must-keep entry, while MEMORIES.md alone kept almost none. The owner keeps
+  both (D18). Recall is not yet a design signal; see the 2026-10-27
+  discovery.
 - **Budget and time.** The run used 1,814 calls and about $0.50 of the
   approved 4,600 calls and $6. It took about 2.1 hours against the 4-hour
   bound.
