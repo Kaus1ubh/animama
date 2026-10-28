@@ -359,3 +359,68 @@ async def test_session_backed_memory_episode_recorder_writes_row_and_daily_file(
     daily_file = file_result.scalar_one()
     assert daily_file.kind == MEMORY_EPISODE_LOG_ENTRY_KIND
     assert f"<!-- episode:{item.id} --> The user wants this turn remembered." in (daily_file.content or "")
+
+
+@pytest.mark.asyncio
+async def test_recent_items_for_anima_are_newest_first_and_skip_other_animas_chats_and_older_days(
+    async_session,
+    clean_memory_episode_rows,
+) -> None:
+    service = _episode_service(async_session)
+    repository = SQLAlchemyMemoryEpisodeRepository(async_session)
+    user_id = f"user-{uuid.uuid4()}"
+
+    async def capture(
+        text: str, *, day: int, hour: int, anima_id: str = "anima-1", chat_id: str | None = "chat-old"
+    ) -> str:
+        item = await service.create_episode_item(
+            user_id=user_id,
+            source_anima_id=anima_id,
+            source_chat_id=chat_id,
+            source_run_id=f"run-{uuid.uuid4()}",
+            text=text,
+            occurred_at=datetime(2026, 10, day, hour, tzinfo=UTC),
+            local_date=date(2026, 10, day),
+            local_timezone="UTC",
+        )
+        return item.id
+
+    too_old = await capture("Before the window.", day=14, hour=9)
+    oldest = await capture("First day of the window.", day=15, hour=9)
+    newest = await capture("Most recent note.", day=28, hour=11)
+    middle = await capture("Middle of the window.", day=20, hour=9)
+    chatless = await capture("A note without a source chat.", day=18, hour=9, chat_id=None)
+    await capture("Another Anima's note.", day=27, hour=9, anima_id="anima-2")
+    await capture("This chat's own note.", day=28, hour=12, chat_id="chat-now")
+    await service.mark_items_processed(user_id=user_id, item_ids=[middle], processed_by_run_id="mmr-1")
+
+    items = await repository.list_recent_items_for_anima(
+        user_id=user_id,
+        source_anima_id="anima-1",
+        exclude_chat_id="chat-now",
+        since_local_date=date(2026, 10, 15),
+        limit=20,
+    )
+
+    assert [item.id for item in items] == [newest, middle, chatless, oldest]
+    assert too_old not in [item.id for item in items]
+    assert [
+        item.id
+        for item in await repository.list_recent_items_for_anima(
+            user_id=user_id,
+            source_anima_id="anima-1",
+            exclude_chat_id="chat-now",
+            since_local_date=date(2026, 10, 15),
+            limit=2,
+        )
+    ] == [newest, middle]
+    assert (
+        await repository.list_recent_items_for_anima(
+            user_id=f"user-{uuid.uuid4()}",
+            source_anima_id="anima-1",
+            exclude_chat_id=None,
+            since_local_date=date(2026, 10, 1),
+            limit=20,
+        )
+        == []
+    )

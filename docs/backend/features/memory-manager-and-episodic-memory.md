@@ -1062,7 +1062,9 @@ Important recovery cases:
 
 Generated episode logs are intentionally omitted from the canonical
 `# List of memory files` used by both direct chat and the Memory Manager. This
-prevents prompt navigation from growing with every captured episode.
+prevents prompt navigation from growing with every captured episode. Direct chat
+instead includes a bounded set of the Anima's recent notes from other chats in its
+instructions (see [Memory](memory.md#current-direct-chat-boundary)).
 
 Episode logs remain searchable through default `search_memory_files` calls, and
 the Memory Manager can use search or an exact `memory_read_files` path to inspect

@@ -46,6 +46,23 @@ class MemoryEpisodeRepository(Protocol):
 
         raise NotImplementedError
 
+    async def list_recent_items_for_anima(
+        self,
+        *,
+        user_id: str,
+        source_anima_id: str,
+        exclude_chat_id: str | None,
+        since_local_date: date,
+        limit: int,
+    ) -> list[MemoryEpisodeItem]:
+        """List the owner's newest items from one Anima on or after a local date, newest first.
+
+        Pending and processed items both qualify; items from ``exclude_chat_id``
+        (the chat being answered, whose turns are already in its history) do not.
+        """
+
+        raise NotImplementedError
+
     async def update_items_status(
         self,
         *,

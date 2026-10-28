@@ -224,6 +224,29 @@ class SQLAlchemyMemoryEpisodeRepository(MemoryEpisodeRepository):
         result = await self._s.execute(stmt)
         return [self._row_to_domain(row._mapping) for row in result]
 
+    async def list_recent_items_for_anima(
+        self,
+        *,
+        user_id: str,
+        source_anima_id: str,
+        exclude_chat_id: str | None,
+        since_local_date: date,
+        limit: int,
+    ) -> list[MemoryEpisodeItem]:
+        stmt = select(*self._item_columns()).where(
+            ORMMemoryEpisodeItem.user_id == user_id,
+            ORMMemoryEpisodeItem.source_anima_id == source_anima_id,
+            ORMMemoryEpisodeItem.local_date >= since_local_date,
+        )
+        if exclude_chat_id is not None:
+            # A NULL source chat is never the current chat, so keep those items.
+            stmt = stmt.where(ORMMemoryEpisodeItem.source_chat_id.is_distinct_from(exclude_chat_id))
+        stmt = stmt.order_by(ORMMemoryEpisodeItem.occurred_at.desc(), ORMMemoryEpisodeItem.id.desc()).limit(
+            max(1, int(limit))
+        )
+        result = await self._s.execute(stmt)
+        return [self._row_to_domain(row._mapping) for row in result]
+
     async def update_items_status(
         self,
         *,

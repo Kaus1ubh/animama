@@ -4837,3 +4837,76 @@ async def test_chat_sse_gemini_tts_provider_failure_ends_speech_but_not_the_repl
     ]
     assert _event_count(chunks, "tts.done") == 0
     assert _event_count(chunks, "run.completed") == 1
+
+
+@pytest.mark.asyncio
+async def test_chat_sse_instructions_carry_the_profile_and_this_animas_notes_from_other_chats(
+    monkeypatch,
+    async_session,
+    async_session_factory,
+) -> None:
+    from animama.adapters.repositories.sqlalchemy.memory_entry_repo import SQLAlchemyMemoryEntryRepository
+    from animama.adapters.repositories.sqlalchemy.memory_episode_repo import SQLAlchemyMemoryEpisodeRepository
+    from animama.adapters.repositories.sqlalchemy.uow import SQLAlchemyUnitOfWork
+    from animama.app.services.memory_entry_service import MemoryEntryService
+    from animama.app.services.memory_episode_service import MemoryEpisodeService
+
+    # A dedicated owner keeps this profile and these notes out of other tests' chats.
+    owner_id = "user-db-recent-notes"
+    anima_id = "anima-db-recent-notes"
+    chat_id = "chat-db-recent-notes"
+    async_session.add(ORMAnima(id=anima_id, user_id=owner_id))
+    await async_session.commit()
+    await _seed_anima_identity_file(async_session, anima_id=anima_id, user_id=owner_id)
+    await _seed_default_chat_model_provider(async_session)
+    memory_entries = MemoryEntryService(
+        memory_entries=SQLAlchemyMemoryEntryRepository(async_session), uow=SQLAlchemyUnitOfWork(async_session)
+    )
+    await memory_entries.put_file_by_path(
+        user_id=owner_id, path="PROFILE.md", content="# About me\n\nPreferred name: Sam", kind="user_profile"
+    )
+    episodes = MemoryEpisodeService(
+        memory_episodes=SQLAlchemyMemoryEpisodeRepository(async_session),
+        memory_entries=memory_entries,
+        uow=SQLAlchemyUnitOfWork(async_session),
+    )
+    now = datetime.now(UTC)
+    for text, source_anima_id, source_chat_id in (
+        ("Sam adopted a cat named Pickle.", anima_id, "chat-earlier"),
+        ("Sam told another Anima a secret.", "anima-db-recent-notes-other", "chat-other"),
+        ("This chat's own earlier note.", anima_id, chat_id),
+    ):
+        await episodes.create_episode_item(
+            user_id=owner_id,
+            source_anima_id=source_anima_id,
+            source_chat_id=source_chat_id,
+            source_run_id=f"run-{source_chat_id}-{len(text)}",
+            text=text,
+            occurred_at=now,
+            local_date=now.date(),
+            local_timezone="UTC",
+        )
+    model_client = _RouteModelClient(
+        finals=[
+            ModelClientFinal(
+                text=_direct_structured_response(speech="Hi Sam, how is Pickle?"),
+                usage=Usage(requests=1, input_tokens=7, output_tokens=3, total_tokens=10),
+            )
+        ]
+    )
+    _install_db_route_mocks(monkeypatch, async_session_factory, model_client=model_client)
+
+    response = await chat_anima_direct_sse(
+        anima_id,
+        _chat_request(message="Hello again", run_id="run-db-recent-notes", chat_id=chat_id),
+        request=_test_request(),
+        user=RequestPrincipal(id=owner_id),
+    )
+    chunks = await _collect_chunks(response)
+
+    assert not any("event: error" in chunk for chunk in chunks)
+    system = _text(model_client.seen_specs[0].prompt.messages[0]["content"])
+    assert "# User Profile" in system and "Preferred name: Sam" in system
+    assert f"- {now.date().isoformat()}: Sam adopted a cat named Pickle." in system
+    assert "another Anima a secret" not in system
+    assert "This chat's own earlier note." not in system

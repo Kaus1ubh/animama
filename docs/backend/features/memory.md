@@ -28,6 +28,29 @@ invocation:
 - anima memories: cached path `MEMORIES.md`, only when memory influence is
   enabled
 
+With memory influence enabled it also reads two kinds of user-scope memory for
+the same system message:
+
+- the user profile: `PROFILE.md`, as `# User Profile` after the Anima memories.
+  Content up to 16 KiB is included whole; a longer file contributes its start, cut
+  at a line boundary, and a line saying the rest can be read with
+  `memory_read_files`. A missing, blank or unreadable file is omitted without
+  failing the turn and is fingerprinted like `MEMORIES.md`. The file still
+  appears in the memory file list.
+- recent notes: this Anima's newest `remember` notes (episode items whose
+  `source_anima_id` is the Anima), as `# Recent Notes` after the profile. They
+  come from other chats only, pending or processed, at most 20 notes and 3,000
+  characters of note text from the last 14 local days in the owner's
+  `preferences.timezone`, counted in whole days. Selection runs newest first and
+  stops before the first note that would pass the character budget; the section
+  lists the result oldest first with each note's local date. Other Animas' notes
+  stay out of the instructions and remain reachable through `search_memory_files`.
+  The chat manifest records the included item IDs as `episode_note_ids`.
+
+Note text never changes after capture and processing status is not shown, so
+within one chat the notes section changes only when another chat with the same
+Anima saves a note or a day boundary moves the window.
+
 The required anima identity is treated as anima configuration, not optional
 memory influence. If the identity entry is missing or blank, chat setup fails
 before the upstream model is called and requires explicit owner repair. There
@@ -66,7 +89,7 @@ capture.
 The runtime boundary uses one `DirectChatPrompt`. The prompt
 is ordered for prompt-cache locality: one system message containing the stable
 core companion instruction (which names no Anima), the anima identity opened by
-its display name, anima memories when included, stable memory guidance,
+its display name, anima memories, the user profile and recent notes when included, stable memory guidance,
 structured-output guidance and, last, the [Companion Guardrails](../../adr/0008-non-overridable-companion-guardrail.md);
 then compaction summary, visible chat history, a request-local trailing
 `developer` message when the turn has context, and the current user message.
@@ -134,8 +157,10 @@ turns, for blank/null `remember`, and when memory updates are disabled. Capture
 failures are logged and do not turn an otherwise successful chat response into
 an SSE error.
 
-Episode logs are excluded from the prompt's `# List of memory files`, but
-`search_memory_files` includes their content by default. Callers can set
+Episode logs are excluded from the prompt's `# List of memory files`, and only
+the Anima's recent notes from other chats enter its instructions (see
+[Current Direct Chat Boundary](#current-direct-chat-boundary)). `search_memory_files`
+includes the whole log by default. Callers can set
 `include_episodic_memory=false` to search curated user memory only. Generated
 episode files and their `episodes/**` parent directories are read-only to
 public memory APIs and ordinary chat memory write tools. Internal episode
@@ -753,9 +778,10 @@ treated sections, each with a hint line. Optional first-run display-name
 completion writes a bootstrap-managed `Preferred name:` line in the same backend
 transaction: it replaces an existing line, otherwise goes under a Basics heading,
 the first heading or the top, so it does not depend on the template's wording.
-Any other edit to the file stops later personalization from overwriting it. The profile file is durable memory data, but direct chat does not inject its
-content into prompt context yet. Its path and description can appear in the
-transient memory file list while memory influence is enabled.
+Any other edit to the file stops later personalization from overwriting it. While memory influence is enabled, direct chat
+includes the profile's content in its instructions (see
+[Current Direct Chat Boundary](#current-direct-chat-boundary)), and its path and
+description appear in the memory file list.
 
 The current direct-chat path feeds the selected anima identity and memories
 entries into prompt context and exposes the scoped AI tools above. The frontend

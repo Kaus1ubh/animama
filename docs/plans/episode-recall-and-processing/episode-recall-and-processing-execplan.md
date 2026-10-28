@@ -3,10 +3,14 @@
 Source agreement: [#775](https://github.com/raymond-van/animama/issues/775), agreed by
 the owner on 2026-10-28 and updated the same day with R13; snapshot
 `episode-recall-and-processing-spec.md` captured 2026-10-28T18:03:01Z from revision
-`12b0a9b6`. Requirement IDs R1–R13 refer to the issue.
-Authorized scope: none yet. This plan awaits owner review (gate G1); implementation
-starts only after the owner authorizes a phase range.
-Planning baseline: `da23aaaa` (`main`, after #735).
+`aef6dcf7`. Requirement IDs R1–R13 refer to the issue.
+Authorized scope: Phases 1–5 and the final integration review, authorized by the
+owner on 2026-10-28 (G1). Pushes wait for the owner's word.
+Planning baseline: `da23aaaa` (`main`, after #735); implementation baseline
+`bddaa75c` (`main`, after #777), onto which the planning commits were rebased.
+Workspace: worktree `festive-lovelace-39dad3`, branch
+`feat/episode-recall-and-processing`, no Compose stack yet; backend environment
+`uv sync` on Python 3.12.13 with LFS content pulled.
 
 ## Purpose and context
 
@@ -68,8 +72,8 @@ Boundaries:
 
 ## Progress
 
-- [ ] G1: owner review and authorization of this plan.
-- [ ] Phase 1: recall context (R1–R4).
+- [x] G1: owner review and authorization of this plan (2026-10-28, Phases 1–5).
+- [x] Phase 1: recall context (R1–R4). Review passed after two repair rounds; see the phase record.
 - [ ] Phase 2: automatic-run semantics in the Memory Manager service (R6, R7, R10).
 - [ ] Phase 3: local trigger, setting, status and capability (R5, R8, R9, R11 backend).
 - [ ] Phase 4: settings control, chat progress line and version label (R10, R11
@@ -211,15 +215,88 @@ Checks (record each with tree): `uv run pytest -q` on the files above plus
 
 Completion: tests and checks pass, review passes, docs updated, phase commit recorded.
 
-Check record: none yet.
+Check record (repository root; trees are working trees computed with a temporary
+index over HEAD `b3275da6`):
+
+- `uv run --no-sync pytest -q tests/test_memory_file_context.py tests/test_turn_instruction_layout.py tests/test_memory_episodes.py`:
+  failed at collection before the implementation (red), then 66 passed.
+- `uv run --no-sync pytest -q -n 2` over the wider chat and memory files (transport,
+  materializer, memory file tools, guardrail, benchmark core, executor, Anthropic chat,
+  memory arm, chat SSE, golden SSE, speech tags, Memory Manager): 494 passed, 4 failed.
+  Two test fakes lacked the new repositories and one test pinned the old guidance
+  wording; after fixing them, 75 passed on the two affected files.
+- `ruff check`, `ruff format` and `mypy` on the touched files: pass.
+- `python3 scripts/heavy-slot.py -- make check-test` at tree `f67c7fda`: typed-content
+  audit, format check, lint and mypy (885 files) pass; pytest 5157 passed, 29 skipped,
+  2 failed. The new end-to-end test failed because the shared test owner already had a
+  `PROFILE.md` (fixed below). `tests/test_model_assets.py::test_an_interrupted_http_body_logs_its_cause_and_resumes_with_a_range`
+  failed on an empty log capture; it passes alone and with its file, and this phase
+  does not touch it.
+- At tree `83650940`: `pytest -n 2 tests/test_anima_chat_sse.py tests/test_model_assets.py tests/test_memory_files.py`: 236 passed.
+- At tree `e36b7667` (review #1 repairs): `pytest -n 2` over the context, episode, chat
+  SSE, memory tools, layout and Anthropic files: 270 passed; the end-to-end test alone
+  passed; ruff and mypy on the touched files pass.
+- At tree `05f01af3` (review #2 repairs): `pytest -q tests/test_anima_chat_sse.py`:
+  117 passed; ruff on the file passes.
+
+Results: R1–R4 behave as specified. The profile and notes are read only while memory
+influence is on, filtered by owner, Anima and chat; the system text is deterministic
+within a chat. No shared protocol gained a required member and no schema changed.
 
 #### Code Review #1 Findings
 
-Not started.
+Independent analysis (sdlc-reviewer) of tree `83650940`, high-risk tier, with a separate
+checks agent that reran 14 affected test files (536 passed), `ruff check` over backend,
+tests and evals, `mypy` (885 files) and the import-boundary check (0 forbidden edges),
+all passing. No blocking findings. Non-blocking:
+
+- P1-F1: a profile line ending exactly at the 16 KiB bound was dropped; a file without
+  a line break in its first 16 KiB is cut mid-line.
+- P1-F2: the prompt-caching row said "per installation" for the profile, which is per
+  owner in hosted; its automatic-processing clause depends on Phases 2–3.
+- P1-F3: the Anthropic instructions docstring called notes owner-written and named
+  the tags incompletely.
+- P1-F4: "read it only to edit it" could contradict the cut-profile notice.
+- P1-F5: the end-to-end test left the shared owner's profile and notes changed.
+- P1-F6: no real-SQL case for a note without a source chat; no two-turn DB test.
+- P1-F7: `memory_episodes` defaults to `None`, which silently turns notes off.
 
 #### Code Review #1 Revisions
 
-Not started.
+- P1-F1 accepted: the head is kept whole when the byte after the bound is a newline;
+  the mid-line cut is documented in a comment. Test
+  `test_a_profile_line_ending_exactly_at_the_bound_is_kept`.
+- P1-F2 accepted in part: "per owner"; the clause stays because Phases 2–3 land in
+  the same PR (the final review confirms it).
+- P1-F3 and P1-F4 accepted: docstring rewritten; guidance now says "read it only to
+  edit it or, when it is cut, to see the rest", with its test updated.
+- P1-F5 accepted: first restored in a cleanup block, then (review #2) replaced by a
+  dedicated owner.
+- P1-F6 accepted in part: the repository test adds a note without a source chat; the
+  two-turn test is declined as covered by the layout, fake-repository and SQL tests.
+- P1-F7 rejected: tests and other constructors build the service without episodes;
+  production `turn_setup` and the benchmark runner pass them, and the profile version
+  is in the manifest fingerprint.
+
+#### Code Review #2 Findings
+
+Targeted recheck of tree `e36b7667`, with an independent rerun (311 passed, 3 passed
+alone, ruff pass). Repairs confirmed. Non-blocking:
+
+- P2-N1: the cleanup's daily-file refresh does nothing when no rows remain, leaving a
+  stale episode file.
+- P2-N2: the cleanup restored the profile without its description and bootstrap metadata.
+
+#### Code Review #2 Revisions
+
+- P2-N1 and P2-N2 accepted: the end-to-end test now uses its own owner
+  (`user-db-recent-notes`) for every row and the principal, and the cleanup is removed.
+
+#### Code Review #3 Findings
+
+Final targeted recheck of tree `05f01af3`, rerunning `tests/test_anima_chat_sse.py`
+(117 passed) and the end-to-end test alone (passed). Both repairs confirmed; no
+regressions and no new findings. Result: pass. Repair budget used: 2 of 2.
 
 ### Phase 2: Automatic-run semantics in the Memory Manager service (R6, R7, R10)
 

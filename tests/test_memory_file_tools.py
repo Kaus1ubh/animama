@@ -243,7 +243,9 @@ def test_write_tools_carry_the_description_maintenance_rule(name: str) -> None:
 
 def test_memory_guidance_prompts_searching_past_chats_before_answering_from_memory() -> None:
     assert "Notes from past chats with this user are logged there" in MEMORY_SYSTEM_GUIDANCE
-    assert f"`{MEMORY_TOOL_SEARCH_MEMORY_FILES}` searches that log" in MEMORY_SYSTEM_GUIDANCE
+    assert f"`{MEMORY_TOOL_SEARCH_MEMORY_FILES}` searches the whole log" in MEMORY_SYSTEM_GUIDANCE
+    assert "your most recent ones from other chats appear under Recent Notes" in MEMORY_SYSTEM_GUIDANCE
+    assert "appears under User Profile, so read it only to edit it or, when it is cut," in MEMORY_SYSTEM_GUIDANCE
     assert "search or read memory before you answer a question about the user's news, plans, projects" in (
         MEMORY_SYSTEM_GUIDANCE
     )

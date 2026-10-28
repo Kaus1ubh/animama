@@ -100,10 +100,12 @@ composition loads its owned settings before calling this shared policy.
 Direct chat always
 opens the anima identity file because it is anima configuration. With memory
 influence enabled it also opens the Anima's `MEMORIES.md` and places it as
-`# Anima Memories` directly after `# Anima Identity`; a missing, blank or
-unreadable file is omitted without failing the turn. When
+`# Anima Memories` directly after `# Anima Identity`, then the owner's
+`PROFILE.md` as `# User Profile` and this Anima's recent `remember` notes from
+other chats as `# Recent Notes` (see [Memory](../features/memory.md#current-direct-chat-boundary)).
+A missing, blank or unreadable file is omitted without failing the turn. When
 `disable_memory_influence` is true, direct chat still keeps anima identity
-active; `MEMORIES.md` and the memory file list are omitted.
+active; `MEMORIES.md`, the profile, the notes and the memory file list are omitted.
 The turn context, placed just before the user message, holds the memory file list
 and the attached-file list; a turn with neither sends none. The
 [Companion Guardrails](../../adr/0008-non-overridable-companion-guardrail.md)
@@ -159,7 +161,8 @@ catalog, including owner-added rows and model connections, is described in
    validates chat ownership, model capabilities, and chat API-standard
    compatibility before opening SSE. It also resolves
    [companion safety](#companion-safety), which never blocks the turn.
-2. The executor loads required `IDENTITY.md`, optional `MEMORIES.md`, current
+2. The executor loads required `IDENTITY.md`, optional `MEMORIES.md` and
+   `PROFILE.md`, recent episode notes, current
    memory/attachment navigation, and local history when the provider needs
    replay. It assembles
    the prompt, ending with the Companion Guardrails, and closes the setup
