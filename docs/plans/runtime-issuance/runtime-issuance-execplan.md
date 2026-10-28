@@ -77,7 +77,8 @@ writes a cProfile of the reissues.
   of Phases 3–4 passed after one repair round; full suite passed).
 - [x] Final integration review (passed after one repair round) and full pre-push
   suite on `c9d13c2b`.
-- [ ] PR and owner review (ADR 0028 amendment, exact-head merge approval).
+- [x] PR #774; the owner accepted the ADR 0028 trade-off and approved the merge
+  (2026-10-28).
 
 ## Surprises & Discoveries
 
@@ -122,7 +123,7 @@ writes a cProfile of the reissues.
   reaches the server still verifies size and SHA-256 and marks changed files for
   Rescan, after which the catalog differs and the next issue recompiles. A compile
   that finds changed files stores no inputs digest.
-- 2026-10-28 (agent; owner review pending in the PR): ADR 0028 argued that
+- 2026-10-28 (agent; accepted by the owner on 2026-10-28): ADR 0028 argued that
   issuance rehashes every member on each mount, which justified year-long
   immutable caching of runtime members. With reuse, a disk change the watcher
   misses goes unnoticed on cache hits until the catalog or build changes, a read
@@ -632,7 +633,7 @@ visible-catalog listing (the subject of #761), the inputs digest, decoding the
 stored catalog and building the 2 MB response (overlay, validation, gzip).
 
 Remaining limitations: a reused snapshot is not rehashed at issuance (ADR 0028
-amendment, owner review pending); a composition whose read sessions lag its
+amendment, accepted by the owner); a composition whose read sessions lag its
 primary sees refusals or conflicts rather than wrong snapshots; development
 databases need a reset. Follow-ups: chat turn setup still loads a snapshot's whole
 catalog; a cheap catalog version from #761 could let a reuse skip the listing; the

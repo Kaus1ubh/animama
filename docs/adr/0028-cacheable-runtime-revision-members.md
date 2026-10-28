@@ -9,7 +9,8 @@
   without hashing its members again, as
   [#699](https://github.com/raymond-van/animama/issues/699) proposes, so the drift
   consequence below now depends on reads that reach the server. The cache policy is
-  unchanged. Owner review of this consequence is pending in the delivering PR.
+  unchanged. The owner accepted this consequence on 2026-10-28
+  ([PR #774](https://github.com/raymond-van/animama/pull/774)).
 
 ## Context
 
