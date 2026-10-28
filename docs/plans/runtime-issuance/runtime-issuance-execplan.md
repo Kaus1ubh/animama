@@ -70,11 +70,11 @@ writes a cProfile of the reissues.
 - [x] Investigation and baseline (2026-10-28), recorded below.
 - [x] Phase 1: one verification call per compile and cached Idle playback facts
   (standard review passed after one trivial repair).
-- [x] Phase 2: bundle reads load only their own members (high-risk review round 1
-  repaired; recheck pending).
+- [x] Phase 2: bundle reads load only their own members (high-risk review passed
+  after one repair round).
 - [x] Phase 3: compile outside the write transaction (reviewed with Phase 4).
-- [x] Phase 4: reissue an unchanged snapshot without recompiling (round 1 repaired;
-  recheck and full suite pending).
+- [x] Phase 4: reissue an unchanged snapshot without recompiling (high-risk review
+  of Phases 3–4 passed after one repair round; full suite passed).
 - [ ] Final integration review, full pre-push suite and PR.
 
 ## Surprises & Discoveries
@@ -457,6 +457,25 @@ passes the recheck; a lagging read session yields refusals, never wrong pins; th
 - Verification (working tree `5d496fab`): the runtime test set, 320 passed; ruff,
   format check and full mypy pass. Repair rounds used: 1 of 2; the recheck is
   Code Review #2.
+
+#### Code Review #2 (repair recheck, Phase 2 and Phases 3–4)
+
+High-risk recheck of `a8dc89d9` and `b911410b` on `b911410b` (tree `bf1777c5`),
+with its own reruns: the 19-file runtime test set, 320 passed; the chat turn and
+SSE files that read real snapshots through `get_snapshot`, 162 passed (added
+because P2-F5 changes that read); ruff and the full mypy run pass; the
+build-identity tests run first and in the middle of other issuance tests leave the
+cached identity equal to a fresh one; the round-1 `_backend_build` fails both new
+tests' scenarios and the repaired one passes them. Every round-1 finding is
+fixed; no regression. Notes: a renewed identical snapshot's stored bundle lists
+are replaced rather than merged, which differs only for a build that changes the
+selection and reissues the same revision (acceptable); the route's `_issue`
+docstring omitted the expired-reuse retry, fixed as a trivial repair. Result: both
+scopes pass, 1 of 2 repair rounds used.
+
+Full pre-push suite on `752c37b6` (tree `0843e144`), through `scripts/heavy-slot.py
+-- make check-test` in a detached validation checkout: typed-content audit, format
+check, ruff and mypy pass; pytest 4956 passed, 29 skipped.
 
 ## Final integration review
 

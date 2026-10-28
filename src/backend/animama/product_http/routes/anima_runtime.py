@@ -35,7 +35,8 @@ async def _issue(ports: ProductPorts, user: RequestPrincipal, anima_id: str) -> 
     """Compile on a read session, then fence and write on a separate, short write session.
 
     A composition that serializes an owner's writes holds that lock only for the
-    commit. A loadout that changes in between is prepared again.
+    commit. A loadout that changes in between, or a reused snapshot that expires,
+    is prepared again.
     """
 
     for _attempt in range(ISSUE_ATTEMPTS):
