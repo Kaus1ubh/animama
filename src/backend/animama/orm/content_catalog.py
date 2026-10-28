@@ -98,6 +98,8 @@ class ORMContentCatalogItem(SqlalchemyBase):
     created_at: Mapped[datetime] = mapped_column(
         TIMESTAMP(timezone=True), nullable=False, server_default=sa_text("CURRENT_TIMESTAMP")
     )
+    # The content catalog's validator digests each row's ``updated_at``, so every
+    # write must set it: SQLAlchemy's ``onupdate`` does, but raw SQL does not.
     updated_at: Mapped[datetime] = mapped_column(
         TIMESTAMP(timezone=True),
         nullable=False,

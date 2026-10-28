@@ -5,7 +5,8 @@ from __future__ import annotations
 import asyncio
 import gzip
 import hashlib
-from collections.abc import Iterator
+from collections.abc import Awaitable, Callable, Iterator
+from dataclasses import dataclass
 from urllib.parse import quote
 
 from fastapi import HTTPException, Request, Response
@@ -71,8 +72,21 @@ def verified_file_response(file: VerifiedContentFile, *, if_none_match: str | No
     return StreamingResponse(stream_verified_file(file), media_type=file.media_type, headers=headers)
 
 
+@dataclass(frozen=True, slots=True)
+class DeferredJsonBody:
+    """JSON whose validator is known before its bytes are built.
+
+    ``validator`` is a hex digest that changes whenever the content ``build``
+    serializes changes. A client that already holds it then costs a 304 without the
+    body being built, compressed or hashed.
+    """
+
+    validator: str
+    build: Callable[[], Awaitable[bytes]]
+
+
 async def encoded_json_response(
-    body: bytes,
+    body: bytes | DeferredJsonBody,
     *,
     encoding: str,
     headers: dict[str, str],
@@ -82,10 +96,11 @@ async def encoded_json_response(
     """Encode bounded JSON with wire validators; callers establish authorization first.
 
     ``encoding`` is the negotiated ``gzip`` or ``identity``. A cacheable body is
-    private and revalidated by ETag; any other is never stored.
+    private and revalidated by ETag; any other is never stored. A deferred body's
+    ETag comes from its validator, so a matching ``If-None-Match`` is answered
+    before the body is built; any other body's ETag is the digest of its encoded bytes.
     """
     if encoding == "gzip":
-        body = await asyncio.to_thread(gzip.compress, body, compresslevel=6, mtime=0)
         headers["content-encoding"] = "gzip"
     vary = [value.strip() for value in headers.get("vary", "").split(",") if value.strip()]
     if not any(value.lower() in {"accept-encoding", "*"} for value in vary):
@@ -94,16 +109,24 @@ async def encoded_json_response(
         {
             "vary": ", ".join(vary),
             "cache-control": "private, no-cache" if cacheable else "no-store",
-            "etag": f'"{hashlib.sha256(body).hexdigest()}"',
-            "content-length": str(len(body)),
+            "x-content-type-options": "nosniff",
         }
     )
-    headers["x-content-type-options"] = "nosniff"
-    if cacheable and if_none_match == headers["etag"]:
-        headers.pop("content-length")
-        return Response(status_code=304, headers=headers)
-    if not cacheable:
-        headers.pop("etag")
+    etag = None
+    if isinstance(body, DeferredJsonBody):
+        # Each content coding is its own representation, so it has its own strong
+        # validator (RFC 9110 8.8.3).
+        etag = f'"{body.validator}-{encoding}"'
+        if cacheable and if_none_match == etag:
+            return Response(status_code=304, headers={**headers, "etag": etag})
+        body = await body.build()
+    if encoding == "gzip":
+        body = await asyncio.to_thread(gzip.compress, body, compresslevel=6, mtime=0)
+    if cacheable:
+        headers["etag"] = etag or f'"{hashlib.sha256(body).hexdigest()}"'
+        if if_none_match == headers["etag"]:
+            return Response(status_code=304, headers=headers)
+    headers["content-length"] = str(len(body))
     return Response(body, media_type="application/json", headers=headers)
 
 
@@ -160,4 +183,10 @@ class PackageDownloadResponse(StreamingResponse):
             self._release()
 
 
-__all__ = ["PackageDownloadResponse", "encoded_json_response", "stream_verified_file", "verified_file_response"]
+__all__ = [
+    "DeferredJsonBody",
+    "PackageDownloadResponse",
+    "encoded_json_response",
+    "stream_verified_file",
+    "verified_file_response",
+]
