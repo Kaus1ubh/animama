@@ -31,6 +31,12 @@ pnpm desktop:runtime:audit -- --platform darwin --arch arm64
 pnpm desktop:test -- runtime-packaging
 ```
 
+Staging first checks that `src/frontend/node_modules` matches `pnpm-lock.yaml`
+and stops before any build step if it does not, for example after pulling a
+main that changed packages. Run `pnpm install --frozen-lockfile` in
+`src/frontend`, then stage again. When a later step fails, its full output is in
+that step's log under `desktop/.desktop-runtime/<target>/`.
+
 Staging installs its pinned Python interpreter under
 `/Users/Shared/animama-build/uv-python`, not in your home directory, because
 the frozen backend records the interpreter's install paths. The native
@@ -39,6 +45,10 @@ location needs to exist on the user's Mac. Staging refuses to run if
 `/Users/Shared/animama-build` or its `uv-python` directory is owned by another
 account or writable by others; remove or fix that directory rather than
 bypassing the check.
+
+Downloaded Python packages are cached in `~/Library/Caches/Animama/uv-cache`;
+set `UV_CACHE_DIR` to use another directory. Avoid `/private/tmp`: macOS deletes
+files from old entries there, and uv then fails with a missing `dist-info` file.
 
 The strict target parser rejects cross-builds and unsupported combinations before
 deleting outputs or downloading dependencies. For Windows, see

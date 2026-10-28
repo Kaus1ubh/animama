@@ -12,10 +12,10 @@ from copy import deepcopy
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path, PurePosixPath
-from typing import Any
+from typing import Any, cast
 
-from sqlalchemy import case, delete, or_, select, text, update
-from sqlalchemy.dialects.postgresql import insert
+from sqlalchemy import ColumnElement, case, delete, func, literal, or_, select, text, update
+from sqlalchemy.dialects.postgresql import aggregate_order_by, insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from animama.adapters.repositories.sqlalchemy.feature_pack_removal_repo import included_source_blockers
@@ -62,6 +62,12 @@ _MUTATION_TRANSACTION_KEY = "animama.content_mutation_transaction"
 # it unset: its Included rows can be retired by a rescan, so every row read for a
 # write is locked.
 SHARED_CATALOG_ROWS_IMMUTABLE = "animama.shared_catalog_rows_immutable"
+# Included removals are application-version history, not a user-repairable library
+# problem. Their tombstones stay for identity and reconciliation but are never listed.
+_LISTED = or_(
+    ORMContentCatalogItem.source != ContentSource.INCLUDED.value,
+    ORMContentCatalogItem.status != ContentStatus.MISSING.value,
+)
 
 
 @dataclass(slots=True)
@@ -842,18 +848,52 @@ class SQLAlchemyContentCatalog(ContentCatalog):
                     ),
                     ORMContentCatalogItem.owner_user_id == user_id,
                 ),
-                # Included removals are application-version history, not a
-                # user-repairable library problem. Keep their tombstones for
-                # identity/reconciliation without exposing false health issues.
-                or_(
-                    ORMContentCatalogItem.source != ContentSource.INCLUDED.value,
-                    ORMContentCatalogItem.status != ContentStatus.MISSING.value,
-                ),
+                _LISTED,
             )
             .order_by(ORMContentCatalogItem.kind, ORMContentCatalogItem.display_name)
             .execution_options(populate_existing=True)
         )
         return await self._load_entries(list(result.scalars()))
+
+    async def included_generation(self) -> str:
+        """Name the current state of the listed Included rows, which every owner sees.
+
+        It changes with any change to those rows: a reconciliation, a pack's drift
+        or its withdrawal. It changes with a release only because a release's first
+        start reconciles every source, as the local composition's start-up does. A
+        composition that does not reconcile at start must override this with a value
+        that changes with every application revision, such as that revision.
+        """
+
+        return await self._rows_revision(ORMContentCatalogItem.scope == ContentScope.INCLUDED.value)
+
+    async def owned_and_shared_revision(self, *, user_id: str) -> str:
+        """Name the current state of the other listed rows ``user_id`` sees: its own and installation-shared ones.
+
+        A release that projects these rows differently changes the Included
+        generation, which every catalog validator also names.
+        """
+
+        return await self._rows_revision(
+            or_(
+                ORMContentCatalogItem.scope == ContentScope.INSTALLATION_SHARED.value,
+                ORMContentCatalogItem.owner_user_id == user_id,
+            )
+        )
+
+    async def _rows_revision(self, rows: ColumnElement[bool]) -> str:
+        """Digest the listed ``rows``' identities and last changes inside the database.
+
+        ``updated_at`` also versions a row's files and dependency edges: only
+        reconciliation writes those, and it rewrites their row with them.
+        """
+
+        item = ORMContentCatalogItem
+        changes = func.string_agg(func.concat(item.id, " ", item.updated_at), aggregate_order_by(literal(","), item.id))
+        digest = func.sha256(func.convert_to(func.coalesce(changes, ""), literal("UTF8")))
+        # An aggregate always returns its one row; no rows digest the empty string.
+        value = await self._session.scalar(select(digest).where(rows, _LISTED))
+        return cast(bytes, value).hex()
 
     async def get_visible_item(
         self, *, item_id: str, user_id: str, for_update: bool = False

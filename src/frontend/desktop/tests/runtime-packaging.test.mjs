@@ -22,8 +22,10 @@ import {
   inventoryTree,
 } from "../scripts/runtime/inventory.mjs";
 import {
+  assertFrontendDependenciesCurrent,
   desktopRoot,
   parseTarget,
+  pnpmCommand,
   removeFinderMetadata,
   sha256,
 } from "../scripts/runtime/common.mjs";
@@ -79,6 +81,7 @@ import { renderRedistributionReview } from "../scripts/runtime/review-packet.mjs
 const roots = [];
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.unstubAllEnvs();
   for (const root of roots.splice(0))
     rmSync(root, { recursive: true, force: true });
 });
@@ -1803,6 +1806,33 @@ Load command 4
       expect(() =>
         assertBundledImports({ inputs: { [name]: {} }, outputs: {} }),
       ).toThrow("Hono");
+  });
+  it("stops staging when the frontend install does not match its lockfile", () => {
+    // pnpm disables the check for commands its scripts run, as when
+    // `pnpm desktop:mac:build` starts the stage.
+    vi.stubEnv("pnpm_config_verify_deps_before_run", "false");
+    const root = fixture();
+    const manifest = (dependencies) =>
+      writeFileSync(
+        path.join(root, "package.json"),
+        JSON.stringify({ name: "probe", private: true, dependencies }),
+      );
+    writeFileSync(
+      path.join(root, "pnpm-workspace.yaml"),
+      'packages:\n  - "."\n',
+    );
+    manifest({});
+    expect(() => assertFrontendDependenciesCurrent(root)).toThrow(
+      "pnpm install --frozen-lockfile",
+    );
+    const [command, args] = pnpmCommand(["install", "--offline"]);
+    expect(spawnSync(command, args, { cwd: root }).status).toBe(0);
+    expect(() => assertFrontendDependenciesCurrent(root)).not.toThrow();
+    // A pulled manifest change that was never installed.
+    manifest({ "left-pad": "1.3.0" });
+    expect(() => assertFrontendDependenciesCurrent(root)).toThrow(
+      /does not satisfy.*pnpm install --frozen-lockfile/su,
+    );
   });
 });
 
