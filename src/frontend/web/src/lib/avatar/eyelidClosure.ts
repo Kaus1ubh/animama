@@ -39,7 +39,9 @@ import { registerMorphTargetExpressions } from "./morphTargetExpressions";
  * lid-closing expression (the mood presets, and the MMD morphs and ARKit
  * mixes `arkitFaceExpressions.ts` and `mmdFaceExpressions.ts` register before
  * this runs, such as MMD's 笑い or relaxed's partial `eyeBlink*`) reduces
- * blink by how far it closes the lids. An ARKit mix uses its share of blink's
+ * blink by how far it closes the lids. Visemes `faceSignals.ts` filled from
+ * other shapes are measured too; a mouth-only shape measures about 0 and is
+ * left alone. An ARKit mix uses its share of blink's
  * motion; other expressions use the share at the lid's own vertices scaled so
  * that VRoid's happy counts as closed ({@link CLOSED_LID_PEAK_SHARE}), since a
  * smiling arc also raises the lower lid. One-sided expressions (a wink) are
@@ -140,11 +142,13 @@ export type EyelidClosureCorrection = {
 /**
  * Install the eyelid closure correction on a loaded VRM. Call once after
  * loading, after expression canonicalization and the face registrations
- * (`registerMmdFace`, `registerArkitFace`).
+ * (`registerFaceSignals`, `registerMmdFace`, `registerArkitFace`).
  *
  * A verified profile is chosen by `vrmSha256`; other VRoid faces use the
- * default profile and other models are measured. Expressions Animama registered (MMD morphs, ARKit mixes and their
- * compositions) are measured on every model. VRoid eye parts that exist only
+ * default profile and other models are measured. Expressions Animama
+ * registered (MMD morphs, ARKit mixes and their compositions, and visemes
+ * filled from other shapes) are measured on every model; blink presets,
+ * filled or not, are what the correction scales and are never measured. VRoid eye parts that exist only
  * as morph targets are registered as expressions first, so the correction is
  * installed on the instances the runtime later drives. An expression that
  * declares its own `overrideBlink` keeps the native behavior, so it is never

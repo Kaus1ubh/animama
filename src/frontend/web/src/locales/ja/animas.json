@@ -95,7 +95,9 @@
       "playsFaces": "気分を ARKit シェイプで再生",
       "present": "標準の表情",
       "unresolved": "要求されたがこのアバターにないもの",
+      "fromBlinkSides": "{{name}}（左右のまばたき）",
       "fromMmd": "{{name}}（MMD）",
+      "fromVrchat": "{{name}}（VRChat）",
       "moods": "気分の顔",
       "moodValue": "眉 {{brow}}・目 {{eye}}・口 {{mouth}}",
       "regionSources": {
@@ -176,7 +178,7 @@
       "face_parts_correction_schema_unsupported": "保存された顔パーツの修正は未対応の形式のため、無視しました。",
       "face_parts_correction_unknown_bindings_other": "{{part}}の保存された修正は、このモデルにないメッシュパーツを {{count}} 個指定しています。",
       "face_parts_detection_failed": "顔のパーツを検出できなかったため、エフェクトはマテリアル名で配置されます。",
-      "face_parts_expressions_missing": "モデルに瞬きまたは「aa」の表情がないため、顔の肌と目の細部をそこから見つけられません。",
+      "face_parts_expressions_missing": "モデルに瞬きまたは「aa」の表情も、その代わりになる MMD・ARKit・VRChat のシェイプもないため、顔の肌と目の細部をそこから見つけられません。",
       "file_unavailable": "アバターのファイルをダウンロードできませんでした。",
       "file_unreadable": "アバターのファイルは読み取り可能な glTF または VRM ファイルではありません。",
       "landmarks_anchor_missing": "顔のランドマークを固定する頭が見つかりませんでした。",

@@ -154,7 +154,9 @@ Check that:
   do not reveal an A-pose export;
 - the ARKit count is complete, with any renamed matches as expected, and
   inspect's "mood faces (brow/eye/mouth)" list shows every mood region played
-  from an MMD morph (`mmd`) or an ARKit mix (`arkit`).
+  from an MMD morph (`mmd`) or an ARKit mix (`arkit`);
+- "blink and visemes" lists no `none` (an empty preset with no MMD, ARKit or
+  VRChat shape to fill it), and "face parts" finds `face_skin` and both eyes.
 
 `pnpm -s animation:render <gesture.json> --out <private-dir> --avatar-file
 <private-dir>/<Avatar>.vrm` draws Gesture review sheets on it, and

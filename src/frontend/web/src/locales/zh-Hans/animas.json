@@ -95,7 +95,9 @@
       "playsFaces": "通过 ARKit 形态播放情绪",
       "present": "标准表情",
       "unresolved": "被请求但此虚拟形象没有",
+      "fromBlinkSides": "{{name}}（左右眼眨眼）",
       "fromMmd": "{{name}}（MMD）",
+      "fromVrchat": "{{name}}（VRChat）",
       "moods": "情绪面部",
       "moodValue": "眉毛 {{brow}} · 眼睛 {{eye}} · 嘴 {{mouth}}",
       "regionSources": {
@@ -176,7 +178,7 @@
       "face_parts_correction_schema_unsupported": "已保存的面部部位修正格式不受支持，已忽略。",
       "face_parts_correction_unknown_bindings_other": "{{part}}的已保存修正指定了此模型没有的 {{count}} 个网格部件。",
       "face_parts_detection_failed": "无法识别面部部位，因此按材质名称放置特效。",
-      "face_parts_expressions_missing": "模型没有眨眼或“aa”表情，因此无法据此找到面部皮肤和眼部细节。",
+      "face_parts_expressions_missing": "模型没有眨眼或“aa”表情，也没有可替代它们的 MMD、ARKit 或 VRChat 形态，因此无法据此找到面部皮肤和眼部细节。",
       "file_unavailable": "无法下载虚拟形象文件。",
       "file_unreadable": "虚拟形象文件不是可读取的 glTF 或 VRM 文件。",
       "landmarks_anchor_missing": "未找到用于固定面部特征点的头部。",

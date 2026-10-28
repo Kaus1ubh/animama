@@ -984,7 +984,9 @@ morphs; see [Faces on non-VRoid Avatars](avatar-emotion.md#faces-on-non-vroid-av
 `pnpm -s vrm:inspect <file.vrm>` (from `src/frontend/web`) reports the same
 resolution for a file before import, including shapes found under another
 spelling, ARKit-named expressions the file authors itself, and whether
-Animama will play the Avatar's faces as ARKit mixes. It also reports
+Animama will play the Avatar's faces as ARKit mixes, where each blink and
+viseme preset comes from, and the face parts detection finds after the
+load-time installs (`prepareLoadedVrm`). It also reports
 the VRM version, extensions, materials, images, and each mesh's size and
 morph-target names with where they are stored. three.js reads only mesh-level
 `extras.targetNames`; every Avatar loader (`configureAvatarGltfLoader`) also

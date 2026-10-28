@@ -589,11 +589,13 @@ export class Avatar {
         this._lilToonMaterials !== "none",
       );
     }
-    const { arkitFace, eyelidClosure, restPose } = prepareLoadedVrm(vrm, {
-      vrmSha256: this._vrmSha256,
-    });
+    const { faceSignals, arkitFace, eyelidClosure, restPose } =
+      prepareLoadedVrm(vrm, { vrmSha256: this._vrmSha256 });
     this._arkitFace = arkitFace;
     this._restPose = restPose;
+    if (Object.values(faceSignals).some((source) => source !== "preset")) {
+      logger.info("Load", "Blink and viseme sources", faceSignals);
+    }
     if (eyelidClosure) {
       logger.info("Load", "Eyelid closure correction", eyelidClosure);
     }

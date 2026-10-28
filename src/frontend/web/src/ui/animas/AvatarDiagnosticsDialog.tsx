@@ -22,6 +22,7 @@ import { toast } from "sonner";
 import { useFormatters } from "@animama/product-ui/i18n";
 
 import type { FaceRegionSource } from "@/lib/avatar/arkitFaceExpressions";
+import type { AvatarExpressionSource } from "@/lib/avatar/diagnostics/avatarDiagnostics";
 import type { AvatarFacePartSource } from "@/lib/avatar/vfx/faceParts";
 import {
   avatarDiagnosticsJson,
@@ -249,6 +250,26 @@ function regionSourceLabel(
       return t("avatarDiagnostics.expressions.regionSources.preset");
     case "none":
       return t("avatarDiagnostics.expressions.regionSources.none");
+  }
+}
+
+/** A standard expression's name, with where Animama took it from if not the file. */
+function presetLabel(
+  t: TFunction<"animas">,
+  name: string,
+  source: AvatarExpressionSource,
+): string {
+  switch (source) {
+    case "model":
+      return name;
+    case "arkit":
+      return t("avatarDiagnostics.expressions.fromArkit", { name });
+    case "mmd":
+      return t("avatarDiagnostics.expressions.fromMmd", { name });
+    case "vrchat":
+      return t("avatarDiagnostics.expressions.fromVrchat", { name });
+    case "left_right":
+      return t("avatarDiagnostics.expressions.fromBlinkSides", { name });
   }
 }
 
@@ -536,15 +557,7 @@ function ExpressionsSection({ report }: { report: AvatarDiagnosticsReport }) {
       <Fact label={t("avatarDiagnostics.expressions.present")}>
         <Names
           names={expressions.presets.map((preset) =>
-            preset.source === "arkit"
-              ? t("avatarDiagnostics.expressions.fromArkit", {
-                  name: preset.name,
-                })
-              : preset.source === "mmd"
-                ? t("avatarDiagnostics.expressions.fromMmd", {
-                    name: preset.name,
-                  })
-                : preset.name,
+            presetLabel(t, preset.name, preset.source),
           )}
           none={t("avatarDiagnostics.none")}
         />

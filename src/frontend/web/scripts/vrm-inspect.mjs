@@ -17,8 +17,9 @@ import {
  * It reads only. The report covers the VRM version, extensions, materials,
  * images, each mesh's size and morph-target names with where they are stored
  * (mesh level, or per primitive, which Animama applies when the primitives
- * agree; `primitiveTargetNames.ts`), the expressions the file authors, and the
- * ARKit face shapes the app resolves after loading.
+ * agree; `primitiveTargetNames.ts`), the expressions the file authors, the
+ * ARKit face shapes the app resolves after loading, where each blink and
+ * viseme comes from (`faceSignals.ts`), and the face parts the app detects.
  * Use it on converted Avatars before importing them; see
  * docs/frontend/runtime/avatar-animation.md.
  */
@@ -143,8 +144,40 @@ export function inspectDocument(document, fileBytes, resolveMeshTargetNames) {
 }
 
 /**
+ * Each face part role's source and how many mesh parts (and regions inside
+ * shared ones) hold it, as `Avatar.load` detects them after the load-time
+ * installs; null with the failure's code and message when detection throws,
+ * which the app survives by falling back to material names.
+ */
+function detectFaceParts(detectAvatarFaceParts, vrm, gltf) {
+  try {
+    const map = detectAvatarFaceParts(vrm, gltf, {});
+    return {
+      parts: Object.fromEntries(
+        Object.values(map.parts).map((part) => [
+          part.role,
+          {
+            source: part.source,
+            bindings: part.bindings.length,
+            regions: part.regions?.length ?? 0,
+          },
+        ]),
+      ),
+      issues: map.issues.map((issue) => issue.code),
+    };
+  } catch (error) {
+    return {
+      parts: null,
+      issues: ["face_parts_detection_failed"],
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
+}
+
+/**
  * Load the file as the app does and resolve its ARKit face shapes, mesh by
- * mesh, from the morph-target names the loader produced.
+ * mesh, from the morph-target names the loader produced; then run the app's
+ * load-time installs and face part detection.
  *
  * @param web A `loadWebModule` handle on `headlessVrm.ts`.
  */
@@ -152,14 +185,16 @@ async function inspectLoadedFace(web, bytes) {
   const { resolveArkitFacesPerMesh } = await web.load(
     path.join(webRoot, "src/lib/avatar/arkitFaceCapability.ts"),
   );
-  const { ownFaceNames, registerArkitFace } = await web.load(
-    path.join(webRoot, "src/lib/avatar/arkitFaceExpressions.ts"),
+  const { prepareLoadedVrm } = await web.load(
+    path.join(webRoot, "src/lib/avatar/prepareLoadedVrm.ts"),
   );
-  const { registerMmdFace } = await web.load(
-    path.join(webRoot, "src/lib/avatar/mmdFaceExpressions.ts"),
+  const { detectAvatarFaceParts } = await web.load(
+    path.join(webRoot, "src/lib/avatar/vfx/faceParts.ts"),
   );
-  const vrm = await web.module.loadHeadlessVrm(
+  // The app's geometry cleanup too, since face part detection reads it.
+  const { vrm, gltf } = await web.module.loadHeadlessVrmWithGltf(
     bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength),
+    { removeUnnecessaryVertices: true },
   );
   const meshNames = [];
   vrm.scene.traverse((object) => {
@@ -172,12 +207,18 @@ async function inspectLoadedFace(web, bytes) {
   const authored = [...capability.resolved.keys()].filter((canonical) =>
     vrm.expressionManager?.getExpression(canonical),
   );
-  // The same decisions `Avatar.load` makes, MMD morphs first (after
-  // `authored` is read, since registering adds the canonical names).
-  registerMmdFace(vrm, ownFaceNames(vrm));
-  const { playsFacesWithArkit, moods } = registerArkitFace(vrm);
+  // The same decisions `Avatar.load` makes (after `authored` is read, since
+  // registering adds the canonical names).
+  const {
+    faceSignals,
+    arkitFace: { playsFacesWithArkit, moods },
+  } = prepareLoadedVrm(vrm, { vrmSha256: null });
   return {
     morphNames: new Set(meshNames.flat()).size,
+    // Each blink and viseme preset's source: the file's preset, or the
+    // shapes Animama filled it from.
+    faceSignals,
+    face: detectFaceParts(detectAvatarFaceParts, vrm, gltf),
     arkit: {
       resolved: capability.resolved.size,
       total: capability.resolved.size + capability.missing.length,
@@ -222,6 +263,16 @@ export async function inspectVrm(bytes) {
 }
 
 const megabytes = (bytes) => `${(bytes / 1e6).toFixed(2)} MB`;
+
+/** How the report words each `FaceSignalSource`. */
+const SIGNAL_SOURCES = {
+  preset: "preset",
+  left_right: "from left and right blinks",
+  mmd: "MMD",
+  arkit: "ARKit",
+  vrchat: "VRChat",
+  none: "none",
+};
 
 /** Print a report as readable lines. */
 export function formatReport(report) {
@@ -282,6 +333,26 @@ export function formatReport(report) {
     lines.push(`  missing: ${arkit.missing.join(", ")}`);
   for (const [canonical, candidates] of Object.entries(arkit.ambiguous))
     lines.push(`  ambiguous ${canonical}: ${candidates.join(", ")}`);
+  lines.push(
+    `blink and visemes: ${Object.entries(loaded.faceSignals)
+      .map(([preset, source]) => `${preset} ${SIGNAL_SOURCES[source]}`)
+      .join(", ")}`,
+  );
+  const { face } = loaded;
+  lines.push(
+    face.parts
+      ? `face parts: ${Object.entries(face.parts)
+          .map(
+            ([role, part]) =>
+              `${role} ${part.source}` +
+              (part.source === "missing"
+                ? ""
+                : ` (${part.bindings} mesh part(s)${part.regions ? `, ${part.regions} region(s)` : ""})`),
+          )
+          .join(", ")}`
+      : `face parts: detection failed (${face.error}); the app places effects by material names`,
+  );
+  if (face.issues.length) lines.push(`  issues: ${face.issues.join(", ")}`);
   return lines.join("\n");
 }
 

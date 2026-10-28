@@ -95,7 +95,9 @@
       "playsFaces": "기분을 ARKit 셰이프로 재생",
       "present": "표준 표정",
       "unresolved": "요청됐지만 이 아바타에 없음",
+      "fromBlinkSides": "{{name}} (좌우 눈 깜빡임)",
       "fromMmd": "{{name}} (MMD)",
+      "fromVrchat": "{{name}} (VRChat)",
       "moods": "기분 얼굴",
       "moodValue": "눈썹 {{brow}} · 눈 {{eye}} · 입 {{mouth}}",
       "regionSources": {
@@ -176,7 +178,7 @@
       "face_parts_correction_schema_unsupported": "저장된 얼굴 부위 수정이 지원되지 않는 형식이라 무시했습니다.",
       "face_parts_correction_unknown_bindings_other": "{{part}}의 저장된 수정이 이 모델에 없는 메시 부분 {{count}}개를 가리킵니다.",
       "face_parts_detection_failed": "얼굴 부위를 찾지 못해 효과를 머티리얼 이름으로 배치합니다.",
-      "face_parts_expressions_missing": "모델에 눈 깜빡임 또는 “aa” 표정이 없어 얼굴 피부와 눈 세부를 찾을 수 없습니다.",
+      "face_parts_expressions_missing": "모델에 눈 깜빡임 또는 “aa” 표정도, 이를 대신할 MMD·ARKit·VRChat 셰이프도 없어 얼굴 피부와 눈 세부를 찾을 수 없습니다.",
       "file_unavailable": "아바타 파일을 다운로드할 수 없습니다.",
       "file_unreadable": "아바타 파일이 읽을 수 있는 glTF 또는 VRM 파일이 아닙니다.",
       "landmarks_anchor_missing": "얼굴 랜드마크를 고정할 머리를 찾지 못했습니다.",

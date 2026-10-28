@@ -48,13 +48,27 @@ export const MMD_PART_MORPHS: Readonly<Record<string, string>> = {
 
 /**
  * The standard MMD morph for each blink preset. MMD's ウィンク closes the
- * model's left eye, as VRM's `blinkLeft` does.
+ * model's left eye, as VRM's `blinkLeft` does. `faceSignals.ts` plays them
+ * where the file leaves a blink preset empty.
  */
-export const MMD_BLINK_MORPHS: Readonly<Record<string, string>> = {
+export const MMD_BLINK_MORPHS = {
   blink: "まばたき",
   blinkLeft: "ウィンク",
   blinkRight: "ウィンク右",
-};
+} as const;
+
+/**
+ * The standard MMD vowel morph for each VRM viseme preset (VRM's visemes are
+ * MMD's あいうえお). `faceSignals.ts` plays them where the file leaves a viseme
+ * preset empty.
+ */
+export const MMD_VOWEL_MORPHS = {
+  aa: "あ",
+  ih: "い",
+  ou: "う",
+  ee: "え",
+  oh: "お",
+} as const;
 
 /** Expressions this module registered, with the MMD morph each plays. */
 const mmdMorphExpressions = new WeakMap<VRMExpression, string>();
@@ -93,17 +107,6 @@ export function registerMmdFace(vrm: VRM, ownFaceName: OwnFaceName): void {
     const existing = manager.getExpression(part);
     if (existing && mmdMorphOf(existing) === morph) continue;
     const expression = morphTargetExpression(vrm, part, morph);
-    if (!expression) continue;
-    if (existing) manager.unregisterExpression(existing);
-    mmdMorphExpressions.set(expression, morph);
-    manager.registerExpression(expression);
-  }
-  // three-vrm registers every preset, so a blink preset the file leaves
-  // empty plays its MMD morph; one that binds something is the file's own.
-  for (const [preset, morph] of Object.entries(MMD_BLINK_MORPHS)) {
-    const existing = manager.getExpression(preset);
-    if ((existing?.binds.length ?? 0) > 0) continue;
-    const expression = morphTargetExpression(vrm, preset, morph);
     if (!expression) continue;
     if (existing) manager.unregisterExpression(existing);
     mmdMorphExpressions.set(expression, morph);

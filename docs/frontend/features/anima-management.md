@@ -108,8 +108,10 @@ Animama found in the Anima's Avatar and how it plays it:
 - **Face**: how each face part was found (model data, material names, a saved
   correction, or not at all) and whether face landmarks and texture anchors
   are ready.
-- **Expressions**: the standard VRM expressions present, those played through
-  ARKit mixes or MMD morphs, ARKit shape coverage, each mood's source per face
+- **Expressions**: the standard VRM expressions present (a preset that plays
+  nothing counts as missing), those played through ARKit mixes or MMD morphs,
+  blinks and visemes filled from the file's left and right blinks or from MMD,
+  ARKit or VRChat shapes, ARKit shape coverage, each mood's source per face
   region ([Faces on non-VRoid Avatars](../runtime/avatar-emotion.md#faces-on-non-vroid-avatars)),
   and names Gestures, Reactions or moods asked for that the Avatar lacks.
 - **Motion**: humanoid bones, missing required bones, the rest pose (arms

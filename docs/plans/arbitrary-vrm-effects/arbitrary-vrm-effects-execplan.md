@@ -66,7 +66,7 @@ Evidence in this plan and the PR is counts and pass/fail only.
 - [x] Spec and plan agreed by the owner; Q1–Q3 answered (2026-10-27).
 - [x] Phase 1: review renders catch wrong art (2026-10-28; review passed after two repair rounds).
 - [x] Phase 2: per-primitive shape names (2026-10-28; review passed).
-- [ ] Phase 3: blink and mouth signals beyond VRM presets.
+- [x] Phase 3: blink and mouth signals beyond VRM presets (2026-10-28; review passed after one repair round; owner live check pending).
 - [ ] Phase 4: eyes without separate eye geometry.
 - [ ] Phase 5: the face inside a whole-body mesh.
 - [ ] Phase 6: painted art that shows.
@@ -85,6 +85,17 @@ Evidence in this plan and the PR is counts and pass/fail only.
 - 2026-10-27 (agent): the review renders' face view is the chat's Portrait
   camera preset. It frames the chin or chest on chibi and robot Avatars, so the
   chat itself misframes them, not only the tooling (Phase 7).
+- 2026-10-28 (agent): the baseline render of `finger-heart-pose` holds one
+  pixel (channel delta 38) that a fresh render of the same source `b8fed9a5`,
+  in a temporary worktree, does not reproduce; Phase 3's render matches that
+  fresh render at 0 px. `idea_bulb` showed the same kind of one-pixel run-to-run
+  variation in Phase 1. Comparisons now pass at 0 px against either the
+  baseline or `evidence/baseline-alt/`.
+- 2026-10-28 (agent): `main` moved past the survey revision `9a97029a`. MMD
+  まばたき already filled an empty `blink` (commit `4af907b2`), so HAOLAN's face
+  is found before Phase 3, and Red Face on Carol North stays on her head. The
+  Phase 3 owner gate on HAOLAN therefore exercises the MMD path, not the new
+  VRChat or ARKit ones; the synthetic layout tests cover those.
 - 2026-10-27 (agent): the joy Reaction's sparkle was reported applied but was
   not visible on four Avatars (big heads and a hood), consistent with fixed
   hover offsets from the head bone (Phase 7).
@@ -98,6 +109,12 @@ Evidence in this plan and the PR is counts and pass/fail only.
   Q2 synthetic fixtures only, no CC0 Avatar in the repository; Q3 Phase 8
   included but deferrable) and the plan; push the branch and implement the
   whole plan.
+- 2026-10-28, agent (Phase 3 review): signal order differs from the plan text.
+  Blinks: file preset, the file's own `blinkLeft` + `blinkRight`, MMD, ARKit,
+  VRChat; MMD before ARKit keeps the order `4af907b2` and the mood regions use.
+  Visemes: preset, MMD, VRChat, then ARKit, because ARKit vowel mixes only
+  approximate speech shapes. An Avatar with bound winks, an empty `blink` and a
+  まばたき morph now blinks through its winks.
 - 2026-10-27, agent: Phase 3 synthesizes missing `blink`, `blinkLeft`,
   `blinkRight` and viseme expressions at load, bound to the shapes found, as
   `registerMmdFace` and `registerArkitFace` do for moods. Face detection,
@@ -419,6 +436,105 @@ Checks: `npx vitest run src/lib/avatar src/ui tests/avatar`; `pnpm i18n:check`
 
 Owner gate: in the app, HAOLAN (or another Avatar with only left and right
 blink shapes) blinks idly and moves its mouth while speaking.
+
+Starting source: `33265528`.
+
+Implementation (2026-10-28): new `faceSignals.ts` (`registerFaceSignals`) fills
+each of `blink`, `blinkLeft`, `blinkRight`, `aa`, `ih`, `ou`, `ee` and `oh` that
+the file leaves missing or empty. A preset is empty when it has no binds, or
+when its morph binds all have weight 0 or name a shape the mesh lacks; material
+and texture binds count as playing. A playing preset is never replaced, and a
+second call keeps the same expression instances, which the eyelid correction is
+attached to. Order: `blink` from the file preset, the file's own
+`blinkLeft` + `blinkRight`, MMD まばたき (else both winks), ARKit
+`eyeBlinkLeft` + `eyeBlinkRight`, then VRChat `vrc.blink` (else
+`vrc.blink_left` + `vrc.blink_right`); one-eye blinks from preset, MMD, ARKit,
+then VRChat; visemes from preset, MMD あいうえお, VRChat `vrc.v_*`, then the
+ARKit vowel mix when every shape in it resolves. It runs first in
+`prepareLoadedVrm`, before MMD and ARKit registration, the eyelid correction and
+face detection, and again in the `ExpressionController` constructor; the blink
+filling that `registerMmdFace` and `registerArkitFace` did moved into it.
+Diagnostics label the new sources (VRChat, left and right blinks) and list a
+preset that plays nothing as missing (`neutral` exempt); `vrm:inspect` runs the
+app's full preparation and face detection and prints each signal's source.
+Docs: `avatar-emotion.md`, `avatar-lipsync.md`, `avatar-animation.md`,
+`avatar-vfx.md` (face skin row), `vrchat-avatar-conversion.md` and
+`features/anima-management.md`.
+
+Check record (tree `2dc49474`; `pnpm check`, the browser suite and the render
+set ran on `2cdde871`, which differs only by a renamed local in
+`arkitFaceExpressions.ts`; the affected tests, the full Vitest run, `tsc` and
+eslint reran after it):
+
+| Command | Directory | Result |
+| --- | --- | --- |
+| `timeout 900 npx vitest run src/lib/avatar src/ui tests/avatar` | `src/frontend/web` | 3493 passed, 2 skipped; `testing/baselines` unchanged |
+| `npx tsc -b`; `npx tsc -p tsconfig.scripts.json --noEmit`; eslint and prettier `--check` on touched files | `src/frontend/web` | clean |
+| `node --test scripts/vrm-inspect.test.mjs scripts/vrm-bake-expressions.test.mjs` | `src/frontend/web` | 11/11 |
+| `timeout 900 python3 ../../scripts/heavy-slot.py -- pnpm check` | `src/frontend` | exit 0 |
+| `timeout 900 python3 ../../scripts/heavy-slot.py -- pnpm web:test:browser` | `src/frontend` | 132/132 |
+| `evidence/render-set.sh` on the Included Avatars, `--diff` against the baselines | `src/frontend/web` | 31 rendered, 0 failed; 30 at 0 px; `finger-heart-pose` 1 px against the baseline and 0 px against a fresh render of `b8fed9a5` (see below) |
+| Private HAOLAN (counts only) | `src/frontend/web` | face skin, eyes and hair found; 11 of 16 survey effects pass, the other 5 fail "draws nothing" (Phase 6) |
+
+#### Code Review #1 Findings
+
+Reviewed tree `2dc49474` (standard tier, initial full review). The reviewer
+parsed the Included Avatars' expressions (every preset has one weight-1 bind,
+so Diagnostics, `_playsSomething`, the ARKit own-preset test and the new
+registration behave as before on them) and reran
+`src/lib/runtime-content/runtimeAvatarFaceParts.test.ts` (3/3).
+
+- **P3-R1-F1 (required):** `avatar-emotion.md` and `avatar-lipsync.md` say only
+  ARKit lip-sync shaping stacks on the mood's `jawOpen`; ARKit-filled visemes now
+  do too.
+- **P3-R1-F2:** the order deviation from the plan is not in the Decision Log, and
+  the file's own `blinkLeft` + `blinkRight` now come before まばたき, a change from
+  `4af907b2` for Avatars with bound winks and an empty `blink`.
+- **P3-R1-F3:** `left_right` adds both sides' binds as they are; one shared
+  blink morph would be driven twice, and material binds add up.
+- **P3-R1-F4:** the eyelid correction's comments omit the face-signal
+  expressions it now measures.
+- **P3-R1-F5:** no `jawOpen`-only `aa` for Avatars with partial ARKit shapes.
+- **P3-R1-F6:** `vrm:inspect` swallows the face-detection error.
+- **P3-R1-F7:** `collectMorphBinds` still counts weight-0 binds (pre-existing).
+- **P3-R1-F8:** no tests for material binds counting as playing or for a
+  weight-0 preset reported unresolved.
+
+Result: blocked on F1 (a documentation fix needing no recheck); F2–F8 optional.
+
+#### Code Review #1 Revisions
+
+- F1 accepted: one clause in each document.
+- F2 accepted: recorded in the Decision Log below.
+- F3 accepted: combine only morph binds, deduplicated with the larger weight.
+- F4 accepted: comments updated, no behaviour change (mouth shapes have about
+  no lid share).
+- F5 rejected: only complete ARKit mixes fill visemes; Avatars with partial
+  ARKit sets normally carry VRChat visemes, which come first.
+- F6 accepted: `vrm:inspect` prints the detection error.
+- F7 rejected: pre-existing and harmless; the signal still marks the face.
+- F8 accepted: both tests added.
+
+Repair round 1 (tree `51cb2241`): the two documentation clauses;
+`combinedMorphBinds` joins only morph binds, once per primitive and shape at the
+larger weight, falling through when none remain (test: both sides bound to one
+shared blink morph, which failed at weight 2 before the fix); eyelid-correction
+comments; `vrm:inspect` prints "face parts: detection failed (…)"; tests for
+material and texture binds counting as playing and for a weight-0 `happy` preset
+reported unresolved. HAOLAN's `blink` still comes from MMD (its file has no
+one-eye presets), so the Surprises note stands. The coordinator verified the
+repair from the diff and the check record; no reviewer recheck was needed for
+the documentation blocker (repair budget: one round used).
+
+| Command | Directory | Result |
+| --- | --- | --- |
+| `timeout 900 npx vitest run src/lib/avatar src/ui tests/avatar src/lib/runtime-content/runtimeAvatarFaceParts.test.ts` | `src/frontend/web` | 3500 passed, 2 skipped; baselines unchanged |
+| `node --test scripts/vrm-inspect.test.mjs scripts/vrm-bake-expressions.test.mjs` | `src/frontend/web` | 12/12 |
+| `npx tsc -b`; `npx tsc -p tsconfig.scripts.json --noEmit`; eslint and prettier `--check` on touched files | `src/frontend/web` | clean |
+
+Phase 3 complete (agent-ready). Owner gate pending: an Avatar without a
+playing `blink` preset blinks idly and moves its mouth in the app; a VRChat-only
+or ARKit-only Avatar exercises the new paths best.
 
 ### Phase 4: Eyes without separate eye geometry (R2)
 

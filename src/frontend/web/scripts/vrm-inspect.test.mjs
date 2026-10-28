@@ -122,3 +122,39 @@ test("resolves ARKit shapes from the names the Avatar loaders produce", () => {
   assert.match(text, /ARKit shapes: 4 of 52/);
   assert.match(text, /Animama plays the file's presets/);
 });
+
+test("reports where each blink and viseme comes from, and the face parts", () => {
+  const { faceSignals, face } = report.loaded;
+  // The file's `aa` preset binds nothing, so VRChat's viseme plays it; only
+  // the left eye has an ARKit blink, so `blink` itself has no source.
+  assert.equal(faceSignals.aa, "vrchat");
+  assert.equal(faceSignals.blinkLeft, "arkit");
+  assert.equal(faceSignals.blink, "none");
+  // The fixture's meshes are not skinned to a head, so no face is found.
+  assert.equal(face.parts.face_skin.source, "missing");
+  assert.deepEqual(face.issues, ["face_parts_expressions_missing"]);
+  const text = formatReport(report);
+  assert.match(
+    text,
+    /blink and visemes: blink none, blinkLeft ARKit, .*aa VRChat/,
+  );
+  assert.match(text, /face parts: face_skin missing, eye_left missing/);
+  assert.match(text, /issues: face_parts_expressions_missing/);
+});
+
+test("says why face part detection failed", () => {
+  const failed = {
+    ...report,
+    loaded: {
+      ...report.loaded,
+      face: {
+        parts: null,
+        issues: ["face_parts_detection_failed"],
+        error: "unexpected primitive",
+      },
+    },
+  };
+  const text = formatReport(failed);
+  assert.match(text, /face parts: detection failed \(unexpected primitive\)/);
+  assert.match(text, /issues: face_parts_detection_failed/);
+});

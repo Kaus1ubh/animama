@@ -81,6 +81,9 @@ const live: AvatarLiveDiagnostics = {
     presets: [
       { name: "happy", source: "model" },
       { name: "relaxed", source: "arkit" },
+      { name: "blink", source: "left_right" },
+      { name: "aa", source: "vrchat" },
+      { name: "oh", source: "mmd" },
     ],
     missingPresets: ["lookUp"],
     arkit: { resolved: 41, total: 52, playsFaces: true },
@@ -370,6 +373,9 @@ describe("AvatarDiagnosticsDialog", () => {
 
     click("Expressions");
     expect(dialog()?.textContent).toContain("relaxed (ARKit)");
+    expect(dialog()?.textContent).toContain("blink (left and right blinks)");
+    expect(dialog()?.textContent).toContain("aa (VRChat)");
+    expect(dialog()?.textContent).toContain("oh (MMD)");
     expect(dialog()?.textContent).toContain("41 of 52");
     expect(dialog()?.textContent).toContain("2 custom names");
 

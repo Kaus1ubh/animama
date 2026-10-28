@@ -12,6 +12,7 @@ import {
   type Vowel5Channel,
 } from "./arkitFaceCompositions";
 import { ownFaceNames, registerArkitFace } from "./arkitFaceExpressions";
+import { expressionPlaysSomething, registerFaceSignals } from "./faceSignals";
 import { registerIrisHideExpression } from "./irisHideExpression";
 import { registerMmdFace } from "./mmdFaceExpressions";
 import { registerMorphTargetExpressions } from "./morphTargetExpressions";
@@ -763,6 +764,10 @@ export class ExpressionController {
     this._lipSync = new LipSyncController();
 
     if (this._expressionManager) {
+      // Blink and viseme presets filled from other shapes come first: vowel
+      // detection reads them. `prepareLoadedVrm` has usually filled them
+      // already; the step is idempotent.
+      registerFaceSignals(vrm);
       this._autoBlink = new AutoBlink();
       this._resolvedVowelExpressions = this._detectAndLogVowelExpressions();
     }
@@ -1650,8 +1655,9 @@ export class ExpressionController {
   private _playsSomething(name: string): boolean {
     if (!this._hasBlendshape(name)) return false;
     if (name === "neutral") return true;
-    const expression = this._expressionManager?.getExpression(name);
-    return (expression?.binds.length ?? 0) > 0;
+    return expressionPlaysSomething(
+      this._expressionManager?.getExpression(name),
+    );
   }
 
   private _hasBlendshape(name: string): boolean {

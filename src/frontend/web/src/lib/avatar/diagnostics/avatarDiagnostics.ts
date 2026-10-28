@@ -1,4 +1,5 @@
 import {
+  type VRMExpression,
   VRMExpressionPresetName,
   VRMLookAtExpressionApplier,
   VRMRequiredHumanBoneName,
@@ -13,6 +14,11 @@ import {
 } from "../arkitFaceExpressions";
 import type { Avatar } from "../Avatar";
 import type { AvatarMaterialMode, AvatarSpringMode } from "../avatarSettings";
+import {
+  expressionPlaysSomething,
+  faceSignalSourceOf,
+  type SynthesizedFaceSignalSource,
+} from "../faceSignals";
 import {
   automaticDecisionSinceLoad,
   type AutomaticMaterialsDecision,
@@ -35,9 +41,11 @@ export type AvatarDiagnosticsFacePart = {
 
 /**
  * Where a standard expression the Avatar plays comes from: the file, an ARKit
- * mix, or Animama's composition of MMD morphs (and ARKit mixes) by region.
+ * mix, Animama's composition of MMD morphs (and ARKit mixes) by region, or,
+ * for a blink or viseme the file leaves empty, the shapes `faceSignals.ts`
+ * filled it from (the file's left and right blinks, MMD, ARKit or VRChat).
  */
-export type AvatarExpressionSource = "model" | "arkit" | "mmd";
+export type AvatarExpressionSource = "model" | SynthesizedFaceSignalSource;
 
 /** Where each region of a mood preset's face comes from (R12). */
 export type AvatarMoodFace = {
@@ -139,6 +147,14 @@ function collectFace(avatar: Avatar): AvatarLiveDiagnostics["face"] {
   };
 }
 
+/** Where a registered standard expression comes from. */
+function expressionSource(expression: VRMExpression): AvatarExpressionSource {
+  const signal = faceSignalSourceOf(expression);
+  if (signal) return signal;
+  if (arkitMixOf(expression)) return "arkit";
+  return isAnimamaFaceExpression(expression) ? "mmd" : "model";
+}
+
 function collectExpressions(
   avatar: Avatar,
 ): AvatarLiveDiagnostics["expressions"] {
@@ -149,15 +165,14 @@ function collectExpressions(
   const missingPresets: string[] = [];
   for (const name of PRESET_NAMES) {
     const expression = manager?.getExpression(name) ?? null;
-    if (expression) {
-      presets.push({
-        name,
-        source: arkitMixOf(expression)
-          ? "arkit"
-          : isAnimamaFaceExpression(expression)
-            ? "mmd"
-            : "model",
-      });
+    // three-vrm registers every preset a VRM 0 file lists, so one that plays
+    // nothing is missing; `neutral` is empty by design.
+    if (
+      expression &&
+      (name === VRMExpressionPresetName.Neutral ||
+        expressionPlaysSomething(expression))
+    ) {
+      presets.push({ name, source: expressionSource(expression) });
     } else if (looksWithExpressions || !LOOK_PRESETS.has(name)) {
       // A model that looks with its eye bones does not need look expressions.
       missingPresets.push(name);

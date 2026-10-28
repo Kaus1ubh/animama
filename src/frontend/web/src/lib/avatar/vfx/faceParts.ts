@@ -3,8 +3,9 @@
  *
  * VRM does not name face parts, so detection reads spec signals first: the
  * humanoid eye bones, skin weights, the primitives that the `blink` and `aa`
- * expressions morph, expression look-at texture transforms and spring-bone
- * joints. Material names are only a per-role fallback, and user corrections
+ * expressions morph (filled from MMD, ARKit or VRChat shapes where the file
+ * leaves them empty, `faceSignals.ts`), expression look-at texture transforms
+ * and spring-bone joints. Material names are only a per-role fallback, and user corrections
  * (keyed to the exact VRM digest) override both.
  */
 import type { AvatarFacePartCorrection } from "@animama/runtime-contracts/api-types";
@@ -617,7 +618,7 @@ function detectFromSignals(context: Context): {
     report(
       context,
       { code: "face_parts_expressions_missing" },
-      "The VRM has no blink or aa morph target; face skin and eye details cannot be found from expressions.",
+      "The VRM has no blink or aa expression, nor MMD, ARKit or VRChat shapes for them; face skin and eye details cannot be found from expressions.",
     );
   }
   const faceMeshCandidates = candidates.filter(
