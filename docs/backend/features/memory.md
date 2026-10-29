@@ -424,7 +424,7 @@ such as `京都` and extracts no trigrams from CJK text under a `C` locale.
 The tool description asks the model for 2-5 distinctive keywords
 rather than a full question, separated by spaces in Japanese, Chinese or Thai
 too, and explains that matching any keyword is enough;
-Anthropic Memory Manager runs reuse that description.
+both Memory Manager runtimes reuse that description.
 
 The model receives a `memory_results` array. Markdown memory hits include
 `path`, `description`, and `snippet`. The tool does not return entry IDs,
