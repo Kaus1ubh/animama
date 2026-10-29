@@ -86,6 +86,50 @@ describe("createLogger", () => {
     );
   });
 
+  it("remembers milestones apart from problems and prints them as info", async () => {
+    const { createLogger, recentLogEntries, recentMilestones } =
+      await loadLogger("development");
+    const logger = createLogger("Voice");
+
+    logger.milestone("State", "Started voice mode (parakeet)", {
+      turnId: "turn-1",
+    });
+    logger.warn("State", "Microphone busy");
+
+    expect(console.info).toHaveBeenCalledWith(
+      expect.stringMatching(
+        / - Voice\] State: Started voice mode \(parakeet\)$/,
+      ),
+      { turnId: "turn-1" },
+    );
+    expect(recentMilestones()).toEqual([
+      {
+        time: expect.any(Number),
+        source: "Voice",
+        category: "State",
+        message: "Started voice mode (parakeet)",
+      },
+    ]);
+    expect(recentLogEntries()).toEqual([
+      expect.objectContaining({ message: "Microphone busy" }),
+    ]);
+  });
+
+  it("keeps the last 50 milestones in a production build without printing them", async () => {
+    const { createLogger, recentMilestones } = await loadLogger("production");
+    const logger = createLogger("Chat");
+
+    for (let index = 0; index < 60; index += 1) {
+      logger.milestone("Turn", `Chat turn ${index}`);
+    }
+
+    expect(console.info).not.toHaveBeenCalled();
+    const milestones = recentMilestones();
+    expect(milestones).toHaveLength(50);
+    expect(milestones[0]?.message).toBe("Chat turn 10");
+    expect(milestones.at(-1)?.message).toBe("Chat turn 59");
+  });
+
   it("keeps only the most recent entries", async () => {
     const { createLogger, recentLogEntries } = await loadLogger("production");
     const logger = createLogger("Test");

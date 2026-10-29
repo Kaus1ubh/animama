@@ -3,11 +3,18 @@
  *
  * Only the allow-listed facts below are emitted: versions, platform, runtime
  * state/code, feature-pack IDs/states/versions, which providers have a key
- * configured (yes/no) and recent warnings and errors as their authored log
- * message and error type. Never add key values, file paths, raw error messages
- * that may embed paths, log data, chat or memory content, or personal
- * identifiers.
+ * configured (yes/no), recent milestones (lifecycle events) as their authored
+ * log message, and recent warnings and errors as their authored log message and
+ * error type. Never add key values, file paths, raw error messages that may
+ * embed paths, log data, chat or memory content, or personal identifiers.
  */
+type RecentLine = {
+  time: number;
+  source: string;
+  category: string;
+  message: string;
+};
+
 export type DiagnosticsInput = {
   appVersion: string;
   platform: string;
@@ -18,14 +25,10 @@ export type DiagnosticsInput = {
     version?: string;
   }> | null;
   providers?: ReadonlyArray<{ provider: string; configured: boolean }> | null;
-  recentProblems?: ReadonlyArray<{
-    time: number;
-    level: string;
-    source: string;
-    category: string;
-    message: string;
-    errorName?: string;
-  }> | null;
+  recentActivity?: ReadonlyArray<RecentLine> | null;
+  recentProblems?: ReadonlyArray<
+    RecentLine & { level: string; errorName?: string }
+  > | null;
 };
 
 /** Keep identifiers to a conservative character set so nothing free-form leaks. */
@@ -51,6 +54,10 @@ function safeText(value: string): string {
 
 function utcSeconds(time: number): string {
   return `${new Date(time).toISOString().slice(0, 19)}Z`;
+}
+
+function recentLineText(line: RecentLine): string {
+  return `${safeText(line.source)} / ${safeText(line.category)}: ${safeText(line.message)}`;
 }
 
 export function buildDiagnosticsSummary(input: DiagnosticsInput): string {
@@ -80,6 +87,12 @@ export function buildDiagnosticsSummary(input: DiagnosticsInput): string {
       );
     }
   }
+  if (input.recentActivity?.length) {
+    lines.push("Recent activity:");
+    for (const activity of input.recentActivity) {
+      lines.push(`- ${utcSeconds(activity.time)} ${recentLineText(activity)}`);
+    }
+  }
   if (input.recentProblems?.length) {
     lines.push("Recent warnings and errors:");
     for (const problem of input.recentProblems) {
@@ -87,7 +100,7 @@ export function buildDiagnosticsSummary(input: DiagnosticsInput): string {
         ? ` (${safeToken(problem.errorName)})`
         : "";
       lines.push(
-        `- ${utcSeconds(problem.time)} ${safeToken(problem.level)} ${safeText(problem.source)} / ${safeText(problem.category)}: ${safeText(problem.message)}${errorName}`,
+        `- ${utcSeconds(problem.time)} ${safeToken(problem.level)} ${recentLineText(problem)}${errorName}`,
       );
     }
   }

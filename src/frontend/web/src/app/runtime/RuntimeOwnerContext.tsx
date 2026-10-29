@@ -19,7 +19,26 @@ export {
   useProductApiClient,
 } from "@animama/product-ui";
 
-const diagnostics: ProductDiagnostics = { createLogger, ...metrics };
+// Chat turns run in shared product code; the host marks their start and end as
+// diagnostics milestones from the same SSE metric hooks.
+const chatLogger = createLogger("Chat");
+const diagnostics: ProductDiagnostics = {
+  createLogger,
+  ...metrics,
+  recordSseStart: (attributes) => {
+    chatLogger.milestone("Turn", "Chat turn started");
+    metrics.recordSseStart(attributes);
+  },
+  recordSseDuration: (durationMs, attributes) => {
+    const status =
+      typeof attributes.status === "string" ? attributes.status : "unknown";
+    chatLogger.milestone(
+      "Turn",
+      `Chat turn ended (${status}, ${(durationMs / 1000).toFixed(1)} s)`,
+    );
+    metrics.recordSseDuration(durationMs, attributes);
+  },
+};
 const localCapabilities = { chat: true } as const;
 const localFetch: typeof globalThis.fetch = (input, init) => {
   const request = new Request(input, init);

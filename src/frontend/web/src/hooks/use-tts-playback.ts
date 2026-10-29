@@ -1375,7 +1375,9 @@ export function useTtsPlayback(
           void startElevenLabsRuntime(runId, speechContext);
         }
       }
-      logger.info("Run", "Started TTS run", { runId });
+      logger.milestone("Run", `Started speech output (${provider})`, {
+        runId,
+      });
     },
     [
       cancelAll,

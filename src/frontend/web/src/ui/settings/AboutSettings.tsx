@@ -4,7 +4,7 @@ import { toast } from "sonner";
 
 import { copyText } from "@/lib/diagnostics/copy-text";
 import { buildDiagnosticsSummary } from "@/lib/diagnostics/summary";
-import { recentLogEntries } from "@/lib/logger";
+import { recentLogEntries, recentMilestones } from "@/lib/logger";
 import { env } from "@/platform/env";
 import { useRuntimePlatform } from "@/platform/RuntimePlatformProvider";
 import { useDesktopFeaturePacks } from "@/hooks/useDesktopFeaturePacks";
@@ -112,6 +112,7 @@ export function CopyDiagnosticsSetting() {
         provider: status.provider,
         configured: status.configured,
       })),
+      recentActivity: recentMilestones(),
       recentProblems: recentLogEntries(),
     });
     if (await copyText(summary)) toast.success(t("about.diagnostics.copied"));

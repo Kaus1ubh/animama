@@ -412,11 +412,14 @@ Prefer minimal, surgical diffs in:
   nearby code.
 - Reuse existing utilities such as `createLogger`, `queryKeys`, `cn`, env
   helpers, settings helpers, and provider helpers.
-- Log through `createLogger`. Production builds print only warnings and errors,
-  and Settings → About → Copy diagnostics summary includes recent ones from that
-  window's main thread, message text included. Log lengths, counts and IDs,
-  never chat or speech text, memories, settings values or file names; warning
-  and error messages interpolate only fixed codes and labels.
+- Log through `createLogger`. Production builds print only warnings and errors.
+  Settings → About → Copy diagnostics summary includes recent warnings, errors
+  and `milestone` calls (lifecycle events such as a chat turn or voice session
+  starting) from that window's main thread, message text included. Log lengths,
+  counts and IDs, never chat or speech text, memories, settings values or file
+  names; warning, error and milestone messages interpolate only fixed codes,
+  labels and numbers. Keep milestones to events a support reader needs, not
+  per-event detail.
 - Prefer existing dependencies. If adding a dependency is necessary, update the
   lockfile and explain why the new package is warranted.
 - Avoid broad renames or moves unless requested.

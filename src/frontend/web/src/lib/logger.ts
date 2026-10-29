@@ -31,6 +31,11 @@ export interface Logger {
     error?: unknown,
     options?: LogOptions,
   ) => void;
+  /**
+   * An info line that also marks a lifecycle event, such as a chat turn or
+   * voice session starting, for the diagnostics summary's recent activity.
+   */
+  milestone: (category: string, message: string, data?: LogData) => void;
 }
 
 /**
@@ -44,6 +49,14 @@ export type RecentLogEntry = {
   category: string;
   message: string;
   errorName?: string;
+};
+
+/** A recent milestone kept for the diagnostics summary, without its data. */
+export type RecentMilestone = {
+  time: number;
+  source: string;
+  category: string;
+  message: string;
 };
 
 const LOG_LEVEL_RANK: Record<LogLevel, number> = {
@@ -62,10 +75,18 @@ const CONSOLE_LEVEL: LogLevel = import.meta.env.DEV ? "debug" : "warn";
 
 const RECENT_LOG_LIMIT = 30;
 const recentLogs: RecentLogEntry[] = [];
+// Milestones have their own buffer so routine activity never pushes out problems.
+const RECENT_MILESTONE_LIMIT = 50;
+const milestones: RecentMilestone[] = [];
 
 /** Recent warnings and errors logged in this window, oldest first. */
 export function recentLogEntries(): readonly RecentLogEntry[] {
   return [...recentLogs];
+}
+
+/** Recent milestones logged in this window, oldest first. */
+export function recentMilestones(): readonly RecentMilestone[] {
+  return [...milestones];
 }
 
 function errorName(value: unknown): string | undefined {
@@ -139,6 +160,17 @@ export function createLogger(prefix: string): Logger {
       remember("error", formattedPrefix, category, message, error);
       if (!prints("error")) return;
       console.error(format(formattedPrefix, category, message), error);
+    },
+    milestone(category, message, data) {
+      milestones.push({
+        time: Date.now(),
+        source: formattedPrefix,
+        category,
+        message,
+      });
+      if (milestones.length > RECENT_MILESTONE_LIMIT) milestones.shift();
+      if (!prints("info")) return;
+      console.info(format(formattedPrefix, category, message), data);
     },
   };
 }

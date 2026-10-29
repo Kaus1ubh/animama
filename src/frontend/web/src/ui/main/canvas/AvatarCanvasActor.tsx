@@ -557,8 +557,9 @@ export function AvatarCanvasActor({
       }
       setSceneObject(avatar.scene);
       setAvatarReady(true);
-      logger.info("Load", "Avatar model loaded", {
-        sourceType: runtimeAvatarEntry?.source.type ?? "unknown",
+      const sourceType = runtimeAvatarEntry?.source.type ?? "unknown";
+      logger.milestone("Load", `Avatar model loaded (${sourceType})`, {
+        sourceType,
       });
     };
 
