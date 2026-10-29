@@ -68,6 +68,11 @@
           "on": "開",
           "springs_off": "關閉彈簧"
         }
+      },
+      "windStrength": {
+        "label": "風力",
+        "description": "風和上升氣流的強度，從無到預設值的兩倍。自動模式下，若此虛擬形象的頭髮太軟、在此強度下撐不住，就會關閉它們。",
+        "value": "{{percent}}%"
       }
     },
     "choices": {

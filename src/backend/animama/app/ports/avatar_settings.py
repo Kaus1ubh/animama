@@ -1,4 +1,4 @@
-"""Owner-scoped storage for per-Avatar settings (wind and materials)."""
+"""Owner-scoped storage for per-Avatar settings (wind, wind strength and materials)."""
 
 from __future__ import annotations
 
@@ -7,7 +7,9 @@ from dataclasses import dataclass
 from typing import Literal, Protocol
 
 # The stored setting columns; a NULL column means Automatic.
-AvatarSettingField = Literal["spring_mode", "material_mode"]
+AvatarSettingField = Literal["spring_mode", "wind_strength", "material_mode"]
+# A stored value: a mode name, or the wind strength in percent.
+type AvatarSettingValue = str | int
 
 
 @dataclass(frozen=True, slots=True)
@@ -19,6 +21,7 @@ class AvatarSettingOverride:
 
     avatar_item_id: str
     spring_mode: str | None = None
+    wind_strength: int | None = None
     material_mode: str | None = None
 
 
@@ -32,7 +35,11 @@ class AvatarSettingOverrideRepository(Protocol):
         ...
 
     async def update(
-        self, *, owner_user_id: str, avatar_item_id: str, changes: Mapping[AvatarSettingField, str | None]
+        self,
+        *,
+        owner_user_id: str,
+        avatar_item_id: str,
+        changes: Mapping[AvatarSettingField, AvatarSettingValue | None],
     ) -> AvatarSettingOverride | None:
         """Set each named column (``None`` clears it) and keep the other columns, atomically.
 
@@ -42,4 +49,4 @@ class AvatarSettingOverrideRepository(Protocol):
         ...
 
 
-__all__ = ["AvatarSettingField", "AvatarSettingOverride", "AvatarSettingOverrideRepository"]
+__all__ = ["AvatarSettingField", "AvatarSettingOverride", "AvatarSettingOverrideRepository", "AvatarSettingValue"]

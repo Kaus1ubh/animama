@@ -286,6 +286,16 @@ Rows match when the text vector satisfies the query, and Anima ranks matches
 with `ts_rank_cd`, PostgreSQL's cover-density rank function. Cover-density
 ranking rewards matches where query terms appear close together.
 
+The `english` parser keeps unspaced Japanese, Chinese and Thai text as one
+lexeme. So besides the whole query's full-text match, a chunk also matches when
+it contains every query word or quoted phrase with a non-ASCII letter or digit
+as a case-insensitive substring and its other words match
+([memory search](memory.md#search_memory_files) has the matching rules). A
+`-term` of that kind excludes chunks containing it. `OR` beside a non-ASCII word
+works only through the full-text match, and chunks that match only by substring
+rank with a score of 0. The `search_uploaded_files` description asks the model to
+separate words with spaces in Japanese, Chinese or Thai too.
+
 Semantic search embeds the query with the embeddings-role model, then uses
 pgvector cosine distance against stored chunk embeddings from that same model.
 The SQL orders by nearest vector first with `<=>` and reports score as
@@ -308,7 +318,7 @@ separate groups in request attachment order.
 
 The reader returns complete stored chunks in source order with explicit
 `next_start_chunk` and `has_more` pagination. One serialized result is bounded
-to 24,000 characters and reports response truncation rather than splitting
+to about 6,000 estimated tokens (24,000 English characters) and reports response truncation rather than splitting
 chunk text. Results contain only the canonical filename, chunk index, chunk
 text, and pagination fields—never internal file/chunk IDs, embeddings, parser
 metadata, object keys, or storage URLs. The Anima should use search for

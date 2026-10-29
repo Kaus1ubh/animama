@@ -157,7 +157,13 @@ function StageAvatarActor({
   });
   const { camera, gl } = useThree();
   const avatarRef = useRef<Avatar | null>(null);
-  const { springMode, springModeRef, materialMode } = useAvatarLoadSettings(
+  const {
+    springMode,
+    springModeRef,
+    windStrength,
+    windStrengthRef,
+    materialMode,
+  } = useAvatarLoadSettings(
     source.kind === "url"
       ? runtimeAvatarItemId(source.runtimeContentEntry)
       : null,
@@ -209,7 +215,8 @@ function StageAvatarActor({
 
   useEffect(() => {
     avatarRef.current?.setSpringMode(springMode);
-  }, [springMode]);
+    avatarRef.current?.setWindStrength(windStrength);
+  }, [springMode, windStrength]);
 
   useEffect(() => {
     // Materials are built at load; wait for the Avatar's setting.
@@ -256,6 +263,7 @@ function StageAvatarActor({
             ? resolveRuntimeAvatarFaceParts(source.runtimeContentEntry ?? null)
             : { vrmSha256: null }),
           springMode: springModeRef.current,
+          windStrength: windStrengthRef.current,
           materialMode,
         });
         if (cancelled || avatar.isDisposed || !avatar.scene) return;
@@ -318,6 +326,7 @@ function StageAvatarActor({
     setStatus,
     source,
     springModeRef,
+    windStrengthRef,
     temporaryPreviewModel,
   ]);
 

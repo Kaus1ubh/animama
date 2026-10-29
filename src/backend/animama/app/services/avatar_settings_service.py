@@ -11,7 +11,7 @@ from __future__ import annotations
 from collections.abc import Awaitable, Callable
 
 from animama.app.contracts.avatar_settings import AvatarSettingsState, AvatarSettingsUpdate
-from animama.app.ports.avatar_settings import AvatarSettingField, AvatarSettingOverrideRepository
+from animama.app.ports.avatar_settings import AvatarSettingField, AvatarSettingOverrideRepository, AvatarSettingValue
 from animama.app.ports.content_catalog import ContentCatalog
 from animama.app.services.avatar_settings import AVATAR_SETTING_FIELDS, settings_state, stored_setting
 from animama.domain.content_catalog import ContentKind, ContentNotFoundError, ContentStatus
@@ -59,7 +59,7 @@ class AvatarSettingsService:
         """
 
         avatar_id = await self._avatar_id(user_id=user_id, item_id=item_id)
-        changes: dict[AvatarSettingField, str | None] = {
+        changes: dict[AvatarSettingField, AvatarSettingValue | None] = {
             name: stored_setting(getattr(update, name))
             for name in AVATAR_SETTING_FIELDS
             if name in update.model_fields_set

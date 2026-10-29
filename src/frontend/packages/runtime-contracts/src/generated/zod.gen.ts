@@ -479,7 +479,9 @@ export const zAvatarSettingsState = z.object({
     material_mode: zAvatarMaterialMode,
     material_mode_source: zAvatarSettingSource,
     spring_mode: zAvatarSpringMode,
-    spring_mode_source: zAvatarSettingSource
+    spring_mode_source: zAvatarSettingSource,
+    wind_strength: z.int(),
+    wind_strength_source: zAvatarSettingSource
 });
 
 /**
@@ -487,7 +489,8 @@ export const zAvatarSettingsState = z.object({
  *
  * Change some of the owner's settings for one Avatar.
  *
- * An omitted field keeps its stored value; ``automatic`` or ``null`` clears it.
+ * An omitted field keeps its stored value; ``automatic`` or ``null`` clears
+ * it, as does the default wind strength (100).
  */
 export const zAvatarSettingsUpdate = z.object({
     material_mode: z.optional(z.union([
@@ -496,6 +499,10 @@ export const zAvatarSettingsUpdate = z.object({
     ])),
     spring_mode: z.optional(z.union([
         zAvatarSpringMode,
+        z.null()
+    ])),
+    wind_strength: z.optional(z.union([
+        z.int().gte(0).lte(200),
         z.null()
     ]))
 });
@@ -2054,7 +2061,8 @@ export const zPyArchivePassageUpdate = z.object({
  * The setting and what automatic processing will do next.
  *
  * ``batch_size`` and ``started_at`` are set only while ``state`` is ``running``;
- * ``next_attempt_at`` while ``backing_off``; ``last_error`` after a failed run.
+ * ``next_attempt_at`` while ``backing_off``; ``last_error`` after a failed run,
+ * except during the daily-limit wait, which reports none.
  */
 export const zPyAutomaticEpisodeProcessingStatus = z.object({
     batch_size: z.optional(z.union([

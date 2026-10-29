@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 
-from .chat import AnimaHistoryTurn, ChatHistoryPosition
+from .chat import ChatHistoryPosition
 
 MEMORY_MANAGER_RUN_KIND_GENERAL = "general"
 MEMORY_MANAGER_RUN_KIND_EPISODE_PROCESSING = "episode_processing"
@@ -445,12 +445,6 @@ def shorten_reflection_turn_text(value: str | None) -> str | None:
     return f"{value[: REFLECTION_TURN_TEXT_MAX_CHARS - 1].rstrip()}…"
 
 
-def reflection_turn_read_chars(turn: AnimaHistoryTurn) -> int:
-    """Count the turn text a Reflection reads: both sides after shortening."""
-
-    return sum(len(shorten_reflection_turn_text(text) or "") for text in (turn.user_text, turn.anima_text))
-
-
 def format_turn_count(count: int) -> str:
     """Return ``"1 turn"`` or ``"<count> turns"`` for Reflection messages and summaries."""
 
@@ -545,6 +539,5 @@ __all__ = [
     "new_memory_manager_approval_id",
     "new_memory_manager_message_id",
     "new_memory_manager_run_id",
-    "reflection_turn_read_chars",
     "shorten_reflection_turn_text",
 ]

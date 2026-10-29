@@ -29,6 +29,14 @@ type Layout = {
 };
 
 const LAYOUTS: Record<string, Layout> = {
+  // A mouth swapped between separate meshes by materials, or never authored:
+  // the visemes morph nothing, and the face is found from blink alone.
+  "visemes that move no mesh": {
+    rename: {},
+    empty: ["aa", "ih", "ou", "ee", "oh"],
+    present: { blink: "model", blinkLeft: "model" },
+    missing: ["aa", "ih", "ou", "ee", "oh"],
+  },
   "left and right blinks only": {
     rename: {},
     empty: ["blink"],

@@ -6,6 +6,7 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from typing import Any
 
+from animama.app.model_clients.context_budget import estimate_text_tokens
 from animama.app.ports.memory_patch_port import MemoryPatchCandidate, MemoryPatchPlanError, MemoryPatchPlanner
 from animama.app.ports.user_file_processing_port import UserFileProcessingRepository
 from animama.app.services.anima_identity_memory import (
@@ -31,7 +32,12 @@ from animama.app.services.user_memory_read_tools import (
     MAX_MEMORY_READ_FILES,
     UserMemoryReadToolService,
 )
-from animama.domain.anima_definition import ANIMA_MEMORIES_MAX_BYTES, ANIMA_MEMORIES_PATH, ANIMA_MEMORIES_TOO_LARGE
+from animama.domain.anima_definition import (
+    ANIMA_MEMORIES_MAX_BYTES,
+    ANIMA_MEMORIES_PATH,
+    ANIMA_MEMORIES_SIZE_TARGET,
+    ANIMA_MEMORIES_TOO_LARGE,
+)
 from animama.domain.memory_entry import MEMORY_ENTRY_TYPE_FILE, MemoryEntry
 from animama.domain.memory_manager import MEMORY_PATCH_OPERATION_CREATE, MEMORY_PATCH_OPERATION_UPDATE
 from animama.domain.user_file_processing import UserFileReadableChunk
@@ -50,7 +56,10 @@ MEMORY_SEARCH_DEFAULT_LIMIT = DEFAULT_MEMORY_SEARCH_LIMIT
 MEMORY_SEARCH_DEFAULT_CONTEXT_CHARS = DEFAULT_MEMORY_SEARCH_CONTEXT_CHARS
 MAX_UPLOADED_FILE_FILTER_NAMES = 50
 MAX_UPLOADED_FILE_READ_CHUNKS = 5
-MAX_UPLOADED_FILE_READ_RESPONSE_CHARS = 24_000
+# Bounds one uploaded-file read by estimated tokens (estimate_text_tokens), so Japanese or Chinese text, about
+# one token per character, gets no larger share of the context than English: 6,000 is about 24,000 English
+# characters.
+MAX_UPLOADED_FILE_READ_RESPONSE_TOKENS = 6_000
 
 MEMORY_TOOL_READ_NAMES = frozenset(
     {
@@ -772,7 +781,7 @@ def _validation_error(exc: MemoryEntryValidationError) -> str:
             f"This edit would make {ANIMA_SELF_MEMORIES_ALIAS} larger than its "
             f"{ANIMA_MEMORIES_MAX_BYTES // 1024} KiB limit, so nothing was saved. Condense it instead: merge "
             "repeated moments, shorten older history and drop resolved open threads, keeping the whole file "
-            "well under about 6,000 characters.",
+            f"{ANIMA_MEMORIES_SIZE_TARGET}.",
             path=ANIMA_SELF_MEMORIES_ALIAS,
             retryable=True,
         )
@@ -870,15 +879,25 @@ def _read_files_tool() -> dict[str, Any]:
     )
 
 
+# Unspaced Japanese, Chinese or Thai text is one full-text token, matched only as a substring
+# (animama.domain.search_terms), so run-together words find nothing unless they appear verbatim.
+_SPACED_KEYWORDS_ADVICE = (
+    "Separate words with spaces, in Japanese, Chinese or Thai too: keyword matching finds text without spaces "
+    "only where it appears exactly as written."
+)
+# Shared with both Memory Manager runtimes' search_memory_files tools.
+MEMORY_SEARCH_FILES_DESCRIPTION = (
+    "Search the user's markdown memory files and the episode log of notes from past chats. "
+    "Use 2-5 distinctive keywords, such as names, places, projects or topics, rather than a full question. "
+    "A file matches when it contains any keyword or quoted phrase, and files that match more of them rank "
+    f"first. Prefix a word with - to exclude files that contain it. {_SPACED_KEYWORDS_ADVICE}"
+)
+
+
 def _search_memory_files_tool() -> dict[str, Any]:
     return _function_tool(
         MEMORY_TOOL_SEARCH_MEMORY_FILES,
-        (
-            "Search the user's markdown memory files and the episode log of notes from past chats. "
-            "Use 2-5 distinctive keywords, such as names, places, projects or topics, rather than a full question. "
-            "A file matches when it contains any keyword or quoted phrase, and files that match more of them rank "
-            "first. Prefix a word with - to exclude files that contain it."
-        ),
+        MEMORY_SEARCH_FILES_DESCRIPTION,
         _object_schema(
             {
                 "query": {
@@ -910,6 +929,7 @@ def _search_uploaded_files_tool() -> dict[str, Any]:
             "in the returned snippets. "
             "The keyword retrieval leg supports PostgreSQL web-search syntax, including quoted phrases, "
             "OR, and -term exclusions; the same query is also used for semantic retrieval. "
+            f"{_SPACED_KEYWORDS_ADVICE} "
             "Set file_names to one or more names from the attached-file list, or null to search every attachment."
         ),
         _object_schema(
@@ -1058,7 +1078,9 @@ def _normalize_relative_tool_path(value: object, *, allow_empty: bool) -> str:
         if segment in {".", ".."}:
             raise MemoryToolPathError("Memory tool paths cannot contain . or .. segments")
         if not _TOOL_PATH_SEGMENT_RE.fullmatch(segment):
-            raise MemoryToolPathError("Memory tool paths may only use stable identifier characters")
+            raise MemoryToolPathError(
+                "Memory tool path segments may only use ASCII letters, digits, '.', '_', '-', '{' and '}'"
+            )
     return "/".join(segments)
 
 
@@ -1159,8 +1181,23 @@ def _metadata_with_ai_write(
     return updated
 
 
+def _tool_json(payload: Mapping[str, Any]) -> str:
+    """Serialize a tool result with non-English text as written, not as ``\\uXXXX`` escapes.
+
+    A lone surrogate, such as one echoed from a malformed model argument, cannot be encoded as
+    UTF-8 for storage or the provider, so such a result keeps ASCII escapes.
+    """
+
+    serialized = json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
+    try:
+        serialized.encode("utf-8")
+    except UnicodeEncodeError:
+        return json.dumps(payload, separators=(",", ":"))
+    return serialized
+
+
 def _tool_ok(payload: Mapping[str, Any]) -> str:
-    return json.dumps({"ok": True, **dict(payload)}, ensure_ascii=True, separators=(",", ":"))
+    return _tool_json({"ok": True, **dict(payload)})
 
 
 def _bounded_uploaded_file_read_result(
@@ -1172,7 +1209,7 @@ def _bounded_uploaded_file_read_result(
 
     included_counts = [0] * len(groups)
     empty_payload = _uploaded_file_read_payload(groups, included_counts, start_chunk=start_chunk)
-    if len(_tool_ok(empty_payload)) > MAX_UPLOADED_FILE_READ_RESPONSE_CHARS:
+    if estimate_text_tokens(_tool_ok(empty_payload)) > MAX_UPLOADED_FILE_READ_RESPONSE_TOKENS:
         return _tool_error(
             "upload_read_response_too_large",
             "Attached-file metadata exceeds the bounded read response limit",
@@ -1189,14 +1226,14 @@ def _bounded_uploaded_file_read_result(
                 candidate_counts,
                 start_chunk=start_chunk,
             )
-            if len(_tool_ok(candidate_payload)) > MAX_UPLOADED_FILE_READ_RESPONSE_CHARS:
+            if estimate_text_tokens(_tool_ok(candidate_payload)) > MAX_UPLOADED_FILE_READ_RESPONSE_TOKENS:
                 if sum(included_counts) == 0:
                     isolated_payload = _uploaded_file_read_payload(
                         (group,),
                         [1],
                         start_chunk=start_chunk,
                     )
-                    if len(_tool_ok(isolated_payload)) > MAX_UPLOADED_FILE_READ_RESPONSE_CHARS:
+                    if estimate_text_tokens(_tool_ok(isolated_payload)) > MAX_UPLOADED_FILE_READ_RESPONSE_TOKENS:
                         return _tool_error(
                             "chunk_exceeds_read_limit",
                             "A stored chunk exceeds the bounded read response limit",
@@ -1243,20 +1280,11 @@ def _uploaded_file_read_payload(
 
 
 def _tool_payload(payload: Mapping[str, Any]) -> str:
-    return json.dumps(dict(payload), ensure_ascii=True, separators=(",", ":"))
+    return _tool_json(dict(payload))
 
 
 def _tool_error(code: str, message: str, **extra: Any) -> str:
-    return json.dumps(
-        {
-            "ok": False,
-            "code": code,
-            "message": message,
-            **extra,
-        },
-        ensure_ascii=True,
-        separators=(",", ":"),
-    )
+    return _tool_json({"ok": False, "code": code, "message": message, **extra})
 
 
 # Returned when a memory write waited too long for a file another transaction holds,
@@ -1277,7 +1305,8 @@ __all__ = [
     "MEMORY_TOOL_WRITE_FILE",
     "MEMORY_TOOL_WRITE_NAMES",
     "MAX_UPLOADED_FILE_READ_CHUNKS",
-    "MAX_UPLOADED_FILE_READ_RESPONSE_CHARS",
+    "MAX_UPLOADED_FILE_READ_RESPONSE_TOKENS",
+    "MEMORY_SEARCH_FILES_DESCRIPTION",
     "MemoryToolExecutionContext",
     "memory_tool_specs",
     "memory_tools_active",

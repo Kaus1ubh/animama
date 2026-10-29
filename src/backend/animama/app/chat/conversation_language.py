@@ -40,6 +40,18 @@ _LANGUAGES: Final[dict[str, ConversationLanguage]] = {
 }
 
 
+# Every memory writer states this: the chat memory guidance, and the general instructions of both Memory
+# Manager runtimes, which episode processing and Reflection runs build on. Keeping notes in the
+# conversation's language lets keyword search find them with the words the user uses; memory paths accept
+# only ASCII names.
+MEMORY_LANGUAGE_RULE = (
+    "Write new memory text in the language of the conversation it comes from, keeping names, nicknames and "
+    "quoted words exactly as the user wrote them, and leave existing text in its own language rather than "
+    "translating it. Name memory files and folders with ASCII letters, digits, dots, hyphens and underscores, "
+    "whatever their language."
+)
+
+
 def conversation_language(ui_locale: str | None) -> ConversationLanguage | None:
     """Return the turn's conversation language, or ``None`` to keep the default (English) behavior."""
 

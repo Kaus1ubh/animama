@@ -100,8 +100,16 @@ export type AvatarLiveDiagnostics = {
     missingOptionalBones: OptionalBoneStandIn[];
     springJoints: number;
     springColliders: number;
-    /** The wind setting in effect, and whether wind and updraft apply. */
-    wind: { mode: AvatarSpringMode; ambientForces: boolean };
+    /**
+     * The wind setting in effect, whether wind and updraft apply, their
+     * strength (a multiple of the default), and why Automatic leaves them off.
+     */
+    wind: {
+      mode: AvatarSpringMode;
+      ambientForces: boolean;
+      strength: number;
+      automaticOff: "converted" | "soft_hair" | null;
+    };
     /**
      * How far the arms and hands rest from VRoid's T-pose (degrees) and
      * whether they were normalized; null before a load measured them.
@@ -265,7 +273,12 @@ function collectMotion(avatar: Avatar): AvatarLiveDiagnostics["motion"] {
       : [],
     springJoints: springs?.joints.size ?? 0,
     springColliders: springs?.colliders.length ?? 0,
-    wind: { mode: avatar.springMode, ambientForces: avatar.ambientForces },
+    wind: {
+      mode: avatar.springMode,
+      ambientForces: avatar.ambientForces,
+      strength: avatar.windStrength,
+      automaticOff: avatar.automaticAmbientForcesOff,
+    },
     restPose: avatar.restPose
       ? {
           armDegrees: Math.round(avatar.restPose.armDegrees),

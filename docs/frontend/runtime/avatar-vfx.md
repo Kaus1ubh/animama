@@ -338,18 +338,34 @@ correction, before effects or poses change it:
   missing face or a big head reads it, so it is measured only then, from the
   meshes the model showed at load, which leaves out effect art added since.
 - `avatarScale`: the head bone above the feet over 1.25 m.
+- The body, on a big head only: rest heights below the head bone of the neck,
+  shoulders (upper arms), upper chest, chest, spine, hips, feet and ground,
+  the torso's width (half the shoulders' plus half the hips') and the arm and
+  leg lengths, read against the Included Avatars' (`REFERENCE_AVATAR_BODY`).
 
 The face's share of the head bone's height decides how far placement follows
 it: up to 0.3 nothing changes (the Included Avatars measure 0.16–0.18, anime
 proportions up to about 0.25); from 0.4 (twice the Included share: chibi,
 mascot and robot Avatars) placement uses the face's size over the Included
 face (`headSized`), ramping between. That scales box planes, body planes on
-the head bone, stickers around the head (below), head-anchored Particle
-Effects ([Avatar Particle Effects](avatar-particle-vfx.md)), hand contacts on
-the head ([Avatar animation](avatar-animation.md)), and the chat's Portrait
-presets, which scale their offsets from the head bone and their distance, so
-they frame the face; the review renders' face view and `animation:render`
-follow suit.
+the head bone, stickers around the head (below), Particle Effects
+([Avatar Particle Effects](avatar-particle-vfx.md)), hand contacts on the
+head ([Avatar animation](avatar-animation.md)), and the chat's camera presets.
+
+The camera presets are framed for the Included Avatars. Portrait and Portrait
+(close) scale their offsets from the head bone and their distance by
+`headFramingScale`; Full body and Full body (close) scale their camera and aim
+about the floor by `bodyFramingScale`. Both are 1 on the Included Avatars and
+the body's size (`bodyEffectScale`) for other adult proportions. On a big head
+Full body follows the height to the top of the head box over the Included
+Avatars' 1.15 times their head bone's, so a short chibi fills the frame and
+its head stays in view. Portrait follows the face's size but shows no more
+than Full body (close), and Portrait (close) no more than three quarters of
+Portrait, since a chibi's face is about half its height; both aim at the head
+box's centre (`headFramingCenter`) rather than the head bone at the skull's
+base, so a hat stays in view. Choosing a preset, or loading another Avatar with one
+chosen, frames it afresh. Creator previews, which reuse these presets, the
+review renders' face view and `animation:render` follow suit.
 
 Eye planes default to closing the eyes (`forceBlink` holds `blink` at 1 at full intensity; a fading event weights it, see the fades section),
 hiding eye highlights, lines and lashes (`hideEyeDetails`) and cleaning up the
@@ -382,7 +398,7 @@ VRM specification does not define. `detectAvatarFaceParts`
 | Part                             | Signal                                                                                                                                                                                                                                                                         |
 | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `eye_left`, `eye_right` (irises) | Primitives with at least half their skin weight on the humanoid `leftEye`/`rightEye` bones (or whose material a look-at expression moves through a texture transform). Without either, the primitives skinned to the head (eye bones included, as an eye mesh may skin only its irises to them) within that eye region with a triangle behind an eyelid `blink` moves on the face skin: its outline meets the lid's in the front view and a corner lies no deeper than 15% of the lids' width behind the lid's front, so an eye card larger than the lid counts; sides follow the head's left-right axis. A part deep inside the head or beside it (ears) whose outline merely spans the lids does not count. Iris, white and highlight are told apart by projected area and depth. One primitive may hold both eyes. An eye with no geometry of its own is `estimated` (see below). |
-| `face_skin`                      | The head-skinned primitive of the mesh that both `blink` and `aa` morph (presets left empty are filled from MMD, ARKit or VRChat shapes first, `faceSignals.ts`), with the most area around the eyes. A face skinned partly to the neck or jaw (under 90% head weight) wins instead when its head-weighted vertices cover more and blink moves it; primitives on spring joints (merged-in hair) never do. With neither, a primitive they morph that holds the body (under half its weight on the head, or over 35% below the neck) is face skin as its head region (see below). |
+| `face_skin`                      | The head-skinned primitive of the mesh that both `blink` and `aa` morph (presets left empty are filled from MMD, ARKit or VRChat shapes first, `faceSignals.ts`), with the most area around the eyes. A face skinned partly to the neck or jaw (under 90% head weight) wins instead when its head-weighted vertices cover more and blink moves it; primitives on spring joints (merged-in hair) never do. With neither, a primitive they morph that holds the body (under half its weight on the head, or over 35% below the neck) is face skin as its head region (see below). When `aa` morphs no mesh (a mouth swapped between separate meshes by material binds, or none authored), the same rules pick among the primitives `blink` alone morphs, and the mouth anchor is estimated from the eyes; only when that finds nothing either does Diagnostics warn that the expressions move no mesh. |
 | `eye_highlight`                  | Separated from the iris by size and depth.                                                                                                                                                                                                                                     |
 | `eyeline`, `eyelash`             | Small primitives of the face mesh that `blink` moves almost entirely; the larger is the eye line. Islands of the face or eye primitives that `blink` moves the same way are part `regions` (triangle lists, runtime only): lashes, or each eye's largest island as its line when no line primitive exists. |
 | `hair`                           | Primitives in the head subtree with a real share of spring-joint weight (used to keep forehead and top planes clear).                                                                                                                                                          |
@@ -442,12 +458,13 @@ effects are skipped naming them.
 
 Low-poly Avatars often keep the whole body in one primitive on one material and
 texture, with the face painted on. When no other face skin qualifies, a
-primitive that `blink` and `aa` morph and that holds the body (under half its
-skin weight on the head, or over 35% below the neck, as on a one-mesh chibi)
-is face skin as its head region: the triangles whose corners are all
-skinned mainly to the head (or its non-spring descendants) and that face
-forward, with their centre in the front half of the head's depth. The back and
-sides of the head, the neck, the body and hair on spring joints are left out.
+primitive that `blink` and `aa` (or `blink` alone, as above) morph and that
+holds the body (under half its skin weight on the head, or over 35% below the
+neck, as on a one-mesh chibi) is face skin as its head region: the triangles
+whose corners are all skinned mainly to the head (or its non-spring
+descendants) and that face forward, with their centre in the front half of
+the head's depth. The back and sides of the head, the neck, the body and hair
+on spring joints are left out.
 `blink` or `aa` must move a vertex of the region, so the face is where the
 Avatar blinks or speaks. Among several such primitives the one covering the
 most of the eye window (or of the front view) wins.

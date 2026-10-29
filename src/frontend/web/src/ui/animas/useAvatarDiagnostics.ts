@@ -170,6 +170,8 @@ export function useAvatarDiagnostics(
         ? {
             springMode: storedSettings.spring_mode,
             springModeSource: storedSettings.spring_mode_source,
+            windStrength: storedSettings.wind_strength,
+            windStrengthSource: storedSettings.wind_strength_source,
             materialMode: storedSettings.material_mode,
             materialModeSource: storedSettings.material_mode_source,
           }
@@ -178,9 +180,8 @@ export function useAvatarDiagnostics(
   );
   // An off-screen Avatar loads with its settings, as the chat would; an
   // unsaved upload has none (Automatic).
-  const { springModeRef, materialMode } = useAvatarLoadSettings(
-    avatarItemId ?? runtimeAvatarItemId(animaEntry),
-  );
+  const { springModeRef, windStrengthRef, materialMode } =
+    useAvatarLoadSettings(avatarItemId ?? runtimeAvatarItemId(animaEntry));
   const [collected, setCollected] = useState<Collected>({ status: "loading" });
 
   const runtimeSettled = !runtime.isPending;
@@ -241,6 +242,7 @@ export function useAvatarDiagnostics(
         try {
           await loadOffscreen(offscreen, entry, lease, {
             springMode: springModeRef.current,
+            windStrength: windStrengthRef.current,
             materialMode,
           });
           avatar = offscreen;
@@ -286,6 +288,7 @@ export function useAvatarDiagnostics(
     materialMode,
     runtimeSettled,
     springModeRef,
+    windStrengthRef,
     uploadFile,
     uploadStage,
   ]);
@@ -329,7 +332,10 @@ async function loadOffscreen(
   avatar: Avatar,
   entry: RuntimeCatalogEntry,
   lease: RuntimeContentUrlLease,
-  settings: Pick<Parameters<Avatar["load"]>[0], "springMode" | "materialMode">,
+  settings: Pick<
+    Parameters<Avatar["load"]>[0],
+    "springMode" | "windStrength" | "materialMode"
+  >,
 ): Promise<void> {
   const sourceUrl = runtimeContentDeliveryUrl(entry);
   await avatar.load({

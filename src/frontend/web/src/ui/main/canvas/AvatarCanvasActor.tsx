@@ -281,9 +281,13 @@ export function AvatarCanvasActor({
   // Enhanced rendering retunes materials at load, so a change reloads the Avatar.
   const enhancedRendering = useEnhancedRenderingStore((state) => state.enabled);
   // So does the Avatar's material setting; its wind setting applies live.
-  const { springMode, springModeRef, materialMode } = useAvatarLoadSettings(
-    runtimeAvatarItemId(runtimeAvatarEntry),
-  );
+  const {
+    springMode,
+    springModeRef,
+    windStrength,
+    windStrengthRef,
+    materialMode,
+  } = useAvatarLoadSettings(runtimeAvatarItemId(runtimeAvatarEntry));
   const avatarLoadSpecRef = useRef<AvatarLoadSpec>({
     loadKey: avatarLoadKey,
     requestedAvatarPath,
@@ -323,7 +327,8 @@ export function AvatarCanvasActor({
 
   useEffect(() => {
     avatarRef.current?.setSpringMode(springMode);
-  }, [sceneObject, springMode]);
+    avatarRef.current?.setWindStrength(windStrength);
+  }, [sceneObject, springMode, windStrength]);
 
   useEffect(() => {
     if (!avatarLoadKey || !motionCatalog || !materialMode) {
@@ -478,6 +483,7 @@ export function AvatarCanvasActor({
               ? resolveRuntimeAvatarFaceParts(runtimeAvatarEntry)
               : {}),
             springMode: springModeRef.current,
+            windStrength: windStrengthRef.current,
             materialMode,
           });
           avatar.setClipVFXEnabled(clipVfxEnabledRef.current);
@@ -619,6 +625,7 @@ export function AvatarCanvasActor({
     runtimeAvatarEntry,
     motionCatalog,
     springModeRef,
+    windStrengthRef,
   ]);
 
   // A loading actor keeps the scene at its full rate.

@@ -691,10 +691,19 @@ function MotionSection({ report }: { report: AvatarDiagnosticsReport }) {
     motion.wind.mode === "springs_off"
       ? t("avatarDiagnostics.motion.windEffect.held")
       : motion.wind.ambientForces
-        ? t("avatarDiagnostics.motion.windEffect.on")
-        : motion.wind.mode === "automatic"
-          ? t("avatarDiagnostics.motion.windEffect.tunedWithout")
-          : t("avatarDiagnostics.motion.windEffect.off");
+        ? t("avatarDiagnostics.motion.windEffect.on", {
+            percent: format.number(motion.wind.strength, {
+              style: "percent",
+              maximumFractionDigits: 0,
+            }),
+          })
+        : motion.wind.mode === "automatic" &&
+            motion.wind.automaticOff === "soft_hair"
+          ? t("avatarDiagnostics.motion.windEffect.softHair")
+          : motion.wind.mode === "automatic" &&
+              motion.wind.automaticOff === "converted"
+            ? t("avatarDiagnostics.motion.windEffect.tunedWithout")
+            : t("avatarDiagnostics.motion.windEffect.off");
   return (
     <FactList>
       <Fact label={t("avatarDiagnostics.motion.humanoidBones")}>

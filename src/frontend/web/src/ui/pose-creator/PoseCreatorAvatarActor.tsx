@@ -82,9 +82,13 @@ export function PoseCreatorAvatarActor({
   const setLoadStatus = usePoseCreatorStore((state) => state.setLoadStatus);
   const setLoadProgress = usePoseCreatorStore((state) => state.setLoadProgress);
 
-  const { springMode, springModeRef, materialMode } = useAvatarLoadSettings(
-    runtimeAvatarItemId(entry),
-  );
+  const {
+    springMode,
+    springModeRef,
+    windStrength,
+    windStrengthRef,
+    materialMode,
+  } = useAvatarLoadSettings(runtimeAvatarItemId(entry));
 
   useEffect(() => {
     basePoseRef.current = basePose;
@@ -92,7 +96,8 @@ export function PoseCreatorAvatarActor({
 
   useEffect(() => {
     avatarRef.current?.setSpringMode(springMode);
-  }, [sceneObject, springMode]);
+    avatarRef.current?.setWindStrength(windStrength);
+  }, [sceneObject, springMode, windStrength]);
 
   useEffect(() => {
     // Materials are built at load; wait for the Avatar's setting.
@@ -133,6 +138,7 @@ export function PoseCreatorAvatarActor({
             // The saved face part correction, so parts match the chat's.
             ...resolveRuntimeAvatarFaceParts(entry),
             springMode: springModeRef.current,
+            windStrength: windStrengthRef.current,
             materialMode,
           },
           (progress) => {
@@ -198,6 +204,7 @@ export function PoseCreatorAvatarActor({
     setLoadProgress,
     setLoadStatus,
     springModeRef,
+    windStrengthRef,
     viewportElement,
   ]);
 

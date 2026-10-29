@@ -1,10 +1,10 @@
-"""Owner-scoped per-Avatar settings: wind and ambient forces, and materials."""
+"""Owner-scoped per-Avatar settings: wind and ambient forces, wind strength, and materials."""
 
 from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import CheckConstraint, ForeignKey, String
+from sqlalchemy import CheckConstraint, ForeignKey, Integer, String
 from sqlalchemy.dialects.postgresql import TIMESTAMP
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.sql import text as sa_text
@@ -15,14 +15,16 @@ from .sqlalchemy_base import SqlalchemyBase
 class ORMAvatarSettingOverride(SqlalchemyBase):
     """One owner's non-Automatic settings for one Local or Included Avatar item.
 
-    A NULL column means Automatic, and the repository removes a row once both
-    are NULL. Rows are bound to the item only, not to its revision or model
-    bytes, so an updated Avatar keeps them; deleting the catalog item removes them.
+    A NULL column means Automatic (for the wind strength, 100 percent), and
+    the repository removes a row once every column is NULL. Rows are bound to
+    the item only, not to its revision or model bytes, so an updated Avatar
+    keeps them; deleting the catalog item removes them.
     """
 
     __tablename__ = "avatar_setting_overrides"
     __table_args__ = (
         CheckConstraint("spring_mode IN ('on', 'off', 'springs_off')", name="spring_mode_values"),
+        CheckConstraint("wind_strength BETWEEN 0 AND 200", name="wind_strength_range"),
         CheckConstraint("material_mode IN ('liltoon', 'simple')", name="material_mode_values"),
     )
 
@@ -37,6 +39,7 @@ class ORMAvatarSettingOverride(SqlalchemyBase):
         primary_key=True,
     )
     spring_mode: Mapped[str | None] = mapped_column(String, nullable=True)
+    wind_strength: Mapped[int | None] = mapped_column(Integer, nullable=True)
     material_mode: Mapped[str | None] = mapped_column(String, nullable=True)
     updated_at: Mapped[datetime] = mapped_column(
         TIMESTAMP(timezone=True),
