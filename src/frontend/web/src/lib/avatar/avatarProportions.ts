@@ -505,6 +505,17 @@ export function headFramingScale(proportions: AvatarProportions): number {
 }
 
 /**
+ * Where a camera framing the head aims, in metres above the head bone: 0 for
+ * adult proportions (the head bone), a big head's centre (its head box's,
+ * hat included), ramping between. A chibi's face and hat rise far above the
+ * head bone at the skull's base.
+ */
+export function headFramingCenter(proportions: AvatarProportions): number {
+  const box = proportions.headBox;
+  return headSized(proportions, 0, box ? (box.min.y + box.max.y) / 2 : 0);
+}
+
+/**
  * How much larger than the Included Avatars' framing a camera frames the
  * whole body of an Avatar of `proportions`: the body's size for adult
  * proportions, and for a big head its height to the top of the head box

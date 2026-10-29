@@ -154,3 +154,59 @@ describe.each(["full-body", "full-body-close"] as const)(
     });
   },
 );
+
+describe("camera presets on a short chibi Avatar", () => {
+  const distance = (settings: SceneCameraSettings) =>
+    new THREE.Vector3(
+      settings.position.x - settings.orbitTarget.x,
+      settings.position.y - settings.orbitTarget.y,
+      settings.position.z - settings.orbitTarget.z,
+    ).length();
+
+  it("orders the presets from widest to closest", async () => {
+    // A twice-sized head on a body 0.4 times the adult's: framing by the
+    // face alone would put Portrait wider than Full body.
+    const avatar = await loadWholeBodyAvatar({ headScale: 2, bodyScale: 0.4 });
+    const [fullBody, fullBodyClose, portrait, portraitClose] = (
+      ["full-body", "full-body-close", "portrait", "portrait-close"] as const
+    ).map((preset) =>
+      distance(buildSceneCameraPreset(preset, { avatar }).settings),
+    );
+    expect(fullBodyClose).toBeLessThan(fullBody!);
+    expect(portrait).toBeLessThanOrEqual(fullBodyClose! + 1e-9);
+    expect(portraitClose).toBeLessThan(portrait!);
+  });
+
+  it.each(["portrait", "portrait-close"] as const)(
+    "keeps the whole head in the %s preset",
+    async (preset) => {
+      const avatar = await loadWholeBodyAvatar({
+        headScale: 2,
+        bodyScale: 0.4,
+      });
+      const { settings } = buildSceneCameraPreset(preset, { avatar });
+      const camera = new THREE.PerspectiveCamera(settings.fov, 3 / 4);
+      camera.position.set(
+        settings.position.x,
+        settings.position.y,
+        settings.position.z,
+      );
+      camera.lookAt(
+        settings.orbitTarget.x,
+        settings.orbitTarget.y,
+        settings.orbitTarget.z,
+      );
+      camera.updateMatrixWorld(true);
+      avatar.scene!.updateMatrixWorld(true);
+      const head = avatar.vrm!.humanoid.getNormalizedBoneNode("head")!;
+      const box = measureAvatarProportions(avatar.vrm).headBox!;
+      // The head box's top and bottom, front face, in the tall PiP frame.
+      for (const y of [box.min.y, box.max.y]) {
+        const point = head
+          .localToWorld(new THREE.Vector3(0, y, box.max.z))
+          .project(camera);
+        expect(Math.abs(point.y)).toBeLessThan(1);
+      }
+    },
+  );
+});

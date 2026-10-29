@@ -357,10 +357,13 @@ The camera presets are framed for the Included Avatars. Portrait and Portrait
 `headFramingScale`; Full body and Full body (close) scale their camera and aim
 about the floor by `bodyFramingScale`. Both are 1 on the Included Avatars and
 the body's size (`bodyEffectScale`) for other adult proportions. On a big head
-Portrait follows the face's size, so it frames the face rather than the chin,
-and Full body follows the height to the top of the head box over the Included
+Full body follows the height to the top of the head box over the Included
 Avatars' 1.15 times their head bone's, so a short chibi fills the frame and
-its head stays in view. Choosing a preset, or loading another Avatar with one
+its head stays in view. Portrait follows the face's size but shows no more
+than Full body (close), and Portrait (close) no more than three quarters of
+Portrait, since a chibi's face is about half its height; both aim at the head
+box's centre (`headFramingCenter`) rather than the head bone at the skull's
+base, so a hat stays in view. Choosing a preset, or loading another Avatar with one
 chosen, frames it afresh. Creator previews, which reuse these presets, the
 review renders' face view and `animation:render` follow suit.
 

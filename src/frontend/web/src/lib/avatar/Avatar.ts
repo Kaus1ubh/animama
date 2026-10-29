@@ -9,6 +9,7 @@ import { createAvatarGltfLoader } from "./avatarGltfLoader";
 import { AnimationManager } from "./AnimationManager";
 import {
   bodyFramingScale,
+  headFramingCenter,
   headFramingScale,
   measureAvatarProportions,
   setAvatarFaceSize,
@@ -2573,6 +2574,14 @@ export class Avatar {
    */
   getHeadFramingScale(): number {
     return headFramingScale(measureAvatarProportions(this.vrm));
+  }
+
+  /**
+   * Where the chat's head presets aim, in metres above the head bone
+   * (`headFramingCenter`): 0 for adult proportions, a big head's centre.
+   */
+  getHeadFramingCenter(): number {
+    return headFramingCenter(measureAvatarProportions(this.vrm));
   }
 
   /**

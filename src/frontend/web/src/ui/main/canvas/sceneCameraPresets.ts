@@ -105,6 +105,18 @@ export function avatarSceneLights(enhanced: boolean): AvatarSceneLights {
   return enhanced ? ENHANCED_SCENE_LIGHTS : DEFAULT_SCENE_LIGHTS;
 }
 
+/**
+ * The widest Portrait framing, against the body's framing scale: Full body
+ * (close)'s distance (2.2 m) over Portrait's (1.6 m), so it shows no more.
+ */
+const PORTRAIT_WIDEST = 2.2 / 1.6;
+
+/**
+ * The widest Portrait (close) framing, against Portrait's scale: 1.5 times
+ * its 0.8 m is three quarters of Portrait's 1.6 m.
+ */
+const PORTRAIT_CLOSE_WIDEST = 1.5;
+
 export function buildSceneCameraPreset(
   preset: SceneCameraPreset,
   options?: {
@@ -123,8 +135,18 @@ export function buildSceneCameraPreset(
   // Full-body presets scale their camera and aim about the floor by the
   // body's, so a short chibi fills the frame and its head stays in view.
   // Both are 1 on the Included Avatars (`avatarProportions.ts`).
-  const head = options?.avatar?.getHeadFramingScale() ?? 1;
-  const body = options?.avatar?.getBodyFramingScale() ?? 1;
+  const avatar = options?.avatar;
+  const head = avatar?.getHeadFramingScale() ?? 1;
+  const body = avatar?.getBodyFramingScale() ?? 1;
+  // A chibi's face is half its height, so framing by the face alone would
+  // show more than Full body: Portrait shows no more than Full body (close),
+  // and Portrait (close) no more than three quarters of Portrait. On adult
+  // proportions the head and body scales match and neither limit applies.
+  const portrait = Math.min(head, PORTRAIT_WIDEST * body);
+  const portraitClose = Math.min(head, PORTRAIT_CLOSE_WIDEST * portrait);
+  // Aim at a big head's centre (hat included) rather than its head bone at
+  // the skull's base, so the top of the head stays in view; 0 for adults.
+  const aim = avatar?.getHeadFramingCenter() ?? 0;
 
   switch (preset) {
     case "full-body":
@@ -159,30 +181,30 @@ export function buildSceneCameraPreset(
       return {
         bindings: {
           positionYBone: "head",
-          positionYOffset: 0,
+          positionYOffset: aim,
           orbitTargetYBone: "head",
-          orbitTargetYOffset: -0.1 * head,
+          orbitTargetYOffset: aim - 0.1 * portrait,
         },
         settings: {
           // Leave enough headroom for Reaction VFX while retaining a facial
           // expression-focused composition.
-          position: { x: 0, y: headY, z: 1.6 * head },
+          position: { x: 0, y: headY + aim, z: 1.6 * portrait },
           fov: 35,
-          orbitTarget: { x: 0, y: headY - 0.1 * head, z: 0 },
+          orbitTarget: { x: 0, y: headY + aim - 0.1 * portrait, z: 0 },
         },
       };
     case "portrait-close":
       return {
         bindings: {
           positionYBone: "head",
-          positionYOffset: 0,
+          positionYOffset: aim,
           orbitTargetYBone: "head",
-          orbitTargetYOffset: 0,
+          orbitTargetYOffset: aim,
         },
         settings: {
-          position: { x: 0, y: headY, z: 0.8 * head },
+          position: { x: 0, y: headY + aim, z: 0.8 * portraitClose },
           fov: 35,
-          orbitTarget: { x: 0, y: headY, z: 0 },
+          orbitTarget: { x: 0, y: headY + aim, z: 0 },
         },
       };
   }
