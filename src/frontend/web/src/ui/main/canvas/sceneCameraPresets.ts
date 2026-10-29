@@ -1,6 +1,10 @@
 "use client";
 
 import type { Avatar } from "@/lib/avatar";
+import type {
+  PresentationPreferences,
+  SettingsPreferences,
+} from "@/lib/settings/preferences";
 
 export type SceneVector3 = {
   x: number;
@@ -47,6 +51,38 @@ export function isSceneCameraPreset(
 /** The PiP window's preset until the owner picks another. */
 export const DEFAULT_PIP_SCENE_CAMERA_PRESET: SceneCameraPreset =
   "portrait-close";
+
+/** The window whose camera preset is saved: the chat canvas or desktop PiP. */
+export type SceneCameraPresetWindow = "main" | "pip";
+
+/** Where each window's preset is saved under user `presentation` preferences. */
+const SAVED_SCENE_CAMERA_PRESET_KEYS = {
+  main: "camera_preset",
+  pip: "pip_camera_preset",
+} as const satisfies Record<
+  SceneCameraPresetWindow,
+  keyof PresentationPreferences
+>;
+
+/** The window's saved preset, or null when none is saved or it is unknown. */
+export function readSavedSceneCameraPreset(
+  preferences: SettingsPreferences | null,
+  target: SceneCameraPresetWindow,
+): SceneCameraPreset | null {
+  const saved =
+    preferences?.presentation?.[SAVED_SCENE_CAMERA_PRESET_KEYS[target]];
+  return isSceneCameraPreset(saved) ? saved : null;
+}
+
+/** A user preferences patch that saves the window's preset. */
+export function savedSceneCameraPresetPatch(
+  target: SceneCameraPresetWindow,
+  preset: SceneCameraPreset,
+): SettingsPreferences {
+  return {
+    presentation: { [SAVED_SCENE_CAMERA_PRESET_KEYS[target]]: preset },
+  };
+}
 
 export type SceneCameraPresetState = {
   bindings: SceneCameraBindings;

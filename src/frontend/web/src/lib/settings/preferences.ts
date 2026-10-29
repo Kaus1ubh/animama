@@ -125,6 +125,13 @@ export type PresentationPreferences = {
   disable_animation?: boolean;
   disable_vfx?: boolean;
   /**
+   * The chat canvas's camera preset (`SceneCameraPreset`); missing or unknown
+   * uses Portrait. Fine-tuned camera positions are not saved.
+   */
+  camera_preset?: string;
+  /** The desktop PiP window's camera preset; missing uses Portrait close. */
+  pip_camera_preset?: string;
+  /**
    * App stage scene behind the Avatar (`dreamy`, `sakura`, …) or `none`;
    * missing means Dreamy in light mode and Sakura in dark mode. A bound
    * Background image still wins.

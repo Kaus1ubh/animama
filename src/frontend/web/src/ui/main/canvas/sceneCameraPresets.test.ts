@@ -9,6 +9,8 @@ import {
   buildSceneCameraPreset,
   DEFAULT_PIP_SCENE_CAMERA_PRESET,
   isSceneCameraPreset,
+  readSavedSceneCameraPreset,
+  savedSceneCameraPresetPatch,
   type SceneCameraSettings,
 } from "./sceneCameraPresets";
 
@@ -21,6 +23,37 @@ describe("scene camera presets", () => {
     expect(isSceneCameraPreset("portrait")).toBe(true);
     expect(isSceneCameraPreset("portrait-three-quarter")).toBe(false);
     expect(isSceneCameraPreset({ preset: "portrait" })).toBe(false);
+  });
+
+  it("reads each window's saved preset from user preferences", () => {
+    const preferences = {
+      presentation: {
+        camera_preset: "full-body",
+        pip_camera_preset: "portrait",
+      },
+    };
+    expect(readSavedSceneCameraPreset(preferences, "main")).toBe("full-body");
+    expect(readSavedSceneCameraPreset(preferences, "pip")).toBe("portrait");
+  });
+
+  it("ignores missing and unknown saved presets", () => {
+    expect(readSavedSceneCameraPreset(null, "main")).toBeNull();
+    expect(readSavedSceneCameraPreset({}, "pip")).toBeNull();
+    expect(
+      readSavedSceneCameraPreset(
+        { presentation: { camera_preset: "retired-preset" } },
+        "main",
+      ),
+    ).toBeNull();
+  });
+
+  it("builds a patch that saves only the named window's preset", () => {
+    expect(savedSceneCameraPresetPatch("main", "portrait-close")).toEqual({
+      presentation: { camera_preset: "portrait-close" },
+    });
+    expect(savedSceneCameraPresetPatch("pip", "full-body")).toEqual({
+      presentation: { pip_camera_preset: "full-body" },
+    });
   });
 });
 

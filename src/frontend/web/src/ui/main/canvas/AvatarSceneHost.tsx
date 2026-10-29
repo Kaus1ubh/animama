@@ -34,7 +34,10 @@ import {
   type SceneCameraBindings,
   buildSceneCameraPreset,
   DEFAULT_PIP_SCENE_CAMERA_PRESET,
+  readSavedSceneCameraPreset,
+  savedSceneCameraPresetPatch,
   type SceneCameraPreset,
+  type SceneCameraPresetWindow,
   type SceneCameraSettings,
   type SceneCameraYBoneBinding,
   type SceneVector3,
@@ -189,7 +192,8 @@ export function AvatarSceneHost({
   );
   const [uniformScaleLocked, setUniformScaleLocked] = useState(true);
   const avatarRuntimeRef = useRef<Avatar | null>(null);
-  const { effectivePreferences, userPreferences } = useSettings();
+  const { effectivePreferences, updateUserPreferences, userPreferences } =
+    useSettings();
   const canvasSize = useElementSize(canvasHostElement, isPipActive);
   const animaDebugPanelEnabled = mode === "main" && DEBUG_ENABLED;
   const cursorLookAtInputProvider = useDesktopPipCursorLookAtInput(
@@ -336,18 +340,6 @@ export function AvatarSceneHost({
       fov: MathUtils.clamp(value, 10, 90),
     }));
   }, []);
-  const handleSceneCameraReset = useCallback(() => {
-    setSelectedCameraPreset(DEFAULT_MAIN_SCENE_CAMERA_PRESET);
-    const nextPreset = buildSceneCameraPreset(
-      DEFAULT_MAIN_SCENE_CAMERA_PRESET,
-      {
-        avatar: avatarRuntimeRef.current,
-        fallbackSettings: sceneCameraSettings,
-      },
-    );
-    setSceneCameraSettings(nextPreset.settings);
-    setSceneCameraBindings(nextPreset.bindings);
-  }, [sceneCameraSettings]);
   const handleSceneCameraPositionYBoneChange = useCallback(
     (value: SceneCameraYBoneBinding) => {
       setSelectedCameraPreset(null);
@@ -448,19 +440,62 @@ export function AvatarSceneHost({
     },
     [mode],
   );
+  /** Frames the current Avatar with a main-window preset. */
+  const applySceneCameraPreset = useCallback((preset: SceneCameraPreset) => {
+    setSelectedCameraPreset(preset);
+    const nextPreset = buildSceneCameraPreset(preset, {
+      avatar: avatarRuntimeRef.current,
+      fallbackSettings: sceneCameraSettingsRef.current,
+    });
+    setSceneCameraSettings(nextPreset.settings);
+    setSceneCameraBindings(nextPreset.bindings);
+  }, []);
+
+  // Both windows' presets are installation-wide user preferences. They are
+  // restored once, when preferences first load; a preset the owner picks
+  // before then wins, as does every later pick over a stale cache.
+  const savedCameraPresetsSettledRef = useRef(false);
+  useEffect(() => {
+    if (
+      mode !== "main" ||
+      !userPreferences ||
+      savedCameraPresetsSettledRef.current
+    ) {
+      return;
+    }
+    savedCameraPresetsSettledRef.current = true;
+    const mainPreset = readSavedSceneCameraPreset(userPreferences, "main");
+    if (mainPreset) applySceneCameraPreset(mainPreset);
+    const savedPipPreset = readSavedSceneCameraPreset(userPreferences, "pip");
+    if (savedPipPreset) setPipCameraPreset(savedPipPreset);
+  }, [applySceneCameraPreset, mode, userPreferences]);
+  const saveCameraPreset = useCallback(
+    (target: SceneCameraPresetWindow, preset: SceneCameraPreset) => {
+      savedCameraPresetsSettledRef.current = true;
+      // A failed save is logged by the provider; the preset still applies
+      // for this session.
+      void updateUserPreferences(
+        savedSceneCameraPresetPatch(target, preset),
+      ).catch(() => {});
+    },
+    [updateUserPreferences],
+  );
   const handleSceneCameraPresetApply = useCallback(
     (preset: SceneCameraPreset) => {
-      setSelectedCameraPreset(preset);
-      const avatar = avatarRuntimeRef.current;
-      const nextPreset = buildSceneCameraPreset(preset, {
-        avatar,
-        fallbackSettings: sceneCameraSettings,
-      });
-
-      setSceneCameraSettings(nextPreset.settings);
-      setSceneCameraBindings(nextPreset.bindings);
+      applySceneCameraPreset(preset);
+      saveCameraPreset("main", preset);
     },
-    [sceneCameraSettings],
+    [applySceneCameraPreset, saveCameraPreset],
+  );
+  const handleSceneCameraReset = useCallback(() => {
+    handleSceneCameraPresetApply(DEFAULT_MAIN_SCENE_CAMERA_PRESET);
+  }, [handleSceneCameraPresetApply]);
+  const handlePipCameraPresetApply = useCallback(
+    (preset: SceneCameraPreset) => {
+      setPipCameraPreset(preset);
+      saveCameraPreset("pip", preset);
+    },
+    [saveCameraPreset],
   );
 
   const isMainSceneRenderSuspended =
@@ -496,7 +531,7 @@ export function AvatarSceneHost({
     backgroundMode,
     cameraPreset: pipCameraPreset,
     enabled: mode === "main",
-    onCameraPresetRequest: setPipCameraPreset,
+    onCameraPresetRequest: handlePipCameraPresetApply,
   });
 
   useEffect(() => {
@@ -654,7 +689,7 @@ export function AvatarSceneHost({
                 <SceneCameraPresetControl
                   title={t("canvas.camera.pipTitle")}
                   preset={pipCameraPreset}
-                  onApplyPreset={setPipCameraPreset}
+                  onApplyPreset={handlePipCameraPresetApply}
                 />
               ) : mode === "main" && showScene ? (
                 <div className="space-y-3">

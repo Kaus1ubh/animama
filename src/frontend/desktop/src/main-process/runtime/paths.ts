@@ -29,6 +29,8 @@ export function runtimePaths(userData: string) {
     downloads: path.join(base, "downloads"),
     /** The UI Locale the app last applied, for the shell's own text. */
     uiLocale: path.join(base, "ui-locale.json"),
+    /** Where the PiP window was last left on this machine's displays. */
+    pipPlacement: path.join(base, "pip-placement.json"),
   };
 }
 

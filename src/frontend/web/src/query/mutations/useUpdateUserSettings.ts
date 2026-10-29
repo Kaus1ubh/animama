@@ -58,6 +58,8 @@ export function useUpdateUserSettings() {
  * `PATCH /v1/users/me/settings` replaces the whole preferences object, so this
  * reads the current settings fresh first. Both `SettingsProvider` and setup
  * use it to preserve preferences outside the patch; a failed read makes no write.
+ * Merges run one at a time, so overlapping saves (a quickly cycled camera
+ * preset, say) each start from the previous one's result.
  */
 export function useMergeUserPreferences() {
   const apiClient = useProductApiClient();
@@ -66,6 +68,7 @@ export function useMergeUserPreferences() {
   const userKey = useRuntimeCacheKey() ?? "__anon__";
   const update = useUpdateUserSettings();
   return useMutation<PyUserSettings, Error, SettingsPreferences>({
+    scope: { id: `user-preferences:${userKey}` },
     mutationFn: async (patch) => {
       const current = await queryClient.fetchQuery({
         queryKey: queryKeys.settings.user(userKey),
