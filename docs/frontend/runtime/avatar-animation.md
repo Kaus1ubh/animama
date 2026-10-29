@@ -1397,12 +1397,14 @@ Responsibilities:
 Current defaults keep spring physics enabled, use a stronger drag multiplier,
 apply a subtle updraft, enable gust shaping, and keep helpers hidden.
 
-Each Avatar has a wind setting ([Avatar settings](../features/anima-management.md#avatar-settings)),
-applied at load (`AvatarLoadSpec.springMode`) and live through
-`Avatar.setSpringMode`:
+Each Avatar has a wind setting and a wind strength ([Avatar settings](../features/anima-management.md#avatar-settings)),
+applied at load (`AvatarLoadSpec.springMode`, `windStrength`) and live through
+`Avatar.setSpringMode` and `Avatar.setWindStrength`. The strength multiplies
+wind and the updraft (`SpringBonePhysicsController.setAmbientStrength`; 0
+adds none):
 
 - **Automatic** keeps the choice below: ambient forces, except for Avatars
-  converted by Mochiya.
+  converted by Mochiya and Avatars whose hair is too soft to hold against them.
 - **On** and **Off** force ambient forces on or off
   (`SpringBonePhysicsController.setAmbientForces`).
 - **Springs off** also holds every spring joint at its rest rotation.
@@ -1421,7 +1423,19 @@ section report it ("Ambient forces: off (converted Avatar)"). Their springs come
 PhysBones tuned with low pull and little gravity for a world without ambient
 forces. VRM-authored hair is stiff enough to resist the updraft; such springs
 are not, and a hanging ponytail would point straight up. The drag multiplier
-still applies. Effective drag never exceeds 1 on any Avatar, because three-vrm's
+still applies.
+
+Under Automatic, an Avatar whose hair the updraft would lift at the chosen
+strength also gets no ambient forces (`SpringBonePhysicsController.updraftLiftsHair`,
+decided at load and again when the strength changes). Each hair joint (every
+joint when none is classified as hair) is read at rest: the updraft as
+`update` applies it there, less the joint's authored gravity or the
+zero-gravity baseline, against its stiffness. When that net upward pull beats
+the stiffness of more than half of them, a hanging strand would turn up, so
+Automatic leaves wind and the updraft off. VRM-authored hair, the Included
+Avatars' among it, holds; springs tuned for a world without ambient forces,
+as on many chibi Avatars, do not. A lower strength can keep them on. Diagnostics
+reports the reason. Effective drag never exceeds 1 on any Avatar, because three-vrm's
 inertia is 1 − drag; converted PhysBones can author drag up to about 0.86.
 
 Semantic profile behavior:

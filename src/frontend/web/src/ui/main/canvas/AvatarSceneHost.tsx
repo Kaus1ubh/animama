@@ -425,8 +425,8 @@ export function AvatarSceneHost({
       // PiP frames each new Avatar from its preset below.
       if (!avatar || mode === "pip") return;
 
-      // A chosen preset frames the new Avatar afresh: a big head moves the
-      // camera back as well as to its head (`buildSceneCameraPreset`).
+      // A chosen preset frames the new Avatar afresh by its measured head
+      // and body (`buildSceneCameraPreset`), so a chibi is framed whole.
       const preset = selectedCameraPresetRef.current;
       if (preset) {
         // Without a head bone the current height stays, as when sampling.

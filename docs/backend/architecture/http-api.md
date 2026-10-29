@@ -1485,13 +1485,14 @@ See [face-part corrections](../features/custom-animas-and-content.md#face-part-c
 
 `GET /v1/avatar-content/{item_id}/settings` (`get_avatar_settings`) returns
 the caller's effective settings for a current admitted Local or Included Avatar
-as `{item_id, spring_mode, spring_mode_source, material_mode,
-material_mode_source}`. `spring_mode` is `automatic`, `on`, `off` or
-`springs_off`; `material_mode` is `automatic`, `liltoon` or `simple`; each
-source is `stored` or `default` (Automatic because nothing is saved).
-`PUT` (`save_avatar_settings`) takes `{spring_mode?, material_mode?}` and
-returns the same state: an omitted field keeps its stored value, and
-`automatic` or `null` clears it. An unknown, invalid or non-Avatar item, or
+as `{item_id, spring_mode, spring_mode_source, wind_strength,
+wind_strength_source, material_mode, material_mode_source}`. `spring_mode` is
+`automatic`, `on`, `off` or `springs_off`; `wind_strength` is a whole percent
+from 0 to 200 (100 by default); `material_mode` is `automatic`, `liltoon` or
+`simple`; each source is `stored` or `default` (nothing is saved).
+`PUT` (`save_avatar_settings`) takes `{spring_mode?, wind_strength?,
+material_mode?}` and returns the same state: an omitted field keeps its stored
+value, and `automatic`, `null` or a strength of 100 clears it. An unknown, invalid or non-Avatar item, or
 another owner's Local Avatar, returns `404 content_not_found`; an unknown
 value or key returns 422. Saving writes no Avatar files and leaves the
 revision unchanged. Both routes are local-only. See

@@ -9,6 +9,7 @@ import { Avatar } from "@/lib/avatar/Avatar";
 import {
   headSized,
   measureAvatarProportions,
+  REFERENCE_TOP_OVER_HEAD_BONE,
 } from "@/lib/avatar/avatarProportions";
 import { parseAnimaPoseClip } from "@/lib/avatar/poses/animaPoseClip";
 import { createAnimaPoseClipProgram } from "@/lib/avatar/poses/animaPoseClip/program";
@@ -106,12 +107,11 @@ async function measureFace(vrm: VRM, gltf: GLTF): Promise<void> {
 }
 
 /**
- * The Included Avatars' rest height of the head bone (m) and of the top of the
- * head over it: big-headed Avatars are framed as a reference Avatar of their
- * head's size would be.
+ * The Included Avatars' rest height of the head bone (m): big-headed Avatars'
+ * faces are framed as a reference Avatar of their head's size would be, and
+ * their bodies by the top of the head (`REFERENCE_TOP_OVER_HEAD_BONE`).
  */
 const REFERENCE_HEAD_BONE_HEIGHT = 1.35;
-const REFERENCE_TOP_OVER_HEAD_BONE = 1.15;
 
 /**
  * The lengths the views are framed by: the head bone's height `headY` for

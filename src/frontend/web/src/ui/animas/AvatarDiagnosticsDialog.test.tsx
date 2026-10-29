@@ -112,7 +112,12 @@ const live: AvatarLiveDiagnostics = {
     ],
     springJoints: 120,
     springColliders: 18,
-    wind: { mode: "off", ambientForces: false },
+    wind: {
+      mode: "off",
+      ambientForces: false,
+      strength: 1,
+      automaticOff: null,
+    },
     restPose: {
       armDegrees: 40,
       handDegrees: 2,
@@ -156,6 +161,8 @@ const report = buildAvatarDiagnosticsReport({
   settings: {
     springMode: "off",
     springModeSource: "stored",
+    windStrength: 100,
+    windStrengthSource: "default",
     materialMode: "simple",
     materialModeSource: "stored",
   },

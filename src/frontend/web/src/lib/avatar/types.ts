@@ -31,6 +31,12 @@ export interface AvatarLoadSpec {
   /** The Avatar's wind setting (Automatic when absent); `setSpringMode` changes it live. */
   springMode?: AvatarSpringMode;
   /**
+   * The owner's wind strength as a multiple of the default (default 1): it
+   * scales wind and the updraft, and Automatic weighs it when deciding
+   * whether the Avatar's hair can hold against them.
+   */
+  windStrength?: number;
+  /**
    * How authored lilToon materials render (Automatic when absent). Materials
    * are built at load, so changing it means loading again.
    */

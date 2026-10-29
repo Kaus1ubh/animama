@@ -180,9 +180,10 @@ Avatars keep the correction in their sidecar instead.
 `ORMAvatarSettingOverride` maps `avatar_setting_overrides`: one owner's
 settings for one Local or Included Avatar item, keyed by
 `(owner_user_id, avatar_item_id)` and cascaded with the item. Nullable
-`spring_mode` (`on`, `off`, `springs_off`) and `material_mode` (`liltoon`,
-`simple`) are checked by constraint; NULL means Automatic, and the repository
-removes a row once both are NULL. Rows have no revision or digest binding, so
+`spring_mode` (`on`, `off`, `springs_off`), integer `wind_strength`
+(0–200 percent) and `material_mode` (`liltoon`, `simple`) are checked by
+constraint; NULL means Automatic (100 percent for the strength), and the
+repository removes a row once all three are NULL. Rows have no revision or digest binding, so
 they survive an in-place Avatar update.
 
 Typed documents themselves are framework-neutral domain values and are parsed

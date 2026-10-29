@@ -163,6 +163,7 @@ class AvatarDocumentV1(ContentDocumentV1):
     # Avatar sidecar (None is Automatic). Import moves them into the importer's
     # settings table; a Local sidecar's values are never applied.
     spring_mode: str | None = None
+    wind_strength: int | None = None
     material_mode: str | None = None
 
 

@@ -4,7 +4,8 @@
  * VRM does not name face parts, so detection reads spec signals first: the
  * humanoid eye bones, skin weights, the primitives that the `blink` and `aa`
  * expressions morph (filled from MMD, ARKit or VRChat shapes where the file
- * leaves them empty, `faceSignals.ts`), expression look-at texture transforms
+ * leaves them empty, `faceSignals.ts`; `blink` alone when `aa` morphs no
+ * mesh), expression look-at texture transforms
  * and spring-bone joints. Material names are only a per-role fallback, and user corrections
  * (keyed to the exact VRM digest) override both.
  */
@@ -1213,20 +1214,26 @@ function detectFromSignals(context: Context): {
     ),
   );
 
-  // Face skin: head-skinned primitives of the mesh morphed by blink and aa.
+  // Face skin: head-skinned primitives of the mesh morphed by blink and aa
+  // (or by blink alone, below).
   const blink = collectMorphBinds(vrm, "blink");
   const aa = collectMorphBinds(vrm, "aa");
-  if (blink.size === 0 || aa.size === 0) {
+  const reportExpressionsMissing = () =>
     report(
       context,
       { code: "face_parts_expressions_missing" },
-      "The VRM has no blink or aa expression, nor MMD, ARKit or VRChat shapes for them; face skin and eye details cannot be found from expressions.",
+      "The VRM's blink or aa expression moves no mesh (it is missing or only switches materials), and no MMD, ARKit or VRChat shapes stand in for it; face skin and eye details cannot be found from expressions.",
     );
-  }
+  // A mouth the file swaps by materials (separate mouth meshes switched on
+  // and off) or leaves unbound gives aa no mesh. The face is then found among
+  // the primitives blink morphs alone, by the same rules; the warning stays
+  // only when that finds no face skin.
+  const blinkOnly = blink.size > 0 && aa.size === 0;
+  if (blink.size === 0) reportExpressionsMissing();
   const faceMeshCandidates = candidates.filter(
     (candidate) =>
       blink.has(candidate.entry.object) &&
-      aa.has(candidate.entry.object) &&
+      (blinkOnly || aa.has(candidate.entry.object)) &&
       !eyeKeys.has(candidate.entry.bindingKey),
   );
   const window = resolveEyeWindow(context, eyeParts.iris, measure);
@@ -1302,6 +1309,7 @@ function detectFromSignals(context: Context): {
       };
     }
   }
+  if (blinkOnly && !faceSkin) reportExpressionsMissing();
 
   // No eye bones or look-at textures: find the eyes where blink moves the
   // face, then their layers among the primitives over each one.
@@ -1907,7 +1915,8 @@ function holdsBody(shares: SkinShares): boolean {
 
 /**
  * The face of an Avatar whose face mesh also holds its body: among the
- * primitives blink and aa morph that hold the body ({@link holdsBody}), the
+ * face mesh candidates (primitives blink and aa morph, or blink alone when aa
+ * morphs no mesh) that hold the body ({@link holdsBody}), the
  * one whose head region
  * ({@link measureHeadRegion}) either expression moves and that covers the
  * most of the eye window (or of the front view without one). Reports when
@@ -1949,7 +1958,7 @@ function detectWholeBodyFace(
     report(
       context,
       { code: "face_parts_whole_body_head_missing" },
-      "A mesh part holding the whole body carries the blink and aa shapes, but none of its forward-facing triangles skinned to the head bone moves with them; its face cannot be found.",
+      "A mesh part holding the whole body carries the blink or aa shapes, but none of its forward-facing triangles skinned to the head bone moves with them; its face cannot be found.",
     );
     return null;
   }

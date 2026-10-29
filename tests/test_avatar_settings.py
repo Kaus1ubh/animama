@@ -41,6 +41,8 @@ from tests.local_http_client import local_client
 DEFAULTS = {
     "spring_mode": "automatic",
     "spring_mode_source": "default",
+    "wind_strength": 100,
+    "wind_strength_source": "default",
     "material_mode": "automatic",
     "material_mode_source": "default",
 }
@@ -138,6 +140,7 @@ async def test_settings_are_saved_per_owner_for_local_and_included_avatars(
                 both = await client.put(path, json={"material_mode": "simple"})
                 assert both.status_code == 200, both.text
                 expected = {
+                    **DEFAULTS,
                     "item_id": avatar.id,
                     "spring_mode": "springs_off",
                     "spring_mode_source": "stored",
@@ -183,6 +186,34 @@ async def test_settings_are_saved_per_owner_for_local_and_included_avatars(
         assert saved.spring_mode == "on" and saved.spring_mode_source == "stored"
         assert await _stored(async_session, fixture.owner, included.id) is None
         assert await _stored(async_session, other, included.id) == ("on", None)
+
+
+async def test_wind_strength_is_saved_as_a_percent_and_100_clears_it(
+    async_session: AsyncSession, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    async with anima_creation_fixture(async_session, tmp_path) as fixture:
+        avatar = fixture.items["local-avatar"]
+        path = f"/v1/avatar-content/{avatar.id}/settings"
+        async with local_client(_app(fixture, async_session, monkeypatch)) as client:
+            saved = await client.put(path, json={"wind_strength": 40})
+            assert saved.status_code == 200, saved.text
+            assert saved.json() == {
+                **DEFAULTS,
+                "item_id": avatar.id,
+                "wind_strength": 40,
+                "wind_strength_source": "stored",
+            }
+            # Another setting keeps it; the default strength clears it and the row.
+            assert (await client.put(path, json={"spring_mode": "on"})).json()["wind_strength"] == 40
+            await client.put(path, json={"spring_mode": None})
+            cleared = await client.put(path, json={"wind_strength": 100})
+            assert cleared.json() == {"item_id": avatar.id, **DEFAULTS}
+            assert await _stored(async_session, fixture.owner, avatar.id) is None
+            for strength in (-1, 201, 1.5, "40"):
+                response = await client.put(path, json={"wind_strength": strength})
+                assert response.status_code == 422, strength
+            assert (await client.put(path, json={"wind_strength": 0})).json()["wind_strength"] == 0
+            assert (await client.put(path, json={"wind_strength": None})).json()["wind_strength_source"] == "default"
 
 
 async def test_settings_routes_report_unknown_foreign_and_invalid_requests(
@@ -266,14 +297,15 @@ async def test_package_export_writes_only_the_exporters_stored_settings(
 
         async with local_client(_app(fixture, async_session, monkeypatch)) as client:
             saved = await client.put(
-                f"/v1/avatar-content/{avatar.id}/settings", json={"spring_mode": "off", "material_mode": "simple"}
+                f"/v1/avatar-content/{avatar.id}/settings",
+                json={"spring_mode": "off", "wind_strength": 60, "material_mode": "simple"},
             )
             assert saved.status_code == 200, saved.text
         # The stored settings are part of the reviewed export.
         with_value = await packages.summarize(user_id=fixture.owner, item_ids=(avatar.id,))
         assert with_value.digest != without_value.digest
         document = _avatar_sidecar(await reviewed_export(packages, user_id=fixture.owner, root_item_id=avatar.id))
-        assert (document["spring_mode"], document["material_mode"]) == ("off", "simple")
+        assert (document["spring_mode"], document["wind_strength"], document["material_mode"]) == ("off", 60, "simple")
 
         # A composition without the store exports none.
         unstored = _packages(async_session, fixture, settings_store=False)
@@ -311,7 +343,7 @@ async def test_import_moves_packaged_settings_into_the_importers_table(
         async with local_client(_app(fixture, async_session, monkeypatch)) as client:
             saved = await client.put(
                 f"/v1/avatar-content/{avatar.id}/settings",
-                json={"spring_mode": "springs_off", "material_mode": "liltoon"},
+                json={"spring_mode": "springs_off", "wind_strength": 150, "material_mode": "liltoon"},
             )
             assert saved.status_code == 200, saved.text
         packages = _packages(async_session, fixture, settings_store=True)
@@ -324,6 +356,7 @@ async def test_import_moves_packaged_settings_into_the_importers_table(
         state = await _service(async_session).get(user_id=fixture.owner, item_id=copied.id)
         assert (state.spring_mode, state.spring_mode_source) == ("springs_off", "stored")
         assert (state.material_mode, state.material_mode_source) == ("liltoon", "stored")
+        assert (state.wind_strength, state.wind_strength_source) == (150, "stored")
         assert await _stored(async_session, fixture.owner, avatar.id) == ("springs_off", "liltoon")
 
 

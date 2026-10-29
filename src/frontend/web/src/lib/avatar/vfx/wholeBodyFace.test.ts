@@ -666,6 +666,102 @@ describe.each([1, 0] as const)(
   },
 );
 
+describe.each([1, 0] as const)(
+  "a VRM %s whole-body Avatar whose aa only switches a mouth mesh",
+  (vrm) => {
+    // `aa` shows a separate mouth quad by its material and morphs no mesh, so
+    // the face is found from what blink moves alone.
+    const WARNINGS = [
+      "face_parts_expressions_missing",
+      "landmarks_face_skin_missing",
+      "anchors_landmarks_unavailable",
+    ];
+
+    it.each([
+      ["the head region", {}],
+      ["the head-weighted primitive", { torsoSegments: 2 }],
+    ] as const)(
+      "finds %s as the face from blink alone, as with a mouth morph",
+      async (_, options) => {
+        const reference = await loadWholeBodyAvatar({ vrm, ...options });
+        const avatar = await loadWholeBodyAvatar({
+          vrm,
+          ...options,
+          visemes: "materials",
+        });
+        const body = bodyEntry(avatar);
+        const map = avatar.facePartMap!;
+
+        expect(
+          avatar.vrm!.expressionManager!.getExpression("aa")!.binds,
+        ).toHaveLength(1);
+        expect(map.parts.face_skin).toMatchObject({
+          source: "signals",
+          bindings: [body.bindingKey],
+        });
+        expect(map.parts.face_skin.regions).toEqual(
+          reference.facePartMap!.parts.face_skin.regions,
+        );
+        expect(map.parts.eye_left).toMatchObject({
+          source: "estimated",
+          estimate: "blink",
+        });
+        expect(map.issues).toEqual([]);
+
+        const diagnostics = avatar.getDiagnostics()!;
+        const codes = diagnostics.issues.map((issue) => issue.code);
+        for (const code of WARNINGS) expect(codes).not.toContain(code);
+        expect(diagnostics.expressions.presets).toContainEqual({
+          name: "aa",
+          source: "model",
+        });
+      },
+    );
+
+    it("measures the face and places the mouth from the eyes", async () => {
+      const avatar = await loadWholeBodyAvatar({ vrm, visemes: "materials" });
+      const landmarks = avatar.getFaceLandmarksSnapshot()!;
+      expect(landmarks.status).toBe("ready");
+      expect(landmarks.eyes.left).not.toBeNull();
+      expect(landmarks.eyes.right).not.toBeNull();
+
+      const anchors = avatar.getFaceTextureAnchorsSnapshot()!;
+      expect(anchors.status).toBe("ready");
+      // No mouth morph to find it by: the mouth is estimated below the eyes.
+      expect(anchors.anchors.mouth.center?.source).toBe("fallback");
+      for (const anchor of [
+        anchors.anchors.blush.left,
+        anchors.anchors.blush.right,
+        anchors.anchors.undereye.left,
+        anchors.anchors.undereye.right,
+        anchors.anchors.mouth.center,
+      ]) {
+        expect(onFace(anchor), JSON.stringify(anchor)).toBe(true);
+      }
+
+      const { controller, applied } = await applyAll(avatar, [
+        RED_FACE,
+        HEART_EYES,
+      ]);
+      expect(applied).toEqual([true, true]);
+      expect(controller.getSnapshot().warnings).toEqual([]);
+    });
+
+    it("still warns when blink moves no face either", async () => {
+      const avatar = await loadWholeBodyAvatar({
+        vrm,
+        visemes: "materials",
+        still: true,
+      });
+      const map = avatar.facePartMap!;
+      expect(map.parts.face_skin.source).toBe("missing");
+      expect(map.issues).toContainEqual({
+        code: "face_parts_expressions_missing",
+      });
+    });
+  },
+);
+
 /** Skin weight shares of a primitive by joint name (its skeleton's bones). */
 function jointShares(
   entry: RuntimePrimitiveBindingEntry,

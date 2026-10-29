@@ -34,6 +34,14 @@ export type WholeBodyOptions = {
   eyeCards?: boolean;
   /** `blink` and `aa` stay bound to the body but move nothing. */
   still?: boolean;
+  /**
+   * How `aa` opens the mouth: `morph` lowers the face's vertices at the mouth
+   * (the default); `materials` shows a separate mouth quad in front of the
+   * face by its material's colour (VRM 1 `materialColorBinds`, VRM 0
+   * `materialValues` on `_Color`), as Avatars that swap mouth meshes do, and
+   * the body has no `aa` morph target at all.
+   */
+  visemes?: "morph" | "materials";
   /** The one material's name (default "Body"). */
   materialName?: string;
   /**
@@ -42,6 +50,12 @@ export type WholeBodyOptions = {
    * the Avatar's height, as on chibi Avatars.
    */
   headScale?: number;
+  /**
+   * Scale the body (its bones, neck and torso) about the origin, the head
+   * keeping its size on the moved head bone (default 1). With `headScale`, a
+   * body of 0.4 and a head of 2 make a short chibi Avatar.
+   */
+  bodyScale?: number;
   /**
    * A hat of this height (m) on top of the head, skinned to the head and on
    * its own UV island, as an accessory the head mesh carries (none by
@@ -97,6 +111,7 @@ export const WHOLE_BODY_UV = {
   headBottom: { u0: 0.52, v0: 0.48, u1: 0.62, v1: 0.5 },
   fringe: { u0: 0.76, v0: 0.48, u1: 0.96, v1: 0.5 },
   eyeStrokes: { u0: 0.2, v0: 0.52, u1: 0.3, v1: 0.56 },
+  mouth: { u0: 0.14, v0: 0.52, u1: 0.18, v1: 0.56 },
   hat: { u0: 0.36, v0: 0.52, u1: 0.46, v1: 0.58 },
   irises: { u0: 0.2, v0: 0.58, u1: 0.24, v1: 0.6 },
   neck: { u0: 0.02, v0: 0.52, u1: 0.12, v1: 0.58 },
@@ -118,7 +133,10 @@ export const WHOLE_BODY_EYES = [
   [0.05, 1.645],
   [-0.05, 1.645],
 ] as const;
-/** The mouth centre (x, y); `aa` lowers the vertices around it. */
+/**
+ * The mouth centre (x, y); `aa` lowers the vertices around it, or shows the
+ * mouth quad there.
+ */
 const MOUTH = [0, 1.51] as const;
 /** Subdivisions of the face. */
 const FACE_SEGMENTS = 10;
@@ -156,12 +174,20 @@ type Vec3 = readonly [number, number, number];
 
 /** The humanoid bones, with eye bones behind the eye strokes when asked. */
 function humanoidBones(options: WholeBodyOptions): (typeof BONES)[number][] {
-  if (options.eyes !== "bones") return [...BONES];
+  const body = options.bodyScale ?? 1;
+  const bones = BONES.map(
+    ([name, parent, [x, y, z]]): (typeof BONES)[number] => [
+      name,
+      parent,
+      [x * body, y * body, z * body],
+    ],
+  );
+  if (options.eyes !== "bones") return bones;
   const head = boneWorldPositions(BONES).get("head")!;
   const z = WHOLE_BODY_HEAD.half[2] - EYE_BONE_DEPTH;
   const scale = options.headScale ?? 1;
   return [
-    ...BONES,
+    ...bones,
     ...WHOLE_BODY_EYES.map(([x, y], at): (typeof BONES)[number] => [
       at === 0 ? "leftEye" : "rightEye",
       "head",
@@ -243,15 +269,23 @@ class PrimitiveBuilder {
    * Scale the vertices from index `first` on (and their morph movement)
    * about `pivot` by `scale`.
    */
-  scaleFrom(first: number, pivot: Vec3, scale: number): void {
+  scaleFrom(first: number, pivot: Vec3, scale: number, end?: number): void {
     if (scale === 1) return;
-    for (let at = first * 3; at < this.positions.length; at += 1) {
+    const last = end === undefined ? this.positions.length : end * 3;
+    for (let at = first * 3; at < last; at += 1) {
       const axis = at % 3;
       this.positions[at] =
         pivot[axis]! + (this.positions[at]! - pivot[axis]!) * scale;
       this.blink[at] = this.blink[at]! * scale;
       this.aa[at] = this.aa[at]! * scale;
     }
+  }
+
+  /** Move vertices `first` up to `end` (default all) by `offset`. */
+  moveBy(first: number, offset: Vec3, end?: number): void {
+    const last = end === undefined ? this.positions.length : end * 3;
+    for (let at = first * 3; at < last; at += 1)
+      this.positions[at] = this.positions[at]! + offset[at % 3]!;
   }
 
   /** The six faces of a box, each a grid of its own on its own UV island. */
@@ -387,6 +421,7 @@ export function wholeBodyVrmBytes(options: WholeBodyOptions = {}): Uint8Array {
   const headScale = options.headScale ?? 1;
   const headBone = boneWorldPositions(BONES).get("head")!;
   mesh.scaleFrom(headStart, headBone, headScale);
+  const torsoStart = mesh.positions.length / 3;
   mesh.box({
     center: [0, 1.15, 0],
     half: [0.15, 0.25, 0.1],
@@ -423,14 +458,41 @@ export function wholeBodyVrmBytes(options: WholeBodyOptions = {}): Uint8Array {
       joint: headJoint,
     });
   }
+  // A mouth quad just in front of the face, shown by `aa`'s material bind.
+  const mouth = options.visemes === "materials" ? new PrimitiveBuilder() : null;
+  mouth?.grid({
+    origin: [
+      MOUTH[0] - 0.02,
+      MOUTH[1] - 0.012,
+      WHOLE_BODY_HEAD.half[2] + 0.001,
+    ],
+    u: [0.04, 0, 0],
+    v: [0, 0.024, 0],
+    uv: uv.mouth,
+    joint: headJoint,
+  });
   irises?.scaleFrom(0, headBone, headScale);
   cards?.scaleFrom(0, headBone, headScale);
-  return encodeWholeBodyGlb(mesh, irises ?? cards, options);
+  mouth?.scaleFrom(0, headBone, headScale);
+  const bodyScale = options.bodyScale ?? 1;
+  if (bodyScale !== 1) {
+    // The neck and torso scale about the origin; the head rides the head bone.
+    const origin: Vec3 = [0, 0, 0];
+    const lift: Vec3 = [0, headBone[1] * (bodyScale - 1), 0];
+    mesh.scaleFrom(0, origin, bodyScale, headStart);
+    mesh.scaleFrom(torsoStart, origin, bodyScale);
+    mesh.moveBy(headStart, lift, torsoStart);
+    irises?.moveBy(0, lift);
+    cards?.moveBy(0, lift);
+    mouth?.moveBy(0, lift);
+  }
+  return encodeWholeBodyGlb(mesh, irises ?? cards, mouth, options);
 }
 
 function encodeWholeBodyGlb(
   mesh: PrimitiveBuilder,
   eyes: PrimitiveBuilder | null,
+  mouth: PrimitiveBuilder | null,
   options: WholeBodyOptions,
 ): Uint8Array {
   // A VRM 0 file holds the model turned half a turn about y, facing -z.
@@ -497,7 +559,11 @@ function encodeWholeBodyGlb(
       type: "VEC3",
       ...bounds(turned(values)),
     });
-  /** One primitive's accessors; `morphs` adds the blink and aa targets. */
+  const materialVisemes = options.visemes === "materials";
+  /**
+   * One primitive's accessors; `morphs` adds the blink target and, unless
+   * `aa` switches a material, the aa target.
+   */
   const primitive = (
     builder: PrimitiveBuilder,
     material: number,
@@ -532,7 +598,9 @@ function encodeWholeBodyGlb(
         ? {
             targets: [
               { POSITION: vec3(builder.blink, count) },
-              { POSITION: vec3(builder.aa, count) },
+              ...(materialVisemes
+                ? []
+                : [{ POSITION: vec3(builder.aa, count) }]),
             ],
           }
         : {}),
@@ -551,10 +619,13 @@ function encodeWholeBodyGlb(
     {
       name: "Body",
       primitives: [primitive(mesh, 0, true)],
-      extras: { targetNames: ["blink", "aa"] },
+      extras: { targetNames: materialVisemes ? ["blink"] : ["blink", "aa"] },
     },
     ...(eyes
       ? [{ name: "Eyes", primitives: [primitive(eyes, 1, false)] }]
+      : []),
+    ...(mouth
+      ? [{ name: "Mouth", primitives: [primitive(mouth, 2, false)] }]
       : []),
   ];
   const inverseBindMatrices = accessor({
@@ -588,6 +659,7 @@ function encodeWholeBodyGlb(
     }),
     { name: "Body", mesh: 0, skin: 0 },
     ...(eyes ? [{ name: "Eyes", mesh: 1, skin: 0 }] : []),
+    ...(mouth ? [{ name: "Mouth", mesh: eyes ? 2 : 1, skin: 0 }] : []),
   ];
   const morphBind = (index: number) => ({
     morphTargetBinds: [{ node: meshNode, index, weight: 1 }],
@@ -605,7 +677,18 @@ function encodeWholeBodyGlb(
           bones.map(([name], index) => [name, { node: index }]),
         ),
       },
-      expressions: { preset: { blink: morphBind(0), aa: morphBind(1) } },
+      expressions: {
+        preset: {
+          blink: morphBind(0),
+          aa: materialVisemes
+            ? {
+                materialColorBinds: [
+                  { material: 2, type: "color", targetValue: [1, 1, 1, 1] },
+                ],
+              }
+            : morphBind(1),
+        },
+      },
     },
   };
   // VRM 0 binds morphs by mesh with weights out of 100; `a` is its `aa`.
@@ -615,6 +698,18 @@ function encodeWholeBodyGlb(
     binds: [{ mesh: 0, index, weight: 100 }],
     materialValues: [],
   });
+  const mouthGroup = {
+    name: "a",
+    presetName: "a",
+    binds: [],
+    materialValues: [
+      {
+        materialName: "Mouth",
+        propertyName: "_Color",
+        targetValue: [1, 1, 1, 1],
+      },
+    ],
+  };
   const vrm0 = {
     VRM: {
       specVersion: "0.0",
@@ -633,7 +728,10 @@ function encodeWholeBodyGlb(
       },
       firstPerson: { firstPersonBone: boneIndex.get("head")! },
       blendShapeMaster: {
-        blendShapeGroups: [group("blink", 0), group("a", 1)],
+        blendShapeGroups: [
+          group("blink", 0),
+          materialVisemes ? mouthGroup : group("a", 1),
+        ],
       },
       materialProperties: [],
     },
@@ -667,6 +765,7 @@ function encodeWholeBodyGlb(
         },
       },
       { name: "Eyes", pbrMetallicRoughness: { metallicFactor: 0 } },
+      { name: "Mouth", pbrMetallicRoughness: { metallicFactor: 0 } },
     ],
     textures: [{ source: 0 }],
     images: [{ bufferView: image, mimeType: "image/png" }],

@@ -1,11 +1,17 @@
 import { Group, Object3D, Vector3 } from "three";
 
 import type { Avatar } from "../Avatar";
+import type { AvatarProportions } from "../avatarProportions";
 import {
   isParticleVFXAnchor,
+  placeParticleVFXOffset,
+  placesParticleVFXOnBody,
   resolveParticleVFXAnchorLocalPosition,
 } from "./runtime";
-import type { ParticleVFXAnchor } from "./types";
+import type {
+  ParticleVFXAnchor,
+  ParticleVFXTransformAxisTriple,
+} from "./types";
 
 export type ParticleVFXEmitterAnchorBindings = {
   object: Object3D;
@@ -46,6 +52,80 @@ export function createParticleVFXEmitterAnchorBindings(
     });
   });
   return { object, emitters };
+}
+
+/**
+ * Place each emitter where its authored point lands on a big-headed Avatar's
+ * body (`placeParticleVFXOffset`) rather than where the effect's one scale
+ * puts it, and keep that as its authored position for anchor updates. Call
+ * once, after the effect container is placed (its offset `placedOffset`, from
+ * `authoredOffset` at `scale`) and before the first anchor update. Emitters
+ * with their own anchor are placed from it. Changes nothing unless the
+ * effect's anchor or an emitter's places on the body, so never on the
+ * Included Avatars.
+ */
+export function placeParticleVFXEmittersOnBody(args: {
+  bindings: ParticleVFXEmitterAnchorBindings;
+  proportions: AvatarProportions;
+  defaultAnchor: ParticleVFXAnchor;
+  /** The effect's authored offset, depth offset folded into z. */
+  authoredOffset: ParticleVFXTransformAxisTriple;
+  /** The container's offset from its anchor, as placed. */
+  placedOffset: ParticleVFXTransformAxisTriple;
+  /** The container's scale (`particleVFXPlacementScale`). */
+  scale: number;
+}): void {
+  const { bindings, proportions, defaultAnchor, scale } = args;
+  const frame = bindings.object.parent;
+  if (
+    !frame ||
+    !(scale > 0) ||
+    ![
+      defaultAnchor,
+      ...bindings.emitters.map((emitter) => emitter.anchor),
+    ].some((anchor) => anchor && placesParticleVFXOnBody(proportions, anchor))
+  )
+    return;
+  // In the Avatar frame (the container's parent): the container stands at
+  // its anchor plus `placedOffset`, and each emitter `scale` times its
+  // authored distance from the container.
+  bindings.object.updateWorldMatrix(true, true);
+  const origin = bindings.object.position;
+  const toFrame = frame.matrixWorld.clone().invert();
+  for (const emitter of bindings.emitters) {
+    const authored = emitter.object
+      .getWorldPosition(new Vector3())
+      .applyMatrix4(toFrame)
+      .sub(origin)
+      .divideScalar(scale);
+    const placed = placeParticleVFXOffset(
+      proportions,
+      emitter.anchor ?? defaultAnchor,
+      {
+        x: args.authoredOffset.x + authored.x,
+        y: args.authoredOffset.y + authored.y,
+        z: args.authoredOffset.z + authored.z,
+      },
+    );
+    emitter.targetWorldPosition
+      .set(
+        origin.x + placed.x - args.placedOffset.x,
+        origin.y + placed.y - args.placedOffset.y,
+        origin.z + placed.z - args.placedOffset.z,
+      )
+      .applyMatrix4(frame.matrixWorld);
+  }
+  // Object3D traversal is parent-first, so each parent's final matrix is ready.
+  for (const emitter of bindings.emitters) {
+    const parent = emitter.object.parent;
+    emitter.object.position.copy(
+      parent
+        ? parent.worldToLocal(emitter.targetWorldPosition.clone())
+        : emitter.targetWorldPosition,
+    );
+    emitter.object.updateWorldMatrix(false, true);
+    emitter.authoredPosition.copy(emitter.object.position);
+  }
 }
 
 /**

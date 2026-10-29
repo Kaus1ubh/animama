@@ -29,6 +29,9 @@ export type AvatarSettingSource = "stored" | "default";
 export type AvatarDiagnosticsSettings = {
   springMode: AvatarSpringMode;
   springModeSource: AvatarSettingSource;
+  /** Percent of the default wind strength. */
+  windStrength: number;
+  windStrengthSource: AvatarSettingSource;
   materialMode: AvatarMaterialMode;
   materialModeSource: AvatarSettingSource;
 } | null;
@@ -186,7 +189,7 @@ function liveLines(live: AvatarDiagnosticsReport["live"]): string[] {
     `  Humanoid bones ${motion.humanoidBones}; missing required: ${list(motion.missingRequiredBones)}`,
     `  Missing optional bones: ${list(motion.missingOptionalBones.map(optionalBoneText))}`,
     `  Springs: ${motion.springJoints} joints, ${motion.springColliders} colliders`,
-    `  Wind setting ${motion.wind.mode}; wind and updraft ${motion.wind.ambientForces ? "on" : "off"}`,
+    `  Wind setting ${motion.wind.mode}; wind and updraft ${motion.wind.ambientForces ? `on at ${Math.round(motion.wind.strength * 100)}%` : "off"}${motion.wind.automaticOff && !motion.wind.ambientForces && motion.wind.mode === "automatic" ? ` (${motion.wind.automaticOff === "converted" ? "converted springs" : "hair too soft"})` : ""}`,
     `  Rest pose: ${
       motion.restPose
         ? `arms ${motion.restPose.armDegrees}° from a T-pose${motion.restPose.armsNormalized ? " (normalized)" : ""}, hands ${motion.restPose.handDegrees}° from VRoid's${motion.restPose.handsNormalized ? " (normalized)" : ""}`
@@ -252,6 +255,7 @@ function settingsLines(settings: AvatarDiagnosticsSettings): string[] {
     "",
     "Avatar settings",
     `  Wind: ${settings.springMode} (${settings.springModeSource})`,
+    `  Wind strength: ${settings.windStrength}% (${settings.windStrengthSource})`,
     `  Materials: ${settings.materialMode} (${settings.materialModeSource})`,
   ];
 }

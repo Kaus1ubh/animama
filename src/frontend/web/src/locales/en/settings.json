@@ -68,6 +68,11 @@
           "on": "On",
           "springs_off": "Springs off"
         }
+      },
+      "windStrength": {
+        "description": "How strongly wind and updraft blow, from none to twice the default. Automatic leaves them off when this Avatar’s hair is too soft to hold against them at this strength.",
+        "label": "Wind strength",
+        "value": "{{percent}}%"
       }
     },
     "choices": {
