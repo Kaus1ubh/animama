@@ -825,8 +825,8 @@ async def test_a_japanese_memory_chat_runs_in_japanese_and_pairs_with_its_origin
     english_turns = [request for request, text in sent if text in english.turns]
     # Each Japanese memory turn carries UI Locale ja, as chat:sse applies it; the English ones carry nothing extra.
     assert len(japanese_turns) == 3 * len(english.turns) and len(english_turns) == 3 * len(english.turns)
-    assert all("Japanese" in system(request) for request in japanese_turns)
-    assert not any("Japanese" in system(request) for request in english_turns)
+    assert all("The user has chosen Japanese" in system(request) for request in japanese_turns)
+    assert not any("# Conversation Language" in system(request) for request in english_turns)
     records = [turn for turn in turns if turn.get("unit_id") == japanese.id and turn["kind"] in {"memory", "recall"}]
     assert records and all((turn["language"], turn["pair_id"]) == ("ja", english.id) for turn in records)
 

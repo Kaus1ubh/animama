@@ -62,6 +62,7 @@ from animama.adapters.model_clients.anthropic_messages.support import (
     clean_str,
 )
 from animama.app.chat.api_standard import ANTHROPIC_MESSAGES_PROVIDER_TYPE
+from animama.app.chat.conversation_language import MEMORY_LANGUAGE_RULE
 from animama.app.chat.memory_tools import MEMORY_TOOL_SEARCH_MEMORY_FILES, memory_tool_specs
 from animama.app.model_clients.credentials import ModelCredentialResolver, connection_for_model_provider
 from animama.app.model_clients.error_categories import model_error_category
@@ -815,7 +816,8 @@ def manager_instructions(*, memory_map: str, access: ManagerFileAccess, reflecti
         "this conversation keeps its own state, and every change you propose interrupts the user for review. Make "
         "only the changes the user's request calls for, in the most relevant existing file, and create a file only "
         "when no existing file fits. When a new fact replaces an older one, also correct or remove the outdated "
-        "statement wherever it appears (search_memory_files finds it), so the files never contradict each other.\n\n"
+        "statement wherever it appears (search_memory_files finds it), so the files never contradict each other. "
+        f"{MEMORY_LANGUAGE_RULE}\n\n"
         "# File format\n"
         "Every file starts with a reserved three-line header holding its description, followed by the Markdown "
         "body:\n"

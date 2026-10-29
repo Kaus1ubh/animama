@@ -139,6 +139,13 @@ the model writes (memory files, `MEMORIES.md` and `remember`): no secrets, crede
 suicide or self-harm crisis specifics (methods, plans, means) unless the user
 explicitly asked; at most a general note. Ordinary health context may be
 remembered.
+It also states the shared memory-language rule (`MEMORY_LANGUAGE_RULE` in
+`app/chat/conversation_language.py`, also stated to every Memory Manager run):
+write new memory in the language of the conversation it comes from, keep
+names, nicknames and quoted words as the user wrote them, leave existing text
+untranslated, and name files in ASCII, which memory paths require. Notes then
+match the words a later search uses. Memory tool results return non-English
+text as written rather than as JSON `\uXXXX` escapes.
 
 After a successful non-incognito `chat:sse` turn is parsed and persisted, the
 backend best-effort captures nonblank `remember` text when memory updates are
@@ -214,8 +221,8 @@ rejected. Episode processing never reaches Anima files.
 
 A **Reflection** (`POST /v1/memory/manager/runs:reflect`) is a Memory Manager
 run bound to one Anima. It reads that Anima's chat turns that no applied
-Reflection has covered, oldest first and at most 400 turns or 200,000
-characters of turn text per run, and may propose
+Reflection has covered, oldest first and at most 400 turns or 51,000 estimated
+tokens of turn text per run, and may propose
 changes only to that Anima's `MEMORIES.md`; other memory is read-only context.
 Turns taken with memory updates off are never read. Its turns count as covered
 only once its `MEMORIES.md` change is applied, and Undo of that change uncovers
@@ -278,7 +285,9 @@ small relationship-only edits in the first person (user facts go to shared
 memory such as `PROFILE.md`), to keep the file's existing headings (including
 owner-written ones) and file each memory under the best fit, never to rewrite it
 every turn, to stay well under
-about 6,000 characters, and never to frame the relationship as missing the
+about 6,000 characters (about 3,000 in a non-Latin script such as Japanese,
+Chinese, Korean, Thai or Hindi, whose characters take two or three bytes
+against the 16 KiB limit), and never to frame the relationship as missing the
 user, loneliness, jealousy or discouraging other relationships. The always-present
 memory guidance says how `remember` (the shared episode log) differs from
 `MEMORIES.md` (what the relationship means). It also says that notes from past
@@ -392,10 +401,30 @@ phrase adjacency; `OR` is redundant. `-term` exclusions remove every file that
 contains the term. Files that match more of the query's words and phrases rank
 above files that match fewer, and `ts_rank_cd` orders files with the same
 count. Only the first 32 words or phrases are used; every exclusion applies.
-Japanese text uses the `english` tokenisation, which does not split words that
-lack spaces. The tool description asks the model for 2-5 distinctive keywords
-rather than a full question and explains that matching any keyword is enough;
-Anthropic Memory Manager runs reuse that description.
+
+The `english` parser splits words only at spaces and punctuation, so Japanese,
+Chinese and Thai text becomes one token per run and Korean words keep their
+particles (`서울에서`). A word or quoted phrase containing a non-ASCII letter or
+digit therefore also matches as a case-insensitive substring (`ILIKE`, with
+`%`, `_` and `\` matched literally) of the path, description and content,
+after punctuation at its ends such as `「」` is removed. A non-ASCII `-term`
+excludes files containing it anywhere, and an exclusion that is only a stop
+word or punctuation excludes nothing. `京都` finds
+`週末に京都で抹茶を飲みました。`. A substring-only match counts toward the
+matched-word ranking with a `ts_rank_cd` of 0, so whole-word matches rank first
+among files with the same count. ASCII-only words keep word matching, so `cat`
+does not find `category`, but a non-ASCII word in a spaced script also matches
+inside longer words (`кот` finds `который`). An unspaced run must appear
+verbatim (`京都で抹茶` does not find `京都の抹茶`), and case folding of
+non-ASCII letters follows the database LC_CTYPE. Substring matching needs no
+extension or schema change and scans the owner's live files in scope without an
+index. A `pg_trgm` index would not help: it cannot index two-character words
+such as `京都` and extracts no trigrams from CJK text under a `C` locale.
+
+The tool description asks the model for 2-5 distinctive keywords
+rather than a full question, separated by spaces in Japanese, Chinese or Thai
+too, and explains that matching any keyword is enough;
+both Memory Manager runtimes reuse that description.
 
 The model receives a `memory_results` array. Markdown memory hits include
 `path`, `description`, and `snippet`. The tool does not return entry IDs,
@@ -457,7 +486,8 @@ returns one file group for each in request attachment order.
 Each result group contains the canonical `filename`, requested `start_chunk`,
 complete `chunks` containing only `chunk_index` and `text`, and
 `next_start_chunk`/`has_more` pagination. The serialized result is bounded to
-24,000 characters. The reader never exposes file IDs, chunk IDs, embeddings,
+about 6,000 estimated tokens (24,000 English characters, or about 6,000
+Japanese or Chinese ones). The reader never exposes file IDs, chunk IDs, embeddings,
 parser metadata, object-storage keys, URLs, or database errors.
 
 Use uploaded-file search for relevance lookup, exact phrases, and finding a

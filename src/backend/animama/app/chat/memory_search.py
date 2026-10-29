@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import re
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
@@ -11,6 +10,7 @@ from animama.app.services.user_memory_read_tools import (
     DEFAULT_MEMORY_SEARCH_CONTEXT_CHARS,
     DEFAULT_MEMORY_SEARCH_LIMIT,
 )
+from animama.domain.search_terms import snippet_terms
 from animama.domain.user_file import STATUS_READY, STATUS_READY_KEYWORD_ONLY, UserFile
 from animama.domain.user_file_processing import SEARCH_MODE_HYBRID, UserFileSearchResult
 from animama.logging import get_logger
@@ -166,7 +166,7 @@ def _snippet_for_query(value: str, query: str, *, max_chars: int) -> str:
     if len(text_value) <= max_chars:
         return text_value
 
-    terms = [term.lower() for term in re.findall(r"[A-Za-z0-9_]{2,}", query)]
+    terms = snippet_terms(query)
     lowered = text_value.lower()
     first_idx = -1
     for term in terms:

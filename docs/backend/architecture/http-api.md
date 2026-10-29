@@ -1273,8 +1273,8 @@ failed runtime results fail the run and leave the task and rows pending.
 
 `POST /v1/memory/manager/runs:reflect` accepts `anima_id` and
 `auto_approve_diffs`, and starts a Reflection over that owned Anima's oldest
-uncovered chat turns across all its chats, at most 400 turns or 200,000
-characters of turn text. It follows the same open-run rules: it supersedes an
+uncovered chat turns across all its chats, at most 400 turns or 51,000
+estimated tokens of turn text. It follows the same open-run rules: it supersedes an
 open run without a pending approval and returns `409` while one is pending. A missing or foreign Anima returns `404`.
 It also returns `409` without creating a run when the Anima's `MEMORIES.md`
 needs repair or no turn is uncovered (`There are no new turns with <name> to
@@ -1383,7 +1383,13 @@ structured response text fall back to raw `content`. The API accepts `query`, `l
 prefix FTS for partial terms instead of web-search operator syntax, hides
 internal rows, uses a generated `search_vector` column backed by a partial GIN
 index scoped to visible user/assistant content, joins through
-`chats` for ownership, and returns one result per chat. The best matching
+`chats` for ownership, and returns one result per chat. A message must match
+every query word. A word containing a non-ASCII letter or digit, such as `京都`,
+matches as a case-insensitive substring of the indexed text instead, because the
+`english` parser keeps unspaced Japanese, Chinese and Thai text as one token
+([memory search](../features/memory.md#search_memory_files) has the details). A
+query of only such words scans the owner's visible messages without the index.
+At most eight prefix terms and eight substring words are used. The best matching
 visible message in each chat supplies the snippet and score, while the response
 includes chat/anima metadata including the anima `profile_picture_url` for
 result rendering.
