@@ -1,9 +1,9 @@
 # Export a VRChat Avatar for Animama without the Animama source
 
 Source agreement: https://github.com/raymond-van/animama/issues/795, published
-2026-10-29T16:48:47Z with the owner's decisions on Q1–Q8 of the same day
-(snapshot: [vrchat-export-package-spec.md](vrchat-export-package-spec.md),
-commit `64e32595`).
+2026-10-29T16:48:47Z with the owner's decisions on Q1–Q8 of the same day, and
+updated 2026-10-29T17:06:25Z for macOS and Windows together (snapshot:
+[vrchat-export-package-spec.md](vrchat-export-package-spec.md)).
 Authorized scope: none yet; proposed Phases 1–5, each verified on macOS and
 Windows. Owner gates below apply inside any authorized phase.
 
@@ -110,7 +110,7 @@ in a valid scene; `Export` converts in that scene. `MochiyaTargetKind` is
 - 2026-10-29, owner: accept the spec's answers to Q1–Q8 (issue #795).
 - 2026-10-29, owner: test macOS first; Windows is a later phase. Superseded
   the same day: support and verify macOS and Windows together, in every phase
-  (plan and spec snapshot updated; the issue update awaits the owner's word).
+  (issue #795 updated 2026-10-29T17:06:25Z).
 - 2026-10-29, agent (within scope): one public repository holds both
   deliverables. `npx github:` needs the Node `package.json` at the repository
   root and Unity needs its own `package.json` at the package root, so the Unity

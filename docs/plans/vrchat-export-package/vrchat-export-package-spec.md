@@ -1,9 +1,9 @@
 # Export a VRChat Avatar for Animama without the Animama source
 
 Status: Agreed
-Snapshot of https://github.com/raymond-van/animama/issues/795 (published and
-captured 2026-10-29T16:48:47Z); the issue is authoritative. Revised locally the
-same day for the owner's platform decision below; the issue update is pending.
+Snapshot of https://github.com/raymond-van/animama/issues/795 (published
+2026-10-29T16:48:47Z; updated and captured 2026-10-29T17:06:25Z); the issue is
+authoritative.
 Owner decision: 2026-10-29: offer both a Unity editor window and a standalone
 command line; accept the proposed answers to Q1–Q8. Later the same day:
 support and verify macOS and Windows together, replacing "macOS first, Windows
