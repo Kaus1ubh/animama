@@ -1170,8 +1170,23 @@ def _metadata_with_ai_write(
     return updated
 
 
+def _tool_json(payload: Mapping[str, Any]) -> str:
+    """Serialize a tool result with non-English text as written, not as ``\\uXXXX`` escapes.
+
+    A lone surrogate, such as one echoed from a malformed model argument, cannot be encoded as
+    UTF-8 for storage or the provider, so such a result keeps ASCII escapes.
+    """
+
+    serialized = json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
+    try:
+        serialized.encode("utf-8")
+    except UnicodeEncodeError:
+        return json.dumps(payload, separators=(",", ":"))
+    return serialized
+
+
 def _tool_ok(payload: Mapping[str, Any]) -> str:
-    return json.dumps({"ok": True, **dict(payload)}, ensure_ascii=False, separators=(",", ":"))
+    return _tool_json({"ok": True, **dict(payload)})
 
 
 def _bounded_uploaded_file_read_result(
@@ -1254,20 +1269,11 @@ def _uploaded_file_read_payload(
 
 
 def _tool_payload(payload: Mapping[str, Any]) -> str:
-    return json.dumps(dict(payload), ensure_ascii=False, separators=(",", ":"))
+    return _tool_json(dict(payload))
 
 
 def _tool_error(code: str, message: str, **extra: Any) -> str:
-    return json.dumps(
-        {
-            "ok": False,
-            "code": code,
-            "message": message,
-            **extra,
-        },
-        ensure_ascii=False,
-        separators=(",", ":"),
-    )
+    return _tool_json({"ok": False, "code": code, "message": message, **extra})
 
 
 # Returned when a memory write waited too long for a file another transaction holds,

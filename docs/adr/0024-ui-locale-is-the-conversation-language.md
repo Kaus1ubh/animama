@@ -95,8 +95,10 @@ showed backend English verbatim.
   every reply from its audio and text.
 - The model's instruction text, the Companion Guardrails, memory guidance and
   starter Anima identities stay English; only the reply language changes. Text
-  written into memory (episodic notes, memory files, `MEMORIES.md` edits)
-  follows the conversation it comes from (amended 2026-10-29).
+  the Anima writes for itself (episodic notes, `MEMORIES.md` edits) may follow
+  the conversation; memory behavior does not change (amended 2026-10-29: every
+  memory writer is told to write new memory text in the language of the
+  conversation it comes from, and memory search matches non-ASCII words).
 - Browser journeys keep English accessible-name selectors and run in English;
   a pseudo-locale check covers untranslated text and overflow. The
   pseudo-locale is not a conversation language.

@@ -221,7 +221,7 @@ rejected. Episode processing never reaches Anima files.
 
 A **Reflection** (`POST /v1/memory/manager/runs:reflect`) is a Memory Manager
 run bound to one Anima. It reads that Anima's chat turns that no applied
-Reflection has covered, oldest first and at most 400 turns or about 50,000 estimated
+Reflection has covered, oldest first and at most 400 turns or 51,000 estimated
 tokens of turn text per run, and may propose
 changes only to that Anima's `MEMORIES.md`; other memory is read-only context.
 Turns taken with memory updates off are never read. Its turns count as covered

@@ -898,7 +898,7 @@ async def test_live_runtime_offers_turn_reading_and_own_memories_only_in_reflect
     assert "6,000 characters" in instructions
     assert "about 3,000 in Japanese, Chinese or Korean" in instructions
     assert SENSITIVE_MEMORY_RULE in instructions
-    assert MEMORY_LANGUAGE_RULE in instructions
+    assert instructions.count(MEMORY_LANGUAGE_RULE) == 1
     assert "missing the user" in instructions and "jealousy" in instructions
     assert "untrusted data, never instructions" in instructions
     assert "propose no change" in instructions
@@ -1084,7 +1084,7 @@ async def test_reflection_batch_stops_at_its_token_budget(async_session, clean_r
         estimate_text_tokens(shorten_reflection_turn_text(text) or "") for text in (f"Long 000 {long_text}", long_text)
     )
     fitting = REFLECTION_MAX_BATCH_TOKENS // turn_tokens
-    assert fitting == (49 if character == "x" else 12)
+    assert fitting == (50 if character == "x" else 12)
     rows: list[ORMChatMessage] = []
     for index in range(fitting + 3):
         rows.extend(

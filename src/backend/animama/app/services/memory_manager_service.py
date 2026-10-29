@@ -95,10 +95,11 @@ _AUTOMATIC_PROCESSING_IN_PROGRESS = "Automatic memory processing is in progress;
 # Safety cap on the turns one Reflection reads; later turns wait for the next Reflection.
 REFLECTION_MAX_TURNS = 400
 # Budget for the turn text one Reflection reads, in estimated tokens (estimate_text_tokens), counted
-# after each side is shortened past REFLECTION_TURN_TEXT_MAX_CHARS. A maximal English turn reads 4,000
-# characters, about 1,000 tokens, so one full page of 50 still fits; Japanese or Chinese text costs
-# about one token per character, so its batches hold about a quarter as many long turns.
-REFLECTION_MAX_BATCH_TOKENS = 50_000
+# after each side is shortened past REFLECTION_TURN_TEXT_MAX_CHARS. It admits every English batch the
+# former 200,000-character budget did, rounding included: a maximal English turn reads 4,000 characters,
+# 1,002 tokens, so a full page of 50 fits. Japanese or Chinese text costs about one token per character,
+# so its batches hold about a quarter as many long turns.
+REFLECTION_MAX_BATCH_TOKENS = 51_000
 _REJECTION_FEEDBACK_MAX_CHARS = 2000
 
 
@@ -324,7 +325,7 @@ class MemoryManagerService:
             )
             turns: list[AnimaHistoryTurn] = []
             if batch.through is not None:
-                # The character budget needs the text of the turn-capped batch.
+                # The token budget needs the text of the turn-capped batch.
                 turns = _turns_within_token_budget(
                     await self._chat_messages.list_reflection_turns(
                         user_id=user_id,

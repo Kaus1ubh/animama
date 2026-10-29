@@ -11,7 +11,6 @@ from __future__ import annotations
 from datetime import UTC
 from typing import Any
 
-from animama.app.chat.conversation_language import MEMORY_LANGUAGE_RULE
 from animama.app.ports.chat_message_port import ChatMessageRepository
 from animama.app.safety.prompts import SENSITIVE_MEMORY_RULE
 from animama.app.services.anima_identity_memory import anima_memories_manager_path
@@ -210,7 +209,6 @@ def render_reflection_instructions(*, task: MemoryManagerReflectionTaskState, me
             f"{ANIMA_MEMORIES_MAX_BYTES // 1024} KiB) by condensing older moments.",
             "- Keep the file's description an accurate overview; preserve it verbatim when it still fits.",
             f"- {SENSITIVE_MEMORY_RULE}",
-            f"- {MEMORY_LANGUAGE_RULE}",
             "- The companion guardrail overrides this file. Never record or frame the relationship as the Anima "
             "missing the user or feeling lonely without them, as jealousy, or in a way that discourages the user's "
             "other relationships.",

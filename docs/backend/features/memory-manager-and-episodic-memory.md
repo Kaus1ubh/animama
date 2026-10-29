@@ -364,7 +364,7 @@ message position and the Reflection run that set it. Creation locks the owner's
 open runs, refuses a pending approval (`409`), requires the Anima's
 `MEMORIES.md` to exist (`409` asking for repair), and selects the oldest
 uncovered turns after the coverage, plus the total uncovered count. The batch
-stops at 400 turns or about 50,000 estimated tokens of turn text, whichever comes first,
+stops at 400 turns or 51,000 estimated tokens of turn text, whichever comes first,
 and always holds at least one turn. Text is counted as the model reads it, each
 side shortened past 2,000 characters and estimated at four ASCII characters or
 one other character per token, so a page of 50 maximal English turns still
@@ -913,7 +913,7 @@ Body:
 ```
 
 The backend owns the batch: the Anima's oldest uncovered turns, at most 400
-turns or about 50,000 estimated tokens of turn text (see [Reflection](#reflection)).
+turns or 51,000 estimated tokens of turn text (see [Reflection](#reflection)).
 It returns `201` with the normal run snapshot. The run has `kind = "reflection"`,
 `task = null` and a safe summary:
 

@@ -1273,7 +1273,7 @@ failed runtime results fail the run and leave the task and rows pending.
 
 `POST /v1/memory/manager/runs:reflect` accepts `anima_id` and
 `auto_approve_diffs`, and starts a Reflection over that owned Anima's oldest
-uncovered chat turns across all its chats, at most 400 turns or about 50,000
+uncovered chat turns across all its chats, at most 400 turns or 51,000
 estimated tokens of turn text. It follows the same open-run rules: it supersedes an
 open run without a pending approval and returns `409` while one is pending. A missing or foreign Anima returns `404`.
 It also returns `409` without creating a run when the Anima's `MEMORIES.md`

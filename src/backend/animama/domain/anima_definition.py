@@ -29,8 +29,9 @@ What helps, what lands and what to avoid in how I am with them.
 ## Open threads
 Things to follow up on: plans, promises and upcoming events, with dates.
 """
-# The MEMORIES.md size the guidance aims for. The limit is in bytes, and Japanese, Chinese and Korean
-# characters take three bytes in UTF-8, so the same content target is about half as many characters.
+# The MEMORIES.md size the guidance aims for. The limit is in bytes and Japanese, Chinese and Korean
+# characters take three bytes in UTF-8, but each carries more than an English letter: 3,000 of them,
+# about 9,000 bytes, hold about as much as 6,000 English characters and stay well under 16 KiB.
 ANIMA_MEMORIES_SIZE_TARGET = "well under about 6,000 characters, or about 3,000 in Japanese, Chinese or Korean"
 ANIMA_DISPLAY_NAME_MAX_CHARACTERS = 40
 DEFAULT_ANIMA_VOICE_ID = "gJx1vCzNCD1EQHT212Ls"
