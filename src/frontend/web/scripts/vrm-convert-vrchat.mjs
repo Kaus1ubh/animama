@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { access, readFile, stat } from "node:fs/promises";
+import { access, stat } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -11,19 +11,25 @@ import { fileURLToPath } from "node:url";
  *     [--author <author>] [--copyright <credit>] [--keep-pose] [--no-optimize] \
  *     [--validate] [--unity <editor>]
  *
- * It runs the Unity batch export (`scripts/avatars/unity/AnimamaBatchExport.cs`,
- * T-pose unless --keep-pose), then `vrm:optimize`, keeping the raw export
- * beside the result as `<Avatar>.raw.vrm`, then `vrm:inspect`. --no-optimize
- * writes the raw export to --out; --validate only runs Mochiya's validation.
- * The Unity log goes to `<Avatar>.export.log`. See
- * docs/frontend/runtime/vrchat-avatar-conversion.md.
+ * It runs the Animama Avatar Export command (the public
+ * raymond-van/animama-avatar-export repository) at its pinned release through
+ * `pnpm dlx`. That command adds its Unity package and dependencies to the
+ * project's Packages/manifest.json and runs the Unity batch export (T-pose
+ * unless --keep-pose), writing Unity's log to `<Avatar>.export.log`. This
+ * command then runs `vrm:optimize`, keeping the raw export beside the result as
+ * `<Avatar>.raw.vrm`, and `vrm:inspect`. --no-optimize writes the raw export to
+ * --out; --validate only runs Mochiya's validation.
+ *
+ * ANIMAMA_AVATAR_EXPORT runs a local checkout of the exporter instead, with
+ * that checkout's Unity package, to test unreleased changes.
+ * See docs/frontend/runtime/vrchat-avatar-conversion.md.
  */
 
+/** The exporter release this command runs; its tag also selects the Unity package. */
+export const EXPORTER_RELEASE =
+  "github:raymond-van/animama-avatar-export#v0.1.0";
+
 const webRoot = fileURLToPath(new URL("..", import.meta.url));
-const repoScript = path.resolve(
-  webRoot,
-  "../../../scripts/avatars/unity/AnimamaBatchExport.cs",
-);
 const USAGE = [
   "Usage:",
   "  pnpm -s vrm:convert-vrchat --project <unity-project> --prefab <Assets/…/Avatar.prefab>",
@@ -42,13 +48,8 @@ const VALUE_OPTIONS = [
   "copyright",
 ];
 const FLAG_OPTIONS = ["keep-pose", "no-optimize", "validate", "help"];
-/** VRM metadata options and the batch export arguments that carry them. */
-const META_ARGUMENTS = {
-  name: "-animamaName",
-  version: "-animamaVersion",
-  author: "-animamaAuthor",
-  copyright: "-animamaCopyright",
-};
+/** Options passed on to the exporter unchanged. */
+const PASSED_OPTIONS = ["name", "version", "author", "copyright", "unity"];
 
 /** Parse the command line; unknown or incomplete options are errors, not ignored. */
 export function parseArgs(argv) {
@@ -86,7 +87,7 @@ export function parseArgs(argv) {
   return { options, flags };
 }
 
-/** The finished VRM, the raw Unity export and the Unity log for an --out path. */
+/** The finished VRM, the raw Unity export and Unity's log for an --out path. */
 export function outputPaths(out, optimize) {
   const stem = out.slice(0, -".vrm".length);
   return {
@@ -96,52 +97,71 @@ export function outputPaths(out, optimize) {
   };
 }
 
-/** Where Unity Hub installs an editor version, or null where it has no default. */
-export function defaultUnityEditor(version, platform) {
-  if (platform === "darwin")
-    return `/Applications/Unity/Hub/Editor/${version}/Unity.app/Contents/MacOS/Unity`;
-  if (platform === "win32")
-    return `C:\\Program Files\\Unity\\Hub\\Editor\\${version}\\Editor\\Unity.exe`;
-  return null;
+/**
+ * The exporter to run and the Unity package entry it should install: the
+ * pinned release (which installs its own package), or a local checkout's
+ * folder with that checkout's package. pnpm links a checkout, so edits apply
+ * on the next run.
+ */
+export function exporterSource(checkout) {
+  if (!checkout) return { spec: EXPORTER_RELEASE, packageSpec: null };
+  const folder = path.resolve(checkout);
+  return {
+    spec: folder,
+    packageSpec: `file:${path.join(folder, "Packages", "com.animama.avatar-export")}`,
+  };
 }
 
-/**
- * The batch export's command line. Never -nographics: the exporter reads
- * compressed textures back through the GPU and writes flat grey without one.
- */
-export function unityArgs({
-  project,
-  prefab,
-  raw,
-  log,
-  meta,
-  keepPose,
-  validate,
-}) {
+/** The exporter's arguments for this conversion; it writes the raw export and the log. */
+export function exporterArgs({ options, flags, raw, log, packageSpec }) {
   const args = [
-    "-batchmode",
-    "-quit",
-    "-projectPath",
-    project,
-    "-logFile",
+    "--project",
+    options.project,
+    "--prefab",
+    options.prefab,
+    "--out",
+    raw,
+    "--log",
     log,
-    "-executeMethod",
-    validate ? "AnimamaBatchExport.Validate" : "AnimamaBatchExport.Export",
-    "-animamaPrefab",
-    prefab,
   ];
-  if (!validate) args.push("-animamaOut", raw);
-  for (const [key, argument] of Object.entries(META_ARGUMENTS)) {
-    if (meta[key]) args.push(argument, meta[key]);
+  for (const key of PASSED_OPTIONS) {
+    if (options[key]) args.push(`--${key}`, options[key]);
   }
-  if (keepPose) args.push("-animamaKeepPose");
+  if (flags.keepPose) args.push("--keep-pose");
+  if (flags.validate) args.push("--validate");
+  if (packageSpec) args.push("--package", packageSpec);
   return args;
 }
 
-/** Whether two copies of the export script match, ignoring line endings. */
-export function sameScript(projectCopy, repoCopy) {
-  const normalise = (text) => text.replace(/\r\n/g, "\n");
-  return normalise(projectCopy) === normalise(repoCopy);
+/**
+ * The `pnpm dlx` command line that runs the exporter. pnpm is started through
+ * Node when it is a script, so no shell is needed on Windows, and with the
+ * default reporter: `pnpm -s` passes a silent one down, which would hide a
+ * failure to fetch or start the exporter.
+ */
+export function exporterCommand(npmExecPath, nodePath, spec, args) {
+  if (!npmExecPath)
+    throw new Error("Run this through pnpm: pnpm -s vrm:convert-vrchat …");
+  const dlx = [
+    "--reporter=default",
+    "dlx",
+    `--package=${spec}`,
+    "animama-avatar-export",
+    ...args,
+  ];
+  return /\.[cm]?js$/.test(npmExecPath)
+    ? { command: nodePath, args: [npmExecPath, ...dlx] }
+    : { command: npmExecPath, args: dlx };
+}
+
+/**
+ * This command's exit code for the exporter's: 0 and 2 (cannot convert) pass
+ * through; anything else is 1.
+ */
+export function conversionExitCode(exporterExitCode) {
+  return exporterExitCode === 0 || exporterExitCode === 2
+    ? exporterExitCode
+    : 1;
 }
 
 const exists = (file) =>
@@ -150,41 +170,6 @@ const exists = (file) =>
     () => false,
   );
 
-/** The Unity editor to run: --unity, ANIMAMA_UNITY_EDITOR, or the project's Hub version. */
-async function resolveUnityEditor(project, explicit) {
-  const configured = explicit ?? process.env.ANIMAMA_UNITY_EDITOR;
-  if (configured) return configured;
-  const versionFile = path.join(project, "ProjectSettings/ProjectVersion.txt");
-  const version = /m_EditorVersion:\s*(\S+)/.exec(
-    await readFile(versionFile, "utf8"),
-  )?.[1];
-  const editor = version && defaultUnityEditor(version, process.platform);
-  if (!editor || !(await exists(editor)))
-    throw new Error(
-      `Unity ${version ?? "(unknown version)"} was not found; pass --unity <editor> or set ANIMAMA_UNITY_EDITOR.`,
-    );
-  return editor;
-}
-
-/** Refuse a project whose copy of the export script differs from the repository's. */
-async function checkProjectScript(project) {
-  const projectScript = path.join(
-    project,
-    "Assets/AnimamaExport/Editor/AnimamaBatchExport.cs",
-  );
-  const copyHint = `Copy scripts/avatars/unity/AnimamaBatchExport.cs and Animama.BatchExport.asmdef into ${path.dirname(projectScript)}.`;
-  if (!(await exists(projectScript)))
-    throw new Error(`The project has no batch export script. ${copyHint}`);
-  const [projectCopy, repoCopy] = await Promise.all([
-    readFile(projectScript, "utf8"),
-    readFile(repoScript, "utf8"),
-  ]);
-  if (!sameScript(projectCopy, repoCopy))
-    throw new Error(
-      `The project's AnimamaBatchExport.cs differs from the repository's. ${copyHint}`,
-    );
-}
-
 /** Run a command to completion, resolving with its exit code. */
 function run(command, args, options = {}) {
   return new Promise((resolve, reject) => {
@@ -192,25 +177,6 @@ function run(command, args, options = {}) {
     child.on("error", reject);
     child.on("exit", (code, signal) => resolve(signal ? 1 : (code ?? 1)));
   });
-}
-
-/**
- * The batch export's own lines from a Unity log: each `[Animama]` line, and
- * the whole Validate report, whose lines run on until Unity's stack trace.
- */
-export function exportLines(log) {
-  const lines = [];
-  let inReport = false;
-  for (const line of log.split("\n")) {
-    if (line.startsWith("[Animama]")) {
-      lines.push(line);
-      inReport = line.startsWith("[Animama] Validate:");
-    } else if (inReport) {
-      if (!line.trim() || line.startsWith("UnityEngine.")) inReport = false;
-      else lines.push(`  ${line}`);
-    }
-  }
-  return lines.join("\n");
 }
 
 const megabytes = async (file) =>
@@ -222,7 +188,6 @@ async function main(argv) {
     console.log(USAGE);
     return 0;
   }
-  const project = path.resolve(options.project);
   const paths = outputPaths(path.resolve(options.out), flags.optimize);
   if (!flags.validate) {
     for (const file of new Set([paths.final, paths.raw])) {
@@ -230,33 +195,26 @@ async function main(argv) {
         throw new Error(`${file} exists; choose a new --out.`);
     }
   }
-  await checkProjectScript(project);
-  const editor = await resolveUnityEditor(project, options.unity);
 
-  console.log(
-    `Unity: ${flags.validate ? "validating" : "exporting"} ${options.prefab} (log: ${paths.log})`,
-  );
-  const exported = await run(
-    editor,
-    unityArgs({
-      project,
-      prefab: options.prefab,
+  const source = exporterSource(process.env.ANIMAMA_AVATAR_EXPORT);
+  const exporter = exporterCommand(
+    process.env.npm_execpath,
+    process.execPath,
+    source.spec,
+    exporterArgs({
+      options: { ...options, project: path.resolve(options.project) },
+      flags,
       raw: paths.raw,
       log: paths.log,
-      meta: options,
-      keepPose: flags.keepPose,
-      validate: flags.validate,
+      packageSpec: source.packageSpec,
     }),
   );
-  console.log(exportLines(await readFile(paths.log, "utf8").catch(() => "")));
-  if (exported === 2) {
-    console.error("Mochiya cannot convert this prefab; see Validate above.");
-    return 2;
-  }
-  if (exported !== 0) {
-    console.error(`The Unity batch export failed (exit ${exported}).`);
-    return 1;
-  }
+  const exported = await run(exporter.command, exporter.args);
+  if (exported > 2)
+    console.error(
+      `The exporter ${source.spec} did not run (exit ${exported}); check the network, Git and ANIMAMA_AVATAR_EXPORT.`,
+    );
+  if (exported !== 0) return conversionExitCode(exported);
   if (flags.validate) return 0;
 
   if (flags.optimize) {

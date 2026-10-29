@@ -1,13 +1,15 @@
 import assert from "node:assert/strict";
+import path from "node:path";
 import { test } from "node:test";
 
 import {
-  defaultUnityEditor,
-  exportLines,
+  conversionExitCode,
+  EXPORTER_RELEASE,
+  exporterArgs,
+  exporterCommand,
+  exporterSource,
   outputPaths,
   parseArgs,
-  sameScript,
-  unityArgs,
 } from "./vrm-convert-vrchat.mjs";
 
 const REQUIRED = [
@@ -56,91 +58,105 @@ test("an optimized conversion keeps the raw export beside it; --no-optimize writ
   });
 });
 
-test("the default editor is the project's version in the Unity Hub folder", () => {
-  assert.equal(
-    defaultUnityEditor("2022.3.62f3", "darwin"),
-    "/Applications/Unity/Hub/Editor/2022.3.62f3/Unity.app/Contents/MacOS/Unity",
+test("the pinned exporter release installs its own Unity package; a checkout installs its own", () => {
+  assert.match(
+    EXPORTER_RELEASE,
+    /^github:raymond-van\/animama-avatar-export#v\d+\.\d+\.\d+$/,
   );
-  assert.equal(
-    defaultUnityEditor("2022.3.62f3", "win32"),
-    "C:\\Program Files\\Unity\\Hub\\Editor\\2022.3.62f3\\Editor\\Unity.exe",
-  );
-  assert.equal(defaultUnityEditor("2022.3.62f3", "linux"), null);
+  assert.deepEqual(exporterSource(undefined), {
+    spec: EXPORTER_RELEASE,
+    packageSpec: null,
+  });
+  const checkout = path.resolve("/src/animama-avatar-export");
+  assert.deepEqual(exporterSource("/src/animama-avatar-export"), {
+    spec: checkout,
+    packageSpec: `file:${path.join(checkout, "Packages", "com.animama.avatar-export")}`,
+  });
 });
 
-test("Unity runs the batch export with the GPU and only the arguments given", () => {
-  const args = unityArgs({
-    project: "/unity/Avatar",
-    prefab: "Assets/Avatar/Avatar.prefab",
+test("the exporter writes the raw export with the options given", () => {
+  const args = exporterArgs({
+    options: {
+      project: "/unity/Avatar",
+      prefab: "Assets/Avatar/Avatar.prefab",
+      out: "/private/Avatar.vrm",
+      name: "Avatar",
+      author: "Author",
+      unity: "/editors/Unity",
+    },
+    flags: { keepPose: true, optimize: true, validate: false },
     raw: "/private/Avatar.raw.vrm",
     log: "/private/Avatar.export.log",
-    meta: { name: "Avatar", author: "Author" },
-    keepPose: false,
-    validate: false,
+    packageSpec: null,
   });
-  assert.ok(!args.includes("-nographics"));
   assert.deepEqual(args, [
-    "-batchmode",
-    "-quit",
-    "-projectPath",
+    "--project",
     "/unity/Avatar",
-    "-logFile",
-    "/private/Avatar.export.log",
-    "-executeMethod",
-    "AnimamaBatchExport.Export",
-    "-animamaPrefab",
+    "--prefab",
     "Assets/Avatar/Avatar.prefab",
-    "-animamaOut",
+    "--out",
     "/private/Avatar.raw.vrm",
-    "-animamaName",
+    "--log",
+    "/private/Avatar.export.log",
+    "--name",
     "Avatar",
-    "-animamaAuthor",
+    "--author",
     "Author",
+    "--unity",
+    "/editors/Unity",
+    "--keep-pose",
   ]);
 
-  const validate = unityArgs({
-    project: "/unity/Avatar",
-    prefab: "Assets/Avatar/Avatar.prefab",
-    raw: "/private/Avatar.raw.vrm",
-    log: "/private/Avatar.export.log",
-    meta: {},
-    keepPose: true,
-    validate: true,
+  const validate = exporterArgs({
+    options: { project: "/p", prefab: "A", out: "/o/A.vrm" },
+    flags: { keepPose: false, optimize: false, validate: true },
+    raw: "/o/A.vrm",
+    log: "/o/A.export.log",
+    packageSpec: "file:/src/pkg",
   });
-  assert.equal(
-    validate[validate.indexOf("-executeMethod") + 1],
-    "AnimamaBatchExport.Validate",
-  );
-  assert.ok(!validate.includes("-animamaOut"));
-  assert.ok(validate.includes("-animamaKeepPose"));
+  assert.deepEqual(validate.slice(-3), [
+    "--validate",
+    "--package",
+    "file:/src/pkg",
+  ]);
 });
 
-test("the log summary keeps every export line and the whole Validate report", () => {
-  const log = [
-    "Unity Editor version: 2022.3.62f3",
-    "[Animama] Stripped EditorOnly object Jacket",
-    "UnityEngine.Debug:Log (object)",
-    "[Animama] Validate:",
-    "Unsupported: Avatar: animator state machines are not executed by VRM.",
-    "Warning: Hair: PhysBone motion is approximated with VRM springs.",
-    "UnityEngine.StackTraceUtility:ExtractStackTrace ()",
-    "[Animama] Export report:",
-    "Warning: Hair: PhysBone motion is approximated with VRM springs.",
-    "UnityEngine.StackTraceUtility:ExtractStackTrace ()",
-  ].join("\n");
+test("pnpm dlx runs the exporter through Node, with pnpm's default reporter", () => {
+  const args = ["--project", "/p"];
+  assert.deepEqual(
+    exporterCommand(
+      "/corepack/pnpm.cjs",
+      "/usr/bin/node",
+      EXPORTER_RELEASE,
+      args,
+    ),
+    {
+      command: "/usr/bin/node",
+      args: [
+        "/corepack/pnpm.cjs",
+        "--reporter=default",
+        "dlx",
+        `--package=${EXPORTER_RELEASE}`,
+        "animama-avatar-export",
+        "--project",
+        "/p",
+      ],
+    },
+  );
   assert.equal(
-    exportLines(log),
-    [
-      "[Animama] Stripped EditorOnly object Jacket",
-      "[Animama] Validate:",
-      "  Unsupported: Avatar: animator state machines are not executed by VRM.",
-      "  Warning: Hair: PhysBone motion is approximated with VRM springs.",
-      "[Animama] Export report:",
-    ].join("\n"),
+    exporterCommand("C:\\pnpm\\pnpm.exe", "node", "/src/exporter", args)
+      .command,
+    "C:\\pnpm\\pnpm.exe",
+  );
+  assert.throws(
+    () => exporterCommand(undefined, "node", EXPORTER_RELEASE, args),
+    /through pnpm/,
   );
 });
 
-test("the project's copy of the export script must match the repository's", () => {
-  assert.ok(sameScript("line one\r\nline two\r\n", "line one\nline two\n"));
-  assert.ok(!sameScript("line one\n", "line one\nline two\n"));
+test("the exporter's exit code passes through as 0, 2 or 1", () => {
+  assert.equal(conversionExitCode(0), 0);
+  assert.equal(conversionExitCode(2), 2);
+  assert.equal(conversionExitCode(1), 1);
+  assert.equal(conversionExitCode(254), 1);
 });

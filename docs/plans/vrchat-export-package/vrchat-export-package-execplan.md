@@ -41,8 +41,12 @@ briefly holds a new file. Manual and Unity checks run on both:
 - Windows 10 or 11 (x64, Direct3D 11), with VRChat Creator Companion.
 
 **GW (owner):** access to a Windows machine with a GPU, Unity Hub and Unity
-2022.3, VCC, Git and Node 20 or later, and the private test material copied to
-a private folder there, before Phase 1's Windows checks. Without it, the
+2022.3, VCC, Git and Node 22 or later, and the private test material copied to
+a private folder there, before Phase 1's Windows checks. The Windows runs
+include a prefab path with spaces and non-ASCII characters, an exporter
+checkout path with spaces (the `file:C:\…` Unity entry), `pnpm dlx` starting
+the exporter through its `.cmd` shim, and the lock probe against an open
+editor. Without it, the
 Windows checks of every phase stay open and block the release (G3).
 
 ### Repositories and working directories
@@ -91,10 +95,17 @@ in a valid scene; `Export` converts in that scene. `MochiyaTargetKind` is
 - [ ] Phase 1: package skeleton and export core — done on macOS (checks pass;
   review passed after one repair round; package commit `26601ed`); Windows
   checks open until GW
-- [ ] Phase 2: editor window, checks, installer, licence notice — not started
-- [ ] Phase 3: standalone command — not started
-- [ ] Phase 4: listing, release and package CI — not started; owner gates G1–G3
-- [ ] Phase 5: developer command and docs — not started; owner gate G4
+- [ ] Phase 2: editor window, checks, installer, licence notice — done on macOS
+  (checks pass; review passed after one repair round); owner GUI walkthrough GM
+  and Windows checks open
+- [ ] Phase 3: standalone command — done on macOS (checks pass; review passed
+  after one repair round); Windows checks open (GW)
+- [ ] Phase 4: listing, release and package CI — local checks pass; review
+  passed after one repair round; owner gates G1–G3 (and the live release checks)
+  open
+- [ ] Phase 5: developer command and docs — done against a local exporter
+  checkout (checks pass; high-risk review passed after two repair rounds);
+  needs the v0.1.0 release (G3), the `EXPORTER_RELEASE` SHA pin, and G4
 - [ ] Final integration review — not started
 
 ## Surprises & Discoveries
@@ -153,6 +164,27 @@ in a valid scene; `Export` converts in that scene. `MochiyaTargetKind` is
   prints the absolute path; the T-pose errors name "the keep-pose option"
   (`-animamaKeepPose`, `--keep-pose`, the window's checkbox) instead of the
   batch flag alone.
+- 2026-10-29, agent (within scope, Phase 2): an Avatar picked in the open scene
+  is exported through its prefab when it is an unchanged prefab instance (its
+  root's position and rotation are ignored); otherwise the window asks for a
+  prefab. Mochiya is "met" only at the tested commit (or version 0.1.6 for a
+  downloaded copy); other versions are reported unsupported and the installer
+  offers the tested one. A project without lilToon passes, since only Avatars
+  that use it need it.
+- 2026-10-29, agent (within scope, Phase 2): the agent cannot operate the Unity
+  editor's interface, so the window walkthrough becomes owner check GM; the
+  logic behind it is covered by EditMode tests and the batch checks.
+- 2026-10-29, agent (within scope, Phase 5): the developer command runs the
+  exporter with `pnpm dlx` (the repository's package manager, started from
+  `npm_execpath` through Node) instead of `npx`; the parity renderer's asmdef
+  references `UniGLTF.Editor`, where `InternalTPose` lives, instead of VRM10.
+- 2026-10-29, agent (within scope, Phase 3): the command requires Node 22 or
+  later, not the spec's Node 20: Node 20 reached end of life in April 2026, and
+  the test runner's glob patterns need 22. Reported to the owner.
+- 2026-10-29, agent (within scope, Phase 3): batch exit code 3 means a
+  requirement is not met (from `BatchRequirements.Check` and `BatchExport`);
+  the command reports it as exit 1 with an explanation, keeping its documented
+  0/2/1. The command prints a one-line licence reminder on every run.
 - 2026-10-29, agent (within scope): the export assembly compiles only when its
   dependencies exist (`versionDefines` plus `defineConstraints`); the installer
   lives in a separate assembly with no dependencies, so a project without them
@@ -384,19 +416,121 @@ Checks:
   committed before the run).
 - A prefab that fails Mochiya validation shows its error and writes no file.
 
-Completion: checks pass and the review has no supported blocking finding.
+Completion: checks pass, the review has no supported blocking finding, and the
+owner's GUI walkthrough (below) is recorded.
 
-Check record: —
+Implementation notes (2026-10-29):
 
-Commits: —
+- The bootstrap assembly (`Animama.AvatarExport.Bootstrap`) has no
+  references: `Requirements`, `DependencyInstaller`, `SetupWindow`,
+  `RequirementsView`, the `Animama` menu and `BatchRequirements.Check` (a batch
+  entry point that logs one `[Animama] Requirement` line per component and
+  exits 3 when any is unmet, for the Phase 3 command). The export assembly
+  registers its window with the menu when it compiles; until then the menu
+  opens the setup window, which also opens once per editor session.
+- The window lives in the export assembly; its decisions are in
+  `AvatarSource`, `ModularAvatar`, `LicenceNotice`, `ReportExplanations` and
+  `ExportBlockers` so tests cover them without drawing.
+
+Check record (macOS, Unity 2022.3.62f3):
+
+| Check | Result | Source |
+| --- | --- | --- |
+| All package EditMode tests (`-assemblyNames "Animama.AvatarExport.Editor.Tests;Animama.AvatarExport.Bootstrap.Tests"`) in the project with dependencies | first run 38/40: two test-design faults (an editor-assembly component cannot be added to an object; a moved root is a default override Unity ignores); fixed; 40/40, no compile errors or Animama warnings | package tree `767e4557` |
+| Fresh VRChat Avatars project (VCC template, `vpm resolve project`) with only the package added | compiles with no errors; `BatchRequirements.Check` exits 3 and reports UniGLTF, UniVRM 1.0 and Mochiya missing, Unity and lilToon met | `767e4557` |
+| No network or upload code (search over `Packages/`) | no matches (the installer runs `git --version` only, to detect Git) | `767e4557` |
+| GUI walkthrough (installer prompt, licence notice, window export, open scene untouched) | not run: the agent cannot drive the Unity editor's interface; owner check **GM** | — |
+| Windows | not run (GW) | — |
+| After Review #1 repairs (and Phase 3's batch fixes): all EditMode tests | 44/44, no compile errors; then 44/44 again after adding the gravity-falloff explanation | package tree `3b2c9493` |
+| Installer without the GUI: a private harness in the fresh project calls `DependencyInstaller.Install` with `Requirements.UrlsToInstall` | one request installed UniGLTF, UniVRM 1.0 and Mochiya at the pinned URLs; after the reload every requirement was met, the export assembly compiled and the menu registered its window (the first attempt was cut short by the VRChat SDK switching build target, a one-time reload) | `3b2c9493` |
+| An untested Mochiya (0.1.5 at `ad47df79`) | the export assembly does not compile (`[0.1.6]` version define); `BatchRequirements.Check` exits 3 naming found and required versions | `3b2c9493` |
+
+Commits: package repository `33d790b` `feat(export)[p2]: add the Export for
+Animama window, requirement checks and installer` (local; includes Phase 3's
+`BatchExport` fixes, which live in the package).
 
 #### Code Review #1 Findings
 
-—
+Reviewed tree `767e4557` against Phase 1's `26601ed`, standard tier, initial
+round; reran the source search, `.meta` coverage, GUID uniqueness and a
+private-path search.
+
+- **P2-F1 (blocking):** an Avatar picked in the scene became Missing after
+  Validate or Export, because reopening the scenes destroys it.
+- **P2-F2 (blocking):** collider, gravity-falloff and lip-sync warnings come
+  only from Mochiya's export, but the window explained only the validation
+  report; two match keys ("visemes", "collider") would mislabel export lines.
+- P2-F3: matching anywhere in a line (object names included) mislabelled lines;
+  the "collision" entry was unreachable.
+- P2-F4: "carry over" for visemes was unconditional; Mochiya says "where
+  configured".
+- P2-F5: the package README still said Mochiya 0.1.4 or later; CHANGELOG
+  incomplete.
+- P2-F6: file panel and installer dialogs opened without ending the GUI pass.
+- P2-F7: scene-instance messages were wrong or unhelpful for VRChat-uploaded
+  instances (blueprint overrides), Prefab Mode objects and nested instances.
+- P2-F8: the Mochiya version define was open-ended.
+- P2-F9: no Play Mode blocker.
+- P2-F10: the pick was resolved several times per GUI event.
+- P2-F11: a failure after the VRM was saved did not say the file exists.
+- P2-F12: the install dialog said "add" when replacing versions; an installed
+  UniVRM 0.x would be left mismatched.
+- P2-F13: wording (window intro, licence notice, lilToon fix text, the
+  absent-lilToon row).
+- P2-F14: Mochiya's errors for a non-Avatar prefab pointed at Mochiya's tools.
+- Check gap: the installer path had not run.
 
 #### Code Review #1 Revisions
 
-—
+All accepted. Repaired tree `3b2c9493` (shared with Phase 3's repairs).
+
+- P2-F1: `Run` keeps the resolved prefab as the pick before exporting.
+- P2-F2, P2-F3, P2-F4: `ExportResult.ExportReport` keeps Mochiya's export
+  report; the window explains it after an export (the validation report
+  otherwise). `ReportExplanations` matches Mochiya 0.1.6's exact phrases,
+  separates plane and inside colliders, adds jaw-bone lip sync and gravity
+  falloff, and qualifies visemes. Tests rebuilt from the lines each stage
+  emits.
+- P2-F5: package README and CHANGELOG updated.
+- P2-F6: `ExitGUI` after the file panel and the installer.
+- P2-F7: messages name the Project window route, including for Prefab Mode
+  objects and nested instances.
+- P2-F8: Mochiya version define `[0.1.6]`.
+- P2-F9: "Exit Play Mode first" blocker.
+- P2-F10: the pick is resolved on change, focus, hierarchy and project changes.
+- P2-F11: the failure message says where the VRM was saved.
+- P2-F12: the dialog lists "install" or "replace … with …" per package, and an
+  installed `com.vrmc.univrm` is checked and updated with UniGLTF.
+- P2-F13: wording corrected; the licence notice says the export writes only the
+  chosen file and uploads nothing.
+- P2-F14: plain explanations for the humanoid and attachment errors.
+- Check gap: covered by the installer harness row above.
+
+Verification: the rows after "After Review #1 repairs". Repair budget: round 1
+of 2 used.
+
+#### Code Review #2 Findings
+
+Targeted recheck of `Packages/` at tree `3b2c9493` (identical in `7463a88b`),
+rerunning the source search, `.meta`, GUID and private-path checks: every
+Review #1 finding fixed; no blocking finding or regression, including Phase 3's
+changes to `BatchExport`.
+
+- P2-R2-F1 (non-blocking): Mochiya 0.1.6 emits "Only blendshape visemes are
+  converted" when an Avatar's viseme list is short, not for jaw-bone lip sync
+  (which gets no warning), so the explanation gave the wrong cause.
+- P2-R2-F2 (non-blocking): "has no valid VRM humanoid" also covers an Avatar
+  whose own rig fails Mochiya's humanoid check.
+- Minor: no tests for the Prefab Mode and nested-instance messages.
+
+#### Code Review #2 Revisions
+
+- P2-R2-F1, P2-R2-F2: trivial wording repairs ("Some of this Avatar's mouth
+  shapes are not converted…"; "…or its humanoid rig is incomplete…"); the
+  end-user guide now says jaw-bone or parameter lip sync is not converted and
+  not reported. EditMode tests 44/44 afterwards (tree `c5b4761c`). Possible
+  upstream note for Mochiya, subject to the owner's approval to post.
+- Minor test gap: left; the messages are covered by review and GM.
 
 ### Phase 3: standalone command
 
@@ -407,7 +541,7 @@ Requirements: R7; Q8.
 
 Steps, at the package repository root:
 
-1. `package.json` (`name: animama-avatar-export`, `bin`, `engines.node >= 20`,
+1. `package.json` (`name: animama-avatar-export`, `bin`, `engines.node >= 22`,
    no dependencies) and `cli/` modules ported from `vrm-convert-vrchat.mjs`:
    argument parsing (without `--no-optimize`), Unity editor lookup on macOS and
    Windows, the batch command line (spawned without a shell, so paths with
@@ -422,7 +556,8 @@ Steps, at the package repository root:
 3. Run `Validate` or `Export` through the Phase 1 batch entry points; write the
    Unity log beside the output; print the `[Animama]` lines and the validation
    report. Exit 0 only when a file was written (or validation passed with
-   `--validate`), 2 when Mochiya cannot convert, 1 otherwise. Never overwrite.
+   `--validate`), 2 when Mochiya cannot convert or the Avatar needs Modular
+   Avatar, 1 otherwise (including an unmet requirement). Never overwrite.
 4. `node --test` tests: argument errors, editor lookup for both platforms,
    command line (never `-nographics`), manifest editing on temporary fixtures
    (missing, present, conflicting entries; LF and CRLF kept), lockfile refusal,
@@ -440,17 +575,97 @@ Checks:
 
 Completion: checks pass and the review has no supported blocking finding.
 
-Check record: —
+Review tier note: the phase also adds the npm packaging that `npx` installs
+(root `package.json`: `bin`, `files`, `engines`). That packaging is reviewed
+again under Phase 4's high-risk release review, which runs the full checks.
 
-Commits: —
+Check record (macOS, Node 24.15, Unity 2022.3.62f3):
+
+| Check | Result | Source |
+| --- | --- | --- |
+| `npm test` (`node --test "cli/*.test.mjs"`) | 22/22 first; after Review #1 repairs 36/36 (with the scripts' tests) | package working tree, then tree `3b2c9493` |
+| Command on a private project copy with the package and its dependencies removed, `--package file:<clone>/Packages/com.animama.avatar-export` | added all four manifest entries; main prefab exit 0, byte-identical to the baseline (24 s with package resolution); `EditorOnly` variant exit 0, byte-identical | before repairs |
+| `--validate --keep-pose` on an attachment prefab | exit 2 | before repairs |
+| Existing `--out` | exit 1 before Unity runs | before repairs |
+| While a batch Unity held the project | refused, exit 1, nothing written | before repairs |
+| `npm exec --yes --package=<clone> -- animama-avatar-export --help` | exit 0 (bin link) | before repairs |
+| Unity's wording when the export code is absent | "executeMethod class 'BatchExport' could not be found." | fresh project |
+| After repairs: command export of the main prefab | exit 0, byte-identical; ends with the plain-language `[Animama] Note:` lines | `3b2c9493` |
+| Windows | not run (GW) | — |
+| npx from GitHub | not run (no remote until G1) | — |
+
+Commits: package repository `6b01937` `feat(export)[p3]: add the
+animama-avatar-export command line` (local).
 
 #### Code Review #1 Findings
 
-—
+Reviewed the Phase 3 working tree (root `package.json`, `cli/`) against the
+developer command and the package's batch entry points, standard tier, initial
+round; reran `node --test`, `npm pack --dry-run` and probes in temporary
+folders.
+
+- **P3-F1 (blocking):** the batch path skipped the window's requirement checks
+  and Modular Avatar refusal, so the command could export what the window
+  refuses.
+- **P3-F2 (blocking):** the command printed Mochiya's raw report, not the
+  window's plain-language one (R7).
+- **P3-F3 (blocking):** the phase adds npm packaging, which the tier table
+  calls high risk.
+- P3-F4: when the package itself never loaded, the message blamed the
+  dependencies and gave no next step.
+- P3-F5: embedded (VCC) packages were not detected; a non-Git Mochiya got a
+  misleading "pins other versions" message.
+- P3-F6: `engines` was raised to Node 22 without a record.
+- P3-F7: a missing `--unity` editor or output folder was found only after the
+  manifest changed.
+- P3-F8: an invalid manifest or one with a byte-order mark raised an unnamed
+  `SyntaxError`.
+- P3-F9: no test ran a real executable (spawn, spaces), the Windows lock probe,
+  LF preservation, `readSecondaryInstallPath` or the log's open-project branch.
+- P3-F10: the Windows probe treated `EPERM` (read-only) as an open project.
+- P3-F11: the command showed no licence notice (product note).
 
 #### Code Review #1 Revisions
 
-—
+All accepted. Repaired tree `3b2c9493`.
+
+- P3-F1: `BatchExport` refuses unmet requirements (exit 3, one `[Animama]
+  Requirement not met` line each) and Modular Avatar (exit 2); the command maps
+  exit 3 to a clear message. Verified by the check-record rows here and in
+  Phase 2 (an untested Mochiya stops at the compile constraint and the
+  requirement check reports it).
+- P3-F2: `BatchExport` ends with the window's explained report as
+  `[Animama] Note:`/`Error:` lines; Mochiya's raw report stays above them.
+- P3-F3: tier note above; Phase 4's high-risk review covers the packaging.
+- P3-F4: "The Animama package did not load in this project. Check the network,
+  Git and --package" when the requirement check prints nothing.
+- P3-F5: embedded packages count as present; conflicts read "the export needs";
+  an installed `com.vrmc.univrm` at another version is reported.
+- P3-F6: Decision Log entry; GW now says Node 22.
+- P3-F7: the editor path and the output folder are checked before the
+  manifest; the validation log folder is created.
+- P3-F8: parse errors name `Packages/manifest.json`; a byte-order mark is kept.
+- P3-F9: tests added for each case, including a POSIX fake Unity run through
+  real `spawn` in a folder with spaces.
+- P3-F10: only `EBUSY` counts as held; to verify under GW.
+- P3-F11: every run prints a one-line licence reminder (no acknowledgement;
+  R4's notice stays a window requirement).
+
+Repair budget: round 1 of 2 used.
+
+#### Code Review #2 Findings
+
+Targeted recheck of tree `3b2c9493` (identical to `7463a88b` for `cli/`,
+`package.json` and `Packages/`), rerunning `node --test "cli/*.test.mjs"`
+(33/33): every finding fixed or resolved as recorded; no blocking finding or
+regression. Non-blocking: the command's header comment and this plan's steps 1
+and 3 still described Node 20 and exit 2 as Mochiya-only; `--validate` without
+`--out` creates `<project>/Logs` before the open-project check (harmless).
+
+#### Code Review #2 Revisions
+
+The header comment and steps 1 and 3 were corrected (trivial; Prettier check
+clean). The `Logs` folder order is left as is.
 
 ### Phase 4: listing, release and package CI
 
@@ -463,17 +678,23 @@ Owner gates:
 
 - **G1:** create the public repository `raymond-van/animama-avatar-export` and
   push `main`.
-- **G2:** enable GitHub Actions (public repository; standard runners) and
-  GitHub Pages for the listing.
+- **G2:** enable GitHub Actions (public repository; standard runners); set
+  GitHub Pages' source to **GitHub Actions**; let the `github-pages`
+  environment deploy from tags matching `v*` (optionally with a required
+  reviewer, which then enforces G3 for every release); add a tag ruleset that
+  blocks updating and deleting `v*` tags.
 - **G3:** approve the first release tag (`v0.1.0`) and the listing going live.
 
 Steps:
 
-1. A release workflow, triggered by a version tag, that zips
-   `Packages/com.animama.avatar-export/`, attaches it to a GitHub release and
-   regenerates the VPM listing (`index.json` with name, id, URL, author and every
-   released version's `url` and `zipSHA256`) on GitHub Pages. Pin every action
-   by commit SHA.
+1. A release workflow, triggered by a version tag on `main`, in resumable jobs:
+   the CI workflow (reused), a build that checks the tag and zips
+   `Packages/com.animama.avatar-export/`, a release that creates the GitHub
+   release with the zip unless it exists, and a Pages job that downloads every
+   release's zip and rebuilds the VPM listing (`index.json` with name, id, URL,
+   author and every released version's `url` and `zipSHA256`) from them. Each
+   job has only the permissions it needs; every action is pinned by commit
+   SHA.
 2. A CI workflow on pull requests and `main`: `node --test` on Ubuntu and
    Windows runners, the no-network and
    no-upload source search over `Packages/` and `cli/`, JSON validation of both
@@ -485,41 +706,181 @@ Steps:
 
 Checks:
 
-- CI passes on the release candidate; a dry run of the release workflow on a
-  pre-release tag produces a zip and a listing whose hashes match.
+- CI passes on the release candidate, including its release build (zip and
+  listing) without publishing. After G3, the downloaded release zip's SHA-256
+  matches the deployed listing's.
 - After G3, in a fresh VRChat Avatars project on each platform (macOS: `vpm
   add repo <listing URL>` or ALCOM's Add Repository; Windows: VCC's Add
   Repository), adding the package from the listing, then the Phase 2
   installer, give the menu with no compile errors.
 - `npx github:raymond-van/animama-avatar-export#v0.1.0 --help` runs.
 
-Recovery: a bad release is superseded by a new patch tag; the listing keeps
-older versions so installed projects still resolve. Do not delete published
-tags.
+Recovery: a failed job is re-run on its own (an existing release is kept, and
+the listing is rebuilt from the published zips). A bad release is superseded by
+a new patch tag; the listing keeps every older version so installed projects
+still resolve. Do not move or delete published tags.
 
 Completion: checks pass, the high-risk review (analysis plus independent
 checks) has no supported blocking finding, and G1–G3 are recorded.
 
-Check record: —
+Implementation notes (2026-10-29, as repaired after Review #1):
+`scripts/pack.mjs` (zip with `package.json` at its root via `zip -r -X -D`,
+dotfiles excluded, replacing an existing zip), `scripts/build-listing.mjs` and
+`scripts/listing.mjs` (the listing rebuilt from release zips, versions in
+order, each with its download URL and SHA-256), `scripts/check.mjs` (versions,
+tag, README install lines and CHANGELOG at release time, every dependency pin,
+no network or upload code in the package or the command, `.meta` coverage,
+VPM fields). Workflows pin `checkout`, `setup-node`, `upload-artifact` and
+`download-artifact` to the Animama repository's SHAs and the Pages actions to
+`upload-pages-artifact` v5.0.0 and `deploy-pages` v5.0.1. CI builds the
+release zip and listing on every change without publishing. The root README is
+the end-user guide (Phase 5's step 3, written here) with a maintainers'
+"Releasing" section.
 
-Commits: —
+Check record before Review #1 (macOS, Node 24.15; package tree `7463a88b`):
+
+| Check | Result |
+| --- | --- |
+| `npm test` (command and scripts) | 36/36 |
+| `node scripts/check.mjs` | OK: version 0.1.0, 76 package files and folders, 31 sources |
+| `node scripts/build-release.mjs --repository raymond-van/animama-avatar-export --out <temp>` | zip of 69 files with `package.json` at its root; listing with version 0.1.0, its release URL and a 64-character SHA-256 |
+| `npm pack --dry-run` | LICENSE, README.md, `cli/{args,main,project,unity}.mjs`, package.json; no tests |
+| Workflow YAML parses (PyYAML) | both parse; jobs `test`, `check`; `release` |
+| Package EditMode tests (reused; Phase 4 does not touch `Packages/`) | 44/44 on `3b2c9493` |
+| actionlint | not available locally; not run |
+| Live CI, release workflow, Pages | not run until G1–G3 |
+| Install from the listing (macOS `vpm`/ALCOM; Windows VCC) | not run until G3 (and GW) |
+
+Independent checks (high-risk checks role) on `7463a88b` and `b7fc767b`:
+`npm test` 36/36 (and 36/36 on Node 22 in a Linux container once `lsof` was
+installed); `check.mjs` OK, `--tag v0.1.0` OK, `--tag v0.1.1` refused;
+mutations caught (version drift, Mochiya and UniVRM pins in `Requirements.cs`,
+network code in C# and JavaScript, a missing or orphan `.meta`); release build
+and listing merge as designed; zip identical to the package files with
+`package.json` at its root; `npm pack` packs 7 files; workflows parse and all
+four action pins match their tags; actionlint not run.
+
+After Review #1 repairs (package working tree; Node 24.15):
+
+| Check | Result |
+| --- | --- |
+| `npm test` | 37/37 |
+| `node scripts/check.mjs` | OK; `--tag` alone and `--tag v0.1.0` both fail until the CHANGELOG heading is released |
+| `node scripts/pack.mjs --out <temp>` twice into the same folder | the second zip replaces the first (69 files, no stale entries) |
+| `node scripts/build-listing.mjs … --require 0.1.0` / `--require 0.1.1` | listing 0.1.0 / refused |
+| Artifact action pins (`git ls-remote`) | `upload-artifact` v5.0.0 and `download-artifact` v6.0.0 match (the Animama repository's pins) |
+
+Commits: package repository `7b5a6f4` `ci(release)[p4]: release the package
+zip and its VPM listing from version tags` (local).
 
 #### Code Review #1 Findings
 
-—
+Analysis (high risk, initial round) of `7463a88b` against `26601ed`, with a
+separate checks agent (above).
+
+- **P4-F1 / P4-C2 (blocking):** any failure to fetch or parse the published
+  listing (5xx, timeout, HTML, a stale cached copy) was treated as a first
+  release, dropping every earlier version from the deployed listing.
+- **P4-F2 (blocking):** once the GitHub release existed, a failed Pages
+  upload or deploy could not be resumed; the listing could silently replace a
+  version's hash.
+- **P4-F3 (blocking):** G2 did not specify the Pages source or the
+  environment's tag rule, so the first tag run would fail, possibly after
+  publishing the release.
+- **P4-F4 (blocking):** the plan's "dry run on a pre-release tag" would publish
+  for real.
+- P4-F5: one job held every write permission; checkout kept the token.
+- P4-F6: the JavaScript network search missed bare `"https"`, `require`,
+  `http2` and `tls`.
+- P4-F7 / P4-C5: the pin check covered 2 of about 8 pin sites.
+- P4-F8: README and CHANGELOG versions were unchecked.
+- P4-F9: README gaps (zip route, PhysBone limits and gravity, "Save as"
+  wording, the validation log location).
+- P4-F10: tag immutability was only a comment. P4-F11: the release did not
+  reuse CI or require `main`. P4-F12: concurrent tags. P4-F13 / P4-C3: `zip`
+  kept stale entries. P4-F14: CI's listing check proved nothing; `--tag`
+  without a value passed. P4-C1: without `lsof` the open-project check failed
+  open. P4-C4: local zips included dotfiles. P4-C7: release setup
+  undocumented. P4-C8: action versions (informational). P4-C9: a stray test
+  line.
 
 #### Code Review #1 Revisions
 
-—
+All accepted (P4-C8 informational).
+
+- P4-F1, P4-F2: the listing is rebuilt on every release from the zips attached
+  to the GitHub releases (`scripts/build-listing.mjs`), never from the
+  published listing, with `--require` failing a build that lacks the new
+  version; the release job keeps an existing release; build, release and
+  Pages are separate jobs, so each can be re-run. `mergeListing` is gone.
+- P4-F3, P4-F10: G2 now names the Pages source, the environment's `v*` rule,
+  an optional required reviewer and a tag ruleset; the README's "Releasing"
+  section says the same.
+- P4-F4: the dry run is CI's release build plus a hash comparison after G3;
+  tags with a pre-release suffix are published as pre-releases.
+- P4-F5: per-job permissions (top level none); `persist-credentials: false`.
+- P4-F6, P4-F7, P4-F8, P4-F14: `check.mjs` matches quoted module names with
+  or without `node:`, checks every pin site (Requirements.cs versions and
+  URLs, both asmdefs' version defines, the command's manifest entries), and
+  with `--tag` (which now needs a value) the README install lines and a
+  released CHANGELOG heading; CI's release build verifies the zip and listing.
+- P4-F9, P4-C7: README updated.
+- P4-F11, P4-F12: the release calls `ci.yml` and requires the tag to be on
+  `main`; "push one tag at a time" is documented.
+- P4-F13, P4-C3, P4-C4: `pack.mjs` replaces the zip and excludes dotfiles.
+- P4-C1: `projectIsOpen` returns null when `lsof` is missing and the command
+  says it could not check.
+- P4-C9: the test no longer prints.
+
+Repair budget: round 1 of 2 used.
+
+#### Code Review #2 Findings
+
+Analysis recheck of tree `e2f92638` (high risk, repair round 1), rerunning
+`npm test` (37/37), `check.mjs` with and without tags, six `check.mjs`
+mutations, packing twice, the listing cases, the workflow structure (PyYAML)
+and the artifact pins: every Review #1 finding fixed; no blocking finding or
+regression. Non-blocking: a draft release counts as existing and drafts are
+not filtered when downloading (every case fails safely); the "could not check"
+path has no `main` test; pre-release identifiers sort as strings in the
+listing (VCC sorts versions itself); a pre-release tag would force the README
+pin; "tested on macOS" needs Windows before G3.
+
+Independent checks recheck of `e2f92638`: `npm test` 37/37 on macOS and in a
+Node 22 Linux container without `lsof`; `check.mjs` with every tag case and 31
+mutations (each pin site, network code in C# and JavaScript including bare
+`"https"`, `require("tls")` and `node:http2`, `.meta` cases) caught; packing
+twice over a stale zip and dotfiles gives the same 69 files and hash; the
+listing build orders versions, matches each file's SHA-256, honours
+`--require` and refuses mismatched, foreign, nested or empty inputs; `npm pack`
+packs 7 files; every `run:` block passes `bash -n`; all six action pins match
+their tags. Non-blocking: the Mochiya repository URL was not cross-checked; a
+pattern scan cannot see uploads through a child process; pre-release ordering;
+drafts in `gh release list`.
+
+#### Code Review #2 Revisions
+
+Applied as small hardening, covered by the final integration review: the
+listing download passes `--exclude-drafts`, and `check.mjs` compares
+`Requirements.cs`'s `MochiyaUrl` with the command's entry (a changed
+repository is caught). `npm test` 37/37, `check.mjs` OK, the release workflow
+parses. Left as accepted limits: child-process uploads (the command runs only
+Unity, `lsof` and `git`; review covers it), pre-release key order in the
+listing, the README pin for a pre-release tag, and a test for the "could not
+check" log line.
 
 ### Phase 5: developer command and documentation
 
-Review tier: standard. Developer tool behavior and docs in this repository.
+Review tier: high risk (raised from standard by Review #1, P5-F4): the
+developer command fetches and runs the exporter release at run time, outside
+the lockfile, which the tier table counts as a dependency change.
 
 Requirements: R8, R9.
 
 Dependencies: the `v0.1.0` release from Phase 4 (G3); the developer command
-pins that tag.
+pins that tag, which must include the exporter's `--log` option (added in this
+phase's Review #2); an exporter without it rejects the developer command's
+arguments.
 
 Steps in `raymond-van/animama`:
 
@@ -560,17 +921,147 @@ Checks:
 Completion: checks pass, the review has no supported blocking finding, and G4
 is recorded (or explicitly deferred by the owner in the PR).
 
-Check record: —
+Implementation notes (2026-10-29, as repaired after Review #1):
+`vrm-convert-vrchat.mjs` runs the exporter through `pnpm --reporter=default dlx
+--package=<spec> animama-avatar-export`, starting pnpm from `npm_execpath` with
+Node so no shell is needed on Windows; the pinned spec is `EXPORTER_RELEASE`,
+and `ANIMAMA_AVATAR_EXPORT` selects a local checkout (with its own Unity package
+as a `file:` entry). It passes `--log <Avatar>.export.log` (an exporter option
+added in Review #2), so Unity's log lands at the documented name on every path. `Animama.ReferenceRender` references `UniGLTF` and
+`UniGLTF.Editor` (where `InternalTPose` lives).
+
+Check record (macOS; Animama worktree, uncommitted Phase 5 changes):
+
+| Check | Result |
+| --- | --- |
+| `node --test scripts/vrm-convert-vrchat.test.mjs` (in `src/frontend/web`) | 4/4 |
+| Prettier `--check` and ESLint on the two changed scripts | clean |
+| `vrm:convert-vrchat` with `ANIMAMA_AVATAR_EXPORT=<local clone>`, main prefab, optimized | exit 0 (16 s); 21.87 MB raw, byte-identical to the baseline; 8.44 MB optimized; log beside the raw export |
+| Same, `EditorOnly` variant, `--no-optimize` | exit 0; byte-identical to the baseline |
+| `--validate --keep-pose` on an attachment prefab | exit 2 |
+| Existing `--out` | exit 1 |
+| Parity renderer with its new asmdef in a project with the package | first compile failed (`InternalTPose` is in `UniGLTF.Editor`); after adding that reference, 0 errors |
+| The pinned release `github:raymond-van/animama-avatar-export#v0.1.0` | not run until G3 |
+| G4 (owner upload check) | open |
 
 Commits: —
 
 #### Code Review #1 Findings
 
-—
+Reviewed the uncommitted Phase 5 changes on HEAD `965f5e4d` (index-copy tree
+`1ac9ede6`), standard tier, initial round; reran the tests and ESLint, and
+probed pnpm 10.33.0's `dlx`.
+
+- **P5-F1 (blocking):** `pnpm -s` passes a silent reporter to the child `pnpm
+  dlx`, so a failure to fetch or start the exporter (unreleased tag, offline,
+  wrong override) exited 1 with no message.
+- **P5-F2 (blocking):** a package-spec override (for example a GitHub branch)
+  still installed the released Unity package, and pnpm caches `dlx` specs for
+  a day, so it did not test what it claimed.
+- **P5-F3 (blocking):** the default run wrote `<Avatar>.raw.export.log`, not
+  the documented `<Avatar>.export.log` (R8).
+- **P5-F4 (blocking):** fetching the exporter at run time is a dependency, a
+  high-risk trigger the standard tier did not account for.
+- P5-F5: `outputPaths().log` was unused. P5-F6: no tests for the pnpm command
+  line or exit-code mapping. P5-F7: a drive-letter path looked like a spec.
+  P5-F8: a relative override resolves against `src/frontend/web`. P5-F9:
+  switching sources leaves a conflicting manifest entry. P5-F10: projects set up
+  for the old script keep `Assets/AnimamaExport/`. P5-F11: the
+  `packages:build` directory. P5-F12: a repeated sentence. P5-F13: plan record
+  gaps (decisions, tree, step 3 status). P5-F14: the new asmdef was untracked.
+  P5-F15: Windows cases for GW.
 
 #### Code Review #1 Revisions
 
-—
+- P5-F1: the child runs `pnpm --reporter=default dlx …`; an exit above 2 adds
+  "The exporter <spec> did not run … check the network, Git and
+  ANIMAMA_AVATAR_EXPORT."
+- P5-F2, P5-F7: the override accepts only a local checkout (pnpm links it, so
+  edits apply at once); the package-spec form is gone.
+- P5-F3, P5-F5: after the exporter runs, its log is renamed to the documented
+  `<Avatar>.export.log`.
+- P5-F4: tier raised to high risk; the full frontend pre-push suite runs for
+  this phase and every repair is rechecked. When G3 publishes v0.1.0, pin
+  `EXPORTER_RELEASE` to that tag's commit SHA rather than the tag.
+- P5-F6: `exporterCommand` and `conversionExitCode` are exported and tested.
+- P5-F8 to P5-F12: the guide says "absolute path", how to switch sources, to
+  delete `Assets/AnimamaExport/` in old projects, where to run
+  `packages:build`, and drops the repeated sentence.
+- P5-F13: Decision Log entries below; step 3's guide is the package
+  repository's README (no `Documentation~` folder), and the PhysBone gravity
+  limit is added there with Phase 4's repairs.
+- P5-F14: the asmdef is staged.
+- P5-F15: added to GW's checklist.
+
+Verification (index tree `d075afb2`, the Phase 5 changes staged): `node --test
+scripts/vrm-convert-vrchat.test.mjs` 6/6 and ESLint clean; with a local
+exporter checkout, the optimized export exits 0 in 19 s with its raw file
+byte-identical to the baseline and the log at `<Avatar>.export.log`; an empty
+folder as `ANIMAMA_AVATAR_EXPORT` exits 1 with the "did not run" message; the
+full frontend pre-push suite `pnpm verify` (through the heavy-job slots) exits
+0: 6201 Vitest tests passed (2 skipped) in 650 files, the Node script suites
+and the build. The first `pnpm verify` failed on six `public/` files that were
+Git LFS pointers in this worktree; `git lfs pull` fixed it. Repair budget:
+round 1 of 2 used.
+
+#### Code Review #2 Findings
+
+Analysis recheck of `d075afb2` (high risk, repair round 1) and independent
+checks on the same tree (tests, Prettier, ESLint, stale references, package
+scripts, and the converter driven through pnpm with a fake exporter and a fake
+Unity for exits 0, 1 and 2, `--validate`, `--no-optimize`,
+`ANIMAMA_UNITY_EDITOR` pass-through and an existing output). Every Review #1
+finding fixed except:
+
+- **P5-R2-F1 / P5-C1 (blocking):** the log was renamed to
+  `<Avatar>.export.log` only after a successful export; when Mochiya refused
+  the prefab or Unity failed it stayed `<Avatar>.raw.export.log`, and the
+  printed path went stale after a rename (P5-C2).
+- Non-blocking: the implementation notes were out of date (P5-R2-F2); the
+  Prettier record predated the repairs (P5-R2-F3); pinning a commit SHA after
+  G3 also needs the test's tag pattern and the "its tag also selects the Unity
+  package" comment updated (P5-R2-F4); a missing "and" in the header and
+  pnpm's progress lines (P5-R2-F5); a start failure exiting 1 gets no hint
+  (P5-C3, an artefact of a symlinked cache); "Wrote" printed twice with
+  `--no-optimize` (P5-C4); ESLint applies no rules to `.mjs` files here, so
+  "ESLint clean" means "parses" (P5-C5).
+
+#### Code Review #2 Revisions
+
+- P5-R2-F1, P5-C1, P5-C2: the exporter command gained `--log <file>` (package
+  repository, `cli/args.mjs` and `cli/main.mjs`, with a test and a README row),
+  and the developer command passes `--log <Avatar>.export.log`, so the log is
+  written there on every path and every message names it; the rename is gone.
+- P5-R2-F2: notes corrected. P5-R2-F3: Prettier check rerun (below).
+  P5-R2-F4: recorded for the G3 pin. P5-R2-F5: header fixed. P5-C3, P5-C4:
+  left. P5-C5: recorded; the check records' ESLint lines are syntax checks.
+
+Verification (Animama index tree `08c4fdc4`, package tree `146ac47c`):
+`node --test scripts/vrm-convert-vrchat.test.mjs` 6/6; exporter `npm test`
+38/38 and `check.mjs` OK; with the local checkout, the main prefab exports
+(exit 0, raw byte-identical) with the log at `<Avatar>.export.log`, and an
+attachment prefab's `--validate --keep-pose` exits 2 with its log at
+`<Avatar>.export.log`, the printed path matching. Repair budget: round 2 of 2
+used.
+
+#### Code Review #3 Findings
+
+Analysis recheck (Animama tree `08c4fdc4`, exporter tree `146ac47c`) with a
+cross-repository probe, and independent checks: tests 6/6 and 38/38,
+Prettier, `check.mjs`, and the fake-Unity matrix (exits 0, 1, 2, `--validate`
+0 and 2, `--no-optimize`) — in every case the log is `<Avatar>.export.log`,
+Unity's `-logFile` and the printed path name it, and no `.raw.export.log`
+exists; the empty-checkout message and the outside-pnpm error hold. No
+blocking finding. Non-blocking: the notes still described the rename
+(P5-R3-F1); the v0.1.0 tag must include `--log` (P5-R3-F2); a `--log` value not
+ending in `.log` gives an odd requirements-log name (P5-R3-F3); "whenever Unity
+runs" is more exact than "whether or not the export succeeds".
+
+#### Code Review #3 Revisions
+
+P5-R3-F1 and P5-R3-F2 recorded (notes and Dependencies); the guide says
+"Whenever Unity runs" (wording only). P5-R3-F3 left: the developer command
+always passes `.export.log`. The final integration review covers these.
 
 ## Final integration review
 
