@@ -1220,7 +1220,7 @@ function detectFromSignals(context: Context): {
     report(
       context,
       { code: "face_parts_expressions_missing" },
-      "The VRM has no blink or aa expression, nor MMD, ARKit or VRChat shapes for them; face skin and eye details cannot be found from expressions.",
+      "The VRM's blink or aa expression moves no mesh (it is missing or only switches materials), and no MMD, ARKit or VRChat shapes stand in for it; face skin and eye details cannot be found from expressions.",
     );
   }
   const faceMeshCandidates = candidates.filter(

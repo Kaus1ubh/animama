@@ -185,7 +185,7 @@
       "face_parts_correction_schema_unsupported": "保存された顔パーツの修正は未対応の形式のため、無視しました。",
       "face_parts_correction_unknown_bindings_other": "{{part}}の保存された修正は、このモデルにないメッシュパーツを {{count}} 個指定しています。",
       "face_parts_detection_failed": "顔のパーツを検出できなかったため、エフェクトはマテリアル名で配置されます。",
-      "face_parts_expressions_missing": "モデルに瞬きまたは「aa」の表情も、その代わりになる MMD・ARKit・VRChat のシェイプもないため、顔の肌と目の細部をそこから見つけられません。",
+      "face_parts_expressions_missing": "モデルの瞬きまたは「aa」の表情がメッシュを動かさず（表情がないか、マテリアルを切り替えるだけ）、その代わりになる MMD・ARKit・VRChat のシェイプもないため、顔の肌と目の細部をそこから見つけられません。",
       "face_parts_whole_body_head_missing": "1つのメッシュパーツが体全体を含んでいますが、頭のボーンにスキンされた前向きの部分に、まばたきや口の開きで動く箇所がないため、顔を見つけられず、顔のアバターエフェクトはスキップされます。",
       "file_unavailable": "アバターのファイルをダウンロードできませんでした。",
       "file_unreadable": "アバターのファイルは読み取り可能な glTF または VRM ファイルではありません。",

@@ -190,7 +190,7 @@
       "face_parts_correction_unknown_bindings_one": "The saved correction for {{part, lowercase}} names {{count}} mesh part this model does not have.",
       "face_parts_correction_unknown_bindings_other": "The saved correction for {{part, lowercase}} names {{count}} mesh parts this model does not have.",
       "face_parts_detection_failed": "Face parts could not be detected, so effects are placed by material names.",
-      "face_parts_expressions_missing": "The model has no blink or “aa” expression, nor MMD, ARKit or VRChat shapes that stand in for them, so its face skin and eye details cannot be found from them.",
+      "face_parts_expressions_missing": "The model’s blink or “aa” expression moves no mesh (it is missing, or only switches materials), and no MMD, ARKit or VRChat shapes stand in for it, so its face skin and eye details cannot be found from them.",
       "face_parts_whole_body_head_missing": "One mesh part holds the whole body, but no forward-facing part of it skinned to the head bone moves when the model blinks or opens its mouth, so its face cannot be found and Avatar Effects on the face are skipped.",
       "file_unavailable": "The Avatar file could not be downloaded.",
       "file_unreadable": "The Avatar file is not a readable glTF or VRM file.",
