@@ -815,6 +815,11 @@ export type AvatarSettingsState = {
     material_mode_source: AvatarSettingSource;
     spring_mode: AvatarSpringMode;
     spring_mode_source: AvatarSettingSource;
+    /**
+     * Wind Strength
+     */
+    wind_strength: number;
+    wind_strength_source: AvatarSettingSource;
 };
 
 /**
@@ -822,11 +827,16 @@ export type AvatarSettingsState = {
  *
  * Change some of the owner's settings for one Avatar.
  *
- * An omitted field keeps its stored value; ``automatic`` or ``null`` clears it.
+ * An omitted field keeps its stored value; ``automatic`` or ``null`` clears
+ * it, as does the default wind strength (100).
  */
 export type AvatarSettingsUpdate = {
     material_mode?: AvatarMaterialMode | null;
     spring_mode?: AvatarSpringMode | null;
+    /**
+     * Wind Strength
+     */
+    wind_strength?: number | null;
 };
 
 export type AvatarSpringMode = 'automatic' | 'on' | 'off' | 'springs_off';
@@ -3637,7 +3647,8 @@ export type PyArchivePassageUpdate = {
  * The setting and what automatic processing will do next.
  *
  * ``batch_size`` and ``started_at`` are set only while ``state`` is ``running``;
- * ``next_attempt_at`` while ``backing_off``; ``last_error`` after a failed run.
+ * ``next_attempt_at`` while ``backing_off``; ``last_error`` after a failed run,
+ * except during the daily-limit wait, which reports none.
  */
 export type PyAutomaticEpisodeProcessingStatus = {
     /**

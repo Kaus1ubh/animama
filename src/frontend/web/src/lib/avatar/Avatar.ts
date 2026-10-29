@@ -449,6 +449,14 @@ export class Avatar {
   private _springMode: AvatarSpringMode = "automatic";
   /** Automatic's wind choice for the loaded file. */
   private _automaticAmbientForces: boolean = true;
+  /**
+   * Why Automatic leaves wind and the updraft off for the loaded file: its
+   * springs were converted from a world without them, or its hair is too
+   * soft to hold against them at the current strength; null when they apply.
+   */
+  private _automaticAmbientForcesOff: "converted" | "soft_hair" | null = null;
+  /** The owner's wind strength, as a multiple of the default. */
+  private _windStrength: number = 1;
   private _materialMode: AvatarMaterialMode = "automatic";
   private _automaticMaterials: AutomaticMaterialsDecision | null = null;
   private _lilToonMaterials: LilToonMaterialState = "none";
@@ -474,6 +482,19 @@ export class Avatar {
   /** Whether wind and updraft move the springs under the current setting. */
   get ambientForces(): boolean {
     return resolveAmbientForces(this._springMode, this._automaticAmbientForces);
+  }
+
+  /** The owner's wind strength in effect, as a multiple of the default. */
+  get windStrength(): number {
+    return this._windStrength;
+  }
+
+  /**
+   * Why Automatic leaves wind and the updraft off for this Avatar (converted
+   * springs, or hair too soft at the current strength), or null.
+   */
+  get automaticAmbientForcesOff(): "converted" | "soft_hair" | null {
+    return this._automaticAmbientForcesOff;
   }
 
   /** The material setting the loaded model was built with. */
@@ -556,6 +577,7 @@ export class Avatar {
     // Unload any existing VRM first
     this.unload();
     this._springMode = spec.springMode ?? "automatic";
+    this._windStrength = spec.windStrength ?? 1;
     this._materialMode = spec.materialMode ?? "automatic";
     this._automaticMaterials =
       this._materialMode === "automatic" ? automaticMaterialsDecision() : null;
@@ -1069,19 +1091,52 @@ export class Avatar {
 
   /** Spring physics for a loaded model, under the current wind setting. */
   private _installSpringPhysics(vrm: VRM, gltf: GLTF): void {
-    this._automaticAmbientForces = !springsTunedWithoutAmbientForces(
-      gltf.parser.json,
-    );
+    const converted = springsTunedWithoutAmbientForces(gltf.parser.json);
     this.springBonePhysicsController = new SpringBonePhysicsController(vrm, {
       sourceGltf: gltf,
-      ambientForces: this.ambientForces,
+      ambientForces: false,
+      ambientStrength: this._windStrength,
     });
+    this._automaticAmbientForcesOff = converted ? "converted" : null;
+    this._decideAutomaticAmbientForces();
+  }
+
+  /**
+   * Automatic's wind choice for the loaded file at the current strength:
+   * none for converted springs, none when the updraft would lift most of the
+   * hair (`SpringBonePhysicsController.updraftLiftsHair`), else wind and the
+   * updraft. Applies the setting in effect to the springs.
+   */
+  private _decideAutomaticAmbientForces(): void {
+    const controller = this.springBonePhysicsController;
+    if (this._automaticAmbientForcesOff !== "converted") {
+      this._automaticAmbientForcesOff = controller?.updraftLiftsHair(
+        this._windStrength,
+      )
+        ? "soft_hair"
+        : null;
+    }
+    this._automaticAmbientForces = this._automaticAmbientForcesOff === null;
+    controller?.setAmbientForces(this.ambientForces);
   }
 
   /**
    * Change the wind setting live. Springs off returns every spring joint to
    * its rest rotation at once; leaving it resumes the simulation from rest.
    */
+  /**
+   * Change the wind strength live (a multiple of the default; 0 adds no wind
+   * or updraft). Automatic weighs it again, so a softer breeze may keep wind
+   * on an Avatar whose hair the full one would lift.
+   */
+  setWindStrength(strength: number): void {
+    if (strength === this._windStrength) return;
+    this._windStrength = strength;
+    this.springBonePhysicsController?.setAmbientStrength(strength);
+    this._decideAutomaticAmbientForces();
+    this._notifyDiagnostics();
+  }
+
   setSpringMode(mode: AvatarSpringMode): void {
     if (mode === this._springMode) return;
     this._springMode = mode;

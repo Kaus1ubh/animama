@@ -6,9 +6,10 @@ import { useQuery } from "@tanstack/react-query";
 import type { AvatarSettingsState } from "@animama/runtime-contracts/api-types";
 import { getAvatarSettings } from "@animama/runtime-contracts/sdk";
 import { useRuntimeCacheKey } from "@/app/runtime/RuntimeOwnerContext";
-import type {
-  AvatarMaterialMode,
-  AvatarSpringMode,
+import {
+  windStrengthMultiple,
+  type AvatarMaterialMode,
+  type AvatarSpringMode,
 } from "@/lib/avatar/avatarSettings";
 import { queryKeys } from "@/query/keys";
 import { useRuntimeCapabilities } from "@/query/hooks/useRuntimeCapabilities";
@@ -60,6 +61,10 @@ export type AvatarLoadSettings = {
   springMode: AvatarSpringMode;
   /** The spring mode now, for a load that starts later than this render. */
   springModeRef: { readonly current: AvatarSpringMode };
+  /** The wind strength as a multiple of the default (1 when none is stored). */
+  windStrength: number;
+  /** The wind strength now, for a load that starts later than this render. */
+  windStrengthRef: { readonly current: number };
   /**
    * The material mode to load with, or null while the settings are still
    * being read (materials are built at load, so a surface waits rather than
@@ -82,10 +87,17 @@ export function useAvatarLoadSettings(
   useEffect(() => {
     springModeRef.current = springMode;
   }, [springMode]);
+  const windStrength = windStrengthMultiple(settings.data?.wind_strength);
+  const windStrengthRef = useRef(windStrength);
+  useEffect(() => {
+    windStrengthRef.current = windStrength;
+  }, [windStrength]);
   const reading = Boolean(itemId) && (checking || settings.isLoading);
   return {
     springMode,
     springModeRef,
+    windStrength,
+    windStrengthRef,
     materialMode: reading
       ? null
       : (settings.data?.material_mode ?? "automatic"),

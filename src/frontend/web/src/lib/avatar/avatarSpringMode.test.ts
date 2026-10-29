@@ -137,6 +137,38 @@ describe("Avatar wind setting", () => {
     expect(converted.ambientForces).toBe(true);
   });
 
+  it("leaves ambient forces off under Automatic when the updraft would lift most hair", async () => {
+    const { vrm, gltf } = await loadModel("AvatarSample_A_1_New");
+    // Springs a tenth as stiff as authored, as springs tuned for a world
+    // without wind are.
+    for (const joint of vrm.springBoneManager!.joints)
+      joint.settings.stiffness *= 0.1;
+    const avatar = new Avatar(new THREE.PerspectiveCamera());
+    avatar.vrm = vrm;
+    avatar.sourceGltf = gltf;
+    (avatar as unknown as SpringPhysicsAvatar)._installSpringPhysics(vrm, gltf);
+    expect(avatar.ambientForces).toBe(false);
+    expect(avatar.automaticAmbientForcesOff).toBe("soft_hair");
+
+    // A breeze the hair holds against keeps them on; On always applies them.
+    avatar.setWindStrength(0.2);
+    expect(avatar.ambientForces).toBe(true);
+    expect(avatar.automaticAmbientForcesOff).toBeNull();
+    avatar.setWindStrength(1);
+    expect(avatar.ambientForces).toBe(false);
+    avatar.setSpringMode("on");
+    expect(avatar.ambientForces).toBe(true);
+  });
+
+  it("scales wind and the updraft by the wind strength", async () => {
+    const { avatar } = await springAvatar("Andrew");
+    const snapshot = () => avatar.springBonePhysicsController!.getSnapshot();
+    expect(snapshot().ambientStrength).toBe(1);
+    avatar.setWindStrength(0.5);
+    expect(snapshot().ambientStrength).toBe(0.5);
+    expect(avatar.ambientForces).toBe(true);
+  });
+
   // Pins the installed three-vrm: `VRM.update` steps the springs and
   // `springBoneManager.reset` returns them to rest. An upgrade that changes
   // either fails here.

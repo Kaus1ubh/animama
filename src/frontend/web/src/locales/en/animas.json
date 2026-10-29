@@ -268,7 +268,8 @@
       "windEffect": {
         "held": "springs held at rest",
         "off": "no wind or updraft",
-        "on": "wind and updraft on",
+        "on": "wind and updraft on at {{percent}}",
+        "softHair": "no wind or updraft: its hair is too soft to hold against them",
         "tunedWithout": "no wind or updraft: its springs were tuned without them"
       },
       "windValue": "{{mode}} · {{effect}}"

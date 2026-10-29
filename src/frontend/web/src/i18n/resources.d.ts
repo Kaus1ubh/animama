@@ -749,7 +749,8 @@ export default interface Resources {
         "windEffect": {
           "held": "springs held at rest",
           "off": "no wind or updraft",
-          "on": "wind and updraft on",
+          "on": "wind and updraft on at {{percent}}",
+          "softHair": "no wind or updraft: its hair is too soft to hold against them",
           "tunedWithout": "no wind or updraft: its springs were tuned without them"
         },
         "windValue": "{{mode}} · {{effect}}"
@@ -6115,6 +6116,11 @@ export default interface Resources {
             "on": "On",
             "springs_off": "Springs off"
           }
+        },
+        "windStrength": {
+          "description": "How strongly wind and updraft blow, from none to twice the default. Automatic leaves them off when this Avatar’s hair is too soft to hold against them at this strength.",
+          "label": "Wind strength",
+          "value": "{{percent}}%"
         }
       },
       "choices": {

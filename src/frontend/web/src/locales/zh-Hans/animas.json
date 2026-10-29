@@ -253,7 +253,8 @@
       "windEffect": {
         "held": "弹簧保持在静止姿势",
         "off": "无风和上升气流",
-        "on": "有风和上升气流",
+        "on": "风和上升气流已开启（{{percent}}）",
+        "softHair": "无风和上升气流：头发太软，撑不住",
         "tunedWithout": "无风和上升气流：其弹簧是在没有它们的情况下调校的"
       },
       "windValue": "{{mode}} · {{effect}}",
