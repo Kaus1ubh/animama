@@ -41,9 +41,7 @@ export function useAnimaSettings(
         responseValidator: undefined,
         throwOnError: true,
       });
-      logger.info("Fetch", "Anima settings fetched", {
-        anima_settings: data,
-      });
+      logger.info("Fetch", "Anima settings fetched", { animaId });
       return data;
     },
   });

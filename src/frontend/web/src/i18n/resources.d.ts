@@ -6057,7 +6057,7 @@ export default interface Resources {
         "copied": "Diagnostics copied.",
         "copy": "Copy summary",
         "copyFailed": "Diagnostics could not be copied to the clipboard.",
-        "description": "Copy version, platform and component status for a bug report. Keys, chats and memories are never included.",
+        "description": "Copy version, platform, component status, recent activity, warnings and errors for a bug report. Keys, chats and memories are never included.",
         "entryLabel": "Copy diagnostics summary",
         "label": "Diagnostics"
       },

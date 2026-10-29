@@ -468,6 +468,9 @@ Main-process logs are written to:
 ~/Library/Application Support/Animama/runtime/logs/main.log
 ```
 
+At 10 MiB the file rotates; `main.log.1` (newest) through `main.log.3` keep
+older lines.
+
 Useful checks from `src/frontend`:
 
 ```sh

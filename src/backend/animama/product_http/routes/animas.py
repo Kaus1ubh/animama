@@ -123,7 +123,7 @@ async def get_anima(
     if anima is None:
         raise HTTPException(status_code=404, detail="Anima not found")
     payload = await _with_chat_profile(repositories, _anima_payload(anima))
-    _log.info("HTTP Anima Get Complete", id=anima_id, payload=payload)
+    _log.info("HTTP Anima Get Complete", id=anima_id)
     return JSONResponse(content=jsonable_encoder(payload))
 
 

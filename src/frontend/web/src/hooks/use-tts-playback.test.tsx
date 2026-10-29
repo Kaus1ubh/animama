@@ -110,6 +110,7 @@ vi.mock("@/lib/logger", () => {
       debug: ignore,
       warn: ignore,
       error: ignore,
+      milestone: ignore,
     }),
   };
 });
