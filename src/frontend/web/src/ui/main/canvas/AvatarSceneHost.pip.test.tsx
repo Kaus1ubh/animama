@@ -47,6 +47,7 @@ vi.mock("@/ui/main/scene-vfx/SceneVFXOverlayHost", () => ({
 const avatar = {
   getCameraAnchorY: () => null,
   getHeadFramingScale: () => 1,
+  getBodyFramingScale: () => 1,
 } as unknown as Avatar;
 
 describe("PiP Avatar framing", () => {

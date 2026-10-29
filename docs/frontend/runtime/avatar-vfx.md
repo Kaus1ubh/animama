@@ -338,18 +338,31 @@ correction, before effects or poses change it:
   missing face or a big head reads it, so it is measured only then, from the
   meshes the model showed at load, which leaves out effect art added since.
 - `avatarScale`: the head bone above the feet over 1.25 m.
+- The body, on a big head only: rest heights below the head bone of the neck,
+  shoulders (upper arms), upper chest, chest, spine, hips, feet and ground,
+  the torso's width (half the shoulders' plus half the hips') and the arm and
+  leg lengths, read against the Included Avatars' (`REFERENCE_AVATAR_BODY`).
 
 The face's share of the head bone's height decides how far placement follows
 it: up to 0.3 nothing changes (the Included Avatars measure 0.16–0.18, anime
 proportions up to about 0.25); from 0.4 (twice the Included share: chibi,
 mascot and robot Avatars) placement uses the face's size over the Included
 face (`headSized`), ramping between. That scales box planes, body planes on
-the head bone, stickers around the head (below), head-anchored Particle
-Effects ([Avatar Particle Effects](avatar-particle-vfx.md)), hand contacts on
-the head ([Avatar animation](avatar-animation.md)), and the chat's Portrait
-presets, which scale their offsets from the head bone and their distance, so
-they frame the face; the review renders' face view and `animation:render`
-follow suit.
+the head bone, stickers around the head (below), Particle Effects
+([Avatar Particle Effects](avatar-particle-vfx.md)), hand contacts on the
+head ([Avatar animation](avatar-animation.md)), and the chat's camera presets.
+
+The camera presets are framed for the Included Avatars. Portrait and Portrait
+(close) scale their offsets from the head bone and their distance by
+`headFramingScale`; Full body and Full body (close) scale their camera and aim
+about the floor by `bodyFramingScale`. Both are 1 on the Included Avatars and
+the body's size (`bodyEffectScale`) for other adult proportions. On a big head
+Portrait follows the face's size, so it frames the face rather than the chin,
+and Full body follows the height to the top of the head box over the Included
+Avatars' 1.15 times their head bone's, so a short chibi fills the frame and
+its head stays in view. Choosing a preset, or loading another Avatar with one
+chosen, frames it afresh. Creator previews, which reuse these presets, the
+review renders' face view and `animation:render` follow suit.
 
 Eye planes default to closing the eyes (`forceBlink` holds `blink` at 1 at full intensity; a fading event weights it, see the fades section),
 hiding eye highlights, lines and lashes (`hideEyeDetails`) and cleaning up the

@@ -222,10 +222,20 @@ avatar-local meters. `transform.depthOffset` is avatar-local Z: positive means
 in front of the avatar and negative means behind. Offsets and `transform.scale`
 are authored for the Included Avatars: on a model outside their size band
 (`bodyEffectScale` in `lib/avatar/avatarProportions.ts`, as body Avatar
-Effects use) the controller places them scaled by its size, and an effect
-anchored at the `head` of a big-headed Avatar by its face's size
-([Size-aware placement](avatar-vfx.md#size-aware-placement)), so stars or a
-cloud stay outside the head. Snapshots keep the authored transform.
+Effects use) the controller places them scaled by its size. On a big-headed
+Avatar ([Size-aware placement](avatar-vfx.md#size-aware-placement)) the effect
+is sized by the face at the `head`, by the measured arm or leg at a hand or
+foot, and by the body elsewhere, and offsets from the root, torso or head go
+through the body's landmarks (`placeParticleVFXOffset` in
+`lib/avatar/particle-vfx/runtime.ts`): a point between two of the Included
+Avatars' landmarks lands the same share of the way between this Avatar's,
+above the head bone by the face's size, and sideways and in depth by the
+torso's width at and below the shoulders and the face's size from the head
+bone up, blending between. Each emitter is placed the same way from its own
+anchor once, at play (`placeParticleVFXEmittersOnBody`), so Musical Cascade's
+notes start beside a chibi's chest rather than at its knees, and stars or a
+cloud stay outside the head. The Included Avatars skip both steps. Snapshots
+keep the authored transform.
 
 Avatar-local means the Avatar frame: the Avatar scene's axes with +X toward the
 Avatar's left, +Y up and +Z forward, for VRM 0 and VRM 1 alike. three-vrm turns

@@ -43,6 +43,12 @@ export type WholeBodyOptions = {
    */
   headScale?: number;
   /**
+   * Scale the body (its bones, neck and torso) about the origin, the head
+   * keeping its size on the moved head bone (default 1). With `headScale`, a
+   * body of 0.4 and a head of 2 make a short chibi Avatar.
+   */
+  bodyScale?: number;
+  /**
    * A hat of this height (m) on top of the head, skinned to the head and on
    * its own UV island, as an accessory the head mesh carries (none by
    * default).
@@ -156,12 +162,20 @@ type Vec3 = readonly [number, number, number];
 
 /** The humanoid bones, with eye bones behind the eye strokes when asked. */
 function humanoidBones(options: WholeBodyOptions): (typeof BONES)[number][] {
-  if (options.eyes !== "bones") return [...BONES];
+  const body = options.bodyScale ?? 1;
+  const bones = BONES.map(
+    ([name, parent, [x, y, z]]): (typeof BONES)[number] => [
+      name,
+      parent,
+      [x * body, y * body, z * body],
+    ],
+  );
+  if (options.eyes !== "bones") return bones;
   const head = boneWorldPositions(BONES).get("head")!;
   const z = WHOLE_BODY_HEAD.half[2] - EYE_BONE_DEPTH;
   const scale = options.headScale ?? 1;
   return [
-    ...BONES,
+    ...bones,
     ...WHOLE_BODY_EYES.map(([x, y], at): (typeof BONES)[number] => [
       at === 0 ? "leftEye" : "rightEye",
       "head",
@@ -243,15 +257,23 @@ class PrimitiveBuilder {
    * Scale the vertices from index `first` on (and their morph movement)
    * about `pivot` by `scale`.
    */
-  scaleFrom(first: number, pivot: Vec3, scale: number): void {
+  scaleFrom(first: number, pivot: Vec3, scale: number, end?: number): void {
     if (scale === 1) return;
-    for (let at = first * 3; at < this.positions.length; at += 1) {
+    const last = end === undefined ? this.positions.length : end * 3;
+    for (let at = first * 3; at < last; at += 1) {
       const axis = at % 3;
       this.positions[at] =
         pivot[axis]! + (this.positions[at]! - pivot[axis]!) * scale;
       this.blink[at] = this.blink[at]! * scale;
       this.aa[at] = this.aa[at]! * scale;
     }
+  }
+
+  /** Move vertices `first` up to `end` (default all) by `offset`. */
+  moveBy(first: number, offset: Vec3, end?: number): void {
+    const last = end === undefined ? this.positions.length : end * 3;
+    for (let at = first * 3; at < last; at += 1)
+      this.positions[at] = this.positions[at]! + offset[at % 3]!;
   }
 
   /** The six faces of a box, each a grid of its own on its own UV island. */
@@ -387,6 +409,7 @@ export function wholeBodyVrmBytes(options: WholeBodyOptions = {}): Uint8Array {
   const headScale = options.headScale ?? 1;
   const headBone = boneWorldPositions(BONES).get("head")!;
   mesh.scaleFrom(headStart, headBone, headScale);
+  const torsoStart = mesh.positions.length / 3;
   mesh.box({
     center: [0, 1.15, 0],
     half: [0.15, 0.25, 0.1],
@@ -425,6 +448,17 @@ export function wholeBodyVrmBytes(options: WholeBodyOptions = {}): Uint8Array {
   }
   irises?.scaleFrom(0, headBone, headScale);
   cards?.scaleFrom(0, headBone, headScale);
+  const bodyScale = options.bodyScale ?? 1;
+  if (bodyScale !== 1) {
+    // The neck and torso scale about the origin; the head rides the head bone.
+    const origin: Vec3 = [0, 0, 0];
+    const lift: Vec3 = [0, headBone[1] * (bodyScale - 1), 0];
+    mesh.scaleFrom(0, origin, bodyScale, headStart);
+    mesh.scaleFrom(torsoStart, origin, bodyScale);
+    mesh.moveBy(headStart, lift, torsoStart);
+    irises?.moveBy(0, lift);
+    cards?.moveBy(0, lift);
+  }
   return encodeWholeBodyGlb(mesh, irises ?? cards, options);
 }
 

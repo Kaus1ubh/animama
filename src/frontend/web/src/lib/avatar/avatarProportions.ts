@@ -1,9 +1,13 @@
-import type { VRM } from "@pixiv/three-vrm";
+import type { VRM, VRMHumanBoneName } from "@pixiv/three-vrm";
 import * as THREE from "three";
 
 import { createLogger } from "@/lib/logger";
 
-import { avatarScale, CanonicalSkeleton } from "./poses/anatomy/arms";
+import {
+  avatarScale,
+  CanonicalSkeleton,
+  CONTACT_REFERENCE_HEIGHT,
+} from "./poses/anatomy/arms";
 import { createBoneClassifier } from "./vfx/boneClasses";
 
 const logger = createLogger("AvatarProportions");
@@ -68,6 +72,88 @@ export function bodyEffectScale(size: number): number {
 }
 
 /**
+ * Points down the body that effects authored on the Included Avatars are
+ * placed between, top down: the neck bone, the shoulders (the upper arm
+ * bones), the upper chest, chest, spine and hips bones, the feet (foot bones)
+ * and the ground under them (the model's origin).
+ */
+export const BODY_LANDMARKS = [
+  "neck",
+  "shoulders",
+  "upperChest",
+  "chest",
+  "spine",
+  "hips",
+  "feet",
+  "ground",
+] as const;
+
+export type BodyLandmark = (typeof BODY_LANDMARKS)[number];
+
+/** Bones along the spine that are also body landmarks. */
+export const SPINE_BONES = [
+  "neck",
+  "upperChest",
+  "chest",
+  "spine",
+  "hips",
+] as const satisfies readonly (BodyLandmark & VRMHumanBoneName)[];
+
+export type SpineBone = (typeof SPINE_BONES)[number];
+
+/** An Avatar's rest body measures ({@link AvatarProportions.body}). */
+export type AvatarBody = {
+  /**
+   * Each landmark's rest height below the head bone (m, negative), for the
+   * landmarks the rig has, each lower than the one above it.
+   */
+  heights: Partial<Record<BodyLandmark, number>>;
+  /**
+   * The rest height below the head bone of each spine bone the rig has,
+   * unfiltered: where an effect anchored at that bone stands.
+   */
+  spineBones: Partial<Record<SpineBone, number>>;
+  /**
+   * Half the shoulders' width plus half the hips' width (upper arm and upper
+   * leg bones); null without them.
+   */
+  torsoWidth: number | null;
+  /** Upper arm to hand along the arm, the longer side (m); null without arms. */
+  armLength: number | null;
+  /** Upper leg to foot along the leg, the longer side (m); null without legs. */
+  legLength: number | null;
+};
+
+/**
+ * The Included Avatars' body measures at `avatarScale` 1 (Annie's and
+ * Andrew's averaged, each over its size), against which a big-headed
+ * Avatar's are read ({@link bodyHeightFromReference}).
+ */
+export const REFERENCE_AVATAR_BODY = {
+  heights: {
+    neck: -0.08,
+    shoulders: -0.118,
+    upperChest: -0.204,
+    chest: -0.309,
+    spine: -0.422,
+    hips: -0.48,
+    feet: -1.25,
+    ground: -1.35,
+  },
+  spineBones: {},
+  torsoWidth: 0.178,
+  armLength: 0.44,
+  legLength: 0.73,
+} as const satisfies AvatarBody;
+
+/**
+ * The top of the head over the head bone's height above the feet on the
+ * Included Avatars: their head boxes reach about 0.2 m above a 1.25–1.37 m
+ * head bone.
+ */
+export const REFERENCE_TOP_OVER_HEAD_BONE = 1.15;
+
+/**
  * Share of a vertex's skin weight on the head and eye bones that makes it
  * part of the head. Hair and other spring bones under the head do not count,
  * so long hair does not stretch the head down the body.
@@ -107,6 +193,12 @@ export type AvatarProportions = {
    * 0 keeps body-sized placement, 1 places by the head's own size.
    */
   bigHead: number;
+  /**
+   * The body's rest landmarks and limb lengths, which place body effects on a
+   * big head's body; null without hips, head or feet, or on adult proportions,
+   * where nothing reads them (so they are not measured).
+   */
+  body: AvatarBody | null;
 };
 
 /** Proportions that change nothing: the Included Avatars' placement. */
@@ -118,6 +210,7 @@ export const NEUTRAL_AVATAR_PROPORTIONS: AvatarProportions = Object.freeze({
   avatarScale: 1,
   bodyScale: 1,
   bigHead: 0,
+  body: null,
 });
 
 /** The head box, measured at most once per VRM, when first read (the costly part). */
@@ -184,7 +277,8 @@ export function measureAvatarProportions(
 }
 
 function computeProportions(vrm: VRM): AvatarProportions {
-  const size = measureAvatarScale(vrm);
+  const skeleton = canonicalSkeletonOf(vrm);
+  const size = skeleton ? avatarScaleOf(skeleton) : null;
   const face = faceSizes.get(vrm);
   // The head box is the costly part. Only a missing face (it stands in) and
   // a big head (head art keeps clear of its top) read it; every other use
@@ -196,6 +290,7 @@ function computeProportions(vrm: VRM): AvatarProportions {
     : 0;
   const measuredFrom = face ? "face" : headBox ? "head_box" : null;
   const headSize = face ?? boxSize;
+  const bigHead = face ? faceBigHead : bigHeadWeight(headSize, size);
   return {
     headBox,
     measuredFrom,
@@ -208,7 +303,8 @@ function computeProportions(vrm: VRM): AvatarProportions {
           : 1,
     avatarScale: size ?? 1,
     bodyScale: size ? bodyEffectScale(size) : 1,
-    bigHead: face ? faceBigHead : bigHeadWeight(headSize, size),
+    bigHead,
+    body: skeleton && size && bigHead > 0 ? measureBody(skeleton) : null,
   };
 }
 
@@ -219,7 +315,7 @@ function computeProportions(vrm: VRM): AvatarProportions {
  */
 function bigHeadWeight(headSize: number, size: number | null): number {
   // The head bone's height above the feet, which `avatarScale` measures.
-  const share = size ? headSize / (size * 1.25) : 0;
+  const share = size ? headSize / (size * CONTACT_REFERENCE_HEIGHT) : 0;
   return THREE.MathUtils.clamp(
     (share - BIG_HEAD_SHARE.start) /
       (BIG_HEAD_SHARE.full - BIG_HEAD_SHARE.start),
@@ -249,11 +345,8 @@ function headBoxOf(vrm: VRM): THREE.Box3 | null {
   return box;
 }
 
-/**
- * `avatarScale` of `vrm`, or null without hips, head or feet, or with no
- * positive head height (a malformed rig with its head at or below its feet).
- */
-function measureAvatarScale(vrm: VRM): number | null {
+/** `vrm`'s rest skeleton, or null without hips, head or feet. */
+function canonicalSkeletonOf(vrm: VRM): CanonicalSkeleton | null {
   const humanoid = vrm.humanoid;
   if (
     !humanoid?.getNormalizedBoneNode("hips") ||
@@ -262,8 +355,126 @@ function measureAvatarScale(vrm: VRM): number | null {
   ) {
     return null;
   }
-  const size = avatarScale(new CanonicalSkeleton(vrm));
+  return new CanonicalSkeleton(vrm);
+}
+
+/**
+ * `avatarScale` of `skeleton`, or null with no positive head height (a
+ * malformed rig with its head at or below its feet).
+ */
+function avatarScaleOf(skeleton: CanonicalSkeleton): number | null {
+  const size = avatarScale(skeleton);
   return Number.isFinite(size) && size > 0 ? size : null;
+}
+
+/** Each landmark's bones: one, or a pair whose heights are averaged. */
+const LANDMARK_BONES: Record<
+  Exclude<BodyLandmark, "ground">,
+  readonly VRMHumanBoneName[]
+> = {
+  neck: ["neck"],
+  shoulders: ["leftUpperArm", "rightUpperArm"],
+  upperChest: ["upperChest"],
+  chest: ["chest"],
+  spine: ["spine"],
+  hips: ["hips"],
+  feet: ["leftFoot", "rightFoot"],
+};
+
+/** `skeleton`'s {@link AvatarBody}; its head is above its feet. */
+function measureBody(skeleton: CanonicalSkeleton): AvatarBody {
+  const headY = skeleton.restPosition("head")!.y;
+  const heights: Partial<Record<BodyLandmark, number>> = {};
+  // Top down, keeping only landmarks below the one above, so heights fall.
+  let above = 0;
+  for (const landmark of BODY_LANDMARKS) {
+    let height: number | null;
+    if (landmark === "ground") {
+      height = -headY;
+    } else {
+      const ys = LANDMARK_BONES[landmark]
+        .map((bone) => skeleton.restPosition(bone)?.y)
+        .filter((y): y is number => y !== undefined);
+      height = ys.length
+        ? ys.reduce((sum, y) => sum + y, 0) / ys.length - headY
+        : null;
+    }
+    if (height === null || !(height < above)) continue;
+    heights[landmark] = height;
+    above = height;
+  }
+  const halfWidth = (left: VRMHumanBoneName, right: VRMHumanBoneName) => {
+    const a = skeleton.restPosition(left);
+    const b = skeleton.restPosition(right);
+    return a && b ? Math.abs(a.x - b.x) / 2 : null;
+  };
+  const shoulders = halfWidth("leftUpperArm", "rightUpperArm");
+  const hips = halfWidth("leftUpperLeg", "rightUpperLeg");
+  const spineBones: Partial<Record<SpineBone, number>> = {};
+  for (const bone of SPINE_BONES) {
+    const position = skeleton.restPosition(bone);
+    if (position) spineBones[bone] = position.y - headY;
+  }
+  return {
+    heights,
+    spineBones,
+    torsoWidth: shoulders && hips ? shoulders + hips : null,
+    armLength: limbLength(skeleton, ["UpperArm", "LowerArm", "Hand"]),
+    legLength: limbLength(skeleton, ["UpperLeg", "LowerLeg", "Foot"]),
+  };
+}
+
+/**
+ * The longer side's rest length along a limb's bones (`left`/`right` plus
+ * each part), or null when neither side has them all.
+ */
+function limbLength(
+  skeleton: CanonicalSkeleton,
+  parts: readonly string[],
+): number | null {
+  let longest: number | null = null;
+  for (const side of ["left", "right"]) {
+    const points = parts.map((part) =>
+      skeleton.restPosition(`${side}${part}` as VRMHumanBoneName),
+    );
+    if (points.some((point) => !point)) continue;
+    let length = 0;
+    for (let at = 1; at < points.length; at += 1)
+      length += points[at]!.distanceTo(points[at - 1]!);
+    if (length > 0 && (longest === null || length > longest)) longest = length;
+  }
+  return longest;
+}
+
+/**
+ * The height below `proportions`' head bone that a point `height` metres
+ * from the Included Avatars' head bone corresponds to: between two of their
+ * {@link REFERENCE_AVATAR_BODY} landmarks, the same share of the way between
+ * this body's; past the lowest, by the body's size; above the head bone, by
+ * the head's ({@link AvatarProportions.headScale}). Without measured
+ * landmarks, `height` times the body's size.
+ */
+export function bodyHeightFromReference(
+  proportions: AvatarProportions,
+  height: number,
+): number {
+  if (height >= 0) return height * proportions.headScale;
+  const measured = proportions.body?.heights ?? {};
+  let reference = 0;
+  let placed = 0;
+  for (const landmark of BODY_LANDMARKS) {
+    const to = measured[landmark];
+    if (to === undefined) continue;
+    const from = REFERENCE_AVATAR_BODY.heights[landmark];
+    if (height >= from) {
+      return (
+        placed + ((height - reference) / (from - reference)) * (to - placed)
+      );
+    }
+    reference = from;
+    placed = to;
+  }
+  return placed + (height - reference) * proportions.bodyScale;
 }
 
 /**
@@ -281,6 +492,34 @@ export function headSized(
   if (weight <= 0) return bodySized;
   if (weight >= 1) return headSized;
   return bodySized + (headSized - bodySized) * weight;
+}
+
+/**
+ * How much larger than the Included Avatars' framing a camera frames the
+ * head of an Avatar of `proportions`: the body's size ({@link bodyEffectScale},
+ * 1 for the Included Avatars) for adult proportions, a big head's face size
+ * over theirs, ramping between.
+ */
+export function headFramingScale(proportions: AvatarProportions): number {
+  return headSized(proportions, proportions.bodyScale, proportions.headScale);
+}
+
+/**
+ * How much larger than the Included Avatars' framing a camera frames the
+ * whole body of an Avatar of `proportions`: the body's size for adult
+ * proportions, and for a big head its height to the top of the head box
+ * against the Included Avatars' ({@link REFERENCE_TOP_OVER_HEAD_BONE}), so
+ * the head stays in view, ramping between.
+ */
+export function bodyFramingScale(proportions: AvatarProportions): number {
+  const headY = proportions.avatarScale * CONTACT_REFERENCE_HEIGHT;
+  const top = headY + Math.max(0, proportions.headBox?.max.y ?? 0);
+  return headSized(
+    proportions,
+    proportions.bodyScale,
+    Math.max(headY, top / REFERENCE_TOP_OVER_HEAD_BONE) /
+      CONTACT_REFERENCE_HEIGHT,
+  );
 }
 
 /**

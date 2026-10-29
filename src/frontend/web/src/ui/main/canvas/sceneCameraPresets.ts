@@ -117,10 +117,14 @@ export function buildSceneCameraPreset(
     options?.avatar?.getCameraAnchorY("head") ??
     fallbackSettings?.position.y ??
     1.2;
-  // Portrait presets are framed for the Included Avatars' heads; a big head
-  // (chibi, mascot, robot) scales their offsets from the head bone and their
-  // distance by its face's size, so the camera shows the face, not the chin.
+  // Presets are framed for the Included Avatars. Portrait presets scale their
+  // offsets from the head bone and their distance by the head's framing
+  // scale, so a big head (chibi, mascot, robot) shows its face, not its chin.
+  // Full-body presets scale their camera and aim about the floor by the
+  // body's, so a short chibi fills the frame and its head stays in view.
+  // Both are 1 on the Included Avatars (`avatarProportions.ts`).
   const head = options?.avatar?.getHeadFramingScale() ?? 1;
+  const body = options?.avatar?.getBodyFramingScale() ?? 1;
 
   switch (preset) {
     case "full-body":
@@ -132,9 +136,9 @@ export function buildSceneCameraPreset(
           orbitTargetYOffset: 0,
         },
         settings: {
-          position: { x: 0, y: 1.2, z: 3.2 },
+          position: { x: 0, y: 1.2 * body, z: 3.2 * body },
           fov: 35,
-          orbitTarget: { x: 0, y: 1.0, z: 0 },
+          orbitTarget: { x: 0, y: 1.0 * body, z: 0 },
         },
       };
     case "full-body-close":
@@ -146,9 +150,9 @@ export function buildSceneCameraPreset(
           orbitTargetYOffset: 0,
         },
         settings: {
-          position: { x: 0, y: 1.2, z: 2.2 },
+          position: { x: 0, y: 1.2 * body, z: 2.2 * body },
           fov: 35,
-          orbitTarget: { x: 0, y: 1.0, z: 0 },
+          orbitTarget: { x: 0, y: 1.0 * body, z: 0 },
         },
       };
     case "portrait":

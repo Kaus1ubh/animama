@@ -8,7 +8,8 @@ import type {
 import { createAvatarGltfLoader } from "./avatarGltfLoader";
 import { AnimationManager } from "./AnimationManager";
 import {
-  headSized,
+  bodyFramingScale,
+  headFramingScale,
   measureAvatarProportions,
   setAvatarFaceSize,
 } from "./avatarProportions";
@@ -2566,12 +2567,22 @@ export class Avatar {
 
   /**
    * How much larger than the Included Avatars' framing the chat's head
-   * presets frame this Avatar: 1 for adult proportions, a big head's face
-   * size over theirs (`avatarProportions.ts`), so Portrait shows its face.
+   * presets frame this Avatar (`headFramingScale`): 1 for the Included
+   * Avatars, its size outside their band, a big head's face size over theirs,
+   * so Portrait shows its face.
    */
   getHeadFramingScale(): number {
-    const proportions = measureAvatarProportions(this.vrm);
-    return headSized(proportions, 1, proportions.headScale);
+    return headFramingScale(measureAvatarProportions(this.vrm));
+  }
+
+  /**
+   * How much larger than the Included Avatars' framing the chat's full-body
+   * presets frame this Avatar (`bodyFramingScale`): 1 for the Included
+   * Avatars, its size outside their band, and for a big head its height to
+   * the top of its head, so a short chibi fills the frame as they do.
+   */
+  getBodyFramingScale(): number {
+    return bodyFramingScale(measureAvatarProportions(this.vrm));
   }
 
   getCameraAnchorY(anchor: "hips" | "chest" | "head"): number | null {

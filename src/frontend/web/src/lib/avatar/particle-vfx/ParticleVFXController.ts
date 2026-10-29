@@ -10,6 +10,7 @@ import {
 import {
   createParticleVFXEffectContainer,
   createParticleVFXEmitterAnchorBindings,
+  placeParticleVFXEmittersOnBody,
   updateParticleVFXEmitterAnchors,
   type ParticleVFXEmitterAnchorBindings,
 } from "./emitterAnchors";
@@ -18,10 +19,11 @@ import { cloneParticleVFXPrefab } from "./quarksClone";
 import {
   alignParticleVFXRootToAvatar,
   cloneParticleVFXTransform,
+  getParticleVFXCombinedOffset,
   mergeParticleVFXTransform,
   particleVFXPlacementScale,
+  placeParticleVFXTransform,
   resolveParticleVFXAnchorLocalPosition,
-  scaleParticleVFXTransform,
 } from "./runtime";
 import {
   EMPTY_RUNTIME_MEDIA_PROVIDER,
@@ -274,13 +276,8 @@ export class ParticleVFXController {
       request.transform,
     );
     // Authored on the Included Avatars; placed in proportion to this one.
-    const placement = scaleParticleVFXTransform(
-      transform,
-      particleVFXPlacementScale(
-        measureAvatarProportions(this._avatar.vrm),
-        anchor,
-      ),
-    );
+    const proportions = measureAvatarProportions(this._avatar.vrm);
+    const placement = placeParticleVFXTransform(transform, proportions, anchor);
     const fallbackResolvedAnchor = this._resolveAnchor(anchor, placement);
     if (!fallbackResolvedAnchor) {
       this._pushWarning(
@@ -350,6 +347,14 @@ export class ParticleVFXController {
       const emitterAnchors = createParticleVFXEmitterAnchorBindings(object);
       applyInitialInstanceTransform(object, resolvedAnchor, placement);
       this._root.add(object);
+      placeParticleVFXEmittersOnBody({
+        bindings: emitterAnchors,
+        proportions,
+        defaultAnchor: anchor,
+        authoredOffset: getParticleVFXCombinedOffset(transform),
+        placedOffset: getParticleVFXCombinedOffset(placement),
+        scale: particleVFXPlacementScale(proportions, anchor),
+      });
       for (const warning of updateParticleVFXEmitterAnchors({
         bindings: emitterAnchors,
         avatar: this._avatar,

@@ -1,8 +1,19 @@
+import type { VRMHumanBoneName } from "@pixiv/three-vrm";
 import * as THREE from "three";
 
 import type { Avatar } from "../Avatar";
-import { headSized, type AvatarProportions } from "../avatarProportions";
-import { resolveHumanoidAnchorObject } from "../humanoidAnchors";
+import {
+  bodyHeightFromReference,
+  headSized,
+  REFERENCE_AVATAR_BODY,
+  SPINE_BONES,
+  type AvatarProportions,
+  type SpineBone,
+} from "../avatarProportions";
+import {
+  HUMANOID_ANCHOR_BONE_CANDIDATES,
+  resolveHumanoidAnchorObject,
+} from "../humanoidAnchors";
 import { isVrm0 } from "../poses/poseRetargeting";
 import {
   PARTICLE_VFX_ANCHORS,
@@ -69,19 +80,42 @@ export function mergeParticleVFXTransform(
 }
 
 /**
- * The scale a Particle Effect anchored at `anchor` is placed at on an Avatar
+ * The scale a Particle Effect anchored at `anchor` is sized at on an Avatar
  * of `proportions`: its body size against the Included Avatars'
- * (`bodyEffectScale`), and at the head of a big-headed Avatar the head's own
- * size, so stars circling the head or a cloud above it stay outside it.
- * Exactly 1 on the Included Avatars.
+ * (`bodyEffectScale`); on a big-headed Avatar the head's own size at the
+ * head, so stars circling the head or a cloud above it stay outside it, and
+ * the arm's or leg's measured length at a hand or foot. Exactly 1 on the
+ * Included Avatars.
  */
 export function particleVFXPlacementScale(
   proportions: AvatarProportions,
   anchor: ParticleVFXAnchor,
 ): number {
-  return anchor === "head"
-    ? headSized(proportions, proportions.bodyScale, proportions.headScale)
-    : proportions.bodyScale;
+  const { body, bodyScale } = proportions;
+  switch (anchor) {
+    case "head":
+      return headSized(proportions, bodyScale, proportions.headScale);
+    case "leftHand":
+    case "rightHand":
+      return headSized(
+        proportions,
+        bodyScale,
+        body?.armLength
+          ? body.armLength / REFERENCE_AVATAR_BODY.armLength
+          : bodyScale,
+      );
+    case "leftFoot":
+    case "rightFoot":
+      return headSized(
+        proportions,
+        bodyScale,
+        body?.legLength
+          ? body.legLength / REFERENCE_AVATAR_BODY.legLength
+          : bodyScale,
+      );
+    default:
+      return bodyScale;
+  }
 }
 
 /**
@@ -101,6 +135,151 @@ export function scaleParticleVFXTransform(
     next.scale[axis] *= scale;
   }
   next.depthOffset *= scale;
+  return next;
+}
+
+/**
+ * Where `anchor` stands on the Included Avatars and on an Avatar of
+ * `proportions`, as heights from the head bone (m): the first of its bones
+ * the rig has ({@link HUMANOID_ANCHOR_BONE_CANDIDATES}), as the anchor
+ * resolves to, at the Included Avatars' landmark for that bone and this
+ * rig's rest height of it; `root` stands on the ground. Null for hands and
+ * feet, and without measured landmarks.
+ */
+function particleVFXAnchorHeights(
+  proportions: AvatarProportions,
+  anchor: ParticleVFXAnchor,
+): { reference: number; measured: number } | null {
+  const body = proportions.body;
+  if (!body) return null;
+  if (anchor === "root") {
+    return body.heights.ground === undefined
+      ? null
+      : {
+          reference: REFERENCE_AVATAR_BODY.heights.ground,
+          measured: body.heights.ground,
+        };
+  }
+  const bones: readonly VRMHumanBoneName[] =
+    HUMANOID_ANCHOR_BONE_CANDIDATES[anchor];
+  for (const bone of bones) {
+    if (bone === "head") return { reference: 0, measured: 0 };
+    if (!isSpineBone(bone)) return null;
+    const measured = body.spineBones[bone];
+    if (measured !== undefined)
+      return { reference: REFERENCE_AVATAR_BODY.heights[bone], measured };
+  }
+  return null;
+}
+
+function isSpineBone(bone: VRMHumanBoneName): bone is SpineBone {
+  return (SPINE_BONES as readonly string[]).includes(bone);
+}
+
+/**
+ * The sideways and depth scale at `height` from the Included Avatars' head
+ * bone on an Avatar of `proportions`: the torso's measured width over theirs
+ * at and below the shoulders, the head's size at and above the head bone,
+ * blending between, so points beside the body stay beside it and points
+ * beside a big head stay outside it.
+ */
+function particleVFXSidewaysScale(
+  proportions: AvatarProportions,
+  height: number,
+): number {
+  const torsoWidth = proportions.body?.torsoWidth;
+  const torso = torsoWidth
+    ? torsoWidth / REFERENCE_AVATAR_BODY.torsoWidth
+    : proportions.bodyScale;
+  const shoulders = REFERENCE_AVATAR_BODY.heights.shoulders;
+  if (height <= shoulders) return torso;
+  if (height >= 0) return proportions.headScale;
+  return THREE.MathUtils.lerp(
+    torso,
+    proportions.headScale,
+    (height - shoulders) / -shoulders,
+  );
+}
+
+/**
+ * Whether Particle Effects anchored at `anchor` are placed through the body's
+ * landmarks on an Avatar of `proportions` ({@link placeParticleVFXOffset}):
+ * a big head with measured landmarks, at the root, torso or head. Never on
+ * the Included Avatars.
+ */
+export function placesParticleVFXOnBody(
+  proportions: AvatarProportions,
+  anchor: ParticleVFXAnchor,
+): boolean {
+  return (
+    proportions.bigHead > 0 &&
+    particleVFXAnchorHeights(proportions, anchor) !== null
+  );
+}
+
+/**
+ * The offset from `anchor`, in the Avatar frame, that a point authored
+ * `offset` from it on the Included Avatars lands at on an Avatar of
+ * `proportions`. It is the offset times {@link particleVFXPlacementScale},
+ * except where {@link placesParticleVFXOnBody}: there the point keeps its
+ * place among the body's landmarks. Its height between two of the Included
+ * Avatars' landmarks (`bodyHeightFromReference`) lands the same share of the
+ * way between this body's, so a note authored beside the Included Avatars'
+ * chest rises beside a chibi's chest, not at its knees; sideways and depth
+ * offsets follow {@link particleVFXSidewaysScale}. Blended with the scaled
+ * offset by the big-head weight.
+ */
+export function placeParticleVFXOffset(
+  proportions: AvatarProportions,
+  anchor: ParticleVFXAnchor,
+  offset: ParticleVFXTransformAxisTriple,
+): ParticleVFXTransformAxisTriple {
+  const scale = particleVFXPlacementScale(proportions, anchor);
+  const scaled = {
+    x: offset.x * scale,
+    y: offset.y * scale,
+    z: offset.z * scale,
+  };
+  const anchorHeights =
+    proportions.bigHead > 0
+      ? particleVFXAnchorHeights(proportions, anchor)
+      : null;
+  if (!anchorHeights) return scaled;
+  const height = anchorHeights.reference + offset.y;
+  const sideways = particleVFXSidewaysScale(proportions, height);
+  return {
+    x: headSized(proportions, scaled.x, offset.x * sideways),
+    y: headSized(
+      proportions,
+      scaled.y,
+      bodyHeightFromReference(proportions, height) - anchorHeights.measured,
+    ),
+    z: headSized(proportions, scaled.z, offset.z * sideways),
+  };
+}
+
+/**
+ * A transform as placed on an Avatar of `proportions` at `anchor`: scaled by
+ * {@link particleVFXPlacementScale}, its offset (with the depth offset folded
+ * in) placed by {@link placeParticleVFXOffset} where the body's landmarks
+ * place it. Exactly the authored transform on the Included Avatars.
+ */
+export function placeParticleVFXTransform(
+  transform: ParticleVFXTransform,
+  proportions: AvatarProportions,
+  anchor: ParticleVFXAnchor,
+): ParticleVFXTransform {
+  const next = scaleParticleVFXTransform(
+    transform,
+    particleVFXPlacementScale(proportions, anchor),
+  );
+  if (!placesParticleVFXOnBody(proportions, anchor)) return next;
+  next.offset = placeParticleVFXOffset(
+    proportions,
+    anchor,
+    getParticleVFXCombinedOffset(transform),
+  );
+  next.depthOffset = 0;
   return next;
 }
 
