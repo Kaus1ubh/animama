@@ -287,13 +287,13 @@ with `ts_rank_cd`, PostgreSQL's cover-density rank function. Cover-density
 ranking rewards matches where query terms appear close together.
 
 The `english` parser keeps unspaced Japanese, Chinese and Thai text as one
-lexeme, so a query word or quoted phrase containing a non-ASCII letter or digit
-is instead a required case-insensitive substring of the chunk text, and a
-`-term` of that kind excludes chunks containing it
-([memory search](memory.md#search_memory_files) has the matching rules). Such
-words are always required, even beside `OR`; the remaining words keep
-`websearch_to_tsquery`, and chunks that match only by substring rank with a
-score of 0.
+lexeme. So besides the whole query's full-text match, a chunk also matches when
+it contains every query word or quoted phrase with a non-ASCII letter or digit
+as a case-insensitive substring and its other words match
+([memory search](memory.md#search_memory_files) has the matching rules). A
+`-term` of that kind excludes chunks containing it. `OR` beside a non-ASCII word
+works only through the full-text match, and chunks that match only by substring
+rank with a score of 0.
 
 Semantic search embeds the query with the embeddings-role model, then uses
 pgvector cosine distance against stored chunk embeddings from that same model.

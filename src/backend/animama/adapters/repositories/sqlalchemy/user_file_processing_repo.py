@@ -662,33 +662,43 @@ class SQLAlchemyUserFileProcessingRepository(UserFileProcessingRepository):
 _KEYWORD_FULL_TEXT_SQL = "to_tsvector('english', c.text) @@ websearch_to_tsquery('english', :query)"
 
 
+# A chunk containing every non-ASCII query word whose other words match too. Without other words, or with
+# only stop words, their tsquery is empty and matches nothing, so it then adds no condition.
+_KEYWORD_SUBSTRING_SQL = """(
+                    c.text ILIKE ALL (CAST(:required_patterns AS text[]))
+                    AND (
+                        numnode(websearch_to_tsquery('english', :ascii_query)) = 0
+                        OR to_tsvector('english', c.text) @@ websearch_to_tsquery('english', :ascii_query)
+                    )
+                )"""
+
+
 def _keyword_text_filter_sql(query: str, params: dict[str, Any]) -> str:
     """Return the conditions matching chunk text to a web-search query, and bind its parameters.
 
-    A word or phrase containing a non-ASCII letter or digit is a required
-    substring, or an excluded one after "-" (see ``animama.domain.search_terms``);
-    the remaining words stay in ``:query`` for ``websearch_to_tsquery``. A query
-    without such words keeps exactly the full-text condition.
+    The whole query keeps its full-text match, so every chunk it found before
+    still matches, across ``OR`` too. A word or phrase containing a non-ASCII
+    letter or digit (see ``animama.domain.search_terms``) also matches as a
+    substring: a chunk matches when it contains every such word and its other
+    words match. A non-ASCII ``-term`` excludes chunks containing it.
     """
 
-    kept: list[str] = []
+    params["query"] = query
+    ascii_clauses: list[str] = []
     required: list[str] = []
     excluded: list[str] = []
     for clause in WEB_SEARCH_CLAUSE_PATTERN.findall(query):
         pattern = substring_pattern(clause)
         if pattern is None:
-            kept.append(clause)
+            ascii_clauses.append(clause)
         else:
             (excluded if clause.startswith("-") else required).append(pattern)
-    if not required and not excluded:
-        params["query"] = query
-        return f"AND {_KEYWORD_FULL_TEXT_SQL}"
-    params["query"] = " ".join(kept)
-    # Without ASCII words the tsquery is empty and matches nothing, so it then adds no condition.
-    conditions = [f"AND (numnode(websearch_to_tsquery('english', :query)) = 0 OR {_KEYWORD_FULL_TEXT_SQL})"]
-    if required:
+    if not required:
+        conditions = [f"AND {_KEYWORD_FULL_TEXT_SQL}"]
+    else:
+        params["ascii_query"] = " ".join(ascii_clauses)
         params["required_patterns"] = required
-        conditions.append("AND c.text ILIKE ALL (CAST(:required_patterns AS text[]))")
+        conditions = [f"AND ({_KEYWORD_FULL_TEXT_SQL} OR {_KEYWORD_SUBSTRING_SQL})"]
     if excluded:
         params["excluded_patterns"] = excluded
         conditions.append("AND NOT (c.text ILIKE ANY (CAST(:excluded_patterns AS text[])))")

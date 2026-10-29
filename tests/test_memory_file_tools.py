@@ -1110,6 +1110,7 @@ async def test_uploaded_file_keyword_search_finds_words_inside_unspaced_text(asy
     await _insert_uploaded_file_chunk(async_session, file_id="kyoto", text="週末に京都で抹茶を飲みました。")
     await _insert_uploaded_file_chunk(async_session, file_id="autumn", text="京都の紅葉がきれいでした。Alpha notes.")
     await _insert_uploaded_file_chunk(async_session, file_id="alpha", text="Alpha project notes.")
+    await _insert_uploaded_file_chunk(async_session, file_id="kyoto-en", text="We visited Kyoto in spring.")
     repo = SQLAlchemyUserFileProcessingRepository(async_session)
 
     async def file_ids(query: str) -> list[str]:
@@ -1121,6 +1122,9 @@ async def test_uploaded_file_keyword_search_finds_words_inside_unspaced_text(asy
     assert await file_ids("京都 抹茶") == ["kyoto"]
     assert await file_ids("京都 Alpha") == ["autumn"]
     assert await file_ids("京都 -抹茶") == ["autumn"]
+    assert await file_ids("to 抹茶") == ["kyoto"]
+    # The whole query keeps its full-text match, so English alternatives beside OR still match.
+    assert await file_ids("京都 OR Kyoto") == ["kyoto-en"]
     assert await file_ids("Alpha") == ["alpha", "autumn"]
     assert await file_ids("京_の") == []
 

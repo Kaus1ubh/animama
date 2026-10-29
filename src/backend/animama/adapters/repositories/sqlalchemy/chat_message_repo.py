@@ -357,10 +357,15 @@ class SQLAlchemyChatMessageRepository(ChatMessageRepository):
         prefix_query, substring_patterns = _chat_search_terms(query)
         if not prefix_query and not substring_patterns:
             return []
-        # ASCII words use the full-text index; non-ASCII words then filter the candidates' text.
-        tsquery_filter = (
-            "AND search_query.value IS NOT NULL AND m.search_vector @@ search_query.value" if prefix_query else ""
-        )
+        # ASCII words use the full-text index; non-ASCII words then filter the candidates' text. Beside
+        # non-ASCII words, ASCII stop words such as "to" leave an empty tsquery that matches nothing, so
+        # it then adds no condition.
+        if not prefix_query:
+            tsquery_filter = ""
+        elif substring_patterns:
+            tsquery_filter = "AND (numnode(search_query.value) = 0 OR m.search_vector @@ search_query.value)"
+        else:
+            tsquery_filter = "AND search_query.value IS NOT NULL AND m.search_vector @@ search_query.value"
         substring_filter = (
             "WHERE matching_messages.content ILIKE ALL (CAST(:substring_patterns AS text[]))"
             if substring_patterns

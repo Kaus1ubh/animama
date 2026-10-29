@@ -152,6 +152,8 @@ async def test_history_search_finds_words_inside_unspaced_text(db_url: str) -> N
                 # Every word is required, as for English words.
                 assert await chat_ids("京都 紅葉") == ["a2"]
                 assert await chat_ids("Reac 京都") == ["a2"]
+                # Stop words beside a non-ASCII word add no condition, as in an English-only query.
+                assert await chat_ids("to 抹茶") == ["a1", "a3"]
                 assert await chat_ids("서울") == ["a3"]
                 assert await chat_ids("京_の") == []
                 results = await repository.search_for_user(user_id="alice", query="飲み", limit=10)
