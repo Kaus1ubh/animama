@@ -21,6 +21,7 @@ export const PIP_CURSOR_SNAPSHOT_CHANNEL = "anima:pip:cursor-snapshot";
 type InstallPipIpcOptions = {
   config: DesktopConfig;
   locale: ShellLocale;
+  placementFile: string;
   preloadPath: string;
 };
 
@@ -37,6 +38,7 @@ function assertLiveSender(event: IpcMainInvokeEvent) {
 export function installPipIpc({
   config,
   locale,
+  placementFile,
   preloadPath,
 }: InstallPipIpcOptions): void {
   if (pipIpcInstalled) return;
@@ -46,6 +48,7 @@ export function installPipIpc({
     config,
     locale,
     cursorSnapshotChannel: PIP_CURSOR_SNAPSHOT_CHANNEL,
+    placementFile,
     preloadPath,
     runtimeMessageChannel: PIP_RUNTIME_MESSAGE_CHANNEL,
     stateChangedChannel: PIP_STATE_CHANGED_CHANNEL,

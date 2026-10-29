@@ -42,9 +42,15 @@ The window is hidden, transparent, frameless and always on top, with no shadow
 or taskbar entry. It starts at 210 × 280 with a 116 × 154 minimum size and the
 standard isolated, sandboxed preload. See the manager for the complete options.
 
-The default `x`/`y` places the PiP window near the bottom-right of the owner
-window's display work area, with a small margin so OS taskbars and docks are not
-covered. The default size scale is `0.5`.
+PiP reopens where the owner last left it on this machine. After a move or
+resize settles, and when the window closes, the manager saves its display,
+top-left corner and size scale to `pip-placement.json` in the desktop profile
+(`pip-placement.ts`). Screen coordinates only fit this machine's displays, so
+they are not App settings. A saved position is used while its display is
+connected, moved back inside that display's work area if needed. Otherwise PiP
+opens flush with the bottom-right corner of the owner window's display work
+area, which already excludes OS taskbars, the Dock and the menu bar. The default
+size scale is `0.5`.
 
 It uses the floating always-on-top level and remains visible across workspaces,
 including fullscreen workspaces. On macOS it is a non-activating panel, which
@@ -165,8 +171,9 @@ own Avatar and scene VFX store. Scene effect state is therefore not mirrored:
 the main scene is suspended during PiP, and replacing PiP's store with its
 empty one cleared a Reaction's scene background about 100 ms after it began.
 
-PiP has its own camera preset, Portrait (close) by default and kept while the
-app runs. The main canvas settings show it as PiP camera while PiP is open, and
+PiP has its own camera preset, Portrait (close) by default and saved as the
+user preference `presentation.pip_camera_preset`, separately from the main
+window's preset. The main canvas settings show it as PiP camera while PiP is open, and
 the PiP camera button cycles it; the PiP renderer sends that request to its
 owner as a `camera-preset` runtime message. The main scene is suspended during
 PiP, so the PiP renderer frames its own Avatar from the preset whenever the
