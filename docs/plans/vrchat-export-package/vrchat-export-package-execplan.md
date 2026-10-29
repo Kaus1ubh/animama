@@ -4,9 +4,8 @@ Source agreement: https://github.com/raymond-van/animama/issues/795, published
 2026-10-29T16:48:47Z with the owner's decisions on Q1–Q8 of the same day
 (snapshot: [vrchat-export-package-spec.md](vrchat-export-package-spec.md),
 commit `64e32595`).
-Authorized scope: none yet; proposed Phases 1–5 (macOS). Phase 6 (Windows)
-waits for the owner's go-ahead and a Windows machine. Owner gates below apply
-inside any authorized phase.
+Authorized scope: none yet; proposed Phases 1–5, each verified on macOS and
+Windows. Owner gates below apply inside any authorized phase.
 
 ## Purpose and context
 
@@ -25,7 +24,26 @@ them:
 - an end-user guide and updated developer docs (R9).
 
 Uploads keep the exported bytes; optimizing them in the app is deferred (Q3).
-Modular Avatar Avatars are detected and refused (Q6).
+Modular Avatar Avatars are detected and refused (Q6). Both routes support
+macOS and Windows from the first release.
+
+### Platforms
+
+The Unity package, the listing and almost all of the command are platform
+independent. The platform-sensitive parts are written for both platforms from
+Phase 1 and unit-tested for both on any machine: Unity editor lookup (Unity
+Hub's folder on each), detecting a project open in Unity (Unity's lockfile
+behaves differently), `manifest.json` line endings (LF or CRLF, preserved),
+paths with spaces, and moving the finished export into place while Windows
+briefly holds a new file. Manual and Unity checks run on both:
+
+- macOS (Apple Silicon, Metal), with VRChat's `vpm` tool or ALCOM;
+- Windows 10 or 11 (x64, Direct3D 11), with VRChat Creator Companion.
+
+**GW (owner):** access to a Windows machine with a GPU, Unity Hub and Unity
+2022.3, VCC, Git and Node 20 or later, and the private test material copied to
+a private folder there, before Phase 1's Windows checks. Without it, the
+Windows checks of every phase stay open and block the release (G3).
 
 ### Repositories and working directories
 
@@ -70,12 +88,12 @@ in a valid scene; `Export` converts in that scene. `MochiyaTargetKind` is
 
 ## Progress
 
-- [ ] Phase 1: package skeleton and export core — not started
+- [ ] Phase 1: package skeleton and export core — not started; needs GW for
+  its Windows checks
 - [ ] Phase 2: editor window, checks, installer, licence notice — not started
 - [ ] Phase 3: standalone command — not started
 - [ ] Phase 4: listing, release and package CI — not started; owner gates G1–G3
 - [ ] Phase 5: developer command and docs — not started; owner gate G4
-- [ ] Phase 6: Windows — not authorized
 - [ ] Final integration review — not started
 
 ## Surprises & Discoveries
@@ -90,7 +108,9 @@ in a valid scene; `Export` converts in that scene. `MochiyaTargetKind` is
 ## Decision Log
 
 - 2026-10-29, owner: accept the spec's answers to Q1–Q8 (issue #795).
-- 2026-10-29, owner: test macOS first; Windows is a later phase.
+- 2026-10-29, owner: test macOS first; Windows is a later phase. Superseded
+  the same day: support and verify macOS and Windows together, in every phase
+  (plan and spec snapshot updated; the issue update awaits the owner's word).
 - 2026-10-29, agent (within scope): one public repository holds both
   deliverables. `npx github:` needs the Node `package.json` at the repository
   root and Unity needs its own `package.json` at the package root, so the Unity
@@ -114,8 +134,8 @@ Starting revision for every phase in `raymond-van/animama`:
 `c036612e`). Phases 1–4 change only the package repository; Phase 5 changes
 this repository.
 
-Unity runs use Unity 2022.3 LTS on macOS with graphics, through the heavy-job
-slots and a timeout, for example
+Unity runs use Unity 2022.3 LTS with graphics on both platforms. On the Mac
+they go through the heavy-job slots and a timeout, for example
 `timeout 1800 python3 scripts/heavy-slot.py -- <Unity> -batchmode …`. Package
 editor tests run in a private test project with the package added as a local
 `file:` dependency and listed under `testables`:
@@ -151,8 +171,9 @@ Steps, in a new local repository (no remote until gate G1):
      untouched (Detect needs a valid, non-persistent scene object);
    - strip `EditorOnly` and apply the T-pose exactly as today;
    - write to `<out>.partial` beside the target and move it into place only
-     after `Export` succeeds; delete the partial file on any failure; never
-     overwrite an existing target.
+     after `Export` succeeds, retrying briefly if Windows reports the file in
+     use; delete the partial file on any failure; never overwrite an existing
+     target.
    Keep the code free of network APIs and Mochiya upload types.
 4. Editor tests on synthetic objects built in the test (no third-party data):
    nested `EditorOnly` stripping removes only the topmost tagged objects; a root
@@ -165,13 +186,14 @@ Steps, in a new local repository (no remote until gate G1):
 
 Checks and expected observations:
 
-- Package editor tests pass in the private test project.
-- In the private Unity project for the converted test Avatar, with the package
+- Package editor tests pass in the private test project on macOS and Windows.
+- On each platform, in the private Unity project for the converted test Avatar, with the package
   added as a `file:` dependency and the copied script removed, the batch
   `Export` writes a file whose `pnpm -s vrm:inspect` report (from this
   repository's `src/frontend/web`) matches a fresh `vrm:convert-vrchat
   --no-optimize` export from the old script at the same Mochiya pin: same mesh,
-  morph, expression, spring and texture counts and findings. Record counts and
+  morph, expression, spring and texture counts and findings, and no flat-colour
+  textures (the GPU readback works on Direct3D as on Metal). Record counts and
   timings only.
 - A source search of `Packages/` finds no `UnityWebRequest`, `HttpClient`,
   `WebClient`, `Mochiya*Upload*` or `MochiyaUploadClient`.
@@ -234,9 +256,10 @@ Steps:
 Checks:
 
 - Package editor tests pass.
-- Manual walkthrough on macOS in a fresh VRChat Avatars project (created with
-  VRChat's `vpm` tool or ALCOM) holding the converted test Avatar, package added
-  from the local clone: the installer prompts, installs the dependencies, the
+- Manual walkthrough on macOS (project created with VRChat's `vpm` tool or
+  ALCOM) and on Windows (project created in VCC), each a fresh VRChat Avatars
+  project holding the converted test Avatar, package added from the local
+  clone: the installer prompts, installs the dependencies, the
   menu appears with no compile errors, the licence notice shows once, and the
   export's `vrm:inspect` report matches Phase 1's. The source prefab and open
   scene are unchanged (no dirty scene; `git status` clean in a project that was
@@ -268,27 +291,30 @@ Steps, at the package repository root:
 
 1. `package.json` (`name: animama-avatar-export`, `bin`, `engines.node >= 20`,
    no dependencies) and `cli/` modules ported from `vrm-convert-vrchat.mjs`:
-   argument parsing (without `--no-optimize`), Unity editor lookup, the batch
-   command line, the log summary and exit-code mapping. Pure functions stay
-   exported for tests.
-2. Project preparation: refuse while the project is open (Unity's
-   `Temp/UnityLockfile` is held); otherwise add any missing entries to
+   argument parsing (without `--no-optimize`), Unity editor lookup on macOS and
+   Windows, the batch command line (spawned without a shell, so paths with
+   spaces pass intact), the log summary and exit-code mapping. Pure functions
+   take the platform as a parameter and stay exported for tests.
+2. Project preparation: refuse while the project is open (Unity holds
+   `Temp/UnityLockfile`; detect it the way each platform's lock allows);
+   otherwise add any missing entries to
    `Packages/manifest.json` — the three pinned dependency URLs and this
    package's URL at the command's own tag — preserving every other entry and
-   the file's formatting conventions, and report what was added.
+   the file's formatting and line endings, and report what was added.
 3. Run `Validate` or `Export` through the Phase 1 batch entry points; write the
    Unity log beside the output; print the `[Animama]` lines and the validation
    report. Exit 0 only when a file was written (or validation passed with
    `--validate`), 2 when Mochiya cannot convert, 1 otherwise. Never overwrite.
-4. `node --test` tests: argument errors, editor lookup, command line (never
-   `-nographics`), manifest editing on temporary fixtures (missing, present,
-   conflicting entries; formatting kept), lockfile refusal, and exit codes
-   against a fake Unity executable that writes a scripted log.
+4. `node --test` tests: argument errors, editor lookup for both platforms,
+   command line (never `-nographics`), manifest editing on temporary fixtures
+   (missing, present, conflicting entries; LF and CRLF kept), lockfile refusal,
+   and exit codes against a fake Unity executable that writes a scripted log.
 
 Checks:
 
-- `node --test` passes; the command runs with no `node_modules`.
-- On macOS, in a copy of the private project without the package, the command
+- `node --test` passes on macOS and Windows; the command runs with no
+  `node_modules`.
+- On macOS and on Windows, in a copy of the private project without the package, the command
   (run from the local clone) adds the entries, exports the converted test
   Avatar, and the result's `vrm:inspect` report matches Phase 2's export; a run
   while the project is open in Unity is refused; a validation failure exits
@@ -330,7 +356,8 @@ Steps:
    regenerates the VPM listing (`index.json` with name, id, URL, author and every
    released version's `url` and `zipSHA256`) on GitHub Pages. Pin every action
    by commit SHA.
-2. A CI workflow on pull requests and `main`: `node --test`, the no-network and
+2. A CI workflow on pull requests and `main`: `node --test` on Ubuntu and
+   Windows runners, the no-network and
    no-upload source search over `Packages/` and `cli/`, JSON validation of both
    `package.json` files and the listing, and a check that the two versions and
    the tag agree. Unity editor tests stay local (they need a Unity licence and a
@@ -342,9 +369,10 @@ Checks:
 
 - CI passes on the release candidate; a dry run of the release workflow on a
   pre-release tag produces a zip and a listing whose hashes match.
-- After G3, in a fresh VRChat Avatars project on macOS: `vpm add repo <listing
-  URL>` (or ALCOM's Add Repository) and adding the package from the listing,
-  then the Phase 2 installer, give the menu with no compile errors.
+- After G3, in a fresh VRChat Avatars project on each platform (macOS: `vpm
+  add repo <listing URL>` or ALCOM's Add Repository; Windows: VCC's Add
+  Repository), adding the package from the listing, then the Phase 2
+  installer, give the menu with no compile errors.
 - `npx github:raymond-van/animama-avatar-export#v0.1.0 --help` runs.
 
 Recovery: a bad release is superseded by a new patch tag; the listing keeps
@@ -404,7 +432,8 @@ Checks:
 - From `src/frontend/web`: `node --test scripts/vrm-convert-vrchat.test.mjs`;
   Prettier check of changed TS/JS files (never Markdown); `pnpm web:lint`.
 - `vrm:convert-vrchat` converts the converted test Avatar through the pinned
-  tag, with and without `--no-optimize`; counts and timings only.
+  tag, with and without `--no-optimize`, on macOS (the developer command's
+  primary platform) and once on Windows; counts and timings only.
 - **G4 (owner, manual):** on a task stack (`./reset.sh --name <n> --base-port
   <p>`, browser pane visible), upload the window's export through Create Anima
   and confirm motion, springs, blink, visemes and look-at match the developer
@@ -425,18 +454,6 @@ Commits: —
 
 —
 
-### Phase 6: Windows (not authorized)
-
-Review tier: standard. Platform support for existing code.
-
-Requirements: the Windows walkthrough in the acceptance criteria.
-
-Steps: run Phases 2–4's manual checks with VCC on Windows; fix Windows paths
-(editor lookup under `C:\Program Files\Unity\Hub\Editor`, lockfile behavior,
-manifest line endings); add Windows to the package README's tested platforms.
-
-Gate: owner go-ahead and access to a Windows machine with Unity 2022.3.
-
 ## Final integration review
 
 Covers combined acceptance for #795 across both repositories at their final
@@ -447,18 +464,19 @@ items if any apply; backend unchanged) and put the results in the PR.
 
 ## Validation and acceptance
 
-The spec's acceptance criteria, mapped to evidence:
+The spec's acceptance criteria, mapped to evidence. Every manual or Unity
+check runs on macOS and Windows unless the row says otherwise:
 
 | Criterion | Evidence | Phase |
 | --- | --- | --- |
-| Install from the listing in a fresh project; menu, no compile errors | macOS walkthrough after G3 | 4 |
+| Install from the listing in a fresh project; menu, no compile errors | walkthrough on macOS and Windows after G3 | 4 |
 | Window export matches the developer export; prefab and scene unchanged | `vrm:inspect` counts; clean project status | 1–2 |
 | `EditorOnly` garment stripped | editor test plus the converted test Avatar's variant | 1 |
 | Unsupported lilToon or missing dependency blocks export | editor tests plus one manual check | 2 |
 | Validation error blocks export, no file | editor test plus manual | 1–2 |
 | Licence notice once per project | editor test plus walkthrough | 2 |
 | No network or upload code | CI source search plus review | 1, 4 |
-| Standalone command converts in a project without the package; refuses while open; non-zero on failure | macOS runs | 3 |
+| Standalone command converts in a project without the package; refuses while open; non-zero on failure | runs on macOS and Windows | 3 |
 | Upload behaves like the developer export | G4 owner check | 5 |
 | Developer command works through the package | command runs | 5 |
 | Docs describe shipped behavior | review | 5 |

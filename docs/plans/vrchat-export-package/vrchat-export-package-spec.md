@@ -2,10 +2,12 @@
 
 Status: Agreed
 Snapshot of https://github.com/raymond-van/animama/issues/795 (published and
-captured 2026-10-29T16:48:47Z); the issue is authoritative.
+captured 2026-10-29T16:48:47Z); the issue is authoritative. Revised locally the
+same day for the owner's platform decision below; the issue update is pending.
 Owner decision: 2026-10-29: offer both a Unity editor window and a standalone
-command line; test macOS first and Windows later; accept the proposed answers
-to Q1–Q8.
+command line; accept the proposed answers to Q1–Q8. Later the same day:
+support and verify macOS and Windows together, replacing "macOS first, Windows
+later".
 
 ## Problem and intended users
 
@@ -40,7 +42,7 @@ Goals:
   cannot install a dependency.
 - `vrm:convert-vrchat` stays a developer tool and runs the same exporter code as
   the package.
-- macOS first. Windows follows in a later phase with its own verification.
+- macOS and Windows from the first release, each verified before it.
 
 Non-goals:
 
@@ -134,8 +136,8 @@ Non-goals:
 - [ ] In a fresh VRChat Avatars project on the supported Unity version, adding
       the listing and following the guide installs the package and, through R6,
       its dependencies without command-line steps; the `Animama` menu appears
-      with no compile errors. Evidence: a recorded walkthrough on macOS; the
-      Windows phase repeats it on Windows.
+      with no compile errors. Evidence: a recorded walkthrough on macOS and on
+      Windows (VCC).
 - [ ] Exporting the converted test Avatar from the window produces a file whose
       `vrm:inspect` report matches `vrm:convert-vrchat --no-optimize` for the
       same prefab, and the source prefab and open scene are unchanged. Evidence:
@@ -155,7 +157,7 @@ Non-goals:
       that does not yet have the package, producing a file with the same
       `vrm:inspect` report as the window's export; it refuses while the project
       is open in Unity and exits non-zero on a validation error. Evidence:
-      command runs on macOS, counts only.
+      command runs on macOS and Windows, counts only.
 - [ ] Uploading the window's export through Create Anima loads, animates and
       shows motion, springs, blink, visemes and look-at as the CLI export does.
       Evidence: owner manual check on the converted test Avatar.
@@ -200,8 +202,9 @@ Non-goals:
 - **Q4 Supported range.** Decided 2026-10-29: Unity 2022.3 LTS (VRChat's
   current editor); UniVRM/UniGLTF 0.131.2 exactly; lilToon 2.3.4 or later within
   2.x; Mochiya pinned to a commit, moving from `d98e9091` (0.1.4) to `0826f6e3`
-  (0.1.6), whose changes since 0.1.4 touch only its upload code and docs. macOS
-  is tested first; Windows support is a later phase.
+  (0.1.6), whose changes since 0.1.4 touch only its upload code and docs.
+  macOS and Windows are supported and verified together (owner, later on
+  2026-10-29, replacing "macOS first").
 - **Q5 Names and hosting.** Decided 2026-10-29: repository
   `raymond-van/animama-avatar-export`, package `com.animama.avatar-export`,
   listing served from that repository's GitHub Pages (or the R2 release
@@ -213,7 +216,7 @@ Non-goals:
   itself. Decided 2026-10-29: report it to UniVRM (with Mochiya informed), after
   the owner approves posting. Not a blocker.
 - **Q8 Form of the standalone command (R7).** It needs a runtime that edits
-  `manifest.json` safely and runs on macOS and later Windows. Options:
+  `manifest.json` safely and runs on macOS and Windows. Options:
   (a) a Node script in the package repository, run with
   `npx github:raymond-van/animama-avatar-export` (Node 20 or later; no npm
   publication), which also becomes the core of `vrm:convert-vrchat`, so the
@@ -232,8 +235,9 @@ https://github.com/raymond-van/animama/issues/795
 ## ExecPlan
 
 Required: the work spans a new repository, a distribution channel, two user
-interfaces, the developer command and a later Windows phase. To be written
-after this issue is published.
+interfaces, the developer command and verification on two platforms.
+Drafted in `docs/plans/vrchat-export-package/vrchat-export-package-execplan.md`
+on `feat/vrchat-export-package`; linked here once pushed.
 
 ## Delivery links
 
