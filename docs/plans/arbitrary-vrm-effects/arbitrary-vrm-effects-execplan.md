@@ -107,6 +107,9 @@ Evidence in this plan and the PR is counts and pass/fail only.
 
 ## Decision Log
 
+- 2026-10-29, owner: implement Phase 8 in this PR rather than splitting it to
+  its own issue; skip the proposed hold-out check on new Avatars in Phase 9
+  (Phase 9 re-runs only the survey set).
 - 2026-10-27, owner: open a new issue and ExecPlan for the survey's gap fixes,
   delivered as its own PR after PR #744 merges. #744 merged the same day; this
   branch starts from `main` at `b8fed9a5`.
