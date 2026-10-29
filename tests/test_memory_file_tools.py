@@ -709,6 +709,16 @@ async def test_memory_search_finds_words_inside_unspaced_text(async_session) -> 
 
 
 @pytest.mark.asyncio
+async def test_memory_search_keeps_marks_that_end_non_ascii_words(async_session) -> None:
+    # The Thai tone mark ending แม่ (mother) is a combining mark, not punctuation; แมว is cat.
+    await _put_user_file(async_session, "cat.md", "แมวของฉันชื่อมะลิ")
+    await _put_user_file(async_session, "mother.md", "แม่ของฉันชอบชา")
+
+    assert await _search_memory_paths(async_session, "แม่") == ["mother.md"]
+    assert await _search_memory_paths(async_session, "ฉัน -แม่") == ["cat.md"]
+
+
+@pytest.mark.asyncio
 async def test_memory_search_matches_non_ascii_text_literally(async_session) -> None:
     await _put_user_file(async_session, "juice.md", "果汁100%のジュースを買いました。")
     await _put_user_file(async_session, "tea.md", "果汁100円のお茶を買いました。")

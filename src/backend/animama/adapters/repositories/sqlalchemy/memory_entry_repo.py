@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import operator
 import re
+import unicodedata
 from dataclasses import dataclass
 from datetime import datetime
 from functools import reduce
@@ -109,12 +110,24 @@ _SEARCH_CLAUSE_PATTERN = re.compile(r'-?"[^"]*"?|\S+')
 # Each positive clause nests the statement one level deeper, and SQLAlchemy compiles it recursively,
 # so a pasted passage would exceed Python's recursion limit without this bound.
 _MAX_POSITIVE_SEARCH_CLAUSES = 32
-# Non-word characters at either end of a clause: the exclusion "-", quotes and CJK brackets such as 「」.
-_CLAUSE_EDGE_PATTERN = re.compile(r"^\W+|\W+$")
 
 
 def _websearch_clause(clause: str) -> ColumnElement[Any]:
     return func.websearch_to_tsquery("english", clause, type_=TSQUERY)
+
+
+def _trim_edge_punctuation(clause: str) -> str:
+    """Strip punctuation, symbols and spaces from both ends, such as the exclusion "-", quotes and 「」.
+
+    Combining marks stay, because Thai tone marks and Devanagari vowel signs end many words.
+    """
+
+    start, end = 0, len(clause)
+    while start < end and unicodedata.category(clause[start])[0] in "PSZ":
+        start += 1
+    while end > start and unicodedata.category(clause[end - 1])[0] in "PSZ":
+        end -= 1
+    return clause[start:end]
 
 
 def _substring_pattern(clause: str) -> str | None:
@@ -128,7 +141,7 @@ def _substring_pattern(clause: str) -> str | None:
     never matches ``category``.
     """
 
-    term = _CLAUSE_EDGE_PATTERN.sub("", clause)
+    term = _trim_edge_punctuation(clause)
     if not any(not char.isascii() and char.isalnum() for char in term):
         return None
     escaped = term.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
