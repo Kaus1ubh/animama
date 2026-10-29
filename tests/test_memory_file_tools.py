@@ -685,6 +685,9 @@ async def test_memory_search_keeps_phrases_and_exclusions(async_session) -> None
     assert await _search_memory_paths(async_session, "moon -pickle") == ["album.md"]
     assert set(await _search_memory_paths(async_session, "trains OR photo")) == {"library.md", "album.md"}
     assert set(await _search_memory_paths(async_session, "-pickle")) == {"library.md", "album.md"}
+    # Exclusions that parse to nothing, a bare "-" or a stop word, exclude nothing.
+    assert await _search_memory_paths(async_session, "moon - pickle") == ["pickle.md", "album.md"]
+    assert set(await _search_memory_paths(async_session, "moon -the")) == {"pickle.md", "album.md"}
 
 
 @pytest.mark.asyncio
@@ -700,15 +703,23 @@ async def test_memory_search_finds_words_inside_unspaced_text(async_session) -> 
     assert await _search_memory_paths(async_session, "京都 -抹茶") == ["autumn.md"]
     assert set(await _search_memory_paths(async_session, "-抹茶")) == {"autumn.md", "seoul.md"}
     assert await _search_memory_paths(async_session, '"京都で抹茶"') == ["kyoto.md"]
+    assert await _search_memory_paths(async_session, "「抹茶」") == ["kyoto.md"]
+    assert set(await _search_memory_paths(async_session, "京都 -。")) == {"kyoto.md", "autumn.md"}
     assert await _search_memory_paths(async_session, "서울") == ["seoul.md"]
 
 
 @pytest.mark.asyncio
 async def test_memory_search_matches_non_ascii_text_literally(async_session) -> None:
     await _put_user_file(async_session, "juice.md", "果汁100%のジュースを買いました。")
+    await _put_user_file(async_session, "tea.md", "果汁100円のお茶を買いました。")
     await _put_user_file(async_session, "kyoto.md", "京都の紅葉がきれいでした。")
+    await _put_user_file(async_session, "photos.md", "写真は C:\\データ\\写真 に保存しました。")
+    await _put_user_file(async_session, "album.md", "データ写真を整理しました。")
 
-    assert await _search_memory_paths(async_session, "%の") == ["juice.md"]
+    # %, _ and \ match only themselves.
+    assert await _search_memory_paths(async_session, "果汁100%の") == ["juice.md"]
+    assert await _search_memory_paths(async_session, "京_の") == []
+    assert await _search_memory_paths(async_session, "データ\\写真") == ["photos.md"]
     assert await _search_memory_paths(async_session, "。") == []
 
 
@@ -724,8 +735,10 @@ async def test_memory_search_snippet_shows_the_matched_non_ascii_word(async_sess
     await _put_user_file(async_session, "diary.md", "あ" * 1000 + "週末に京都で抹茶を飲みました。")
 
     [result] = await _search_memory_results(async_session, "抹茶")
+    [single_character] = await _search_memory_results(async_session, "茶")
 
     assert "京都で抹茶" in result["snippet"]
+    assert "京都で抹茶" in single_character["snippet"]
 
 
 @pytest.mark.asyncio

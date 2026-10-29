@@ -82,7 +82,8 @@ def _snippet_for_query(entry: MemoryEntry, query: str, *, max_chars: int) -> str
     if len(text_value) <= max_chars:
         return text_value
 
-    terms = [term.lower() for term in re.findall(r"\w{2,}", query)]
+    # Words of two or more characters, or one non-ASCII character such as the Chinese word 茶 (tea).
+    terms = [term.lower() for term in re.findall(r"\w+", query) if len(term) > 1 or not term.isascii()]
     lowered = text_value.lower()
     first_idx = -1
     for term in terms:
@@ -108,6 +109,8 @@ _SEARCH_CLAUSE_PATTERN = re.compile(r'-?"[^"]*"?|\S+')
 # Each positive clause nests the statement one level deeper, and SQLAlchemy compiles it recursively,
 # so a pasted passage would exceed Python's recursion limit without this bound.
 _MAX_POSITIVE_SEARCH_CLAUSES = 32
+# Non-word characters at either end of a clause: the exclusion "-", quotes and CJK brackets such as 「」.
+_CLAUSE_EDGE_PATTERN = re.compile(r"^\W+|\W+$")
 
 
 def _websearch_clause(clause: str) -> ColumnElement[Any]:
@@ -120,11 +123,12 @@ def _substring_pattern(clause: str) -> str | None:
     PostgreSQL's ``english`` parser splits words only at spaces and punctuation, so
     Japanese, Chinese or Thai text becomes one token per run and Korean words keep
     their attached particles. A clause containing a non-ASCII letter or digit
-    therefore also matches as a case-insensitive substring. ASCII-only clauses
-    return None and keep word matching, so ``cat`` never matches ``category``.
+    therefore also matches as a case-insensitive substring, without the punctuation
+    at its ends. ASCII-only clauses return None and keep word matching, so ``cat``
+    never matches ``category``.
     """
 
-    term = clause.removeprefix("-").strip('"')
+    term = _CLAUSE_EDGE_PATTERN.sub("", clause)
     if not any(not char.isascii() and char.isalnum() for char in term):
         return None
     escaped = term.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
@@ -728,7 +732,14 @@ class SQLAlchemyMemoryEntryRepository(MemoryEntryRepository):
                 )
             )
             if search.exclusion is not None:
-                match_filters.append(ORMMemoryEntry.search_vector.op("@@")(search.exclusion))
+                # An exclusion of only stop words or punctuation, such as "-the" or "-", parses to an empty
+                # tsquery, which matches nothing; ignore it, as the tsquery && operator does.
+                match_filters.append(
+                    or_(
+                        func.numnode(search.exclusion) == 0,
+                        ORMMemoryEntry.search_vector.op("@@")(search.exclusion),
+                    )
+                )
             matched_clauses = reduce(
                 operator.add,
                 (cast(clause_matches(clause), Integer) for clause in search.positives),
