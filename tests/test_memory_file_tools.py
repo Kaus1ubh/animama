@@ -598,7 +598,7 @@ async def test_memory_search_can_exclude_episodes_before_result_limit(async_sess
     }
 
 
-async def _search_memory_paths(async_session, query: str) -> list[str]:  # noqa: ANN001
+async def _search_memory_results(async_session, query: str) -> list[dict[str, Any]]:  # noqa: ANN001
     search = _loads(
         await _tool_service(async_session).execute(
             tool_name=MEMORY_TOOL_SEARCH_MEMORY_FILES,
@@ -608,7 +608,11 @@ async def _search_memory_paths(async_session, query: str) -> list[str]:  # noqa:
         )
     )
     assert search["ok"] is True
-    return [result["path"] for result in search["memory_results"]]
+    return cast(list[dict[str, Any]], search["memory_results"])
+
+
+async def _search_memory_paths(async_session, query: str) -> list[str]:  # noqa: ANN001
+    return [result["path"] for result in await _search_memory_results(async_session, query)]
 
 
 async def _put_episode_log(async_session, relative_path: str, text: str) -> None:  # noqa: ANN001
@@ -681,6 +685,64 @@ async def test_memory_search_keeps_phrases_and_exclusions(async_session) -> None
     assert await _search_memory_paths(async_session, "moon -pickle") == ["album.md"]
     assert set(await _search_memory_paths(async_session, "trains OR photo")) == {"library.md", "album.md"}
     assert set(await _search_memory_paths(async_session, "-pickle")) == {"library.md", "album.md"}
+
+
+@pytest.mark.asyncio
+async def test_memory_search_finds_words_inside_unspaced_text(async_session) -> None:
+    # The english parser keeps each run of Japanese text as one token, so only the whole sentence matched.
+    await _put_user_file(async_session, "kyoto.md", "週末に京都で抹茶を飲みました。")
+    await _put_user_file(async_session, "autumn.md", "京都の紅葉がきれいでした。")
+    await _put_user_file(async_session, "seoul.md", "주말에 서울에서 커피를 마셨다.")
+
+    assert await _search_memory_paths(async_session, "抹茶") == ["kyoto.md"]
+    assert set(await _search_memory_paths(async_session, "京都")) == {"kyoto.md", "autumn.md"}
+    assert await _search_memory_paths(async_session, "京都 抹茶") == ["kyoto.md", "autumn.md"]
+    assert await _search_memory_paths(async_session, "京都 -抹茶") == ["autumn.md"]
+    assert set(await _search_memory_paths(async_session, "-抹茶")) == {"autumn.md", "seoul.md"}
+    assert await _search_memory_paths(async_session, '"京都で抹茶"') == ["kyoto.md"]
+    assert await _search_memory_paths(async_session, "서울") == ["seoul.md"]
+
+
+@pytest.mark.asyncio
+async def test_memory_search_matches_non_ascii_text_literally(async_session) -> None:
+    await _put_user_file(async_session, "juice.md", "果汁100%のジュースを買いました。")
+    await _put_user_file(async_session, "kyoto.md", "京都の紅葉がきれいでした。")
+
+    assert await _search_memory_paths(async_session, "%の") == ["juice.md"]
+    assert await _search_memory_paths(async_session, "。") == []
+
+
+@pytest.mark.asyncio
+async def test_memory_search_keeps_ascii_words_whole(async_session) -> None:
+    await _put_user_file(async_session, "music.md", "The user's favourite category is jazz.")
+
+    assert await _search_memory_paths(async_session, "cat") == []
+
+
+@pytest.mark.asyncio
+async def test_memory_search_snippet_shows_the_matched_non_ascii_word(async_session) -> None:
+    await _put_user_file(async_session, "diary.md", "あ" * 1000 + "週末に京都で抹茶を飲みました。")
+
+    [result] = await _search_memory_results(async_session, "抹茶")
+
+    assert "京都で抹茶" in result["snippet"]
+
+
+@pytest.mark.asyncio
+async def test_memory_search_handles_long_non_ascii_queries(async_session) -> None:
+    await _put_user_file(async_session, "kyoto.md", "週末に京都で抹茶を飲みました。")
+    await _put_user_file(async_session, "autumn.md", "京都の紅葉がきれいでした。")
+    filler = " ".join(f"言葉{index}" for index in range(400))
+    exclusions = " ".join(f"-無い{index}" for index in range(400))
+    # The test runner raises the recursion limit; the server runs with Python's default.
+    runner_limit = sys.getrecursionlimit()
+    sys.setrecursionlimit(1000)
+    try:
+        paths = await _search_memory_paths(async_session, f"京都 {filler} {exclusions} -紅葉")
+    finally:
+        sys.setrecursionlimit(runner_limit)
+
+    assert paths == ["kyoto.md"]
 
 
 @pytest.mark.asyncio

@@ -392,8 +392,24 @@ phrase adjacency; `OR` is redundant. `-term` exclusions remove every file that
 contains the term. Files that match more of the query's words and phrases rank
 above files that match fewer, and `ts_rank_cd` orders files with the same
 count. Only the first 32 words or phrases are used; every exclusion applies.
-Japanese text uses the `english` tokenisation, which does not split words that
-lack spaces. The tool description asks the model for 2-5 distinctive keywords
+
+The `english` parser splits words only at spaces and punctuation, so Japanese,
+Chinese and Thai text becomes one token per run and Korean words keep their
+particles (`서울에서`). A word or quoted phrase containing a non-ASCII letter or
+digit therefore also matches as a case-insensitive substring (`ILIKE`, with
+`%`, `_` and `\` matched literally) of the path, description and content, and
+a non-ASCII `-term` excludes files containing it anywhere. `京都` finds
+`週末に京都で抹茶を飲みました。`. A substring-only match counts toward the
+matched-word ranking with a `ts_rank_cd` of 0, so whole-word matches rank first
+among files with the same count. ASCII-only words keep word matching, so `cat`
+does not find `category`. An unspaced run must appear verbatim (`京都で抹茶`
+does not find `京都の抹茶`), and case folding of non-ASCII letters follows the
+database LC_CTYPE. Substring matching needs no extension or schema change and
+scans the owner's live files in scope without an index. A `pg_trgm` index would
+not help: it cannot index two-character words such as `京都` and extracts no
+trigrams from CJK text under a `C` locale.
+
+The tool description asks the model for 2-5 distinctive keywords
 rather than a full question and explains that matching any keyword is enough;
 Anthropic Memory Manager runs reuse that description.
 
