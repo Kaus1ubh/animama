@@ -355,7 +355,10 @@ def test_memory_tool_schemas_are_strict_and_do_not_expose_expected_version() -> 
         },
     }
     assert "quoted phrases, OR, and -term exclusions" in upload_tool["function"]["description"]
-    assert "text without spaces matches only where it appears exactly" in upload_tool["function"]["description"]
+    assert (
+        "keyword matching finds text without spaces only where it appears exactly"
+        in (upload_tool["function"]["description"])
+    )
     upload_description = upload_tool["function"]["description"]
     assert "accessible through uploaded-file tools" in upload_description
     assert "relevance lookup, exact phrases, or locating a chunk" in upload_description

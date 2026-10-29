@@ -882,21 +882,22 @@ def _read_files_tool() -> dict[str, Any]:
 # Unspaced Japanese, Chinese or Thai text is one full-text token, matched only as a substring
 # (animama.domain.search_terms), so run-together words find nothing unless they appear verbatim.
 _SPACED_KEYWORDS_ADVICE = (
-    "Separate words with spaces, in Japanese, Chinese or Thai too: text without spaces matches only where it "
-    "appears exactly as written."
+    "Separate words with spaces, in Japanese, Chinese or Thai too: keyword matching finds text without spaces "
+    "only where it appears exactly as written."
+)
+# Shared with both Memory Manager runtimes' search_memory_files tools.
+MEMORY_SEARCH_FILES_DESCRIPTION = (
+    "Search the user's markdown memory files and the episode log of notes from past chats. "
+    "Use 2-5 distinctive keywords, such as names, places, projects or topics, rather than a full question. "
+    "A file matches when it contains any keyword or quoted phrase, and files that match more of them rank "
+    f"first. Prefix a word with - to exclude files that contain it. {_SPACED_KEYWORDS_ADVICE}"
 )
 
 
 def _search_memory_files_tool() -> dict[str, Any]:
     return _function_tool(
         MEMORY_TOOL_SEARCH_MEMORY_FILES,
-        (
-            "Search the user's markdown memory files and the episode log of notes from past chats. "
-            "Use 2-5 distinctive keywords, such as names, places, projects or topics, rather than a full question. "
-            "A file matches when it contains any keyword or quoted phrase, and files that match more of them rank "
-            "first. Prefix a word with - to exclude files that contain it. "
-            f"{_SPACED_KEYWORDS_ADVICE}"
-        ),
+        MEMORY_SEARCH_FILES_DESCRIPTION,
         _object_schema(
             {
                 "query": {
@@ -1305,6 +1306,7 @@ __all__ = [
     "MEMORY_TOOL_WRITE_NAMES",
     "MAX_UPLOADED_FILE_READ_CHUNKS",
     "MAX_UPLOADED_FILE_READ_RESPONSE_TOKENS",
+    "MEMORY_SEARCH_FILES_DESCRIPTION",
     "MemoryToolExecutionContext",
     "memory_tool_specs",
     "memory_tools_active",

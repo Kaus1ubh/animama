@@ -31,6 +31,7 @@ from animama.adapters.repositories.sqlalchemy.model_provider_repo import SQLAlch
 from animama.adapters.repositories.sqlalchemy.product_repositories import SQLAlchemyProductRepositories
 from animama.adapters.repositories.sqlalchemy.uow import SQLAlchemyUnitOfWork
 from animama.app.chat.conversation_language import MEMORY_LANGUAGE_RULE
+from animama.app.chat.memory_tools import MEMORY_SEARCH_FILES_DESCRIPTION
 from animama.app.model_clients.context_budget import estimate_text_tokens
 from animama.app.model_clients.credentials import static_credential_resolver
 from animama.app.safety.prompts import SENSITIVE_MEMORY_RULE
@@ -884,6 +885,8 @@ async def test_live_runtime_offers_turn_reading_and_own_memories_only_in_reflect
         "read_reflection_turns",
         "apply_patch",
     ]
+    search_tool = next(tool for tool in reflection_agent.tools if tool.name == "search_memory_files")
+    assert search_tool.description == MEMORY_SEARCH_FILES_DESCRIPTION
     instructions = reflection_agent.instructions
     assert isinstance(instructions, str)
     assert "# Reflection mode" in instructions

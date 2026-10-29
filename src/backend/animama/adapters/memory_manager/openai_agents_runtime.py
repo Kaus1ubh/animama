@@ -25,6 +25,7 @@ from animama.adapters.openai_agents import OpenAIAgentsRunner, OpenAIAgentsRunOu
 from animama.app.chat.api_standard import ANTHROPIC_MESSAGES_PROVIDER_TYPE, OPENAI_RESPONSES_PROVIDER_TYPE
 from animama.app.chat.conversation_language import MEMORY_LANGUAGE_RULE
 from animama.app.chat.memory_tools import (
+    MEMORY_SEARCH_FILES_DESCRIPTION,
     MEMORY_TOOL_LIST_FILES,
     MEMORY_TOOL_READ_FILES,
     MEMORY_TOOL_SEARCH_MEMORY_FILES,
@@ -457,15 +458,14 @@ class OpenAIAgentsMemoryManagerRuntime:
                 native_patch_mode=True,
             )
 
-        @function_tool(name_override=MEMORY_TOOL_SEARCH_MEMORY_FILES)
+        @function_tool(
+            name_override=MEMORY_TOOL_SEARCH_MEMORY_FILES, description_override=MEMORY_SEARCH_FILES_DESCRIPTION
+        )
         async def search_memory_files(
             query: str,
             include_episodic_memory: bool,
         ) -> dict[str, Any]:
-            """Search user memory files with PostgreSQL web-search syntax.
-
-            Episode logs may optionally be excluded.
-            """
+            """Search user memory files; the model sees the chat tool's shared description."""
 
             return await user_memory_reads.search_files(
                 user_id=self._user_id,

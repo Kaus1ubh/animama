@@ -27,6 +27,11 @@ describe("chatSearchHighlightTerms", () => {
     expect(chatSearchHighlightTerms("แม่")).toEqual(["แม่"]);
   });
 
+  it("keeps a long run of punctuation inside a word", () => {
+    const word = `京${"!".repeat(100_000)}都`;
+    expect(chatSearchHighlightTerms(word)).toEqual([word]);
+  });
+
   it("returns nothing for punctuation alone", () => {
     expect(chatSearchHighlightTerms(" 。 - ")).toEqual([]);
   });

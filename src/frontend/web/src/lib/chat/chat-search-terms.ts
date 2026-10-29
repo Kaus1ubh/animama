@@ -9,15 +9,32 @@
  * tone marks stay, because they end words.
  */
 
-const EDGE_PUNCTUATION = /^[\p{P}\p{S}\p{Z}]+|[\p{P}\p{S}\p{Z}]+$/gu;
+const EDGE_CHARACTER = /^[\p{P}\p{S}\p{Z}]$/u;
 const NON_ASCII_LETTER_OR_DIGIT = /(?!\p{ASCII})[\p{L}\p{N}]/u;
 const ASCII_TERM = /[A-Za-z0-9_]{2,}/g;
 const MAX_TERMS = 8;
 
+/**
+ * Strip punctuation, symbols and spaces from both ends of a word, one code
+ * point at a time; a trailing-run regex would be quadratic on long runs.
+ */
+function trimEdgePunctuation(word: string): string {
+  const characters = Array.from(word);
+  let start = 0;
+  let end = characters.length;
+  while (start < end && EDGE_CHARACTER.test(characters[start] ?? "")) {
+    start += 1;
+  }
+  while (end > start && EDGE_CHARACTER.test(characters[end - 1] ?? "")) {
+    end -= 1;
+  }
+  return characters.slice(start, end).join("");
+}
+
 /** Return the lowercased, distinct query words to highlight, longest first. */
 export function chatSearchHighlightTerms(query: string): string[] {
   const terms = query.split(/\s+/).flatMap((word) => {
-    const trimmed = word.replace(EDGE_PUNCTUATION, "");
+    const trimmed = trimEdgePunctuation(word);
     return NON_ASCII_LETTER_OR_DIGIT.test(trimmed)
       ? [trimmed]
       : (word.match(ASCII_TERM) ?? []);
