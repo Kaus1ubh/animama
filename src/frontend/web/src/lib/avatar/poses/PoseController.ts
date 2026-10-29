@@ -59,6 +59,11 @@ import {
   retargetClipSampleForVrm0,
   retargetPoseForVrm0,
 } from "./poseRetargeting";
+import {
+  foldMissingTorsoRotations,
+  torsoFoldsOf,
+  type TorsoFold,
+} from "./anatomy/optionalBones";
 
 export type PoseControllerApplyOptions = {
   /**
@@ -214,11 +219,14 @@ export class PoseController {
   private _clipEventSink: AnimaPoseClipEventSink | null = null;
   private _nextClipPlaybackId: number = 1;
   private _isVrm0: boolean;
+  /** Torso bones the rig lacks, folded into the bone below (usually none). */
+  private readonly _torsoFolds: readonly TorsoFold[];
   private readonly _motionCatalog: AvatarMotionCatalog;
 
   constructor(vrm: VRM, options: PoseControllerOptions = {}) {
     this._vrm = vrm;
     this._isVrm0 = options.isVrm0 === true;
+    this._torsoFolds = torsoFoldsOf(vrm.humanoid);
     this._motionCatalog =
       options.motionCatalog ?? BUILT_IN_AVATAR_MOTION_CATALOG;
     this._poseStates = createPoseRuntimeStates(this._motionCatalog);
@@ -1357,10 +1365,27 @@ export class PoseController {
     return this._isVrm0 ? retargetPoseForVrm0(pose) : pose;
   }
 
+  /**
+   * A sample in this rig's terms: torso bones it lacks folded into the bone
+   * below (prepared clips arrive folded; default poses do not), then the VRM 0
+   * basis. Every sample a fade blends passes through here or is captured from
+   * the rig, so a fade never mixes a folded chest with an unfolded upper chest
+   * (interpolation keeps a bone only one side has at that side's value).
+   */
   private _retargetClipSampleForRuntime(
     sample: AnimaPoseClipSample,
   ): AnimaPoseClipSample {
-    return this._isVrm0 ? retargetClipSampleForVrm0(sample) : sample;
+    const rigSample =
+      sample.humanoid && this._torsoFolds.length > 0
+        ? {
+            ...sample,
+            humanoid: foldMissingTorsoRotations(
+              sample.humanoid,
+              this._torsoFolds,
+            ),
+          }
+        : sample;
+    return this._isVrm0 ? retargetClipSampleForVrm0(rigSample) : rigSample;
   }
 }
 

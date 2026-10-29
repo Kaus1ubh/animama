@@ -56,6 +56,11 @@ import {
 } from "./placementGuideText";
 
 import type { Avatar } from "../Avatar";
+import {
+  headSized,
+  measureAvatarProportions,
+  type AvatarProportions,
+} from "../avatarProportions";
 import type {
   AvatarFaceTextureAnchorSnapshot,
   AvatarFaceTextureAnchorsSnapshot,
@@ -80,7 +85,9 @@ import { matchAvatarTargetRole } from "./avatarRuntimeTargeting";
 import {
   AVATAR_FACE_PART_LABELS,
   createFaceVertexFilter,
+  findFaceSkinRegion,
   findMissingFacePart,
+  hasEstimatedEyes,
   resolveFacePartTargetRoles,
   type AvatarFacePartRole,
 } from "./faceParts";
@@ -341,9 +348,27 @@ const SUPPORTED_TEXTURE_SLOTS: AvatarVFXTextureSlot[] = [
   "shadeMultiplyTexture",
 ];
 
+/**
+ * Hover plane heights (m) at the Included Avatars' size. Eye planes grow with
+ * eyes larger than {@link EYE_HOVER_REFERENCE_EYE_HEIGHT}, box planes with a
+ * big head ({@link headSized}).
+ */
 const EYE_HOVER_PLANE_HEIGHT = 0.06;
 const BOX_HOVER_PLANE_HEIGHT = 0.08;
+/**
+ * The largest eye the fixed eye plane fits (m): the Included Avatars' irises
+ * are 0.024-0.033 m high, and adult proportions measure up to about 0.038 m.
+ * A larger eye (a chibi's or a robot's) scales the plane by its height over
+ * this, so eye overlays keep covering it.
+ */
+const EYE_HOVER_REFERENCE_EYE_HEIGHT = 0.04;
 const EYE_HOVER_SURFACE_LERP = 0.35;
+/**
+ * How far in front of the face's surface an estimated eye's plane stays, as a
+ * share of the distance between the eyes: an eye without its own mesh has no
+ * depth of its own, and the face may bulge in front of it.
+ */
+const EYE_HOVER_SURFACE_CLEARANCE = 0.05;
 const MOUTH_HOVER_SURFACE_LERP = 0.1;
 const HOVER_SKIN_BACKDROP_TEXTURE_SIZE = 256;
 const HOVER_SKIN_BACKDROP_WIDTH_SCALE = 1.0;
@@ -369,6 +394,12 @@ const EYE_HOVER_AUTO_DISABLED_ROLES: AvatarVFXTargetRole[] = [
 ];
 /** Hidden roles whose parts can also be regions of a shared primitive. */
 const DETAIL_REGION_ROLES = ["eyeline", "eyelash"] as const;
+/**
+ * Roles hidden region by region when a part is a region of a shared
+ * primitive: the eye details, and face skin that is the head region of a
+ * primitive holding the whole body.
+ */
+const HIDDEN_REGION_ROLES = [...DETAIL_REGION_ROLES, "face_skin"] as const;
 const HOVER_BACKDROP_STRIPPED_TEXTURE_PROPS = [
   "alphaMap",
   "normalMap",
@@ -598,6 +629,134 @@ function getRenderableMainMaterial(object: THREE.Mesh): THREE.Material | null {
     ? (object.material[0] ?? null)
     : object.material;
   return material instanceof THREE.Material ? material : null;
+}
+
+/**
+ * Whether art painted on a face skin binding's textures shows: its material
+ * draws a base color texture (`map`) through the first UV set, the image face
+ * anchors and clips are measured on, and an overlay can paint it. Painted
+ * into MToon's shade texture alone, art would show only in shadow.
+ */
+function showsPaintedFaceArt(
+  binding: Pick<BindingState, "textureSlots">,
+  applyMode: AvatarVFXApplyMode,
+): boolean {
+  const map = binding.textureSlots.find((slot) => slot.slot === "map");
+  return (
+    map !== undefined &&
+    map.texture.channel === 0 &&
+    (applyMode !== "overlay" || map.canOverlay)
+  );
+}
+
+/**
+ * The least change, as a share of full brightness, a multiply-blended decal
+ * must make in some colour channel for it to show: 8 of 255, the largest
+ * channel step the review renders (`effects:render`) count as a visible
+ * change. Included `shiver_undereye` (opacity 0.45, art mean about 0.69,
+ * 0.85, 0.98) changes the red channel of the Included Avatars' skin under its
+ * anchors by about 34/255 and of the darkest survey skin by about 25/255;
+ * the neutral dark grey screen of a low-poly robot face by about 7/255.
+ */
+const MULTIPLY_MIN_VISIBLE_CHANGE = 8 / 255;
+/** Longest side, in pixels, an image is reduced to before its mean is read. */
+const COLOR_SAMPLE_SIZE = 64;
+
+/** A colour as three channels, 0–1 each. */
+type Rgb = readonly [number, number, number];
+
+/**
+ * The mean colour (0–1 per channel, weighted by alpha, on the stored values)
+ * of `image` within `rect` (its pixels, clamped to the image), or null when
+ * it cannot be read. The area is reduced to at most
+ * {@link COLOR_SAMPLE_SIZE} pixels a side first.
+ */
+function meanImageColor(image: CanvasImageSource, rect: PixelRect): Rgb | null {
+  const size = getImageSize(image);
+  if (!size) return null;
+  const x = clampNumber(Math.floor(rect.x), 0, size.width - 1);
+  const y = clampNumber(Math.floor(rect.y), 0, size.height - 1);
+  const width = clampNumber(Math.ceil(rect.width), 1, size.width - x);
+  const height = clampNumber(Math.ceil(rect.height), 1, size.height - y);
+  const scale = Math.min(1, COLOR_SAMPLE_SIZE / Math.max(width, height));
+  const sampleWidth = Math.max(1, Math.round(width * scale));
+  const sampleHeight = Math.max(1, Math.round(height * scale));
+  try {
+    const { context } = createCanvas(sampleWidth, sampleHeight);
+    context.drawImage(
+      image,
+      x,
+      y,
+      width,
+      height,
+      0,
+      0,
+      sampleWidth,
+      sampleHeight,
+    );
+    const pixels = context.getImageData(0, 0, sampleWidth, sampleHeight).data;
+    let weight = 0;
+    const totals = [0, 0, 0];
+    for (let at = 0; at < pixels.length; at += 4) {
+      const alpha = pixels[at + 3]! / 255;
+      if (alpha <= 0) continue;
+      weight += alpha;
+      for (let channel = 0; channel < 3; channel += 1) {
+        totals[channel]! += alpha * pixels[at + channel]!;
+      }
+    }
+    if (weight <= 0) return null;
+    return [
+      totals[0]! / weight / 255,
+      totals[1]! / weight / 255,
+      totals[2]! / weight / 255,
+    ];
+  } catch {
+    return null;
+  }
+}
+
+/** A `#rrggbb` tint as channels; white when it cannot be read. */
+function tintColor(tint: string): Rgb {
+  const value = Number.parseInt(tint.slice(1, 7), 16);
+  if (!Number.isFinite(value)) return [1, 1, 1];
+  return [
+    ((value >> 16) & 255) / 255,
+    ((value >> 8) & 255) / 255,
+    (value & 255) / 255,
+  ];
+}
+
+/**
+ * An estimate of how much a multiply-blended decal changes the surface it is
+ * painted on, as a share of full brightness in the channel it changes most:
+ * multiply scales each channel of the surface by the art's, so at opacity
+ * `o` a channel changes by `o × S × (1 − A × T)` from the surface's mean
+ * `S`, the art's mean `A` and the tint `T` in that channel. The brightest
+ * placement counts. Means, not per-pixel values, so a decal over a mixed
+ * surface may still show a little where this says it does not. Null when
+ * the images cannot be read.
+ */
+function multiplyDecalChange(args: {
+  effect: AvatarVFXCatalogEntry;
+  art: CanvasImageSource;
+  surface: CanvasImageSource;
+  placements: readonly TexturePixelPlacementInstance[];
+}): number | null {
+  const size = getImageSize(args.art);
+  const art = size ? meanImageColor(args.art, { x: 0, y: 0, ...size }) : null;
+  const surfaces = args.placements
+    .map((placement) => meanImageColor(args.surface, placement.rect))
+    .filter((value): value is Rgb => value !== null);
+  if (!art || surfaces.length === 0) return null;
+  const appearance = resolveAppearance(args.effect);
+  const tint = appearance.tint ? tintColor(appearance.tint) : [1, 1, 1];
+  const changes = surfaces.flatMap((surface) =>
+    surface.map(
+      (value, channel) => value * (1 - art[channel]! * tint[channel]!),
+    ),
+  );
+  return appearance.opacity * Math.max(...changes);
 }
 
 function getTextureImageSource(
@@ -1094,6 +1253,33 @@ function createAnchoredTexturePlacementRect(args: {
   };
 }
 
+/** `text` with its first letter lower-cased, to follow a colon. */
+function lowerFirst(text: string): string {
+  return text.charAt(0).toLowerCase() + text.slice(1);
+}
+
+/**
+ * Why painted face art is skipped with its own Diagnostics finding rather
+ * than `effect_placement_failed`.
+ */
+type TexturePlacementSkip =
+  | "effect_anchor_covered"
+  | "effect_face_texture_hidden"
+  | "effect_surface_too_dark";
+
+/** The result of an anchored decal whose anchor lies under other surfaces. */
+function coveredAnchorPlacement(anchor: string): {
+  instances: TexturePlacementInstance[];
+  warning: string;
+  skip: TexturePlacementSkip;
+} {
+  return {
+    instances: [],
+    warning: `The ${anchor} texture anchor lies under other parts of this avatar (eyes or a nose modelled over the skin), so art painted there would not show.`,
+    skip: "effect_anchor_covered",
+  };
+}
+
 function resolveAnchoredTexturePlacementInstances(args: {
   effect: AvatarFaceAnchoredVFXEntry;
   faceTextureAnchors: AvatarFaceTextureAnchorsSnapshot;
@@ -1101,6 +1287,7 @@ function resolveAnchoredTexturePlacementInstances(args: {
 }): {
   instances: TexturePlacementInstance[];
   warning?: string;
+  skip?: TexturePlacementSkip;
 } {
   const { effect, faceTextureAnchors } = args;
   if (faceTextureAnchors.status !== "ready") {
@@ -1122,6 +1309,7 @@ function resolveAnchoredTexturePlacementInstances(args: {
         warning: "No mouth texture anchor was resolved for the active avatar.",
       };
     }
+    if (mouthAnchor.covered) return coveredAnchorPlacement(textureAnchor);
     return {
       instances: [
         {
@@ -1156,6 +1344,9 @@ function resolveAnchoredTexturePlacementInstances(args: {
   }
 
   if (resolveTextureLayout(effect) === "span") {
+    if (leftAnchor.covered || rightAnchor.covered) {
+      return coveredAnchorPlacement(textureAnchor);
+    }
     const centerUv = {
       u: (leftAnchor.uv.u + rightAnchor.uv.u) * 0.5,
       v: (leftAnchor.uv.v + rightAnchor.uv.v) * 0.5,
@@ -1201,6 +1392,12 @@ function resolveAnchoredTexturePlacementInstances(args: {
   const oppositeSide = resolveOppositeSide(primarySide);
   const primaryAnchor = primarySide === "left" ? leftAnchor : rightAnchor;
   const oppositeAnchor = oppositeSide === "left" ? leftAnchor : rightAnchor;
+  if (
+    primaryAnchor.covered ||
+    (effect.requiresMirror && oppositeAnchor.covered)
+  ) {
+    return coveredAnchorPlacement(textureAnchor);
+  }
 
   const instances: TexturePlacementInstance[] = [
     {
@@ -1236,7 +1433,10 @@ function resolveAnchoredTexturePlacementInstances(args: {
 /**
  * Where a texture effect draws on one slot's canvas, in its pixels. Whole-face
  * art covers the face rectangle, clipped to the face skin's own triangles
- * when `faceClip` (read only for that art) returns their path.
+ * when `faceClip` (read only for that art) returns their path; where the clip
+ * is `faceClipRequired` (a face inside a whole-body primitive, whose body
+ * shares the texture) and cannot be built, it is not drawn. Anchored decals
+ * are clipped to `decalClip` when it returns one (the same faces).
  */
 function resolveTextureEffectPlacements(args: {
   image: CanvasImageSource;
@@ -1245,9 +1445,12 @@ function resolveTextureEffectPlacements(args: {
   profile: AvatarVFXModelProfile;
   faceTextureAnchors: AvatarFaceTextureAnchorsSnapshot | null;
   faceClip?: () => Path2D | null;
+  faceClipRequired?: boolean;
+  decalClip?: () => Path2D | null;
 }): {
   placements: TexturePixelPlacementInstance[];
   warning?: string;
+  skip?: TexturePlacementSkip;
 } {
   const { image, effect, size, profile, faceTextureAnchors } = args;
 
@@ -1341,14 +1544,17 @@ function resolveTextureEffectPlacements(args: {
       return {
         placements: [],
         warning: resolved.warning,
+        ...(resolved.skip ? { skip: resolved.skip } : {}),
       };
     }
+    const clipPath = args.decalClip?.() ?? null;
     return {
       placements: resolved.instances.map((instance) => ({
         label: instance.label,
         mirrorX: instance.mirrorX,
         ...(instance.effectMirror ? { effectMirror: true } : {}),
         rect: toPixelFloatRect(size, instance.rect),
+        ...(clipPath ? { clipPath } : {}),
       })),
     };
   }
@@ -1360,6 +1566,14 @@ function resolveTextureEffectPlacements(args: {
   const faceRect = profile.faceLayout?.rect;
   if (!faceRect) return { placements: [] };
   const clipPath = args.faceClip?.() ?? null;
+  if (!clipPath && args.faceClipRequired) {
+    // Unclipped, the art would cover the body sharing the face's texture.
+    return {
+      placements: [],
+      warning:
+        "Whole-face art is not drawn: the face is the head of a mesh part that holds the whole body, and its outline on the texture could not be read.",
+    };
+  }
   return {
     placements: [
       {
@@ -1592,13 +1806,45 @@ function getTextureSlotSnapshots(
   }));
 }
 
+/**
+ * Where an eye's hover plane sits: part way from the eye toward the face's
+ * front. An estimated eye's plane also stays at least
+ * {@link EYE_HOVER_SURFACE_CLEARANCE} of the eye spacing in front of the face
+ * surface measured over it (`surfaceFrontZLocal`), which a narrow face front
+ * or a bulging eye shape can put in front of that point.
+ */
 function resolveEyeHoverPosition(
   eye: AvatarFaceEyeLandmarkSnapshot,
+  surface: { frontSign: 1 | -1; spacing: number },
 ): THREE.Vector3 {
-  return lerpVector3(
+  const position = lerpVector3(
     toVector3(eye.centerLocal),
     toVector3(eye.projectedFrontLocal),
     EYE_HOVER_SURFACE_LERP,
+  );
+  if (eye.surfaceFrontZLocal === undefined) return position;
+  const clear =
+    eye.surfaceFrontZLocal +
+    surface.frontSign * surface.spacing * EYE_HOVER_SURFACE_CLEARANCE;
+  if ((clear - position.z) * surface.frontSign > 0) position.z = clear;
+  return position;
+}
+
+/**
+ * Eye hover planes' height: {@link EYE_HOVER_PLANE_HEIGHT}, grown for eyes
+ * taller on average than {@link EYE_HOVER_REFERENCE_EYE_HEIGHT}.
+ */
+function resolveEyeHoverPlaneHeight(
+  faceLandmarks: AvatarFaceLandmarksSnapshot,
+): number {
+  const heights = [faceLandmarks.eyes.left, faceLandmarks.eyes.right]
+    .filter((eye) => eye !== null)
+    .map((eye) => eye.boundsLocal.size.y);
+  if (heights.length === 0) return EYE_HOVER_PLANE_HEIGHT;
+  const mean =
+    heights.reduce((sum, height) => sum + height, 0) / heights.length;
+  return (
+    EYE_HOVER_PLANE_HEIGHT * Math.max(1, mean / EYE_HOVER_REFERENCE_EYE_HEIGHT)
   );
 }
 
@@ -1644,11 +1890,18 @@ function resolveAvatarLeftRightEdges(
   };
 }
 
+/**
+ * Where a box hover sits. Rows and columns follow the face's bounds and eyes;
+ * the top-edge row sits on the face's top, and on a big-headed Avatar
+ * ({@link headSized}) moves up to the top of the head, so head art clears a
+ * head, hood or helmet that rises well above the face.
+ */
 function resolveBoxHoverPosition(args: {
   faceLandmarks: AvatarFaceLandmarksSnapshot;
   placement: AvatarVFXHoverPlacement;
+  proportions: AvatarProportions;
 }): THREE.Vector3 | null {
-  const { faceLandmarks, placement } = args;
+  const { faceLandmarks, placement, proportions } = args;
   const faceBounds = faceLandmarks.faceBoundsLocal;
   const leftEye = faceLandmarks.eyes.left;
   const rightEye = faceLandmarks.eyes.right;
@@ -1664,6 +1917,8 @@ function resolveBoxHoverPosition(args: {
   const topY = faceBounds.max.y;
   const foreheadY = lerpNumber(eyeLineY, topY, 0.4);
   const topRowY = lerpNumber(eyeLineY, topY, 0.75);
+  const headTopY = proportions.headBox?.max.y ?? topY;
+  const topEdgeY = headSized(proportions, topY, Math.max(topY, headTopY));
   const edgeColumns = resolveAvatarLeftRightEdges(faceLandmarks);
   if (!edgeColumns) return null;
 
@@ -1684,15 +1939,15 @@ function resolveBoxHoverPosition(args: {
     case "top-right":
       return new THREE.Vector3(rightEyeSurface.x, topRowY, frontZ);
     case "top-edge-left-corner":
-      return new THREE.Vector3(edgeColumns.leftX, topY, frontZ);
+      return new THREE.Vector3(edgeColumns.leftX, topEdgeY, frontZ);
     case "top-edge-left":
-      return new THREE.Vector3(edgeX(0.25), topY, frontZ);
+      return new THREE.Vector3(edgeX(0.25), topEdgeY, frontZ);
     case "top-edge-middle":
-      return new THREE.Vector3(edgeX(0.5), topY, frontZ);
+      return new THREE.Vector3(edgeX(0.5), topEdgeY, frontZ);
     case "top-edge-right":
-      return new THREE.Vector3(edgeX(0.75), topY, frontZ);
+      return new THREE.Vector3(edgeX(0.75), topEdgeY, frontZ);
     case "top-edge-right-corner":
-      return new THREE.Vector3(edgeColumns.rightX, topY, frontZ);
+      return new THREE.Vector3(edgeColumns.rightX, topEdgeY, frontZ);
     default:
       return null;
   }
@@ -1720,6 +1975,7 @@ function resolveHoverPlacementInstances(args: {
   effect: AvatarHoverVFXEntry;
   faceLandmarks: AvatarFaceLandmarksSnapshot;
   faceTextureAnchors: AvatarFaceTextureAnchorsSnapshot | null;
+  proportions: AvatarProportions;
 }): HoverPlacementInstance[] | null {
   const { effect, faceLandmarks, faceTextureAnchors } = args;
   const frontSign = resolveHoverFrontSign(faceLandmarks);
@@ -1728,8 +1984,12 @@ function resolveHoverPlacementInstances(args: {
     const rightEye = faceLandmarks.eyes.right;
     if (!leftEye || !rightEye) return null;
 
-    const leftHover = resolveEyeHoverPosition(leftEye);
-    const rightHover = resolveEyeHoverPosition(rightEye);
+    const surface = {
+      frontSign,
+      spacing: Math.abs(leftEye.centerLocal.x - rightEye.centerLocal.x),
+    };
+    const leftHover = resolveEyeHoverPosition(leftEye, surface);
+    const rightHover = resolveEyeHoverPosition(rightEye, surface);
     const side = effect.side ?? "right";
     if (effect.requiresMirror) {
       const primaryPosition = side === "left" ? leftHover : rightHover;
@@ -1824,6 +2084,7 @@ function resolveHoverPlacementInstances(args: {
     const position = resolveBoxHoverPosition({
       faceLandmarks,
       placement: effect.placement,
+      proportions: args.proportions,
     });
     if (!position) return null;
     return [
@@ -2083,6 +2344,7 @@ export class AvatarVFXController {
           },
           faceLandmarks: landmarks,
           faceTextureAnchors: anchors,
+          proportions: measureAvatarProportions(this._avatar.vrm),
         });
         if (!references?.length)
           result.messages.push(placementGuideMessage("hoverAnchorUnavailable"));
@@ -2714,12 +2976,19 @@ export class AvatarVFXController {
       part,
       avatar: this._sourceKey,
     });
+    // An estimated eye is found, but has no iris mesh to paint.
+    const estimated =
+      this._avatar.facePartMap?.parts[part].source === "estimated";
     this._pushWarning(
       {
-        code: "effect_face_part_missing",
+        code: estimated
+          ? "effect_iris_mesh_missing"
+          : "effect_face_part_missing",
         params: { effectId: logicalEffectId, part },
       },
-      `Skipped "${effect.label}": this avatar has no detected ${AVATAR_FACE_PART_LABELS[part]}.`,
+      estimated
+        ? `Skipped "${effect.label}": this avatar's ${AVATAR_FACE_PART_LABELS[part]} has no iris mesh.`
+        : `Skipped "${effect.label}": this avatar has no detected ${AVATAR_FACE_PART_LABELS[part]}.`,
     );
   }
 
@@ -2763,6 +3032,31 @@ export class AvatarVFXController {
     return clip;
   }
 
+  /**
+   * The face skin's clip for decals and eye and mouth cleanup on a face that
+   * is the head region of a primitive holding the whole body: the body shares
+   * its texture, so art reaching past the face's island would paint it. Null
+   * on other faces, where they draw unclipped.
+   */
+  private _faceRegionClip(
+    binding: BindingState,
+    slot: BindingTextureState,
+  ): Path2D | null {
+    return this._faceIsHeadRegion(binding)
+      ? this._faceSkinClip(binding, slot)
+      : null;
+  }
+
+  /**
+   * Whether `binding` is face skin only as its head region: its primitive
+   * holds the whole body (`findFaceSkinRegion`).
+   */
+  private _faceIsHeadRegion(binding: BindingState): boolean {
+    return (
+      findFaceSkinRegion(this._avatar.facePartMap, binding.bindingKey) !== null
+    );
+  }
+
   private _resolveFaceSkinClip(
     binding: BindingState,
     slot: BindingTextureState,
@@ -2787,13 +3081,17 @@ export class AvatarVFXController {
       const texture = face.textureSlots.find(
         (candidate) => candidate.texture.source === image,
       )?.texture;
+      const headRegion = findFaceSkinRegion(map, face.bindingKey);
       return texture
         ? [
             {
               entry: face.entry,
               texture,
-              keepVertex: createFaceVertexFilter(vrm, face.object),
+              keepVertex: headRegion
+                ? null
+                : createFaceVertexFilter(vrm, face.object),
               regions: regions.get(face.bindingKey) ?? new Set<number>(),
+              headRegion: headRegion ? new Set(headRegion.triangles) : null,
             },
           ]
         : [];
@@ -2802,14 +3100,21 @@ export class AvatarVFXController {
     const shared = Array.from(this._textureImageUsers.get(image) ?? []).some(
       (key) => !faceKeys.has(key),
     );
-    const { triangles, complete } = collectFaceSkinClipTriangles({
-      avatar: this._avatar,
-      anchorObject: this._avatar.faceLandmarks?.getAnchorObject() ?? null,
-      landmarks: this._avatar.getFaceLandmarksSnapshot(),
-      sources,
-    });
-    if ((!shared && complete) || triangles.length === 0) return null;
-    return createClipPath(dilateClipTriangles(triangles, slot));
+    // Measured as drawn without effects: an effect hiding face skin collapses
+    // its triangles in place, and the clip outlives that effect.
+    const { triangles, complete } = this._regionHider.withRegionsShown(() =>
+      collectFaceSkinClipTriangles({
+        avatar: this._avatar,
+        anchorObject: this._avatar.faceLandmarks?.getAnchorObject() ?? null,
+        landmarks: this._avatar.getFaceLandmarksSnapshot(),
+        sources,
+      }),
+    );
+    if (!shared && complete) return null;
+    // No triangle left to draw through counts as unreadable: unclipped as
+    // before, or, on a face inside a whole-body primitive, not drawn.
+    const dilated = dilateClipTriangles(triangles, slot);
+    return dilated.length > 0 ? createClipPath(dilated) : null;
   }
 
   /**
@@ -2971,6 +3276,8 @@ export class AvatarVFXController {
           profile: this._placementProfile(),
           faceTextureAnchors: anchors,
           faceClip: () => (slot ? this._faceSkinClip(binding, slot) : null),
+          faceClipRequired: this._faceIsHeadRegion(binding),
+          decalClip: () => (slot ? this._faceRegionClip(binding, slot) : null),
         });
         if (resolved.placements.length) layer.placements = resolved.placements;
       }
@@ -3185,6 +3492,7 @@ export class AvatarVFXController {
       effect,
       faceLandmarks,
       faceTextureAnchors: this._avatar.getFaceTextureAnchorsSnapshot(),
+      proportions: measureAvatarProportions(this._avatar.vrm),
     });
     if (!placements) return false;
     const scaleX = resolveStaticScaleComponent(effect.transform.scale.x);
@@ -3393,8 +3701,7 @@ export class AvatarVFXController {
       return;
     }
 
-    const effectTargetRole = getAvatarVFXTargetRole(effect);
-    if (!binding.targetRoles.includes(effectTargetRole)) {
+    if (!this._bindingServes(binding, effect)) {
       binding.warning = `Effect "${effect.label}" does not target ${binding.targetRole}.`;
       this._pushWarning(
         {
@@ -3583,11 +3890,16 @@ export class AvatarVFXController {
       faceTextureAnchors,
     });
     if (builtLayerCanvases.layerCanvases.size === 0) {
-      binding.warning =
-        builtLayerCanvases.warning ??
-        `No compatible ${applyMode} texture slots were available.`;
+      // A skip names the effect, then why (a sentence of its own elsewhere).
+      binding.warning = builtLayerCanvases.skip
+        ? `Skipped "${effect.label}": ${lowerFirst(builtLayerCanvases.warning ?? "")}`
+        : (builtLayerCanvases.warning ??
+          `No compatible ${applyMode} texture slots were available.`);
       this._pushWarning(
-        { code: "effect_placement_failed", params: { effectId: effect.id } },
+        {
+          code: builtLayerCanvases.skip ?? "effect_placement_failed",
+          params: { effectId: effect.id },
+        },
         binding.warning,
       );
       return;
@@ -3665,12 +3977,25 @@ export class AvatarVFXController {
   }): {
     layerCanvases: Map<AvatarVFXTextureSlot, EffectLayerCanvasState>;
     warning: string | null;
+    skip?: TexturePlacementSkip;
   } {
     const layerCanvases = new Map<
       AvatarVFXTextureSlot,
       EffectLayerCanvasState
     >();
+    if (
+      getAvatarVFXTargetRole(args.effect) === "face_skin" &&
+      !showsPaintedFaceArt(args.binding, args.applyMode)
+    ) {
+      return {
+        layerCanvases,
+        warning:
+          "The face skin's material shows no base color texture through its first UV set, so art painted on it would not show.",
+        skip: "effect_face_texture_hidden",
+      };
+    }
     let textureDrawWarning: string | null = null;
+    let skip: TexturePlacementSkip | undefined;
 
     args.binding.textureSlots.forEach((slotState) => {
       if (args.applyMode === "overlay" && !slotState.canOverlay) {
@@ -3684,9 +4009,12 @@ export class AvatarVFXController {
         profile: this._placementProfile(),
         faceTextureAnchors: args.faceTextureAnchors,
         faceClip: () => this._faceSkinClip(args.binding, slotState),
+        faceClipRequired: this._faceIsHeadRegion(args.binding),
+        decalClip: () => this._faceRegionClip(args.binding, slotState),
       });
       if (drawResult.placements.length === 0) {
         textureDrawWarning = textureDrawWarning ?? drawResult.warning ?? null;
+        skip = skip ?? drawResult.skip;
         return;
       }
 
@@ -3700,9 +4028,38 @@ export class AvatarVFXController {
       });
     });
 
+    // Multiply art darkens: on a surface too dark it changes nothing visible.
+    const mapLayer = layerCanvases.get("map");
+    const mapTexture = args.binding.textureSlots.find(
+      (slot) => slot.slot === "map",
+    )?.texture;
+    const surface = mapTexture ? getTextureImageSource(mapTexture) : null;
+    if (
+      mapLayer &&
+      surface &&
+      isAnchoredFaceTextureEffect(args.effect) &&
+      resolveAppearance(args.effect).blend === "multiply"
+    ) {
+      const change = multiplyDecalChange({
+        effect: args.effect,
+        art: args.effectImage,
+        surface,
+        placements: mapLayer.placements,
+      });
+      if (change !== null && change < MULTIPLY_MIN_VISIBLE_CHANGE) {
+        return {
+          layerCanvases: new Map(),
+          warning:
+            "It darkens the face where it is painted, and the face there is too dark for the change to show.",
+          skip: "effect_surface_too_dark",
+        };
+      }
+    }
+
     return {
       layerCanvases,
       warning: textureDrawWarning,
+      ...(layerCanvases.size === 0 && skip ? { skip } : {}),
     };
   }
 
@@ -3745,6 +4102,10 @@ export class AvatarVFXController {
       }
     }
 
+    if (isEyeHoverVFXEntry(effect) && this._eyePlanesOnFace()) {
+      return this._resolveFaceFlattenBinding();
+    }
+
     return (
       Array.from(this._bindings.values()).find((binding) => {
         if (!binding.targetRoles.includes(getAvatarVFXTargetRole(effect))) {
@@ -3758,6 +4119,39 @@ export class AvatarVFXController {
         }
         return true;
       }) ?? null
+    );
+  }
+
+  /**
+   * Whether `binding` can hold `effect`: it serves the effect's target role,
+   * or the effect is an eye plane on an Avatar whose eyes have no iris mesh
+   * part (see {@link _eyePlanesOnFace}) and the binding is face skin.
+   */
+  private _bindingServes(
+    binding: BindingState,
+    effect: AvatarVFXCatalogEntry,
+  ): boolean {
+    if (binding.targetRoles.includes(getAvatarVFXTargetRole(effect))) {
+      return true;
+    }
+    return (
+      isEyeHoverVFXEntry(effect) &&
+      binding.targetRoles.includes("face_skin") &&
+      this._eyePlanesOnFace()
+    );
+  }
+
+  /**
+   * Whether eye planes are held by the face skin binding: the eyes' positions
+   * are estimated (painted or merged into the face primitive) and no binding
+   * is an iris. The planes hang from the head anchor either way.
+   */
+  private _eyePlanesOnFace(): boolean {
+    return (
+      hasEstimatedEyes(this._avatar.facePartMap ?? null) &&
+      !Array.from(this._bindings.values()).some((binding) =>
+        binding.targetRoles.includes("eye_iris"),
+      )
     );
   }
 
@@ -4321,11 +4715,17 @@ export class AvatarVFXController {
         }
 
         if (shouldApplyFlattenToSlot && staticSegments[0]) {
+          const context = staticSegments[0].context;
+          // On a face inside a whole-body primitive the cleanup keeps to the
+          // face, like its decals.
+          const regionClip = this._faceRegionClip(binding, slotState);
+          context.save();
+          if (regionClip) context.clip(regionClip);
           if (flattenState.shouldRenderEyes) {
             flattenState.eyeRegions.forEach((region) => {
               if (!flattenColorForSlot) return;
               drawFeatheredFlattenEllipse({
-                context: staticSegments[0].context,
+                context,
                 region,
                 fillColor: flattenColorForSlot,
                 width: slotState.width,
@@ -4339,13 +4739,14 @@ export class AvatarVFXController {
             flattenColorForSlot
           ) {
             drawFeatheredFlattenEllipse({
-              context: staticSegments[0].context,
+              context,
               region: flattenState.mouthRegion,
               fillColor: flattenColorForSlot,
               width: slotState.width,
               height: slotState.height,
             });
           }
+          context.restore();
         }
 
         const base = staticSegments[0]?.context;
@@ -4661,12 +5062,18 @@ export class AvatarVFXController {
     disableTargetRoles: AvatarVFXTargetRole[],
   ): string[] {
     if (disableTargetRoles.length === 0) return [];
-    this._hideDetailRegions(sourceEffectId, disableTargetRoles);
+    this._hideRegions(sourceEffectId, sourceBinding, disableTargetRoles);
 
+    const map = this._avatar.facePartMap;
     const disabledBindingKeys: string[] = [];
     this._bindings.forEach((binding) => {
       if (binding.bindingKey === sourceBinding?.bindingKey) return;
-      if (!bindingIsHiddenByRoles(binding.targetRoles, disableTargetRoles)) {
+      // Face skin that is only a head region is hidden as that region, not
+      // with the whole body its primitive holds.
+      const roles = findFaceSkinRegion(map, binding.bindingKey)
+        ? binding.targetRoles.filter((role) => role !== "face_skin")
+        : binding.targetRoles;
+      if (!bindingIsHiddenByRoles(roles, disableTargetRoles)) {
         return;
       }
       if (binding.autoDisableSources.size === 0) {
@@ -4717,18 +5124,28 @@ export class AvatarVFXController {
   }
 
   /**
-   * Hide the eye lines and lashes kept inside the face or eye primitives
-   * (part `regions`), which hiding whole primitives cannot reach.
+   * Hide the parts kept as regions of shared primitives (part `regions`),
+   * which hiding whole primitives cannot reach: eye lines and lashes inside
+   * the face or eye primitives, and face skin that is the head region of a
+   * primitive holding the whole body. The face the effect's own art is on
+   * (`sourceBinding`) stays visible, as a hidden binding would.
    */
-  private _hideDetailRegions(
+  private _hideRegions(
     sourceEffectId: string,
+    sourceBinding: BindingState | null,
     roles: readonly AvatarVFXTargetRole[],
   ): void {
     const map = this._avatar.facePartMap;
     if (!map) return;
-    for (const role of DETAIL_REGION_ROLES) {
+    for (const role of HIDDEN_REGION_ROLES) {
       if (!roles.includes(role)) continue;
       for (const region of map.parts[role].regions ?? []) {
+        if (
+          role === "face_skin" &&
+          region.bindingKey === sourceBinding?.bindingKey
+        ) {
+          continue;
+        }
         const binding = this._bindings.get(region.bindingKey);
         if (!binding) continue;
         const hidden = this._regionHider.hide(
@@ -4784,10 +5201,7 @@ export class AvatarVFXController {
       return null;
     }
 
-    if (
-      isEyeHoverVFXEntry(effect) &&
-      !binding.targetRoles.includes("eye_iris")
-    ) {
+    if (isEyeHoverVFXEntry(effect) && !this._bindingServes(binding, effect)) {
       binding.warning = `Effect "${effect.label}" requires an eye iris target.`;
       return null;
     }
@@ -4825,10 +5239,12 @@ export class AvatarVFXController {
       }
     }
 
+    const proportions = measureAvatarProportions(this._avatar.vrm);
     const placements = resolveHoverPlacementInstances({
       effect,
       faceLandmarks,
       faceTextureAnchors,
+      proportions,
     });
     if (!placements || placements.length === 0) {
       binding.warning = `Effect "${effect.label}" did not resolve any hover placements.`;
@@ -4863,7 +5279,7 @@ export class AvatarVFXController {
     const resolvedPlacements = placements
       .map((placement) => {
         if (isEyeHoverVFXEntry(effect)) {
-          const planeHeight = EYE_HOVER_PLANE_HEIGHT;
+          const planeHeight = resolveEyeHoverPlaneHeight(faceLandmarks);
           return {
             placement,
             planeSize: {
@@ -4874,7 +5290,9 @@ export class AvatarVFXController {
           };
         }
         if (isBoxHoverVFXEntry(effect)) {
-          const planeHeight = BOX_HOVER_PLANE_HEIGHT;
+          const planeHeight =
+            BOX_HOVER_PLANE_HEIGHT *
+            headSized(proportions, 1, proportions.headScale);
           return {
             placement,
             planeSize: {

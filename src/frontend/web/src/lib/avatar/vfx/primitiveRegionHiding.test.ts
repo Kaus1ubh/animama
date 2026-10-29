@@ -41,6 +41,24 @@ describe("PrimitiveRegionHider", () => {
     expect(triangles(geometry)).toEqual(original);
   });
 
+  it("shows every region while measuring, then hides them again", () => {
+    const geometry = new THREE.PlaneGeometry(1, 1, 2, 1);
+    const original = triangles(geometry);
+    const hider = new PrimitiveRegionHider();
+    hider.hide("a", geometry, [1]);
+    const hidden = triangles(geometry);
+
+    expect(hider.withRegionsShown(() => triangles(geometry))).toEqual(original);
+    expect(triangles(geometry)).toEqual(hidden);
+    // Still hidden after a read that throws.
+    expect(() =>
+      hider.withRegionsShown(() => {
+        throw new Error("read failed");
+      }),
+    ).toThrow("read failed");
+    expect(triangles(geometry)).toEqual(hidden);
+  });
+
   it("reports a geometry without an index as not hideable", () => {
     const geometry = new THREE.PlaneGeometry().toNonIndexed();
     expect(new PrimitiveRegionHider().hide("a", geometry, [0])).toBe(false);

@@ -7,6 +7,7 @@ import { createServer } from "vite";
 import sharp from "sharp";
 
 import { resolveAvatarFile } from "./avatar-file.mjs";
+import { readMetadata } from "./effect-assets.mjs";
 import {
   EffectSourceError,
   INCLUDED_CONTENT_ROOT,
@@ -34,7 +35,9 @@ import {
  * paths, and draws Scene Effects in DOM bands around the canvas as the chat
  * does; see `effect-render/render.ts`. Node captures each tile from the page.
  * A run fails when an apply leaves a controller warning or no active effect,
- * because apply calls never throw.
+ * because apply calls never throw, and when an applied Avatar Effect's art
+ * draws nothing visible where it belongs or draws mostly outside the head
+ * (see `measureArt`).
  *
  * Diff tolerance: a pixel differs when any RGBA channel differs by more than
  * `--threshold` (default 8 of 255), which absorbs antialiasing and float
@@ -70,6 +73,19 @@ export const DEFAULT_TIMES = [0.1, 0.5, 1, 2];
 export const DEFAULT_TILE = { width: 256, height: 320 };
 export const VIEW_NAMES = ["front", "three-quarter", "face"];
 export const DEFAULT_THRESHOLD = 8;
+/**
+ * Share of a tile's pixels an Avatar Effect's art must change, in at least
+ * one tile of each Avatar, to count as visible (`effects check` uses it too).
+ */
+export const VISIBLE_SHARE = 0.001;
+/** Least share of a face or head effect's changed pixels on the head. */
+export const MIN_HEAD_SHARE = 0.5;
+/**
+ * How far around the head art placed at a face landmark (the eyes, mouth,
+ * forehead or top) may reach: the head rect grows by this share of its width
+ * and height per side.
+ */
+export const HEAD_HOVER_MARGIN = 0.5;
 /** Longest supported time after applying; frames are stepped one by one. */
 export const MAX_TIME_SEC = 30;
 const VIEW_ALIASES = { "3/4": "three-quarter", "¾": "three-quarter" };
@@ -325,8 +341,10 @@ export async function sourceRoots(sources, media = null) {
 /**
  * Open a stage for each Included Avatar with `request` applied and capture
  * one tile per time and view from the page. Returns the parse error, or per
- * Avatar its diagnostics after applying (warnings from every frame included)
- * and its PNG tiles as `frames[time][view]`.
+ * Avatar its diagnostics after applying (warnings from every frame included),
+ * its PNG tiles as `frames[time][view]` and where it is in each tile as
+ * `layouts[time][view]`: `{ headRect, artInView }` (`headRect` is null
+ * when the Avatar has no head box; see `effect-render/tileLayout.ts`).
  */
 export async function captureStage(page, { request, avatars, times, views }) {
   await page.setViewportSize({
@@ -346,9 +364,11 @@ export async function captureStage(page, { request, avatars, times, views }) {
     const active = new Set(opened.avatar.activeEffectIds);
     let missingPoseRefs = opened.avatar.missingPoseRefs;
     const frames = [];
+    const layouts = [];
     try {
       for (const time of times) {
         const row = [];
+        const rects = [];
         for (const view of views) {
           const frame = await page.evaluate(
             ([frameTime, frameView]) =>
@@ -359,8 +379,10 @@ export async function captureStage(page, { request, avatars, times, views }) {
           frame.activeEffectIds.forEach((id) => active.add(id));
           missingPoseRefs = frame.missingPoseRefs;
           row.push(await page.locator("#review-stage").screenshot());
+          rects.push(frame.layout);
         }
         frames.push(row);
+        layouts.push(rects);
       }
     } finally {
       await page.evaluate(() => window.closeReviewStage());
@@ -372,9 +394,251 @@ export async function captureStage(page, { request, avatars, times, views }) {
       warnings: [...warnings],
       missingPoseRefs,
       frames,
+      layouts,
     });
   }
   return { parseError: null, avatars: captured };
+}
+
+/**
+ * Largest RGBA channel difference of the pixel at byte `offset` in two raw
+ * RGBA buffers.
+ */
+export function pixelDelta(left, right, offset) {
+  let delta = 0;
+  for (let channel = 0; channel < 4; channel += 1)
+    delta = Math.max(
+      delta,
+      Math.abs(left[offset + channel] - right[offset + channel]),
+    );
+  return delta;
+}
+
+/** A fully transparent PNG data URL the size of `file`. */
+export async function transparentStandIn(file) {
+  const { width, height } = await readMetadata(file);
+  const png = await sharp({
+    create: {
+      width,
+      height,
+      channels: 4,
+      background: { r: 0, g: 0, b: 0, alpha: 0 },
+    },
+  })
+    .png()
+    .toBuffer();
+  return `data:image/png;base64,${png.toString("base64")}`;
+}
+
+/**
+ * An Avatar Effect (resolved `effect`, and `paged` as `pageEffect` returns
+ * it) as the art checks' baseline applies it. A face effect keeps its face
+ * options (closed or cleaned eyes, hidden parts) whatever its art, so the
+ * baseline applies it with fully transparent stand-in images and only the
+ * art differs. Other attachments are left out (null): a tinted silhouette
+ * fills even with transparent art.
+ */
+export async function artBaselineEffect(effect, paged) {
+  const kind = effect.definition?.attachment?.kind;
+  if (kind !== "face_landmark" && kind !== "face_surface") return null;
+  return {
+    ...paged,
+    imageUrl: await transparentStandIn(effect.imagePath),
+    otherImageUrl: effect.otherImagePath
+      ? await transparentStandIn(effect.otherImagePath)
+      : null,
+  };
+}
+
+/**
+ * Where an Avatar Effect's art belongs in a tile: `face` for art painted on
+ * a face part (the head's rect), `head` for art placed at a face landmark,
+ * which may sit beside the eyes or mouth, at the forehead or above the head
+ * (the head's rect grown by `HEAD_HOVER_MARGIN`), and `tile` for body,
+ * sticker and silhouette art (anywhere).
+ */
+export function artRegionKind(definition) {
+  const kind = definition?.attachment?.kind;
+  if (kind === "face_surface") return "face";
+  return kind === "face_landmark" ? "head" : "tile";
+}
+
+/**
+ * The rect of a `width × height` tile where art of region `kind` belongs:
+ * null (the whole tile) for `tile` art or when the Avatar has no head rect.
+ */
+export function artRegionRect(kind, headRect, { width, height }) {
+  if (kind === "tile" || !headRect) return null;
+  if (kind === "face") return headRect;
+  const grow = (span) => Math.round(span * HEAD_HOVER_MARGIN);
+  const dx = grow(headRect.x1 - headRect.x0);
+  const dy = grow(headRect.y1 - headRect.y0);
+  return {
+    x0: Math.max(0, headRect.x0 - dx),
+    y0: Math.max(0, headRect.y0 - dy),
+    x1: Math.min(width, headRect.x1 + dx),
+    y1: Math.min(height, headRect.y1 + dy),
+  };
+}
+
+/** A PNG decoded to raw RGBA bytes. */
+export const rawRgba = (png) => sharp(png).ensureAlpha().raw().toBuffer();
+
+/**
+ * Pixels of one tile that changed between raw RGBA buffers `after` and
+ * `before`: a pixel changes when a channel differs by more than `threshold`.
+ * `inside` counts those within `rect` of a tile `width` pixels wide (every
+ * changed pixel when `rect` is null).
+ */
+export function countChangedPixels(
+  after,
+  before,
+  { threshold = DEFAULT_THRESHOLD, rect = null, width = 0 } = {},
+) {
+  let changed = 0;
+  let inside = 0;
+  for (let offset = 0; offset < after.length; offset += 4) {
+    if (pixelDelta(after, before, offset) <= threshold) continue;
+    changed += 1;
+    if (!rect) {
+      inside += 1;
+      continue;
+    }
+    const pixel = offset / 4;
+    const x = pixel % width;
+    const y = Math.floor(pixel / width);
+    if (x >= rect.x0 && x < rect.x1 && y >= rect.y0 && y < rect.y1) inside += 1;
+  }
+  return { changed, inside };
+}
+
+/**
+ * The face view frames the head alone (its head rect fills most of the
+ * tile), so where art lands around the head is judged in the other views.
+ */
+const CLOSE_UP_VIEWS = new Set(["face"]);
+
+/**
+ * Measure what one Avatar Effect's art changes on one Avatar: each tile of
+ * `frames` (with the art) against the same tile of `baseline` (same pose,
+ * time and camera, without it), counted in the region `kind` names, with
+ * each tile's `layouts` entry. Returns the region kind, the changed pixels
+ * in all tiles, the most changed in the region in one tile (`peak`, with its
+ * time and view), whether every tile had a head rect, body or sticker art's
+ * effect `artId` and whether its centre was in any tile (`artSeen`), and
+ * `wide`: the changed pixels and those in the region in the views other than
+ * the face close-up, with those views' labels.
+ */
+export async function measureArt({
+  frames,
+  baseline,
+  layouts,
+  kind,
+  artId = null,
+  times,
+  views,
+  tile,
+  threshold = DEFAULT_THRESHOLD,
+}) {
+  const measured = {
+    kind,
+    changed: 0,
+    peak: 0,
+    peakAt: null,
+    headFound: true,
+    artId,
+    artSeen: false,
+    wide: {
+      views: views
+        .filter((view) => !CLOSE_UP_VIEWS.has(view))
+        .map((view) => VIEW_LABELS[view]),
+      changed: 0,
+      inside: 0,
+    },
+  };
+  for (const [timeIndex, row] of frames.entries()) {
+    for (const [viewIndex, png] of row.entries()) {
+      const { headRect, artInView } = layouts[timeIndex][viewIndex];
+      if (!headRect) measured.headFound = false;
+      if (artInView.includes(artId)) measured.artSeen = true;
+      const [after, before] = await Promise.all([
+        rawRgba(png),
+        rawRgba(baseline[timeIndex][viewIndex]),
+      ]);
+      const { changed, inside } = countChangedPixels(after, before, {
+        threshold,
+        rect: artRegionRect(kind, headRect, tile),
+        width: tile.width,
+      });
+      measured.changed += changed;
+      if (!CLOSE_UP_VIEWS.has(views[viewIndex])) {
+        measured.wide.changed += changed;
+        measured.wide.inside += inside;
+      }
+      if (!measured.peakAt || inside > measured.peak) {
+        measured.peak = inside;
+        measured.peakAt = { time: times[timeIndex], view: views[viewIndex] };
+      }
+    }
+  }
+  return measured;
+}
+
+const ART_REGION_LABELS = {
+  face: "on the head",
+  head: "on or around the head",
+  tile: "in the tile",
+};
+
+/**
+ * Failures of Avatar Effect `effect` on one Avatar from its `measureArt`
+ * result in `tile`-sized tiles. Art that changes fewer than `VISIBLE_SHARE`
+ * of a tile inside its region in every tile draws nothing visible. Face and
+ * landmark art draws mostly outside the head when, in the wide views, it
+ * changes at least that many pixels but less than `MIN_HEAD_SHARE` of them
+ * are in its region; this is judged only when every tile had a head rect
+ * (otherwise the region is the whole tile) and the wide views were rendered.
+ * Body or sticker art centred in no tile (art in a hand hanging below the
+ * frame in the rest pose) is not judged.
+ */
+export function artFailures(avatarId, effect, measured, tile) {
+  if (measured.artId && !measured.artSeen) return [];
+  const floor = Math.ceil(tile.width * tile.height * VISIBLE_SHARE);
+  const where = ART_REGION_LABELS[measured.headFound ? measured.kind : "tile"];
+  if (measured.peak < floor) {
+    const { peak, peakAt } = measured;
+    const most = peak
+      ? `at most ${peak} px changed there in a tile (${VIEW_LABELS[peakAt.view]}, ${peakAt.time}s)`
+      : "no pixel changed there";
+    return [
+      `${avatarId}: ${effect} draws nothing visible ${where}: ${most}, ${floor} needed in a tile; ${measured.changed} px changed in all tiles`,
+    ];
+  }
+  const { wide } = measured;
+  if (measured.kind === "tile" || !measured.headFound || wide.changed < floor)
+    return [];
+  const share = wide.inside / wide.changed;
+  return share < MIN_HEAD_SHARE
+    ? [
+        `${avatarId}: ${effect} draws mostly outside the head: ${(share * 100).toFixed(1)}% of the ${wide.changed} px it changes in the ${wide.views.join(" and ")} views are ${where} (${MIN_HEAD_SHARE * 100}% needed)`,
+      ]
+    : [];
+}
+
+/** Why an Avatar Effect's art was not judged on an Avatar (`artNote`). */
+const ART_NOT_JUDGED = {
+  outside: "art outside every tile",
+  inactive: "not active at any rendered time",
+};
+
+/**
+ * A note that Avatar Effect `effect`'s art was not judged on one Avatar, for
+ * `reason` (`outside`: body or sticker art centred in no tile; `inactive`: a
+ * clip's effect active at no rendered time). Notes do not fail the run; they
+ * tell a pass from an effect the review could not see.
+ */
+export function artNote(avatarId, effect, reason) {
+  return `${avatarId}: ${effect} not judged (${ART_NOT_JUDGED[reason]})`;
 }
 
 const escapeXml = (text) =>
@@ -423,14 +687,159 @@ export async function composeSheet({ avatars, times, views, tile }) {
     .toBuffer();
 }
 
+const isAvatarEffectSource = (source) =>
+  source.kind !== "particle" && source.kind !== "scene";
+
+/** `items` with entry `index` replaced by `replacement`, or left out for null. */
+const replaceAt = (items, index, replacement) =>
+  items.flatMap((item, at) =>
+    at !== index ? [item] : replacement ? [replacement] : [],
+  );
+
+/**
+ * Check where each of a sheet's Avatar Effects draws: those in `group` and
+ * those the clip's events play (`clipMedia`, as resolved, by alias); with
+ * none, the sheet keeps its result. For each effect, each Avatar that has
+ * not already failed is captured again from `request` with only that
+ * effect's art taken out (`artBaselineEffect`), so the pose, clip, mood face
+ * and the other effects are in both captures and only its art differs.
+ * Particle and Scene Effects are left out of these captures (the sheet's own
+ * capture is reused when it has none): particles fall differently when art
+ * loads by another path, and Scene layers vary by a few pixels between
+ * captures. An effect the clip plays is judged only on Avatars where it was
+ * active at a rendered time. Each effect's `measureArt` result is added to
+ * `result.avatars[i].art` (`{ effect, ...measured }`), its `artFailures` to
+ * `result.failures`, and an `artNote` to `result.notes` for each Avatar it
+ * was not judged on.
+ */
+async function checkSheetArt(
+  page,
+  { group, clipMedia, request, avatars, captured, result, times, views, tile },
+) {
+  const direct = group.filter(isAvatarEffectSource);
+  const played = clipMedia?.avatarEffects ?? [];
+  if (!direct.length && !played.length) return;
+  const checked = captured.avatars.filter(
+    (avatar) => !avatarFailures(avatar, group.length).length,
+  );
+  if (!checked.length) return;
+  const checkedAvatars = avatars.filter((avatar) =>
+    checked.some((entry) => entry.id === avatar.id),
+  );
+  const media = request.clipMedia;
+  const others =
+    request.particles.length +
+    request.scenes.length +
+    (media?.particleEffects.length ?? 0) +
+    (media?.sceneEffects.length ?? 0);
+  const artRequest = {
+    ...request,
+    particles: [],
+    scenes: [],
+    clipMedia: media && { ...media, particleEffects: [], sceneEffects: [] },
+  };
+  const withArt = others
+    ? (
+        await captureStage(page, {
+          request: artRequest,
+          avatars: checkedAvatars,
+          times,
+          views,
+        })
+      ).avatars
+    : checked;
+  // `pageSources` and `pageClipMedia` keep the resolved effects' order.
+  const subjects = [
+    ...direct.map((effect, index) => ({
+      name: effect.stem,
+      id: effect.contentId,
+      played: false,
+      definition: effect.definition,
+      baseline: async () => ({
+        ...artRequest,
+        effects: replaceAt(
+          artRequest.effects,
+          index,
+          await artBaselineEffect(effect, artRequest.effects[index]),
+        ),
+      }),
+    })),
+    ...played.map(({ alias, effect }, index) => ({
+      name: alias,
+      id: alias,
+      played: true,
+      definition: effect.definition,
+      baseline: async () => {
+        const standIn = await artBaselineEffect(
+          effect,
+          media.avatarEffects[index].effect,
+        );
+        return {
+          ...artRequest,
+          clipMedia: {
+            ...artRequest.clipMedia,
+            avatarEffects: replaceAt(
+              artRequest.clipMedia.avatarEffects,
+              index,
+              standIn && { alias, effect: standIn },
+            ),
+          },
+        };
+      },
+    })),
+  ];
+  // A clip event's effect not active at any rendered time is not on screen.
+  const shown = (subject, avatar) =>
+    !subject.played || avatar.activeEffectIds.includes(subject.id);
+  for (const subject of subjects) {
+    const unshown = withArt.filter((avatar) => !shown(subject, avatar));
+    for (const avatar of unshown)
+      result.notes.push(artNote(avatar.id, subject.name, "inactive"));
+    if (unshown.length === withArt.length) continue;
+    const baseline = await captureStage(page, {
+      request: await subject.baseline(),
+      avatars: checkedAvatars,
+      times,
+      views,
+    });
+    for (const [index, avatar] of withArt.entries()) {
+      if (!shown(subject, avatar)) continue;
+      const measured = await measureArt({
+        frames: avatar.frames,
+        baseline: baseline.avatars[index].frames,
+        layouts: avatar.layouts,
+        kind: artRegionKind(subject.definition),
+        // Body and sticker art draws on a plane the page finds by effect id.
+        artId: ["body", "sticker"].includes(
+          subject.definition?.attachment?.kind,
+        )
+          ? subject.id
+          : null,
+        times,
+        views,
+        tile,
+      });
+      const entry = result.avatars.find((item) => item.id === avatar.id);
+      (entry.art ??= []).push({ effect: subject.name, ...measured });
+      if (measured.artId && !measured.artSeen)
+        result.notes.push(artNote(avatar.id, subject.name, "outside"));
+      result.failures.push(
+        ...artFailures(avatar.id, subject.name, measured, tile),
+      );
+    }
+  }
+}
+
 /**
  * Render one contact sheet per source: rows are `times` after applying,
  * columns are `views` for each Included Avatar. Sources may be Avatar,
  * Particle or Scene Effects. With `together`, all sources are applied at
  * once on a single sheet (stem `a+b+c`), to check that they coexist. A
  * `clip` with `clipMedia` plays its effect events as chat would; with no
- * sources it is rendered on its own (`clipStem`). Every sheet is attempted
- * and written even when it fails, then `EffectRenderFailure` is thrown if any
+ * sources it is rendered on its own (`clipStem`). Each sheet with Avatar
+ * Effects is also checked for art that draws nothing visible or draws
+ * mostly outside the head (`checkSheetArt`). Every sheet is attempted and
+ * written even when it fails, then `EffectRenderFailure` is thrown if any
  * failed.
  */
 export async function renderEffectSheets({
@@ -482,16 +891,17 @@ export async function renderEffectSheets({
         const stem = group.length
           ? group.map((effect) => effect.stem).join("+")
           : clipStem;
-        const result = { stem, outFile: null, failures: [] };
+        const result = { stem, outFile: null, failures: [], notes: [] };
         try {
+          const request = {
+            ...(await pageSources(group, { fsUrl, imageUrl })),
+            tile,
+            expression,
+            clip,
+            clipMedia: media,
+          };
           const captured = await captureStage(page, {
-            request: {
-              ...(await pageSources(group, { fsUrl, imageUrl })),
-              tile,
-              expression,
-              clip,
-              clipMedia: media,
-            },
+            request,
             avatars,
             times,
             views,
@@ -499,7 +909,7 @@ export async function renderEffectSheets({
           if (captured.parseError)
             throw new Error(`definition: ${captured.parseError}`);
           result.avatars = captured.avatars.map(
-            ({ frames: _frames, ...avatar }) => avatar,
+            ({ frames: _frames, layouts: _layouts, ...avatar }) => avatar,
           );
           result.failures = result.avatars.flatMap((avatar) =>
             avatarFailures(avatar, group.length),
@@ -515,6 +925,17 @@ export async function renderEffectSheets({
               tile,
             }),
           );
+          await checkSheetArt(page, {
+            group,
+            clipMedia,
+            request,
+            avatars,
+            captured,
+            result,
+            times,
+            views,
+            tile,
+          });
         } catch (error) {
           result.failures.push(
             truncate(error instanceof Error ? error.message : String(error)),
@@ -680,13 +1101,7 @@ export async function diffImages(a, b, { outFile, threshold } = {}) {
   let maxDelta = 0;
   for (let pixel = 0; pixel < pixels; pixel += 1) {
     const offset = pixel * 4;
-    let delta = 0;
-    for (let channel = 0; channel < 4; channel += 1) {
-      delta = Math.max(
-        delta,
-        Math.abs(left.data[offset + channel] - right.data[offset + channel]),
-      );
-    }
+    const delta = pixelDelta(left.data, right.data, offset);
     maxDelta = Math.max(maxDelta, delta);
     if (delta > limit) {
       differing += 1;
@@ -748,7 +1163,9 @@ const USAGE = [
   "  --avatar-file <a.vrm>   render on this VRM instead of the Included Avatars,",
   "                          such as a converted Avatar kept outside the repository",
   "",
-  "The run exits 1 when an effect leaves a controller warning or no active effect.",
+  "The run exits 1 when an effect leaves a controller warning or no active effect,",
+  "or when an Avatar Effect's art draws nothing visible where it belongs or draws",
+  "mostly outside the head (compared with the same tiles without its art).",
   `Diff: a pixel differs when a channel differs by more than --threshold (default`,
   `${DEFAULT_THRESHOLD}/255); identical inputs and revisions should report 0 differing pixels.`,
 ].join("\n");
@@ -1009,6 +1426,8 @@ async function main(argv) {
             ? `FAILED ${result.stem}: ${result.failures.join("; ")}`
             : `Wrote ${result.outFile}`,
         );
+        for (const note of result.notes ?? [])
+          console.log(`Note: ${result.stem}: ${note}`);
         const missing = new Set(
           result.avatars?.flatMap((avatar) => avatar.missingPoseRefs) ?? [],
         );

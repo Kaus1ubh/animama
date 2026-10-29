@@ -5,6 +5,7 @@ import type { Avatar } from "../Avatar";
 import { appendTriangle } from "../testing/appendTriangle";
 import { addBlinkStrand, blinkTargets } from "../testing/blinkStrand";
 import { loadedTestAvatar } from "../testing/loadedTestAvatar";
+import { removeEyeBones } from "../testing/removeEyeBones";
 import { buildRuntimePrimitiveBindings } from "../vrmEditorInspection";
 import type { RuntimePrimitiveBindingEntry } from "./avatarPrimitiveUtils";
 import { PrimitiveRegionHider } from "./primitiveRegionHiding";
@@ -37,6 +38,63 @@ function eyeCenters(avatar: Avatar): THREE.Vector3[] {
   return [left!, right!].map((eye) =>
     new THREE.Vector3().copy(eye.centerLocal),
   );
+}
+
+/** The vertices a primitive's triangles use. */
+function primitiveVertices(entry: RuntimePrimitiveBindingEntry): number[] {
+  const index = entry.object.geometry.getIndex()!;
+  return unique(Array.from(index.array));
+}
+
+/**
+ * Skin `share` of each of a primitive's vertices to the head bone and the
+ * rest to the joint it used, as an eye mesh whose whites and lids follow the
+ * head while its irises follow the eye bones. The weights are copied first:
+ * a mesh's primitives may share them.
+ */
+function skinPartlyToHead(
+  avatar: Avatar,
+  entry: RuntimePrimitiveBindingEntry,
+  share: number,
+): void {
+  const mesh = entry.object as THREE.SkinnedMesh;
+  const head = mesh.skeleton.bones.indexOf(
+    avatar.vrm!.humanoid.getRawBoneNode("head") as THREE.Bone,
+  );
+  const geometry = mesh.geometry;
+  const joints = geometry.getAttribute("skinIndex").clone();
+  const weights = geometry.getAttribute("skinWeight").clone();
+  geometry.setAttribute("skinIndex", joints);
+  geometry.setAttribute("skinWeight", weights);
+  for (const vertex of primitiveVertices(entry)) {
+    joints.setXYZW(vertex, joints.getX(vertex), head, 0, 0);
+    weights.setXYZW(vertex, 1 - share, share, 0, 0);
+  }
+}
+
+/**
+ * Push a primitive `depth` m into the head, behind the face, along the head's
+ * front axis (+z on the VRM 1 test Avatar). Positions are copied first.
+ */
+function pushIntoHead(
+  avatar: Avatar,
+  entry: RuntimePrimitiveBindingEntry,
+  depth: number,
+): void {
+  const mesh = entry.object;
+  const anchor = headOf(avatar);
+  mesh.updateWorldMatrix(true, false);
+  anchor.updateWorldMatrix(true, false);
+  const position = mesh.geometry.getAttribute("position").clone();
+  mesh.geometry.setAttribute("position", position);
+  const point = new THREE.Vector3();
+  for (const vertex of primitiveVertices(entry)) {
+    point.fromBufferAttribute(position, vertex);
+    anchor.worldToLocal(mesh.localToWorld(point));
+    point.z -= depth;
+    mesh.worldToLocal(anchor.localToWorld(point));
+    position.setXYZ(vertex, point.x, point.y, point.z);
+  }
 }
 
 describe("eye details inside the face mesh", () => {
@@ -209,18 +267,6 @@ describe("hair merged into the face mesh", () => {
   });
 });
 
-/** Remove the humanoid's eye bones, as a model rigged without them. */
-function removeEyeBones(avatar: Avatar): void {
-  const humanoid = avatar.vrm!.humanoid as unknown as {
-    _rawHumanBones: { humanBones: Record<string, unknown> };
-    _normalizedHumanBones: { humanBones: Record<string, unknown> };
-  };
-  for (const rig of [humanoid._rawHumanBones, humanoid._normalizedHumanBones]) {
-    delete rig.humanBones.leftEye;
-    delete rig.humanBones.rightEye;
-  }
-}
-
 describe("a model without eye bones", () => {
   it("finds the eyes when blink moves only the upper lids", async () => {
     const avatar = await loadedTestAvatar("AvatarSample_A_1_New");
@@ -338,5 +384,63 @@ describe("eye layers found without eye bones", () => {
       expect(parts[role].bindings).not.toContain(target.bindingKey);
     }
     expect(avatar.facePartMap!.eyeWhite).not.toContain(target.bindingKey);
+  });
+
+  it("never takes a part deep inside the head behind the lids as one", async () => {
+    const avatar = await loadedTestAvatar("AvatarSample_A_1_New");
+    const before = avatar.facePartMap!.parts;
+    removeEyeBones(avatar);
+    // Eyes painted on the face, and a layer 3 cm inside the head behind
+    // them, as a converted Avatar keeps a spare pupil or an inner mouth there,
+    // or as ears beside the head reach into the eyes' outline. The layer is
+    // the eye white, unnamed so that no name marks it.
+    for (const key of unique([
+      ...before.eye_left.bindings,
+      ...before.eye_highlight.bindings,
+    ])) {
+      entryOf(avatar, key).object.removeFromParent();
+    }
+    const hidden = buildRuntimePrimitiveBindings(avatar).entries.find((entry) =>
+      entry.materialName?.includes("EyeWhite"),
+    )!;
+    for (const material of [hidden.object.material].flat()) {
+      material.name = "Material";
+    }
+    pushIntoHead(avatar, hidden, 0.03);
+    await avatar.setFacePartCorrections(null);
+
+    const parts = avatar.facePartMap!.parts;
+    for (const role of ["eye_left", "eye_right", "eye_highlight"] as const) {
+      expect(parts[role].bindings).not.toContain(hidden.bindingKey);
+    }
+    // The eyes are estimated where blink moves the face instead.
+    expect(parts.eye_left.source).toBe("estimated");
+  });
+});
+
+describe("eye meshes skinned partly to the eye bones", () => {
+  it("are found as the eyes where blink moves the face", async () => {
+    const avatar = await loadedTestAvatar("AvatarSample_A_1_New");
+    const before = avatar.facePartMap!.parts;
+    // A VRChat Avatar's eye mesh skins its whites, lids and brows to the head
+    // and only its irises to the eye bones: under half of each eye
+    // primitive's weight is on an eye bone, and none of it all on the head.
+    for (const key of unique([
+      ...before.eye_left.bindings,
+      ...before.eye_right.bindings,
+      ...before.eye_highlight.bindings,
+      ...avatar.facePartMap!.eyeWhite,
+    ])) {
+      skinPartlyToHead(avatar, entryOf(avatar, key), 0.6);
+    }
+    await avatar.setFacePartCorrections(null);
+
+    const parts = avatar.facePartMap!.parts;
+    for (const role of ["eye_left", "eye_right", "eye_highlight"] as const) {
+      expect(parts[role]).toMatchObject({
+        source: "signals",
+        bindings: before[role].bindings,
+      });
+    }
   });
 });

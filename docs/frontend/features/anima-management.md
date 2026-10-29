@@ -106,13 +106,20 @@ Animama found in the Anima's Avatar and how it plays it:
   load uses when a measurement since this load changes the materials or frame
   rate. Clearing the measurements measures again ([GPU check](../runtime/avatar-animation.md#authored-liltoon-materials)).
 - **Face**: how each face part was found (model data, material names, a saved
-  correction, or not at all) and whether face landmarks and texture anchors
-  are ready.
-- **Expressions**: the standard VRM expressions present, those played through
-  ARKit mixes or MMD morphs, ARKit shape coverage, each mood's source per face
+  correction, estimated from blinking or the eye bone for an eye without its
+  own mesh, the head of a whole-body mesh part for a face painted on a
+  one-mesh Avatar, or not at all) and whether face landmarks and
+  texture anchors are ready.
+- **Expressions**: the standard VRM expressions present (a preset that plays
+  nothing counts as missing), those played through ARKit mixes or MMD morphs,
+  blinks and visemes filled from the file's left and right blinks or from MMD,
+  ARKit or VRChat shapes, ARKit shape coverage, each mood's source per face
   region ([Faces on non-VRoid Avatars](../runtime/avatar-emotion.md#faces-on-non-vroid-avatars)),
   and names Gestures, Reactions or moods asked for that the Avatar lacks.
-- **Motion**: humanoid bones, missing required bones, the rest pose (arms
+- **Motion**: humanoid bones, missing required bones, missing optional bones
+  that content uses with what stands in for each
+  ([Optional bones a rig lacks](../runtime/avatar-animation.md#optional-bones-a-rig-lacks)),
+  the rest pose (arms
   from a T-pose and hands from VRoid's, and whether each was normalized:
   [Rest normalization](../runtime/avatar-animation.md#rest-normalization)),
   spring joints and colliders, and the wind setting in effect with whether

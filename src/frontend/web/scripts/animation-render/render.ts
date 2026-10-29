@@ -1,13 +1,22 @@
 import { VRMLoaderPlugin, VRMUtils, type VRM } from "@pixiv/three-vrm";
 import * as THREE from "three";
-import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import {
+  GLTFLoader,
+  type GLTF,
+} from "three/examples/jsm/loaders/GLTFLoader.js";
 
+import { Avatar } from "@/lib/avatar/Avatar";
+import {
+  headSized,
+  measureAvatarProportions,
+} from "@/lib/avatar/avatarProportions";
 import { parseAnimaPoseClip } from "@/lib/avatar/poses/animaPoseClip";
 import { createAnimaPoseClipProgram } from "@/lib/avatar/poses/animaPoseClip/program";
 import { getResolvedAvatarPose } from "@/lib/avatar/poses/catalog";
 import { canonicalizeCustomPresetExpressions } from "@/lib/avatar/vrmExpressionPresets";
 import { configureAvatarGltfLoader } from "@/lib/avatar/configureAvatarGltfLoader";
 import { prepareLoadedVrm } from "@/lib/avatar/prepareLoadedVrm";
+import { UnmetallicMaterialsPlugin } from "@/lib/avatar/unmetallicMaterials";
 import {
   installLilToonRenderingWhenLoaded,
   withOnDemandLilToon,
@@ -70,15 +79,64 @@ const viewsFor = (
 
 async function loadVrm(url: string): Promise<VRM> {
   const loader = configureAvatarGltfLoader(new GLTFLoader());
-  // Authored lilToon materials render as in the app; other files are untouched.
+  // Authored lilToon materials render as in the app, and lit glTF materials
+  // without metalness as the app draws them; MToon is untouched.
   loader.register((parser) => withOnDemandLilToon(new VRMLoaderPlugin(parser)));
+  loader.register((parser) => new UnmetallicMaterialsPlugin(parser));
   const gltf = await loader.loadAsync(url);
   const vrm = gltf.userData.vrm as VRM;
   VRMUtils.removeUnnecessaryVertices(gltf.scene);
   VRMUtils.rotateVRM0(vrm);
   canonicalizeCustomPresetExpressions(vrm);
   prepareLoadedVrm(vrm, { vrmSha256: await avatarFileSha256(url) });
+  await measureFace(vrm, gltf);
   return vrm;
+}
+
+/**
+ * Find and measure the face as the app does (face parts, landmarks and
+ * texture anchors), which registers it for size-aware contacts and framing
+ * (`avatarProportions.ts`), before any clip is prepared.
+ */
+async function measureFace(vrm: VRM, gltf: GLTF): Promise<void> {
+  const avatar = new Avatar(new THREE.PerspectiveCamera());
+  avatar.vrm = vrm;
+  avatar.sourceGltf = gltf;
+  await avatar.setFacePartCorrections(null);
+}
+
+/**
+ * The Included Avatars' rest height of the head bone (m) and of the top of the
+ * head over it: big-headed Avatars are framed as a reference Avatar of their
+ * head's size would be.
+ */
+const REFERENCE_HEAD_BONE_HEIGHT = 1.35;
+const REFERENCE_TOP_OVER_HEAD_BONE = 1.15;
+
+/**
+ * The lengths the views are framed by: the head bone's height `headY` for
+ * adult proportions. A big head (`avatarProportions.ts`) frames the body
+ * views by the top of the head, so its head stays in view, and the face view
+ * by the face's size, so it shows the face rather than the chin.
+ */
+function framingLengths(
+  vrm: VRM,
+  headY: number,
+): { bodyLength: number; faceLength: number } {
+  const proportions = measureAvatarProportions(vrm);
+  const top = headY + (proportions.headBox?.max.y ?? 0);
+  return {
+    bodyLength: headSized(
+      proportions,
+      headY,
+      Math.max(headY, top / REFERENCE_TOP_OVER_HEAD_BONE),
+    ),
+    faceLength: headSized(
+      proportions,
+      headY,
+      REFERENCE_HEAD_BONE_HEIGHT * proportions.headScale,
+    ),
+  };
 }
 
 function applyExpressions(vrm: VRM, expressions: Record<string, number>) {
@@ -146,8 +204,9 @@ async function render(
     const head = vrm.humanoid
       .getRawBoneNode("head")!
       .getWorldPosition(new THREE.Vector3());
-    const target = new THREE.Vector3(0, head.y * 0.55, 0);
-    const distance = head.y * 2.9;
+    const { bodyLength, faceLength } = framingLengths(vrm, head.y);
+    const target = new THREE.Vector3(0, bodyLength * 0.55, 0);
+    const distance = bodyLength * 2.9;
     VIEWS.forEach((view, viewIndex) => {
       context.fillText(
         `${avatar.id.replace("AvatarSample_", "")} · ${view.name}`,
@@ -204,13 +263,13 @@ async function render(
           const face = vrm.humanoid
             .getRawBoneNode("head")!
             .getWorldPosition(new THREE.Vector3())
-            .add(new THREE.Vector3(0, head.y * 0.05, 0));
-          camera.position.set(face.x, face.y, face.z + head.y * 0.6);
+            .add(new THREE.Vector3(0, faceLength * 0.05, 0));
+          camera.position.set(face.x, face.y, face.z + faceLength * 0.6);
           camera.lookAt(face);
         } else {
           camera.position.set(
             Math.sin(view.angle) * distance,
-            target.y + head.y * 0.1,
+            target.y + bodyLength * 0.1,
             Math.cos(view.angle) * distance,
           );
           camera.lookAt(target);

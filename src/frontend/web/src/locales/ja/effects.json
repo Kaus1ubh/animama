@@ -442,6 +442,7 @@
       "changed": "変更あり（未保存）",
       "corrected": "修正済み",
       "detected": "検出・{{confidence, number(style: percent)}}",
+      "estimated": "位置を推定",
       "foundByName": "名前から検出・{{confidence, number(style: percent)}}、確認してください",
       "insideShared": "別のメッシュパーツ内で検出",
       "missing": "見つかりません",

@@ -47,25 +47,21 @@ function bindsSomething(expression) {
 
 /**
  * Morph-target names per node: the nodes the VRM's binds reference, each with
- * its mesh's mesh-level `extras.targetNames` (the names three.js loads).
- * Meshes that name their targets only per primitive are counted, since the
- * app cannot use those names either.
+ * the names the Avatar loaders give its mesh (`resolveMeshTargetNames`: mesh
+ * level, else per-primitive lists that agree). Meshes whose primitives name
+ * their targets differently are counted, since the app leaves them unnamed.
  */
-function nodeMorphNames(json) {
+function nodeMorphNames(json, resolveMeshTargetNames) {
   const nodes = [];
-  const primitiveOnlyMeshes = new Set();
+  const mismatchedMeshes = new Set();
   (json.nodes ?? []).forEach((node, nodeIndex) => {
-    const mesh = json.meshes?.[node.mesh];
-    const names = mesh?.extras?.targetNames;
-    if (Array.isArray(names)) nodes.push({ node: nodeIndex, names });
-    else if (
-      mesh?.primitives?.some((primitive) =>
-        Array.isArray(primitive.extras?.targetNames),
-      )
-    )
-      primitiveOnlyMeshes.add(node.mesh);
+    if (node.mesh === undefined) return;
+    const { source, names } = resolveMeshTargetNames(json.meshes?.[node.mesh]);
+    if (source === "mesh" || source === "primitives")
+      nodes.push({ node: nodeIndex, names });
+    else if (source === "mismatched") mismatchedMeshes.add(node.mesh);
   });
-  return { nodes, primitiveOnlyMeshes: primitiveOnlyMeshes.size };
+  return { nodes, mismatchedNameMeshes: mismatchedMeshes.size };
 }
 
 /**
@@ -74,16 +70,24 @@ function nodeMorphNames(json) {
  * @param resolveArkitFacesPerMesh From `arkitFaceCapability.ts`.
  * @param moodMixes `ARKIT_MOOD_MIXES` from `arkitFaceCompositions.ts`.
  * @param isVroidMoodPart From the same module.
+ * @param resolveMeshTargetNames From `primitiveTargetNames.ts`.
  * @returns Which presets were written or kept; ARKit shapes the written
  *   presets use that the file lacks, or has several equal candidates for; how
- *   many meshes name their morph targets only per primitive; and whether
+ *   many meshes name their morph targets differently per primitive (left
+ *   unnamed, as the app leaves them); and whether
  *   Animama will play any baked preset (it composes a mood itself when every
  *   shape of that mood resolves and the Avatar has no VRoid mood parts; MMD
  *   morphs, which this JSON-only check does not see, can only add moods).
  */
 export function bakeExpressions(
   json,
-  { resolveArkitFacesPerMesh, moodMixes, isVroidMoodPart, replace = false },
+  {
+    resolveArkitFacesPerMesh,
+    moodMixes,
+    isVroidMoodPart,
+    resolveMeshTargetNames,
+    replace = false,
+  },
 ) {
   const vrm = json.extensions?.VRMC_vrm;
   if (!vrm) {
@@ -93,7 +97,10 @@ export function bakeExpressions(
         : "The file is not a VRM: no VRMC_vrm extension found.",
     );
   }
-  const { nodes, primitiveOnlyMeshes } = nodeMorphNames(json);
+  const { nodes, mismatchedNameMeshes } = nodeMorphNames(
+    json,
+    resolveMeshTargetNames,
+  );
   // Each mesh binds its own spelling of a shape, as the app does.
   const faces = resolveArkitFacesPerMesh(nodes.map(({ names }) => names));
   const { capability } = faces;
@@ -166,7 +173,7 @@ export function bakeExpressions(
     kept,
     missingShapes: used.filter((shape) => !capability.ambiguous.has(shape)),
     ambiguousShapes: used.filter((shape) => capability.ambiguous.has(shape)),
-    primitiveOnlyMeshes,
+    mismatchedNameMeshes,
     animamaPlaysBakedPresets: !appPlaysOwnMixes,
   };
 }
@@ -214,10 +221,14 @@ async function main(argv) {
     const compositions = await web.load(
       path.join(webRoot, "src/lib/avatar/arkitFaceCompositions.ts"),
     );
+    const { resolveMeshTargetNames } = await web.load(
+      path.join(webRoot, "src/lib/avatar/primitiveTargetNames.ts"),
+    );
     report = bakeExpressions(document.json, {
       resolveArkitFacesPerMesh: web.module.resolveArkitFacesPerMesh,
       moodMixes: compositions.ARKIT_MOOD_MIXES,
       isVroidMoodPart: compositions.isVroidMoodPart,
+      resolveMeshTargetNames,
       replace,
     });
   } finally {
@@ -244,9 +255,9 @@ async function main(argv) {
     console.log(
       `ARKit shapes with several equal candidates: ${report.ambiguousShapes.join(", ")}`,
     );
-  if (report.primitiveOnlyMeshes)
+  if (report.mismatchedNameMeshes)
     console.log(
-      `${report.primitiveOnlyMeshes} mesh(es) name morph targets only per primitive, which the app ignores; see vrm:inspect.`,
+      `${report.mismatchedNameMeshes} mesh(es) store per-primitive shape names that disagree with each other or with the shapes, so the app leaves them unnamed and nothing binds them; see vrm:inspect.`,
     );
   console.log(
     report.animamaPlaysBakedPresets

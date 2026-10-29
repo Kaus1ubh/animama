@@ -24,6 +24,8 @@ import {
   resolveParticleVFXAnchorLocalPosition,
 } from "@/lib/avatar/particle-vfx";
 import type { ParticleVFXCatalogEntry } from "@/lib/avatar/particle-vfx";
+import { measureAvatarProportions } from "@/lib/avatar/avatarProportions";
+import { loadWholeBodyAvatar } from "@/lib/avatar/testing/wholeBodyVrm";
 import { EMPTY_RUNTIME_MEDIA_PROVIDER } from "@/lib/runtime-content/AnimaRuntimeMediaCatalog";
 
 /**
@@ -890,6 +892,101 @@ describe("ParticleVFXController", () => {
       );
     } finally {
       effect.shapeAutoFit = previousShapeAutoFit;
+      controller.dispose();
+    }
+  });
+
+  it("places effects in proportion to a smaller Avatar's body", async () => {
+    // Hips 0.5 m up, the head 0.5 m above them and a foot 5 cm off the
+    // ground: `avatarScale` 0.76, under the Included Avatars' size band.
+    const scene = new Group();
+    const hips = new Object3D();
+    hips.position.set(0, 0.5, 0);
+    const head = new Object3D();
+    head.position.set(0, 0.5, 0);
+    const leftFoot = new Object3D();
+    leftFoot.position.set(0.1, -0.45, 0);
+    hips.add(head, leftFoot);
+    scene.add(hips);
+    scene.updateMatrixWorld(true);
+    const bones: Record<string, Object3D> = { hips, head, leftFoot };
+    const avatar = {
+      scene,
+      vrm: {
+        humanoid: { getNormalizedBoneNode: (name: string) => bones[name] },
+      },
+    } as unknown as Avatar;
+    const controller = new ParticleVFXController(
+      avatar,
+      TEST_PARTICLE_MEDIA_PROVIDER,
+    );
+    quarksMockState.loadQueue.push({
+      kind: "resolve",
+      object: createMockQuarksPrefab(),
+    });
+
+    try {
+      await expect(
+        controller.playEffect({
+          effectId: "heart-fixture",
+          appliedId: "small-burst",
+        }),
+      ).resolves.toBe(true);
+      const root = scene.getObjectByName(PARTICLE_VFX_ROOT_OBJECT_NAME);
+      const object = root?.children.find((child) =>
+        child.name.startsWith("ParticleVFX:heart-fixture:small-burst"),
+      );
+      const scale = 0.76 / 0.91;
+      const authored = testParticleEntry("heart-fixture").defaultTransform;
+      // Offset and size shrink together; the snapshot keeps the authored values.
+      expect(object?.position.y).toBeCloseTo(1 + authored.offset.y * scale);
+      expect(object?.scale.x).toBeCloseTo(authored.scale.x * scale);
+      expect(controller.getSnapshot().activeInstances[0]?.transform).toEqual(
+        authored,
+      );
+    } finally {
+      controller.dispose();
+    }
+  });
+
+  it("keeps head effects outside a big head", async () => {
+    // A chibi head: twice the adult share of the Avatar's height.
+    const avatar = await loadWholeBodyAvatar({ headScale: 2 });
+    const stars = getParticleVFXCatalogEntryById("dizzy-stars")!;
+    expect(stars.defaultAnchor).toBe("head");
+    const controller = new ParticleVFXController(avatar, {
+      ...TEST_PARTICLE_MEDIA_PROVIDER,
+      resolveParticleVFX: async (runtimeId: string) =>
+        runtimeId === stars.id ? stars : null,
+    });
+    quarksMockState.loadQueue.push({
+      kind: "resolve",
+      object: createMockQuarksPrefab(),
+    });
+
+    try {
+      await expect(
+        controller.playEffect({ effectId: stars.id, appliedId: "stars" }),
+      ).resolves.toBe(true);
+      const root = avatar.scene!.getObjectByName(
+        PARTICLE_VFX_ROOT_OBJECT_NAME,
+      )!;
+      const object = root.children.find((child) =>
+        child.name.startsWith("ParticleVFX:dizzy-stars:stars"),
+      )!;
+      const proportions = measureAvatarProportions(avatar.vrm);
+      const head = avatar
+        .vrm!.humanoid.getNormalizedBoneNode("head")!
+        .getWorldPosition(new Vector3());
+      // The orbit above the head (and its fringe), not inside it, at the
+      // head's size.
+      expect(object.position.y - head.y).toBeGreaterThan(
+        proportions.headBox!.max.y,
+      );
+      expect(object.scale.x).toBeCloseTo(
+        stars.defaultTransform.scale.x * proportions.headScale,
+      );
+    } finally {
       controller.dispose();
     }
   });

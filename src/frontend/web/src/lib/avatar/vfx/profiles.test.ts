@@ -144,4 +144,20 @@ describe("resolveIrisEyeLayout", () => {
       resolveIrisEyeLayout(layout, eyes([0.6, 0.05, 0.2, 0.2], null)),
     ).toBe(layout);
   });
+
+  it("ignores an estimated eye's rectangle, which lies on the face texture", () => {
+    // Atlas-like rectangles that would otherwise give each eye its own cell.
+    const both = eyes([0.7, 0.1, 0.2, 0.2], [0.4, 0.1, 0.2, 0.2]);
+    const estimated = (eye: (typeof both)["left"]) =>
+      eye ? { ...eye, estimate: "blink" as const } : null;
+    expect(
+      resolveIrisEyeLayout(layout, { ...both, left: estimated(both.left) }),
+    ).toBe(layout);
+    expect(
+      resolveIrisEyeLayout(layout, {
+        left: estimated(both.left),
+        right: estimated(both.right),
+      }),
+    ).toBe(layout);
+  });
 });

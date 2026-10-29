@@ -31,6 +31,8 @@ export function avatarIssueText(
       t("avatarDiagnostics.issues.avatar_extension_unsupported", {
         extension: String(params.extension ?? ""),
       }),
+    morph_target_names_mismatched: () =>
+      t("avatarDiagnostics.issues.morph_target_names_mismatched", { count }),
     avatar_load_failed: () => t("avatarDiagnostics.issues.avatar_load_failed"),
     scene_bindings_unavailable: () =>
       t("avatarDiagnostics.issues.scene_bindings_unavailable"),
@@ -38,6 +40,8 @@ export function avatarIssueText(
       t("avatarDiagnostics.issues.face_parts_detection_failed"),
     face_parts_expressions_missing: () =>
       t("avatarDiagnostics.issues.face_parts_expressions_missing"),
+    face_parts_whole_body_head_missing: () =>
+      t("avatarDiagnostics.issues.face_parts_whole_body_head_missing"),
     face_parts_correction_invalid: () =>
       t("avatarDiagnostics.issues.face_parts_correction_invalid"),
     face_parts_correction_schema_unsupported: () =>
@@ -95,6 +99,14 @@ export function avatarIssueText(
       }),
     effect_face_part_missing: () =>
       t("avatarDiagnostics.issues.effect_face_part_missing", { effect, part }),
+    effect_iris_mesh_missing: () =>
+      t("avatarDiagnostics.issues.effect_iris_mesh_missing", { effect, part }),
+    effect_anchor_covered: () =>
+      t("avatarDiagnostics.issues.effect_anchor_covered", { effect }),
+    effect_face_texture_hidden: () =>
+      t("avatarDiagnostics.issues.effect_face_texture_hidden", { effect }),
+    effect_surface_too_dark: () =>
+      t("avatarDiagnostics.issues.effect_surface_too_dark", { effect }),
     effect_target_unresolved: () =>
       t("avatarDiagnostics.issues.effect_target_unresolved", { effect }),
     effect_target_incompatible: () =>

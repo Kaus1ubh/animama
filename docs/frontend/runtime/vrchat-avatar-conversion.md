@@ -120,8 +120,8 @@ Errors in the report stop the export. Expect these warnings:
 
 Unity runs with graphics, never `-nographics`: the exporter reads compressed
 textures back through the GPU, and without one it writes flat grey
-placeholders (19 of Lapwing's 26 textures, including the hair colour). To run
-the export by hand, pass the same values to
+placeholders (19 of one Avatar's 26 textures, including the hair colour). To
+run the export by hand, pass the same values to
 `Unity -batchmode -quit -projectPath <project> -logFile <log>
 -executeMethod AnimamaBatchExport.Export -animamaPrefab <prefab>
 -animamaOut <file>` with `-animamaName`, `-animamaVersion`, `-animamaAuthor`
@@ -152,14 +152,26 @@ Check that:
 - no texture is a flat colour (a sign of a `-nographics` export);
 - the file is VRM 1.0 and under the 100 MiB upload limit. If the optimized
   file is still too large, reduce its textures in Unity and convert again;
-- every face mesh stores its names at mesh level, not "primitives only";
+- no face mesh reports its names as "primitives, mismatched" (its mesh parts
+  name the shapes differently, so they load unnamed);
 - the rest pose is a T-pose: arms straight out to the sides. Avatar
   Diagnostics shows the measured rest pose under Motion ("Rest pose"); the
   Gesture renders below show the arms after Animama's normalization, so they
   do not reveal an A-pose export;
 - the ARKit count is complete, with any renamed matches as expected, and
   inspect's "mood faces (brow/eye/mouth)" list shows every mood region played
-  from an MMD morph (`mmd`) or an ARKit mix (`arkit`).
+  from an MMD morph (`mmd`) or an ARKit mix (`arkit`);
+- "blink and visemes" lists no `none` (an empty preset with no MMD, ARKit or
+  VRChat shape to fill it), and "face parts" finds `face_skin` and both eyes.
+
+An export without blink or viseme presets still blinks and speaks: Animama
+fills them at load from the `vrc.blink_*` and `vrc.v_*` shapes, MMD or ARKit
+shapes ([Faces on non-VRoid Avatars](avatar-emotion.md#faces-on-non-vroid-avatars)).
+Eyes modelled inside the face mesh are placed from blinking or the eye bones
+and show as estimated ([Eyes without
+geometry](avatar-vfx.md#eyes-without-geometry)), and Gestures use stand-in
+bones for an upper chest or finger segments the rig lacks ([Optional bones a
+rig lacks](avatar-animation.md#optional-bones-a-rig-lacks)).
 
 `pnpm -s animation:render <gesture.json> --out <private-dir> --avatar-file
 <private-dir>/<Avatar>.vrm` draws Gesture review sheets on it, and
@@ -184,9 +196,9 @@ Known limits of a Mochiya 0.1.4 export:
   ([Authored lilToon materials](avatar-animation.md#authored-liltoon-materials)).
   That costs far more GPU time per frame than MToon; the Avatar's Materials
   setting can choose the cheaper glTF fallback materials (Simple). The exporter
-  writes `metallicFactor` 1 on those fallbacks, so Animama draws them with
-  metalness 0; the `vrm:optimize` compare page uses its own loader and still
-  shows them much darker than in Unity.
+  writes `metallicFactor` 1 on those fallbacks, so Animama draws them, like
+  every lit glTF material, with metalness 0; the `vrm:optimize` compare page
+  uses its own loader and still shows them much darker than in Unity.
 - Vertex colours are not exported: UniVRM's VRM 1.0 mesh writer (0.131.2)
   writes positions, normals, the first UV set, skinning and morph targets
   only. lilToon
@@ -218,7 +230,9 @@ and whose eye layers share one mesh, as many converted Avatars' do (see
 can sit slightly low on such a face. Whole-face art (`face_red`,
 `petrified_cracks`, `texture_*`) is clipped to the face skin's own triangles,
 so on an atlas it leaves the other parts drawn from that texture (body, inner
-mouth, eyes) untouched.
+mouth, eyes) untouched. That art is laid out for VRoid's dedicated face
+texture, so on a small face island it shows mostly its tone: the crack lines
+fall outside the face.
 
 To make the file emote in other VRM apps as well, bake its mood presets into a
 copy with `pnpm -s vrm:bake-expressions` (see

@@ -14,12 +14,16 @@ export const AVATAR_ISSUE_CODES = [
   // A glTF extension the file needs that the runtime cannot load
   // (`avatarGltfExtensions.ts`); read from the file, before any load.
   "avatar_extension_unsupported",
+  // Meshes whose primitives name their morph targets differently, which load
+  // unnamed (`primitiveTargetNames.ts`); read from the file, before any load.
+  "morph_target_names_mismatched",
   "avatar_load_failed",
   // The live scene's primitives could not be listed.
   "scene_bindings_unavailable",
   // Face parts (`vfx/faceParts.ts`, `Avatar`, `runtimeAvatarFaceParts.ts`).
   "face_parts_detection_failed",
   "face_parts_expressions_missing",
+  "face_parts_whole_body_head_missing",
   "face_parts_correction_invalid",
   "face_parts_correction_schema_unsupported",
   "face_parts_correction_other_file",
@@ -50,6 +54,14 @@ export const AVATAR_ISSUE_CODES = [
   "effect_placement_failed",
   "effect_attachment_limit",
   "effect_face_part_missing",
+  // Iris art on an eye estimated on the face, which has no iris mesh part.
+  "effect_iris_mesh_missing",
+  // Painted face art that would not show: its anchor lies under eyes or a
+  // nose modelled over the skin, the face shows no paintable texture, or
+  // darkening art lies on a face too dark for it to change.
+  "effect_anchor_covered",
+  "effect_face_texture_hidden",
+  "effect_surface_too_dark",
   "effect_target_unresolved",
   "effect_target_incompatible",
   "effect_overlay_required",

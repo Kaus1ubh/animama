@@ -1,8 +1,19 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { Avatar } from "../Avatar";
-import { VRM0_FIXTURE_ID } from "../motion-authoring/testing/includedAvatars";
-import { loadedTestAvatar } from "../testing/loadedTestAvatar";
+import { loadHeadlessVrmWithGltf } from "../motion-authoring/headlessVrm";
+import {
+  VRM0_FIXTURE_ID,
+  readTestAvatarBytes,
+} from "../motion-authoring/testing/includedAvatars";
+import {
+  loadedTestAvatar,
+  prepareTestAvatar,
+} from "../testing/loadedTestAvatar";
+import {
+  DISTAL_FINGER_BONES,
+  withoutHumanBones,
+} from "../testing/withoutHumanBones";
 import {
   AVATAR_FACE_PARTS_SCHEMA,
   type AvatarFacePartCorrections,
@@ -80,9 +91,48 @@ describe("Avatar diagnostics", () => {
       });
       expect(diagnostics.motion.humanoidBones).toBeGreaterThan(20);
       expect(diagnostics.motion.missingRequiredBones).toEqual([]);
+      expect(diagnostics.motion.missingOptionalBones).toEqual([]);
       expect(diagnostics.motion.springJoints).toBeGreaterThan(0);
     },
   );
+
+  it("list missing optional bones with what stands in for them", async () => {
+    const { vrm, gltf } = await loadHeadlessVrmWithGltf(
+      withoutHumanBones(await readTestAvatarBytes("Andrew"), [
+        "upperChest",
+        "leftEye",
+        "rightEye",
+        ...DISTAL_FINGER_BONES,
+      ]),
+      { removeUnnecessaryVertices: true },
+    );
+    const avatar = await prepareTestAvatar(vrm, gltf, DIGEST);
+    const { motion } = avatar.getDiagnostics()!;
+    expect(motion.missingRequiredBones).toEqual([]);
+    expect(motion.missingOptionalBones).toContainEqual({
+      bone: "upperChest",
+      standIn: "chest",
+      covers: "motion_and_contacts",
+    });
+    expect(motion.missingOptionalBones).toContainEqual({
+      bone: "rightIndexDistal",
+      standIn: "rightIndexIntermediate",
+      covers: "contacts",
+    });
+    expect(motion.missingOptionalBones).toContainEqual({
+      bone: "leftThumbDistal",
+      standIn: "leftThumbProximal",
+      covers: "contacts",
+    });
+    expect(motion.missingOptionalBones).toContainEqual({
+      bone: "leftEye",
+      standIn: null,
+      covers: "nothing",
+    });
+    // Upper chest, two eyes and ten distal segments; Andrew has no jaw,
+    // which no content moves.
+    expect(motion.missingOptionalBones).toHaveLength(13);
+  });
 
   it("report an ignored correction and its unknown bindings once each", async () => {
     const avatar = await loadedTestAvatar("AvatarSample_A_1_New", DIGEST);

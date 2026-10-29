@@ -2,6 +2,7 @@ import {
   VRMExpression,
   VRMExpressionMorphTargetBind,
   type VRM,
+  type VRMExpressionManager,
 } from "@pixiv/three-vrm";
 import type * as THREE from "three";
 
@@ -9,9 +10,10 @@ import {
   type ArkitFaceCapability,
   resolveArkitFacesPerMesh,
 } from "./arkitFaceCapability";
+import type { ArkitMix } from "./arkitFaceCompositions";
 
 /** The Avatar's meshes that carry named morph targets. */
-function morphTargetMeshes(vrm: VRM): THREE.Mesh[] {
+export function morphTargetMeshes(vrm: VRM): THREE.Mesh[] {
   const meshes: THREE.Mesh[] = [];
   vrm.scene?.traverse((object) => {
     const mesh = object as THREE.Mesh;
@@ -45,6 +47,31 @@ export function morphTargetExpression(
     );
   }
   return expression.binds.length > 0 ? expression : null;
+}
+
+/**
+ * The morph binds that play an ARKit mix: each shape's registered expression
+ * (`registerArkitExpressions`) contributes its own morph binds, scaled by the
+ * shape's value in the mix. Shapes without an expression add nothing.
+ */
+export function arkitMixBinds(
+  manager: VRMExpressionManager,
+  mix: ArkitMix,
+): VRMExpressionMorphTargetBind[] {
+  const binds: VRMExpressionMorphTargetBind[] = [];
+  for (const [shape, value] of Object.entries(mix)) {
+    for (const bind of manager.getExpression(shape)?.binds ?? []) {
+      if (!(bind instanceof VRMExpressionMorphTargetBind)) continue;
+      binds.push(
+        new VRMExpressionMorphTargetBind({
+          primitives: bind.primitives,
+          index: bind.index,
+          weight: bind.weight * value,
+        }),
+      );
+    }
+  }
+  return binds;
 }
 
 /**

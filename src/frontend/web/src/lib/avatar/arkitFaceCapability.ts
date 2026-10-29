@@ -111,6 +111,16 @@ function shapeKey(name: string): ShapeKey {
 const keyString = (key: ShapeKey) => `${key.base}|${key.side ?? ""}`;
 
 /**
+ * A shape name's matching key, as ARKit names are matched: lower-case words
+ * with separators and camel case ignored and one side token (`_L`, `Left` …)
+ * reduced to its side, so `vrc.blink_left`, `VRC_Blink_L` and `vrc.blink.L`
+ * share one key. `faceSignals.ts` matches VRChat's shapes by it.
+ */
+export function shapeMatchKey(name: string): string {
+  return keyString(shapeKey(name));
+}
+
+/**
  * Resolve the ARKit shapes an Avatar has from its morph-target names.
  *
  * Matching prefers, in order: the exact canonical name; a case-insensitive

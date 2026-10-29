@@ -34,6 +34,12 @@ export type AvatarFaceTextureAnchorSnapshot = {
   uv: AvatarFaceTextureUvCoordinate;
   referenceSizeLocal: AvatarFaceTextureReferenceSize;
   referenceSizeUv: AvatarFaceTextureReferenceSize;
+  /**
+   * Set when a surface lies over the anchor (eyes or a mouth modelled over
+   * the skin, `FaceCover`), so art painted there would not show and is
+   * skipped. Absent on an anchor that shows.
+   */
+  covered?: true;
 };
 
 export type AvatarFaceTextureFlattenRegionSnapshot = {

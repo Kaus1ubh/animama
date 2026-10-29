@@ -44,7 +44,10 @@ vi.mock("@/ui/main/scene-vfx/SceneVFXOverlayHost", () => ({
 }));
 
 /** An Avatar without bones, so framing falls back to the preset defaults. */
-const avatar = { getCameraAnchorY: () => null } as unknown as Avatar;
+const avatar = {
+  getCameraAnchorY: () => null,
+  getHeadFramingScale: () => 1,
+} as unknown as Avatar;
 
 describe("PiP Avatar framing", () => {
   let container: HTMLDivElement;

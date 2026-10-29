@@ -364,8 +364,8 @@ play all three. Each region plays, in order:
 | Surprised | 上     | びっくり | お       |
 
 Only these standard MMD names are used, and まばたき, ウィンク and ウィンク右 for
-blinks (below). Regions without one (–) use the ARKit mix or the preset.
-`Fcl_EYE_Spread` plays びっくり or ARKit's wide eyes.
+blinks and あいうえお for visemes (below). Regions without one (–) use the
+ARKit mix or the preset. `Fcl_EYE_Spread` plays びっくり or ARKit's wide eyes.
 
 - The preset and `Fcl_ALL_<Mood>` combine their regions' MMD morphs and ARKit
   mixes and replace a preset the file authors, so such Avatars show the same
@@ -382,13 +382,24 @@ blinks (below). Regions without one (–) use the ARKit mix or the preset.
   effects do (`irisHideExpression.ts`, from weight 0.5); an iris it cannot
   hide (not found, or in the face skin's mesh part) is reported
   (`iris_hide_unavailable`).
-- A preset that binds nothing counts as absent: three-vrm registers every
-  preset, bound or not.
-- `blink`, `blinkLeft` and `blinkRight` that bind nothing play MMD's まばたき,
-  ウィンク and ウィンク右 (the unsuffixed wink is the model's left eye), or else
-  ARKit's `eyeBlinkLeft` and `eyeBlinkRight`; a file's own bound blinks stay.
-  They remain subject to three-vrm's `overrideBlink` and to the eyelid closure
-  correction, which never scales a blink preset by itself.
+- A preset that plays nothing (no binds, or binds at weight 0 or on a missing
+  shape) counts as absent: three-vrm registers every preset, bound or not.
+- Absent blink and viseme presets (`blink`, `blinkLeft`, `blinkRight`, `aa`,
+  `ih`, `ou`, `ee`, `oh`) are filled first, from other shapes
+  (`faceSignals.ts`), so face part detection, idle and Gesture blinks and
+  viseme lip sync work unchanged. A file's own bound preset always stays. `blink` tries the file's own
+  `blinkLeft` and `blinkRight` together, then MMD's まばたき (or ウィンク plus
+  ウィンク右), ARKit's `eyeBlinkLeft` plus `eyeBlinkRight`, and VRChat's
+  `vrc.blink` (or `vrc.blink_left` plus `vrc.blink_right`); each side's blink
+  tries ウィンク / ウィンク右 (the unsuffixed wink is the model's left eye),
+  then ARKit's side, then VRChat's. Visemes try MMD's あいうえお, then VRChat's
+  `vrc.v_aa`, `v_ih`, `v_ou`, `v_e` and `v_oh`, then the ARKit `vowels` mix
+  below when every shape it uses resolves, because authored vowel shapes beat
+  an approximation. VRChat names match like ARKit names (case, separators and
+  the side token's spelling ignored); MMD names match exactly. Filled blinks
+  remain subject to three-vrm's `overrideBlink` and to the eyelid closure
+  correction, which never scales a blink preset by itself. Diagnostics and
+  `vrm:inspect` show each preset's source.
 - A name that resolves to nothing is reported once per Avatar in Diagnostics.
   So are emotion-map names the Avatar cannot play, such as `Fcl_MTH_Large`
   beside a smile without `jawOpen`; positive emotions without any smile use the
@@ -401,7 +412,9 @@ blinks (below). Regions without one (–) use the ARKit mix or the preset.
   separate bar from the moods
   ([ARKit lip-sync shaping](avatar-lipsync.md#arkit-lip-sync-shaping)). With
   the default viseme lip sync a mood's `jawOpen` adds to separate viseme
-  morphs; only ARKit lip-sync shaping stacks it on the same `jawOpen` morph.
+  morphs, except where the visemes were filled from ARKit mixes (an Avatar
+  without viseme presets, MMD vowels or VRChat visemes); there, and under
+  ARKit lip-sync shaping, it stacks on the same `jawOpen` morph.
 - The eyelid closure correction (`eyelidClosure.ts`) measures each
   lid-closing expression on the model (mood presets, MMD morphs such as 笑い,
   ARKit mixes) and reduces blink by how far it closes the lids. An ARKit mix

@@ -22,7 +22,12 @@ import { toast } from "sonner";
 import { useFormatters } from "@animama/product-ui/i18n";
 
 import type { FaceRegionSource } from "@/lib/avatar/arkitFaceExpressions";
-import type { AvatarFacePartSource } from "@/lib/avatar/vfx/faceParts";
+import type { AvatarExpressionSource } from "@/lib/avatar/diagnostics/avatarDiagnostics";
+import type { OptionalBoneStandIn } from "@/lib/avatar/poses/anatomy/optionalBones";
+import type {
+  AvatarEyeEstimate,
+  AvatarFacePartSource,
+} from "@/lib/avatar/vfx/faceParts";
 import {
   avatarDiagnosticsJson,
   avatarDiagnosticsText,
@@ -117,14 +122,23 @@ function materialKindLabel(
 function partSourceLabel(
   t: TFunction<"animas">,
   source: AvatarFacePartSource,
+  estimate: AvatarEyeEstimate | undefined,
+  headRegion: boolean,
 ): string {
   switch (source) {
     case "signals":
-      return t("avatarDiagnostics.face.sources.signals");
+      // Face skin found as the head of a mesh part that holds the whole body.
+      return headRegion
+        ? t("avatarDiagnostics.face.sources.headRegion")
+        : t("avatarDiagnostics.face.sources.signals");
     case "names":
       return t("avatarDiagnostics.face.sources.names");
     case "corrected":
       return t("avatarDiagnostics.face.sources.corrected");
+    case "estimated":
+      return estimate === "eye_bone"
+        ? t("avatarDiagnostics.face.sources.estimatedEyeBone")
+        : t("avatarDiagnostics.face.sources.estimatedBlink");
     case "missing":
       return t("avatarDiagnostics.face.sources.missing");
   }
@@ -249,6 +263,26 @@ function regionSourceLabel(
       return t("avatarDiagnostics.expressions.regionSources.preset");
     case "none":
       return t("avatarDiagnostics.expressions.regionSources.none");
+  }
+}
+
+/** A standard expression's name, with where Animama took it from if not the file. */
+function presetLabel(
+  t: TFunction<"animas">,
+  name: string,
+  source: AvatarExpressionSource,
+): string {
+  switch (source) {
+    case "model":
+      return name;
+    case "arkit":
+      return t("avatarDiagnostics.expressions.fromArkit", { name });
+    case "mmd":
+      return t("avatarDiagnostics.expressions.fromMmd", { name });
+    case "vrchat":
+      return t("avatarDiagnostics.expressions.fromVrchat", { name });
+    case "left_right":
+      return t("avatarDiagnostics.expressions.fromBlinkSides", { name });
   }
 }
 
@@ -483,7 +517,12 @@ function FaceSection({ report }: { report: AvatarDiagnosticsReport }) {
                     part.source === "missing" && "text-muted-foreground",
                   )}
                 >
-                  {partSourceLabel(t, part.source)}
+                  {partSourceLabel(
+                    t,
+                    part.source,
+                    part.estimate,
+                    part.headRegion === true,
+                  )}
                 </td>
                 <td className="px-4 py-1.5 text-right tabular-nums">
                   {part.regionCount > 0
@@ -536,15 +575,7 @@ function ExpressionsSection({ report }: { report: AvatarDiagnosticsReport }) {
       <Fact label={t("avatarDiagnostics.expressions.present")}>
         <Names
           names={expressions.presets.map((preset) =>
-            preset.source === "arkit"
-              ? t("avatarDiagnostics.expressions.fromArkit", {
-                  name: preset.name,
-                })
-              : preset.source === "mmd"
-                ? t("avatarDiagnostics.expressions.fromMmd", {
-                    name: preset.name,
-                  })
-                : preset.name,
+            presetLabel(t, preset.name, preset.source),
           )}
           none={t("avatarDiagnostics.none")}
         />
@@ -595,6 +626,61 @@ function ExpressionsSection({ report }: { report: AvatarDiagnosticsReport }) {
   );
 }
 
+/**
+ * Missing optional bones that content uses, grouped by what stands in for
+ * them: the bone below takes a torso bone's Gesture and pose rotation and its
+ * contacts, the next finger segment toward the hand takes a finger segment's
+ * contacts, and nothing replaces the rest.
+ */
+function OptionalBones({ bones }: { bones: readonly OptionalBoneStandIn[] }) {
+  const { t } = useTranslation("animas");
+  if (bones.length === 0) {
+    return (
+      <span className="text-muted-foreground">
+        {t("avatarDiagnostics.none")}
+      </span>
+    );
+  }
+  const groups = [
+    {
+      covers: "motion_and_contacts",
+      label: t("avatarDiagnostics.motion.optionalCovers.motionAndContacts"),
+    },
+    {
+      covers: "contacts",
+      label: t("avatarDiagnostics.motion.optionalCovers.contacts"),
+    },
+    {
+      covers: "nothing",
+      label: t("avatarDiagnostics.motion.optionalCovers.nothing"),
+    },
+  ] as const;
+  return (
+    <ul className="grid gap-2">
+      {groups.map(({ covers, label }) => {
+        const entries = bones.filter((entry) => entry.covers === covers);
+        if (entries.length === 0) return null;
+        return (
+          <li key={covers} className="grid gap-1">
+            <span className="text-muted-foreground">{label}</span>
+            <Names
+              names={entries.map((entry) =>
+                entry.standIn
+                  ? t("avatarDiagnostics.motion.standIn", {
+                      bone: entry.bone,
+                      standIn: entry.standIn,
+                    })
+                  : entry.bone,
+              )}
+              none={t("avatarDiagnostics.none")}
+            />
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
 function MotionSection({ report }: { report: AvatarDiagnosticsReport }) {
   const { t } = useTranslation("animas");
   const { t: tSettings } = useTranslation("settings");
@@ -619,6 +705,9 @@ function MotionSection({ report }: { report: AvatarDiagnosticsReport }) {
           names={motion.missingRequiredBones}
           none={t("avatarDiagnostics.none")}
         />
+      </Fact>
+      <Fact label={t("avatarDiagnostics.motion.missingOptionalBones")}>
+        <OptionalBones bones={motion.missingOptionalBones} />
       </Fact>
       <Fact label={t("avatarDiagnostics.motion.springs")}>
         {t("avatarDiagnostics.motion.springsValue", {

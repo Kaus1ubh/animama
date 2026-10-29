@@ -5,10 +5,8 @@ import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 
 import { configureAvatarGltfLoader } from "./configureAvatarGltfLoader";
 import { withEnhancedMToonPatch } from "./enhanced-rendering/mtoonPatch";
-import {
-  LilToonFallbackMaterialsPlugin,
-  withOnDemandLilToon,
-} from "./liltoon/lilToon";
+import { withOnDemandLilToon } from "./liltoon/lilToon";
+import { UnmetallicMaterialsPlugin } from "./unmetallicMaterials";
 
 /**
  * The glTF loader for Avatar VRM and VRMA files, with the shared decoders and
@@ -32,6 +30,6 @@ export function createAvatarGltfLoader({
     );
   });
   loader.register((parser) => new VRMAnimationLoaderPlugin(parser));
-  loader.register((parser) => new LilToonFallbackMaterialsPlugin(parser));
+  loader.register((parser) => new UnmetallicMaterialsPlugin(parser));
   return loader;
 }

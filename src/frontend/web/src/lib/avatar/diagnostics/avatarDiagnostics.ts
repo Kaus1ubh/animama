@@ -1,4 +1,5 @@
 import {
+  type VRMExpression,
   VRMExpressionPresetName,
   VRMLookAtExpressionApplier,
   VRMRequiredHumanBoneName,
@@ -14,10 +15,20 @@ import {
 import type { Avatar } from "../Avatar";
 import type { AvatarMaterialMode, AvatarSpringMode } from "../avatarSettings";
 import {
+  expressionPlaysSomething,
+  faceSignalSourceOf,
+  type SynthesizedFaceSignalSource,
+} from "../faceSignals";
+import {
   automaticDecisionSinceLoad,
   type AutomaticMaterialsDecision,
 } from "../liltoon/lilToonGpuCheck";
+import {
+  missingOptionalBones,
+  type OptionalBoneStandIn,
+} from "../poses/anatomy/optionalBones";
 import type {
+  AvatarEyeEstimate,
   AvatarFacePartRole,
   AvatarFacePartSource,
 } from "../vfx/faceParts";
@@ -27,17 +38,30 @@ import { mergeAvatarIssues, type AvatarIssue } from "./issues";
 export type AvatarDiagnosticsFacePart = {
   role: AvatarFacePartRole;
   source: AvatarFacePartSource;
+  /** For an estimated eye, what places it (blinking or its bone). */
+  estimate?: AvatarEyeEstimate;
+  /**
+   * For face skin, true when it is the head region of a mesh part that holds
+   * the whole body (`findFaceSkinRegion`).
+   */
+  headRegion?: true;
+  /** Mesh parts that are this part throughout. */
   bindingCount: number;
-  /** Mesh parts that hold this part as a region (lashes in the face mesh). */
+  /**
+   * Mesh parts that hold this part as a region (lashes in the face mesh, the
+   * face in a whole-body mesh).
+   */
   regionCount: number;
   confidence: number;
 };
 
 /**
  * Where a standard expression the Avatar plays comes from: the file, an ARKit
- * mix, or Animama's composition of MMD morphs (and ARKit mixes) by region.
+ * mix, Animama's composition of MMD morphs (and ARKit mixes) by region, or,
+ * for a blink or viseme the file leaves empty, the shapes `faceSignals.ts`
+ * filled it from (the file's left and right blinks, MMD, ARKit or VRChat).
  */
-export type AvatarExpressionSource = "model" | "arkit" | "mmd";
+export type AvatarExpressionSource = "model" | SynthesizedFaceSignalSource;
 
 /** Where each region of a mood preset's face comes from (R12). */
 export type AvatarMoodFace = {
@@ -69,6 +93,11 @@ export type AvatarLiveDiagnostics = {
   motion: {
     humanoidBones: number;
     missingRequiredBones: string[];
+    /**
+     * Optional bones that Gestures, poses or contacts use and the rig lacks,
+     * each with the bone that stands in for it (`optionalBones.ts`).
+     */
+    missingOptionalBones: OptionalBoneStandIn[];
     springJoints: number;
     springColliders: number;
     /** The wind setting in effect, and whether wind and updraft apply. */
@@ -125,18 +154,37 @@ function collectFace(avatar: Avatar): AvatarLiveDiagnostics["face"] {
   return {
     detected: map !== null,
     parts: map
-      ? Object.values(map.parts).map((part) => ({
-          role: part.role,
-          source: part.source,
-          bindingCount: part.bindings.length,
-          regionCount: part.regions?.length ?? 0,
-          confidence: part.confidence,
-        }))
+      ? Object.values(map.parts).map((part) => {
+          const regionKeys = new Set(
+            (part.regions ?? []).map((region) => region.bindingKey),
+          );
+          return {
+            role: part.role,
+            source: part.source,
+            ...(part.estimate ? { estimate: part.estimate } : {}),
+            ...(part.role === "face_skin" && regionKeys.size > 0
+              ? { headRegion: true as const }
+              : {}),
+            // A binding the part holds only a region of counts as a region.
+            bindingCount: part.bindings.filter((key) => !regionKeys.has(key))
+              .length,
+            regionCount: part.regions?.length ?? 0,
+            confidence: part.confidence,
+          };
+        })
       : [],
     landmarks: avatar.getFaceLandmarksSnapshot()?.status ?? "unavailable",
     textureAnchors:
       avatar.getFaceTextureAnchorsSnapshot()?.status ?? "unavailable",
   };
+}
+
+/** Where a registered standard expression comes from. */
+function expressionSource(expression: VRMExpression): AvatarExpressionSource {
+  const signal = faceSignalSourceOf(expression);
+  if (signal) return signal;
+  if (arkitMixOf(expression)) return "arkit";
+  return isAnimamaFaceExpression(expression) ? "mmd" : "model";
 }
 
 function collectExpressions(
@@ -149,15 +197,14 @@ function collectExpressions(
   const missingPresets: string[] = [];
   for (const name of PRESET_NAMES) {
     const expression = manager?.getExpression(name) ?? null;
-    if (expression) {
-      presets.push({
-        name,
-        source: arkitMixOf(expression)
-          ? "arkit"
-          : isAnimamaFaceExpression(expression)
-            ? "mmd"
-            : "model",
-      });
+    // three-vrm registers every preset a VRM 0 file lists, so one that plays
+    // nothing is missing; `neutral` is empty by design.
+    if (
+      expression &&
+      (name === VRMExpressionPresetName.Neutral ||
+        expressionPlaysSomething(expression))
+    ) {
+      presets.push({ name, source: expressionSource(expression) });
     } else if (looksWithExpressions || !LOOK_PRESETS.has(name)) {
       // A model that looks with its eye bones does not need look expressions.
       missingPresets.push(name);
@@ -213,6 +260,9 @@ function collectMotion(avatar: Avatar): AvatarLiveDiagnostics["motion"] {
     missingRequiredBones: Object.values(VRMRequiredHumanBoneName).filter(
       (name) => !humanoid?.getRawBoneNode(name),
     ),
+    missingOptionalBones: humanoid
+      ? missingOptionalBones((bone) => Boolean(humanoid.getRawBoneNode(bone)))
+      : [],
     springJoints: springs?.joints.size ?? 0,
     springColliders: springs?.colliders.length ?? 0,
     wind: { mode: avatar.springMode, ambientForces: avatar.ambientForces },

@@ -102,6 +102,7 @@ describe("readAvatarFileFacts", () => {
       meshCount: 1,
       primitiveCount: 2,
       morphedPrimitiveCount: 1,
+      mismatchedMorphNameMeshCount: 0,
       materialCount: 2,
       materialKinds: { mtoon: 0, liltoon: 0, unlit: 1, pbr: 1 },
       textures: [
@@ -202,6 +203,29 @@ describe("avatarFileIssues", () => {
       }),
     );
     expect(avatarFileIssues(facts)).toEqual([]);
+  });
+
+  it("counts meshes whose primitives name their morph targets differently", () => {
+    const primitive = (names: string[]) => ({
+      attributes: { POSITION: 0 },
+      targets: [{ POSITION: 1 }, { POSITION: 1 }],
+      extras: { targetNames: names },
+    });
+    const facts = readAvatarFileFacts(
+      glb({
+        meshes: [
+          // Loads named: the lists agree.
+          { primitives: [primitive(["a", "b"]), primitive(["a", "b"])] },
+          // Loads unnamed: the lists disagree.
+          { primitives: [primitive(["a", "b"]), primitive(["a", "c"])] },
+          { primitives: [primitive(["a", "b"]), primitive(["b", "a"])] },
+        ],
+      }),
+    );
+    expect(facts?.mismatchedMorphNameMeshCount).toBe(2);
+    expect(avatarFileIssues(facts)).toEqual([
+      { code: "morph_target_names_mismatched", params: { count: 2 } },
+    ]);
   });
 
   it("reports an unreadable file", () => {

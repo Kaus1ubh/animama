@@ -1,4 +1,5 @@
 import type { AvatarIssue } from "../diagnostics/issues";
+import type { AvatarEyeEstimate } from "./faceParts";
 
 export type AvatarFaceLandmarkVector = {
   x: number;
@@ -53,6 +54,19 @@ export type AvatarFaceEyeLandmarkSnapshot = {
    * eyes share mirrored UVs. Iris art is then mirrored for this eye.
    */
   textureMirrored?: boolean;
+  /**
+   * Present for an eye without geometry of its own (painted on the face, or
+   * modelled inside the face primitive): what its position is estimated
+   * from. A `blink` eye's `textureRect` bounds the face texture where blink
+   * moves; an eye placed from its bone has none.
+   */
+  estimate?: AvatarEyeEstimate;
+  /**
+   * Present for an estimated eye: the depth (z) of the face surface's front
+   * over the eye and around it, so art hovering over the eye sits in front of
+   * the face there rather than at a fixed share of the face's depth.
+   */
+  surfaceFrontZLocal?: number;
 };
 
 export type AvatarFaceLandmarksSnapshot = {

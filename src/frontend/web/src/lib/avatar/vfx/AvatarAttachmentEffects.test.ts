@@ -2,12 +2,11 @@ import * as THREE from "three";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { Avatar } from "../Avatar";
+import { BODY_EFFECT_SCALE_BAND, bodyEffectScale } from "../avatarProportions";
 import type { AnimaPoseClipEventSink } from "../poses/PoseController";
 import { buildRuntimePrimitiveBindings } from "../vrmEditorInspection";
 import {
-  BODY_EFFECT_SCALE_BAND,
   BODY_RENDER_ORDER,
-  bodyEffectScale,
   MAX_ACTIVE_ATTACHMENT_EFFECTS,
   STICKER_RENDER_ORDER,
 } from "./AvatarAttachmentEffects";
@@ -116,8 +115,10 @@ function createRig(metaVersion: "0" | "1" = "1", size = 1): Rig {
     scene,
     vrm: {
       meta: { metaVersion },
+      scene,
       humanoid: {
         getNormalizedBoneNode: (name: string) => bones[name] ?? null,
+        getRawBoneNode: (name: string) => bones[name] ?? null,
       },
     },
     faceLandmarks: null,

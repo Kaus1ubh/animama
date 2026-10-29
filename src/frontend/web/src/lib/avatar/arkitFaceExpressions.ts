@@ -1,8 +1,4 @@
-import {
-  VRMExpression,
-  VRMExpressionMorphTargetBind,
-  type VRM,
-} from "@pixiv/three-vrm";
+import { VRMExpression, type VRM } from "@pixiv/three-vrm";
 import type * as THREE from "three";
 
 import type { ArkitFaceCapability } from "./arkitFaceCapability";
@@ -13,9 +9,13 @@ import {
   type FaceRegion,
   mergeMixes,
 } from "./arkitFaceCompositions";
+import { expressionPlaysSomething, faceSignalSourceOf } from "./faceSignals";
 import { isIrisHideExpression } from "./irisHideExpression";
 import { mmdMorphOf, PART_PREFIX_BY_REGION } from "./mmdFaceExpressions";
-import { registerArkitExpressions } from "./morphTargetExpressions";
+import {
+  arkitMixBinds,
+  registerArkitExpressions,
+} from "./morphTargetExpressions";
 import { VROID_MOOD_PRESETS, type VroidMood } from "./vroidMoodParts";
 
 /**
@@ -69,13 +69,15 @@ export function arkitMixOf(expression: VRMExpression): ArkitMix | null {
 
 /**
  * Whether Animama registered this expression (a mix, an MMD morph, a
- * composition or `Fcl_EYE_Iris_Hide`).
+ * composition, a blink or viseme from `faceSignals.ts`, or
+ * `Fcl_EYE_Iris_Hide`).
  */
 export function isAnimamaFaceExpression(expression: VRMExpression): boolean {
   return (
     arkitMixExpressions.has(expression) ||
     composedExpressions.has(expression) ||
     mmdMorphOf(expression) !== null ||
+    faceSignalSourceOf(expression) !== null ||
     isIrisHideExpression(expression)
   );
 }
@@ -108,13 +110,6 @@ export function ownFaceNames(vrm: VRM): (name: string) => boolean {
 
 const REGIONS: readonly FaceRegion[] = ["brow", "eye", "mouth"];
 
-/** The ARKit mix each blink preset plays when the file and MMD leave it empty. */
-const ARKIT_BLINK_MIXES: Readonly<Record<string, ArkitMix>> = {
-  blink: { eyeBlinkLeft: 1, eyeBlinkRight: 1 },
-  blinkLeft: { eyeBlinkLeft: 1 },
-  blinkRight: { eyeBlinkRight: 1 },
-};
-
 /** VRoid's eye-closing parts and the blink preset each plays without ARKit. */
 const EYE_CLOSE_BLINKS: Readonly<Record<string, string>> = {
   Fcl_EYE_Close: "blink",
@@ -143,18 +138,7 @@ export function registerArkitFace(vrm: VRM): ArkitFace {
 
   /** Bind each shape's own morph binds, scaled by the mix. */
   const addMixBinds = (expression: VRMExpression, mix: ArkitMix) => {
-    for (const [shape, value] of Object.entries(mix)) {
-      for (const bind of manager.getExpression(shape)?.binds ?? []) {
-        if (!(bind instanceof VRMExpressionMorphTargetBind)) continue;
-        expression.addBind(
-          new VRMExpressionMorphTargetBind({
-            primitives: bind.primitives,
-            index: bind.index,
-            weight: bind.weight * value,
-          }),
-        );
-      }
-    }
+    for (const bind of arkitMixBinds(manager, mix)) expression.addBind(bind);
   };
   /**
    * Register `name` unless the model has its own (or `replaceOwn`), or an
@@ -176,12 +160,12 @@ export function registerArkitFace(vrm: VRM): ArkitFace {
     mark(expression);
     manager.registerExpression(expression);
   };
-  const registerMix = (name: string, mix: ArkitMix, replaceOwn = false) =>
+  const registerMix = (name: string, mix: ArkitMix) =>
     register(
       name,
       (expression) => addMixBinds(expression, mix),
       (expression) => arkitMixExpressions.set(expression, mix),
-      replaceOwn,
+      false,
     );
 
   let playsArkit = false;
@@ -212,9 +196,9 @@ export function registerArkitFace(vrm: VRM): ArkitFace {
     const covered = REGIONS.filter((region) =>
       ["mmd", "arkit"].includes(sources[region]),
     );
-    // three-vrm registers every preset, so one that binds nothing is absent.
+    // three-vrm registers every preset, so one that plays nothing is absent.
     const ownPreset =
-      own(preset) && (manager.getExpression(preset)?.binds.length ?? 0) > 0;
+      own(preset) && expressionPlaysSomething(manager.getExpression(preset));
     const anyVroid = REGIONS.some((region) => sources[region] === "vroid");
     if (
       covered.length === 0 ||
@@ -254,15 +238,14 @@ export function registerArkitFace(vrm: VRM): ArkitFace {
   for (const [part, mix] of Object.entries(ARKIT_NON_MOOD_PART_MIXES)) {
     if (resolves(mix)) registerMix(part, mix);
   }
-  // A blink preset the file and MMD leave empty plays its ARKit eye closing.
-  for (const [preset, mix] of Object.entries(ARKIT_BLINK_MIXES)) {
-    if ((manager.getExpression(preset)?.binds.length ?? 0) > 0) continue;
-    if (resolves(mix)) registerMix(preset, mix, true);
-  }
-  // Closing the eyes is what each blink preset does on any model.
+  // Closing the eyes is what each blink preset does on any model (the file's,
+  // or one `registerFaceSignals` filled from other shapes before this runs).
   for (const [part, blink] of Object.entries(EYE_CLOSE_BLINKS)) {
-    const binds = manager.getExpression(blink)?.binds ?? [];
-    if (binds.length === 0) continue;
+    const blinkExpression = manager.getExpression(blink);
+    if (!blinkExpression || !expressionPlaysSomething(blinkExpression)) {
+      continue;
+    }
+    const binds = blinkExpression.binds;
     register(
       part,
       (expression) => binds.forEach((bind) => expression.addBind(bind)),

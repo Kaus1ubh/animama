@@ -189,6 +189,11 @@ vowel channels. Names are matched case-insensitively, in these styles:
 - `aa/ee/ih/oh/ou`, the common VRM style;
 - fallbacks such as `ii`, `oo` and `uu`.
 
+Viseme presets a file leaves empty are filled at load from MMD's あいうえお,
+VRChat's `vrc.v_*` visemes or the ARKit vowel mixes below
+([Faces on non-VRoid Avatars](avatar-emotion.md#faces-on-non-vroid-avatars)),
+so such Avatars move their mouths with the default viseme lip sync.
+
 ### ARKit lip-sync shaping
 
 An Avatar with every ARKit shape in the `vowels` table of
@@ -207,7 +212,8 @@ Avatars without every vowel shape. The choice lasts until the canvas creates a
 new `Avatar` (switching Anima, changing the rendering mode, a content refresh),
 which starts with visemes again; picture-in-picture and the creators always use
 visemes. Under a smiling mood, `I`'s smile adds to the mood's on the same
-morph, which can pass its authored shape.
+morph, which can pass its authored shape; so do the default visemes on an
+Avatar whose visemes were filled from these ARKit mixes.
 
 ## 7) Start and end semantics
 

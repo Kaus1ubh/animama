@@ -1,6 +1,7 @@
 import * as THREE from "three";
 
 import type { Avatar } from "../Avatar";
+import { headSized, type AvatarProportions } from "../avatarProportions";
 import { resolveHumanoidAnchorObject } from "../humanoidAnchors";
 import { isVrm0 } from "../poses/poseRetargeting";
 import {
@@ -64,6 +65,42 @@ export function mergeParticleVFXTransform(
   ) {
     next.depthOffset = override.depthOffset;
   }
+  return next;
+}
+
+/**
+ * The scale a Particle Effect anchored at `anchor` is placed at on an Avatar
+ * of `proportions`: its body size against the Included Avatars'
+ * (`bodyEffectScale`), and at the head of a big-headed Avatar the head's own
+ * size, so stars circling the head or a cloud above it stay outside it.
+ * Exactly 1 on the Included Avatars.
+ */
+export function particleVFXPlacementScale(
+  proportions: AvatarProportions,
+  anchor: ParticleVFXAnchor,
+): number {
+  return anchor === "head"
+    ? headSized(proportions, proportions.bodyScale, proportions.headScale)
+    : proportions.bodyScale;
+}
+
+/**
+ * A transform as placed on an Avatar `scale` times the Included Avatars' size
+ * ({@link particleVFXPlacementScale}): offsets and scale multiplied, rotation
+ * kept. Particle Effects are authored on the Included Avatars, so a small,
+ * large or big-headed Avatar gets them in proportion.
+ */
+export function scaleParticleVFXTransform(
+  transform: ParticleVFXTransform,
+  scale: number,
+): ParticleVFXTransform {
+  const next = cloneParticleVFXTransform(transform);
+  if (scale === 1) return next;
+  for (const axis of ["x", "y", "z"] as const) {
+    next.offset[axis] *= scale;
+    next.scale[axis] *= scale;
+  }
+  next.depthOffset *= scale;
   return next;
 }
 

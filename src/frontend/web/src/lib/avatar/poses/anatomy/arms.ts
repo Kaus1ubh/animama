@@ -16,6 +16,7 @@ import {
   HAND_OR_FINGER_BONE,
   type ContactPoint,
 } from "./contactPoints";
+import { standInBone } from "./optionalBones";
 
 export {
   ARM_BONE,
@@ -395,6 +396,53 @@ export function contactTargetPosition(
 }
 
 const scratchOffset = new Vector3();
+
+/**
+ * How high the upper chest's joint lies between the spine's joint and the
+ * neck's, as a share of that height: 0.635–0.638 on the Included Avatars,
+ * 0.625 on the VRM 0 fixture and 100Avatars rigs that have an upper chest.
+ */
+export const UPPER_CHEST_SHARE = 0.635;
+
+/** The bone a contact uses on a rig, and where on it the missing joint lies. */
+export type ContactStandIn = {
+  bone: VRMHumanBoneName;
+  /**
+   * For a missing upper chest, its estimated joint: an offset (m, this rig's
+   * size) from the stand-in's joint in its rest-aligned frame (up only). Null
+   * when the contact uses the stand-in's own points.
+   */
+  jointOffset: Vector3 | null;
+};
+
+/**
+ * The bone a contact on `bone` uses on this rig (`standInBone`): the bone
+ * itself; for a missing upper chest, the chest (or the spine) at an estimated
+ * upper-chest joint at `UPPER_CHEST_SHARE` of the height from the spine to the
+ * neck (or the head on a rig without one), wherever the rig puts its chest; or, for
+ * a missing finger segment, the nearest segment of the same finger, whose own
+ * points (`tip`) stand in. Null when nothing stands in; the solver then skips
+ * the contact.
+ */
+export function contactStandIn(
+  skeleton: CanonicalSkeleton,
+  bone: VRMHumanBoneName,
+): ContactStandIn | null {
+  const standIn = standInBone(bone, (candidate) => skeleton.has(candidate));
+  if (!standIn) return null;
+  if (bone !== "upperChest" || standIn === bone)
+    return { bone: standIn, jointOffset: null };
+  const spine = skeleton.restPosition("spine");
+  const top = skeleton.restPosition("neck") ?? skeleton.restPosition("head");
+  if (!spine || !top) return { bone: standIn, jointOffset: null };
+  // Only the height: a straight spine-to-neck line runs behind a curved
+  // upper chest (2 cm on VRoid), so the stand-in's own depth is closer.
+  const height = MathUtils.lerp(spine.y, top.y, UPPER_CHEST_SHARE);
+  return {
+    bone: standIn,
+    jointOffset: new Vector3(0, height - skeleton.restPosition(standIn)!.y, 0),
+  };
+}
 
 /** A solved contact's window and ramps, in seconds of clip time. */
 export type ContactSolveWindow = {

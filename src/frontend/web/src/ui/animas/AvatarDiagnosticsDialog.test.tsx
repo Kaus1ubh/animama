@@ -73,6 +73,14 @@ const live: AvatarLiveDiagnostics = {
         regionCount: 2,
         confidence: 0.5,
       },
+      {
+        role: "eye_left",
+        source: "estimated",
+        estimate: "eye_bone",
+        bindingCount: 0,
+        regionCount: 0,
+        confidence: 0.4,
+      },
     ],
     landmarks: "ready",
     textureAnchors: "ready",
@@ -81,6 +89,9 @@ const live: AvatarLiveDiagnostics = {
     presets: [
       { name: "happy", source: "model" },
       { name: "relaxed", source: "arkit" },
+      { name: "blink", source: "left_right" },
+      { name: "aa", source: "vrchat" },
+      { name: "oh", source: "mmd" },
     ],
     missingPresets: ["lookUp"],
     arkit: { resolved: 41, total: 52, playsFaces: true },
@@ -90,6 +101,15 @@ const live: AvatarLiveDiagnostics = {
   motion: {
     humanoidBones: 52,
     missingRequiredBones: [],
+    missingOptionalBones: [
+      { bone: "upperChest", standIn: "chest", covers: "motion_and_contacts" },
+      { bone: "leftEye", standIn: null, covers: "nothing" },
+      {
+        bone: "rightIndexDistal",
+        standIn: "rightIndexIntermediate",
+        covers: "contacts",
+      },
+    ],
     springJoints: 120,
     springColliders: 18,
     wind: { mode: "off", ambientForces: false },
@@ -125,6 +145,7 @@ const report = buildAvatarDiagnosticsReport({
     meshCount: 3,
     primitiveCount: 17,
     morphedPrimitiveCount: 2,
+    mismatchedMorphNameMeshCount: 0,
     materialCount: 12,
     materialKinds: { mtoon: 10, liltoon: 2, unlit: 0, pbr: 0 },
     textures: [
@@ -366,13 +387,27 @@ describe("AvatarDiagnosticsDialog", () => {
     expect(dialog()?.textContent).toContain("Model data");
     expect(dialog()?.textContent).toContain("Not found");
     expect(dialog()?.textContent).toContain("2 inside shared parts");
+    expect(dialog()?.textContent).toContain("Estimated from the eye bone");
 
     click("Expressions");
     expect(dialog()?.textContent).toContain("relaxed (ARKit)");
+    expect(dialog()?.textContent).toContain("blink (left and right blinks)");
+    expect(dialog()?.textContent).toContain("aa (VRChat)");
+    expect(dialog()?.textContent).toContain("oh (MMD)");
     expect(dialog()?.textContent).toContain("41 of 52");
     expect(dialog()?.textContent).toContain("2 custom names");
 
     click("Motion");
+    expect(dialog()?.textContent).toContain("upperChest → chest");
+    expect(dialog()?.textContent).toContain(
+      "Gestures, poses and contacts use the bone below",
+    );
+    expect(dialog()?.textContent).toContain(
+      "rightIndexDistal → rightIndexIntermediate",
+    );
+    expect(dialog()?.textContent).toContain("Contacts use");
+    expect(dialog()?.textContent).toContain("Not moved");
+    expect(dialog()?.textContent).toContain("leftEye");
     expect(dialog()?.textContent).toContain("120 joints · 18 colliders");
     expect(dialog()?.textContent).toContain("Off · no wind or updraft");
     expect(dialog()?.textContent).toContain("Saved for this Avatar");
@@ -416,6 +451,107 @@ describe("AvatarDiagnosticsDialog", () => {
     click("Warnings (2)");
     expect(dialog()?.textContent).toContain(
       "The file requires KHR_draco_mesh_compression, a glTF extension this app cannot load yet, so the Avatar cannot be shown.",
+    );
+  });
+
+  it("says when stored shape key names disagree", () => {
+    diagnostics.view = {
+      state: {
+        status: "ready",
+        report,
+        issues: [
+          { code: "morph_target_names_mismatched", params: { count: 1 } },
+        ],
+        live: false,
+      },
+      effectNames: new Map(),
+    };
+    render();
+    click("Open diagnostics");
+    click("Warnings (1)");
+    expect(dialog()?.textContent).toContain(
+      "1 mesh stores shape key names that disagree with each other or with its shape keys, so those shape keys stay unnamed",
+    );
+  });
+
+  it("says a face was found as the head of a whole-body mesh part", () => {
+    const wholeBody = structuredClone(report);
+    wholeBody.live!.face.parts = [
+      {
+        role: "face_skin",
+        source: "signals",
+        headRegion: true,
+        bindingCount: 0,
+        regionCount: 1,
+        confidence: 0.6,
+      },
+    ];
+    diagnostics.view = {
+      state: { status: "ready", report: wholeBody, issues: [], live: false },
+      effectNames: new Map(),
+    };
+    render();
+    click("Open diagnostics");
+    click("Face");
+    expect(dialog()?.textContent).toContain("Head of a whole-body mesh part");
+    expect(dialog()?.textContent).toContain("1 inside a shared part");
+  });
+
+  it("says when a whole-body mesh part has no face on its head", () => {
+    diagnostics.view = {
+      state: {
+        status: "ready",
+        report,
+        issues: [{ code: "face_parts_whole_body_head_missing" }],
+        live: false,
+      },
+      effectNames: new Map(),
+    };
+    render();
+    click("Open diagnostics");
+    click("Warnings (1)");
+    expect(dialog()?.textContent).toContain(
+      "One mesh part holds the whole body, but no forward-facing part of it skinned to the head bone moves",
+    );
+  });
+
+  it("says why painted face art was skipped", () => {
+    diagnostics.view = {
+      state: {
+        status: "ready",
+        report,
+        issues: [
+          {
+            code: "effect_iris_mesh_missing",
+            params: { effectId: "fx-1", part: "eye_left" },
+          },
+          { code: "effect_anchor_covered", params: { effectId: "fx-2" } },
+          { code: "effect_face_texture_hidden", params: { effectId: "fx-3" } },
+          { code: "effect_surface_too_dark", params: { effectId: "fx-4" } },
+        ],
+        live: false,
+      },
+      effectNames: new Map([
+        ["fx-1", "Sparkle"],
+        ["fx-2", "Blush"],
+        ["fx-3", "Red Face"],
+        ["fx-4", "Shiver"],
+      ]),
+    };
+    render();
+    click("Open diagnostics");
+    click("Warnings (4)");
+    expect(dialog()?.textContent).toContain(
+      "Sparkle was skipped: this Avatar's left eye was estimated on the face and has no iris mesh part to paint on.",
+    );
+    expect(dialog()?.textContent).toContain(
+      "Blush was skipped: where it is painted on the face lies under other parts of this Avatar",
+    );
+    expect(dialog()?.textContent).toContain(
+      "Red Face was skipped: the face skin's material shows no base color texture",
+    );
+    expect(dialog()?.textContent).toContain(
+      "Shiver was skipped: it darkens the face where it is painted, and the face there is too dark for the change to show.",
     );
   });
 

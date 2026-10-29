@@ -348,9 +348,41 @@ palm down, like VRoid's; the idle pose bends it as on the Included Avatars.
 
 Contact offsets scale with `avatarScale` (rest head height above the feet over
 1.25 m), and the solver reaches with the model's own arm lengths, so a
-uniformly larger model solves the same arm turns. Head proportions are not
-measured separately, so a model whose head is unusually large or small for its
-height places face contacts proportionally to its height.
+uniformly larger model solves the same arm turns. Offsets from the `head` of a
+big-headed Avatar (chibi, mascot or robot proportions, measured at load by
+`avatarProportions.ts`; see [Size-aware
+placement](avatar-vfx.md#size-aware-placement)) scale with its face's size
+instead, so hands reach its cheeks rather than stopping inside the head at the
+jaw. Adult and anime proportions, the Included Avatars among them, are
+unaffected.
+
+### Optional bones a rig lacks
+
+VRM requires only the hips, spine, head and limbs; Gestures, poses and
+contacts also use the chest, upper chest, neck, shoulders, eyes and every
+finger segment, which VRChat conversions and low-poly Avatars often lack
+(`poses/anatomy/optionalBones.ts`). A complete rig, such as either Included
+Avatar, takes none of these paths.
+
+- **Torso:** in Gestures and poses, the rotation of a missing `upperChest`
+  (or `chest`) folds into the nearest torso bone below it, so everything above
+  bends as on a complete rig, pivoting at that bone. Prepared clips fold before
+  contacts are solved, default poses before a fade blends them, and poses
+  where they are applied. Procedural layers (sway, breathing, talking hands,
+  emotion posture, head nods and tilts, cursor look-at) still skip it.
+- **Contacts:** a contact on a missing `upperChest` uses the chest (or the
+  spine) at an estimated upper-chest joint: 0.635 of the height from the spine
+  joint to the neck (the Included Avatars' share), at the stand-in's own depth,
+  wherever the rig puts its chest. A contact on a missing finger segment
+  uses the nearest segment of the same finger toward the hand, with the same
+  point (`tip` then extrapolates that segment). A finger with no segments has
+  no stand-in, so its contacts are skipped.
+- **Skipped:** finger curls on a missing segment (the remaining segment already
+  carries the rest of the finger), and any motion of a missing neck, shoulder
+  or eye.
+
+Avatar Diagnostics lists each missing bone under Motion with what stands in
+for it, and `vrm:inspect` prints the same list.
 
 ### Pose and clip JSON artifacts
 
@@ -736,7 +768,11 @@ from `src/frontend/web`:
 - `pnpm -s animation:render <clip.json> --out <dir>` draws review sheets.
   `--avatar-file <a.vrm>` draws them on that VRM instead of the Included
   Avatars, for example a converted Avatar kept outside the repository; keep
-  its sheets outside the repository too.
+  its sheets outside the repository too. On a big-headed Avatar the body and
+  face views frame the measured head ([Size-aware
+  placement](avatar-vfx.md#size-aware-placement)); the `--view hands`
+  close-ups keep their distance from the head bone's height, so where a
+  chibi's hands meet its large head they can show only skin or clothing.
 - `pnpm -s animation:reel --gestures|--reactions|--effects [<source>...] --out <file.mp4>`
   records a 1920×1080, 30 fps video of every Included Gesture, Reaction (by
   emotion, then intensity) or Avatar, Particle and Scene Effect
@@ -984,11 +1020,16 @@ morphs; see [Faces on non-VRoid Avatars](avatar-emotion.md#faces-on-non-vroid-av
 `pnpm -s vrm:inspect <file.vrm>` (from `src/frontend/web`) reports the same
 resolution for a file before import, including shapes found under another
 spelling, ARKit-named expressions the file authors itself, and whether
-Animama will play the Avatar's faces as ARKit mixes. It also reports
+Animama will play the Avatar's faces as ARKit mixes, where each blink and
+viseme preset comes from, and the face parts detection finds after the
+load-time installs (`prepareLoadedVrm`). It also reports
 the VRM version, extensions, materials, images, and each mesh's size and
-morph-target names with where they are stored: three.js reads only mesh-level
-`extras.targetNames`, so names stored only per primitive never reach the app.
-Add `--json` for the full report.
+morph-target names with where they are stored. three.js reads only mesh-level
+`extras.targetNames`; every Avatar loader (`configureAvatarGltfLoader`) also
+applies names some exporters store per primitive when all of a mesh's
+primitives agree (`primitiveTargetNames.ts`). A mesh whose primitives disagree
+("primitives, mismatched") loads unnamed, and Diagnostics reports it from the
+file (`morph_target_names_mismatched`). Add `--json` for the full report.
 
 ### `ProceduralAnimationController`
 
@@ -1736,11 +1777,14 @@ adapts colour and UV expression binds to those materials.
   change that moves lilToon's cost.
 - **Fallback base colours:** Mochiya writes `metallicFactor` 1 on the fallback
   materials, which renders them almost black without an environment map.
-  `LilToonFallbackMaterialsPlugin` builds fallbacks of lilToon materials with
-  metalness 0; GLTFLoader extends only materials it builds itself, so
-  lilToon's own materials are untouched. Vertex colours on those materials'
-  meshes are lilToon outline data, so their fallbacks also ignore `COLOR_0`
-  (other materials keep glTF's colour multiply).
+  `UnmetallicMaterialsPlugin` (`unmetallicMaterials.ts`) builds every lit glTF
+  material an Avatar loads, these fallbacks and plain PBR materials alike,
+  with metalness 0. It skips MToon materials by their `VRMC_materials_mtoon`
+  extension (VRM 0 MToon gains it before materials load); GLTFLoader never
+  extends unlit materials or the materials lilToon builds itself.
+  Vertex colours on lilToon materials' meshes are lilToon outline data, so
+  the same plugin turns them off on those fallbacks (`COLOR_0`); other
+  materials keep glTF's colour multiply.
 - **Outlines from vertex colours:** with `_OutlineVertexR2Width` 2, lilToon
   takes an outline's direction from the vertex colour's RGB (a tangent-space
   normal the author baked, often for hair) and its width from the alpha.
@@ -1761,7 +1805,10 @@ adapts colour and UV expression binds to those materials.
   loader and always draws the fallback materials; `animation:render` loads
   lilToon as the app does.
 - **Silhouettes and release:** silhouette overlays bias lilToon materials eight
-  depth units, because lilToon skins and projects in its own order.
+  depth units, because lilToon skins and projects in its own order. A cut-out
+  lilToon material's overlay discards by its `_Cutoff` (three-liltoon reports
+  it as `alphaTest`), reading the main texture through `_MainTex_ST` and its
+  fixed rotation and applying its `_AlphaMask` (`lilToonAlphaSource`).
   `releaseModelScene` disposes their `lilToonTextures`, which neither
   `VRMUtils.deepDispose` nor the material's `dispose` releases.
 - **Frame cost:** lilToon shading is much heavier than MToon. On an Apple M5

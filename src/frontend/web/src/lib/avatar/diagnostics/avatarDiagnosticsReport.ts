@@ -3,6 +3,7 @@ import {
   lilToonFrameBudgetMs,
   type AutomaticMaterialsDecision,
 } from "../liltoon/lilToonGpuCheck";
+import { optionalBoneText } from "../poses/anatomy/optionalBones";
 import type { AvatarFileFacts } from "./avatarFileFacts";
 import type { AvatarLiveDiagnostics } from "./avatarDiagnostics";
 import { mergeAvatarIssues, type AvatarIssue } from "./issues";
@@ -161,7 +162,10 @@ function liveLines(live: AvatarDiagnosticsReport["live"]): string[] {
     ...(face.detected
       ? face.parts.map(
           (part) =>
-            `  ${part.role}: ${part.source}, ${part.bindingCount} primitive(s)` +
+            `  ${part.role}: ${part.source}` +
+            (part.estimate ? ` from ${part.estimate}` : "") +
+            (part.headRegion ? " (head of a whole-body primitive)" : "") +
+            `, ${part.bindingCount} primitive(s)` +
             (part.regionCount > 0 ? ` + regions in ${part.regionCount}` : "") +
             `, confidence ${part.confidence.toFixed(2)}`,
         )
@@ -180,6 +184,7 @@ function liveLines(live: AvatarDiagnosticsReport["live"]): string[] {
     "",
     "Motion",
     `  Humanoid bones ${motion.humanoidBones}; missing required: ${list(motion.missingRequiredBones)}`,
+    `  Missing optional bones: ${list(motion.missingOptionalBones.map(optionalBoneText))}`,
     `  Springs: ${motion.springJoints} joints, ${motion.springColliders} colliders`,
     `  Wind setting ${motion.wind.mode}; wind and updraft ${motion.wind.ambientForces ? "on" : "off"}`,
     `  Rest pose: ${

@@ -5,6 +5,7 @@ import type {
 } from "three/examples/jsm/loaders/GLTFLoader.js";
 
 import { unloadableGltfExtensions } from "./diagnostics/avatarGltfExtensions";
+import { PrimitiveTargetNamesPlugin } from "./primitiveTargetNames";
 
 type MeshoptDecoder = NonNullable<GLTFParser["options"]["meshoptDecoder"]>;
 
@@ -70,11 +71,16 @@ class AvatarExtensionsPlugin implements GLTFLoaderPlugin {
 /**
  * Give a glTF loader what every Avatar loader shares: the meshopt decoder for
  * files that use it (its WebAssembly is embedded, so no runtime asset is
- * served) and a clear failure for a file whose extensions the runtime cannot
- * load (`LOADABLE_GLTF_EXTENSIONS`). Diagnostics names those extensions from
- * the file's facts (`avatar_extension_unsupported`). Returns the loader.
+ * served), a clear failure for a file whose extensions the runtime cannot
+ * load (`LOADABLE_GLTF_EXTENSIONS`), and morph-target names stored only per
+ * primitive (`PrimitiveTargetNamesPlugin`), so the app and every tool that
+ * loads an Avatar see the same names. Diagnostics reports unloadable
+ * extensions and disagreeing name lists from the file's facts
+ * (`avatar_extension_unsupported`, `morph_target_names_mismatched`). Register
+ * this before other plugins. Returns the loader.
  */
 export function configureAvatarGltfLoader(loader: GLTFLoader): GLTFLoader {
   loader.register((parser) => new AvatarExtensionsPlugin(parser));
+  loader.register((parser) => new PrimitiveTargetNamesPlugin(parser));
   return loader;
 }
