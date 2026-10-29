@@ -112,15 +112,18 @@ in a valid scene; `Export` converts in that scene. `MochiyaTargetKind` is
 
 Remaining steps before release and merge (owner unless noted):
 
-1. Answer the open decision: Node 22 for the command (spec Q8 said Node 20).
-2. GW: give access to a Windows machine; the agent then runs every phase's
+1. Done 2026-10-29: Node 22 confirmed.
+2. GW (later, by the owner's choice): give access to a Windows machine; the agent then runs every phase's
    Windows checks and updates the "tested on" line in the package
    repository's root README.
 3. GM: walk through the Unity window on macOS (installer prompt, licence
    notice, export, open scene untouched).
-4. G1: create `raymond-van/animama-avatar-export` and push its `main`.
-5. G2: Actions, Pages from GitHub Actions, the `github-pages` environment
-   allowing `v*` tags, a tag ruleset for `v*`.
+4. Done 2026-10-29 (G1): `raymond-van/animama-avatar-export` created as a
+   private repository with Actions disabled; `main` pushed at `f489a14`; no
+   workflow ran.
+5. G2: make the repository public, then enable Actions, Pages from GitHub
+   Actions, the `github-pages` environment allowing `v*` tags, and a tag
+   ruleset for `v*`.
 6. Release prep (agent, after GW): mark the CHANGELOG's 0.1.0 heading released
    so `check.mjs --tag v0.1.0` passes.
 7. G3: approve and push `v0.1.0` (it must contain the `--log` option, exporter
@@ -164,6 +167,12 @@ Remaining steps before release and merge (owner unless noted):
 ## Decision Log
 
 - 2026-10-29, owner: accept the spec's answers to Q1–Q8 (issue #795).
+- 2026-10-29, owner (after the final integration review): Node 22 for the
+  command is confirmed; the Windows checks (GW) come later; create the
+  package repository as private initially (G1). While it is private, end users
+  cannot install from it (Git URL, `npx github:`, the VPM listing on Pages), so
+  it must be made public before G3. Actions stay disabled on the private
+  repository until G2, so pushes spend no billed minutes.
 - 2026-10-29, owner: authorize implementation — Phase 1 first, then the
   remaining phases of this plan. Pushing, publishing, the new repository and
   every gate below stay with the owner.
