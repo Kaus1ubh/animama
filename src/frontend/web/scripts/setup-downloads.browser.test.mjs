@@ -546,7 +546,7 @@ test("only Welcome gates; steps move focus to their headings and Skip finishes w
     await page.getByLabel("Display name", { exact: true }).fill("Ada Lovelace");
     // Age confirmation belongs after the wizard.
     assert.equal(await next.isEnabled(), true);
-    assert.equal(await button(page, "I am 18 or older").count(), 0);
+    assert.equal(await button(page, "I am 18 or older and agree").count(), 0);
     await next.click();
 
     await heading(page, "Choose your AI").waitFor();
@@ -592,7 +592,7 @@ test("only Welcome gates; steps move focus to their headings and Skip finishes w
     );
     await button(page, "I'm under 18").click();
     await page.getByText(/only for adults 18 and older/u).waitFor();
-    assert.equal(await button(page, "I am 18 or older").count(), 0);
+    assert.equal(await button(page, "I am 18 or older and agree").count(), 0);
     assert.equal(bodies.onboarding, undefined);
     await page.reload();
     await page.getByRole("dialog", { name: "Before you start" }).waitFor();
@@ -603,7 +603,7 @@ test("only Welcome gates; steps move focus to their headings and Skip finishes w
       .filter({ hasText: /^You$/u })
       .waitFor();
     assert.equal(await page.getByTestId("profile-name").innerText(), "You");
-    await button(page, "I am 18 or older").click();
+    await button(page, "I am 18 or older and agree").click();
     await page.getByText("Setup complete", { exact: true }).waitFor();
     await page
       .getByTestId("profile-name")
@@ -705,7 +705,7 @@ test("saving the OpenAI key chooses OpenAI; Finish saves the recommended speech 
       /^CPU \(/u,
     );
     await button(page, "Finish").click();
-    await button(page, "I am 18 or older").click();
+    await button(page, "I am 18 or older and agree").click();
     await page.getByText("Setup complete", { exact: true }).waitFor();
 
     assert.deepEqual(operations, [{ method: "credentials.apply" }]);
@@ -740,7 +740,7 @@ test("a SenseVoice pick under English is saved as the engine that runs", async (
       .getByText(/^Recognizes Japanese, Korean, Chinese and English\./u)
       .waitFor();
     await button(page, "Finish").click();
-    await button(page, "I am 18 or older").click();
+    await button(page, "I am 18 or older and agree").click();
     await page.getByText("Setup complete", { exact: true }).waitFor();
     assert.deepEqual(bodies.settings.preferences.speech, {
       stt_provider: "parakeet",
@@ -784,7 +784,7 @@ test("saving the Anthropic key chooses Claude Haiku 5.5, and Finish sends it", a
     await button(page, "Continue").click();
     await heading(page, "Set up voice").waitFor();
     await button(page, "Finish").click();
-    await button(page, "I am 18 or older").click();
+    await button(page, "I am 18 or older and agree").click();
     await page.getByText("Setup complete", { exact: true }).waitFor();
     assert.deepEqual(operations, [{ method: "credentials.apply" }]);
     assert.equal(bodies.onboarding.chat_model_provider_id, HAIKU);
@@ -813,7 +813,7 @@ test("saving the OpenAI key after the Anthropic key makes OpenAI the setup model
     await page.getByRole("tab", { name: "OpenAI (connected)" }).waitFor();
     await button(page, "Continue").click();
     await button(page, "Finish").click();
-    await button(page, "I am 18 or older").click();
+    await button(page, "I am 18 or older and agree").click();
     await page.getByText("Setup complete", { exact: true }).waitFor();
     assert.equal(bodies.onboarding.chat_model_provider_id, OPENAI_MODEL);
   } finally {
@@ -838,7 +838,7 @@ test("adding a model after the Anthropic key makes it the setup model", async ()
     await dialog.waitFor({ state: "hidden" });
     await button(page, "Continue").click();
     await button(page, "Finish").click();
-    await button(page, "I am 18 or older").click();
+    await button(page, "I am 18 or older and agree").click();
     await page.getByText("Setup complete", { exact: true }).waitFor();
     assert.equal(
       bodies.onboarding.chat_model_provider_id,
@@ -1061,7 +1061,7 @@ test("OpenAI and Anthropic keys configured before setup do not pin a setup model
     await page.getByRole("tab", { name: "Anthropic (connected)" }).waitFor();
     await button(page, "Continue").click();
     await button(page, "Finish").click();
-    await button(page, "I am 18 or older").click();
+    await button(page, "I am 18 or older and agree").click();
     await page.getByText("Setup complete", { exact: true }).waitFor();
     assert.equal(bodies.onboarding.chat_model_provider_id, undefined);
   } finally {
@@ -1087,7 +1087,7 @@ test("Finish waits for a key save in flight, then saves ElevenLabs as the provid
     release();
     await page.getByText("Saved.", { exact: true }).waitFor();
     await button(page, "Finish").click();
-    await button(page, "I am 18 or older").click();
+    await button(page, "I am 18 or older and agree").click();
     await page.getByText("Setup complete", { exact: true }).waitFor();
     assert.equal(bodies.settings.preferences.speech.tts_provider, "elevenlabs");
     assert.equal(bodies.settings.preferences.speech.tts_enabled, true);
@@ -1133,7 +1133,7 @@ test("a local server's model is added and becomes the setup model", async () => 
     );
     await button(page, "Continue").click();
     await button(page, "Finish").click();
-    await button(page, "I am 18 or older").click();
+    await button(page, "I am 18 or older and agree").click();
     await page.getByText("Setup complete", { exact: true }).waitFor();
     assert.equal(
       bodies.onboarding.chat_model_provider_id,
@@ -1170,7 +1170,7 @@ test("saving the OpenAI key after adding a local model makes OpenAI the setup mo
     await page.getByText("Saved.", { exact: true }).waitFor();
     await button(page, "Continue").click();
     await button(page, "Finish").click();
-    await button(page, "I am 18 or older").click();
+    await button(page, "I am 18 or older and agree").click();
     await page.getByText("Setup complete", { exact: true }).waitFor();
     assert.equal(bodies.onboarding.chat_model_provider_id, OPENAI_MODEL);
   } finally {
@@ -1187,7 +1187,7 @@ test("with no local server, Set up later moves on without a model", async () => 
     await button(page, "Set up later").click();
     await heading(page, "Set up voice").waitFor();
     await button(page, "Finish").click();
-    await button(page, "I am 18 or older").click();
+    await button(page, "I am 18 or older and agree").click();
     await page.getByText("Setup complete", { exact: true }).waitFor();
     assert.equal(bodies.onboarding.chat_model_provider_id, undefined);
   } finally {
@@ -1204,7 +1204,7 @@ test("a refused setup model is explained and Finish can retry after skipping it"
     await page.getByText("Saved.", { exact: true }).waitFor();
     await button(page, "Continue").click();
     await button(page, "Finish").click();
-    await button(page, "I am 18 or older").click();
+    await button(page, "I am 18 or older and agree").click();
     await page.getByText(/chosen model can no longer be used/u).waitFor();
     await button(page, "Back to setup").click();
     await button(page, "Back").click();
@@ -1212,7 +1212,7 @@ test("a refused setup model is explained and Finish can retry after skipping it"
     await heading(page, "Set up voice").waitFor();
     // Skipping AI clears the choice; OpenAI is chosen again only if returning.
     await button(page, "Finish").click();
-    await button(page, "I am 18 or older").click();
+    await button(page, "I am 18 or older and agree").click();
     await page.getByText("Setup complete", { exact: true }).waitFor();
     assert.equal(bodies.onboarding.chat_model_provider_id, undefined);
   } finally {
@@ -1244,7 +1244,7 @@ test("the hosted composition's AI step offers no model choice", async () => {
     await page.reload();
     await page.getByRole("dialog", { name: "Before you start" }).waitFor();
     assert.equal(bodies.onboarding, undefined);
-    await button(page, "I am 18 or older").click();
+    await button(page, "I am 18 or older and agree").click();
     await page.getByText("Setup complete", { exact: true }).waitFor();
     assert.equal(bodies.onboarding.chat_model_provider_id, undefined);
   } finally {
@@ -1292,7 +1292,7 @@ test("a speech download keeps running after Finish and survives renderer recreat
     await button(page, "Continue").click();
     await button(page, "Continue").click();
     await button(page, "Finish").click();
-    await button(page, "I am 18 or older").click();
+    await button(page, "I am 18 or older and agree").click();
     await page.getByText("Setup complete", { exact: true }).waitFor();
     assert.equal(assets[0].status, "downloading");
   } finally {
@@ -1350,7 +1350,7 @@ test("steps, keys and downloads work when setup details cannot be retained", asy
     assert.deepEqual(operations, [{ method: "credentials.apply" }]);
     assert.equal(installs(requests).length, 1);
     await button(page, "Finish").click();
-    await button(page, "I am 18 or older").click();
+    await button(page, "I am 18 or older and agree").click();
     await page.getByText("Setup complete", { exact: true }).waitFor();
   } finally {
     await page.close();
