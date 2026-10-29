@@ -7,6 +7,7 @@ import {
   headSized,
   REFERENCE_AVATAR_BODY,
   SPINE_BONES,
+  torsoSizeScale,
   type AvatarProportions,
   type SpineBone,
 } from "../avatarProportions";
@@ -82,10 +83,12 @@ export function mergeParticleVFXTransform(
 /**
  * The scale a Particle Effect anchored at `anchor` is sized at on an Avatar
  * of `proportions`: its body size against the Included Avatars'
- * (`bodyEffectScale`); on a big-headed Avatar the head's own size at the
- * head, so stars circling the head or a cloud above it stay outside it, and
- * the arm's or leg's measured length at a hand or foot. Exactly 1 on the
- * Included Avatars.
+ * (`bodyEffectScale`). On a big-headed Avatar it is the head's own size at
+ * the head, so stars circling the head or a cloud above it stay outside it,
+ * the arm's or leg's measured length at a hand or foot, and the torso's
+ * measured size (`torsoSizeScale`) elsewhere, since a chibi's head bone sits
+ * low on a short body and would shrink an aura or burst at its chest. Exactly
+ * 1 on the Included Avatars.
  */
 export function particleVFXPlacementScale(
   proportions: AvatarProportions,
@@ -114,7 +117,11 @@ export function particleVFXPlacementScale(
           : bodyScale,
       );
     default:
-      return bodyScale;
+      return headSized(
+        proportions,
+        bodyScale,
+        torsoSizeScale(body) ?? bodyScale,
+      );
   }
 }
 

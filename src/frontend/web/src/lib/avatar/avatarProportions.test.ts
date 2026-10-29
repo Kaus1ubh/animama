@@ -12,6 +12,7 @@ import {
   REFERENCE_AVATAR_BODY,
   REFERENCE_HEAD_SIZE,
   setAvatarFaceSize,
+  torsoSizeScale,
 } from "./avatarProportions";
 import {
   VRM0_FIXTURE_ID,
@@ -163,6 +164,10 @@ describe("Avatar proportions", () => {
     expect(body.heights.upperChest).toBeUndefined();
     expect(body.torsoWidth).toBeCloseTo((0.18 + 0.1) * 0.4);
     expect(body.armLength).toBeCloseTo(0.5 * 0.4);
+    // Hips to neck 0.5 m and torso width 0.28 m at full size, times 0.4.
+    expect(torsoSizeScale(body)).toBeCloseTo(
+      Math.sqrt(((0.5 * 0.4) / 0.4) * ((0.28 * 0.4) / 0.178)),
+    );
     expect(body.legLength).toBeCloseTo(0.8 * 0.4);
     // The whole body framed: the top of the head, over the Included
     // Avatars' share of it above the head bone.

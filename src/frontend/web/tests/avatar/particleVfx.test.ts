@@ -24,7 +24,10 @@ import {
   resolveParticleVFXAnchorLocalPosition,
 } from "@/lib/avatar/particle-vfx";
 import type { ParticleVFXCatalogEntry } from "@/lib/avatar/particle-vfx";
-import { measureAvatarProportions } from "@/lib/avatar/avatarProportions";
+import {
+  measureAvatarProportions,
+  torsoSizeScale,
+} from "@/lib/avatar/avatarProportions";
 import { loadWholeBodyAvatar } from "@/lib/avatar/testing/wholeBodyVrm";
 import { EMPTY_RUNTIME_MEDIA_PROVIDER } from "@/lib/runtime-content/AnimaRuntimeMediaCatalog";
 
@@ -1093,6 +1096,42 @@ describe("ParticleVFXController", () => {
         .getWorldPosition(new Vector3());
       expect(movedSparks.x - movedHand.x).toBeCloseTo(0.1 * (0.2 / 0.44), 4);
       expect(movedSparks.y).toBeCloseTo(movedHand.y, 4);
+    } finally {
+      controller.dispose();
+    }
+  });
+
+  it("sizes a chibi's chest effect by its torso, not its head height", async () => {
+    const avatar = await loadWholeBodyAvatar({ headScale: 2, bodyScale: 0.4 });
+    const controller = new ParticleVFXController(
+      avatar,
+      TEST_PARTICLE_MEDIA_PROVIDER,
+    );
+    quarksMockState.loadQueue.push({
+      kind: "resolve",
+      object: createMockQuarksPrefab(),
+    });
+
+    try {
+      await expect(
+        controller.playEffect({
+          effectId: "heart-fixture",
+          appliedId: "burst",
+          anchor: "chest",
+        }),
+      ).resolves.toBe(true);
+      const root = avatar.scene!.getObjectByName(
+        PARTICLE_VFX_ROOT_OBJECT_NAME,
+      )!;
+      const object = root.children.find((child) =>
+        child.name.startsWith("ParticleVFX:heart-fixture:burst"),
+      )!;
+      const proportions = measureAvatarProportions(avatar.vrm);
+      const torso = torsoSizeScale(proportions.body)!;
+      expect(torso).toBeGreaterThan(proportions.bodyScale);
+      expect(object.scale.x).toBeCloseTo(
+        testParticleEntry("heart-fixture").defaultTransform.scale.x * torso,
+      );
     } finally {
       controller.dispose();
     }

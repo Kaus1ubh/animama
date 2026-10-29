@@ -147,6 +147,25 @@ export const REFERENCE_AVATAR_BODY = {
 } as const satisfies AvatarBody;
 
 /**
+ * The torso's size against the Included Avatars' ({@link REFERENCE_AVATAR_BODY}):
+ * the geometric mean of its height (hips to neck) and its width
+ * ({@link AvatarBody.torsoWidth}) over theirs. Null without either measure.
+ * A chibi's torso is short but about as wide as an adult's, so the mean keeps
+ * effects around it neither too small nor too wide.
+ */
+export function torsoSizeScale(body: AvatarBody | null): number | null {
+  const neck = body?.heights.neck;
+  const hips = body?.heights.hips;
+  const width = body?.torsoWidth;
+  if (neck === undefined || hips === undefined || !width) return null;
+  const reference = REFERENCE_AVATAR_BODY.heights;
+  const height = (neck - hips) / (reference.neck - reference.hips);
+  return height > 0
+    ? Math.sqrt(height * (width / REFERENCE_AVATAR_BODY.torsoWidth))
+    : null;
+}
+
+/**
  * The top of the head over the head bone's height above the feet on the
  * Included Avatars: their head boxes reach about 0.2 m above a 1.25–1.37 m
  * head bone.

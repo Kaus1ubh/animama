@@ -225,7 +225,9 @@ are authored for the Included Avatars: on a model outside their size band
 Effects use) the controller places them scaled by its size. On a big-headed
 Avatar ([Size-aware placement](avatar-vfx.md#size-aware-placement)) the effect
 is sized by the face at the `head`, by the measured arm or leg at a hand or
-foot, and by the body elsewhere, and offsets from the root, torso or head go
+foot, and elsewhere by the torso (`torsoSizeScale`: the geometric mean of its
+hips-to-neck height and its width against the Included Avatars'), so an aura
+or burst at a chibi's chest is not shrunk by its low head bone, and offsets from the root, torso or head go
 through the body's landmarks (`placeParticleVFXOffset` in
 `lib/avatar/particle-vfx/runtime.ts`): a point between two of the Included
 Avatars' landmarks lands the same share of the way between this Avatar's,
