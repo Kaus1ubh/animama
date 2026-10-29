@@ -126,7 +126,7 @@ function PreviewAvatarActor({
         setStatus("ready");
       } catch (error) {
         logger.error("Preview", "Failed to load local VRM preview", {
-          fileName: file.name,
+          size: file.size,
           error,
         });
         if (cancelled) return;

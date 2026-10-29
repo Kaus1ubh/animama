@@ -52,6 +52,8 @@ class ParakeetSTTProvider(SpeechToTextProvider):
             url = url.replace("http://", "ws://").replace("https://", "wss://")
         if not url.endswith("/ws"):
             url = url + "/ws"
+        # Logged without the query string, which carries the service token.
+        endpoint = url
 
         # Add query parameters
         params = []
@@ -62,9 +64,9 @@ class ParakeetSTTProvider(SpeechToTextProvider):
         if params:
             url = f"{url}?{'&'.join(params)}"
 
-        self._log.info("Connecting to Parakeet WS", url=url, skip_vad=self.skip_vad)
+        self._log.info("Connecting to Parakeet WS", url=endpoint, skip_vad=self.skip_vad)
         self._ws = await websockets.connect(url, max_size=2**24, write_limit=2**20)
-        self._log.info("Connected to Parakeet WS", url=url, skip_vad=self.skip_vad)
+        self._log.info("Connected to Parakeet WS", url=endpoint, skip_vad=self.skip_vad)
         return self._ws
 
     async def stream(self, chunks):
@@ -91,7 +93,7 @@ class ParakeetSTTProvider(SpeechToTextProvider):
                     if text is None:
                         continue
                     seq += 1
-                    self._log.info(f"Transcript received: '{text}'")
+                    self._log.info("Transcript received", seq=seq, chars=len(str(text)))
                     await seg_q.put(TranscriptSegment(text=str(text), is_final=True, seq=seq))
             except Exception as exc:
                 self._log.warning("Parakeet recv failed", exc=exc)

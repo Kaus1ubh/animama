@@ -23,7 +23,6 @@ type ClosedRealSpeechWindow = {
   closedAtMs: number;
   expiresAtMs: number;
 };
-const DEFAULT_LOG_TRANSCRIPT_MAX_CHARS = 120;
 
 export type BrowserSpeechTextBuffers = {
   turnId: string;
@@ -38,7 +37,7 @@ type BrowserSpeechCollectedResult = {
   index: number;
   isFinal: boolean;
   alternatives: number;
-  transcript: string;
+  chars: number;
 };
 
 type CollectBrowserSpeechSegmentsOptions = {
@@ -104,14 +103,6 @@ export function appendTranscript(base: string, next: string): string {
   return joinSpeechText(base, next.trim());
 }
 
-export function truncateTranscriptForLog(
-  value: string,
-  maxChars = DEFAULT_LOG_TRANSCRIPT_MAX_CHARS,
-): string {
-  if (value.length <= maxChars) return value;
-  return `${value.slice(0, maxChars)}...`;
-}
-
 export function collectBrowserSpeechSegments(
   event: BrowserSpeechRecognitionEvent,
   options?: CollectBrowserSpeechSegmentsOptions,
@@ -135,7 +126,7 @@ export function collectBrowserSpeechSegments(
       index: i,
       isFinal: Boolean(result.isFinal),
       alternatives: result.length,
-      transcript: truncateTranscriptForLog(transcript),
+      chars: transcript.length,
     });
 
     if (result.isFinal) {
@@ -215,12 +206,6 @@ export function createSpeechTextBufferLogData(
     turnId: buffers?.turnId ?? null,
     finalChars: buffers?.finalText.length ?? 0,
     interimChars: buffers?.interimText.length ?? 0,
-    finalTextPreview: buffers?.finalText
-      ? truncateTranscriptForLog(buffers.finalText)
-      : "",
-    interimTextPreview: buffers?.interimText
-      ? truncateTranscriptForLog(buffers.interimText)
-      : "",
     updatedAtMs: buffers?.updatedAtMs ?? null,
     lastFinalAtMs: buffers?.lastFinalAtMs ?? null,
     lastInterimAtMs: buffers?.lastInterimAtMs ?? null,

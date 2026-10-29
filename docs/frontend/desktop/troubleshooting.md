@@ -17,6 +17,7 @@ migration snapshot is relevant. **Quit** stops Animama's owned services.
 
 Logs are under `<data>/runtime/logs`; `main.log`
 records desktop startup, and the same directory holds child-service logs.
+At 10 MiB, older lines move to `main.log.1` (newest) through `main.log.3`.
 `backend_start_failed` is a category, not the cause: inspect the relevant recent
 backend log before deciding on a repair.
 

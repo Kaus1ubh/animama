@@ -312,9 +312,9 @@ export function useProductChatSession({
   );
 
   useEffect(() => {
-    logger.info("UseAnima", "Anima Data", {
-      anima,
+    logger.info("UseAnima", "Anima data changed", {
       id: animaId,
+      loaded: anima != null,
     });
   }, [anima, animaId, logger]);
 
@@ -525,8 +525,8 @@ export function useProductChatSession({
         return rows.concat(pending.nextMessages);
       });
       logger.info("Chat", "Refreshing messages cache with next messages", {
-        nextMessages: pending.nextMessages,
-        messagesKey: pending.messagesKey,
+        runId: pending.runId,
+        messageCount: pending.nextMessages.length,
       });
       clearStreamingState();
       setLocalMessages((prev) =>
@@ -723,8 +723,8 @@ export function useProductChatSession({
 
   useEffect(() => {
     logger.debug("Chat Messages", "Preparing display messages", {
-      serverMessages,
-      localMessages,
+      serverMessageCount: serverMessages.length,
+      localMessageCount: localMessages.length,
       streamingRunId,
     });
   }, [serverMessages, localMessages, streamingRunId, logger]);
@@ -1141,7 +1141,9 @@ export function useProductChatSession({
             );
           },
           onToken: (token, data) => {
-            logger.info("Chat", "SSE received token", { token });
+            logger.debug("Chat", "SSE received token", {
+              length: token.length,
+            });
             // is_delta controls how this event's text mutates the current part:
             // append for deltas, replace for complete/correction events.
             // part_final is independent; it only means this part is finished,

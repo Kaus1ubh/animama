@@ -412,6 +412,11 @@ Prefer minimal, surgical diffs in:
   nearby code.
 - Reuse existing utilities such as `createLogger`, `queryKeys`, `cn`, env
   helpers, settings helpers, and provider helpers.
+- Log through `createLogger`. Production builds print only warnings and errors,
+  and Settings → About → Copy diagnostics summary includes recent ones from that
+  window's main thread, message text included. Log lengths, counts and IDs,
+  never chat or speech text, memories, settings values or file names; warning
+  and error messages interpolate only fixed codes and labels.
 - Prefer existing dependencies. If adding a dependency is necessary, update the
   lockfile and explain why the new package is warranted.
 - Avoid broad renames or moves unless requested.

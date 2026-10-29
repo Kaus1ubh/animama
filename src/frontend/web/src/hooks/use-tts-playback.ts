@@ -1100,7 +1100,10 @@ export function useTtsPlayback(
         // it here keeps the stream's end on the last chunk Pocket speaks.
         if (provider === "pocket_tts" && !pocketSpeechText(text)) continue;
 
-        logger.info("Prepare", "Prepared TTS text", { provider, text });
+        logger.info("Prepare", "Prepared TTS text", {
+          provider,
+          length: text.length,
+        });
         prepared.push({ ...chunk, text });
       }
 

@@ -76,7 +76,6 @@ function safeFileLogFields(
   return {
     uppyInstanceId: instanceId,
     uppyFileId: file.id,
-    filename: file.name,
     size: file.size,
     contentType: file.type || null,
     fileId,

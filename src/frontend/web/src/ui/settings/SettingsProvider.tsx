@@ -130,7 +130,7 @@ export function SettingsProvider({
       if (!userId) return undefined;
       logger.info("UserSettings", "Updating user settings", {
         userId,
-        patch,
+        fields: Object.keys(patch),
       });
       try {
         const result = await updateUserSettingsMutation.mutateAsync({
@@ -138,7 +138,7 @@ export function SettingsProvider({
         });
         logger.info("UserSettings", "Updated user settings", {
           userId,
-          patch,
+          fields: Object.keys(patch),
         });
         return result;
       } catch (error) {
@@ -155,7 +155,7 @@ export function SettingsProvider({
       logger.info("AnimaSettings", "Updating anima settings", {
         userId,
         animaId: resolvedAnimaId,
-        patch,
+        fields: Object.keys(patch),
       });
       try {
         const result = await updateAnimaSettingsMutation.mutateAsync({
@@ -165,7 +165,7 @@ export function SettingsProvider({
         logger.info("AnimaSettings", "Updated anima settings", {
           userId,
           animaId: resolvedAnimaId,
-          patch,
+          fields: Object.keys(patch),
         });
         return result;
       } catch (error) {
@@ -181,7 +181,7 @@ export function SettingsProvider({
       if (!userId) return undefined;
       logger.info("Preferences", "Updating user preferences", {
         userId,
-        patch,
+        fields: Object.keys(patch),
       });
       // PATCH replaces the whole object; a missing or stale cache is not a safe base.
       try {
@@ -203,7 +203,7 @@ export function SettingsProvider({
       logger.info("Preferences", "Updating anima preferences", {
         userId,
         animaId: resolvedAnimaId,
-        patch,
+        fields: Object.keys(patch),
       });
       return updateAnimaSettings({ preferences: merged });
     },
