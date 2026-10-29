@@ -88,8 +88,9 @@ in a valid scene; `Export` converts in that scene. `MochiyaTargetKind` is
 
 ## Progress
 
-- [ ] Phase 1: package skeleton and export core — not started; needs GW for
-  its Windows checks
+- [ ] Phase 1: package skeleton and export core — done on macOS (checks pass;
+  review passed after one repair round; package commit `26601ed`); Windows
+  checks open until GW
 - [ ] Phase 2: editor window, checks, installer, licence notice — not started
 - [ ] Phase 3: standalone command — not started
 - [ ] Phase 4: listing, release and package CI — not started; owner gates G1–G3
@@ -104,6 +105,25 @@ in a valid scene; `Export` converts in that scene. `MochiyaTargetKind` is
   (`d98e9091`) only in upload code, upload tests and docs.
 - 2026-10-29: The converted test Avatar's export is 21.9 MiB raw and 8.2 MiB
   optimized (basis for deferring Q3).
+- 2026-10-29 (Phase 1): Mochiya creates its working objects with
+  `new GameObject` and `Object.Instantiate` in the active scene, so a preview
+  scene would leak them into the user's scene. The export instead opens a fresh
+  scene and restores the user's saved scene setup afterwards, refusing while a
+  scene has unsaved changes. A new additive scene is not an option either:
+  Unity refuses one while an untitled scene is open, as batch mode always
+  starts. Exporting a scene root (not a prefab asset) cannot carry the object
+  across that switch; Phase 2 decides how the window offers it.
+- 2026-10-29 (Phase 1 review): Phase 2 inputs. Unsaved Prefab Mode changes are
+  not covered by the open-scene check. An export written inside `Assets/` is
+  imported after the move (the package calls `AssetDatabase.Refresh`, as
+  Mochiya does for its own output).
+- 2026-10-29 (Phase 1): the package's export of the converted test Avatar is
+  byte-identical to the copied script's, for the main prefab and its
+  `EditorOnly` outfit variant.
+- 2026-10-29 (Phase 1): in a fresh worktree `vrm:convert-vrchat` writes the VRM
+  but its `vrm:inspect` step fails until the workspace packages are built
+  (`pnpm --dir src/frontend packages:build`); the `vrm:*` scripts do not build
+  them. Phase 5's developer doc should say so.
 
 ## Decision Log
 
@@ -122,6 +142,17 @@ in a valid scene; `Export` converts in that scene. `MochiyaTargetKind` is
   `PackageManager.Client.AddAndRemove` with all three Git URLs in one request,
   so UniGLTF and UniVRM resolve before Mochiya's registry-style dependency on
   them, instead of editing `manifest.json` text.
+- 2026-10-29, agent (within scope, Phase 1): the export refuses to start while an
+  open scene has unsaved changes rather than saving or discarding them; the
+  Phase 2 window offers to save first. Batch mode is unaffected (it starts in a
+  clean untitled scene).
+- 2026-10-29, agent (within scope, Phase 1): intended differences from the copied
+  script. Only `.vrm` output is accepted (the script let Mochiya write `.glb`);
+  the output-exists and extension checks run before validation, so an existing
+  output exits 1 even for a prefab Mochiya cannot convert; the "Wrote" line
+  prints the absolute path; the T-pose errors name "the keep-pose option"
+  (`-animamaKeepPose`, `--keep-pose`, the window's checkbox) instead of the
+  batch flag alone.
 - 2026-10-29, agent (within scope): the export assembly compiles only when its
   dependencies exist (`versionDefines` plus `defineConstraints`); the installer
   lives in a separate assembly with no dependencies, so a project without them
@@ -166,11 +197,13 @@ Steps, in a new local repository (no remote until gate G1):
 3. Port `AnimamaBatchExport` into an export core (for example
    `AvatarExporter.Run(prefabOrRoot, options) → ExportResult`) plus thin batch
    entry points with the same `-animama*` arguments and exit codes:
-   - work in a temporary additive scene that is made active and closed without
-     saving afterwards, so the user's open scenes and the source prefab are
-     untouched (Detect needs a valid, non-persistent scene object);
+   - work in a fresh empty scene and reopen the user's saved scenes afterwards,
+     refusing while an open scene has unsaved changes, so the user's scenes and
+     the source prefab are untouched (Detect needs a valid, non-persistent scene
+     object; see Discoveries for why not a preview or additive scene);
    - strip `EditorOnly` and apply the T-pose exactly as today;
-   - write to `<out>.partial` beside the target and move it into place only
+   - write to a dot-prefixed `.<name>.<random>.partial.vrm` beside the target
+     (Mochiya requires the `.vrm` extension) and move it into place only
      after `Export` succeeds, retrying briefly if Windows reports the file in
      use; delete the partial file on any failure; never overwrite an existing
      target.
@@ -203,17 +236,102 @@ project. Keep the old copied script until Phase 5 removes it.
 
 Completion: checks pass and the review has no supported blocking finding.
 
-Check record: —
+Check record (macOS 26 on Apple Silicon, Unity 2022.3.62f3, Mochiya
+`0826f6e3`, UniVRM 0.131.2; private copy of the converted test Avatar's
+project; scripts and logs kept privately):
 
-Commits: —
+| Check | Result | Source |
+| --- | --- | --- |
+| Baseline: copied-script export, `vrm:convert-vrchat --no-optimize`, main prefab and `EditorOnly` variant | both VRMs written (Unity 23 s and 9 s); the command's own `vrm:inspect` step failed on unbuilt workspace packages (see Discoveries) | Animama `f2e92396` |
+| Package EditMode tests, `-runTests -testPlatform EditMode -assemblyNames Animama.AvatarExport.Editor.Tests` | first run 8/10: two failures from a test bug (a `Scene` handle read after reopening); rerun 10/10, no compile errors or Animama warnings | package tree `45620e2d` |
+| Package batch export (`-executeMethod Animama.AvatarExport.BatchExport.Export`), both prefabs | exit 0 (7 s, 8 s); both files byte-identical to the baseline; `vrm:inspect` reports identical apart from a one-time Vite warning | package implementation as in `45620e2d` (only the test file changed afterwards) |
+| Variant strips its `EditorOnly` objects | 8 topmost tagged objects stripped, as the baseline did | same run |
+| Source prefabs unchanged | SHA-256 of the prefab folder equal before and after | same run |
+| No partial files left | none | same run |
+| No network or upload code: `grep -rn -E 'UnityWebRequest\|HttpClient\|WebClient\|System\.Net\|Mochiya[A-Za-z]*Upload' Packages/` | no matches | `45620e2d` |
+| After Review #1 repairs: EditMode tests | 13/14 first (one new test's expectation was wrong, see Revisions); final 16/16, no compile errors or Animama warnings | package tree `c3bac262` |
+| After repairs: batch export of both prefabs | exit 0; both files byte-identical to the baseline | repaired implementation (only tests changed afterwards) |
+| After repairs: batch Validate exit codes | attachment prefab with keep-pose exits 2 (Mochiya: not a valid Avatar); missing prefab exits 1 with `FileNotFoundException` | same |
+| After repairs: prefabs unchanged, no partial files, no network or upload code | pass | `c3bac262` |
+| After Review #2's trivial repair: EditMode tests; main prefab batch export | 16/16; exit 0, byte-identical to the baseline | package commit `26601ed` (tree `0b8c35b2`) |
+| Windows checks | not run (gate GW) | — |
+| Behavior with dependencies missing (assembly not compiled) | not run; covered by Phase 2's walkthrough | — |
+
+Commits: package repository `26601ed` `feat(export)[p1]: export a VRChat
+Avatar prefab to VRM through Mochiya` (local; no remote until G1).
 
 #### Code Review #1 Findings
 
-—
+Reviewed the package tree `45620e2d` against the copied script at Animama
+`f2e92396`, standard tier, initial round; reused the check record and reran the
+source search plus a `.meta` coverage and GUID-uniqueness check.
+
+- **P1-F1 (blocking):** scene restore could mark an unloaded saved scene active;
+  Unity rejects that setup, leaving the user in the temporary scene with the
+  posed copy, and the thrown error could turn a written export into `Failed`.
+- P1-F2: a failed restore replaced the run's own error or outcome.
+- P1-F3: an unguarded partial-file delete could escape `Run` on Windows.
+- P1-F4: batch lines were logged only at the end, so a crash mid-export lost
+  them.
+- P1-F5: messages dropped the keep-pose hint; prefab-not-found changed
+  exception type.
+- P1-F6: intended behavior differences to record (`.vrm` only, checks before
+  validation, absolute path in "Wrote").
+- P1-F7: an export inside `Assets/` was no longer imported in the same run.
+- P1-F8: the partial-name comment said "hidden" (not on Windows); long name.
+- P1-F9: the Mochiya adapter shared the interface's file.
+- P1-F10: missing tests for multi-scene and untitled restore, early-return
+  restore and the extension check; exit codes 2 and 1 unobserved.
+- P1-F11: plan step 3 and the Decision Log out of date.
+- P1-F12: package README named UniVRM ambiguously.
+
+Confirmed without findings: `.meta` coverage, no private references, no
+network or upload code, assembly conditions, batch arguments and exit codes,
+Mochiya's file handling, no-overwrite, partial cleanup on converter failure.
 
 #### Code Review #1 Revisions
 
-—
+All findings accepted; P1-F6 recorded rather than changed. Repaired tree
+`c3bac262`.
+
+- P1-F1: `SceneSetupScope.ScenesToReopen` keeps saved scenes, marks a loaded
+  one active, and reopens none when none is loaded. Testing showed Unity's
+  `GetSceneManagerSetup` already reports a lone unloaded saved scene as loaded
+  and active, so that scene comes back loaded; the first test's expectation
+  (an empty scene) was corrected and two tests on synthetic setups added.
+- P1-F2, P1-F3: restore and partial-file failures are logged without changing
+  the outcome.
+- P1-F4: a progress sink delivers each line as it happens; batch mode logs live.
+- P1-F5: messages name "the keep-pose option"; `FileNotFoundException`
+  restored.
+- P1-F6: Decision Log entry.
+- P1-F7: the package refreshes the asset database after moving an export into
+  `Assets/`, as Mochiya does.
+- P1-F8: comment corrected; random part shortened to 8 characters; Windows path
+  length stays a GW check.
+- P1-F9: `MochiyaConverter.cs`.
+- P1-F10: six tests added (16 in all); batch exit codes 2 and 1 observed.
+- P1-F11: plan updated. P1-F12: README updated.
+
+Verification: the "After Review #1 repairs" rows above. Repair budget: round 1
+of 2 used.
+
+#### Code Review #2 Findings
+
+Targeted recheck of tree `c3bac262` (repair round 1), reusing the record and
+rerunning the source search and `.meta` checks: every Review #1 finding fixed
+or recorded as described; no blocking finding or regression.
+
+- P1-R2-F1 (non-blocking): a step after the move (asset refresh, reading the
+  file size, a caller's progress sink) could still report `Failed` with the VRM
+  in place, contrary to the status's "nothing was written".
+
+#### Code Review #2 Revisions
+
+- P1-R2-F1 accepted as a trivial repair: `OutputPath` is set as soon as the
+  VRM is in place, and the `Failed` and `OutputPath` docs say a failed run wrote
+  nothing unless `OutputPath` is set. Verified by the last check-record row; no
+  reviewer recheck needed. Phase 2's window sink must not throw.
 
 ### Phase 2: editor window, checks, installer and licence notice
 
