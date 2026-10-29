@@ -73,7 +73,7 @@ Evidence in this plan and the PR is counts and pass/fail only.
 - [x] Phase 7: size-aware placement and framing (2026-10-29; review passed after one repair round).
 - [x] Phase 8: rig and material fallbacks (2026-10-29; review passed after one repair round).
 - [x] Phase 9: acceptance, documentation and owner gates (2026-10-29, agent side; owner gates open).
-- [ ] Final integration review, full pre-push suite, PR.
+- [x] Final integration review and full pre-push suite (2026-10-29); PR opened.
 
 ## Surprises & Discoveries
 
@@ -1549,6 +1549,16 @@ Result: blocked on F1 only.
 - F3 deferred: cosmetic, the face is still found and shown; F5 no change.
 The coordinator verified F1 and F4 by reading the change (record and wording
 only; standard tier).
+
+Full pre-push suite on `9d36e74e` (tree `bd0b763e`), each step through the
+heavy-job slots:
+
+| Command | Directory | Result |
+| --- | --- | --- |
+| `make check-test` | repo root | exit 0: typed-content audit, format, ruff, mypy (889 files), pytest 5203 passed, 29 skipped |
+| `pnpm verify` | `src/frontend` | exit 0: check, lint, Vitest 6201 passed / 2 skipped (650 files), build |
+| `pnpm web:test:browser` | `src/frontend` | 122 passed, 15 failed: every failure is in `scripts/setup-downloads.browser.test.mjs`, waiting for the "I am 18 or older" button that `main`'s #789 relabelled "I am 18 or older and agree"; the same file on `main` (`d1ff395e`) fails the same 15 of 25; this branch changes neither the file nor the setup screens |
+| `pnpm prettier:check` | `src/frontend` | exit 0 |
 
 ## Validation and acceptance
 
