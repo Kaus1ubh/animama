@@ -61,6 +61,7 @@ import {
   type DesktopShortcutIssue,
   type DesktopShortcutMap,
 } from "@/lib/settings/desktop-shortcuts";
+import { useDesktopLoginItem } from "@/hooks/useDesktopLoginItem";
 import { useDesktopUpdates } from "@/hooks/useDesktopUpdates";
 import { APPEARANCE_COLOR_TOKENS } from "@/lib/theme/appearance-overrides";
 import { BEHAVIOR_FLAGS } from "@/lib/settings/behavior-defaults";
@@ -71,6 +72,7 @@ import {
 } from "@/ui/settings/AboutSettings";
 import {
   AppBehaviorSetting,
+  AutomaticEpisodeProcessingSetting,
   behaviorLabel,
   ResetAppSettingsSetting,
 } from "@/ui/settings/BehaviorDataSettings";
@@ -136,6 +138,7 @@ import {
 } from "@/ui/settings/DesktopCredentialsPanel";
 import { DesktopFeaturePacksPanel } from "@/ui/settings/DesktopFeaturePacksPanel";
 import { DesktopUpdatesPanel } from "@/ui/settings/DesktopUpdatesPanel";
+import { LaunchAtLoginSetting } from "@/ui/settings/LaunchAtLoginSetting";
 import { VoiceCloneSettings } from "@/ui/settings/VoiceDownloads";
 import { ChoiceTabsList } from "@/ui/settings/choice-tabs/ChoiceTabsList";
 import { Tabs, TabsContent } from "@/ui/components/tabs";
@@ -159,6 +162,7 @@ import {
   availableSettingsSections,
   type SettingsSearchEntry,
 } from "@/ui/settings/settings-search";
+import { useAutomaticEpisodeProcessingAvailable } from "@/query/hooks/useAutomaticEpisodeProcessing";
 import { useRuntimeCapabilities } from "@/query/hooks/useRuntimeCapabilities";
 import { fetchRuntimeCapabilities } from "@/query/runtime-capabilities";
 import {
@@ -341,6 +345,7 @@ const SECTION_LABEL_KEYS = {
 type SettingGroupId =
   | "profile"
   | "audio"
+  | "startup"
   | "defaultModels"
   | "webSearch"
   | "animama"
@@ -368,6 +373,8 @@ function settingGroupLabel(
       return t("groups.profile");
     case "audio":
       return t("groups.audio");
+    case "startup":
+      return t("groups.startup");
     case "defaultModels":
       return t("groups.defaultModels");
     case "webSearch":
@@ -615,6 +622,8 @@ export function ApplicationSettingsModal({
   const [isInitializing, setIsInitializing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const runtimeCapabilities = useRuntimeCapabilities();
+  const automaticEpisodeProcessingAvailable =
+    useAutomaticEpisodeProcessingAvailable();
   // The offline choice runs the owner's engine, else the UI Locale's
   // (Parakeet for English, SenseVoice otherwise), which is also the
   // recommended one; read through `i18n` so both follow a language switch.
@@ -1237,6 +1246,7 @@ export function ApplicationSettingsModal({
   // The updates panel renders nothing while updates are unavailable (browser,
   // unpackaged or unsupported desktop), so its entry is hidden then too.
   const desktopUpdates = useDesktopUpdates();
+  const loginItem = useDesktopLoginItem(open);
   const credentialsAvailable = useDesktopCredentialsAvailable();
   const desktopShortcutsAvailable =
     platform.isDesktop && Boolean(platform.desktopBridge.shortcuts);
@@ -1368,6 +1378,16 @@ export function ApplicationSettingsModal({
           showTitle={false}
         />
       ),
+    },
+    {
+      id: "launch-at-login",
+      section: "General",
+      ...inGroup("startup"),
+      label: t("launchAtLogin.label"),
+      keywords: ["startup", "login", "autostart", "open automatically", "boot"],
+      // Packaged macOS and Windows apps only.
+      hidden: !loginItem.status.available,
+      render: () => <LaunchAtLoginSetting loginItem={loginItem} />,
     },
     {
       id: "feature-packs",
@@ -1780,6 +1800,15 @@ export function ApplicationSettingsModal({
         render: () => <AppBehaviorSetting flag={flag} disabled={isBusy} />,
       }),
     ),
+    {
+      id: "behavior-automatic-episode-processing",
+      section: "Memory & Emotion",
+      ...inGroup("animaDefaults"),
+      label: t("behavior.automaticProcessing.label"),
+      keywords: ["memory", "episode", "notes", "memory manager", "automatic"],
+      hidden: !automaticEpisodeProcessingAvailable,
+      render: () => <AutomaticEpisodeProcessingSetting disabled={isBusy} />,
+    },
     {
       id: "safety",
       section: "Safety",

@@ -47,8 +47,12 @@ def validate_main_emotional_intensity(value: Any) -> int:
     return 1
 
 
-class PyMainAgentResponse(BaseModel):
-    """Structured assistant response used by normal chat."""
+class PyMainAgentResponseBase(BaseModel):
+    """Every field of the structured chat reply except ``remember``.
+
+    Chat replies with ``PyMainAgentResponse``; only the model benchmark's ``MEMORIES.md``-only arm
+    (``app/chat/memory_arm.py``) replies with this base, which has no episodic ``remember`` note.
+    """
 
     model_config = ConfigDict(extra="forbid")
 
@@ -72,12 +76,6 @@ class PyMainAgentResponse(BaseModel):
     )
     speech: str = Field(..., description="Speakable assistant response for text-to-speech")
     display: str | None = Field(..., description="Optional fuller text to render visually after speech")
-    remember: str | None = Field(
-        ...,
-        description=(
-            "Optional 1-3 sentence durable memory note from this turn; null or empty string means nothing notable."
-        ),
-    )
 
     @field_validator("emotional_tone", mode="before")
     @classmethod
@@ -92,6 +90,17 @@ class PyMainAgentResponse(BaseModel):
     @property
     def request_helpers(self) -> list[str]:
         return []
+
+
+class PyMainAgentResponse(PyMainAgentResponseBase):
+    """Structured assistant response used by normal chat."""
+
+    remember: str | None = Field(
+        ...,
+        description=(
+            "Optional 1-3 sentence durable memory note from this turn; null or empty string means nothing notable."
+        ),
+    )
 
 
 @dataclass(frozen=True)
@@ -668,14 +677,17 @@ def build_main_response_model(
     agent_id: str,
     entries: Sequence[HelperInstructionData] | None = None,
     gesture_ids: Sequence[str] | None = None,
-) -> type[PyMainAgentResponse]:
+    remember: bool = True,
+) -> type[PyMainAgentResponseBase]:
+    """The reply model for one turn's equipped Gestures; ``remember=False`` drops the episodic note."""
+
     _ = entries
     runtime_gesture_ids = _runtime_gesture_ids(gesture_ids)
     dynamic_model = cast(
-        type[PyMainAgentResponse],
+        type[PyMainAgentResponseBase],
         create_model(
             f"PyMainAgentResponse_{agent_id.replace('-', '_')}",
-            __base__=PyMainAgentResponse,
+            __base__=PyMainAgentResponse if remember else PyMainAgentResponseBase,
             gesture=(
                 str | None,
                 Field(
@@ -695,11 +707,13 @@ def build_main_structured_response_model(
     agent_id: str,
     entries: Sequence[HelperInstructionData] | None = None,
     gesture_ids: Sequence[str] | None = None,
-) -> type[PyMainAgentResponse]:
+    remember: bool = True,
+) -> type[PyMainAgentResponseBase]:
     return build_main_response_model(
         agent_id=agent_id,
         entries=entries,
         gesture_ids=gesture_ids,
+        remember=remember,
     )
 
 
@@ -719,7 +733,8 @@ def build_main_response_model_from_schema(
     gesture_ids: Sequence[str] | None = None,
 ) -> type[PyMainAgentResponse]:
     _ = schema, include_helpers
-    return build_main_response_model(agent_id=agent_id, gesture_ids=gesture_ids)
+    # With ``remember`` (the default) the model is chat's own PyMainAgentResponse.
+    return cast(type[PyMainAgentResponse], build_main_response_model(agent_id=agent_id, gesture_ids=gesture_ids))
 
 
 def build_main_structured_response_model_from_schema(
@@ -750,23 +765,21 @@ def build_main_structured_prompt(
         ensure_ascii=True,
         indent=2,
     )
-    example_json = json.dumps(
-        {
-            "emotional_tone": "neutral",
-            "emotional_intensity": 3,
-            "gesture": None,
-            "speech": "Short spoken reply.",
-            "display": None,
-            "remember": None,
-        },
-        ensure_ascii=True,
-        indent=2,
-    )
+    example = {
+        "emotional_tone": "neutral",
+        "emotional_intensity": 3,
+        "gesture": None,
+        "speech": "Short spoken reply.",
+        "display": None,
+        "remember": None,
+    }
+    # The model benchmark's MEMORIES.md-only arm replies without `remember`.
+    fields = [name for name in example if name in output_type.model_fields]
+    example_json = json.dumps({name: example[name] for name in fields}, ensure_ascii=True, indent=2)
     return (
         "Return ONLY one valid json object that matches the configured response format.\n"
         "Do not include markdown or prose outside JSON.\n"
-        "Emit object properties in this order: emotional_tone, emotional_intensity, "
-        "gesture, speech, display, remember.\n"
+        f"Emit object properties in this order: {', '.join(fields)}.\n"
         "Expected json schema:\n"
         f"{schema_json}\n\n"
         "Example valid json object:\n"
@@ -866,7 +879,8 @@ def recover_main_structured_response(
         MAIN_STRUCTURED_RESPONSE_PART_DISPLAY,
         MAIN_STRUCTURED_RESPONSE_PART_REMEMBER,
     ):
-        if not isinstance(data.get(name), str):
+        # The model benchmark's MEMORIES.md-only reply model has no `remember` field.
+        if name in data and not isinstance(data[name], str):
             data[name] = None
     if not isinstance(data.get(MAIN_STRUCTURED_RESPONSE_PART_SPEECH), str):
         raise ValueError("main structured response requires a non-empty speech field")
@@ -970,15 +984,21 @@ def _json_object_candidate(raw_text: str) -> dict[str, Any] | None:
     return None
 
 
-def render_main_structured_json(parsed: MainStructuredResponse) -> str:
+def render_main_structured_json(parsed: MainStructuredResponse, *, remember: bool = True) -> str:
+    """The reply as compact JSON, as chat replays it in history.
+
+    ``remember=False`` leaves the note out: the model benchmark's MEMORIES.md-only reply model has none.
+    """
+
     payload: dict[str, Any] = {
         "emotional_tone": parsed.emotional_tone,
         "emotional_intensity": parsed.emotional_intensity,
         "gesture": parsed.gesture,
         "speech": parsed.speech,
         "display": parsed.display,
-        "remember": parsed.remember,
     }
+    if remember:
+        payload["remember"] = parsed.remember
     return json.dumps(payload, ensure_ascii=True, separators=(",", ":"))
 
 
@@ -1015,6 +1035,7 @@ __all__ = [
     "MAIN_STRUCTURED_RESPONSE_PART_SPEECH",
     "GestureValidationResult",
     "PyMainAgentResponse",
+    "PyMainAgentResponseBase",
     "MainStructuredResponse",
     "MainStructuredJsonStreamParser",
     "MainStructuredStreamEvent",

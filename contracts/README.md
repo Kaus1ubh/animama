@@ -14,7 +14,7 @@ package sets. It is required by local builds and stays in this repository.
 - [Common web composition and artifact contracts](hosted-web.md) define the
   local/hosted handoff. The capability schema is backend-owned and generated in
   `local-http`; [the hosted fixture](runtime-capabilities/hosted.json) verifies the
-  six exceptions while retaining model and role choices. The same contract defines
+  eight exceptions while retaining model and role choices. The same contract defines
   the immutable whole application, resource inventory and non-static Included seed.
 
 The [package-set tools](../scripts/package-sets/README.md) copy these inputs and

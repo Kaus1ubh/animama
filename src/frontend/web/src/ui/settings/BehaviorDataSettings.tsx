@@ -10,6 +10,12 @@ import {
   type BehaviorFlag,
 } from "@/lib/settings/behavior-defaults";
 import { writeSelectedMicrophoneId } from "@/lib/voice/microphone-preferences";
+import {
+  AUTOMATIC_EPISODE_PROCESSING_POLL_MS,
+  useAutomaticEpisodeProcessing,
+} from "@/query/hooks/useAutomaticEpisodeProcessing";
+import { useUpdateAutomaticEpisodeProcessing } from "@/query/mutations/useAutomaticEpisodeProcessing";
+import type { PyAutomaticEpisodeProcessingStatus } from "@animama/runtime-contracts/api-types";
 import { Button } from "@/ui/components/button";
 import {
   Dialog,
@@ -21,6 +27,13 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/ui/components/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/ui/components/select";
 import { Switch } from "@/ui/components/switch";
 import { SettingsRow } from "@/ui/settings/SettingsLayout";
 import { useSettings } from "@/ui/settings/SettingsProvider";
@@ -92,6 +105,93 @@ export function AppBehaviorSetting({
             ).catch(() => toast.error(t("behavior.updateFailed", { label })));
           }}
         />
+      }
+    />
+  );
+}
+
+/** Off, or the pending-note counts the backend accepts (5–50), in steps of five. */
+export const AUTOMATIC_PROCESSING_THRESHOLDS = [
+  0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50,
+] as const;
+
+/** The line under the setting: what automatic processing is doing, or why it is not. */
+export function automaticProcessingDescription(
+  t: TFunction<"settings">,
+  status: PyAutomaticEpisodeProcessingStatus | undefined,
+): string {
+  switch (status?.state) {
+    case "memory_off":
+      return t("behavior.automaticProcessing.memoryOff");
+    case "needs_model":
+      return t("behavior.automaticProcessing.needsModel");
+    case "running":
+      return t("behavior.automaticProcessing.running", {
+        count: status.batch_size ?? 0,
+      });
+    case "paused":
+      return t("behavior.automaticProcessing.paused", {
+        error: status.last_error ?? "",
+      });
+    case "backing_off":
+      return status.last_error
+        ? t("behavior.automaticProcessing.retrying", {
+            error: status.last_error,
+          })
+        : t("behavior.automaticProcessing.dailyLimit");
+    default:
+      return t("behavior.automaticProcessing.description");
+  }
+}
+
+/**
+ * How many pending episode notes start an automatic Memory Manager run, or Off.
+ * Only runtimes with the `automatic_episode_processing` capability show it; the
+ * setting is stored by the backend, not in user preferences.
+ */
+export function AutomaticEpisodeProcessingSetting({
+  disabled,
+}: {
+  disabled: boolean;
+}) {
+  const { t } = useTranslation("settings");
+  // Memory flags and runs change the state while the setting is open.
+  const status = useAutomaticEpisodeProcessing({
+    refetchInterval: AUTOMATIC_EPISODE_PROCESSING_POLL_MS,
+  });
+  const update = useUpdateAutomaticEpisodeProcessing();
+  const threshold = status.data?.threshold;
+  const label = t("behavior.automaticProcessing.label");
+
+  return (
+    <SettingsRow
+      label={label}
+      description={automaticProcessingDescription(t, status.data)}
+      control={
+        <Select
+          // Controlled from the first render; empty until the status loads.
+          value={threshold === undefined ? "" : String(threshold)}
+          disabled={disabled || threshold === undefined || update.isPending}
+          onValueChange={(value) => {
+            update.mutate(Number(value), {
+              onError: () =>
+                toast.error(t("behavior.automaticProcessing.updateFailed")),
+            });
+          }}
+        >
+          <SelectTrigger className="w-56" aria-label={label}>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {AUTOMATIC_PROCESSING_THRESHOLDS.map((value) => (
+              <SelectItem key={value} value={String(value)}>
+                {value === 0
+                  ? t("behavior.automaticProcessing.off")
+                  : t("behavior.automaticProcessing.notes", { count: value })}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       }
     />
   );

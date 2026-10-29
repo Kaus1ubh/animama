@@ -135,10 +135,10 @@ def test_a_bundle_id_names_its_format_and_member_set() -> None:
 
 def test_issuance_advertises_bundles_without_mutating_the_persisted_catalog() -> None:
     catalog = _catalog()
-    issued = _runtime_response(
-        catalog, anima_id="anima", effective_revision="revision", lease_expires_at=datetime.now(UTC)
-    )
     [bundle] = select_runtime_bundles(catalog)
+    issued = _runtime_response(
+        catalog, bundles=[bundle], anima_id="anima", effective_revision="revision", lease_expires_at=datetime.now(UTC)
+    )
     assert issued["bundles"] == [
         {
             "id": bundle.id,
@@ -197,10 +197,16 @@ def bundle_http(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> SimpleNamesp
             self.catalog = state.catalog_service
             self.session = state.session
 
-        async def get_snapshot(self, *, user_id: str, anima_id: str, revision: str):  # noqa: ANN202
+        async def get_bundle(self, *, user_id: str, anima_id: str, revision: str, bundle_id: str):  # noqa: ANN202
+            # The snapshot's refusals, over the bundles issuance stored for its catalog.
             if (user_id, anima_id, revision) != ("owner", "anima", "revision"):
-                return None
-            return SimpleNamespace(catalog=state.catalog, expires_at=state.expires)
+                raise RuntimeSnapshotError("runtime_file_not_found")
+            if state.expires <= datetime.now(UTC):
+                raise RuntimeSnapshotError("runtime_remount_required")
+            stored = {bundle.id: bundle for bundle in select_runtime_bundles(state.catalog)}
+            if bundle_id not in stored:
+                raise RuntimeSnapshotError("runtime_file_not_found")
+            return stored[bundle_id]
 
         async def authorize_files(self, *, file_refs: list[str], **_kwargs):  # noqa: ANN003, ANN202
             state.queries += 1

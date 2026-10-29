@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import CheckConstraint, SmallInteger, Text, text as sa_text
+from sqlalchemy import CheckConstraint, SmallInteger, String, Text, text as sa_text
 from sqlalchemy.dialects.postgresql import TIMESTAMP
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -21,4 +21,26 @@ class ORMInstallationSettings(SqlalchemyBase, TimestampMixin):
     first_run_completed_at: Mapped[datetime | None] = mapped_column(TIMESTAMP(timezone=True), nullable=True)
 
 
-__all__ = ["ORMInstallationSettings"]
+class ORMEpisodeProcessingSettings(SqlalchemyBase, TimestampMixin):
+    """The owner's automatic episode-processing setting (spec #775, R11), local composition only.
+
+    Its own table rather than user preferences, which a settings save replaces wholesale,
+    and rather than ``installation_settings``, so a database created before it still starts.
+    """
+
+    __tablename__ = "episode_processing_settings"
+    __table_args__ = (
+        CheckConstraint(
+            "threshold IS NULL OR threshold = 0 OR threshold BETWEEN 5 AND 50",
+            name="threshold_valid",
+        ),
+    )
+
+    user_id: Mapped[str] = mapped_column(String, primary_key=True)
+    # NULL is the default threshold and 0 is Off.
+    threshold: Mapped[int | None] = mapped_column(SmallInteger, nullable=True)
+    # When the threshold last changed; failures before it no longer pause processing.
+    reset_at: Mapped[datetime | None] = mapped_column(TIMESTAMP(timezone=True), nullable=True)
+
+
+__all__ = ["ORMEpisodeProcessingSettings", "ORMInstallationSettings"]

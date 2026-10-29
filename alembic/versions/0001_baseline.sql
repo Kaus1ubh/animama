@@ -153,7 +153,10 @@ CREATE TABLE anima_runtime_snapshots (
     created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     admitted_item_revisions jsonb DEFAULT '{}'::jsonb NOT NULL,
-    CONSTRAINT ck_anima_runtime_snapshots_admitted_item_revisions_object CHECK ((jsonb_typeof(admitted_item_revisions) = 'object'::text))
+    bundles jsonb DEFAULT '{}'::jsonb NOT NULL,
+    inputs_digest character varying(64),
+    CONSTRAINT ck_anima_runtime_snapshots_admitted_item_revisions_object CHECK ((jsonb_typeof(admitted_item_revisions) = 'object'::text)),
+    CONSTRAINT ck_anima_runtime_snapshots_bundles_object CHECK ((jsonb_typeof(bundles) = 'object'::text))
 );
 
 -- animama-statement --
@@ -517,6 +520,17 @@ CREATE TABLE content_previews (
     expires_at timestamp with time zone NOT NULL,
     created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     CONSTRAINT ck_content_previews_revision_sha256_format CHECK (((revision_sha256)::text ~ '^[0-9a-f]{64}$'::text))
+);
+
+-- animama-statement --
+
+CREATE TABLE episode_processing_settings (
+    user_id character varying NOT NULL,
+    threshold smallint,
+    reset_at timestamp with time zone,
+    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    CONSTRAINT ck_episode_processing_settings_threshold_valid CHECK (((threshold IS NULL) OR (threshold = 0) OR ((threshold >= 5) AND (threshold <= 50))))
 );
 
 -- animama-statement --
@@ -1094,6 +1108,11 @@ ALTER TABLE ONLY content_previews
 
 -- animama-statement --
 
+ALTER TABLE ONLY episode_processing_settings
+    ADD CONSTRAINT pk_episode_processing_settings PRIMARY KEY (user_id);
+
+-- animama-statement --
+
 ALTER TABLE ONLY installation_settings
     ADD CONSTRAINT pk_installation_settings PRIMARY KEY (id);
 
@@ -1585,7 +1604,11 @@ CREATE UNIQUE INDEX uq_memory_episode_items_chat_turn_run ON memory_episode_item
 
 -- animama-statement --
 
-CREATE UNIQUE INDEX uq_memory_manager_runs_user_open ON memory_manager_runs USING btree (user_id) WHERE ((status)::text = ANY ((ARRAY['active'::character varying, 'waiting_approval'::character varying])::text[]));
+CREATE UNIQUE INDEX uq_memory_manager_runs_user_open ON memory_manager_runs USING btree (user_id) WHERE (((status)::text = ANY ((ARRAY['active'::character varying, 'waiting_approval'::character varying])::text[])) AND (COALESCE((metadata ->> 'origin'::text), 'owner'::text) = 'owner'::text));
+
+-- animama-statement --
+
+CREATE UNIQUE INDEX uq_memory_manager_runs_user_open_automatic ON memory_manager_runs USING btree (user_id) WHERE (((status)::text = ANY ((ARRAY['active'::character varying, 'waiting_approval'::character varying])::text[])) AND ((metadata ->> 'origin'::text) = 'automatic'::text));
 
 -- animama-statement --
 

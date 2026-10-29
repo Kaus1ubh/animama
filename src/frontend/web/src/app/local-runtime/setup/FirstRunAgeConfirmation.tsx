@@ -1,7 +1,7 @@
 import { Navigate, useNavigate } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import type { ReactNode } from "react";
-import { useTranslation } from "react-i18next";
+import { Trans, useTranslation } from "react-i18next";
 
 import { useLocalRuntime } from "../LocalRuntimeProvider";
 import { useRuntimeAdmission } from "../../runtime/RuntimeAdmissionProvider";
@@ -19,10 +19,15 @@ import { normalizeLocalDisplayName } from "@/lib/user-profile/display-name";
 import { useRuntimeCapabilities } from "@/query/hooks/useRuntimeCapabilities";
 import { queryKeys } from "@/query/keys";
 import { Button } from "@/ui/components/button";
+import { ModelLink } from "@/ui/components/model-link";
 import {
   modelConfigurationErrorCode,
   modelSettingsAvailability,
 } from "@/ui/settings/models/model-configuration-state";
+
+// The texts every installation agrees to, published on the public website.
+const TERMS_URL = "https://animama.ai/terms/";
+const PRIVACY_URL = "https://animama.ai/privacy/";
 
 /** Load the app behind an inert boundary while explicit confirmation is pending. */
 export function FirstRunAgeConfirmation({ children }: { children: ReactNode }) {
@@ -103,6 +108,19 @@ function LocalAgeConfirmation({
     <AgeConfirmationDialog
       confirm={confirm}
       canConfirm={capabilities.isSuccess}
+      agreement={{
+        text: (
+          <Trans
+            t={t}
+            i18nKey="ageConfirmation.agreement"
+            components={{
+              terms: <ModelLink href={TERMS_URL} />,
+              privacy: <ModelLink href={PRIVACY_URL} />,
+            }}
+          />
+        ),
+        confirmLabel: t("ageConfirmation.confirmAndAgree"),
+      }}
       failure={(cause) =>
         modelConfigurationErrorCode(cause) === "chat_model_unavailable"
           ? t("ageConfirmation.errors.modelUnavailable")

@@ -340,6 +340,7 @@
   },
   "versions": {
     "afterRevert": "되돌린 후 · 버전 {{version}}",
+    "automaticUpdate": "에피소드 메모에서 자동 업데이트",
     "back": "뒤로",
     "changesIn": "버전 {{version}}의 변경 사항",
     "confirmRevert": "되돌리기 확인",

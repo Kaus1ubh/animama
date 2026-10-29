@@ -1066,9 +1066,10 @@ WebGL renderer is refused. Options: `--frames`, `--warmup`, `--rounds`,
 instead of the Included Avatars (not with `--reaction`). Further options, not
 with `--reaction`: `--materials <automatic|liltoon|simple>` loads the Avatar
 with that Materials setting; `--pixel-ratios 1,1.5,2` repeats each measurement
-at those device pixel ratios; and `--fps <n>` paces frames like the app
+at those device pixel ratios; `--fps <n>` paces frames like the app
 (`nextSceneFrame`; chat renders at 60 fps, or 30 while idle) instead of using
-every display frame.
+every display frame; and `--saturate <n>` times batches of n frames rendered
+back to back instead (below).
 
 Pace GPU comparisons with `--fps 60`. Headless Chromium can run at 120 frames
 per second. A heavy Avatar then saturates the GPU, and the timer query also
@@ -1077,6 +1078,20 @@ inconsistently. Light loads can run at a lower GPU clock, so their absolute
 times read higher than a busy GPU's would. Compare results only from runs made
 under the same conditions. Each pass's GPU mean is kept in the JSON
 (`passes`), so another job using the GPU shows up as drift between rounds.
+
+Because a paced light frame runs at a lower clock, paced timings also narrow the
+differences between scenarios: a change that halves a frame's work can read as a
+small saving. To measure the work itself, use `--saturate 10` (1–100). Each
+sample renders that many frames back to back, waits for the GPU with a 1-pixel
+readback and reports the wall time per frame (labelled "frame (saturated)", and
+kept in `passes` in place of the GPU mean) with the submission time per frame as
+CPU time; `--fps` then sets only the animation step. Each stage first renders
+back to back for about 2 s so the clock is up, and each pass starts with idle
+gaps of 400 ms and 150 ms, so a GPU trace taken alongside (Instruments' Metal
+System Trace with `--all-processes` and a time limit that ends before the bench
+exits) can be cut into passes. Where a frame's wall time is close to its CPU
+time the run is CPU-bound and hides the GPU's share, as for the Included
+Avatars.
 
 `--breakdown <materials,features,layers,mixed|all>` breaks the Avatar's plain
 frame cost down instead (no effects). The baseline alternates with scenarios

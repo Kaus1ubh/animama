@@ -74,6 +74,11 @@ const ADMITTED_STATES = new Set(["active", "age_confirmation_required"]);
 const SETUP_PENDING_DELAYS_MS = [1_000, 1_500, 2_000, 3_000, 5_000];
 const SETUP_PENDING_BURST_READS = 40;
 const SETUP_PENDING_SLOW_MS = 30_000;
+/**
+ * A focused tab whose events stream is open reads admission again only once its
+ * last read is this old: until then, the stream reports a revocation itself.
+ */
+const FOCUS_READMISSION_MS = 60_000;
 
 /** A hosted runtime this application cannot use until it is updated (worded when reported). */
 function updateRequired(): RuntimeAdmission {
@@ -131,6 +136,13 @@ export function createHostedComposition(
   let setupPendingTimer: ReturnType<typeof setTimeout> | null = null;
   let eventsDelay = 1_000;
   let eventsDoubted = false;
+  /**
+   * The events stream has said `ready` since it started. Unless doubted since, it
+   * is open or reconnecting after a cut, and would report a revocation.
+   */
+  let eventsReady = false;
+  /** When this tab last started a runtime-context read for admission. */
+  let admissionReadAt = 0;
   const listeners = new Set<(invalidate?: AdmissionRefresh) => void>();
   let channel: BroadcastChannel | null = null;
   const notify = (invalidate: AdmissionRefresh = false) =>
@@ -142,6 +154,7 @@ export function createHostedComposition(
     retryTimer = null;
     eventsDelay = 1_000;
     eventsDoubted = false;
+    eventsReady = false;
   };
 
   const key = options.sessionKey ?? (() => crypto.randomUUID());
@@ -520,6 +533,7 @@ export function createHostedComposition(
       capabilities.model_configuration ||
       capabilities.local_filesystem_administration ||
       capabilities.native_features ||
+      capabilities.automatic_episode_processing ||
       capabilities.web_search?.configuration
     ) {
       if (session)
@@ -594,6 +608,7 @@ export function createHostedComposition(
     if (signedOut || signedOutElsewhere) return { status: "sign-in-required" };
     if (takeSignInError())
       return { status: "unavailable", message: signInErrorMessage() };
+    admissionReadAt = Date.now();
     const response = await sessionFetch("/v1/hosted/runtime-context", {
       signal,
     });
@@ -647,6 +662,15 @@ export function createHostedComposition(
     events = controller;
     void (async () => {
       let reader: ReadableStreamDefaultReader<Uint8Array> | null = null;
+      /** This connection said `ready`, so its loss is only a cut to reconnect from. */
+      let restored = false;
+      // A connection that ends or fails before `ready` could not restore the
+      // stream, so the runtime context is read with the requests paused.
+      const doubt = () => {
+        if (controller.signal.aborted || restored) return;
+        eventsDoubted = true;
+        notify("uncertain");
+      };
       try {
         const response = await sessionFetch("/v1/hosted/events", {
           signal: controller.signal,
@@ -682,6 +706,8 @@ export function createHostedComposition(
               return;
             }
             if (/^event:\s*ready\s*$/m.test(event)) {
+              restored = true;
+              if (events === controller) eventsReady = true;
               eventsDelay = 1_000;
               // A restored stream lets paused requests resume without waiting for
               // backoff; a plain refresh resumes the same session without pausing again.
@@ -690,15 +716,9 @@ export function createHostedComposition(
             }
           }
         }
-        if (!controller.signal.aborted) {
-          eventsDoubted = true;
-          notify("uncertain");
-        }
+        doubt();
       } catch {
-        if (!controller.signal.aborted) {
-          eventsDoubted = true;
-          notify("uncertain");
-        }
+        doubt();
       } finally {
         void reader?.cancel().catch(() => {});
         if (events === controller) events = null;
@@ -872,10 +892,18 @@ export function createHostedComposition(
     subscribe: (refresh) => {
       listeners.add(refresh);
       // Returning to a tab checks the server again, including a tab another
-      // tab signed out: someone may have signed in again since.
+      // tab signed out: someone may have signed in again since. An admitted
+      // tab whose events stream is healthy skips a check soon after its last read.
       const onFocus = () => {
         if (typeof document !== "undefined" && document.hidden) return;
         signedOutElsewhere = false;
+        if (
+          session &&
+          eventsReady &&
+          !eventsDoubted &&
+          Date.now() - admissionReadAt < FOCUS_READMISSION_MS
+        )
+          return;
         refresh();
       };
       if (typeof window !== "undefined") {

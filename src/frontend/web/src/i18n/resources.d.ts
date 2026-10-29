@@ -1613,6 +1613,8 @@ export default interface Resources {
       "contentProgress": "Loading animations and effects ({{completed}}/{{total}})",
       "download": "Downloading {{item}} ({{size}})",
       "downloadProgress": "Downloading {{item}}: {{percent}} of {{size}}",
+      "episodeProcessing_one": "Crystallizing {{count}} note into memory…",
+      "episodeProcessing_other": "Crystallizing {{count}} notes into memory…",
       "speechToText": "Loading Speech-to-Text (Parakeet)",
       "textToSpeech": "Loading Text-to-Speech (PocketTTS)",
       "textToSpeechStep": "Loading Text-to-Speech (PocketTTS), step {{step}} of {{total}}"
@@ -4497,6 +4499,7 @@ export default interface Resources {
     },
     "versions": {
       "afterRevert": "After Revert · Version {{version}}",
+      "automaticUpdate": "Automatic update from episode notes",
       "back": "Back",
       "changesIn": "Changes in Version {{version}}",
       "confirmRevert": "Confirm Revert",
@@ -6236,6 +6239,21 @@ export default interface Resources {
     },
     "behavior": {
       "appDefaultLabel": "{{label}} (app default)",
+      "automaticProcessing": {
+        "dailyLimit": "Daily limit reached. Processing continues tomorrow.",
+        "description": "Fold notes from your chats into your memory files once this many are waiting.",
+        "label": "Process episode notes automatically",
+        "memoryOff": "Turn on Memory and Memory updates to process notes automatically.",
+        "needsModel": "Needs a Memory Manager model that supports tools. Choose one in the Models settings.",
+        "notes_one": "After {{count}} note",
+        "notes_other": "After {{count}} notes",
+        "off": "Off",
+        "paused": "Paused after repeated failures. Change this setting to try again. Last error: {{error}}",
+        "retrying": "Retrying later after a failure. Last error: {{error}}",
+        "running_one": "Crystallizing {{count}} note into memory…",
+        "running_other": "Crystallizing {{count}} notes into memory…",
+        "updateFailed": "Failed to update automatic note processing."
+      },
       "blockedByMemory": "Turn Memory on to allow memory updates.",
       "flags": {
         "emotion_updates": {
@@ -6314,6 +6332,7 @@ export default interface Resources {
       "microphone": "Microphone",
       "profile": "Profile",
       "speechToText": "Speech-to-Text",
+      "startup": "Startup",
       "textToSpeech": "Text-to-Speech",
       "webSearch": "Web search"
     },
@@ -6322,6 +6341,15 @@ export default interface Resources {
       "label": "Language",
       "saveFailed": "Failed to change the language.",
       "systemDefaultResolved": "System default ({{language}})"
+    },
+    "launchAtLogin": {
+      "blocked": {
+        "macos": "Animama will not open at login until you allow it in System Settings → General → Login Items & Extensions.",
+        "windows": "Animama will not open at login until you turn it on in Settings → Apps → Startup."
+      },
+      "description": "Open Animama automatically when you log in to your computer.",
+      "label": "Launch at login",
+      "updateFailed": "Could not change Launch at login."
     },
     "modal": {
       "close": "Close App Settings",
@@ -6504,9 +6532,11 @@ export default interface Resources {
       "skip": "Skip for now"
     },
     "ageConfirmation": {
+      "agreement": "By continuing, you agree to the <terms>Terms of Service</terms> and confirm that you have read the <privacy>Privacy Notice</privacy>.",
       "backToSetup": "Back to setup",
       "betaNotice": "Animama on the web is in beta. The desktop app gives the best experience.",
       "confirm": "I am 18 or older",
+      "confirmAndAgree": "I am 18 or older and agree",
       "decline": "I'm under 18",
       "declined": "Animama is only for adults 18 and older. You can't continue to chat.",
       "errors": {

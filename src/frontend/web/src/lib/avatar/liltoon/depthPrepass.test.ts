@@ -1,3 +1,4 @@
+import { LilToonMaterial } from "@mochiya/three-liltoon";
 import * as THREE from "three";
 import { describe, expect, it } from "vitest";
 
@@ -149,6 +150,23 @@ describe("takesDepthPrepass", () => {
     const hidden = lilToonMaterial();
     hidden.visible = false;
     expect(takesDepthPrepass(hidden)).toBe(false);
+  });
+
+  it("refuses a surface lilToon's Invisible toggle hides", () => {
+    // The installed three-liltoon: its opaque surfaces draw unblended
+    // (Animama's patch), and `_Invisible` collapses the vertices in the shader.
+    const shown = new LilToonMaterial({
+      shaderVariant: "lilToon",
+      properties: {},
+    });
+    expect(depthPrepassBlocker(shown)).toBeNull();
+    const invisible = new LilToonMaterial({
+      shaderVariant: "lilToon",
+      properties: { _Invisible: 1 },
+    });
+    expect(depthPrepassBlocker(invisible)).toBe("hidden");
+    shown.dispose();
+    invisible.dispose();
   });
 });
 

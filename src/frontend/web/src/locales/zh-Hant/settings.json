@@ -208,6 +208,19 @@
   },
   "behavior": {
     "appDefaultLabel": "{{label}}（應用程式預設）",
+    "automaticProcessing": {
+      "dailyLimit": "已達今日上限，明天繼續。",
+      "description": "聊天筆記累積到此數量時，將其整理進記憶檔案。",
+      "label": "自動處理經歷筆記",
+      "memoryOff": "開啟「記憶」和「記憶更新」後才能自動處理筆記。",
+      "needsModel": "需要支援工具的記憶管理器模型，請在模型設定中選擇。",
+      "notes_other": "每 {{count}} 則筆記",
+      "off": "關閉",
+      "paused": "多次失敗後已暫停。變更此設定即可重試。最後的錯誤：{{error}}",
+      "retrying": "失敗後將稍後重試。最後的錯誤：{{error}}",
+      "running_other": "正在將 {{count}} 則筆記整理進記憶…",
+      "updateFailed": "無法更新筆記自動處理設定。"
+    },
     "blockedByMemory": "開啟記憶後才能允許記憶更新。",
     "flags": {
       "emotion_updates": {
@@ -286,6 +299,7 @@
     "microphone": "麥克風",
     "profile": "個人資料",
     "speechToText": "語音轉文字",
+    "startup": "啟動",
     "textToSpeech": "文字轉語音",
     "webSearch": "網頁搜尋"
   },
@@ -298,6 +312,15 @@
     "label": "語言",
     "saveFailed": "無法變更語言。",
     "systemDefaultResolved": "系統預設（{{language}}）"
+  },
+  "launchAtLogin": {
+    "label": "登入時啟動",
+    "description": "登入電腦時自動開啟 Animama。",
+    "blocked": {
+      "macos": "在「系統設定 → 一般 → 登入項目與延伸功能」中允許之前，Animama 不會在登入時開啟。",
+      "windows": "在「設定 → 應用程式 → 啟動」中開啟之前，Animama 不會在登入時開啟。"
+    },
+    "updateFailed": "無法變更「登入時啟動」。"
   },
   "modal": {
     "close": "關閉應用程式設定",

@@ -16,8 +16,10 @@ defaults and embedding refresh status, the Memory Manager service, and the chat
 policy, chat-turn guard and turn collaborators) and sets its request-principal
 resolver as `app.state.request_principal_resolver`; without either, shared routes
 answer 503. Its byte delivery (`file_response`) receives `immutable=True` for
-revision-named runtime members and complete binary bundles and chooses its own
-cache policy for them ([ADR 0028](../docs/adr/0028-cacheable-runtime-revision-members.md)).
+revision-named runtime members and complete binary bundles ([ADR 0028](../docs/adr/0028-cacheable-runtime-revision-members.md))
+and for Included content files read at their digest URL,
+`/v1/content/files/{file_ref}/sha256/{sha256}` ([ADR 0033](../docs/adr/0033-digest-keyed-included-content-file-urls.md)),
+and chooses its own cache policy for them.
 A composition whose shared catalog rows never change at runtime sets
 `SHARED_CATALOG_ROWS_IMMUTABLE` (from `content_catalog_repo`) in the `info` of owner
 sessions that run the shared loadout services, so their reads lock only owner rows.
@@ -152,8 +154,14 @@ playback, audio graphs and avatar state before a later session mounts. Durable
 server operations keep authoritative receipts: disconnect/sign-out does not prove
 rollback. A pending or ambiguous commit is recovered by its operation identity.
 
-A lost events connection, context transport error or temporary Identity outage
-does not establish revocation. An already admitted view retains its draft and
+An events connection cut after `event: ready` reconnects without pausing
+requests; a reconnect that sends `event: ready` again needs no context read,
+because the stream reports revocation and the server refuses an ended session's
+requests. Focusing or showing a tab reads the context again, except within 60
+seconds of that tab's last read while its events stream is open or reconnecting
+after such a cut. An events connection that fails or ends before `event: ready`,
+a context transport error or a temporary Identity outage does not establish
+revocation. An already admitted view retains its draft and
 resources, suspends new product requests, and retries admission with bounded
 backoff, offering a reload that keeps saved creator drafts (unsent chat text is
 not kept). Fresh same-session admission
@@ -202,11 +210,11 @@ shows that a newer sign-in replaced the one it targeted.
 ## Capabilities and requests
 
 The sole wire schema is `app/contracts/runtime_capabilities.py`, exported offline
-in `local-http` version **18.0.0** with capability `schema_version: 2`. The generated
+in `local-http` version **21.0.0** with capability `schema_version: 2`. The generated
 TypeScript `RuntimeCapabilities` and validator are the same contract.
 `ProductRuntimeCapabilities` is a derived `Pick` for the existing extracted chat
-surface, not another wire schema. `runtime-contracts` is version 0.18.0 and
-`product-ui` is version 0.18.0. Consumers explicitly admit
+surface, not another wire schema. `runtime-contracts` is version 0.21.0 and
+`product-ui` is version 0.19.0. Consumers explicitly admit
 the new contract major before adoption.
 
 Permissions are separate from browser support and temporary errors:
@@ -220,6 +228,7 @@ Permissions are separate from browser support and temporary errors:
 | Model connections/catalog administration and keys          | `model_configuration`, `provider_credentials`, `web_search.configuration` | False; catalog/role reads and selections remain retained.                                |
 | Host paths, scans, file logs and server model installation | `local_filesystem_administration`                                         | False; virtual memory paths, creator assets and browser model downloads remain retained. |
 | Electron/native controls                                   | `native_features`                                                         | False; browser fullscreen/PiP use browser feature detection.                             |
+| Automatic episode processing and its status                | `automatic_episode_processing`                                            | False; owner-started Memory Manager processing remains retained.                         |
 | Gemini voice                                               | `gemini_tts`                                                              | Absent or null; the hosted adapter refuses a runtime that reports it.                    |
 
 Web search use follows the runtime fields `web_search.configured`, `backend` and
@@ -255,6 +264,17 @@ adding blanket permissions for implementation gaps. Unknown/missing capability
 responses keep hosted operations pending rather than granting permission. No
 frontend flag replaces server admission.
 
+`library_previews` says whether the runtime offers Library item previews: the
+`?variant=thumbnail` copy of an item's first image, and a Particle tile's texture
+and manifest tint. Unlike the permissions above, it is runtime state that withholds
+no route: it is on when absent, and the hosted adapter accepts either value. The
+hosted fixture reports it `false`, the seventh hosted exception: Library cards then
+show their family icons and send no preview, texture or manifest request. A server
+that does not render previews may refuse `?variant=thumbnail` with 422
+`content_thumbnail_unsupported`; it receives none from the browser. The Library's
+Preview action, Avatar portraits and other images a screen loads for its own
+purpose stay retained.
+
 Each SDK call uses its injected client/transport. Application compositions do not
 configure the compatibility default client. All browser
 API, SSE, byte and model requests stay on the application origin with cookies and
@@ -272,8 +292,8 @@ references fail closed. Runtime revisions retain lease/integrity checks and
 same-origin range semantics; private data is `Cache-Control: no-store` and never
 enters a shared CDN/service-worker cache. The only exceptions a hosted server may send
 are `private` policies for Included runtime revision members and complete bundles of
-them (ADR 0028), Included content files, and the owner's content catalog revalidated
-by ETag. The hosted transport keeps each request's own cache mode, so the browser keeps
+them (ADR 0028), Included content files (revalidated by ETag, or kept as immutable
+at their digest URLs, ADR 0033), and the owner's content catalog revalidated by ETag. The hosted transport keeps each request's own cache mode, so the browser keeps
 only such replies (and only for requests that allow it); its own session and admission
 reads always use `no-store`. A kept reply outlives the session in the browser's HTTP
 cache, so a server that lets owner data be kept clears that cache when the owner signs

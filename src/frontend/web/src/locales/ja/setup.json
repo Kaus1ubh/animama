@@ -8,9 +8,11 @@
     "skip": "今はスキップ"
   },
   "ageConfirmation": {
+    "agreement": "続行すると、<terms>利用規約</terms>に同意し、<privacy>プライバシー通知</privacy>を読んだことを確認したものとみなされます。",
     "backToSetup": "セットアップに戻る",
     "betaNotice": "Web 版 Animama はベータ版です。最適な体験にはデスクトップアプリをご利用ください。",
     "confirm": "18 歳以上です",
+    "confirmAndAgree": "18 歳以上で、同意します",
     "decline": "18 歳未満です",
     "declined": "Animama は 18 歳以上の成人専用です。チャットを続けることはできません。",
     "errors": {

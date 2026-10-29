@@ -10,7 +10,10 @@ export type LilToonSurfaceFacts = {
   pass?: string;
   /** `opaque`, `cutout`, `transparent`, …; see three-liltoon's render modes. */
   renderMode?: string;
-  /** The authored lilToon properties (`_Cutoff`, `_MainTex_ST`, …). */
+  /**
+   * lilToon's property values by their shader names (`_Invisible`,
+   * `_Cutoff`, `_MainTex_ST`, …).
+   */
   lilToonProperties?: Record<string, unknown>;
   /** The authored lilToon textures by property name (`_AlphaMask`, …). */
   lilToonTextures?: Record<string, THREE.Texture | null>;

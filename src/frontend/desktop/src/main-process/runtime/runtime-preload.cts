@@ -3,6 +3,7 @@ import type {
   CredentialsBridge,
   FeaturePacksBridge,
   LocaleBridge,
+  LoginItemBridge,
   RuntimeBridge,
   RuntimeStatus,
   UpdatesBridge,
@@ -68,5 +69,12 @@ export function createUpdatesBridge(): UpdatesBridge {
 export function createLocaleBridge(): LocaleBridge {
   return {
     setApplied: (locale) => ipcRenderer.invoke("animama:locale:set", locale),
+  };
+}
+export function createLoginItemBridge(): LoginItemBridge {
+  return {
+    status: () => ipcRenderer.invoke("animama:login-item:status"),
+    setEnabled: (enabled) =>
+      ipcRenderer.invoke("animama:login-item:set", enabled),
   };
 }

@@ -6,6 +6,7 @@ export const hostedCapabilities = {
   runtime_kind: "hosted",
   chat: true,
   anima_creation: false,
+  library_previews: false,
   chat_file_uploads: false,
   provider_credentials: false,
   model_configuration: false,
@@ -444,6 +445,8 @@ export async function createHostedWorkflowHttp({ workletSource } = {}) {
                   size_bytes: bytes.length,
                   sha256: digest(bytes),
                   ordinal,
+                  // An owner's file is named by its registration alone.
+                  url: `/v1/content/files/${file_ref}`,
                 };
                 state.files.set(file_ref, { ...registered, bytes });
                 return registered;

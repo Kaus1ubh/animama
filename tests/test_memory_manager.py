@@ -3526,3 +3526,508 @@ async def test_a_pinned_model_without_its_key_is_reported_before_the_decision(as
 
     with pytest.raises(MemoryManagerPinnedModelUnavailableError):
         await runtime.for_run(run)
+
+
+# Automatic episode processing (spec #775, R6, R7 and R10).
+
+
+def _automatic_service(async_session, *, user_id: str, runtime: Any) -> MemoryManagerService:  # noqa: ANN001
+    uow = SQLAlchemyUnitOfWork(async_session)
+    memory_entries = MemoryEntryService(
+        memory_entries=SQLAlchemyMemoryEntryRepository(async_session),
+        uow=uow,
+        commit_on_write=False,
+    )
+    return MemoryManagerService(
+        memory_manager=SQLAlchemyMemoryManagerRepository(async_session),
+        memory_entries=memory_entries,
+        memory_episodes=MemoryEpisodeService(
+            memory_episodes=SQLAlchemyMemoryEpisodeRepository(async_session),
+            memory_entries=memory_entries,
+            uow=uow,
+            commit_on_write=False,
+        ),
+        runtime=runtime(memory_entries) if callable(runtime) else runtime,
+        uow=uow,
+    )
+
+
+async def _pending_episode(async_session, user_id: str, text: str = "Sam adopted a cat named Pickle.") -> str:  # noqa: ANN001
+    item = await _episode_service(async_session).create_episode_item(
+        user_id=user_id,
+        source_chat_id=f"chat-{uuid.uuid4()}",
+        source_run_id=f"run-{uuid.uuid4()}",
+        text=text,
+        occurred_at=_occurred(),
+        local_date=date(2026, 7, 7),
+    )
+    return item.id
+
+
+@pytest.mark.asyncio
+async def test_an_automatic_run_processes_notes_beside_an_open_owner_run(
+    async_session,
+    clean_memory_manager_rows,
+) -> None:
+    user_id = f"user-{uuid.uuid4()}"
+    episode_id = await _pending_episode(async_session, user_id)
+    service = await _LOCAL_PORTS.memory_manager(async_session, _user(user_id))
+    owner_run = await service.create_run(user_id=user_id)
+
+    outcome = await service.run_automatic_episode_processing(user_id=user_id)
+
+    assert outcome.status == "completed"
+    assert outcome.batch_size == 1
+    current = await service.get_current_run_snapshot(user_id=user_id)
+    assert current is not None and current.run.id == owner_run.run.id
+    assert current.run.status == "active"
+    automatic = await SQLAlchemyMemoryManagerRepository(async_session).get_run(
+        user_id=user_id, run_id=_required(outcome.run_id)
+    )
+    assert automatic is not None
+    assert automatic.status == "completed"
+    assert dict(automatic.metadata or {})["origin"] == "automatic"
+    processed = await _episode_service(async_session).list_episode_items(
+        user_id=user_id, status=MEMORY_EPISODE_STATUS_PROCESSED
+    )
+    assert [item.id for item in processed] == [episode_id]
+    approvals = await SQLAlchemyMemoryManagerRepository(async_session).list_approvals(
+        user_id=user_id, run_id=automatic.id
+    )
+    assert [approval.status for approval in approvals] == ["approved"]
+    version = await async_session.scalar(
+        select(ORMMemoryEntryVersion).where(
+            ORMMemoryEntryVersion.user_id == user_id,
+            ORMMemoryEntryVersion.entry_id == approvals[0].target_entry_id,
+            ORMMemoryEntryVersion.version == approvals[0].applied_version,
+        )
+    )
+    assert version is not None
+    assert version.change_metadata_["trigger"] == "automatic_episode_processing"
+
+
+@pytest.mark.asyncio
+async def test_automatic_runs_skip_without_work_or_while_another_processing_run_is_open(
+    async_session,
+    clean_memory_manager_rows,
+) -> None:
+    user_id = f"user-{uuid.uuid4()}"
+    service = await _LOCAL_PORTS.memory_manager(async_session, _user(user_id))
+
+    assert (await service.run_automatic_episode_processing(user_id=user_id)).reason == "no_pending_episodes"
+
+    await _pending_episode(async_session, user_id)
+    owner = await service.create_episode_processing_run(user_id=user_id)
+    assert owner.run.status == "waiting_approval"
+
+    skipped = await service.run_automatic_episode_processing(user_id=user_id)
+
+    assert (skipped.status, skipped.reason) == ("skipped", "owner_processing_in_progress")
+    repository = SQLAlchemyMemoryManagerRepository(async_session)
+    assert await repository.list_open_automatic_runs(user_id=user_id) == []
+
+
+@pytest.mark.asyncio
+async def test_owner_episode_processing_is_refused_while_an_automatic_run_is_open(
+    async_session,
+    clean_memory_manager_rows,
+) -> None:
+    user_id = f"user-{uuid.uuid4()}"
+    await _pending_episode(async_session, user_id)
+    repository = SQLAlchemyMemoryManagerRepository(async_session)
+    await repository.create_run(
+        MemoryManagerRun(
+            id=new_memory_manager_run_id(),
+            user_id=user_id,
+            status=MEMORY_MANAGER_RUN_STATUS_ACTIVE,
+            kind=MEMORY_MANAGER_RUN_KIND_EPISODE_PROCESSING,
+            metadata={"origin": "automatic"},
+        )
+    )
+    await async_session.commit()
+    service = await _LOCAL_PORTS.memory_manager(async_session, _user(user_id))
+
+    with pytest.raises(MemoryManagerConflictError, match="Automatic memory processing is in progress"):
+        await service.create_episode_processing_run(user_id=user_id)
+    assert (await service.run_automatic_episode_processing(user_id=user_id)).reason == "automatic_run_open"
+    # Ordinary owner runs still start beside it.
+    assert (await service.create_run(user_id=user_id)).run.status == "active"
+
+
+@pytest.mark.asyncio
+async def test_the_open_run_indexes_allow_one_owner_and_one_automatic_run(
+    async_session,
+    clean_memory_manager_rows,
+) -> None:
+    user_id = f"user-{uuid.uuid4()}"
+    repository = SQLAlchemyMemoryManagerRepository(async_session)
+
+    def run(origin: str | None) -> MemoryManagerRun:
+        return MemoryManagerRun(
+            id=new_memory_manager_run_id(),
+            user_id=user_id,
+            status=MEMORY_MANAGER_RUN_STATUS_ACTIVE,
+            metadata={"origin": origin} if origin else {},
+        )
+
+    await repository.create_run(run(None))
+    await repository.create_run(run("automatic"))
+    with pytest.raises(MemoryManagerRepositoryConflictError) as conflict:
+        await repository.create_run(run("automatic"))
+    assert conflict.value.constraint_name == "uq_memory_manager_runs_user_open_automatic"
+    await async_session.rollback()
+
+
+@pytest.mark.asyncio
+async def test_an_automatic_run_closes_a_leftover_proposal_unapplied(
+    async_session,
+    clean_memory_manager_rows,
+) -> None:
+    user_id = f"user-{uuid.uuid4()}"
+    episode_id = await _pending_episode(async_session, user_id)
+    service = _automatic_service(
+        async_session,
+        user_id=user_id,
+        runtime=lambda entries: _ChainedAutoApprovalRuntime(user_id=user_id, memory_entries=entries, total=9),
+    )
+
+    outcome = await service.run_automatic_episode_processing(user_id=user_id)
+
+    assert outcome.status == "failed"
+    repository = SQLAlchemyMemoryManagerRepository(async_session)
+    run = await repository.get_run(user_id=user_id, run_id=_required(outcome.run_id))
+    assert run is not None and run.status == "failed"
+    approvals = await repository.list_approvals(user_id=user_id, run_id=run.id)
+    assert [approval.status for approval in approvals] == [*("approved" for _ in range(8)), "rejected"]
+    assert dict(approvals[-1].operation_metadata or {})["closed_reason"] == "automatic_closed"
+    assert approvals[-1].applied_version is None
+    for index in range(1, 9):
+        await _memory_entry_service(async_session).get_entry_by_path(
+            user_id=user_id, path=f"notes/auto-chain-{index}.md"
+        )
+    with pytest.raises(MemoryEntryNotFoundError):
+        await _memory_entry_service(async_session).get_entry_by_path(user_id=user_id, path="notes/auto-chain-9.md")
+    pending = await _episode_service(async_session).list_episode_items(user_id=user_id, status="pending")
+    assert [item.id for item in pending] == [episode_id]
+    assert await repository.list_open_automatic_runs(user_id=user_id) == []
+
+
+@pytest.mark.asyncio
+async def test_a_failing_automatic_run_closes_and_leaves_its_notes_pending(
+    async_session,
+    clean_memory_manager_rows,
+) -> None:
+    user_id = f"user-{uuid.uuid4()}"
+    episode_id = await _pending_episode(async_session, user_id)
+    service = _automatic_service(async_session, user_id=user_id, runtime=_FailingMemoryManagerRuntime())
+
+    outcome = await service.run_automatic_episode_processing(user_id=user_id)
+
+    assert outcome.status == "failed"
+    assert outcome.reason is not None and "simulated runtime outage" in outcome.reason
+    repository = SQLAlchemyMemoryManagerRepository(async_session)
+    assert await repository.list_open_automatic_runs(user_id=user_id) == []
+    pending = await _episode_service(async_session).list_episode_items(user_id=user_id, status="pending")
+    assert [item.id for item in pending] == [episode_id]
+
+
+@pytest.mark.asyncio
+async def test_interrupted_automatic_runs_are_closed_at_recovery(
+    async_session,
+    clean_memory_manager_rows,
+) -> None:
+    user_id = f"user-{uuid.uuid4()}"
+    episode_id = await _pending_episode(async_session, user_id)
+    repository = SQLAlchemyMemoryManagerRepository(async_session)
+    service = _automatic_service(
+        async_session,
+        user_id=user_id,
+        runtime=lambda entries: _ChainedAutoApprovalRuntime(user_id=user_id, memory_entries=entries, total=1),
+    )
+    owner = await service.create_run(user_id=user_id)
+    # The state a crash between an approval's two transactions leaves: the change is
+    # applied and its approval decided, the run still waiting and nothing pending.
+    applied = await _memory_entry_service(async_session).put_file_by_path(
+        user_id=user_id, path="notes/interrupted.md", content="# Interrupted\n", expected_version=0, create_parents=True
+    )
+    interrupted = await repository.create_run(
+        MemoryManagerRun(
+            id=new_memory_manager_run_id(),
+            user_id=user_id,
+            status="waiting_approval",
+            kind=MEMORY_MANAGER_RUN_KIND_EPISODE_PROCESSING,
+            metadata={"origin": "automatic"},
+        )
+    )
+    await repository.create_approval(
+        MemoryManagerApproval(
+            id=f"mma-{uuid.uuid4()}",
+            run_id=interrupted.id,
+            user_id=user_id,
+            status="approved",
+            operation="create",
+            target_path="notes/interrupted.md",
+            target_entry_id=applied.id,
+            expected_version=0,
+            summary="Create an interrupted note",
+            old_content=None,
+            new_content="# Interrupted\n",
+            old_description=None,
+            new_description=None,
+            unified_diff="",
+            applied_version=applied.version,
+        )
+    )
+    await async_session.commit()
+
+    assert await service.fail_interrupted_automatic_runs(user_id=user_id) == 1
+
+    closed = await repository.get_run(user_id=user_id, run_id=interrupted.id)
+    assert closed is not None and closed.status == "failed"
+    assert dict(closed.metadata or {})["completion_reason"] == "automatic_interrupted"
+    approvals = await repository.list_approvals(user_id=user_id, run_id=interrupted.id)
+    assert [approval.status for approval in approvals] == ["approved"]
+    kept = await _memory_entry_service(async_session).get_entry_by_path(user_id=user_id, path="notes/interrupted.md")
+    assert kept.content == "# Interrupted\n"
+    still_open = await service.get_current_run_snapshot(user_id=user_id)
+    assert still_open is not None and still_open.run.id == owner.run.id
+    pending = await _episode_service(async_session).list_episode_items(user_id=user_id, status="pending")
+    assert [item.id for item in pending] == [episode_id]
+    assert await service.fail_interrupted_automatic_runs(user_id=user_id) == 0
+
+
+@pytest.mark.asyncio
+async def test_an_automatic_approval_does_not_reopen_a_run_closed_between_its_transactions(
+    async_session,
+    clean_memory_manager_rows,
+) -> None:
+    user_id = f"user-{uuid.uuid4()}"
+    repository = SQLAlchemyMemoryManagerRepository(async_session)
+    service = _automatic_service(
+        async_session,
+        user_id=user_id,
+        runtime=lambda entries: _ChainedAutoApprovalRuntime(user_id=user_id, memory_entries=entries, total=2),
+    )
+    run = await repository.create_run(
+        MemoryManagerRun(
+            id=new_memory_manager_run_id(),
+            user_id=user_id,
+            status="waiting_approval",
+            kind=MEMORY_MANAGER_RUN_KIND_EPISODE_PROCESSING,
+            metadata={"origin": "automatic"},
+        )
+    )
+    approval = await repository.create_approval(
+        MemoryManagerApproval(
+            id=f"mma-{uuid.uuid4()}",
+            run_id=run.id,
+            user_id=user_id,
+            status="pending",
+            operation="create",
+            target_path="notes/auto-chain-1.md",
+            target_entry_id=None,
+            expected_version=0,
+            summary="Create automatic chain file 1",
+            old_content=None,
+            new_content="# Auto chain 1\n",
+            old_description=None,
+            new_description=None,
+            unified_diff="",
+        )
+    )
+    await async_session.commit()
+    # Report the run closed at the resume transaction's lock, as if startup recovery in another
+    # process had closed it after the approval committed.
+    closing_repository = service._memory_manager
+    real_get = closing_repository.get_run_for_update
+    calls = 0
+
+    async def get_after_close(*, user_id: str, run_id: str) -> MemoryManagerRun | None:
+        nonlocal calls
+        calls += 1
+        current = await real_get(user_id=user_id, run_id=run_id)
+        if calls == 2 and current is not None:
+            return replace(current, status="failed")
+        return current
+
+    closing_repository.get_run_for_update = get_after_close  # type: ignore[method-assign]
+
+    with pytest.raises(MemoryManagerConflictError, match="Memory manager run is closed"):
+        await service._approve_automatic_proposal(user_id=user_id, approval_id=approval.id)
+
+    stored = await repository.get_run(user_id=user_id, run_id=run.id)
+    assert stored is not None and stored.status == "waiting_approval"
+    assert [item.status for item in await repository.list_approvals(user_id=user_id, run_id=run.id)] == ["approved"]
+
+
+@pytest.mark.asyncio
+async def test_a_run_created_through_the_api_cannot_claim_the_automatic_origin(
+    async_session,
+    clean_memory_manager_rows,
+) -> None:
+    user_id = f"user-{uuid.uuid4()}"
+    await _pending_episode(async_session, user_id)
+
+    created = await memory_manager_router.create_memory_manager_run(
+        PyMemoryManagerRunCreateRequest(metadata={"origin": "automatic", "note": "kept"}),
+        session=async_session,
+        user=_user(user_id),
+        ports=_LOCAL_PORTS,
+    )
+
+    stored = await SQLAlchemyMemoryManagerRepository(async_session).get_run(user_id=user_id, run_id=created.run.id)
+    assert stored is not None
+    assert "origin" not in dict(stored.metadata or {})
+    assert dict(stored.metadata or {})["note"] == "kept"
+    current = await memory_manager_router.get_current_memory_manager_run(
+        session=async_session, user=_user(user_id), ports=_LOCAL_PORTS
+    )
+    assert current is not None and current.run.id == created.run.id
+    processing = await memory_manager_router.create_episode_processing_memory_manager_run(
+        PyMemoryManagerEpisodeProcessingRunCreateRequest(),
+        session=async_session,
+        user=_user(user_id),
+        ports=_LOCAL_PORTS,
+    )
+    assert processing.run.kind == "episode_processing"
+
+
+@pytest.mark.asyncio
+async def test_owner_and_automatic_processing_never_select_the_same_batch(
+    async_session,
+    async_session_factory,
+    clean_memory_manager_rows,
+) -> None:
+    user_id = f"user-{uuid.uuid4()}"
+    await _pending_episode(async_session, user_id)
+    await async_session.commit()
+    owner_paused = asyncio.Event()
+    release_owner = asyncio.Event()
+
+    async with async_session_factory() as owner_session, async_session_factory() as automatic_session:
+        owner_service = await _LOCAL_PORTS.memory_manager(owner_session, _user(user_id))
+        automatic_service = await _LOCAL_PORTS.memory_manager(automatic_session, _user(user_id))
+        owner_repository = owner_service._memory_manager
+        real_create = owner_repository.create_run
+
+        async def paused_create(run: MemoryManagerRun) -> MemoryManagerRun:
+            # The owner has locked its batch and is about to insert its run.
+            owner_paused.set()
+            await release_owner.wait()
+            return await real_create(run)
+
+        owner_repository.create_run = paused_create  # type: ignore[method-assign]
+        owner_task = asyncio.create_task(owner_service.create_episode_processing_run(user_id=user_id))
+        await owner_paused.wait()
+        automatic_task = asyncio.create_task(automatic_service.run_automatic_episode_processing(user_id=user_id))
+        await asyncio.sleep(0.3)
+        assert not automatic_task.done(), "the automatic attempt must wait for the owner's selection"
+        release_owner.set()
+        owner = await owner_task
+        automatic = await automatic_task
+
+    assert owner.run.kind == "episode_processing"
+    assert (automatic.status, automatic.reason) == ("skipped", "owner_processing_in_progress")
+
+
+class _LockProbingRuntime(_TerminalMemoryManagerRuntime):
+    """Proposes one update to a committed file, then checks from another session whether its row is locked."""
+
+    name = "lock_probing_test"
+
+    def __init__(self, *, session_factory: Any, user_id: str, memory_entries: MemoryEntryService) -> None:
+        self._session_factory = session_factory
+        self._workspace = MemoryManagerVirtualWorkspace(user_id=user_id, memory_entries=memory_entries)
+        self.locked_during_resume: list[bool] = []
+
+    async def run_user_message(self, *, run: MemoryManagerRun, **kwargs: Any) -> MemoryManagerRuntimeResult:
+        approval = await self._workspace.plan_full_content(
+            path="PROFILE.md",
+            new_content="# About me\n\nPreferred name: Sam\n",
+            new_description="User profile",
+            summary="Record the preferred name",
+            metadata={"runtime": self.name},
+        )
+        return MemoryManagerRuntimeResult(
+            assistant_message="Prepared a profile update.",
+            approvals=[approval],
+            serialized_agent_state=f"{run.id}:profile",
+            metadata={"runtime": self.name},
+        )
+
+    async def resume_approval_decision(
+        self, *, approval: MemoryManagerApproval, **kwargs: Any
+    ) -> MemoryManagerRuntimeResult:
+        async with self._session_factory() as probe:
+            try:
+                await probe.execute(
+                    select(ORMMemoryEntry.id)
+                    .where(ORMMemoryEntry.id == approval.target_entry_id)
+                    .with_for_update(nowait=True)
+                )
+                self.locked_during_resume.append(False)
+            except Exception:  # noqa: BLE001 - any lock error means the row was still held
+                self.locked_during_resume.append(True)
+            finally:
+                await probe.rollback()
+        return MemoryManagerRuntimeResult(assistant_message="Review complete.", metadata={"runtime": self.name})
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("automatic", [True, False])
+async def test_automatic_approvals_hold_no_file_lock_while_the_model_resumes(
+    async_session,
+    async_session_factory,
+    clean_memory_manager_rows,
+    automatic: bool,
+) -> None:
+    user_id = f"user-{uuid.uuid4()}"
+    await _pending_episode(async_session, user_id)
+    await _memory_entry_service(async_session).put_file_by_path(
+        user_id=user_id, path="PROFILE.md", content="# About me\n", expected_version=0
+    )
+    await async_session.commit()
+    probes: list[_LockProbingRuntime] = []
+
+    def runtime(entries: MemoryEntryService) -> _LockProbingRuntime:
+        probe = _LockProbingRuntime(session_factory=async_session_factory, user_id=user_id, memory_entries=entries)
+        probes.append(probe)
+        return probe
+
+    service = _automatic_service(async_session, user_id=user_id, runtime=runtime)
+
+    if automatic:
+        outcome = await service.run_automatic_episode_processing(user_id=user_id)
+        assert outcome.status == "completed"
+        assert probes[0].locked_during_resume == [False]
+    else:
+        # Positive control: owner-started Auto approve keeps one transaction, so the probe sees the lock.
+        await service.create_episode_processing_run(user_id=user_id, auto_approve_diffs=True)
+        assert probes[0].locked_during_resume == [True]
+
+
+class _CrashingRuntime(_TerminalMemoryManagerRuntime):
+    name = "crashing_test"
+
+    async def run_user_message(self, **kwargs: Any) -> MemoryManagerRuntimeResult:
+        raise RuntimeError("unexpected runtime crash")
+
+
+@pytest.mark.asyncio
+async def test_an_unexpected_error_still_closes_the_automatic_run(
+    async_session,
+    clean_memory_manager_rows,
+) -> None:
+    user_id = f"user-{uuid.uuid4()}"
+    episode_id = await _pending_episode(async_session, user_id)
+    service = _automatic_service(async_session, user_id=user_id, runtime=_CrashingRuntime())
+
+    outcome = await service.run_automatic_episode_processing(user_id=user_id)
+
+    assert (outcome.status, outcome.reason) == ("failed", "Automatic processing failed (RuntimeError)")
+    repository = SQLAlchemyMemoryManagerRepository(async_session)
+    assert await repository.list_open_automatic_runs(user_id=user_id) == []
+    run = await repository.get_run(user_id=user_id, run_id=_required(outcome.run_id))
+    assert run is not None and run.status == "failed"
+    pending = await _episode_service(async_session).list_episode_items(user_id=user_id, status="pending")
+    assert [item.id for item in pending] == [episode_id]

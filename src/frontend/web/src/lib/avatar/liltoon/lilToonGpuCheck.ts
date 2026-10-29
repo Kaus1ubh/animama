@@ -91,8 +91,11 @@ export const LILTOON_GPU_CHECK = {
   recheckMs: 60 * 60 * 1000,
 } as const;
 
-/** Bump to measure every GPU again (a changed method or pre-pass). */
-const METHOD = 2;
+/**
+ * Bump to measure every GPU again (a changed method or pre-pass). 3: opaque
+ * lilToon passes draw unblended, so the depth pre-pass covers them (#752).
+ */
+const METHOD = 3;
 const STORAGE_KEY = "animama.lilToonGpuCheck";
 /** GPUs one viewer keeps measurements for (an external display's eGPU, say). */
 const MAX_GPUS = 8;

@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Measure how well the chat model picks Gestures from a loadout.
 
 Every prompt runs through chat's own turn executor (``DirectChatTurnExecutor``):
@@ -122,66 +121,51 @@ from __future__ import annotations
 
 import argparse
 import asyncio
-import hashlib
 import json
-import math
-import statistics
 import sys
 import tempfile
 import time
-from collections.abc import AsyncIterator, Callable, Iterable, Mapping, Sequence
-from contextlib import asynccontextmanager
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
-from decimal import Decimal, InvalidOperation
 from pathlib import Path
-from typing import Any, cast
-
-from pydantic import BaseModel
+from typing import Any
 
 from animama.app.chat import (
-    DirectChatMemoryContext,
-    DirectChatMemoryContextService,
-    DirectChatPrompt,
     DirectChatTurnExecutor,
     DirectChatTurnRequest,
     DirectChatTurnSetupError,
     ModelClientNotFoundError,
-    RuntimeGestureDescriptor,
 )
-from animama.app.chat.api_standard import OPENAI_CHAT_COMPLETIONS_PROVIDER_TYPE
-from animama.app.chat.direct_turn.message_builders import user_provider_message
 from animama.app.chat.direct_turn.response_format import render_available_gestures
-from animama.app.chat.memory_context import MEMORY_CONTEXT_METADATA_VERSION
+from animama.app.chat.direct_turn.types import PreparedDirectChatTurn
 from animama.app.chat.options import DirectChatOptions
-from animama.app.main_structured_response import (
-    MAIN_STRUCTURED_RESPONSE_PART_SPEECH,
-    MainStructuredJsonStreamParser,
-    MainStructuredResponse,
-    main_structured_response_from_data,
-    plain_text_main_structured_response,
-    recover_main_structured_response,
-    render_main_structured_json,
-)
-from animama.app.model_catalog import STRUCTURED_OUTPUT_TRANSPORT_JSON_SCHEMA
 from animama.app.model_clients import (
     ModelClient,
-    ModelClientDelta,
-    ModelClientError,
     ModelClientRegistry,
-    ModelClientRequest,
     StaticModelClientRegistry,
     uses_native_context_compaction,
 )
 from animama.app.model_clients.context_budget import estimate_prompt_tokens
-from animama.app.ports import ModelProviderRepository
-from animama.app.services import AnimaChatProfileService, ChatManager
-from animama.app.util.model_pricing import estimate_model_token_cost
-from animama.domain import ModelProvider, ModelProviderCapabilities
-from animama.domain.chat import Chat, ChatContext, ChatMessage, MessageRole
-from animama.domain.events import Event, EventType, UserResponsePayload
-from animama.domain.model_connection import MODEL_KIND_CHAT
-from animama.domain.usage import Usage, UsageInputDetails, UsageOutputDetails
+from animama.domain import ModelProvider
+
+from .core import catalog
+from .core.chat import (
+    ESTIMATE_MODEL_PROVIDER,
+    EvalChats,
+    StaticMemoryContext,
+    build_executor,
+    incognito_turn_options,
+    instruction_bytes,
+    replayed_reply,
+    turn_request,
+)
+from .core.inputs import EvalInputError, read_json, require_unique, required_text
+from .core.loadouts import Loadout, load_loadout
+from .core.model_calls import BudgetedModelClient, Clock, UnusedModelClient, call_latency, seconds
+from .core.pricing import TokenPrices, cost_json, parse_token_prices, sum_usage_json, usage_json
+from .core.stats import distinct_gestures, latency_summary, longest_run, rate, token_summary
+from .core.turns import execute_turn
 
 __all__ = [
     "ANIMA_IDENTITY",
@@ -221,55 +205,12 @@ ANIMA_IDENTITY = (
 # Fixed, synthetic owner and Anima ids: the in-memory stand-ins never look them up.
 _EVAL_OWNER_ID = "gesture-eval-owner"
 _EVAL_ANIMA_ID = "gesture-eval-anima"
-_BUDGET_ERROR_CODE = "eval_call_budget_spent"
-_USAGE_KEYS = (
-    "input_tokens",
-    "cached_input_tokens",
-    "cache_write_tokens",
-    "output_tokens",
-    "reasoning_tokens",
-    "total_tokens",
-)
-# A built-in JSON-schema chat row used only to size prompts for the dry-run token estimate.
-_ESTIMATE_MODEL_PROVIDER = ModelProvider(
-    id="gesture-eval:json-schema-estimate",
-    model="json-schema-estimate",
-    provider_type=OPENAI_CHAT_COMPLETIONS_PROVIDER_TYPE,
-    model_label="JSON-schema estimate",
-    provider_label="Estimate",
-    capabilities=ModelProviderCapabilities(
-        supports_streaming=True,
-        structured_kinds=["main_structured_response"],
-        structured_output_transport=STRUCTURED_OUTPUT_TRANSPORT_JSON_SCHEMA,
-    ),
-)
-
 TurnProgress = Callable[[Mapping[str, Any]], None]
 ResultsSink = Callable[[dict[str, Any]], None]
-Clock = Callable[[], float]
-"""A monotonic clock in seconds; runs use ``time.monotonic`` and tests inject a fake."""
-
-
-class EvalInputError(ValueError):
-    """A loadout, prompt set or option the harness cannot use."""
 
 
 class CallBudgetExceeded(RuntimeError):
     """The plan needs more model calls than ``--max-calls`` allows; nothing was sent."""
-
-
-@dataclass(frozen=True, slots=True)
-class Loadout:
-    """An equipped Gesture list, in the order the harness lists it to the model."""
-
-    name: str
-    gestures: tuple[RuntimeGestureDescriptor, ...]
-    sha256: str = field(default="", compare=False)
-    """SHA-256 of the loaded file's bytes, when it came from a file."""
-
-    @property
-    def selectors(self) -> tuple[str, ...]:
-        return tuple(gesture.selector for gesture in self.gestures)
 
 
 @dataclass(frozen=True, slots=True)
@@ -322,115 +263,7 @@ class EvalPlan:
         return self.calls_per_loadout * len(self.loadouts)
 
 
-@dataclass(frozen=True, slots=True)
-class TokenPrices:
-    """Published USD rates per 1M tokens, used to estimate each turn's cost.
-
-    Uncached input is ``input_tokens - cached_input_tokens - cache_write_tokens``,
-    as chat's usage model and catalog estimator define it. Reasoning tokens are
-    part of ``output_tokens`` and bill at the output rate.
-    """
-
-    input: Decimal
-    cached_input: Decimal
-    cache_write: Decimal
-    output: Decimal
-
-    def cost(self, usage: Mapping[str, int]) -> Decimal:
-        uncached = max(usage["input_tokens"] - usage["cached_input_tokens"] - usage["cache_write_tokens"], 0)
-        return (
-            uncached * self.input
-            + usage["cached_input_tokens"] * self.cached_input
-            + usage["cache_write_tokens"] * self.cache_write
-            + usage["output_tokens"] * self.output
-        ) / _ONE_MILLION
-
-    def as_json(self) -> dict[str, str]:
-        return {name: str(getattr(self, name)) for name in _PRICE_NAMES}
-
-
-_ONE_MILLION = Decimal(1_000_000)
-_PRICE_NAMES = ("input", "cached_input", "cache_write", "output")
-
-
-def parse_token_prices(text: str) -> TokenPrices:
-    """Parse ``input=…,cached_input=…,cache_write=…,output=…`` (USD per 1M tokens); every rate is required."""
-
-    rates: dict[str, Decimal] = {}
-    for part in text.split(","):
-        name, separator, value = part.partition("=")
-        name = name.strip()
-        if not separator or name not in _PRICE_NAMES:
-            raise EvalInputError(
-                f"--price: unknown or malformed rate {part.strip()!r}; expected {', '.join(_PRICE_NAMES)}"
-            )
-        try:
-            rate = Decimal(value.strip())
-        except InvalidOperation as exc:
-            raise EvalInputError(f"--price: {name} must be a number") from exc
-        if not rate.is_finite() or rate < 0:
-            raise EvalInputError(f"--price: {name} must be a non-negative number")
-        if name in rates:
-            raise EvalInputError(f"--price: duplicate rate {name!r}")
-        rates[name] = rate
-    missing = [name for name in _PRICE_NAMES if name not in rates]
-    if missing:
-        raise EvalInputError(f"--price: missing {', '.join(missing)}")
-    return TokenPrices(**rates)
-
-
 # --- Inputs -----------------------------------------------------------------
-
-
-def _read_json(path: Path) -> tuple[Any, str]:
-    """Return a file's parsed JSON and the SHA-256 of the exact bytes parsed."""
-
-    try:
-        raw = path.read_bytes()
-        return json.loads(raw.decode("utf-8")), hashlib.sha256(raw).hexdigest()
-    except (OSError, ValueError) as exc:
-        raise EvalInputError(f"{path}: cannot read JSON ({exc})") from exc
-
-
-def _required_text(entry: Mapping[str, Any], key: str, where: str) -> str:
-    value = entry.get(key)
-    if not isinstance(value, str) or not value.strip():
-        raise EvalInputError(f"{where}: {key!r} must be a non-empty string")
-    return value.strip()
-
-
-def _require_unique(ids: Iterable[str], where: str) -> None:
-    seen: set[str] = set()
-    for item_id in ids:
-        if item_id in seen:
-            raise EvalInputError(f"{where}: duplicate id {item_id!r}")
-        seen.add(item_id)
-
-
-def load_loadout(path: Path) -> Loadout:
-    """Read a loadout file: a non-empty JSON list of ``{selector, name, description}``."""
-
-    data, sha256 = _read_json(path)
-    if not isinstance(data, list) or not data:
-        raise EvalInputError(f"{path}: expected a non-empty JSON list of Gestures")
-    gestures: list[RuntimeGestureDescriptor] = []
-    selectors: set[str] = set()
-    for index, entry in enumerate(data):
-        where = f"{path}[{index}]"
-        if not isinstance(entry, Mapping):
-            raise EvalInputError(f"{where}: expected an object")
-        selector = _required_text(entry, "selector", where)
-        if selector in selectors:
-            raise EvalInputError(f"{where}: duplicate selector {selector!r}")
-        selectors.add(selector)
-        gestures.append(
-            RuntimeGestureDescriptor(
-                selector=selector,
-                name=_required_text(entry, "name", where),
-                description=_required_text(entry, "description", where),
-            )
-        )
-    return Loadout(name=path.stem, gestures=tuple(gestures), sha256=sha256)
 
 
 def _prompt_item(entry: Any, where: str) -> PromptItem:
@@ -447,9 +280,9 @@ def _prompt_item(entry: Any, where: str) -> PromptItem:
     if not isinstance(tags, list) or not all(isinstance(tag, str) and tag.strip() for tag in tags):
         raise EvalInputError(f"{where}: 'tags' must be a list of non-empty strings")
     # The message is sent exactly as written; it only has to say something.
-    _required_text(entry, "message", where)
+    required_text(entry, "message", where)
     return PromptItem(
-        id=_required_text(entry, "id", where),
+        id=required_text(entry, "id", where),
         message=entry["message"],
         acceptable=tuple(value.strip() if isinstance(value, str) else None for value in acceptable),
         tags=tuple(tag.strip() for tag in tags),
@@ -462,13 +295,13 @@ def _scripted_chat(entry: Any, where: str) -> ScriptedChat:
     turns = entry.get("turns")
     if not isinstance(turns, list) or not turns or not all(isinstance(turn, str) and turn.strip() for turn in turns):
         raise EvalInputError(f"{where}: 'turns' must be a non-empty list of messages")
-    return ScriptedChat(id=_required_text(entry, "id", where), turns=tuple(turns))
+    return ScriptedChat(id=required_text(entry, "id", where), turns=tuple(turns))
 
 
 def load_prompt_set(path: Path) -> PromptSet:
     """Read a prompt-set file with single-turn ``items`` and optional ``scripted_chats``."""
 
-    data, sha256 = _read_json(path)
+    data, sha256 = read_json(path)
     if not isinstance(data, Mapping):
         raise EvalInputError(f"{path}: expected a JSON object with 'items' and 'scripted_chats'")
     raw_items = data.get("items", [])
@@ -479,8 +312,8 @@ def load_prompt_set(path: Path) -> PromptSet:
     chats = tuple(_scripted_chat(entry, f"{path}: scripted_chats[{index}]") for index, entry in enumerate(raw_chats))
     if not items and not chats:
         raise EvalInputError(f"{path}: no items or scripted chats")
-    _require_unique((item.id for item in items), f"{path}: items")
-    _require_unique((chat.id for chat in chats), f"{path}: scripted_chats")
+    require_unique((item.id for item in items), f"{path}: items")
+    require_unique((chat.id for chat in chats), f"{path}: scripted_chats")
     return PromptSet(items=items, scripted_chats=chats, sha256=sha256)
 
 
@@ -491,28 +324,6 @@ def score_fit(gesture: str | None, acceptable: Sequence[str | None]) -> bool:
     """Return whether the played Gesture fits; ``None`` fits only when ``acceptable`` contains ``None``."""
 
     return gesture in acceptable
-
-
-def longest_run(gestures: Sequence[str | None]) -> tuple[int, str | None]:
-    """Return the longest run of one Gesture on consecutive turns, and that Gesture (the first such run).
-
-    A turn without a Gesture ends a run.
-    """
-
-    best, best_gesture, run, previous = 0, None, 0, None
-    for gesture in gestures:
-        if gesture is None:
-            run, previous = 0, None
-            continue
-        run = run + 1 if gesture == previous else 1
-        previous = gesture
-        if run > best:
-            best, best_gesture = run, gesture
-    return best, best_gesture
-
-
-def distinct_gestures(gestures: Iterable[str | None]) -> int:
-    return len({gesture for gesture in gestures if gesture is not None})
 
 
 def gesture_list_bytes(loadout: Loadout) -> int:
@@ -589,177 +400,20 @@ def render_plan(
 # --- In-memory chat collaborators --------------------------------------------
 
 
-@dataclass(slots=True)
-class _CallRecord:
-    started: float
-    """Clock reading when the call was dispatched."""
-    finished: float | None = None
-    """Clock reading when the call's stream ended or failed."""
-    first_text: float | None = None
-    """Clock reading at the call's first streamed text delta, or ``None`` when it streamed none."""
-    usage: Usage | None = None
-    """Provider-reported usage, or ``None`` when the call failed or the server reported none."""
-    final_text: str | None = None
-    """The call's final reply text, or ``None`` when it failed."""
-    text_deltas: list[str] = field(default_factory=list)
-    """The reply text the call streamed before its final."""
-
-
-class _BudgetedModelClient:
-    """Dispatch at most ``max_calls`` requests to the wrapped client and record each call.
-
-    A request beyond the budget is refused with a model-client error before it
-    reaches the provider; the runner then discards that turn and stops.
-    """
-
-    def __init__(self, client: ModelClient, *, max_calls: int, clock: Clock) -> None:
-        self._client = client
-        self._max_calls = max_calls
-        self._clock = clock
-        self.calls: list[_CallRecord] = []
-        self.refused = False
-
-    @property
-    def native_context_compaction(self) -> bool:
-        """Report the wrapped client's value so chat fits prompts exactly as it would without the budget."""
-
-        return uses_native_context_compaction(self._client)
-
-    async def stream(self, request: ModelClientRequest) -> AsyncIterator[ModelClientDelta]:
-        if len(self.calls) >= self._max_calls:
-            self.refused = True
-            raise ModelClientError("The evaluation call budget is spent", code=_BUDGET_ERROR_CODE)
-        record = _CallRecord(started=self._clock())
-        self.calls.append(record)
-        try:
-            async for delta in self._client.stream(request):
-                if delta.kind == "text_delta" and delta.text:
-                    if record.first_text is None:
-                        record.first_text = self._clock()
-                    record.text_deltas.append(delta.text)
-                elif delta.kind == "final" and delta.final is not None:
-                    record.final_text = delta.final.text
-                    if delta.final.usage_reported:
-                        record.usage = delta.final.usage
-                    # The final reply has arrived; a trailing ``done`` delta adds nothing to wait for.
-                    record.finished = self._clock()
-                yield delta
-        finally:
-            if record.finished is None:
-                record.finished = self._clock()
-
-    async def aclose(self) -> None:
-        """The composition closes the wrapped registry client."""
-
-
-class _UnusedModelClient:
-    """Registered only so chat can prepare a turn for the token estimate; it is never called."""
-
-    async def stream(self, request: ModelClientRequest) -> AsyncIterator[ModelClientDelta]:
-        raise AssertionError("The token estimate prepares turns without calling a model")
-        yield  # pragma: no cover - makes this an async generator
-
-    async def aclose(self) -> None:
-        """Nothing to close."""
-
-
-class _EvalChats:
-    """In-memory stand-in for ``ChatManager`` that keeps each evaluation conversation's history.
-
-    Incognito turns are never recorded by chat, so the runner appends each
-    successful turn's replay rows here and the next scripted turn reads them back.
-    """
-
-    def __init__(self) -> None:
-        self._messages: dict[str, list[ChatMessage]] = {}
-
-    async def ensure_owned_chat(
-        self,
-        *,
-        anima_id: str,
-        chat_id: str,
-        user_id: str,
-        api_standard: str | None = None,
-        model_provider_id: str | None = None,
-    ) -> Chat:
-        # No Responses cursor: every turn sends its explicit visible history.
-        return Chat(
-            id=chat_id,
-            anima_id=anima_id,
-            user_id=user_id,
-            api_standard=api_standard,
-            last_model_provider_id=model_provider_id,
-        )
-
-    async def get_chat_context(self, *, chat_id: str, native_compaction: bool = False) -> ChatContext:
-        # Evaluation chats keep no compaction, so ``native_compaction`` changes nothing.
-        del native_compaction
-        return ChatContext(messages=list(self._messages.get(chat_id, ())))
-
-    async def record_turn(self, **_: Any) -> None:
-        raise AssertionError("Incognito evaluation turns must never be persisted")
-
-    def append(self, chat_id: str, rows: Sequence[ChatMessage]) -> None:
-        self._messages.setdefault(chat_id, []).extend(rows)
-
-
-class _NeutralMemoryContext:
-    """Stand-in for ``DirectChatMemoryContextService``: the neutral identity and no memories.
-
-    Matches what chat builds with memory influence off: no memory map and no ``MEMORIES.md``.
-    """
-
-    async def build_context(self, *, anima_id: str, **_: Any) -> DirectChatMemoryContext:
-        return DirectChatMemoryContext(
-            anima_identity=ANIMA_IDENTITY,
-            anima_name=ANIMA_NAME,
-            manifest={
-                "version": MEMORY_CONTEXT_METADATA_VERSION,
-                "anima_id": anima_id,
-                "disable_memory_influence": True,
-                "opened_files": [],
-            },
-        )
-
-
-class _SelectedModelProvider:
-    """Model-provider repository holding only the row chosen for the evaluation."""
-
-    def __init__(self, model_provider: ModelProvider) -> None:
-        self._model_provider = model_provider
-
-    async def get(self, model_provider_id: str, *, for_update: bool = False) -> ModelProvider | None:
-        return self._model_provider if model_provider_id == self._model_provider.id else None
-
-
-class _NoAnimaProfile:
-    """Every evaluation turn names its model, so chat never consults an Anima chat profile."""
-
-    async def resolve_for_anima(self, anima_id: str) -> None:
-        raise DirectChatTurnSetupError("The Gesture selection evaluation always names its model provider")
-
-
-def _build_executor(model_provider: ModelProvider, client: ModelClient, chats: _EvalChats) -> DirectChatTurnExecutor:
+def _build_executor(model_provider: ModelProvider, client: ModelClient, chats: EvalChats) -> DirectChatTurnExecutor:
     """Build chat's turn executor around the in-memory stand-ins and one model client."""
 
-    return DirectChatTurnExecutor(
-        registry=StaticModelClientRegistry({model_provider.provider_type: client}),
-        profile_service=cast(AnimaChatProfileService, _NoAnimaProfile()),
-        model_providers=cast(ModelProviderRepository, _SelectedModelProvider(model_provider)),
-        chat_manager=cast(ChatManager, chats),
-        memory_context_service=cast(DirectChatMemoryContextService, _NeutralMemoryContext()),
+    return build_executor(
+        model_provider,
+        client,
+        chats,
+        memory_context=StaticMemoryContext(identity=ANIMA_IDENTITY, name=ANIMA_NAME),
     )
 
 
 def _turn_options(reasoning_effort: str | None) -> DirectChatOptions:
-    # Incognito: store=False at the provider, no persistence and no pre-send compaction.
-    # Memory influence and updates off: no memory map, MEMORIES.md or episode capture.
-    return DirectChatOptions(
-        incognito=True,
-        disable_memory_influence=True,
-        disable_memory_updates=True,
-        reasoning_effort=reasoning_effort,
-    )
+    # No voice, as in #409's runs; the prompt now carries the no-tags speech rules.
+    return incognito_turn_options(reasoning_effort)
 
 
 def _turn_request(
@@ -771,175 +425,19 @@ def _turn_request(
     model_provider_id: str,
     options: DirectChatOptions,
 ) -> DirectChatTurnRequest:
-    return DirectChatTurnRequest(
+    return turn_request(
+        loadout.gestures,
         anima_id=_EVAL_ANIMA_ID,
         user_id=_EVAL_OWNER_ID,
         chat_id=chat_id,
-        run_id=f"{chat_id}/t{turn_index}",
-        user_message=message,
+        turn_index=turn_index,
+        message=message,
         model_provider_id=model_provider_id,
-        request_options=options,
-        runtime_gesture_ids=loadout.selectors,
-        runtime_gesture_descriptors=loadout.gestures,
+        options=options,
     )
 
 
 # --- Running ----------------------------------------------------------------
-
-
-def _usage_json(calls: Iterable[_CallRecord]) -> dict[str, int]:
-    """Sum the calls' reported usage; ``unreported_calls`` counts completed calls that reported none.
-
-    A call that failed before its final (for example an oversized prompt that
-    chat then retries) reported nothing and is not counted as unreported.
-    """
-
-    totals = dict.fromkeys((*_USAGE_KEYS, "unreported_calls"), 0)
-    for call in calls:
-        usage = call.usage
-        if usage is None:
-            if call.final_text is not None:
-                totals["unreported_calls"] += 1
-            continue
-        totals["input_tokens"] += usage.input_tokens
-        totals["cached_input_tokens"] += usage.input_tokens_details.cached_tokens
-        totals["cache_write_tokens"] += usage.input_tokens_details.cache_write_tokens
-        totals["output_tokens"] += usage.output_tokens
-        totals["reasoning_tokens"] += usage.output_tokens_details.reasoning_tokens
-        totals["total_tokens"] += usage.total_tokens
-    return totals
-
-
-def _sum_usage_json(parts: Iterable[Mapping[str, int]]) -> dict[str, int]:
-    totals = dict.fromkeys((*_USAGE_KEYS, "unreported_calls"), 0)
-    for part in parts:
-        for key in totals:
-            totals[key] += int(part.get(key, 0))
-    return totals
-
-
-def _cost_json(model_provider: ModelProvider, usage: Mapping[str, int]) -> dict[str, Any]:
-    """Estimate the run's cost from the catalog row's standard-tier pricing and the reported usage."""
-
-    cost = estimate_model_token_cost(
-        model_provider=model_provider,
-        usage=Usage(
-            input_tokens=usage["input_tokens"],
-            output_tokens=usage["output_tokens"],
-            total_tokens=usage["total_tokens"],
-            input_tokens_details=UsageInputDetails(
-                cached_tokens=usage["cached_input_tokens"],
-                cache_write_tokens=usage["cache_write_tokens"],
-            ),
-            output_tokens_details=UsageOutputDetails(reasoning_tokens=usage["reasoning_tokens"]),
-        ),
-    )
-    return {
-        "priced": cost.priced,
-        "total": f"{cost.total_cost:.6f}" if cost.total_cost is not None else None,
-        "currency": cost.currency,
-        "service_tier": cost.service_tier,
-        "unpriced_reason": cost.unpriced_reason,
-        "unreported_calls": usage["unreported_calls"],
-    }
-
-
-def instruction_bytes(prompt: DirectChatPrompt) -> int:
-    """UTF-8 size of a prompt's system and developer messages."""
-
-    total = 0
-    for message in prompt.messages:
-        entry = cast(Mapping[str, Any], message)
-        content = entry.get("content")
-        if entry.get("role") in {"system", "developer"} and isinstance(content, str):
-            total += len(content.encode("utf-8"))
-    return total
-
-
-def _salvaged_reply(text_deltas: Sequence[str]) -> MainStructuredResponse | None:
-    """Rebuild the reply chat salvages from a reply's streamed text, or ``None`` when no speech streamed.
-
-    Mirrors ``_MainStructuredResponseStreamEmitter``: chat feeds the same parser
-    delta by delta, stops when the parser fails or the stream is not
-    structured, and salvages only after speech reached the client.
-    """
-
-    parser = MainStructuredJsonStreamParser()
-    speech_streamed = False
-    for delta in text_deltas:
-        try:
-            events = parser.feed(delta)
-        except ValueError:
-            break
-        speech_streamed = speech_streamed or any(
-            event.response_part == MAIN_STRUCTURED_RESPONSE_PART_SPEECH and event.text for event in events
-        )
-        if parser.streaming_unavailable:
-            break
-    data = parser.salvaged_data() if speech_streamed else None
-    return main_structured_response_from_data(data) if data is not None else None
-
-
-def replayed_reply(
-    final_texts: Sequence[str],
-    output_type: type[BaseModel],
-    *,
-    first_reply_deltas: Sequence[str] = (),
-) -> tuple[MainStructuredResponse, str, str | None] | None:
-    """Return the reply a turn produced, the text chat would replay for it in history, and its recovery.
-
-    ``final_texts`` are the turn's successful replies in call order: the first
-    reply, then its structured repair when one was requested;
-    ``first_reply_deltas`` is the text the first reply streamed. This follows
-    the executor's order (``_recover_final_reply``): the final text when it
-    validates (``"repaired"`` after a repair); then the reply salvaged from
-    streamed speech, which chat keeps instead of requesting a repair; then a
-    neutral plain-text reply. Salvaged and plain-text replies are replayed as
-    structured JSON.
-    """
-
-    if not final_texts:
-        return None
-    final_text = final_texts[-1]
-    try:
-        reply = recover_main_structured_response(final_text, output_type)
-    except ValueError:
-        pass
-    else:
-        return reply, final_text, "repaired" if len(final_texts) > 1 else None
-    # Chat salvages only the first reply: a salvaged reply is never repaired.
-    salvaged = _salvaged_reply(first_reply_deltas) if len(final_texts) == 1 else None
-    if salvaged is not None:
-        return salvaged, render_main_structured_json(salvaged), "salvaged"
-    for text in (final_text, final_texts[0]):
-        plain = plain_text_main_structured_response(text)
-        if plain is not None:
-            return plain, render_main_structured_json(plain), "plain_text"
-    return None
-
-
-def _history_rows(request: DirectChatTurnRequest, replay_text: str) -> list[ChatMessage]:
-    """Build the user and assistant rows chat persists for a turn, which later turns replay."""
-
-    def row(role: MessageRole, content: str, raw_provider_message: dict[str, Any]) -> ChatMessage:
-        return ChatMessage(
-            id=None,
-            chat_id=request.chat_id,
-            run_id=request.run_id,
-            message_type="message",
-            role=role,
-            content=content,
-            data=None,
-            usage=None,
-            turn=None,
-            created_at=None,
-            raw_provider_message=raw_provider_message,
-        )
-
-    return [
-        row(MessageRole.USER, request.user_message, user_provider_message(request.user_message)),
-        row(MessageRole.ASSISTANT, replay_text, {"role": "assistant", "content": replay_text}),
-    ]
 
 
 @dataclass(slots=True)
@@ -947,8 +445,8 @@ class _Run:
     """One evaluation run's executor, collaborators and collected turns."""
 
     executor: DirectChatTurnExecutor
-    chats: _EvalChats
-    budget: _BudgetedModelClient
+    chats: EvalChats
+    budget: BudgetedModelClient
     model_provider: ModelProvider
     options: DirectChatOptions
     progress: TurnProgress | None
@@ -980,49 +478,21 @@ class _Run:
             model_provider_id=self.model_provider.id,
             options=self.options,
         )
-        first_call = len(self.budget.calls)
-        # Latency runs from sending the turn, as chat:sse receives it, until chat's stream ends.
-        sent = self.clock()
-        prepared = await self.executor.prepare_turn(request)
-        if loadout.name not in self.instruction_bytes:
-            # Measured once per loadout, on a first turn without history.
-            self.instruction_bytes[loadout.name] = instruction_bytes(prepared.model_request.prompt)
-            self.first_turn_tokens[loadout.name] = estimate_prompt_tokens(prepared.model_request.prompt)
-        events: list[Event] = []
-        first_output: float | None = None
-        async for event in self.executor.stream_prepared_turn(prepared):
-            if first_output is None and _is_speech(event):
-                first_output = self.clock()
-            events.append(event)
-        finished = self.clock()
-        if self.budget.refused:
+        outcome = await execute_turn(
+            self.executor,
+            request,
+            budget=self.budget,
+            chats=self.chats,
+            clock=self.clock,
+            on_prepared=lambda prepared: self._measure_prompt(loadout, prepared),
+        )
+        if outcome.refused:
             # A turn missing a refused call (its first call or its repair) is not scored.
             return False
 
-        # The played Gesture is the one chat validated against the loadout and sent to the avatar.
-        gesture = next(
-            (event.payload.gesture for event in events if event.type is EventType.AVATAR_GESTURE_REQUESTED),
-            None,
-        )
-        error = next(
-            (event.payload.code or "error" for event in events if event.type is EventType.ERROR),
-            None,
-        )
-        calls = self.budget.calls[first_call:]
-        reply: MainStructuredResponse | None = None
-        recovery: str | None = None
-        if error is None:
-            replayed = replayed_reply(
-                [call.final_text for call in calls if call.final_text is not None],
-                prepared.output_type,
-                first_reply_deltas=calls[0].text_deltas if calls else (),
-            )
-            if replayed is not None:
-                reply, replay_text, recovery = replayed
-                # Chat persists nothing for an incognito turn, so the runner keeps the history it would replay.
-                self.chats.append(chat_id, _history_rows(request, replay_text))
+        gesture, error, reply = outcome.gesture, outcome.error, outcome.reply
         replayed_gesture = (reply.gesture or None) if reply is not None else None
-        usage = _usage_json(calls)
+        usage = usage_json(outcome.calls)
         record: dict[str, Any] = {
             "loadout": loadout.name,
             "repeat": repeat,
@@ -1038,49 +508,32 @@ class _Run:
             "emotional_tone": reply.emotional_tone if reply is not None else None,
             "emotional_intensity": reply.emotional_intensity if reply is not None else None,
             "speech": reply.speech if reply is not None else None,
-            "structured_recovery": recovery,
+            "structured_recovery": outcome.recovery,
             "error": error,
-            "calls": len(calls),
+            "calls": len(outcome.calls),
             "usage": usage,
             "estimated_cost_usd": (
                 float(self.token_prices.cost(usage))
                 if self.token_prices is not None and not usage["unreported_calls"]
                 else None
             ),
-            "latency_seconds": _seconds(finished - sent),
-            "first_output_seconds": _seconds(first_output - sent) if first_output is not None else None,
-            "call_latencies": [_call_latency(call) for call in calls],
+            "latency_seconds": seconds(outcome.finished - outcome.sent),
+            "first_output_seconds": (
+                seconds(outcome.first_output - outcome.sent) if outcome.first_output is not None else None
+            ),
+            "call_latencies": [call_latency(call) for call in outcome.calls],
         }
         self.turns.append(record)
         if self.progress is not None:
             self.progress(record)
         return True
 
-
-def _is_speech(event: Event) -> bool:
-    """Whether the event carries spoken reply text, the first output a listener hears."""
-
-    payload = event.payload
-    return (
-        event.type is EventType.USER_RESPONSE
-        and isinstance(payload, UserResponsePayload)
-        and payload.response_part == MAIN_STRUCTURED_RESPONSE_PART_SPEECH
-        and bool(payload.value)
-    )
-
-
-def _seconds(value: float) -> float:
-    return round(value, 4)
-
-
-def _call_latency(call: _CallRecord) -> dict[str, float | None]:
-    """One model call's duration and its time to the first streamed text delta (``None`` when none streamed)."""
-
-    finished = call.finished if call.finished is not None else call.started
-    return {
-        "seconds": _seconds(finished - call.started),
-        "first_text_seconds": _seconds(call.first_text - call.started) if call.first_text is not None else None,
-    }
+    def _measure_prompt(self, loadout: Loadout, prepared: PreparedDirectChatTurn) -> None:
+        if loadout.name not in self.instruction_bytes:
+            # Measured once per loadout, on a first turn without history.
+            prompt = prepared.model_request.prompt
+            self.instruction_bytes[loadout.name] = instruction_bytes(prompt)
+            self.first_turn_tokens[loadout.name] = estimate_prompt_tokens(prompt)
 
 
 def check_budget(plan: EvalPlan, max_calls: int) -> None:
@@ -1120,8 +573,8 @@ async def run_evaluation(
     client = registry.get(model_provider.provider_type)
     if client is None:
         raise ModelClientNotFoundError(f"No model client registered for provider type {model_provider.provider_type!r}")
-    budget = _BudgetedModelClient(client, max_calls=max_calls, clock=clock)
-    chats = _EvalChats()
+    budget = BudgetedModelClient(client, max_calls=max_calls, clock=clock)
+    chats = EvalChats()
     run = _Run(
         executor=_build_executor(model_provider, budget, chats),
         chats=chats,
@@ -1167,7 +620,7 @@ def _results_document(
     aborted: str | None,
     started_at: datetime,
 ) -> dict[str, Any]:
-    usage = _usage_json(run.budget.calls)
+    usage = usage_json(run.budget.calls)
     return {
         "schema": RESULT_SCHEMA,
         "started_at": started_at.isoformat(),
@@ -1192,7 +645,7 @@ def _results_document(
         "calls": {"estimated": plan.estimated_calls, "max": max_calls, "made": len(run.budget.calls)},
         "aborted": aborted,
         "usage": usage,
-        "cost": _cost_json(model_provider, usage),
+        "cost": cost_json(model_provider, usage),
         "price_estimate": (
             {
                 "rates_per_million_usd": run.token_prices.as_json(),
@@ -1239,63 +692,6 @@ async def _run_plan(run: _Run, plan: EvalPlan) -> bool:
     return True
 
 
-def _rate(count: int, total: int) -> float | None:
-    return count / total if total else None
-
-
-def _p90(values: Sequence[float]) -> float:
-    """Nearest-rank 90th percentile: the smallest value at or above 90% of the sorted values."""
-
-    ordered = sorted(values)
-    return ordered[math.ceil(0.9 * len(ordered)) - 1]
-
-
-def _distribution(values: Sequence[float], digits: int = 4) -> dict[str, float | None]:
-    if not values:
-        return {"median": None, "p90": None, "mean": None}
-    return {
-        "median": round(statistics.median(values), digits),
-        "p90": round(_p90(values), digits),
-        "mean": round(statistics.fmean(values), digits),
-    }
-
-
-_TOKEN_STAT_KEYS = ("input_tokens", "cached_input_tokens", "cache_write_tokens", "output_tokens", "reasoning_tokens")
-
-
-def _token_summary(turns: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
-    """Per-turn token and estimated-cost statistics over successful turns whose every call reported usage.
-
-    A turn's tokens sum all of its calls, a structured repair included.
-    """
-
-    reported = [turn for turn in turns if not turn["usage"]["unreported_calls"]]
-    summary: dict[str, Any] = {"turns": len(reported), "unreported_turns": len(turns) - len(reported)}
-    for key in _TOKEN_STAT_KEYS:
-        values = [turn["usage"][key] for turn in reported]
-        summary[key] = {"total": sum(values), **_distribution(values, digits=1)}
-    costs = [turn["estimated_cost_usd"] for turn in reported if turn.get("estimated_cost_usd") is not None]
-    summary["estimated_cost_usd"] = {"total": round(sum(costs), 8), **_distribution(costs, digits=8)} if costs else None
-    return summary
-
-
-def _latency_summary(turns: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
-    """Latency, first-token and first-speech statistics, in seconds, over successful turns."""
-
-    first_tokens = [
-        turn["call_latencies"][0]["first_text_seconds"]
-        for turn in turns
-        if turn["call_latencies"] and turn["call_latencies"][0]["first_text_seconds"] is not None
-    ]
-    first_outputs = [turn["first_output_seconds"] for turn in turns if turn["first_output_seconds"] is not None]
-    return {
-        "turns": len(turns),
-        "latency_seconds": _distribution([turn["latency_seconds"] for turn in turns]),
-        "first_token_seconds": {"turns": len(first_tokens), **_distribution(first_tokens)},
-        "first_output_seconds": {"turns": len(first_outputs), **_distribution(first_outputs)},
-    }
-
-
 def _loadout_summary(loadout: Loadout, plan: EvalPlan, run: _Run) -> dict[str, Any]:
     items = {item.id: item for item in plan.prompt_set.items}
     turns = [turn for turn in run.turns if turn["loadout"] == loadout.name]
@@ -1307,7 +703,7 @@ def _loadout_summary(loadout: Loadout, plan: EvalPlan, run: _Run) -> dict[str, A
     for tag in sorted({tag for item in items.values() for tag in item.tags}):
         tagged = [turn for turn in scored if tag in items[turn["conversation_id"]].tags]
         tag_fits = sum(1 for turn in tagged if turn["fit"])
-        by_tag[tag] = {"scored": len(tagged), "fits": tag_fits, "fit_rate": _rate(tag_fits, len(tagged))}
+        by_tag[tag] = {"scored": len(tagged), "fits": tag_fits, "fit_rate": rate(tag_fits, len(tagged))}
     scripted_scored = [turn for turn in turns if turn["kind"] == "scripted" and turn["error"] is None]
     scripted: list[dict[str, Any]] = []
     for chat in plan.prompt_set.scripted_chats:
@@ -1348,16 +744,16 @@ def _loadout_summary(loadout: Loadout, plan: EvalPlan, run: _Run) -> dict[str, A
             "scored": len(scored),
             "errors": len(single) - len(scored),
             "fits": fits,
-            "fit_rate": _rate(fits, len(scored)),
+            "fit_rate": rate(fits, len(scored)),
             "nulls": nulls,
-            "null_rate": _rate(nulls, len(scored)),
+            "null_rate": rate(nulls, len(scored)),
             "by_tag": by_tag,
         },
         "scripted": scripted,
-        "latency": {"single_turn": _latency_summary(scored), "scripted": _latency_summary(scripted_scored)},
-        "tokens": {"single_turn": _token_summary(scored), "scripted": _token_summary(scripted_scored)},
+        "latency": {"single_turn": latency_summary(scored), "scripted": latency_summary(scripted_scored)},
+        "tokens": {"single_turn": token_summary(scored), "scripted": token_summary(scripted_scored)},
         "calls": sum(turn["calls"] for turn in turns),
-        "usage": _sum_usage_json(turn["usage"] for turn in turns),
+        "usage": sum_usage_json(turn["usage"] for turn in turns),
     }
 
 
@@ -1368,8 +764,8 @@ async def estimate_first_turn_tokens(plan: EvalPlan) -> dict[str, int]:
     prompt-only models also carry the reply schema in the prompt.
     """
 
-    chats = _EvalChats()
-    executor = _build_executor(_ESTIMATE_MODEL_PROVIDER, _UnusedModelClient(), chats)
+    chats = EvalChats()
+    executor = _build_executor(ESTIMATE_MODEL_PROVIDER, UnusedModelClient(), chats)
     message = next(
         (item.message for item in plan.prompt_set.items),
         plan.prompt_set.scripted_chats[0].turns[0] if plan.prompt_set.scripted_chats else "",
@@ -1381,7 +777,7 @@ async def estimate_first_turn_tokens(plan: EvalPlan) -> dict[str, int]:
             chat_id=f"estimate/{loadout.name}",
             turn_index=1,
             message=message,
-            model_provider_id=_ESTIMATE_MODEL_PROVIDER.id,
+            model_provider_id=ESTIMATE_MODEL_PROVIDER.id,
             options=_turn_options(None),
         )
         prepared = await executor.prepare_turn(request)
@@ -1612,23 +1008,8 @@ def write_outputs(results: Mapping[str, Any], output_dir: Path) -> tuple[Path, P
 # --- Composition and CLI -----------------------------------------------------
 
 
-@asynccontextmanager
-async def _read_only_model_providers() -> AsyncIterator[ModelProviderRepository]:
-    """Open the application database's model catalog in a read-only transaction."""
-
-    from sqlalchemy import text
-    from sqlalchemy.ext.asyncio import async_sessionmaker
-
-    from animama.adapters.repositories.sqlalchemy.model_provider_repo import SQLAlchemyModelProviderRepository
-    from animama.local.database import dispose_engine, get_engine
-
-    engine = get_engine()
-    try:
-        async with async_sessionmaker(engine)() as session:
-            await session.execute(text("SET TRANSACTION READ ONLY"))
-            yield SQLAlchemyModelProviderRepository(session)
-    finally:
-        await dispose_engine(engine=engine)
+# Read-only catalog access; tests patch ``load_model_provider`` and ``build_registry`` here.
+_read_only_model_providers = catalog.read_only_model_providers
 
 
 async def load_model_provider(model_provider_id: str) -> ModelProvider:
@@ -1644,18 +1025,15 @@ async def load_model_provider(model_provider_id: str) -> ModelProvider:
 def build_registry() -> StaticModelClientRegistry:
     """Build chat's shared model clients; each request reads its connection's key from the credential store."""
 
-    from animama.server.model_clients import build_model_client_registry
-
-    return build_model_client_registry()
+    return catalog.build_model_client_registry()
 
 
 async def _list_models() -> int:
     async with _read_only_model_providers() as model_providers:
-        rows = await model_providers.list_active()
+        rows = await catalog.chat_model_rows(model_providers)
     for row in rows:
-        if row.model_kind == MODEL_KIND_CHAT:
-            connection = row.connection.name if row.connection is not None else row.connection_id
-            print(f"{row.id}\t{row.model_label}\t{connection}")
+        connection = row.connection.name if row.connection is not None else row.connection_id
+        print(f"{row.id}\t{row.model_label}\t{connection}")
     return 0
 
 
@@ -1740,7 +1118,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             print("error: --loadout and --prompts are required", file=sys.stderr)
             return 2
         loadouts = tuple(load_loadout(path) for path in args.loadout)
-        _require_unique((loadout.name for loadout in loadouts), "loadout file names")
+        require_unique((loadout.name for loadout in loadouts), "loadout file names")
         prompt_set = load_prompt_set(args.prompts)
         plan = EvalPlan(
             loadouts=loadouts, prompt_set=prompt_set, repeats=args.repeats, scripted_repeats=args.scripted_repeats

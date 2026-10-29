@@ -49,6 +49,8 @@
     { "en": "Quick Chat", "ja": "クイックチャット", "ko": "빠른 채팅", "zh-Hans": "快速聊天", "zh-Hant": "快速聊天", "note": "The desktop companion window for a short chat." },
     { "en": "Feature pack", "ja": "機能パック", "ko": "기능 팩", "zh-Hans": "功能包", "zh-Hant": "功能包" },
     { "en": "AI notice", "ja": "AI に関するお知らせ", "ko": "AI 안내", "zh-Hans": "AI 提示", "zh-Hant": "AI 提示" },
+    { "en": "Terms of Service", "ja": "利用規約", "ko": "서비스 약관", "zh-Hans": "服务条款", "zh-Hant": "服務條款", "note": "The legal text published at animama.ai/terms/." },
+    { "en": "Privacy Notice", "ja": "プライバシー通知", "ko": "개인정보 처리방침", "zh-Hans": "隐私声明", "zh-Hant": "隱私權聲明", "note": "The legal text published at animama.ai/privacy/." },
     { "en": "Beta", "ja": "ベータ", "ko": "베타", "zh-Hans": "测试版", "zh-Hant": "測試版" },
     { "en": "colour", "ja": "色", "ko": "색상", "zh-Hans": "颜色", "zh-Hant": "顏色" },
     { "en": "System default", "ja": "システムのデフォルト", "ko": "시스템 기본값", "zh-Hans": "系统默认", "zh-Hant": "系統預設" }

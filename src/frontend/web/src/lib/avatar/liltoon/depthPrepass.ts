@@ -13,20 +13,22 @@ import { isLilToonSurface } from "./lilToonSurface";
  * the lilToon shader runs. lilToon's own outline pass already does part of
  * this by accident, which is why switching outlines off made frames slower.
  *
- * The pre-pass must never change a pixel. It writes depth only, pushed
- * slightly behind the surface (three-liltoon skins and projects in its own
- * order, so its depth drifts from three.js's by up to about eight units; see
- * `silhouetteOverlay.ts`), so each surface still passes its own test and
- * writes its exact depth, and a fragment it rejects lies behind an opaque
- * surface that covers it. That holds only for a surface that replaces colour
- * and alpha (One and Zero blend factors, no alpha-to-coverage) and draws at
- * its own depth (no polygon offset of its own): the chat canvas keeps alpha,
+ * The pre-pass writes depth only, pushed slightly behind the surface
+ * (three-liltoon skins and projects in its own order, so its depth drifts
+ * from three.js's by up to about eight units; see `silhouetteOverlay.ts`), so
+ * each surface still passes its own test and writes its exact depth, and a
+ * fragment it rejects lies behind an opaque surface that covers it. That
+ * holds only for a surface that replaces colour and alpha (One and Zero blend
+ * factors or no blending, no alpha-to-coverage), draws at its own depth (no
+ * polygon offset of its own) and is not hidden: the chat canvas keeps alpha,
  * so a surface that blends alpha over what lies behind it could show the
  * difference. `depthPrepassBlocker` checks each material, and a frame skips
  * the pre-pass when any visible material's depth test could see the earlier
- * depth (`toleratesDepthPrepass`). three-liltoon blends alpha with One and
- * One-minus-source-alpha by default, so most converted Avatars take no
- * pre-pass until that is shown to be safe.
+ * depth (`toleratesDepthPrepass`). Animama's three-liltoon patch draws opaque
+ * surfaces whose blend replaces the target unblended, so they take it. The skinning drift also
+ * moves silhouettes by a fraction of a pixel, so the pre-pass can cover a
+ * multisample sample at an edge that its surface does not; exact renders of
+ * a converted Avatar changed about one edge pixel per frame.
  *
  * Like lilToon's outlines, the pre-pass meshes exist only while the renderer
  * draws: they are attached as children of their surfaces before each render
@@ -79,8 +81,9 @@ function replacesWith(
  * Why a material may not draw its depth first, or null when it may: an
  * opaque lilToon surface pass that draws every fragment at its own depth,
  * replaces the colour and alpha behind it and writes its depth with a
- * less-or-equal test. three-liltoon enables blending on every material, so
- * blending counts as replacing when its factors are One and Zero.
+ * less-or-equal test. Blending counts as replacing when its factors are One
+ * and Zero (three-liltoon keeps lilToon's blend state on surfaces Animama's
+ * patch does not draw unblended).
  */
 export function depthPrepassBlocker(
   material: THREE.Material,
@@ -110,7 +113,10 @@ export function depthPrepassBlocker(
   if (material.alphaToCoverage) return "alpha_to_coverage";
   // An offset of its own could put the surface behind its pre-pass depth.
   if (material.polygonOffset) return "polygon_offset";
-  if (!material.visible) return "hidden";
+  // lilToon's Invisible toggle collapses the surface's vertices in its shader
+  // and leaves `visible` set, so the pre-pass would draw what lilToon hides.
+  if (!material.visible || Number(material.lilToonProperties?._Invisible ?? 0))
+    return "hidden";
   if (!material.colorWrite) return "no_colour";
   if (
     !material.depthTest ||

@@ -40,6 +40,7 @@ public static class AnimamaBatchExport
 
             EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
             var root = (GameObject)PrefabUtility.InstantiatePrefab(prefab);
+            StripEditorOnly(root);
             if (HasArg("-animamaKeepPose"))
             {
                 Debug.Log("[Animama] Kept the modelled pose (-animamaKeepPose); VRM 1.0 expects a T-pose.");
@@ -81,6 +82,33 @@ public static class AnimamaBatchExport
         {
             Debug.LogError("[Animama] Failed: " + error);
             EditorApplication.Exit(1);
+        }
+    }
+
+    /// <summary>
+    /// VRChat strips objects tagged EditorOnly when it builds an Avatar, and
+    /// outfit variants hide a garment that way, but Mochiya exports them, so a
+    /// hidden garment would come back in the VRM. Removes them, as a build would.
+    /// </summary>
+    private static void StripEditorOnly(GameObject root)
+    {
+        var tagged = new List<GameObject>();
+        foreach (var transform in root.GetComponentsInChildren<Transform>(true))
+        {
+            if (!transform.CompareTag("EditorOnly")) continue;
+            // Removing the topmost tagged object removes the ones below it.
+            var ancestor = transform.parent;
+            while (ancestor != null && !ancestor.CompareTag("EditorOnly")) ancestor = ancestor.parent;
+            if (ancestor == null) tagged.Add(transform.gameObject);
+        }
+        if (tagged.Count == 0) return;
+        // A prefab instance's own objects cannot be removed until it is unpacked.
+        if (PrefabUtility.IsPartOfPrefabInstance(root))
+            PrefabUtility.UnpackPrefabInstance(root, PrefabUnpackMode.Completely, InteractionMode.AutomatedAction);
+        foreach (var gameObject in tagged)
+        {
+            Debug.Log("[Animama] Stripped EditorOnly object " + gameObject.name);
+            UnityEngine.Object.DestroyImmediate(gameObject);
         }
     }
 

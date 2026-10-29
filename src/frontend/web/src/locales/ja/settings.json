@@ -210,6 +210,19 @@
   },
   "behavior": {
     "appDefaultLabel": "{{label}}（アプリのデフォルト）",
+    "automaticProcessing": {
+      "dailyLimit": "本日の上限に達しました。明日続けます。",
+      "description": "チャットのメモがこの件数たまったら、記憶ファイルにまとめます。",
+      "label": "エピソードのメモを自動で処理",
+      "memoryOff": "自動で処理するには、記憶と記憶の更新をオンにしてください。",
+      "needsModel": "ツールに対応した記憶マネージャーのモデルが必要です。モデルの設定で選択してください。",
+      "notes_other": "{{count}} 件ごと",
+      "off": "オフ",
+      "paused": "失敗が続いたため一時停止しました。この設定を変更すると再試行します。最後のエラー: {{error}}",
+      "retrying": "失敗したため、後で再試行します。最後のエラー: {{error}}",
+      "running_other": "{{count}} 件のメモを記憶にまとめています…",
+      "updateFailed": "メモの自動処理の設定を更新できませんでした。"
+    },
     "blockedByMemory": "記憶の更新を許可するには、記憶をオンにしてください。",
     "flags": {
       "emotion_updates": {
@@ -288,6 +301,7 @@
     "microphone": "マイク",
     "profile": "プロフィール",
     "speechToText": "音声認識",
+    "startup": "起動",
     "textToSpeech": "読み上げ",
     "webSearch": "Web 検索"
   },
@@ -300,6 +314,15 @@
     "label": "言語",
     "saveFailed": "言語を変更できませんでした。",
     "systemDefaultResolved": "システムのデフォルト（{{language}}）"
+  },
+  "launchAtLogin": {
+    "label": "ログイン時に起動",
+    "description": "コンピューターにログインしたときに Animama を自動的に開きます。",
+    "blocked": {
+      "macos": "システム設定 → 一般 → ログイン項目と機能拡張 で許可するまで、Animama はログイン時に開きません。",
+      "windows": "設定 → アプリ → スタートアップ でオンにするまで、Animama はログイン時に開きません。"
+    },
+    "updateFailed": "「ログイン時に起動」を変更できませんでした。"
   },
   "modal": {
     "close": "アプリ設定を閉じる",

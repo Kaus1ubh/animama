@@ -33,12 +33,14 @@ PERMISSIONS = (
     "provider_credentials",
     "chat_file_uploads",
     "anima_creation",
+    "automatic_episode_processing",
     "local_filesystem_administration",
     "native_features",
     "user_file_processing.enabled",
     "web_search.configuration",
 )
 RUNTIME_STATE = (
+    "library_previews",
     "offline_speech_enabled",
     "offline_multilingual_speech_enabled",
     "companion_safety.enabled",
@@ -168,6 +170,9 @@ def test_moved_handlers_use_the_session_their_access_names(tmp_path: Path) -> No
             if spec.access == "read":
                 # A read route never opens a write session the composition must settle.
                 assert not depends_on(route.dependant, get_write_session), (method, route.path)
+            if spec.access == "staged":
+                # Its write session is opened only for the final write, never held while it prepares.
+                assert not depends_on(route.dependant, get_write_session), (method, route.path)
             if spec.access == "stream":
                 # A stream prepares on a write session that the composition settles before the body runs.
                 assert depends_on(route.dependant, get_write_session), (method, route.path)
@@ -195,7 +200,7 @@ def test_the_package_serves_exactly_the_served_stages(tmp_path: Path) -> None:
 def test_each_stage_shares_the_planned_routes() -> None:
     # The ExecPlan's stages; audio isolation stays local (owner, 2026-10-10).
     shared = Counter(spec.stage for spec in ROUTES if spec.disposition == "shared")
-    assert shared == {2: 45, 3: 80, 4: 18, 5: 1}
+    assert shared == {2: 45, 3: 81, 4: 18, 5: 1}
 
 
 def test_routers_mount_the_served_routes_in_inventory_order() -> None:

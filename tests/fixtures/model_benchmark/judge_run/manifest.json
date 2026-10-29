@@ -1,0 +1,53 @@
+{
+  "schema": "animama/model-benchmark-run/1",
+  "aborted": null,
+  "tier": "full",
+  "note": "Hand-written replies for the judge tests and the Phase 6 smoke; no model wrote them.",
+  "prompt_set": {
+    "path": "docs/benchmarks/inputs/prompts.json",
+    "version": "2026-10-28.1",
+    "manifest": "1d38b96001236dbae0079b6fbe6b250ca142d945e2834ce7ddfd2365b3e075e3",
+    "loadout": "ea77e820ede0b731cf5702c292d80e8953d886f80890d88d6269476e78be76e6",
+    "episodic_guidance": "f96b071db722d1fb4ff2e37870aac36259c3db665d817ba5f71818fd488c927f"
+  },
+  "started_at": "2026-10-26T06:00:00+00:00",
+  "finished_at": "2026-10-26T06:01:00+00:00",
+  "repeats": 1,
+  "scripted_repeats": 1,
+  "configurations": [
+    {
+      "label": "AnthropicMessagesHTTPAgent:claude-haiku-5-5@none",
+      "model_provider_id": "AnthropicMessagesHTTPAgent:claude-haiku-5-5",
+      "provider_type": "AnthropicMessagesHTTPAgent",
+      "model": "claude-haiku-5-5",
+      "effort": "none",
+      "not_run": null,
+      "native_context_compaction": false,
+      "served_models": []
+    },
+    {
+      "label": "OpenAIResponsesHTTPAgent:gpt-6-luna@low",
+      "model_provider_id": "OpenAIResponsesHTTPAgent:gpt-6-luna",
+      "provider_type": "OpenAIResponsesHTTPAgent",
+      "model": "gpt-6-luna",
+      "effort": "low",
+      "not_run": null,
+      "native_context_compaction": false,
+      "served_models": []
+    }
+  ],
+  "caps": {
+    "max_calls": 100,
+    "max_usd": "1"
+  },
+  "calls_made": 20,
+  "estimated_spend_usd": "0.02",
+  "turns_recorded": 20,
+  "conditions": {
+    "machine": "fixture",
+    "platform": "fixture",
+    "network": "fixture",
+    "source_revision": "fixture",
+    "llm_skip": false
+  }
+}

@@ -10,6 +10,7 @@ import {
   type RuntimeStatus,
   type FeaturePackStatus,
   type FeaturePackId,
+  type LoginItemStatus,
   type UpdateStatus,
 } from "../../../../shared/desktop-runtime.js";
 import { isUiLocale, type UiLocale } from "@animama/runtime-contracts/locale";
@@ -37,6 +38,8 @@ export type RuntimeIpcOperations = {
   restartUpdate?(): Promise<void>;
   /** Record the UI Locale the app applied, for the shell's own text. */
   setLocale?(locale: UiLocale): void;
+  loginItem?(): LoginItemStatus;
+  setLoginItem?(enabled: boolean): LoginItemStatus;
 };
 type Caller = {
   contents: WebContents;
@@ -205,5 +208,19 @@ export function installRuntimeIpc(
     if (!isUiLocale(locale)) throw new RuntimeError("locale_invalid");
     if (!operations.setLocale) throw new RuntimeError("feature_unavailable");
     return operations.setLocale(locale);
+  });
+  // Only the main app window reads or changes whether the OS opens the app at
+  // login, and only with a plain boolean.
+  handle(
+    "login-item:status",
+    0,
+    false,
+    () => operations.loginItem?.() ?? { available: false },
+  );
+  handle("login-item:set", 1, false, (enabled) => {
+    if (typeof enabled !== "boolean")
+      throw new RuntimeError("ipc_arguments_invalid");
+    if (!operations.setLoginItem) throw new RuntimeError("feature_unavailable");
+    return operations.setLoginItem(enabled);
   });
 }

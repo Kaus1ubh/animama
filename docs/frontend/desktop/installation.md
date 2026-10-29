@@ -43,10 +43,10 @@ require Docker, Python, Node.js, PostgreSQL, Homebrew or a source checkout.
    a nonblank name is private personalization, not a
    username or credential.
 5. **AI** chooses the model your Animas chat with: **Cloud** (OpenAI or
-   Anthropic with your key, or another provider), with a tab per provider.
-   Builds with [local models](../features/model-settings.md#connections)
-   enabled also offer **Local** (a running Ollama, LM Studio, llama.cpp or vLLM
-   server, or a custom one); a local server's tab looks for it when opened. The model
+   Anthropic with your key, or another provider) or **Local** (a running
+   Ollama, LM Studio, llama.cpp or vLLM server, or a custom one), each with a
+   tab per provider; [build flags](../features/model-settings.md#connections)
+   can change which are offered. A local server's tab looks for it when opened. The model
    you set up last (saving the OpenAI key, saving the Anthropic key for Claude
    Haiku 5.5, or adding a model) becomes the default Chat model, and the
    starter Animas switch to it. **Skip for now** keeps the default.
@@ -58,7 +58,10 @@ require Docker, Python, Node.js, PostgreSQL, Homebrew or a source checkout.
    saved at **Finish**. Nothing downloads
    unless you choose it,
    and downloads keep going after you finish. Choose **Finish**, then confirm
-   that you are 18 or older in the short modal before Annie's chat opens. Later launches open the last Anima you visited, or the
+   that you are 18 or older and agree to the
+   [Terms of Service](https://animama.ai/terms/) in the short modal before
+   Annie's chat opens; it also links the
+   [Privacy Notice](https://animama.ai/privacy/). Later launches open the last Anima you visited, or the
    first available Anima if that Anima has been deleted.
 
 Fresh installations create Annie and Andrew. Starter defaults do not overwrite
@@ -71,9 +74,9 @@ key in its Voice step. After setup, the OpenAI and Anthropic keys are on their
 cards in App Settings → Models, and the ElevenLabs key is in App Settings →
 Voice. The Gemini key for [Gemini voices](../runtime/gemini-tts.md), which setup
 does not ask for, is in App Settings → Voice when Gemini is chosen. All four are
-also in App Settings → API Keys; each place edits the same saved key. Other model servers, such as DeepSeek or OpenRouter (or, where local models
-are enabled, a local Ollama, LM Studio or llama.cpp server), are added in App
-Settings → Models, with their key (if any) on the connection. Text chat through an
+also in App Settings → API Keys; each place edits the same saved key. Other model servers, such as OpenRouter or a local Ollama, LM Studio or
+llama.cpp server, are added in App Settings → Models (Cloud or Local), with
+their key (if any) on the connection. Text chat through an
 external model requires that provider to be configured and reachable and can
 incur its charges. There is no bundled offline chat model; a local server on
 this computer keeps chat fully local. The app reaches local servers at
@@ -118,6 +121,9 @@ configured remote AI/voice providers. An installed offline speech model
 transcribes offline; that does not make
 remote chat work offline. Desktop does not need an Animama account for local use.
 
+To open Animama when you log in, turn on Settings → General → **Launch at
+login**. If macOS or Windows blocks it, the setting says where to allow it.
+
 Starter portraits and speech-engine assets are included; your own Local media
 can be imported. Complete starter animation acquisition remains a release gate. See
 [Content policy](../../../content/included/README.md).
@@ -134,7 +140,8 @@ become unavailable. Keep using the current version until the issue is resolved.
 Replacing or removing the application does not erase your local data.
 Reinstalling is not a reset. On Windows, uninstalling from Settings → Apps asks
 afterwards whether to delete `%LOCALAPPDATA%\Animama` as well, naming the
-folder and defaulting to keeping it; upgrades never ask. Quit Animama before a coordinated backup of the
+folder and defaulting to keeping it; upgrades never ask. Uninstalling on
+Windows also removes Launch at login; upgrades and reinstalls keep it. Quit Animama before a coordinated backup of the
 whole data tree; database migration snapshots alone do not include your files
 or vault. Secure-storage recovery can require the original macOS login keychain
 or the same Windows account, so copying the directory is not a guaranteed

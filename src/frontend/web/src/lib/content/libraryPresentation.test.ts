@@ -181,6 +181,33 @@ describe("Library product presentation", () => {
     expect(result.sourceLabel).toBe("Local");
   });
 
+  it("drops an Effect's preview sources only when the runtime offers no previews", () => {
+    const particle = {
+      item_id: "particle-1",
+      name: "Sparkles",
+      description: null,
+      origin: "builtin" as const,
+      source: null,
+      state: "ready" as const,
+      created_at: null,
+      updated_at: null,
+      thumbnail_url: "/v1/content/files/texture?variant=thumbnail",
+      particle_thumbnail: {
+        manifestUrl: "/v1/content/files/manifest",
+        texturePath: "texture.png",
+        revision: "r1",
+      },
+    };
+
+    expect(effectLibraryCard("particle", particle)).toMatchObject({
+      thumbnailUrl: particle.thumbnail_url,
+      particleThumbnail: particle.particle_thumbnail,
+    });
+    const withheld = effectLibraryCard("particle", particle, false);
+    expect(withheld).not.toHaveProperty("thumbnailUrl");
+    expect(withheld).not.toHaveProperty("particleThumbnail");
+  });
+
   it("keeps statuses in badges without repeating origin metadata", () => {
     const gesture = card("gesture");
     expect(libraryProductMetadata(gesture)).toEqual([]);

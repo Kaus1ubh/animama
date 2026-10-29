@@ -41,6 +41,7 @@ async def test_direct_creation_is_exact_atomic_and_has_no_runtime_or_provider(as
             pytest.fail("Creation must not issue runtime")
 
         monkeypatch.setattr(AnimaRuntimeService, "issue", no_runtime)
+        monkeypatch.setattr(AnimaRuntimeService, "prepare", no_runtime)
         monkeypatch.setattr("animama.server.elevenlabs_service.validate_elevenlabs_voice_profile", no_runtime)
         monkeypatch.setattr("animama.server.model_clients.get_model_client_registry", no_runtime)
         service = fixture.service(async_session)

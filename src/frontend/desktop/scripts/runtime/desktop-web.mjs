@@ -1,6 +1,7 @@
 import { existsSync, lstatSync, rmSync } from "node:fs";
 import path from "node:path";
 import { filesIn, sha256 } from "./common.mjs";
+import { homeDirectoryNeedles, searchNeedles } from "./release-scan.mjs";
 
 // These unapproved portrait names are forbidden in staged output. The filter
 // and independent audit also catch copies left in stale build directories.
@@ -32,6 +33,26 @@ export function assertDesktopWebAssets(webRoot) {
   for (const name of excludedDesktopWebAssets) {
     if (lstatSync(path.join(webRoot, name), { throwIfNoEntry: false }))
       throw new Error(`Unapproved desktop public asset: ${name}`);
+  }
+}
+
+/**
+ * Reject staged web files that contain the build user's home directory, such
+ * as an absolute source path in Vite's manifest. The release scan repeats this
+ * on the packaged candidate; the audit catches it in every stage. Vendored
+ * files may carry their upstream authors' paths, so only this machine's home
+ * directory is searched for.
+ */
+export async function assertNoHomeDirectoryPaths(
+  webRoot,
+  needles = homeDirectoryNeedles(),
+) {
+  for (const name of filesIn(webRoot)) {
+    const labels = await searchNeedles(path.join(webRoot, name), needles);
+    if (labels.length)
+      throw new Error(
+        `Staged web file contains the build user's home directory: ${name} (${labels.join(", ")})`,
+      );
   }
 }
 

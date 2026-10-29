@@ -5,6 +5,10 @@ import {
   POCKET_LOADING_STEP_COUNT,
   usePocketTtsRuntime,
 } from "@/hooks/use-pocket-tts-runtime";
+import {
+  AUTOMATIC_EPISODE_PROCESSING_POLL_MS,
+  useAutomaticEpisodeProcessing,
+} from "@/query/hooks/useAutomaticEpisodeProcessing";
 import { useMountedAnimaRuntimeContent } from "@/ui/app/AnimaRouteProviders";
 import {
   modelDownloadLabel,
@@ -27,6 +31,8 @@ export type ChatLoadingStatus = {
   speechToText: boolean;
   /** Speech models downloading from the internet, wherever they were started. */
   downloads: ModelDownload[];
+  /** An automatic Memory Manager run folding this many notes into memory. */
+  episodeProcessing: { noteCount: number } | null;
 };
 
 /** Collect the chat route's loading items from the stores that already track them. */
@@ -38,6 +44,9 @@ export function useChatLoadingStatus({
   const mounted = useMountedAnimaRuntimeContent();
   const pocket = usePocketTtsRuntime();
   const downloads = useModelDownloads();
+  const episodeProcessing = useAutomaticEpisodeProcessing({
+    refetchInterval: AUTOMATIC_EPISODE_PROCESSING_POLL_MS,
+  }).data;
   const preparing = mounted.playbackStatus === "preparing";
   const progress = mounted.preparationProgress;
   return {
@@ -55,6 +64,11 @@ export function useChatLoadingStatus({
         : null,
     speechToText: isDictationPreparing,
     downloads,
+    episodeProcessing:
+      episodeProcessing?.state === "running" &&
+      typeof episodeProcessing.batch_size === "number"
+        ? { noteCount: episodeProcessing.batch_size }
+        : null,
   };
 }
 
@@ -109,6 +123,13 @@ export function ChatLoadingStatusLines({
             }),
     });
   }
+  if (status.episodeProcessing)
+    lines.push({
+      key: "episode-processing",
+      text: t("loadingStatus.episodeProcessing", {
+        count: status.episodeProcessing.noteCount,
+      }),
+    });
   if (!lines.length) return null;
   return (
     <div

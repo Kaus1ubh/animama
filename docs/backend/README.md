@@ -59,6 +59,9 @@ rendering, and client-side speech recognition.
   keys.
 - [Development and operations](operations/development.md): local commands,
   migrations, tests, workers, and deployment guidance.
+- [Model benchmark](../benchmarks/README.md): scoring the app's chat models
+  through chat's real turn path, the episodic-memory arms, the blind judge and
+  reading reports.
 - [Local HTTP components](operations/local-http-components.md): FastAPI
   admission, static assets, telemetry, bounded transport and private drain
   behavior used by the desktop and self-host compositions.

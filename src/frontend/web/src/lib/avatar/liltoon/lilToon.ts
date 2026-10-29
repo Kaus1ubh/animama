@@ -1,3 +1,4 @@
+import type { LilToonMaterial } from "@mochiya/three-liltoon";
 import type { VRMLoaderPlugin } from "@pixiv/three-vrm";
 import type * as THREE from "three";
 import type { GLTF } from "three/examples/jsm/loaders/GLTFLoader.js";
@@ -78,6 +79,54 @@ export function lilToonMaterialStateOf(gltf: GLTF): LilToonMaterialState {
     }
   });
   return rendered ? "rendered" : "fallback";
+}
+
+/**
+ * lilToon's outline vertex-colour mode 2 takes the outline's direction from
+ * the vertex colour's RGB (a tangent-space normal baked by the Avatar's
+ * author) and its width from the alpha. Exports that drop vertex colours
+ * leave three-liltoon reading white, which pushes the outline along tangent +
+ * bitangent + normal at about 1.7 times its width, through thin parts such as
+ * hair tips. Outlined materials on meshes without vertex colours use mode 0
+ * instead: the mesh normal (or the outline vector texture), with the width
+ * mask still applied. GLTFLoader gives meshes with and without colours their
+ * own material copies, so meshes that keep their colours draw as authored.
+ * Mode 1 (width from red) is left alone: without colours it keeps its
+ * direction and reads full width, as Unity does for a mesh without colours.
+ * Returns the names of the materials changed.
+ */
+function fallBackFromMissingOutlineColours(scene: THREE.Object3D): string[] {
+  const coloured = new Map<LilToonMaterial, boolean>();
+  scene.traverse((object) => {
+    const mesh = object as THREE.Mesh;
+    if (!mesh.isMesh) return;
+    const hasColour = mesh.geometry.hasAttribute("color");
+    for (const entry of Array.isArray(mesh.material)
+      ? mesh.material
+      : [mesh.material]) {
+      if (isVertexColourOutline(entry))
+        coloured.set(entry, (coloured.get(entry) ?? false) || hasColour);
+    }
+  });
+  const changed = new Set<string>();
+  for (const [material, hasColour] of coloured) {
+    if (hasColour) continue;
+    material.setProperty("_OutlineVertexR2Width", 0);
+    changed.add(material.name);
+  }
+  return [...changed];
+}
+
+/** An outlined lilToon material whose outline reads vertex colours (mode 2). */
+function isVertexColourOutline(
+  material: THREE.Material,
+): material is LilToonMaterial {
+  const lilToon = material as Partial<LilToonMaterial>;
+  return (
+    lilToon.isLilToonMaterial === true &&
+    lilToon.featureSet?.outline === true &&
+    Number(lilToon.lilToonProperties?._OutlineVertexR2Width ?? 0) === 2
+  );
 }
 
 async function importLilToonRuntime(): Promise<LilToonRuntime> {
@@ -188,11 +237,24 @@ export function installLilToonRenderingWhenLoaded(
 
 /**
  * Let a VRM loader plugin build lilToon materials for files that declare the
- * extension, importing three-liltoon on demand. Other files are untouched: the
- * plugin gains no material hook.
+ * extension, importing three-liltoon on demand, and fall back from outline
+ * vertex colours such files lack (`fallBackFromMissingOutlineColours`). Other
+ * files are untouched: the plugin gains no material hook.
  */
 export function withOnDemandLilToon<T extends VRMLoaderPlugin>(plugin: T): T {
   const beforeRoot = plugin.beforeRoot.bind(plugin);
+  const afterRoot = plugin.afterRoot.bind(plugin);
+  plugin.afterRoot = async (gltf) => {
+    await afterRoot(gltf);
+    if (!usesLilToonMaterials(plugin.parser.json)) return;
+    const changed = fallBackFromMissingOutlineColours(gltf.scene);
+    if (changed.length)
+      logger.warn(
+        "Load",
+        "lilToon outlines read vertex colours the file lacks; using the mesh normal",
+        { materials: changed },
+      );
+  };
   plugin.beforeRoot = async () => {
     await beforeRoot();
     if (!usesLilToonMaterials(plugin.parser.json)) return;

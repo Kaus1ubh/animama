@@ -71,6 +71,11 @@ type StageRequest = {
    * frame when absent.
    */
   fps?: number | null;
+  /**
+   * Time batches of this many frames rendered back to back (`--saturate`)
+   * instead of paced frames with GPU timer queries.
+   */
+  saturate?: number | null;
   /** Feature scenarios (`breakdown.ts` ids) applied to every measurement. */
   apply?: string[];
 };
@@ -91,11 +96,12 @@ type ScenarioResult = {
   disjointFrames: number;
   drawCalls: number;
   triangles: number;
-  /** Rendered frames per second over the measured frames. */
+  /** Rendered frames per second over the measured frames; 0 when saturated. */
   frameRate: number;
   /**
-   * Mean GPU time of each measured pass, in order, to show drift between
-   * rounds (another job on the GPU, say); empty without a GPU timer.
+   * Mean GPU time (saturated: wall time per frame) of each measured pass, in
+   * order, to show drift between rounds (another job on the GPU, say); empty
+   * for paced runs without a GPU timer.
    */
   passes: number[];
 };
@@ -105,6 +111,11 @@ type RendererFacts = {
   renderer: string;
   vendor: string;
   gpuTimer: boolean;
+  /**
+   * Frames per saturated batch, when GPU samples are wall time per frame of
+   * back-to-back frames rather than timer queries (`--saturate`).
+   */
+  saturate: number | null;
   pixelRatio: number;
   drawingBuffer: { width: number; height: number };
   /** Feature scenarios applied to every measurement. */
@@ -182,6 +193,18 @@ function stats(values: number[]): Stats {
     sorted[Math.min(sorted.length - 1, Math.ceil(sorted.length * 0.95) - 1)]!;
   return { mean, p95, samples: values.length };
 }
+
+const idle = (ms: number) =>
+  new Promise<void>((resolve) => setTimeout(resolve, ms));
+/** Idle gaps that mark a saturated pass's warm-up and measured frames. */
+const SATURATE_WARMUP_GAP_MS = 400;
+const SATURATE_MEASURE_GAP_MS = 150;
+/**
+ * Back-to-back rendering before a stage's first saturated pass: without it
+ * that pass ran several times slower than later ones while the GPU's clock
+ * rose after the Avatar's load.
+ */
+const SATURATE_RAMP_MS = 2000;
 
 const nextFrame = () =>
   new Promise<number>((resolve) => requestAnimationFrame(resolve));
@@ -269,7 +292,7 @@ type Samples = {
   gpu: number[];
   /** Milliseconds between consecutive measured frames. */
   interval: number[];
-  /** Mean GPU time of each pass. */
+  /** Mean GPU time (saturated: wall time per frame) of each pass. */
   passes: number[];
   disjoint: number;
 };
@@ -341,7 +364,64 @@ async function withBenchStage<T>(
     mediaCatalog: EMPTY_RUNTIME_MEDIA_PROVIDER,
   });
 
+  /** Whether this stage has ramped the GPU clock (`SATURATE_RAMP_MS`). */
+  let ramped = false;
+  /**
+   * `--saturate`: time batches of `batch` frames rendered back to back, which
+   * keep the GPU at its top clock, so the wall time per frame is the frame's
+   * work rather than its time at whatever clock a paced frame left the GPU
+   * in. A 1-pixel readback waits for the GPU (`finish()` does not in
+   * Chromium). CPU samples hold the submission time per frame. Idle gaps
+   * before the warm-up and the measured frames let a GPU trace taken
+   * alongside be cut into passes.
+   */
+  const measureSaturated = async (
+    batch: number,
+    frames: number,
+    samples: Samples,
+  ) => {
+    const step = request.fps ? 1 / request.fps : FRAME_SEC;
+    const syncPixel = new Uint8Array(4);
+    const renderBatch = () => {
+      for (let index = 0; index < batch; index++) {
+        avatar.update(step);
+        renderer.render(scene, camera);
+        // Submit each frame as it is recorded, so the GPU starts at once.
+        gl.flush();
+      }
+      const submitted = performance.now();
+      gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, syncPixel);
+      return submitted;
+    };
+    if (!ramped) {
+      ramped = true;
+      const until = performance.now() + SATURATE_RAMP_MS;
+      while (performance.now() < until) renderBatch();
+    }
+    await idle(SATURATE_WARMUP_GAP_MS);
+    for (let index = 0; index < request.warmupFrames; index += batch)
+      renderBatch();
+    await idle(SATURATE_MEASURE_GAP_MS);
+    const firstSample = samples.gpu.length;
+    for (let index = 0; index < frames; index += batch) {
+      // Yield to the page between batches without waiting for a display
+      // frame, which would leave a light GPU idle and clocking down.
+      await idle(0);
+      const start = performance.now();
+      const submitted = renderBatch();
+      samples.cpu.push((submitted - start) / batch);
+      samples.gpu.push((performance.now() - start) / batch);
+    }
+    samples.passes.push(stats(samples.gpu.slice(firstSample)).mean);
+    return {
+      drawCalls: renderer.info.render.calls,
+      triangles: renderer.info.render.triangles,
+    };
+  };
+
   const measure: BenchStage["measure"] = async (frames, samples) => {
+    if (request.saturate)
+      return measureSaturated(request.saturate, frames, samples);
     const pending: WebGLQuery[] = [];
     let counts = { drawCalls: 0, triangles: 0 };
     const collect = () => {
@@ -426,7 +506,10 @@ async function withBenchStage<T>(
 
   const result: BenchStage["result"] = (samples, counts) => ({
     cpu: stats(samples.cpu),
-    gpu: timer && samples.gpu.length ? stats(samples.gpu) : null,
+    gpu:
+      (timer || request.saturate) && samples.gpu.length
+        ? stats(samples.gpu)
+        : null,
     disjointFrames: samples.disjoint,
     ...counts,
     frameRate: frameRateOf(samples.interval),
@@ -464,6 +547,7 @@ async function withBenchStage<T>(
         ? String(gl.getParameter(debugInfo.UNMASKED_VENDOR_WEBGL))
         : String(gl.getParameter(gl.VENDOR)),
       gpuTimer: Boolean(timer),
+      saturate: request.saturate ?? null,
       pixelRatio: request.pixelRatio,
       drawingBuffer: {
         width: gl.drawingBufferWidth,

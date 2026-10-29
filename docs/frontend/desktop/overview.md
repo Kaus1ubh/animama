@@ -139,8 +139,8 @@ Renderer access to Electron goes through `window.animamaDesktop`, exposed by the
 sandboxed preload at `desktop/src/preload.cts`.
 
 API version 2 identifies the platform and window role and groups runtime,
-credential, feature-pack, update, fullscreen, title bar, PiP, Quick Chat,
-shortcut and locale methods.
+credential, feature-pack, update, login item, fullscreen, title bar, PiP, Quick
+Chat, shortcut and locale methods.
 See `desktop/src/preload.cts` for the complete surface.
 
 The preload source uses `.cts` and is bundled to `dist/preload.cjs` after
@@ -158,6 +158,7 @@ accept only the three fixed catalog IDs, never renderer-supplied URLs, paths,
 versions, hashes, or commands. Progress subscriptions return cleanup functions;
 destroyed windows stop receiving events. Update controls also require the main
 window and accept zero arguments; recovery can open only the fixed backup folder.
+The login item accepts only a boolean from the main window.
 
 ## Provider Settings And Local State
 
@@ -310,6 +311,20 @@ only after every owned service stops. Explicit native failure can resume the old
 app; a timeout keeps services stopped for safe recovery. A replacement verifies
 its own runtime manifest before database work. No hosted account or GitHub token
 is stored in the app. See [Releases](releases.md) for policy and acceptance gates.
+
+## Launch At Login
+
+Settings → General → **Launch at login** reads and changes the OS login item
+through `desktop/src/main-process/login-item/login-item.ts`; the OS keeps the
+setting, and the app stores nothing. macOS registers the app with
+`SMAppService` and may need the user to allow it in System Settings → General →
+Login Items & Extensions. Windows writes the per-user Run entry, named after
+the app ID, which the user can still turn off in Settings → Apps → Startup; the
+uninstaller (`build/installer.nsh`) removes it, except when an install runs it
+with `--updated`. In both cases the setting says where to allow it, and while
+Settings is open it reads the state again when the window regains focus.
+The setting is hidden in the browser, unpackaged runs (which would register the
+bare Electron binary) and on Linux, which would need an XDG autostart file.
 
 ## Runtime Platform Provider
 

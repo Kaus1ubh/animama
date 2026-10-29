@@ -348,7 +348,7 @@ export function ModelConnectionsSettings({
 
   const tabContent = (location: ModelLocation) => {
     const groups = locationProviderGroups(all, location);
-    const active = providerTab[location] ?? defaultLocationProvider(groups);
+    const active = defaultLocationProvider(groups, providerTab[location]);
     return (
       <Tabs
         value={active}

@@ -3,13 +3,17 @@
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Callable, Mapping
+from collections.abc import Awaitable, Callable, Mapping
 from contextlib import suppress
 from datetime import UTC, datetime
 from typing import Any
 
+from sqlalchemy import text
+from sqlalchemy.exc import DBAPIError
+
 from animama.adapters.memory_patch import AgentsSDKV4AMemoryPatchPlanner
 from animama.app.chat import DirectChatMemoryToolService, memory_tool_specs
+from animama.app.chat.memory_tools import MEMORY_TOOL_BUSY_RESULT
 from animama.app.services.memory_entry_service import MemoryEntryService
 from animama.app.services.memory_episode_service import MemoryEpisodeService
 from animama.domain.settings import preferred_time_zone
@@ -120,6 +124,13 @@ def _chat_tool_memory_entries(repositories: ProductRepositories, *, max_file_byt
     )
 
 
+# The longest a chat memory tool waits for a file another transaction holds, such as a
+# Memory Manager approval, before it returns a retryable "busy" result (spec #775, R6).
+MEMORY_TOOL_LOCK_TIMEOUT_SECONDS = 6.0
+# PostgreSQL's lock_not_available, raised when lock_timeout expires.
+_LOCK_NOT_AVAILABLE = "55P03"
+
+
 class SessionBackedMemoryToolService:
     """Executes direct-chat memory tools through fresh short-lived sessions."""
 
@@ -130,11 +141,13 @@ class SessionBackedMemoryToolService:
         max_file_bytes: int,
         embedder_factory: Callable[[], Any] | None = None,
         allowed_uploaded_files: Mapping[str, str] | None = None,
+        lock_timeout_seconds: float = MEMORY_TOOL_LOCK_TIMEOUT_SECONDS,
     ) -> None:
         self._sessions = sessions
         self._max_file_bytes = max_file_bytes
         self._embedder_factory = embedder_factory
         self._allowed_uploaded_files = dict(allowed_uploaded_files or {})
+        self._lock_timeout_ms = max(1, round(lock_timeout_seconds * 1000))
 
     def tool_specs(
         self,
@@ -161,7 +174,7 @@ class SessionBackedMemoryToolService:
             )
             return await service.execute(**kwargs)
 
-        return await with_short_lived_session(self._sessions, _execute)
+        return await self._with_bounded_lock_wait(_execute)
 
     async def execute_native_patch(self, **kwargs: Any) -> str:
         """Execute one native Apply Patch call in a fresh committed session."""
@@ -174,7 +187,26 @@ class SessionBackedMemoryToolService:
             )
             return await service.execute_native_patch(**kwargs)
 
-        return await with_short_lived_session(self._sessions, _execute)
+        return await self._with_bounded_lock_wait(_execute)
+
+    async def _with_bounded_lock_wait(self, operation: Callable[[ProductRepositories], Awaitable[str]]) -> str:
+        """Run one tool call in a fresh write session whose lock waits end after the bound.
+
+        The turn then gets the busy result instead of waiting for whichever
+        transaction holds the file.
+        """
+
+        async with self._sessions.write() as session:
+            await session.execute(
+                text("SELECT set_config('lock_timeout', :timeout, true)"), {"timeout": f"{self._lock_timeout_ms}ms"}
+            )
+            try:
+                return await operation(self._sessions.repositories(session))
+            except DBAPIError as exc:
+                if getattr(exc.orig, "sqlstate", None) != _LOCK_NOT_AVAILABLE:
+                    raise
+                await session.rollback()
+                return MEMORY_TOOL_BUSY_RESULT
 
 
 __all__ = [

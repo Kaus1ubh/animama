@@ -8,9 +8,11 @@
     "skip": "지금은 건너뛰기"
   },
   "ageConfirmation": {
+    "agreement": "계속하면 <terms>서비스 약관</terms>에 동의하고 <privacy>개인정보 처리방침</privacy>을 읽었음을 확인하는 것입니다.",
     "backToSetup": "설정으로 돌아가기",
     "betaNotice": "웹용 Animama는 베타 버전입니다. 데스크톱 앱에서 가장 좋은 경험을 할 수 있습니다.",
     "confirm": "만 18세 이상입니다",
+    "confirmAndAgree": "만 18세 이상이며 동의합니다",
     "decline": "만 18세 미만입니다",
     "declined": "Animama는 18세 이상 성인만 사용할 수 있습니다. 채팅을 계속할 수 없습니다.",
     "errors": {

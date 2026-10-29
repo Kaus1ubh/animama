@@ -60,6 +60,7 @@ import { usePoses } from "@/query/hooks/usePoses";
 import { useAvatarCatalog } from "@/query/hooks/useAvatarCatalog";
 import { useEffects } from "@/query/hooks/useEffects";
 import { useGestures, useReactions } from "@/query/hooks/useActions";
+import { useRuntimeCapabilities } from "@/query/hooks/useRuntimeCapabilities";
 import { RuntimeFeatureGate } from "@/ui/app/RuntimeFeatureGate";
 import { useContentPreviewDock } from "@/ui/content-preview/ContentPreviewDockProvider";
 import { Button } from "@/ui/components/button";
@@ -414,6 +415,9 @@ export function LibraryContentInventory({
   const groups = contentInventoryGroups(search);
   const includes = (group: LibraryInventoryGroup) => groups.includes(group);
   const origin = search.showStarters ? "all" : "owned";
+  // Previews are on unless the runtime says it offers none; a runtime that
+  // predates the capability omits it and keeps them.
+  const previews = useRuntimeCapabilities().data?.library_previews !== false;
   const gestures = useGestures({
     query: search.query,
     origin,
@@ -501,7 +505,7 @@ export function LibraryContentInventory({
   const effectRows = (
     family: "particle" | "avatar-effect" | "scene" | "sound",
     values: PyCatalogViewItem[],
-  ) => values.map((item) => effectLibraryCard(family, item));
+  ) => values.map((item) => effectLibraryCard(family, item, previews));
 
   const previewPose = (card: LibraryProductCard) => {
     const item = poses.data?.items.find(

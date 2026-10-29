@@ -249,6 +249,16 @@ covered by an applied Reflection and proposes a curated edit of its Anima
 memories. It never runs automatically. Turns count as covered only once its change
 is applied.
 
+## Automatic episode processing
+
+In the local composition, Memory Manager episode processing that the backend
+starts by itself once the owner's pending episode notes (saved by chat's
+`remember` field) reach the App Settings threshold. It approves its own proposals,
+writes only shared user memory such as `PROFILE.md`, and labels each change in
+version history as an automatic update from episode notes. Distinct from
+**Reflection**, which stays owner-started; hosted has no automatic processing. See
+[ADR 0034](docs/adr/0034-automatic-episode-processing-and-profile-context.md).
+
 ## Model connection
 
 An endpoint the installation reaches models through: a base URL, how its key is
@@ -307,6 +317,20 @@ assistant text and is never spoken or saved in the chat.
 A run of turns with the same installation owner, across Animas, where each turn
 starts less than 30 minutes after the previous one. AI-notice reminders are
 measured from its start or the last notice, whichever is later.
+
+## Benchmark run
+
+One approved execution of the [model benchmark](docs/benchmarks/README.md)
+over a fixed set of configurations (a catalog chat row at a reasoning effort)
+and one prompt-set version. It produces raw results, judge scores and one
+report; quality compares across runs of the same prompt-set version and judge
+series, latency only within a run.
+
+## Benchmark area
+
+A group of related benchmark measures: core turns, long chats, in-chat memory
+with the episodic-memory arms, or the Memory Manager. The word avoids
+"domain", which names domain documentation and the backend `domain` layer.
 
 ## Using these terms
 

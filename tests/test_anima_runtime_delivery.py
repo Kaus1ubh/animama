@@ -5,6 +5,7 @@ from __future__ import annotations
 import gzip
 import hashlib
 import json
+from contextlib import asynccontextmanager
 from datetime import UTC, datetime, timedelta
 from io import BytesIO
 from pathlib import Path
@@ -18,13 +19,14 @@ from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from animama.adapters.content_store import FilesystemContentStore
-from animama.app.services.anima_runtime_service import AnimaRuntimeService, RuntimeSnapshotError
+from animama.app.services.anima_runtime_service import ISSUE_ATTEMPTS, AnimaRuntimeService, RuntimeSnapshotError
 from animama.domain.content_catalog import ContentSource, VerifiedContentFile
 from animama.domain.request_principal import RequestPrincipal
 from animama.product_http.principal import get_current_principal
 from animama.product_http.routes import anima_runtime
 from animama.server.config import Settings
 from animama.server.local_runtime import initialize_local_runtime
+from animama.server.product_ports import LocalProductPorts
 from tests.local_http_client import local_client
 from tests.product_http_support import install_local_ports
 
@@ -44,10 +46,13 @@ def runtime_http(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> SimpleNames
             raise HTTPException(status_code=403)
         return RequestPrincipal(id=state.owner)
 
-    async def issue(_self, *, user_id: str, anima_id: str):  # noqa: ANN001, ANN202
+    async def prepare(_self, *, user_id: str, anima_id: str):  # noqa: ANN001, ANN202
         state.calls.append((user_id, anima_id))
         if user_id != "owner":
             raise RuntimeSnapshotError("anima_not_found")
+        return SimpleNamespace(anima_id=anima_id)
+
+    async def commit(_self, _prepared, *, user_id: str):  # noqa: ANN001, ANN202
         return {
             "loadout_revision": 1,
             "effective_revision": "same-content-revision",
@@ -59,7 +64,8 @@ def runtime_http(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> SimpleNames
     app.dependency_overrides[get_current_principal] = principal
     # Runtime services are patched, so no database is reached.
     install_local_ports(app, cast(AsyncSession, SimpleNamespace(commit=AsyncMock())))
-    monkeypatch.setattr(AnimaRuntimeService, "issue", issue)
+    monkeypatch.setattr(AnimaRuntimeService, "prepare", prepare)
+    monkeypatch.setattr(AnimaRuntimeService, "commit", commit)
     return state
 
 
@@ -179,3 +185,61 @@ async def test_runtime_private_file_does_not_use_manifest_compression(
         assert int(response.headers["content-length"]) == len(body)
         # The URL names the exact revision and file, so the local policy keeps it a year.
         assert response.headers["cache-control"] == "private, max-age=31536000, immutable"
+
+
+async def test_issuance_prepares_again_while_the_loadout_keeps_changing(
+    runtime_http: SimpleNamespace, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    async def stale(_self, _prepared, *, user_id: str) -> None:  # noqa: ANN001
+        # The loadout changed after preparation: the commit wrote nothing.
+        return None
+
+    monkeypatch.setattr(AnimaRuntimeService, "commit", stale)
+    async with local_client(runtime_http.app) as client:
+        response, body = await _wire(client, "identity")
+    assert response.status_code == 409
+    assert json.loads(body)["detail"]["code"] == "snapshot_conflict"
+    assert runtime_http.calls == [("owner", "anima")] * ISSUE_ATTEMPTS
+
+
+async def test_issuance_prepares_on_the_read_session_and_commits_on_the_write_session(
+    runtime_http: SimpleNamespace, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    sessions = {kind: SimpleNamespace(kind=kind, commit=AsyncMock()) for kind in ("read", "write")}
+    used: list[tuple[str, str]] = []
+
+    def opener(kind: str):  # noqa: ANN202
+        @asynccontextmanager
+        async def session(_self, _principal):  # noqa: ANN001, ANN202
+            used.append(("open", kind))
+            yield sessions[kind]
+            used.append(("close", kind))
+
+        return session
+
+    monkeypatch.setattr(LocalProductPorts, "read_session", opener("read"))
+    monkeypatch.setattr(LocalProductPorts, "write_session", opener("write"))
+    prepare, commit = AnimaRuntimeService.prepare, AnimaRuntimeService.commit
+
+    async def recorded_prepare(self, **kwargs):  # noqa: ANN001, ANN003, ANN202
+        used.append(("prepare", self.session.kind))
+        return await prepare(self, **kwargs)
+
+    async def recorded_commit(self, prepared, **kwargs):  # noqa: ANN001, ANN003, ANN202
+        used.append(("commit", self.session.kind))
+        return await commit(self, prepared, **kwargs)
+
+    monkeypatch.setattr(AnimaRuntimeService, "prepare", recorded_prepare)
+    monkeypatch.setattr(AnimaRuntimeService, "commit", recorded_commit)
+    async with local_client(runtime_http.app) as client:
+        response, _ = await _wire(client, "identity")
+    assert response.status_code == 200
+    # The write session opens only after the read session that prepared has closed.
+    assert used == [
+        ("open", "read"),
+        ("prepare", "read"),
+        ("close", "read"),
+        ("open", "write"),
+        ("commit", "write"),
+        ("close", "write"),
+    ]

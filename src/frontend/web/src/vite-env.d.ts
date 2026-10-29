@@ -44,6 +44,7 @@ interface ImportMetaEnv {
   readonly VITE_DISABLE_WEBUI_TRACES?: string;
   readonly VITE_ENABLE_DEBUG_PANEL?: string;
   readonly VITE_ENABLE_LOCAL_MODELS?: string;
+  readonly VITE_ENABLE_DEEPSEEK_HUGGINGFACE?: string;
   readonly VITE_APP_ENV?: string;
 }
 
@@ -62,6 +63,7 @@ interface Window {
     readonly featurePacks?: import("../../shared/desktop-runtime").FeaturePacksBridge;
     readonly updates?: import("../../shared/desktop-runtime").UpdatesBridge;
     readonly locale?: import("../../shared/desktop-runtime").LocaleBridge;
+    readonly loginItem?: import("../../shared/desktop-runtime").LoginItemBridge;
     /** Main window on Windows: colors of the window buttons over the title strip. */
     readonly titleBar?: {
       setColors(colors: { color: string; symbolColor: string }): Promise<void>;

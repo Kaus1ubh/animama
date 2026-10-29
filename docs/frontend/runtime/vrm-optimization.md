@@ -2,7 +2,9 @@
 
 `pnpm -s vrm:optimize` (from `src/frontend/web`) shrinks a VRM 1.0 Avatar that
 Animama ships, without changing how it looks or behaves in the app. The Included
-Avatars in `content/included/avatars/` are produced with it.
+Avatars in `content/included/avatars/` are produced with it, and
+`vrm:convert-vrchat` runs it on every VRChat conversion unless told not to
+(see [VRChat Avatar conversion](vrchat-avatar-conversion.md)).
 
 ```bash
 pnpm -s vrm:optimize <source.vrm> --out <optimized.vrm> [--meta <meta.json>]
@@ -17,7 +19,11 @@ pnpm -s vrm:optimize compare <source.vrm> <optimized.vrm> --out <dir> [--min-psn
   - the MToon shade multiply, matcap and rim multiply textures.
 - **Normal maps and other data textures** become lossless WebP: normal maps,
   outline width, shading shift and the UV animation mask. Any texture slot it
-  does not recognise also counts as data. Lossless WebP drops the colour under
+  does not recognise also counts as data.
+- **Converted Avatars' lilToon textures** (`MOCHIYA_materials_liltoon`) follow
+  the same split: main, shadow, emission, matcap, rim, reflection, backlight,
+  glitter and outline colour textures are colour; masks, normal, smoothness and
+  metallic maps are data. A texture used in both kinds of slot is data. Lossless WebP drops the colour under
   fully transparent pixels, so a data texture keeps its original bytes unless
   WebP decodes to identical pixels.
 - **A texture keeps its original encoding** when WebP would be larger.
@@ -33,7 +39,9 @@ The tool edits the GLB in place. It changes the binary layout (buffers,
 buffer views and accessor storage), image encodings, the texture references
 and `EXT_texture_webp` declarations that WebP images need, and the metadata.
 Every other part of the JSON, including every VRM extension, index and name,
-is untouched. It accepts only the extensions it knows to be safe to carry. It
+is untouched. It accepts only the extensions it knows to be safe to carry,
+including Mochiya's `MOCHIYA_avatar_composition` and
+`MOCHIYA_materials_liltoon` while they point at nothing in the binary. It
 refuses:
 - VRM 0 files;
 - files with external buffers or images;

@@ -73,7 +73,7 @@ model. Chat Completions sends it only on connections with
 from three parts:
 
 - **Stable instructions:** core instructions, Anima identity, `MEMORIES.md`,
-  memory guidance, response guidance with the Gesture list, the Speech section
+  `PROFILE.md`, this Anima's recent episode notes, memory guidance, response guidance with the Gesture list, the Speech section
   for the selected voice, the conversation language section under a
   non-English UI Locale, and then the Companion Guardrails.
 - **History**, replayed exactly as stored.
@@ -101,11 +101,13 @@ first turn, incognito turns (`store: false`) and the stale-cursor replay.
 On Anthropic Messages the turn context follows the user's words, because
 Anthropic accepts a mid-conversation `system` message only after a user turn. No
 tagged block is used. Anthropic rows differ only where the transport needs it
-(`app/chat/anthropic_instructions.py`): the identity and `MEMORIES.md` are
-delimited with XML tags, the shared response guidance gains a line that keeps
+(`app/chat/anthropic_instructions.py`): the identity, `MEMORIES.md`, the profile
+and the recent notes are delimited with XML tags, the shared response guidance gains a line that keeps
 tool calls ahead of the JSON answer, and a short `# Turn Context` section
-describes the trailing system message. The directives and the guardrails are
-the same on every path.
+describes the trailing system message. Apart from how often the Speech section
+asks for audio tags, which follows the instruction style
+(`app/chat/speech_tags.py`), the directives and the guardrails are the same on
+every path.
 
 Anthropic chats compact on Anthropic's server, never through app compaction.
 Every request sends threshold compaction (`compact_20260112`) with a trigger
@@ -180,6 +182,8 @@ Anima, per chat, or per turn.
 | Core instructions | per provider style | stable instructions, first | never; they name no Anima |
 | Anima identity (a "Your name is …" line, then `IDENTITY.md`) | per Anima | stable instructions | the owner renames the Anima or edits the identity |
 | Anima memories (`MEMORIES.md`) | per Anima | stable instructions | a chat memory tool or a Memory Manager Reflection edits it. On Responses this also misses the stored chain's prefix; edits are rare. |
+| User profile (`PROFILE.md`, first 16 KiB) | per installation | stable instructions | the owner, a chat memory tool or the Memory Manager edits it; automatic episode processing can edit it during a chat. On Responses this also misses the stored chain's prefix. |
+| Recent notes (this Anima's newest `remember` notes from other chats) | per Anima | stable instructions | another chat with the Anima saves a note, or a local day passes and the 14-day window moves; the current chat's notes and processing status never change it. On Responses a change also misses the stored chain's prefix. |
 | Memory and response guidance | per Anima | stable instructions | memory-write flags or the response format change |
 | Gesture list and response schema | per Anima | stable instructions (response guidance) and `response_format` | the Anima's loadout changes; the schema's `gesture` enum changes with it |
 | Speech section (`app/chat/speech_tags.py`) | per Anima | stable instructions, after response guidance | the turn's voice changes: speech off, Gemini, Eleven v4 Turbo and the other voices (Pocket TTS, browser speech) each have their own section |
