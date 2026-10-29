@@ -17,6 +17,7 @@ import {
   SkeletonPose,
   avatarScale,
   contactSolveWeight,
+  contactStandIn,
   fitContactSolveRamps,
   solveArmContacts,
   type ArmContactSolve,
@@ -25,6 +26,10 @@ import {
 import { ScalarTrack, type ResolvedKey } from "../anatomy/curves";
 import { handShapeRotations } from "../anatomy/handPresets";
 import { PlantedLegSolver } from "../anatomy/legs";
+import {
+  foldMissingTorsoRotations,
+  torsoFoldsOf,
+} from "../anatomy/optionalBones";
 import { easeProgress } from "./interpolation";
 import type {
   AnimaPoseClipPoseResolver,
@@ -174,6 +179,8 @@ export function prepareAnimaPoseClipV2(
   );
 
   const legSolver = clip.plantFeet && vrm ? plantedLegSolver(vrm) : null;
+  // A rig without an upper chest (or chest) bends with the bone below it.
+  const torsoFolds = vrm ? torsoFoldsOf(vrm.humanoid) : [];
   const contactSolver =
     vrm && options.solveContacts !== false ? armContactSolver(clip, vrm) : null;
   const clipTime = (timeSec: number) => {
@@ -188,7 +195,7 @@ export function prepareAnimaPoseClipV2(
     expressionNames: expressions.map(([name]) => name),
     sample(timeSec) {
       const t = clipTime(timeSec);
-      const humanoid = cloneVRMPose(basePose);
+      let humanoid = cloneVRMPose(basePose);
       const set = (bone: VRMHumanBoneName, rotation: Quaternion) => {
         humanoid[bone] = {
           ...humanoid[bone],
@@ -220,6 +227,9 @@ export function prepareAnimaPoseClipV2(
         for (const [bone, rotation] of Object.entries(legs))
           set(bone as VRMHumanBoneName, rotation);
       }
+      // `set` writes to the folded copy from here on.
+      if (torsoFolds.length > 0)
+        humanoid = foldMissingTorsoRotations(humanoid, torsoFolds);
       // Last, from the final pose (legs included): contacts land on it.
       contactSolver?.(humanoid, t, set);
       return {
@@ -316,6 +326,8 @@ export function solvedContactWindows(
  * Avatar's size (`avatarScale`); offsets from the head scale with a big
  * head's face size instead (`avatarProportions.ts`), so hands reach a chibi
  * Avatar's cheeks rather than stopping inside its head or at its chest.
+ * Contacts on an upper chest or finger segment the rig lacks use the bone
+ * that stands in for it (`contactStandIn`).
  */
 function armContactSolver(
   clip: AnimaPoseClipV2,
@@ -349,19 +361,36 @@ function armContactSolver(
     .filter((window) => solvers[window.side])
     .map((window) => {
       const contact = clip.contacts![window.index];
+      // Bones the rig lacks: a stand-in when one exists (`contactStandIn`),
+      // otherwise the contact keeps its bone and the solver skips it.
+      const bone = contactStandIn(skeleton, contact.bone as VRMHumanBoneName);
+      const target = contactStandIn(
+        skeleton,
+        contact.target as VRMHumanBoneName,
+      );
+      const offset =
+        contact.offset && contact.target === "head" && headFactor !== 1
+          ? ([
+              contact.offset[0] * headFactor,
+              contact.offset[1] * headFactor,
+              contact.offset[2] * headFactor,
+            ] as const)
+          : contact.offset;
+      // A missing upper chest's estimated joint on the chest, in authored
+      // units (`scale` multiplies offsets back to this rig's size).
+      const joint = target?.jointOffset;
       const solve: ArmContactSolve = {
-        bone: contact.bone as VRMHumanBoneName,
+        bone: bone?.bone ?? (contact.bone as VRMHumanBoneName),
         point: contact.point,
-        target: contact.target as VRMHumanBoneName,
+        target: target?.bone ?? (contact.target as VRMHumanBoneName),
         targetPoint: contact.targetPoint,
-        offset:
-          contact.offset && contact.target === "head" && headFactor !== 1
-            ? [
-                contact.offset[0] * headFactor,
-                contact.offset[1] * headFactor,
-                contact.offset[2] * headFactor,
-              ]
-            : contact.offset,
+        offset: joint
+          ? [
+              (offset?.[0] ?? 0) + joint.x / scale,
+              (offset?.[1] ?? 0) + joint.y / scale,
+              (offset?.[2] ?? 0) + joint.z / scale,
+            ]
+          : offset,
         weight: 0,
       };
       // Reused every frame: only `weight` changes.

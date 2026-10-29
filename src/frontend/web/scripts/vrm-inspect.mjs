@@ -92,6 +92,29 @@ function authoredExpressions(json) {
 }
 
 /**
+ * Lit glTF materials with metalness (glTF's `metallicFactor` defaults to 1):
+ * not MToon (VRM 0 `VRM/MToon` included), unlit or lilToon. Animama draws
+ * them without metalness (`unmetallicMaterials.ts`), since its scenes have no
+ * environment map for metal to reflect.
+ */
+function metallicMaterials(json) {
+  const v0 = json.extensions?.VRM?.materialProperties ?? [];
+  return (json.materials ?? []).filter((material, index) => {
+    // three-vrm replaces VRM 0 MToon and unlit materials by index.
+    const shader = v0[index]?.shader;
+    if (shader === "VRM/MToon" || shader?.startsWith("VRM/Unlit")) return false;
+    const extensions = material.extensions ?? {};
+    if (
+      extensions.VRMC_materials_mtoon ||
+      extensions.KHR_materials_unlit ||
+      extensions.MOCHIYA_materials_liltoon
+    )
+      return false;
+    return (material.pbrMetallicRoughness?.metallicFactor ?? 1) > 0;
+  }).length;
+}
+
+/**
  * Summarize a GLB document's JSON without loading it.
  *
  * @param resolveMeshTargetNames From `primitiveTargetNames.ts`, the rule the
@@ -137,6 +160,7 @@ export function inspectDocument(document, fileBytes, resolveMeshTargetNames) {
       mtoon: materialsWith("VRMC_materials_mtoon"),
       liltoon: materialsWith("MOCHIYA_materials_liltoon"),
       unlit: materialsWith("KHR_materials_unlit"),
+      metallic: metallicMaterials(json),
     },
     images: { count: json.images?.length ?? 0, bytes: imageBytes },
     expressions: authoredExpressions(json),
@@ -204,6 +228,9 @@ async function inspectLoadedFace(web, bytes) {
   const { detectAvatarFaceParts } = await web.load(
     path.join(webRoot, "src/lib/avatar/vfx/faceParts.ts"),
   );
+  const { missingOptionalBones, optionalBoneText } = await web.load(
+    path.join(webRoot, "src/lib/avatar/poses/anatomy/optionalBones.ts"),
+  );
   // The app's geometry cleanup too, since face part detection reads it.
   const { vrm, gltf } = await web.module.loadHeadlessVrmWithGltf(
     bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength),
@@ -232,6 +259,11 @@ async function inspectLoadedFace(web, bytes) {
     // shapes Animama filled it from.
     faceSignals,
     face: detectFaceParts(detectAvatarFaceParts, vrm, gltf),
+    // Optional bones content uses that the rig lacks, as Diagnostics lists
+    // them, each worded as its copied report words it.
+    missingOptionalBones: missingOptionalBones((bone) =>
+      Boolean(vrm.humanoid.getRawBoneNode(bone)),
+    ).map((entry) => ({ ...entry, text: optionalBoneText(entry) })),
     arkit: {
       resolved: capability.resolved.size,
       total: capability.resolved.size + capability.missing.length,
@@ -303,7 +335,7 @@ export function formatReport(report) {
     lines.push(`extensions required: ${report.extensionsRequired.join(", ")}`);
   const { materials } = report;
   lines.push(
-    `materials: ${materials.total} (${materials.mtoon} MToon, ${materials.liltoon} lilToon, ${materials.unlit} unlit)`,
+    `materials: ${materials.total} (${materials.mtoon} MToon, ${materials.liltoon} lilToon, ${materials.unlit} unlit${materials.metallic ? `; ${materials.metallic} metallic, drawn without metalness` : ""})`,
     `images: ${report.images.count}, ${megabytes(report.images.bytes)}`,
     "meshes:",
   );
@@ -376,6 +408,9 @@ export function formatReport(report) {
       : `face parts: detection failed (${face.error}); the app places effects by material names`,
   );
   if (face.issues.length) lines.push(`  issues: ${face.issues.join(", ")}`);
+  lines.push(
+    `missing optional bones: ${loaded.missingOptionalBones.map((entry) => entry.text).join(", ") || "none"}`,
+  );
   return lines.join("\n");
 }
 

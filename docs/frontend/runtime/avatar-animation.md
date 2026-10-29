@@ -356,6 +356,34 @@ instead, so hands reach its cheeks rather than stopping inside the head at the
 jaw. Adult and anime proportions, the Included Avatars among them, are
 unaffected.
 
+### Optional bones a rig lacks
+
+VRM requires only the hips, spine, head and limbs; Gestures, poses and
+contacts also use the chest, upper chest, neck, shoulders, eyes and every
+finger segment, which VRChat conversions and low-poly Avatars often lack
+(`poses/anatomy/optionalBones.ts`). A complete rig, such as either Included
+Avatar, takes none of these paths.
+
+- **Torso:** in Gestures and poses, the rotation of a missing `upperChest`
+  (or `chest`) folds into the nearest torso bone below it, so everything above
+  bends as on a complete rig, pivoting at that bone. Prepared clips fold before
+  contacts are solved, default poses before a fade blends them, and poses
+  where they are applied. Procedural layers (sway, breathing, talking hands,
+  emotion posture, head nods and tilts, cursor look-at) still skip it.
+- **Contacts:** a contact on a missing `upperChest` uses the chest (or the
+  spine) at an estimated upper-chest joint: 0.635 of the height from the spine
+  joint to the neck (the Included Avatars' share), at the stand-in's own depth,
+  wherever the rig puts its chest. A contact on a missing finger segment
+  uses the nearest segment of the same finger toward the hand, with the same
+  point (`tip` then extrapolates that segment). A finger with no segments has
+  no stand-in, so its contacts are skipped.
+- **Skipped:** finger curls on a missing segment (the remaining segment already
+  carries the rest of the finger), and any motion of a missing neck, shoulder
+  or eye.
+
+Avatar Diagnostics lists each missing bone under Motion with what stands in
+for it, and `vrm:inspect` prints the same list.
+
 ### Pose and clip JSON artifacts
 
 `AnimaPose` and `AnimaPoseClip` are separate JSON artifacts. `animaPoseClip/2.0`
@@ -1726,9 +1754,11 @@ adapts colour and UV expression binds to those materials.
   change that moves lilToon's cost.
 - **Fallback base colours:** Mochiya writes `metallicFactor` 1 on the fallback
   materials, which renders them almost black without an environment map.
-  `LilToonFallbackMaterialsPlugin` builds fallbacks of lilToon materials with
-  metalness 0; GLTFLoader extends only materials it builds itself, so
-  lilToon's own materials are untouched.
+  `UnmetallicMaterialsPlugin` (`unmetallicMaterials.ts`) builds every lit glTF
+  material an Avatar loads, these fallbacks and plain PBR materials alike,
+  with metalness 0. It skips MToon materials by their `VRMC_materials_mtoon`
+  extension (VRM 0 MToon gains it before materials load); GLTFLoader never
+  extends unlit materials or the materials lilToon builds itself.
 - **Fallback:** in development and the review tools, a failed import loads the
   glTF fallback materials instead, and a later Avatar retries. In a built app a
   failed chunk download shows the app's reload screen (`PageLoadError`), as for
@@ -1736,7 +1766,10 @@ adapts colour and UV expression binds to those materials.
   loader and always draws the fallback materials; `animation:render` loads
   lilToon as the app does.
 - **Silhouettes and release:** silhouette overlays bias lilToon materials eight
-  depth units, because lilToon skins and projects in its own order.
+  depth units, because lilToon skins and projects in its own order. A cut-out
+  lilToon material's overlay discards by its `_Cutoff` (three-liltoon reports
+  it as `alphaTest`), reading the main texture through `_MainTex_ST` and its
+  fixed rotation and applying its `_AlphaMask` (`lilToonAlphaSource`).
   `releaseModelScene` disposes their `lilToonTextures`, which neither
   `VRMUtils.deepDispose` nor the material's `dispose` releases.
 - **Frame cost:** lilToon shading is much heavier than MToon. On an Apple M5

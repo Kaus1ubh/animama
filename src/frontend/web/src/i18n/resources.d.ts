@@ -733,11 +733,18 @@ export default interface Resources {
         },
         "humanoidBones": "Humanoid bones",
         "missingBones": "Missing required bones",
+        "missingOptionalBones": "Missing optional bones",
         "notChecked": "Not checked yet",
+        "optionalCovers": {
+          "contacts": "Contacts use the next finger bone toward the hand",
+          "motionAndContacts": "Gestures, poses and contacts use the bone below",
+          "nothing": "Not moved by Gestures"
+        },
         "restPose": "Rest pose",
         "restPoseValue": "{{arms}} · {{hands}}",
         "springs": "Spring bones",
         "springsValue": "{{joints}} joints · {{colliders}} colliders",
+        "standIn": "{{bone}} → {{standIn}}",
         "wind": "Wind and ambient forces",
         "windEffect": {
           "held": "springs held at rest",

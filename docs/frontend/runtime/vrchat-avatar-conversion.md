@@ -179,9 +179,9 @@ Known limits of a Mochiya 0.1.4 export:
   ([Authored lilToon materials](avatar-animation.md#authored-liltoon-materials)).
   That costs far more GPU time per frame than MToon; the Avatar's Materials
   setting can choose the cheaper glTF fallback materials (Simple). The exporter
-  writes `metallicFactor` 1 on those fallbacks, so Animama draws them with
-  metalness 0; the `vrm:optimize` compare page uses its own loader and still
-  shows them much darker than in Unity.
+  writes `metallicFactor` 1 on those fallbacks, so Animama draws them, like
+  every lit glTF material, with metalness 0; the `vrm:optimize` compare page
+  uses its own loader and still shows them much darker than in Unity.
 - PhysBone gravity converts to very small VRM gravity values, and the springs
   rely on the shape they were modelled in. Animama therefore adds no wind or
   updraft to Avatars converted by Mochiya under the Automatic wind setting (see

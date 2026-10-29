@@ -25,6 +25,11 @@ function createEventOnlyDraft(events: AnimaPoseClipEvent[]) {
   });
 }
 
+/** A stub humanoid with every bone, as a complete rig has. */
+function stubHumanoid(resetNormalizedPose: () => void) {
+  return { resetNormalizedPose, getNormalizedBoneNode: () => ({}) };
+}
+
 describe("Reaction preview posture", () => {
   it.each([
     { id: "particle", kind: "particle_vfx", effectId: "sparkles", time: 0 },
@@ -49,7 +54,7 @@ describe("Reaction preview posture", () => {
       });
       const applyAnimaPose = vi.fn();
       const avatar = {
-        vrm: { humanoid: { resetNormalizedPose: vi.fn() }, update: vi.fn() },
+        vrm: { humanoid: stubHumanoid(vi.fn()), update: vi.fn() },
         forgetPose: vi.fn(),
         applyPose: vi.fn(),
         applyAnimaPose,
@@ -88,7 +93,7 @@ describe("Reaction preview posture", () => {
       const applyAnimaPose = vi.fn();
       const setExpression = vi.fn();
       const avatar = {
-        vrm: { humanoid: { resetNormalizedPose: vi.fn() }, update: vi.fn() },
+        vrm: { humanoid: stubHumanoid(vi.fn()), update: vi.fn() },
         forgetPose: vi.fn(),
         applyPose,
         applyAnimaPose,
@@ -123,7 +128,7 @@ describe("Reaction preview posture", () => {
     const resetNormalizedPose = vi.fn();
     const applyPose = vi.fn();
     const avatar = {
-      vrm: { humanoid: { resetNormalizedPose }, update: vi.fn() },
+      vrm: { humanoid: stubHumanoid(resetNormalizedPose), update: vi.fn() },
       forgetPose: vi.fn(),
       applyPose,
       clearAllExpressionOverrides: vi.fn(),
@@ -165,7 +170,7 @@ describe("blank timeline preview", () => {
     const applyPose = vi.fn();
     const clearAllExpressionOverrides = vi.fn();
     const avatar = {
-      vrm: { humanoid: { resetNormalizedPose }, update: vi.fn() },
+      vrm: { humanoid: stubHumanoid(resetNormalizedPose), update: vi.fn() },
       forgetPose: vi.fn(),
       applyPose,
       clearAllExpressionOverrides,

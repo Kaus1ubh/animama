@@ -594,8 +594,9 @@ delegates them to `AvatarAttachmentEffects`.
 - **`silhouette`**: art drawn only over the Avatar's visible pixels. Each
   depth-writing primitive gets an overlay mesh sharing its geometry, skeleton
   and live morph weights (render order 940, `LessEqual` depth with a small
-  polygon offset). It honours the original material's alpha cutout and changes
-  no material or canvas option. MToon outlines and layers that write no depth
+  polygon offset). It honours the original material's alpha cutout, including
+  a lilToon cut-out's `_Cutoff`, tiling and alpha mask, and changes no
+  material or canvas option. MToon outlines and layers that write no depth
   (irises, highlights, brows, eye lines, lashes) get no overlay.
   `fill: "pattern"` tiles the art in screen space from the hips (at
   `patternScale` 1 a tile is a quarter of the Avatar's on-screen height, so

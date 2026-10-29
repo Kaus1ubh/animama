@@ -16,6 +16,7 @@ import { getResolvedAvatarPose } from "@/lib/avatar/poses/catalog";
 import { canonicalizeCustomPresetExpressions } from "@/lib/avatar/vrmExpressionPresets";
 import { configureAvatarGltfLoader } from "@/lib/avatar/configureAvatarGltfLoader";
 import { prepareLoadedVrm } from "@/lib/avatar/prepareLoadedVrm";
+import { UnmetallicMaterialsPlugin } from "@/lib/avatar/unmetallicMaterials";
 import {
   installLilToonRenderingWhenLoaded,
   withOnDemandLilToon,
@@ -78,8 +79,10 @@ const viewsFor = (
 
 async function loadVrm(url: string): Promise<VRM> {
   const loader = configureAvatarGltfLoader(new GLTFLoader());
-  // Authored lilToon materials render as in the app; other files are untouched.
+  // Authored lilToon materials render as in the app, and lit glTF materials
+  // without metalness as the app draws them; MToon is untouched.
   loader.register((parser) => withOnDemandLilToon(new VRMLoaderPlugin(parser)));
+  loader.register((parser) => new UnmetallicMaterialsPlugin(parser));
   const gltf = await loader.loadAsync(url);
   const vrm = gltf.userData.vrm as VRM;
   VRMUtils.removeUnnecessaryVertices(gltf.scene);

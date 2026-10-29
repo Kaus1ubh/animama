@@ -23,6 +23,10 @@ import {
   automaticDecisionSinceLoad,
   type AutomaticMaterialsDecision,
 } from "../liltoon/lilToonGpuCheck";
+import {
+  missingOptionalBones,
+  type OptionalBoneStandIn,
+} from "../poses/anatomy/optionalBones";
 import type {
   AvatarEyeEstimate,
   AvatarFacePartRole,
@@ -89,6 +93,11 @@ export type AvatarLiveDiagnostics = {
   motion: {
     humanoidBones: number;
     missingRequiredBones: string[];
+    /**
+     * Optional bones that Gestures, poses or contacts use and the rig lacks,
+     * each with the bone that stands in for it (`optionalBones.ts`).
+     */
+    missingOptionalBones: OptionalBoneStandIn[];
     springJoints: number;
     springColliders: number;
     /** The wind setting in effect, and whether wind and updraft apply. */
@@ -251,6 +260,9 @@ function collectMotion(avatar: Avatar): AvatarLiveDiagnostics["motion"] {
     missingRequiredBones: Object.values(VRMRequiredHumanBoneName).filter(
       (name) => !humanoid?.getRawBoneNode(name),
     ),
+    missingOptionalBones: humanoid
+      ? missingOptionalBones((bone) => Boolean(humanoid.getRawBoneNode(bone)))
+      : [],
     springJoints: springs?.joints.size ?? 0,
     springColliders: springs?.colliders.length ?? 0,
     wind: { mode: avatar.springMode, ambientForces: avatar.ambientForces },

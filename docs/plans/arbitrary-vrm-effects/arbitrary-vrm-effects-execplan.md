@@ -71,7 +71,7 @@ Evidence in this plan and the PR is counts and pass/fail only.
 - [x] Phase 5: the face inside a whole-body mesh (2026-10-28; review passed after two repair rounds).
 - [x] Phase 6: painted art that shows (2026-10-28; review passed after two repair rounds).
 - [x] Phase 7: size-aware placement and framing (2026-10-29; review passed after one repair round).
-- [ ] Phase 8: rig and material fallbacks (deferrable, Q3).
+- [x] Phase 8: rig and material fallbacks (2026-10-29; review passed after one repair round).
 - [ ] Phase 9: acceptance, documentation and owner gates.
 - [ ] Final integration review, full pre-push suite, PR.
 
@@ -1277,6 +1277,129 @@ phase to its own issue (Q3).
 Tests: synthetic rigs without `upperChest` and distal bones keep hand-on-heart
 contacts; a metallic plain material renders within the expected brightness;
 a cutout lilToon material is excluded from silhouettes where transparent.
+
+Starting source: `e55f1db3`.
+
+Implementation (2026-10-29): new `poses/anatomy/optionalBones.ts` lists the
+optional bones content uses and their stand-ins: a missing `chest` or
+`upperChest` uses the nearest torso bone below it, and a missing finger segment
+uses the nearest segment of the same finger toward the hand; nothing stands in
+for a missing neck, shoulders, eyes or whole finger. A missing torso bone's
+rotation folds into the bone below (in `prepareV2.ts` before the contact solve,
+in `applyAnimaPoseToVrm` and in `PoseController._applyClipSample`); the fold list
+is computed once per rig and is empty for complete rigs. Contacts on a missing
+`upperChest` aim at a point 0.46 of the way from the chest to the neck, the share
+measured on the Included Avatars, and finger contacts use the segment toward the
+hand. Diagnostics list the missing optional bones with what covers them (all
+locales), and `vrm:inspect` prints them and counts plain metallic materials.
+New `unmetallicMaterials.ts` gives every lit glTF material without
+`VRMC_materials_mtoon` metalness 0 (the app has no environment map, so metal
+renders near-black), replacing the lilToon-only fallback. Silhouette effects now
+apply lilToon's alpha mask and main-texture tiling (`liltoon/lilToonSurface.ts`,
+`vfx/silhouetteOverlay.ts`); cut-off and main-texture alpha already reached
+them through three-liltoon. Docs: `avatar-animation.md` ("Optional bones a rig
+lacks"), `avatar-vfx.md`, `vrchat-avatar-conversion.md`,
+`features/anima-management.md`.
+
+Check record (tree `1c027e10`; the final tree `91d118e1` adds only a test-stub
+fix, after which the whole web Vitest suite, `tsc -b` and lint reran):
+
+| Command | Directory | Result |
+| --- | --- | --- |
+| `timeout 590 npx vitest run src/lib/avatar src/ui tests/avatar src/lib/runtime-content` | `src/frontend/web` | 3790 passed, 2 skipped; baselines unchanged |
+| `timeout 590 npx vitest run` (tree `91d118e1`) | `src/frontend/web` | 6139 passed, 2 skipped |
+| `npx tsc -b`; `npx tsc -p tsconfig.scripts.json --noEmit`; eslint and prettier `--check` on touched files | `src/frontend/web` | clean |
+| `node --test scripts/vrm-inspect.test.mjs scripts/effect-render.test.mjs scripts/effect-render-sources.test.mjs` | `src/frontend/web` | 29/29 |
+| `pnpm -s animation check <gesture>.json --json` on the 31 Included Gestures with `upperChest` or distal contacts, against the same on `e55f1db3` | `src/frontend/web` | 31/31 byte-identical |
+| `python3 ../../scripts/heavy-slot.py -- pnpm check` | `src/frontend` | exit 0 |
+| The browser suite's own steps in two halves through heavy-slot | `src/frontend/web` | 24/24 and 108/108 |
+| `evidence/render-set.sh`, plus `gray-silhouette` and `despair_shade`, `--diff` against the baselines | `src/frontend/web` | all 0 px (`idea_bulb` 1 px once, 0 px on re-render) |
+
+Hand-on-heart on rigs stripped of `upperChest` lands within 0.8–1.1 cm of the
+complete rig (6.7 and 4.1 cm before). Private survey (counts only): Maromage,
+RadDollV3, HAOLAN and ふぁふぁ lack `upperChest`; Polybot lacks 20 finger segments
+(covered); Carol North and RadDollV3 lack whole fingers (24 each, not covered);
+no survey file has plain metallic materials (a synthetic one went from mean
+luminance 105 to 216). By eye, HAOLAN's hand-on-heart and hands-to-chest now rest
+on the chest; RadDollV3's `who-me` fingertip now reaches its chest, but its
+oversized sleeve then covers its chin (owner to judge).
+
+#### Code Review #1 Findings
+
+Reviewed tree `91d118e1` (standard tier, initial full review); no checks rerun.
+The reviewer confirmed the Included Avatars lack none of the optional bones (no
+folds, no stand-ins), have no lit non-MToon materials, and that the fold and the
+lilToon alpha math match three-vrm and three-liltoon. Optional:
+
+- **P8-R1-F1 (latent):** fade-out blends a folded current sample with an
+  unfolded default-pose sample, so a default pose with a non-identity
+  `upperChest` would make the chest jump (none does today).
+- **P8-R1-F2:** the fold list is recomputed on every static pose apply,
+  including each frame of a VRMA rest transition.
+- **P8-R1-F3:** silhouettes capture lilToon's main-texture transform once, so a
+  texture-transform expression animating it is not followed (not a regression).
+- **P8-R1-F4:** the upper-chest estimate applies only when the chest stands in,
+  and overshoots on a rig whose only chest sits at upper-chest height.
+- **P8-R1-F5–F7:** two wording overclaims (MToon handling; the dialog label
+  claims all motion, while procedural layers still skip `upperChest`); a
+  duplicated helper in `vrm:inspect`; the downward-only stand-in differs from
+  the plan's "reuse `humanoidAnchors.ts`".
+- **P8-R1-F8:** no rendered lilToon cut-out, mask or brightness test.
+
+Result: pass.
+
+#### Code Review #1 Revisions
+
+- F1, F2, F4, F5, F6 accepted as a repair round.
+- F7 recorded: a missing bone's rotation must fold downward into its parent,
+  so the stand-in walks down the chain, unlike `humanoidAnchors.ts`, which looks
+  up first for a placement anchor.
+- F3, F8 deferred: rare, not regressions; the uniform tests and the manual
+  luminance record stand.
+
+Repair round 1 (tree `bfe6b87e`; supersedes the 0.46 share, the fold site and
+the distances in the implementation paragraph above): the torso fold moved into
+`PoseController._retargetClipSampleForRuntime`, before the VRM 0 retarget, so
+clip and default-pose samples enter every fade already folded (a 12° chest jump
+at fade-out start became under 0.5° in the new test) (F1). The fold list is
+cached per humanoid (`torsoFoldsOf`) (F2). A missing `upperChest` contact now
+aims at 0.635 of the height from the spine joint to the neck (measured
+0.635–0.638 on the Included Avatars, 0.625 on the VRM 0 fixture), whether the
+chest or the spine stands in; a rig lacking both chest bones went from 24.9 cm
+to 1.86 cm off, one whose chest sits at upper-chest height from 6.8 cm to
+0.33 cm, and the common no-`upperChest` cases now land 1.35–1.80 cm off (under
+the 2 cm bound) (F4). Docs and the Diagnostics label say Gestures, poses and
+contacts use the bone below (F5); `vrm:inspect` reuses the module's wording
+(F6).
+
+| Command | Directory | Result |
+| --- | --- | --- |
+| `timeout 590 npx vitest run src/lib/avatar src/ui tests/avatar src/lib/runtime-content src/stores` | `src/frontend/web` | 3894 passed, 2 skipped; baselines unchanged |
+| `npx tsc -b`; `npx tsc -p tsconfig.scripts.json --noEmit`; eslint and prettier `--check` on touched files | `src/frontend/web` | clean |
+| `node --test scripts/vrm-inspect.test.mjs scripts/effect-render.test.mjs scripts/effect-render-sources.test.mjs` | `src/frontend/web` | 29/29 |
+| `pnpm -s animation check` on the 31 Gestures, against `e55f1db3` | `src/frontend/web` | 31/31 byte-identical |
+| `python3 ../../scripts/heavy-slot.py -- pnpm check` | `src/frontend` | exit 0 |
+| Three Gesture renders and one Gesture played through `PoseController`, against `e55f1db3` | `src/frontend/web` | 4/4 at 0 px |
+| `evidence/render-set.sh`, `--diff` against the baselines | `src/frontend/web` | 31 rendered; all at 0 px (`angry` 1 px once, 0 px on re-render) |
+
+#### Code Review #2 Findings
+
+Reviewed tree `bfe6b87e` (targeted recheck). The fold's new site has exactly
+two callers; captured samples on these rigs never carry `upperChest`, so both
+sides of every fade share the folded form; complete rigs are untouched. Optional:
+the 2 cm test bound leaves under 2 mm of headroom for the 1.80 and 1.86 cm cases
+(P8-R2-F1); the VRMA rest transition still blends a captured sample with an
+unfolded relaxed rest, harmless while its torso is identity (P8-R2-F2); this
+record (P8-R2-F3). Result: pass.
+
+#### Code Review #2 Revisions
+
+P8-R2-F3 done above. P8-R2-F1 and F2: no change (all cases pass and look right
+on the chest; the VRMA case cannot occur with today's rest pose). Repair budget:
+one round used.
+
+Phase 8 complete (agent-ready). For owner review in Phase 9: RadDollV3's
+`who-me` reaches its chest now, but its oversized sleeve covers its chin.
 
 ### Phase 9: Acceptance, documentation and owner gates
 

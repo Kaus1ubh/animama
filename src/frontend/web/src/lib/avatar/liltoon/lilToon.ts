@@ -1,10 +1,6 @@
 import type { VRMLoaderPlugin } from "@pixiv/three-vrm";
 import type * as THREE from "three";
-import type {
-  GLTF,
-  GLTFLoaderPlugin,
-  GLTFParser,
-} from "three/examples/jsm/loaders/GLTFLoader.js";
+import type { GLTF } from "three/examples/jsm/loaders/GLTFLoader.js";
 
 import { createLogger } from "@/lib/logger";
 
@@ -82,37 +78,6 @@ export function lilToonMaterialStateOf(gltf: GLTF): LilToonMaterialState {
     }
   });
   return rendered ? "rendered" : "fallback";
-}
-
-/**
- * Keep the glTF fallback of an authored lilToon material unmetallic. Mochiya
- * writes `metallicFactor` 1, which renders a lit fallback almost black without
- * an environment map; lilToon's own reflection is a toon highlight, not metal.
- * GLTFLoader extends only the materials it builds itself, so this never
- * touches a material three-liltoon built.
- */
-export class LilToonFallbackMaterialsPlugin implements GLTFLoaderPlugin {
-  readonly name = "ANIMAMA_liltoon_fallback_materials";
-  private readonly parser: GLTFParser;
-
-  constructor(parser: GLTFParser) {
-    this.parser = parser;
-  }
-
-  extendMaterialParams(
-    materialIndex: number,
-    materialParams: { metalness?: number },
-  ): Promise<void> {
-    const material = (
-      this.parser.json as {
-        materials?: { extensions?: Record<string, unknown> }[];
-      }
-    ).materials?.[materialIndex];
-    if (material?.extensions?.[LILTOON_MATERIALS_EXTENSION]) {
-      materialParams.metalness = 0;
-    }
-    return Promise.resolve();
-  }
 }
 
 async function importLilToonRuntime(): Promise<LilToonRuntime> {

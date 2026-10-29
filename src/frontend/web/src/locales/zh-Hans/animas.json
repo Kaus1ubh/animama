@@ -238,6 +238,13 @@
     "motion": {
       "humanoidBones": "人形骨骼",
       "missingBones": "缺少的必需骨骼",
+      "missingOptionalBones": "缺少的可选骨骼",
+      "optionalCovers": {
+        "contacts": "接触改用靠近手部的下一节手指骨骼",
+        "motionAndContacts": "动作、姿势和接触改用下一级骨骼",
+        "nothing": "动作不会移动它们"
+      },
+      "standIn": "{{bone}} → {{standIn}}",
       "notChecked": "尚未检查",
       "restPose": "静止姿势",
       "springs": "弹簧骨骼",

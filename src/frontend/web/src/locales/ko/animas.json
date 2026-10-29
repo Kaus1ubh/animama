@@ -238,6 +238,13 @@
     "motion": {
       "humanoidBones": "휴머노이드 본",
       "missingBones": "없는 필수 본",
+      "missingOptionalBones": "없는 선택 본",
+      "optionalCovers": {
+        "contacts": "접촉은 손 쪽의 다음 손가락 본을 사용합니다",
+        "motionAndContacts": "제스처, 포즈, 접촉은 바로 아래 본을 사용합니다",
+        "nothing": "제스처로 움직이지 않습니다"
+      },
+      "standIn": "{{bone}} → {{standIn}}",
       "notChecked": "아직 확인하지 않음",
       "restPose": "기본 자세",
       "springs": "스프링 본",

@@ -269,8 +269,8 @@ describe("lilToon materials through the real runtime", () => {
   it("leaves other materials as glTF materials", async () => {
     const material = await loadMaterial(triangleGlb(null));
     expect(material).toBeInstanceOf(THREE.MeshStandardMaterial);
-    // Only lilToon fallbacks lose glTF's metalness.
-    expect((material as THREE.MeshStandardMaterial).metalness).toBe(1);
+    // Drawn unmetallic like every lit glTF material (`unmetallicMaterials.ts`).
+    expect((material as THREE.MeshStandardMaterial).metalness).toBe(0);
     expect(lilToonMaterialStateOf(await loadGltf(triangleGlb(null)))).toBe(
       "none",
     );

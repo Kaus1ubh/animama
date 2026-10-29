@@ -110,6 +110,21 @@ describe("Avatar diagnostics reports", () => {
     );
     aPose.live!.motion.restPose = null;
     expect(avatarDiagnosticsText(aPose)).toContain("Rest pose: not checked\n");
+    // Andrew has every bone content uses; a rig without some says what
+    // stands in for each.
+    expect(text).toContain("  Missing optional bones: none\n");
+    aPose.live!.motion.missingOptionalBones = [
+      { bone: "upperChest", standIn: "chest", covers: "motion_and_contacts" },
+      {
+        bone: "rightIndexDistal",
+        standIn: "rightIndexIntermediate",
+        covers: "contacts",
+      },
+      { bone: "leftEye", standIn: null, covers: "nothing" },
+    ];
+    expect(avatarDiagnosticsText(aPose)).toContain(
+      "  Missing optional bones: upperChest (Gestures, poses and contacts use chest), rightIndexDistal (contacts use rightIndexIntermediate), leftEye (not moved)\n",
+    );
     // An eye painted on the face says what placed it.
     aPose.live!.face.parts = [
       {

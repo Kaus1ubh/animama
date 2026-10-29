@@ -101,6 +101,15 @@ const live: AvatarLiveDiagnostics = {
   motion: {
     humanoidBones: 52,
     missingRequiredBones: [],
+    missingOptionalBones: [
+      { bone: "upperChest", standIn: "chest", covers: "motion_and_contacts" },
+      { bone: "leftEye", standIn: null, covers: "nothing" },
+      {
+        bone: "rightIndexDistal",
+        standIn: "rightIndexIntermediate",
+        covers: "contacts",
+      },
+    ],
     springJoints: 120,
     springColliders: 18,
     wind: { mode: "off", ambientForces: false },
@@ -389,6 +398,16 @@ describe("AvatarDiagnosticsDialog", () => {
     expect(dialog()?.textContent).toContain("2 custom names");
 
     click("Motion");
+    expect(dialog()?.textContent).toContain("upperChest → chest");
+    expect(dialog()?.textContent).toContain(
+      "Gestures, poses and contacts use the bone below",
+    );
+    expect(dialog()?.textContent).toContain(
+      "rightIndexDistal → rightIndexIntermediate",
+    );
+    expect(dialog()?.textContent).toContain("Contacts use");
+    expect(dialog()?.textContent).toContain("Not moved");
+    expect(dialog()?.textContent).toContain("leftEye");
     expect(dialog()?.textContent).toContain("120 joints · 18 colliders");
     expect(dialog()?.textContent).toContain("Off · no wind or updraft");
     expect(dialog()?.textContent).toContain("Saved for this Avatar");

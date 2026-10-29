@@ -97,6 +97,7 @@ test("reports version, extensions, materials and authored expressions", () => {
     mtoon: 0,
     liltoon: 1,
     unlit: 0,
+    metallic: 0,
   });
   assert.deepEqual(report.expressions, {
     preset: ["aa"],
@@ -215,4 +216,53 @@ test("says why face part detection failed", () => {
   const text = formatReport(failed);
   assert.match(text, /face parts: detection failed \(unexpected primitive\)/);
   assert.match(text, /issues: face_parts_detection_failed/);
+});
+
+test("counts lit glTF materials with metalness, which Animama draws unmetallic", async () => {
+  const metallic = await inspectVrm(
+    faceFixtureVrm({
+      meshes: [{ name: "Face", names: ["blink"] }],
+      json: {
+        materials: [
+          // glTF's metallicFactor defaults to 1.
+          { name: "Armor", pbrMetallicRoughness: {} },
+          { name: "Cloth", pbrMetallicRoughness: { metallicFactor: 0 } },
+          {
+            name: "Skin",
+            pbrMetallicRoughness: { metallicFactor: 1 },
+            extensions: { KHR_materials_unlit: {} },
+          },
+        ],
+      },
+    }).bytes,
+  );
+  assert.equal(metallic.materials.metallic, 1);
+  assert.match(
+    formatReport(metallic),
+    /materials: 3 \(0 MToon, 0 lilToon, 1 unlit; 1 metallic, drawn without metalness\)/,
+  );
+});
+
+test("lists the optional bones content uses that the rig lacks", () => {
+  // The fixture has only the bones VRM requires.
+  const { missingOptionalBones } = report.loaded;
+  assert.deepEqual(
+    missingOptionalBones
+      .slice(0, 3)
+      .map(({ bone, standIn, covers }) => ({ bone, standIn, covers })),
+    [
+      { bone: "chest", standIn: "spine", covers: "motion_and_contacts" },
+      { bone: "upperChest", standIn: "spine", covers: "motion_and_contacts" },
+      { bone: "neck", standIn: null, covers: "nothing" },
+    ],
+  );
+  assert.match(
+    formatReport(report),
+    /missing optional bones: chest \(Gestures, poses and contacts use spine\), upperChest \(Gestures, poses and contacts use spine\), neck \(not moved\),/,
+  );
+  const complete = {
+    ...report,
+    loaded: { ...report.loaded, missingOptionalBones: [] },
+  };
+  assert.match(formatReport(complete), /missing optional bones: none$/m);
 });

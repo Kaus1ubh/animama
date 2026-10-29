@@ -238,6 +238,13 @@
     "motion": {
       "humanoidBones": "ヒューマノイドのボーン",
       "missingBones": "ない必須ボーン",
+      "missingOptionalBones": "ない任意ボーン",
+      "optionalCovers": {
+        "contacts": "接触は手の側にある隣の指ボーンを使います",
+        "motionAndContacts": "ジェスチャー・ポーズ・接触は一つ下のボーンを使います",
+        "nothing": "ジェスチャーでは動きません"
+      },
+      "standIn": "{{bone}} → {{standIn}}",
       "notChecked": "未確認",
       "restPose": "基本姿勢",
       "springs": "揺れものボーン",
