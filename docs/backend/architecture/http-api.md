@@ -1383,7 +1383,13 @@ structured response text fall back to raw `content`. The API accepts `query`, `l
 prefix FTS for partial terms instead of web-search operator syntax, hides
 internal rows, uses a generated `search_vector` column backed by a partial GIN
 index scoped to visible user/assistant content, joins through
-`chats` for ownership, and returns one result per chat. The best matching
+`chats` for ownership, and returns one result per chat. A message must match
+every query word. A word containing a non-ASCII letter or digit, such as `京都`,
+matches as a case-insensitive substring of the indexed text instead, because the
+`english` parser keeps unspaced Japanese, Chinese and Thai text as one token
+([memory search](../features/memory.md#search_memory_files) has the details). A
+query of only such words scans the owner's visible messages without the index.
+At most eight prefix terms and eight substring words are used. The best matching
 visible message in each chat supplies the snippet and score, while the response
 includes chat/anima metadata including the anima `profile_picture_url` for
 result rendering.

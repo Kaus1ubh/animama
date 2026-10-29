@@ -10,6 +10,7 @@ from sqlalchemy import and_, delete, desc, func, or_, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from animama.app.ports.user_file_processing_port import UserFileProcessingRepository
+from animama.domain.search_terms import WEB_SEARCH_CLAUSE_PATTERN, substring_pattern
 from animama.domain.user_file import (
     STATUS_ABORTED,
     STATUS_DELETE_PENDING,
@@ -570,8 +571,9 @@ class SQLAlchemyUserFileProcessingRepository(UserFileProcessingRepository):
         limit: int,
         file_ids: list[str] | None = None,
     ) -> list[UserFileSearchResult]:
-        params: dict[str, Any] = {"user_id": user_id, "query": query, "limit": limit}
+        params: dict[str, Any] = {"user_id": user_id, "limit": limit}
         file_filter = _file_filter_sql(file_ids, params)
+        text_filter = _keyword_text_filter_sql(query, params)
         stmt = text(f"""
             SELECT
                 c.id AS chunk_id,
@@ -589,7 +591,7 @@ class SQLAlchemyUserFileProcessingRepository(UserFileProcessingRepository):
             JOIN user_file f ON f.id = c.file_id AND f.user_id = c.user_id
             WHERE c.user_id = :user_id
                 AND f.status IN ('ready', 'ready_keyword_only')
-                AND to_tsvector('english', c.text) @@ websearch_to_tsquery('english', :query)
+                {text_filter}
                 {file_filter}
             ORDER BY score DESC, c.file_id, c.chunk_index
             LIMIT :limit
@@ -655,6 +657,42 @@ class SQLAlchemyUserFileProcessingRepository(UserFileProcessingRepository):
                 {file_filter}
         """)
         return int((await self._s.execute(stmt, params)).scalar_one())
+
+
+_KEYWORD_FULL_TEXT_SQL = "to_tsvector('english', c.text) @@ websearch_to_tsquery('english', :query)"
+
+
+def _keyword_text_filter_sql(query: str, params: dict[str, Any]) -> str:
+    """Return the conditions matching chunk text to a web-search query, and bind its parameters.
+
+    A word or phrase containing a non-ASCII letter or digit is a required
+    substring, or an excluded one after "-" (see ``animama.domain.search_terms``);
+    the remaining words stay in ``:query`` for ``websearch_to_tsquery``. A query
+    without such words keeps exactly the full-text condition.
+    """
+
+    kept: list[str] = []
+    required: list[str] = []
+    excluded: list[str] = []
+    for clause in WEB_SEARCH_CLAUSE_PATTERN.findall(query):
+        pattern = substring_pattern(clause)
+        if pattern is None:
+            kept.append(clause)
+        else:
+            (excluded if clause.startswith("-") else required).append(pattern)
+    if not required and not excluded:
+        params["query"] = query
+        return f"AND {_KEYWORD_FULL_TEXT_SQL}"
+    params["query"] = " ".join(kept)
+    # Without ASCII words the tsquery is empty and matches nothing, so it then adds no condition.
+    conditions = [f"AND (numnode(websearch_to_tsquery('english', :query)) = 0 OR {_KEYWORD_FULL_TEXT_SQL})"]
+    if required:
+        params["required_patterns"] = required
+        conditions.append("AND c.text ILIKE ALL (CAST(:required_patterns AS text[]))")
+    if excluded:
+        params["excluded_patterns"] = excluded
+        conditions.append("AND NOT (c.text ILIKE ANY (CAST(:excluded_patterns AS text[])))")
+    return "\n                ".join(conditions)
 
 
 def _file_filter_sql(file_ids: list[str] | None, params: dict[str, Any]) -> str:

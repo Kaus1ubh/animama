@@ -1106,6 +1106,50 @@ async def test_search_uploaded_files_falls_back_to_keyword(async_session) -> Non
 
 
 @pytest.mark.asyncio
+async def test_uploaded_file_keyword_search_finds_words_inside_unspaced_text(async_session) -> None:
+    await _insert_uploaded_file_chunk(async_session, file_id="kyoto", text="週末に京都で抹茶を飲みました。")
+    await _insert_uploaded_file_chunk(async_session, file_id="autumn", text="京都の紅葉がきれいでした。Alpha notes.")
+    await _insert_uploaded_file_chunk(async_session, file_id="alpha", text="Alpha project notes.")
+    repo = SQLAlchemyUserFileProcessingRepository(async_session)
+
+    async def file_ids(query: str) -> list[str]:
+        return sorted({hit.file_id for hit in await repo.keyword_search(user_id="user-1", query=query, limit=10)})
+
+    assert await file_ids("抹茶") == ["kyoto"]
+    assert await file_ids("「京都」") == ["autumn", "kyoto"]
+    # Every word is required, as for English words.
+    assert await file_ids("京都 抹茶") == ["kyoto"]
+    assert await file_ids("京都 Alpha") == ["autumn"]
+    assert await file_ids("京都 -抹茶") == ["autumn"]
+    assert await file_ids("Alpha") == ["alpha", "autumn"]
+    assert await file_ids("京_の") == []
+
+
+@pytest.mark.asyncio
+async def test_search_uploaded_files_snippet_shows_the_matched_non_ascii_word(async_session) -> None:
+    await _insert_uploaded_file_chunk(
+        async_session, file_id="diary", text="あ" * 1000 + "週末に京都で抹茶を飲みました。"
+    )
+
+    search = _loads(
+        await _tool_service(
+            async_session,
+            include_user_files=True,
+            allowed_uploaded_files={"diary": "diary.txt"},
+        ).execute(
+            tool_name=MEMORY_TOOL_SEARCH_UPLOADED_FILES,
+            arguments={"query": "抹茶", "file_names": ["diary.txt"]},
+            context=_context(),
+            tool_call_id="call-search",
+        )
+    )
+
+    assert search["ok"] is True
+    [result] = search["uploaded_file_results"]
+    assert "京都で抹茶" in result["snippet"]
+
+
+@pytest.mark.asyncio
 async def test_read_uploaded_file_chunks_returns_ordered_paginated_content_without_private_state(
     async_session,
 ) -> None:

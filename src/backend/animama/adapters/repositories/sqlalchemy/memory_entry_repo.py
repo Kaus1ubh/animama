@@ -3,8 +3,6 @@
 from __future__ import annotations
 
 import operator
-import re
-import unicodedata
 from dataclasses import dataclass
 from datetime import datetime
 from functools import reduce
@@ -42,6 +40,7 @@ from animama.domain.memory_entry import (
     MemoryEntryVersion,
 )
 from animama.domain.memory_episode import MEMORY_EPISODE_LOG_ENTRY_KIND
+from animama.domain.search_terms import WEB_SEARCH_CLAUSE_PATTERN, snippet_terms, substring_pattern
 from animama.orm.anima import ORMAnima
 from animama.orm.memory_entry import ORMMemoryEntry, ORMMemoryEntryVersion
 
@@ -83,8 +82,7 @@ def _snippet_for_query(entry: MemoryEntry, query: str, *, max_chars: int) -> str
     if len(text_value) <= max_chars:
         return text_value
 
-    # Words of two or more characters, or one non-ASCII character such as the Chinese word 茶 (tea).
-    terms = [term.lower() for term in re.findall(r"\w+", query) if len(term) > 1 or not term.isascii()]
+    terms = snippet_terms(query)
     lowered = text_value.lower()
     first_idx = -1
     for term in terms:
@@ -105,8 +103,6 @@ def _snippet_for_query(entry: MemoryEntry, query: str, *, max_chars: int) -> str
     return f"{prefix}{text_value[window_start:window_end].strip()}{suffix}"
 
 
-# One web-search clause: a quoted phrase or a whitespace-separated word, either optionally negated with "-".
-_SEARCH_CLAUSE_PATTERN = re.compile(r'-?"[^"]*"?|\S+')
 # Each positive clause nests the statement one level deeper, and SQLAlchemy compiles it recursively,
 # so a pasted passage would exceed Python's recursion limit without this bound.
 _MAX_POSITIVE_SEARCH_CLAUSES = 32
@@ -114,38 +110,6 @@ _MAX_POSITIVE_SEARCH_CLAUSES = 32
 
 def _websearch_clause(clause: str) -> ColumnElement[Any]:
     return func.websearch_to_tsquery("english", clause, type_=TSQUERY)
-
-
-def _trim_edge_punctuation(clause: str) -> str:
-    """Strip punctuation, symbols and spaces from both ends, such as the exclusion "-", quotes and 「」.
-
-    Combining marks stay, because Thai tone marks and Devanagari vowel signs end many words.
-    """
-
-    start, end = 0, len(clause)
-    while start < end and unicodedata.category(clause[start])[0] in "PSZ":
-        start += 1
-    while end > start and unicodedata.category(clause[end - 1])[0] in "PSZ":
-        end -= 1
-    return clause[start:end]
-
-
-def _substring_pattern(clause: str) -> str | None:
-    """Return an ILIKE pattern that finds a non-ASCII clause inside unspaced text, or None.
-
-    PostgreSQL's ``english`` parser splits words only at spaces and punctuation, so
-    Japanese, Chinese or Thai text becomes one token per run and Korean words keep
-    their attached particles. A clause containing a non-ASCII letter or digit
-    therefore also matches as a case-insensitive substring, without the punctuation
-    at its ends. ASCII-only clauses return None and keep word matching, so ``cat``
-    never matches ``category``.
-    """
-
-    term = _trim_edge_punctuation(clause)
-    if not any(not char.isascii() and char.isalnum() for char in term):
-        return None
-    escaped = term.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
-    return f"%{escaped}%"
 
 
 @dataclass(frozen=True, slots=True)
@@ -169,23 +133,23 @@ def _search_clauses(query: str) -> _ParsedSearchQuery:
     ``or`` is dropped because positive clauses are already alternatives. Only the
     first ``_MAX_POSITIVE_SEARCH_CLAUSES`` positive clauses are kept; every
     exclusion is kept, parsed together as ``!a & !b ...``. Non-ASCII clauses also
-    carry a substring pattern (see ``_substring_pattern``).
+    carry a substring pattern (see ``animama.domain.search_terms``).
     """
 
     positives: list[str] = []
     exclusions: list[str] = []
-    for clause in _SEARCH_CLAUSE_PATTERN.findall(query):
+    for clause in WEB_SEARCH_CLAUSE_PATTERN.findall(query):
         if clause.lower() == "or":
             continue
         (exclusions if clause.startswith("-") else positives).append(clause)
     return _ParsedSearchQuery(
         positives=[
-            _PositiveSearchClause(_websearch_clause(clause), _substring_pattern(clause))
+            _PositiveSearchClause(_websearch_clause(clause), substring_pattern(clause))
             for clause in positives[:_MAX_POSITIVE_SEARCH_CLAUSES]
         ],
         exclusion=_websearch_clause(" ".join(exclusions)) if exclusions else None,
         excluded_substring_patterns=[
-            pattern for clause in exclusions if (pattern := _substring_pattern(clause)) is not None
+            pattern for clause in exclusions if (pattern := substring_pattern(clause)) is not None
         ],
     )
 

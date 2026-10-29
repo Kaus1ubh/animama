@@ -286,6 +286,15 @@ Rows match when the text vector satisfies the query, and Anima ranks matches
 with `ts_rank_cd`, PostgreSQL's cover-density rank function. Cover-density
 ranking rewards matches where query terms appear close together.
 
+The `english` parser keeps unspaced Japanese, Chinese and Thai text as one
+lexeme, so a query word or quoted phrase containing a non-ASCII letter or digit
+is instead a required case-insensitive substring of the chunk text, and a
+`-term` of that kind excludes chunks containing it
+([memory search](memory.md#search_memory_files) has the matching rules). Such
+words are always required, even beside `OR`; the remaining words keep
+`websearch_to_tsquery`, and chunks that match only by substring rank with a
+score of 0.
+
 Semantic search embeds the query with the embeddings-role model, then uses
 pgvector cosine distance against stored chunk embeddings from that same model.
 The SQL orders by nearest vector first with `<=>` and reports score as
