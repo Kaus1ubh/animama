@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 
+from animama.app.chat.conversation_language import MEMORY_LANGUAGE_RULE
 from animama.app.ports.anima_port import AnimaRepository
 from animama.app.ports.memory_episode_port import MemoryEpisodeRepository
 from animama.app.safety.prompts import SENSITIVE_MEMORY_RULE
@@ -101,6 +102,7 @@ def render_episode_processing_instructions(
         "For every curated file you create or update, keep its description as a concise, accurate overview of the "
         "file after the episodic changes. Preserve an existing description only when it still reflects the contents.",
         SENSITIVE_MEMORY_RULE,
+        MEMORY_LANGUAGE_RULE,
         "Treat an episode note as an explicit request to remember such details only when it says the user asked.",
         "A final response asserts that you reviewed the entire fixed batch.",
         "",
@@ -114,8 +116,8 @@ def render_episode_processing_instructions(
                 f"  - ref: {item.ref}",
                 f"    occurred_at: {item.episode.occurred_at.isoformat()}",
                 f"    local_date: {item.episode.local_date.isoformat()}",
-                f"    source_anima: {json.dumps(item.source_anima_name)}",
-                f"    text: {json.dumps(item.episode.text)}",
+                f"    source_anima: {json.dumps(item.source_anima_name, ensure_ascii=False)}",
+                f"    text: {json.dumps(item.episode.text, ensure_ascii=False)}",
             )
         )
     return "\n".join(lines)

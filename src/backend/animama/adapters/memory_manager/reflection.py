@@ -11,10 +11,15 @@ from __future__ import annotations
 from datetime import UTC
 from typing import Any
 
+from animama.app.chat.conversation_language import MEMORY_LANGUAGE_RULE
 from animama.app.ports.chat_message_port import ChatMessageRepository
 from animama.app.safety.prompts import SENSITIVE_MEMORY_RULE
 from animama.app.services.anima_identity_memory import anima_memories_manager_path
-from animama.domain.anima_definition import ANIMA_MEMORIES_MAX_BYTES, ANIMA_MEMORIES_TEMPLATE
+from animama.domain.anima_definition import (
+    ANIMA_MEMORIES_MAX_BYTES,
+    ANIMA_MEMORIES_SIZE_TARGET,
+    ANIMA_MEMORIES_TEMPLATE,
+)
 from animama.domain.chat import AnimaHistoryTurn, ChatHistoryPosition
 from animama.domain.memory_manager import (
     MEMORY_MANAGER_RUN_KIND_REFLECTION,
@@ -29,8 +34,6 @@ from animama.domain.settings import time_zone_or_utc
 MEMORY_TOOL_READ_REFLECTION_TURNS = "read_reflection_turns"
 # Turns per page; shortening each side past REFLECTION_TURN_TEXT_MAX_CHARS keeps a page bounded.
 REFLECTION_TURN_PAGE_SIZE = 50
-# The curated size MEMORIES.md should stay well under; the hard limit is ANIMA_MEMORIES_MAX_BYTES.
-REFLECTION_MEMORIES_TARGET_CHARS = 6000
 
 
 def reflection_task_or_none(run: MemoryManagerRun) -> MemoryManagerReflectionTaskState | None:
@@ -203,10 +206,11 @@ def render_reflection_instructions(*, task: MemoryManagerReflectionTaskState, me
             "- Add new open threads and drop threads that the turns show were resolved or have passed.",
             "- Replace a section's placeholder or hint line with real content once there is something to say; "
             "keep it while there is nothing yet.",
-            f"- Keep the whole file well under {REFLECTION_MEMORIES_TARGET_CHARS:,} characters (the hard limit is "
+            f"- Keep the whole file {ANIMA_MEMORIES_SIZE_TARGET} (the hard limit is "
             f"{ANIMA_MEMORIES_MAX_BYTES // 1024} KiB) by condensing older moments.",
             "- Keep the file's description an accurate overview; preserve it verbatim when it still fits.",
             f"- {SENSITIVE_MEMORY_RULE}",
+            f"- {MEMORY_LANGUAGE_RULE}",
             "- The companion guardrail overrides this file. Never record or frame the relationship as the Anima "
             "missing the user or feeling lonely without them, as jealousy, or in a way that discourages the user's "
             "other relationships.",
@@ -220,7 +224,6 @@ def render_reflection_instructions(*, task: MemoryManagerReflectionTaskState, me
 
 __all__ = [
     "MEMORY_TOOL_READ_REFLECTION_TURNS",
-    "REFLECTION_MEMORIES_TARGET_CHARS",
     "REFLECTION_TURN_PAGE_SIZE",
     "ReflectionTurnReader",
     "reflection_page_count",

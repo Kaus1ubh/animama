@@ -13,12 +13,18 @@ from animama.app.safety.prompts import SENSITIVE_MEMORY_RULE
 from animama.app.services.memory_entry_service import MemoryEntryError, MemoryEntryNotFoundError, MemoryEntryService
 from animama.app.services.owner_bootstrap_service import PROFILE_MEMORY_KIND, PROFILE_MEMORY_PATH
 from animama.app.services.user_memory_read_tools import render_user_memory_file_map
-from animama.domain.anima_definition import ANIMA_IDENTITY_PATH, ANIMA_MEMORIES_KIND, ANIMA_MEMORIES_PATH
+from animama.domain.anima_definition import (
+    ANIMA_IDENTITY_PATH,
+    ANIMA_MEMORIES_KIND,
+    ANIMA_MEMORIES_PATH,
+    ANIMA_MEMORIES_SIZE_TARGET,
+)
 from animama.domain.memory_entry import MEMORY_ENTRY_TYPE_FILE, MemoryEntry, MemoryEntryHeader
 from animama.domain.memory_episode import MemoryEpisodeItem
 from animama.domain.settings import preferred_time_zone
 from animama.logging import get_logger
 
+from .conversation_language import MEMORY_LANGUAGE_RULE
 from .options import DirectChatOptions
 
 # Names no Anima, so every Anima shares it; the live name opens the identity section.
@@ -59,6 +65,8 @@ You keep three kinds of memory:
 {_MEMORY_SEARCH_GUIDANCE}
 
 {SENSITIVE_MEMORY_RULE} This applies to every memory you write: files, `MEMORIES.md` and the `remember` field.
+
+{MEMORY_LANGUAGE_RULE}
 """
 # The model benchmark's `MEMORIES.md`-only arm (app/chat/memory_arm.py) replies without `remember`.
 _MEMORY_SYSTEM_GUIDANCE_WITHOUT_REMEMBER = f"""\
@@ -69,6 +77,8 @@ You keep two kinds of memory:
 {_MEMORY_SEARCH_GUIDANCE}
 
 {SENSITIVE_MEMORY_RULE} This applies to every memory you write: files and `MEMORIES.md`.
+
+{MEMORY_LANGUAGE_RULE}
 """
 
 
@@ -99,10 +109,10 @@ RECENT_NOTES_GUIDANCE = (
 
 # Added to the memory guidance only when this turn may edit the Anima's own
 # MEMORIES.md (memory influence and updates on, not incognito).
-ANIMA_MEMORIES_WRITE_GUIDANCE = """\
+ANIMA_MEMORIES_WRITE_GUIDANCE = f"""\
 Edit your `MEMORIES.md` with the memory write tools at the reserved path `[self]/MEMORIES.md`; you cannot create, delete, move or rename it. When something worth keeping about your relationship happens, make a small edit: add or update a line, or drop an open thread that has been resolved. Never rewrite the file every turn, and leave it unchanged when nothing new happened between you.
 
-Keep it to the relationship: your shared story and milestones with dates, nicknames, in-jokes and shared references, how you are together and what works between you, and open threads such as plans, promises and upcoming events, with dates. Facts about the user themselves belong in shared memory such as `PROFILE.md`. Write in the first person and use the user's preferred name when you know it. Keep the file's existing headings and their order, including ones the owner wrote, and put each memory under the section that fits best; add a new section only when nothing fits. Keep the file well under about 6,000 characters by condensing older moments. Never record or frame the relationship as you missing the user or feeling lonely without them, as jealousy, or in a way that discourages their other relationships.
+Keep it to the relationship: your shared story and milestones with dates, nicknames, in-jokes and shared references, how you are together and what works between you, and open threads such as plans, promises and upcoming events, with dates. Facts about the user themselves belong in shared memory such as `PROFILE.md`. Write in the first person and use the user's preferred name when you know it. Keep the file's existing headings and their order, including ones the owner wrote, and put each memory under the section that fits best; add a new section only when nothing fits. Keep the file {ANIMA_MEMORIES_SIZE_TARGET} by condensing older moments. Never record or frame the relationship as you missing the user or feeling lonely without them, as jealousy, or in a way that discourages their other relationships.
 """
 
 NATIVE_MEMORY_PATCH_GUIDANCE = """\

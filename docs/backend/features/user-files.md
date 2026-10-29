@@ -317,7 +317,7 @@ separate groups in request attachment order.
 
 The reader returns complete stored chunks in source order with explicit
 `next_start_chunk` and `has_more` pagination. One serialized result is bounded
-to 24,000 characters and reports response truncation rather than splitting
+to about 6,000 estimated tokens (24,000 English characters) and reports response truncation rather than splitting
 chunk text. Results contain only the canonical filename, chunk index, chunk
 text, and pagination fields—never internal file/chunk IDs, embeddings, parser
 metadata, object keys, or storage URLs. The Anima should use search for

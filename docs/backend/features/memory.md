@@ -139,6 +139,13 @@ the model writes (memory files, `MEMORIES.md` and `remember`): no secrets, crede
 suicide or self-harm crisis specifics (methods, plans, means) unless the user
 explicitly asked; at most a general note. Ordinary health context may be
 remembered.
+It also states the shared memory-language rule (`MEMORY_LANGUAGE_RULE` in
+`app/chat/conversation_language.py`, also stated to every Memory Manager run):
+write new memory in the language of the conversation it comes from, keep
+names, nicknames and quoted words as the user wrote them, leave existing text
+untranslated, and name files in ASCII, which memory paths require. Notes then
+match the words a later search uses. Memory tool results return non-English
+text as written rather than as JSON `\uXXXX` escapes.
 
 After a successful non-incognito `chat:sse` turn is parsed and persisted, the
 backend best-effort captures nonblank `remember` text when memory updates are
@@ -214,8 +221,8 @@ rejected. Episode processing never reaches Anima files.
 
 A **Reflection** (`POST /v1/memory/manager/runs:reflect`) is a Memory Manager
 run bound to one Anima. It reads that Anima's chat turns that no applied
-Reflection has covered, oldest first and at most 400 turns or 200,000
-characters of turn text per run, and may propose
+Reflection has covered, oldest first and at most 400 turns or about 50,000 estimated
+tokens of turn text per run, and may propose
 changes only to that Anima's `MEMORIES.md`; other memory is read-only context.
 Turns taken with memory updates off are never read. Its turns count as covered
 only once its `MEMORIES.md` change is applied, and Undo of that change uncovers
@@ -278,7 +285,8 @@ small relationship-only edits in the first person (user facts go to shared
 memory such as `PROFILE.md`), to keep the file's existing headings (including
 owner-written ones) and file each memory under the best fit, never to rewrite it
 every turn, to stay well under
-about 6,000 characters, and never to frame the relationship as missing the
+about 6,000 characters (about 3,000 in Japanese, Chinese or Korean, whose
+characters take three bytes against the 16 KiB limit), and never to frame the relationship as missing the
 user, loneliness, jealousy or discouraging other relationships. The always-present
 memory guidance says how `remember` (the shared episode log) differs from
 `MEMORIES.md` (what the relationship means). It also says that notes from past
@@ -476,7 +484,8 @@ returns one file group for each in request attachment order.
 Each result group contains the canonical `filename`, requested `start_chunk`,
 complete `chunks` containing only `chunk_index` and `text`, and
 `next_start_chunk`/`has_more` pagination. The serialized result is bounded to
-24,000 characters. The reader never exposes file IDs, chunk IDs, embeddings,
+about 6,000 estimated tokens (24,000 English characters, or about 6,000
+Japanese or Chinese ones). The reader never exposes file IDs, chunk IDs, embeddings,
 parser metadata, object-storage keys, URLs, or database errors.
 
 Use uploaded-file search for relevance lookup, exact phrases, and finding a

@@ -188,7 +188,10 @@ data, and keeps suicide and self-harm crisis specifics (methods, plans, means,
 crisis details) out of memory unless the user explicitly asked; at most a
 general note, such as that the user had a hard week, is kept. Ordinary health
 context the user shares, such as allergies or conditions, is remembered like
-other personal facts.
+other personal facts. Every Memory Manager run also states the memory-language
+rule (`MEMORY_LANGUAGE_RULE`, see [memory guidance](memory.md)): new memory
+text follows the language of the notes or turns it comes from, and the
+pending episode batch carries note text as written, not as `\uXXXX` escapes.
 
 ### 2. Successful Chat Captures An Episode Item
 
@@ -361,10 +364,11 @@ message position and the Reflection run that set it. Creation locks the owner's
 open runs, refuses a pending approval (`409`), requires the Anima's
 `MEMORIES.md` to exist (`409` asking for repair), and selects the oldest
 uncovered turns after the coverage, plus the total uncovered count. The batch
-stops at 400 turns or 200,000 characters of turn text, whichever comes first,
+stops at 400 turns or about 50,000 estimated tokens of turn text, whichever comes first,
 and always holds at least one turn. Text is counted as the model reads it, each
-side shortened past 2,000 characters, so a page of 50 maximal turns still fits
-and a history of long replies cannot fail every Reflection on the same oldest
+side shortened past 2,000 characters and estimated at four ASCII characters or
+one other character per token, so a page of 50 maximal English turns still
+fits (Japanese or Chinese turns fit about a quarter as many) and a history of long replies cannot fail every Reflection on the same oldest
 batch. Turns beyond the batch are reported as remaining. No uncovered turn
 returns `409` without creating or superseding a run. Otherwise it stores private task state (Anima ID and name, the starting
 coverage position and run, the batch's last message position, batch and total
@@ -578,8 +582,8 @@ The mandate keeps the file to the relationship in the Anima's first person,
 keeps the file's own headings and their order (including headings the owner
 wrote) and files each memory under the best fit, uses the template's headings
 only when the file has none, condenses repetition, integrates dated history and
-open threads, drops resolved threads, aims well under 6,000 characters (16 KiB
-hard limit), leaves user facts to shared memory, applies the sensitive-memory
+open threads, drops resolved threads, aims well under 6,000 characters, or about 3,000 in Japanese, Chinese or
+Korean (16 KiB hard limit), leaves user facts to shared memory, applies the sensitive-memory
 rule and the companion guardrail's framing limits, treats turn text as
 untrusted data, and proposes nothing when nothing is worth adding. Each step's
 turn budget grows by one model turn per page of its batch.
@@ -909,7 +913,7 @@ Body:
 ```
 
 The backend owns the batch: the Anima's oldest uncovered turns, at most 400
-turns or 200,000 characters of turn text (see [Reflection](#reflection)).
+turns or about 50,000 estimated tokens of turn text (see [Reflection](#reflection)).
 It returns `201` with the normal run snapshot. The run has `kind = "reflection"`,
 `task = null` and a safe summary:
 

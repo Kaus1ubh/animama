@@ -23,6 +23,7 @@ from animama.adapters.model_clients.openai_chat_completions.request import tools
 from animama.adapters.model_clients.openai_chat_completions.support import resolve_openai_base_url
 from animama.adapters.openai_agents import OpenAIAgentsRunner, OpenAIAgentsRunOutput
 from animama.app.chat.api_standard import ANTHROPIC_MESSAGES_PROVIDER_TYPE, OPENAI_RESPONSES_PROVIDER_TYPE
+from animama.app.chat.conversation_language import MEMORY_LANGUAGE_RULE
 from animama.app.chat.memory_tools import (
     MEMORY_TOOL_LIST_FILES,
     MEMORY_TOOL_READ_FILES,
@@ -841,6 +842,7 @@ def _instructions(*, memory_map: str, access: ManagerFileAccess | None = None) -
         "Use memory_list_files, memory_read_files, and search_memory_files to inspect memory.\n"
         "When a new fact replaces an older one, also correct or remove the outdated statement wherever it appears "
         "(search_memory_files finds it), so the files never contradict each other.\n"
+        f"{MEMORY_LANGUAGE_RULE}\n"
         "Descriptions in the memory map are a concise birds-eye index of each file without reading it. "
         "Give new files useful descriptions. Whenever content changes, review the description too. Preserve the "
         "description verbatim when it remains accurate, and update it when the file's scope or durable contents "

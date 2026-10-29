@@ -23,6 +23,7 @@ from animama.app.services.memory_entry_service import (
 from animama.domain.anima_definition import (
     ANIMA_MEMORIES_MAX_BYTES,
     ANIMA_MEMORIES_PATH,
+    ANIMA_MEMORIES_SIZE_TARGET,
     ANIMA_MEMORIES_TOO_LARGE,
     AnimaDefinitionError,
     normalize_anima_memories,
@@ -32,8 +33,6 @@ from animama.domain.memory_manager import (
     MEMORY_PATCH_OPERATION_CREATE,
     MEMORY_PATCH_OPERATION_UPDATE,
 )
-
-from .reflection import REFLECTION_MEMORIES_TARGET_CHARS
 
 
 class MemoryManagerPatchRejected(Exception):
@@ -201,7 +200,7 @@ def _require_anima_memories_fit(contents: MemoryPatchCandidate) -> None:
         if exc.code == ANIMA_MEMORIES_TOO_LARGE:
             raise MemoryManagerPatchRejected(
                 f"{contents.path} would exceed its {ANIMA_MEMORIES_MAX_BYTES // 1024} KiB limit; condense older "
-                f"moments and keep it well under {REFLECTION_MEMORIES_TARGET_CHARS:,} characters"
+                f"moments and keep it {ANIMA_MEMORIES_SIZE_TARGET}"
             ) from exc
         raise MemoryManagerPatchRejected(
             f"{contents.path} content is invalid ({exc.code}); remove NUL and unencodable characters"

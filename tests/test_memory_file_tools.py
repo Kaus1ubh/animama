@@ -30,6 +30,7 @@ from animama.app.chat.memory_tools import (
     MemoryToolExecutionContext,
     memory_tool_specs,
 )
+from animama.app.model_clients.context_budget import estimate_text_tokens
 from animama.app.ports.anima_port import AnimaRepository
 from animama.app.services.memory_entry_service import (
     MemoryEntryConflictError,
@@ -424,6 +425,36 @@ async def test_memory_tools_reject_paths_outside_user_root(async_session, path: 
     assert result["errors"][0]["path"] == path
     assert result["errors"][0]["code"] == "invalid_path"
     assert result["errors"][0]["retryable"] is False
+
+
+@pytest.mark.asyncio
+async def test_memory_tools_return_non_english_text_as_written(async_session) -> None:
+    await _put_user_file(async_session, "trip.md", "週末に京都で抹茶を飲みました。", description="旅行のメモ")
+
+    output = await _tool_service(async_session).execute(
+        tool_name=MEMORY_TOOL_READ_FILES,
+        arguments={"paths": ["trip.md"]},
+        context=_context(),
+        tool_call_id="call-read-japanese",
+    )
+
+    assert "週末に京都で抹茶を飲みました。" in output and "旅行のメモ" in output
+    assert "\\u" not in output
+
+
+@pytest.mark.asyncio
+async def test_memory_tools_say_file_names_must_be_ascii(async_session) -> None:
+    result = _loads(
+        await _tool_service(async_session).execute(
+            tool_name=MEMORY_TOOL_READ_FILES,
+            arguments={"paths": ["趣味.md"]},
+            context=_context(),
+            tool_call_id="call-read-japanese-name",
+        )
+    )
+
+    assert result["errors"][0]["code"] == "invalid_path"
+    assert "ASCII letters, digits" in result["errors"][0]["message"]
 
 
 @pytest.mark.asyncio
@@ -1411,7 +1442,8 @@ async def test_read_uploaded_file_chunks_applies_deterministic_response_bound(
         include_user_files=True,
         allowed_uploaded_files={"file-bounded": "bounded.txt"},
     )
-    monkeypatch.setattr(memory_tools_module, "MAX_UPLOADED_FILE_READ_RESPONSE_CHARS", 650)
+    # About 650 characters of ASCII.
+    monkeypatch.setattr(memory_tools_module, "MAX_UPLOADED_FILE_READ_RESPONSE_TOKENS", 162)
     arguments = {"file_name": "bounded.txt", "start_chunk": 0, "chunk_count": 3}
 
     first = await service.execute(
@@ -1429,11 +1461,41 @@ async def test_read_uploaded_file_chunks_applies_deterministic_response_bound(
     result = _loads(first)
 
     assert first == second
-    assert len(first) <= 650
+    assert estimate_text_tokens(first) <= 162
     assert result["response_truncated"] is True
     assert len(result["files"][0]["chunks"]) == 1
     assert result["files"][0]["next_start_chunk"] == 1
     assert result["files"][0]["has_more"] is True
+
+
+@pytest.mark.asyncio
+async def test_read_uploaded_file_chunks_bounds_japanese_text_by_tokens(async_session, monkeypatch) -> None:
+    await _insert_uploaded_file_chunk(
+        async_session,
+        file_id="file-japanese",
+        original_filename="diary.txt",
+        text=["京" * 300, "都" * 300, "茶" * 300],
+    )
+    service = _tool_service(
+        async_session,
+        include_user_files=True,
+        allowed_uploaded_files={"file-japanese": "diary.txt"},
+    )
+    # Room for three 300-character English chunks, but only one Japanese chunk at one token per character.
+    monkeypatch.setattr(memory_tools_module, "MAX_UPLOADED_FILE_READ_RESPONSE_TOKENS", 400)
+
+    output = await service.execute(
+        tool_name=MEMORY_TOOL_READ_UPLOADED_FILE_CHUNKS,
+        arguments={"file_name": "diary.txt", "start_chunk": 0, "chunk_count": 3},
+        context=_context(),
+        tool_call_id="call-read-japanese",
+    )
+    result = _loads(output)
+
+    assert "京" * 300 in output and "\\u" not in output
+    assert estimate_text_tokens(output) <= 400
+    assert len(result["files"][0]["chunks"]) == 1
+    assert result["response_truncated"] is True
 
 
 @pytest.mark.asyncio
@@ -1449,7 +1511,7 @@ async def test_read_uploaded_file_chunks_rejects_one_oversized_legacy_chunk(asyn
         include_user_files=True,
         allowed_uploaded_files={"file-oversized": "oversized.txt"},
     )
-    monkeypatch.setattr(memory_tools_module, "MAX_UPLOADED_FILE_READ_RESPONSE_CHARS", 1_000)
+    monkeypatch.setattr(memory_tools_module, "MAX_UPLOADED_FILE_READ_RESPONSE_TOKENS", 250)
 
     result = _loads(
         await service.execute(

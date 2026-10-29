@@ -6,6 +6,7 @@ from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 from typing import Any, Literal, NoReturn
 
+from animama.app.model_clients.context_budget import estimate_text_tokens
 from animama.app.ports.memory_manager_runtime import (
     MEMORY_MANAGER_RUNTIME_OUTCOME_BLOCKED,
     MEMORY_MANAGER_RUNTIME_OUTCOME_COMPLETED,
@@ -54,7 +55,7 @@ from animama.domain.memory_manager import (
     new_memory_manager_approval_id,
     new_memory_manager_message_id,
     new_memory_manager_run_id,
-    reflection_turn_read_chars,
+    shorten_reflection_turn_text,
 )
 from animama.logging import get_logger
 
@@ -93,11 +94,11 @@ AUTOMATIC_EPISODE_PROCESSING_TRIGGER = "automatic_episode_processing"
 _AUTOMATIC_PROCESSING_IN_PROGRESS = "Automatic memory processing is in progress; try again shortly"
 # Safety cap on the turns one Reflection reads; later turns wait for the next Reflection.
 REFLECTION_MAX_TURNS = 400
-# Budget for the turn text one Reflection reads (about 50K tokens), counted after each side
-# is shortened past REFLECTION_TURN_TEXT_MAX_CHARS. A turn then reads at most 4,000
-# characters, so one full page of 50 maximal turns still fits; turns averaging under 500
-# characters reach REFLECTION_MAX_TURNS first.
-REFLECTION_MAX_BATCH_CHARS = 200_000
+# Budget for the turn text one Reflection reads, in estimated tokens (estimate_text_tokens), counted
+# after each side is shortened past REFLECTION_TURN_TEXT_MAX_CHARS. A maximal English turn reads 4,000
+# characters, about 1,000 tokens, so one full page of 50 still fits; Japanese or Chinese text costs
+# about one token per character, so its batches hold about a quarter as many long turns.
+REFLECTION_MAX_BATCH_TOKENS = 50_000
 _REJECTION_FEEDBACK_MAX_CHARS = 2000
 
 
@@ -287,7 +288,7 @@ class MemoryManagerService:
 
         Like other runs it supersedes the open run and is refused while an
         approval is pending. When no turn is uncovered it creates nothing. The
-        batch stops at ``REFLECTION_MAX_TURNS`` turns or ``REFLECTION_MAX_BATCH_CHARS``
+        batch stops at ``REFLECTION_MAX_TURNS`` turns or ``REFLECTION_MAX_BATCH_TOKENS``
         of turn text, whichever comes first, and always holds at least one
         turn. ``timezone`` is the owner's IANA zone for showing turn times.
         """
@@ -324,7 +325,7 @@ class MemoryManagerService:
             turns: list[AnimaHistoryTurn] = []
             if batch.through is not None:
                 # The character budget needs the text of the turn-capped batch.
-                turns = _turns_within_char_budget(
+                turns = _turns_within_token_budget(
                     await self._chat_messages.list_reflection_turns(
                         user_id=user_id,
                         anima_id=anima_id,
@@ -1721,8 +1722,8 @@ def _episode_task_is_processing(run: MemoryManagerRun) -> bool:
     return _episode_task_status(run) == MEMORY_MANAGER_EPISODE_TASK_STATUS_PROCESSING
 
 
-def _turns_within_char_budget(turns: list[AnimaHistoryTurn]) -> list[AnimaHistoryTurn]:
-    """Keep the oldest turns whose read text fits ``REFLECTION_MAX_BATCH_CHARS``, always at least one.
+def _turns_within_token_budget(turns: list[AnimaHistoryTurn]) -> list[AnimaHistoryTurn]:
+    """Keep the oldest turns whose read text fits ``REFLECTION_MAX_BATCH_TOKENS``, always at least one.
 
     Without the budget, a history of very long replies would make every
     Reflection fail on the same oversized oldest batch.
@@ -1730,8 +1731,10 @@ def _turns_within_char_budget(turns: list[AnimaHistoryTurn]) -> list[AnimaHistor
 
     total = 0
     for index, turn in enumerate(turns):
-        total += reflection_turn_read_chars(turn)
-        if index > 0 and total > REFLECTION_MAX_BATCH_CHARS:
+        total += sum(
+            estimate_text_tokens(shorten_reflection_turn_text(text) or "") for text in (turn.user_text, turn.anima_text)
+        )
+        if index > 0 and total > REFLECTION_MAX_BATCH_TOKENS:
             return turns[:index]
     return turns
 
