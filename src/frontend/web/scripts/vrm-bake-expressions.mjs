@@ -257,7 +257,7 @@ async function main(argv) {
     );
   if (report.mismatchedNameMeshes)
     console.log(
-      `${report.mismatchedNameMeshes} mesh(es) name morph targets differently per primitive, so the app leaves them unnamed and nothing binds them; see vrm:inspect.`,
+      `${report.mismatchedNameMeshes} mesh(es) store per-primitive shape names that disagree with each other or with the shapes, so the app leaves them unnamed and nothing binds them; see vrm:inspect.`,
     );
   console.log(
     report.animamaPlaysBakedPresets

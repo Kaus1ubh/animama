@@ -1472,13 +1472,20 @@ VRChat and ARKit respectively, with the same face parts as Annie.
 Owner gates and decisions now open:
 
 - Live check with the two fixtures on a local stack: the Avatar blinks idly,
-  Gestures close the eyes, and the mouth moves with speech.
+  Gestures close the eyes, and the mouth moves with speech. The spec names
+  HAOLAN for this check; HAOLAN blinks through MMD shapes that the code before
+  this work already handled, so the fixtures exercise the new VRChat and ARKit
+  paths. Owner to decide whether they replace the HAOLAN check or run alongside
+  it.
 - Review of the private survey sheets.
 - How VRoid-layout whole-face art (`petrified_cracks` and similar) should map
   onto face islands that cover part of a shared texture.
 - Acceptance of the remaining limitations: Olivia's hood hiding forehead art;
-  Polybot's dark art on its dark screen; Maromage's horns above its ear and its
-  dot eyes under the review floor; RadDollV3's sleeve over its chin in `who-me`.
+  Polybot's dark art on its dark screen; Maromage's horns above its ear, its dot
+  eyes under the review floor, and red face also tinting its bow and ear (its
+  face primitive holds 26% of its weight below the neck, under the 35% that
+  routes a face to the head-region path); Carol North's faint under-eye art;
+  RadDollV3's sleeve over its chin in `who-me`.
 - Whether about 2 ms more per Included load meets the load-time constraint.
 
 Phase 9 complete on the agent side; the gates above are the owner's.
@@ -1490,6 +1497,58 @@ interactions (Phase 3 signals feeding Phases 4–6; Phase 7 sizes reading Phase 
 landmarks). Then the full pre-push suite once on the final candidate through
 the heavy-job slots: root `make check-test`; from `src/frontend`, `pnpm verify`,
 `pnpm web:test:browser` and `pnpm prettier:check`. Results go in the PR.
+
+Merge with `main` (2026-10-29, `8a265c54`, `d1ff395e` into the branch): five
+conflicts. The `test:source:unit` lists were joined (main's `liltoon-parity` and
+`vrm-convert-vrchat` tests plus `effect-render.test.mjs`); main's new
+vertex-colour handling for lilToon fallbacks moved into
+`UnmetallicMaterialsPlugin`, which replaced the fallback plugin it was added to;
+the two `lilToonProperties` additions were merged; the docs keep both sides'
+content. Checks on the merged tree `350d3b7d`: Vitest
+`src/lib/avatar src/ui tests/avatar src/lib/runtime-content` 3826 passed, 2
+skipped; `tsc -b` and the scripts' `tsc` clean; `node --test` on the
+effect-render, effect-render-sources, vrm-inspect, liltoon-parity and
+vrm-convert-vrchat tests 37/37; `pnpm check` exit 0. Included render set on
+`8a265c54` against a fresh render of `d1ff395e`: 31 rendered, 28 identical, and
+three at one pixel, each a variant already seen on unchanged source (`idea_bulb`
+and `count-on-fingers` matched the earlier baseline or its alternate; `angry`
+re-rendered identical).
+
+#### Final Integration Review #1 Findings
+
+Reviewed `8a265c54` (tree `350d3b7d`) against `d1ff395e`: cross-phase load order
+and the face-correction path, face-entry choices, per-frame cost, the Phase 9
+lazy head box, the merge resolution, documentation coherence and licences (no
+private paths, binaries or third-party data). No checks rerun.
+
+- **FI-R1-F1 (required, record):** the owner-gate list omitted Maromage's red face
+  tinting its bow and ear, Carol North's faint under-eye art, and the spec's
+  named HAOLAN live check.
+- **FI-R1-F2:** record the merge, its checks and the final review.
+- **FI-R1-F3:** the Diagnostics dialog labels a head-region face skin only when
+  signals found it, while the copied report notes it for any source.
+- **FI-R1-F4:** `vrm-bake-expressions` still used the older mismatched-names
+  wording.
+- **FI-R1-F5:** a head box measured after a correction reads current morphs
+  (negligible).
+
+Acceptance: synthetic layout tests, Included unchanged, review-render failures,
+Portrait framing, localization and the licence and persistence constraints met;
+the survey targets, the live check, sheet review and load time are owner gates.
+Result: blocked on F1 only.
+
+#### Final Integration Review #1 Revisions
+
+- F1 fixed: the gate list below now names those items and asks whether the
+  fixtures replace the HAOLAN check (HAOLAN still blinks through its MMD shapes,
+  which the old code already handled).
+- F2 recorded here.
+- F4 fixed: the console note now says the stored names disagree with each other
+  or with the shapes (`node --test scripts/vrm-bake-expressions.test.mjs` 7/7,
+  prettier clean).
+- F3 deferred: cosmetic, the face is still found and shown; F5 no change.
+The coordinator verified F1 and F4 by reading the change (record and wording
+only; standard tier).
 
 ## Validation and acceptance
 
