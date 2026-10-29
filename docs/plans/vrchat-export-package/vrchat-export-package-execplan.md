@@ -4,8 +4,9 @@ Source agreement: https://github.com/raymond-van/animama/issues/795, published
 2026-10-29T16:48:47Z with the owner's decisions on Q1–Q8 of the same day, and
 updated 2026-10-29T17:06:25Z for macOS and Windows together (snapshot:
 [vrchat-export-package-spec.md](vrchat-export-package-spec.md)).
-Authorized scope: none yet; proposed Phases 1–5, each verified on macOS and
-Windows. Owner gates below apply inside any authorized phase.
+Authorized scope: Phases 1–5, each verified on macOS and Windows (owner,
+2026-10-29: Phase 1 with "Start Phase 1", then the remaining phases by asking to
+implement the rest of the plan). Owner gates below apply inside every phase.
 
 ## Purpose and context
 
@@ -106,7 +107,31 @@ in a valid scene; `Export` converts in that scene. `MochiyaTargetKind` is
 - [ ] Phase 5: developer command and docs — done against a local exporter
   checkout (checks pass; high-risk review passed after two repair rounds);
   needs the v0.1.0 release (G3), the `EXPORTER_RELEASE` SHA pin, and G4
-- [ ] Final integration review — not started
+- [x] Final integration review — passed after one repair round (a record-only
+  blocker); full pre-push suite on the final candidate recorded there
+
+Remaining steps before release and merge (owner unless noted):
+
+1. Answer the open decision: Node 22 for the command (spec Q8 said Node 20).
+2. GW: give access to a Windows machine; the agent then runs every phase's
+   Windows checks and updates the "tested on" line in the package
+   repository's root README.
+3. GM: walk through the Unity window on macOS (installer prompt, licence
+   notice, export, open scene untouched).
+4. G1: create `raymond-van/animama-avatar-export` and push its `main`.
+5. G2: Actions, Pages from GitHub Actions, the `github-pages` environment
+   allowing `v*` tags, a tag ruleset for `v*`.
+6. Release prep (agent, after GW): mark the CHANGELOG's 0.1.0 heading released
+   so `check.mjs --tag v0.1.0` passes.
+7. G3: approve and push `v0.1.0` (it must contain the `--log` option, exporter
+   commit `f689925` or later); then install from the listing on macOS and
+   Windows and compare the zip's hash with the listing.
+8. Agent: pin `EXPORTER_RELEASE` to the v0.1.0 tag's commit SHA (updating the
+   test's tag pattern and the "its tag also selects the Unity package"
+   comment), and run the developer command against the release.
+9. G4: upload a window export through Create Anima on a task stack.
+10. Push this branch and open the PR only after step 7: until the tag exists,
+    the default `vrm:convert-vrchat` cannot fetch its exporter.
 
 ## Surprises & Discoveries
 
@@ -139,6 +164,9 @@ in a valid scene; `Export` converts in that scene. `MochiyaTargetKind` is
 ## Decision Log
 
 - 2026-10-29, owner: accept the spec's answers to Q1–Q8 (issue #795).
+- 2026-10-29, owner: authorize implementation — Phase 1 first, then the
+  remaining phases of this plan. Pushing, publishing, the new repository and
+  every gate below stay with the owner.
 - 2026-10-29, owner: test macOS first; Windows is a later phase. Superseded
   the same day: support and verify macOS and Windows together, in every phase
   (issue #795 updated 2026-10-29T17:06:25Z).
@@ -884,9 +912,9 @@ arguments.
 
 Steps in `raymond-van/animama`:
 
-1. `vrm-convert-vrchat.mjs` runs `npx --yes
-   github:raymond-van/animama-avatar-export#<pinned tag>` with the user's
-   options (forcing a raw export path), then `vrm-optimize.mjs` and
+1. `vrm-convert-vrchat.mjs` runs the exporter at its pinned release with the
+   user's options (forcing a raw export path; delivered with `pnpm dlx`, see
+   the Decision Log), then `vrm-optimize.mjs` and
    `vrm-inspect.mjs` as today. Remove `checkProjectScript`, `sameScript`, the
    editor lookup and the Unity command line, which now live in the package
    command. Keep the documented flags and outputs (`--no-optimize`,
@@ -894,14 +922,14 @@ Steps in `raymond-van/animama`:
    `<Avatar>.raw.vrm`, `<Avatar>.export.log`). Update its tests.
 2. Delete `scripts/avatars/unity/AnimamaBatchExport.cs` and
    `Animama.BatchExport.asmdef`; give `AnimamaReferenceRender.cs` its own
-   assembly definition (UniGLTF and VRM10 references) so it no longer relies on
-   the batch script's.
-3. Package repository README and `Documentation~` end-user guide: install from
+   assembly definition (delivered with `UniGLTF` and `UniGLTF.Editor`) so it no
+   longer relies on the batch script's.
+3. Package repository README as the end-user guide (delivered in Phase 4's
+   README; no `Documentation~` folder): install from
    the listing, the installer prompt, Export for Animama, the licence notice,
    expected warnings, the known export limits (vertex colours, authored
    blendshape weights, PhysBone gravity), the command line, and uploading the
-   file in Animama (Create Anima > Upload VRM). Released with a patch tag under
-   G3's process.
+   file in Animama (Create Anima > Upload VRM). It ships in v0.1.0.
 4. Rewrite `docs/frontend/runtime/vrchat-avatar-conversion.md` for developers:
    point setup at the package and link the end-user guide; keep the checks,
    known limits, parity and sharing sections that still apply.
@@ -944,7 +972,10 @@ Check record (macOS; Animama worktree, uncommitted Phase 5 changes):
 | The pinned release `github:raymond-van/animama-avatar-export#v0.1.0` | not run until G3 |
 | G4 (owner upload check) | open |
 
-Commits: —
+Commits: Animama `ffb6672e` `feat(avatars)[p5]: run the VRChat converter through
+the Animama Avatar Export command`; package repository `f689925`
+`feat(export)[p5]: let the command write Unity's log where --log says` (local;
+the v0.1.0 tag must include it).
 
 #### Code Review #1 Findings
 
@@ -1071,24 +1102,81 @@ Then run the full pre-push suite once on this repository's candidate through
 the heavy-job slots (`pnpm verify` and the affected `pnpm web:test:browser`
 items if any apply; backend unchanged) and put the results in the PR.
 
+#### Code Review #1 Findings
+
+Reviewed exporter `f689925` and Animama `ffb6672e` (high risk, final
+integration, initial round), reusing the recorded evidence (trees still
+current) and rerunning the exporter tests (38/38), `check.mjs`, two
+`check.mjs` probes and the converter tests (6/6). Cross-phase behaviour
+consistent: batch exit codes 0/1/2/3 across the package, the command and the
+developer command; requirement and Modular Avatar refusals on every route;
+every dependency pin agrees; `--log` on every path; no cross-repository
+source references; no network or upload code; no private paths or third-party
+names in tracked files or commit messages.
+
+- **FI-F1 (blocking, record):** the header said no scope was authorized and
+  the Decision Log had no implementation authorization.
+- FI-F2: Phase 5's commits unrecorded. FI-F3: no single list of the remaining
+  steps (CHANGELOG release heading, README "tested on", the SHA-pin edits, PR
+  order after G3). FI-F4: README exit codes and Modular Avatar wording.
+  FI-F5: the requirements log name. FI-F6: the MochiyaUrl check only parses
+  its current form (fails safe). FI-F7: Node 22 needs the owner's
+  confirmation. FI-F8: lilToon "within 2.x" in the docs. FI-F9: Phase 5 steps
+  1–3 described the old approach.
+
+#### Code Review #1 Revisions
+
+- FI-F1: header and Decision Log record the owner's authorization (Phase 1,
+  then the remaining phases, 2026-10-29).
+- FI-F2, FI-F3, FI-F9: Phase 5 commits, a "Remaining steps" list under
+  Progress, and the acceptance table's status column; Phase 5 steps say what
+  was delivered.
+- FI-F4, FI-F5, FI-F8: exporter README (commit `111dcd9`) and the developer
+  guide corrected.
+- FI-F6: left (fails safe with a message). FI-F7: asked of the owner (step 1
+  of the remaining steps).
+
+#### Code Review #2 Findings
+
+Targeted recheck (exporter `111dcd9`, Animama index `81468ad0`), rerunning
+`check.mjs` with and without `--tag v0.1.0` (the README pins still parse): every
+repair verified; no blocking finding or regression. Non-blocking: Phase 5 step
+3 still mentioned a patch tag and the "tested on" line's location was
+imprecise (FI-R2-F1); the README named only the default requirements-log name
+(FI-R2-F2).
+
+#### Code Review #2 Revisions
+
+Both corrected (wording only; exporter `docs(export): name the requirements log
+after the Unity log`, `check.mjs` OK). Repair budget: round 1 of 2 used; the
+final integration review passes. Every owner gate (G1–G4, GM, GW) and the
+remaining steps under Progress stay open.
+
+Full pre-push suite on the final candidate: `pnpm verify` through the
+heavy-job slots at `ffb6672e` exits 0 (650 Vitest files and 6201 tests passed,
+2 skipped; the Node script suites; the build). Later changes are Markdown only.
+No browser render tests apply. Backend unchanged;
+not run. Exporter: `npm test` 38/38 and `check.mjs` OK at `111dcd9`'s code;
+Unity EditMode 44/44 (`Packages/` unchanged since `33d790b`).
+
 ## Validation and acceptance
 
 The spec's acceptance criteria, mapped to evidence. Every manual or Unity
 check runs on macOS and Windows unless the row says otherwise:
 
-| Criterion | Evidence | Phase |
-| --- | --- | --- |
-| Install from the listing in a fresh project; menu, no compile errors | walkthrough on macOS and Windows after G3 | 4 |
-| Window export matches the developer export; prefab and scene unchanged | `vrm:inspect` counts; clean project status | 1–2 |
-| `EditorOnly` garment stripped | editor test plus the converted test Avatar's variant | 1 |
-| Unsupported lilToon or missing dependency blocks export | editor tests plus one manual check | 2 |
-| Validation error blocks export, no file | editor test plus manual | 1–2 |
-| Licence notice once per project | editor test plus walkthrough | 2 |
-| No network or upload code | CI source search plus review | 1, 4 |
-| Standalone command converts in a project without the package; refuses while open; non-zero on failure | runs on macOS and Windows | 3 |
-| Upload behaves like the developer export | G4 owner check | 5 |
-| Developer command works through the package | command runs | 5 |
-| Docs describe shipped behavior | review | 5 |
+| Criterion | Evidence | Phase | Status (2026-10-29) |
+| --- | --- | --- | --- |
+| Install from the listing in a fresh project; menu, no compile errors | walkthrough on macOS and Windows after G3 | 4 | open: G1–G3, GW (locally: the package alone compiles in a fresh project; the installer harness installs and compiles) |
+| Window export matches the developer export; prefab and scene unchanged | `vrm:inspect` counts; clean project status | 1–2 | shared export code met (byte-identical, prefabs unchanged); the window itself open: GM, GW |
+| `EditorOnly` garment stripped | editor test plus the converted test Avatar's variant | 1 | met on macOS; GW |
+| Unsupported lilToon or missing dependency blocks export | editor tests plus one manual check | 2 | met locally (tests, batch exit 3); window display: GM; GW |
+| Validation error blocks export, no file | editor test plus manual | 1–2 | met on macOS; GW |
+| Licence notice once per project | editor test plus walkthrough | 2 | logic met; GM; GW |
+| No network or upload code | CI source search plus review | 1, 4 | met locally; live CI after G1–G2 |
+| Standalone command converts in a project without the package; refuses while open; non-zero on failure | runs on macOS and Windows | 3 | met on macOS from the local clone; `npx` from GitHub after G1/G3; GW |
+| Upload behaves like the developer export | G4 owner check | 5 | open: G4 (after GM) |
+| Developer command works through the package | command runs | 5 | met through a local checkout; the pinned release after G3 and the SHA pin; Windows once (GW) |
+| Docs describe shipped behavior | review | 5 | met; "tested on" line after GW |
 
 Hosted validation for this repository's PR follows the owner's standing policy:
 check `gh workflow list --all --repo raymond-van/animama` before any push.

@@ -37,7 +37,7 @@ Use these versions together; they match three-liltoon's compatibility table.
 | --- | --- |
 | Unity | 2022.3 LTS (verified with 2022.3.62f3 on Apple Silicon) |
 | VRChat SDK | The Avatars template from VRChat Creator Companion |
-| lilToon | 2.3.4 or later (`jp.lilxyzw.liltoon`) |
+| lilToon | 2.3.4 or later within 2.x (`jp.lilxyzw.liltoon`) |
 | UniGLTF and VRM10 (UniVRM) | `v0.131.2` |
 | Mochiya Avatar Tools | 0.1.6 (commit `0826f6e3`; the repository has no tags) |
 | Animama Avatar Export | the release pinned in `vrm-convert-vrchat.mjs` (`EXPORTER_RELEASE`) |
@@ -64,7 +64,7 @@ change.
    author's setup guide says. Batch mode works:
    `Unity -batchmode -quit -projectPath <project> -importPackage <file>.unitypackage`.
    Take reference screenshots of the prefab.
-3. Replace lilToon with 2.3.4 or later: delete `Assets/lilToon` and add
+3. Replace lilToon with 2.3.4 or later within 2.x: delete `Assets/lilToon` and add
    `jp.lilxyzw.liltoon` from the lilToon VPM repository
    (`https://lilxyzw.github.io/vpm-repos/vpm.json`).
 
@@ -103,8 +103,8 @@ The command:
    keeping the unoptimized file beside the result as `<Avatar>.raw.vrm`;
 3. runs `vrm:inspect` on the result.
 
-Whenever Unity runs, its log goes to `<Avatar>.export.log`, and the command
-prints its
+Unity's log goes to `<Avatar>.export.log` (a requirement check after a failed
+compile logs to `<Avatar>.export.requirements.log`), and the command prints its
 `[Animama]` lines: Mochiya's full validation report, then the same
 plain-language notes as the Unity window. `--validate` stops after validation
 and writes no VRM. `--no-optimize` writes the raw export to `--out`; keep it
