@@ -879,6 +879,14 @@ def _read_files_tool() -> dict[str, Any]:
     )
 
 
+# Unspaced Japanese, Chinese or Thai text is one full-text token, matched only as a substring
+# (animama.domain.search_terms), so run-together words find nothing unless they appear verbatim.
+_SPACED_KEYWORDS_ADVICE = (
+    "Separate words with spaces, in Japanese, Chinese or Thai too: text without spaces matches only where it "
+    "appears exactly as written."
+)
+
+
 def _search_memory_files_tool() -> dict[str, Any]:
     return _function_tool(
         MEMORY_TOOL_SEARCH_MEMORY_FILES,
@@ -886,7 +894,8 @@ def _search_memory_files_tool() -> dict[str, Any]:
             "Search the user's markdown memory files and the episode log of notes from past chats. "
             "Use 2-5 distinctive keywords, such as names, places, projects or topics, rather than a full question. "
             "A file matches when it contains any keyword or quoted phrase, and files that match more of them rank "
-            "first. Prefix a word with - to exclude files that contain it."
+            "first. Prefix a word with - to exclude files that contain it. "
+            f"{_SPACED_KEYWORDS_ADVICE}"
         ),
         _object_schema(
             {
@@ -919,6 +928,7 @@ def _search_uploaded_files_tool() -> dict[str, Any]:
             "in the returned snippets. "
             "The keyword retrieval leg supports PostgreSQL web-search syntax, including quoted phrases, "
             "OR, and -term exclusions; the same query is also used for semantic retrieval. "
+            f"{_SPACED_KEYWORDS_ADVICE} "
             "Set file_names to one or more names from the attached-file list, or null to search every attachment."
         ),
         _object_schema(

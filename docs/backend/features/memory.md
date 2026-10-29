@@ -285,8 +285,9 @@ small relationship-only edits in the first person (user facts go to shared
 memory such as `PROFILE.md`), to keep the file's existing headings (including
 owner-written ones) and file each memory under the best fit, never to rewrite it
 every turn, to stay well under
-about 6,000 characters (about 3,000 in Japanese, Chinese or Korean, whose
-characters take three bytes against the 16 KiB limit), and never to frame the relationship as missing the
+about 6,000 characters (about 3,000 in a non-Latin script such as Japanese,
+Chinese, Korean, Thai or Hindi, whose characters take two or three bytes
+against the 16 KiB limit), and never to frame the relationship as missing the
 user, loneliness, jealousy or discouraging other relationships. The always-present
 memory guidance says how `remember` (the shared episode log) differs from
 `MEMORIES.md` (what the relationship means). It also says that notes from past
@@ -421,7 +422,8 @@ index. A `pg_trgm` index would not help: it cannot index two-character words
 such as `京都` and extracts no trigrams from CJK text under a `C` locale.
 
 The tool description asks the model for 2-5 distinctive keywords
-rather than a full question and explains that matching any keyword is enough;
+rather than a full question, separated by spaces in Japanese, Chinese or Thai
+too, and explains that matching any keyword is enough;
 Anthropic Memory Manager runs reuse that description.
 
 The model receives a `memory_results` array. Markdown memory hits include

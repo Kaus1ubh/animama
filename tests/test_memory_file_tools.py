@@ -269,6 +269,7 @@ def test_search_memory_tool_advises_distinctive_keywords_matched_on_any_word() -
     assert "Use 2-5 distinctive keywords" in description
     assert "A file matches when it contains any keyword or quoted phrase" in description
     assert "files that match more of them rank first" in description
+    assert "Separate words with spaces, in Japanese, Chinese or Thai too" in description
 
 
 def test_memory_tool_schemas_are_strict_and_do_not_expose_expected_version() -> None:
@@ -354,6 +355,7 @@ def test_memory_tool_schemas_are_strict_and_do_not_expose_expected_version() -> 
         },
     }
     assert "quoted phrases, OR, and -term exclusions" in upload_tool["function"]["description"]
+    assert "text without spaces matches only where it appears exactly" in upload_tool["function"]["description"]
     upload_description = upload_tool["function"]["description"]
     assert "accessible through uploaded-file tools" in upload_description
     assert "relevance lookup, exact phrases, or locating a chunk" in upload_description

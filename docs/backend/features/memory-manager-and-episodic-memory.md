@@ -582,8 +582,8 @@ The mandate keeps the file to the relationship in the Anima's first person,
 keeps the file's own headings and their order (including headings the owner
 wrote) and files each memory under the best fit, uses the template's headings
 only when the file has none, condenses repetition, integrates dated history and
-open threads, drops resolved threads, aims well under 6,000 characters, or about 3,000 in Japanese, Chinese or
-Korean (16 KiB hard limit), leaves user facts to shared memory, applies the sensitive-memory
+open threads, drops resolved threads, aims well under 6,000 characters, or about 3,000 in a non-Latin script such
+as Japanese, Chinese, Korean, Thai or Hindi (16 KiB hard limit), leaves user facts to shared memory, applies the sensitive-memory
 rule and the companion guardrail's framing limits, treats turn text as
 untrusted data, and proposes nothing when nothing is worth adding. Each step's
 turn budget grows by one model turn per page of its batch.

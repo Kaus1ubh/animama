@@ -896,7 +896,7 @@ async def test_live_runtime_offers_turn_reading_and_own_memories_only_in_reflect
     assert "only when the file has no headings" in instructions
     assert "## Our story" in instructions and "## Open threads" in instructions
     assert "6,000 characters" in instructions
-    assert "about 3,000 in Japanese, Chinese or Korean" in instructions
+    assert "about 3,000 in a non-Latin script such as Japanese, Chinese, Korean, Thai or Hindi" in instructions
     assert SENSITIVE_MEMORY_RULE in instructions
     assert instructions.count(MEMORY_LANGUAGE_RULE) == 1
     assert "missing the user" in instructions and "jealousy" in instructions

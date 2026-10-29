@@ -293,7 +293,8 @@ as a case-insensitive substring and its other words match
 ([memory search](memory.md#search_memory_files) has the matching rules). A
 `-term` of that kind excludes chunks containing it. `OR` beside a non-ASCII word
 works only through the full-text match, and chunks that match only by substring
-rank with a score of 0.
+rank with a score of 0. The `search_uploaded_files` description asks the model to
+separate words with spaces in Japanese, Chinese or Thai too.
 
 Semantic search embeds the query with the embeddings-role model, then uses
 pgvector cosine distance against stored chunk embeddings from that same model.
