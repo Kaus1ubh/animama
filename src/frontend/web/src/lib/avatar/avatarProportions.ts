@@ -81,7 +81,8 @@ export type AvatarProportions = {
    * The head's bounds, in the normalized head bone's space at load: every
    * vertex skinned mainly to the head or eye bones ({@link measureHeadBounds}),
    * accessories skinned to the head included. Head art keeps clear of it.
-   * Null without a head bone or head vertices.
+   * Null without a head bone or head vertices, and on adult proportions with
+   * a registered face, where nothing reads it (so it is not measured).
    */
   headBox: THREE.Box3 | null;
   /**
@@ -119,11 +120,28 @@ export const NEUTRAL_AVATAR_PROPORTIONS: AvatarProportions = Object.freeze({
   bigHead: 0,
 });
 
-/** The head box, measured once per VRM (the costly part). */
+/** The head box, measured at most once per VRM, when first read (the costly part). */
 const headBoxes = new WeakMap<VRM, THREE.Box3 | null>();
+/**
+ * The meshes each VRM showed when its proportions were first asked for (at
+ * load), so a head box measured later, after a face correction, leaves out
+ * effect geometry and keeps meshes an effect has hidden, as at load.
+ */
+const modelMeshes = new WeakMap<VRM, readonly THREE.Mesh[]>();
 /** Face sizes `Avatar` registered, per VRM. */
 const faceSizes = new WeakMap<VRM, number>();
 const measured = new WeakMap<VRM, AvatarProportions>();
+
+/** Record `vrm`'s visible meshes, once: a cheap walk, unlike the head box. */
+function rememberModelMeshes(vrm: VRM): void {
+  if (modelMeshes.has(vrm)) return;
+  const meshes: THREE.Mesh[] = [];
+  // A stand-in VRM without a scene (as some tests build) records none.
+  vrm.scene?.traverseVisible((object) => {
+    if (object instanceof THREE.Mesh) meshes.push(object);
+  });
+  modelMeshes.set(vrm, meshes);
+}
 
 /**
  * Register the face `Avatar` measured for `vrm` (in the normalized head
@@ -132,6 +150,7 @@ const measured = new WeakMap<VRM, AvatarProportions>();
  * and after a face part correction.
  */
 export function setAvatarFaceSize(vrm: VRM, face: THREE.Box3 | null): void {
+  rememberModelMeshes(vrm);
   const size =
     face && !face.isEmpty() ? face.getSize(new THREE.Vector3()) : null;
   if (size && Math.max(size.x, size.y) > 0) {
@@ -147,13 +166,15 @@ export function setAvatarFaceSize(vrm: VRM, face: THREE.Box3 | null): void {
  * kept for that VRM until its face is registered again. `Avatar` measures at
  * load, before any effect changes the model; a clip prepared first (for its
  * contacts) may trigger the head box measurement earlier, from the loaded
- * pose. Without a VRM, and for what a model lacks (feet, a face or head
- * vertices), the values of {@link NEUTRAL_AVATAR_PROPORTIONS} apply.
+ * pose. The head box is measured only when read: without a registered face,
+ * or for a big one. Without a VRM, and for what a model lacks (feet, a face
+ * or head vertices), the values of {@link NEUTRAL_AVATAR_PROPORTIONS} apply.
  */
 export function measureAvatarProportions(
   vrm: VRM | null | undefined,
 ): AvatarProportions {
   if (!vrm) return NEUTRAL_AVATAR_PROPORTIONS;
+  rememberModelMeshes(vrm);
   let proportions = measured.get(vrm);
   if (!proportions) {
     proportions = computeProportions(vrm);
@@ -164,15 +185,17 @@ export function measureAvatarProportions(
 
 function computeProportions(vrm: VRM): AvatarProportions {
   const size = measureAvatarScale(vrm);
-  const headBox = headBoxOf(vrm);
   const face = faceSizes.get(vrm);
+  // The head box is the costly part. Only a missing face (it stands in) and
+  // a big head (head art keeps clear of its top) read it; every other use
+  // goes through `headSized` at weight 0, so an adult face skips the measure.
+  const faceBigHead = face ? bigHeadWeight(face, size) : 0;
+  const headBox = !face || faceBigHead > 0 ? headBoxOf(vrm) : null;
   const boxSize = headBox
     ? Math.max(headBox.max.y - headBox.min.y, headBox.max.x - headBox.min.x)
     : 0;
   const measuredFrom = face ? "face" : headBox ? "head_box" : null;
   const headSize = face ?? boxSize;
-  // The head bone's height above the feet, which `avatarScale` measures.
-  const share = size ? headSize / (size * 1.25) : 0;
   return {
     headBox,
     measuredFrom,
@@ -185,13 +208,24 @@ function computeProportions(vrm: VRM): AvatarProportions {
           : 1,
     avatarScale: size ?? 1,
     bodyScale: size ? bodyEffectScale(size) : 1,
-    bigHead: THREE.MathUtils.clamp(
-      (share - BIG_HEAD_SHARE.start) /
-        (BIG_HEAD_SHARE.full - BIG_HEAD_SHARE.start),
-      0,
-      1,
-    ),
+    bigHead: face ? faceBigHead : bigHeadWeight(headSize, size),
   };
+}
+
+/**
+ * The big-head weight ({@link BIG_HEAD_SHARE}) of a face or head box
+ * `headSize` metres across on a model whose `avatarScale` is `size` (null
+ * without feet: 0).
+ */
+function bigHeadWeight(headSize: number, size: number | null): number {
+  // The head bone's height above the feet, which `avatarScale` measures.
+  const share = size ? headSize / (size * 1.25) : 0;
+  return THREE.MathUtils.clamp(
+    (share - BIG_HEAD_SHARE.start) /
+      (BIG_HEAD_SHARE.full - BIG_HEAD_SHARE.start),
+    0,
+    1,
+  );
 }
 
 /** `vrm`'s head box, measured once; null (logged) when it cannot be. */
@@ -200,7 +234,7 @@ function headBoxOf(vrm: VRM): THREE.Box3 | null {
   let box: THREE.Box3 | null = null;
   try {
     const head = vrm.humanoid?.getNormalizedBoneNode("head") ?? null;
-    box = head ? measureHeadBounds(vrm, head) : null;
+    box = head ? measureHeadBounds(vrm, head, modelMeshes.get(vrm)) : null;
   } catch (error) {
     // An unusual model keeps body-sized placement, said once per model.
     logger.warn(
@@ -254,12 +288,14 @@ export function headSized(
  * mainly to the head or eye bones ({@link HEAD_VERTEX_SHARE}), as posed now.
  * An unskinned mesh counts when it hangs below the head. Null without a head
  * bone or head vertices. Measure before effects apply, so effect geometry is
- * not part of it. The review renders (`effects:render`) judge "on the head"
- * by the same box.
+ * not part of it, or pass the model's own `meshes` (recorded before effects
+ * applied) to measure only those, visible or not now. The review renders
+ * (`effects:render`) judge "on the head" by the same box.
  */
 export function measureHeadBounds(
   vrm: VRM,
   space: THREE.Object3D,
+  meshes?: readonly THREE.Mesh[],
 ): THREE.Box3 | null {
   if (!vrm.humanoid?.getRawBoneNode("head")) return null;
   const classify = createBoneClassifier(vrm);
@@ -270,7 +306,7 @@ export function measureHeadBounds(
   const toSpace = space.matrixWorld.clone().invert();
   const box = new THREE.Box3();
   const point = new THREE.Vector3();
-  vrm.scene.traverseVisible((object) => {
+  const addHeadVertices = (object: THREE.Object3D) => {
     if (!(object instanceof THREE.Mesh)) return;
     const geometry = object.geometry as THREE.BufferGeometry;
     const position = geometry.getAttribute("position");
@@ -305,6 +341,8 @@ export function measureHeadBounds(
         point.applyMatrix4(object.matrixWorld).applyMatrix4(toSpace),
       );
     }
-  });
+  };
+  if (meshes) meshes.forEach(addHeadVertices);
+  else vrm.scene.traverseVisible(addHeadVertices);
   return box.isEmpty() ? null : box;
 }

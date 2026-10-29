@@ -106,8 +106,8 @@ Expect these warnings:
 
 Export writes a new file and refuses to overwrite one. Do not pass
 `-nographics`: the exporter reads compressed textures back through the GPU,
-and without one it writes flat grey placeholders (19 of Lapwing's 26 textures,
-including the hair colour).
+and without one it writes flat grey placeholders (19 of one Avatar's 26
+textures, including the hair colour).
 
 ```bash
 Unity -batchmode -quit -projectPath <project> -logFile export.log \
@@ -158,6 +158,15 @@ Check that:
 - "blink and visemes" lists no `none` (an empty preset with no MMD, ARKit or
   VRChat shape to fill it), and "face parts" finds `face_skin` and both eyes.
 
+An export without blink or viseme presets still blinks and speaks: Animama
+fills them at load from the `vrc.blink_*` and `vrc.v_*` shapes, MMD or ARKit
+shapes ([Faces on non-VRoid Avatars](avatar-emotion.md#faces-on-non-vroid-avatars)).
+Eyes modelled inside the face mesh are placed from blinking or the eye bones
+and show as estimated ([Eyes without
+geometry](avatar-vfx.md#eyes-without-geometry)), and Gestures use stand-in
+bones for an upper chest or finger segments the rig lacks ([Optional bones a
+rig lacks](avatar-animation.md#optional-bones-a-rig-lacks)).
+
 `pnpm -s animation:render <gesture.json> --out <private-dir> --avatar-file
 <private-dir>/<Avatar>.vrm` draws Gesture review sheets on it, and
 `pnpm -s effects:bench --avatar-file <private-dir>/<Avatar>.vrm` measures its
@@ -202,7 +211,9 @@ and whose eye layers share one mesh, as many converted Avatars' do (see
 can sit slightly low on such a face. Whole-face art (`face_red`,
 `petrified_cracks`, `texture_*`) is clipped to the face skin's own triangles,
 so on an atlas it leaves the other parts drawn from that texture (body, inner
-mouth, eyes) untouched.
+mouth, eyes) untouched. That art is laid out for VRoid's dedicated face
+texture, so on a small face island it shows mostly its tone: the crack lines
+fall outside the face.
 
 To make the file emote in other VRM apps as well, bake its mood presets into a
 copy with `pnpm -s vrm:bake-expressions` (see

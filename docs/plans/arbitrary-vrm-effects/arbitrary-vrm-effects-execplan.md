@@ -72,7 +72,7 @@ Evidence in this plan and the PR is counts and pass/fail only.
 - [x] Phase 6: painted art that shows (2026-10-28; review passed after two repair rounds).
 - [x] Phase 7: size-aware placement and framing (2026-10-29; review passed after one repair round).
 - [x] Phase 8: rig and material fallbacks (2026-10-29; review passed after one repair round).
-- [ ] Phase 9: acceptance, documentation and owner gates.
+- [x] Phase 9: acceptance, documentation and owner gates (2026-10-29, agent side; owner gates open).
 - [ ] Final integration review, full pre-push suite, PR.
 
 ## Surprises & Discoveries
@@ -1419,6 +1419,69 @@ integration review.
    private survey sheets, and acceptance of any limitation left open (for
    example whole-face art tinting the hair, ears or a head-skinned hat on a
    single mesh that is mostly head, if Phase 7 does not resolve it).
+
+Starting source: `d2650b86`.
+
+Final survey (2026-10-29, the 31 renders on all ten private Avatars, counts
+from each render's own check; by-eye notes from labelled sheets kept privately):
+
+| Avatar | Effects of 16 | Reactions of 6 | Gesture renders of 9 | Remaining |
+| --- | --- | --- | --- | --- |
+| Converted test Avatar, Alicia Solid, RadDollV3 | 16 | 6 | 9 | none, also by eye |
+| ふぁふぁ (both), HAOLAN | 16 | 6 | 9 | by eye, petrified cracks show the stone tone without crack lines |
+| Olivia | 16 | 6 | 9 | by eye, her hood hides the anger vein and the joy sparkle; petrified covers part of the face |
+| Carol North | 16 | 6 | 9 | by eye, faint under-eye art; petrified partial |
+| Polybot | 15 | 6 | 9 | `shiver_undereye` a named dark-surface skip; by eye, dark eye art faint on its dark screen; petrified partial |
+| Maromage | 15 | 6 | 9 | `blank-dot-eyes` drawn correctly but under the review floor; horns float above its ear tip; red face also tints its bow and ear |
+
+Survey start for comparison (`9a97029a`, effects and Reactions correct by eye):
+Alicia 16/6; RadDollV3 6/2; Maromage 3/0; ふぁふぁ 2/1; HAOLAN, Olivia 1/1 and
+1/0; Carol North, Polybot 0/0. The review's face camera now frames every face.
+
+Load time (Included Avatars, load-time corrections and parse, headless, medians
+of paired runs against `b8fed9a5`): d2650b86 added 3.7–6.5 ms (+8–12%), mostly
+the head-box measure, so the head box is now measured only when no face is
+registered or the face is big-headed (P7-R2-N2); what remains is about 2 ms
+(+3.4–3.8% of the correction path), roughly the face-cover build of Phase 6.
+Whether that meets "does not regress measurably" is for the owner.
+
+Changes: `avatarProportions.ts` measures the head box lazily and from the meshes
+shown at load (a later measure cannot count effect planes); tests for both
+guards. Docs pass over `avatar-vfx.md` (limitations: head-top art follows the
+head box including ears; a hood can hide forehead art and sparkles on adult
+proportions; VRoid-layout whole-face art shows only tone or partial coverage on
+other face islands; the skip checks are partial), `vrchat-avatar-conversion.md`
+(what a converted Avatar gets at load) and `avatar-animation.md` (the hands view
+is not size-aware).
+
+Check record (tree `07cbd458`, code; `ae5c338a` adds the docs):
+
+| Command | Directory | Result |
+| --- | --- | --- |
+| `timeout 590 npx vitest run src/lib/avatar src/ui tests/avatar src/lib/runtime-content` | `src/frontend/web` | 3794 passed, 2 skipped |
+| `npx tsc -b`; `npx tsc -p tsconfig.scripts.json --noEmit`; eslint and prettier `--check` on touched files | `src/frontend/web` | clean |
+| `node --test scripts/effect-render.test.mjs scripts/effect-render-sources.test.mjs scripts/vrm-inspect.test.mjs` | `src/frontend/web` | 29/29 |
+| `python3 ../../scripts/heavy-slot.py -- pnpm check` | `src/frontend` | exit 0 |
+| `heart_eyes`, `face_red`, `idea_bulb`, `kyaa-hands-on-cheeks`, `--diff` against the baselines | `src/frontend/web` | 0 px |
+
+Owner-check fixtures (private, outside the repository): Annie rewritten with no
+blink or viseme presets and only VRChat-style shapes, and a second copy with
+only ARKit-style shapes; `vrm:inspect` reports their blink and visemes from
+VRChat and ARKit respectively, with the same face parts as Annie.
+
+Owner gates and decisions now open:
+
+- Live check with the two fixtures on a local stack: the Avatar blinks idly,
+  Gestures close the eyes, and the mouth moves with speech.
+- Review of the private survey sheets.
+- How VRoid-layout whole-face art (`petrified_cracks` and similar) should map
+  onto face islands that cover part of a shared texture.
+- Acceptance of the remaining limitations: Olivia's hood hiding forehead art;
+  Polybot's dark art on its dark screen; Maromage's horns above its ear and its
+  dot eyes under the review floor; RadDollV3's sleeve over its chin in `who-me`.
+- Whether about 2 ms more per Included load meets the load-time constraint.
+
+Phase 9 complete on the agent side; the gates above are the owner's.
 
 ## Final integration review
 

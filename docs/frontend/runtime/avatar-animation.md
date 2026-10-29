@@ -768,7 +768,11 @@ from `src/frontend/web`:
 - `pnpm -s animation:render <clip.json> --out <dir>` draws review sheets.
   `--avatar-file <a.vrm>` draws them on that VRM instead of the Included
   Avatars, for example a converted Avatar kept outside the repository; keep
-  its sheets outside the repository too.
+  its sheets outside the repository too. On a big-headed Avatar the body and
+  face views frame the measured head ([Size-aware
+  placement](avatar-vfx.md#size-aware-placement)); the `--view hands`
+  close-ups keep their distance from the head bone's height, so where a
+  chibi's hands meet its large head they can show only skin or clothing.
 - `pnpm -s animation:reel --gestures|--reactions|--effects [<source>...] --out <file.mp4>`
   records a 1920×1080, 30 fps video of every Included Gesture, Reaction (by
   emotion, then intensity) or Avatar, Particle and Scene Effect

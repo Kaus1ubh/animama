@@ -2,7 +2,10 @@ import * as THREE from "three";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { Avatar } from "../Avatar";
-import { measureAvatarProportions } from "../avatarProportions";
+import {
+  measureAvatarProportions,
+  measureHeadBounds,
+} from "../avatarProportions";
 import { StubCanvas } from "../testing/stubCanvas";
 import { loadWholeBodyAvatar } from "../testing/wholeBodyVrm";
 import {
@@ -149,12 +152,13 @@ describe.each([1, 2] as const)("head art on a head scaled %s×", (scale) => {
 
   it("keeps a sparkle on the head bone beside the head", async () => {
     const avatar = await loadWholeBodyAvatar({ headScale: scale });
+    // The head as loaded, before the sparkle hangs under it.
+    const box = measureHeadBounds(avatar.vrm!, headNode(avatar))!;
     await applyAll(avatar, [SPARKLE]);
     const proportions = measureAvatarProportions(avatar.vrm);
     const mesh = named(avatar, "AvatarAttachmentVFX:sparkle");
     // The plane's anchor, before the billboard turns it to a camera.
     const centre = inHeadSpace(avatar, mesh.parent!.parent!);
-    const box = proportions.headBox!;
     const outside =
       centre.x < box.min.x ||
       centre.x > box.max.x ||

@@ -1,9 +1,11 @@
+import * as THREE from "three";
 import { describe, expect, it } from "vitest";
 
 import {
   BIG_HEAD_SHARE,
   headSized,
   measureAvatarProportions,
+  measureHeadBounds,
   NEUTRAL_AVATAR_PROPORTIONS,
   REFERENCE_FACE_SIZE,
   REFERENCE_HEAD_SIZE,
@@ -39,6 +41,8 @@ describe("Avatar proportions", () => {
     expect(proportions.bigHead).toBe(0);
     expect(headSized(proportions, 0.123, 9)).toBe(0.123);
     expect(avatar.getHeadFramingScale()).toBe(1);
+    // Nothing reads the head box on adult proportions, so load skips it.
+    expect(proportions.headBox).toBeNull();
   });
 
   it("keeps body-sized placement on an adult-proportioned synthetic Avatar", async () => {
@@ -54,17 +58,35 @@ describe("Avatar proportions", () => {
   it("leaves a hat the head mesh carries out of the head's size", async () => {
     const avatar = await loadWholeBodyAvatar({ hat: 0.4 });
     const proportions = measureAvatarProportions(avatar.vrm);
-    // Head art still keeps clear of the hat.
-    const box = proportions.headBox!;
-    expect(box.max.y - box.min.y).toBeGreaterThan(0.7);
     // The face alone decides: adult proportions, as without the hat.
     expect(proportions.headSize).toBeCloseTo(0.3, 3);
     expect(proportions.bigHead).toBe(0);
-    // The head box would have taken the hat for a big head.
+    // The head box, which counts the hat, would have taken it for a big head.
     setAvatarFaceSize(avatar.vrm!, null);
     const byBox = measureAvatarProportions(avatar.vrm);
     expect(byBox.measuredFrom).toBe("head_box");
+    const box = byBox.headBox!;
+    expect(box.max.y - box.min.y).toBeGreaterThan(0.7);
     expect(byBox.bigHead).toBe(1);
+  });
+
+  it("measures a head box first read after load from the model as loaded", async () => {
+    const avatar = await loadWholeBodyAvatar({ hat: 0.4 });
+    const vrm = avatar.vrm!;
+    const head = vrm.humanoid.getNormalizedBoneNode("head")!;
+    const atLoad = measureHeadBounds(vrm, head)!;
+    expect(measureAvatarProportions(vrm).headBox).toBeNull();
+    // Later, effects hang art under the head and hide a mesh...
+    const art = new THREE.Mesh(new THREE.PlaneGeometry(2, 2));
+    art.position.set(0, 1, 0);
+    vrm.humanoid.getRawBoneNode("head")!.add(art);
+    const body = vrm.scene.getObjectsByProperty("isSkinnedMesh", true)[0]!;
+    body.visible = false;
+    // ...before a face correction leaves the head box to stand in.
+    setAvatarFaceSize(vrm, null);
+    const late = measureAvatarProportions(vrm).headBox!;
+    expect(late.min.toArray()).toEqual(atLoad.min.toArray());
+    expect(late.max.toArray()).toEqual(atLoad.max.toArray());
   });
 
   it("places by a chibi face's own size", async () => {
