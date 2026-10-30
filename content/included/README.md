@@ -102,7 +102,7 @@ fonts, and UI images remain frontend application assets.
 
 ## Retained avatar and effect artwork
 
-The source library contains only the Annie (`AvatarSample_A_1_New.vrm`) and
+The source library contains only the Annie (`Annie.vrm`) and
 Andrew (`Andrew.vrm`) models and their generated portrait pairs.
 
 A portrait pair is `appearances/avatar-portraits/app-avatar-model-<stem>-v1.webp`

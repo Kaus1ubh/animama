@@ -440,4 +440,4 @@ def test_included_avatars_pass_the_vrm_validator(path: Path) -> None:
 
 
 def test_included_avatars_are_the_two_starters() -> None:
-    assert [path.name for path in INCLUDED_AVATARS] == ["Andrew.vrm", "AvatarSample_A_1_New.vrm"]
+    assert [path.name for path in INCLUDED_AVATARS] == ["Andrew.vrm", "Annie.vrm"]

@@ -70,6 +70,13 @@ function preparedRuntime<T>(value: T, urls: Map<string, string>): T {
   return value;
 }
 
+/**
+ * How long a preview may keep running after its timeline ends while the
+ * Avatar settles (clip fade-out, Reaction release, Avatar and particle
+ * effects), so a motion that never settles still stops.
+ */
+export const PREVIEW_SETTLE_LIMIT_SEC = 10;
+
 /** One creator-owned catalog and playback clock; nothing touches chat/dock state. */
 export class CreateAnimaPreviewSession {
   readonly catalog = new PreviewRuntimeCatalogSession();
@@ -81,6 +88,8 @@ export class CreateAnimaPreviewSession {
   private playing = false;
   private elapsed = 0;
   private duration: number | null = null;
+  /** The clip repeats, so it is stopped after one pass instead of settling. */
+  private loops = false;
   private firstFrame = true;
   private readonly audio = new ContentPreviewApplySoundPlayer();
   private readonly bridge;
@@ -206,6 +215,7 @@ export class CreateAnimaPreviewSession {
       this.duration = clip
         ? Math.max(0.05, getAnimaPoseClipTimelineDuration(clip))
         : null;
+      this.loops = clip?.loop === true;
       this.elapsed = 0;
       this.firstFrame = true;
       this.playing = true;
@@ -225,8 +235,21 @@ export class CreateAnimaPreviewSession {
     const elapsed = boundedContentPreviewFrameDelta(delta, this.firstFrame);
     this.firstFrame = false;
     this.elapsed += elapsed;
-    this.avatar?.update(elapsed);
-    if (this.duration !== null && this.elapsed >= this.duration) this.finish();
+    const avatar = this.avatar;
+    avatar?.update(elapsed);
+    if (this.duration === null || this.elapsed < this.duration) return;
+    // The timeline has ended, but the clip still fades out and the Reaction
+    // and effects play out; keep rendering until the Avatar settles, or the
+    // stage would freeze mid-motion. A looping clip never ends by itself.
+    if (this.loops && avatar?.isClipActive()) {
+      this.loops = false;
+      avatar.stopClip();
+    }
+    if (
+      !avatar?.isMotionActive() ||
+      this.elapsed >= this.duration + PREVIEW_SETTLE_LIMIT_SEC
+    )
+      this.finish();
   }
 
   private finish(): void {

@@ -15,7 +15,7 @@ import { BreathingProceduralAnimationLayer } from "./proc-animation/BreathingPro
 
 let vrm: VRM;
 beforeAll(async () => {
-  vrm = await loadTestAvatar("AvatarSample_A_1_New");
+  vrm = await loadTestAvatar("Annie");
 });
 afterEach(() => vi.restoreAllMocks());
 

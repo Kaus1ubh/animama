@@ -33,10 +33,7 @@ const base = getResolvedAvatarPose(RELAXED_REST_POSE_ID).humanoid ?? {};
 let y0: VRM;
 let a1: VRM;
 beforeAll(async () => {
-  [y0, a1] = await Promise.all([
-    loadVrm0Fixture(),
-    loadTestAvatar("AvatarSample_A_1_New"),
-  ]);
+  [y0, a1] = await Promise.all([loadVrm0Fixture(), loadTestAvatar("Annie")]);
 });
 
 const clip = (overrides: Partial<AnimaPoseClipV2>): AnimaPoseClipV2 => ({
@@ -420,7 +417,7 @@ const chinClip = (contact: AnimaPoseClipContact) => {
   });
 };
 
-describe.each([VRM0_FIXTURE_ID, "AvatarSample_A_1_New"] as const)(
+describe.each([VRM0_FIXTURE_ID, "Annie"] as const)(
   "solved contacts on %s",
   (id) => {
     const vrmOf = () => (id === VRM0_FIXTURE_ID ? y0 : a1);

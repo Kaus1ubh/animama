@@ -102,6 +102,7 @@
       "download": "ダウンロード",
       "downloaded": "ダウンロード済み",
       "downloading": "ダウンロード中 {{percent}}",
+      "finishWhileDownloading": "ダウンロード中でもセットアップを完了できます。ダウンロードはバックグラウンドで続きます。",
       "gpu": {
         "description": "高速で、話しながらライブプレビューを表示します。CPU 版と WebGPU 対応の GPU が必要です。",
         "label": "{{model}} (GPU)",

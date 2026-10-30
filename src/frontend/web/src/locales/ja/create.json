@@ -72,13 +72,9 @@
       "title": "このアバター名はすでに使われています"
     },
     "discardUpload": "保存されていないアップロードを破棄",
-    "emptyIncluded": "利用できる同梱アバターはありません。マイコンテンツを使うか、VRM をアップロードできます。",
-    "emptyLocal": "マイコンテンツにはまだアバターがありません。VRM をアップロードして追加してください。",
+    "empty": "利用できるアバターがまだありません。VRM をアップロードして追加してください。",
     "fileInput": "VRM ファイルを選択",
-    "groupLabel": {
-      "included": "同梱アバター",
-      "local": "マイコンテンツのアバター"
-    },
+    "groupLabel": "アバター",
     "inUse": "このアバターは稼働中の Anima が使用しています。そのまま残し、アップロードしたファイルは新しい名前で保存してください。",
     "label": "アバターの選択",
     "loadFailed": "アバターを読み込めませんでした。選択は保持されています。",
@@ -411,6 +407,7 @@
     "chooseAnother": "この保存済みの音声は利用できません。別の音声を選んでください。",
     "cloneUnavailable": "この保存済みの音声は利用できません。ライブラリを更新してください。",
     "elevenLabsId": "ElevenLabs の音声 ID",
+    "elevenLabsLibrary": "<link>ElevenLabs のボイスライブラリ</link>で音声を探して My Voices に追加し、その音声 ID をここに貼り付けてください。",
     "elevenLabsPlaceholder": "音声 ID を入力",
     "label": "音声の設定",
     "loadFailed": "保存済みの音声を読み込めませんでした。",
@@ -421,6 +418,9 @@
       "elevenLabs": "ElevenLabs",
       "pocketTts": "PocketTTS"
     },
+    "reuseVoice": "ほかの Anima の音声を使う",
+    "retry": "アバターを再読み込み",
+    "reuseVoiceOption": "{{names}} · {{id}}",
     "retry": "保存済みの音声を再読み込み",
     "savedVoiceUnavailable": "保存済みの音声は利用できません"
   }

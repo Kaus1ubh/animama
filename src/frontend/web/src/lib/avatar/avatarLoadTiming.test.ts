@@ -12,7 +12,7 @@ import { prepareTestAvatar } from "./testing/loadedTestAvatar";
  * phase's start and end on the same machine. Run with
  * `ANIMAMA_AVATAR_LOAD_TIMING=1 npx vitest run src/lib/avatar/avatarLoadTiming.test.ts`.
  */
-const AVATARS: readonly IncludedAvatarId[] = ["Andrew", "AvatarSample_A_1_New"];
+const AVATARS: readonly IncludedAvatarId[] = ["Andrew", "Annie"];
 const WARMUP_RUNS = 1;
 const MEASURED_RUNS = 5;
 

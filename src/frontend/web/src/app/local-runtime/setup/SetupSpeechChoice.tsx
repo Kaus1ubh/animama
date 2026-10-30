@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+
 import type { SetupSttChoice } from "@/app/local-runtime/setup-draft";
 import type { OfflineSttEngine } from "@/lib/speech/offline-stt/routing";
 import { useOfflineSpeechDownloads } from "@/ui/settings/OfflineSpeechDownloads";
@@ -19,8 +21,9 @@ const offlineChoice = (choice: SetupSttChoice) => {
  * offline model (recommended on desktop) and the other one, each with CPU |
  * GPU variants. The selected choice, engine included, is saved at Finish. Offline variants
  * offer their set's download, which is backend-owned and keeps running after
- * setup; removal and attribution live in App Settings. Vite development
- * serves host sets instead, so it shows how to acquire them.
+ * setup, so while one downloads a line says setup can finish meanwhile; removal
+ * and attribution live in App Settings. Vite development serves host sets
+ * instead, so it shows how to acquire them.
  */
 export function SetupSpeechChoice({
   choice,
@@ -33,23 +36,34 @@ export function SetupSpeechChoice({
   recommended: SetupSttChoice;
   onChoiceChange: (choice: SetupSttChoice) => void;
 }) {
+  const { t } = useTranslation("setup");
   const downloads = {
     parakeet: useOfflineSpeechDownloads("parakeet"),
     sensevoice: useOfflineSpeechDownloads("sensevoice"),
   };
+  const downloading = Object.values(downloads).some(({ cpu, gpu }) =>
+    [cpu, gpu].some((asset) => asset?.status === "downloading"),
+  );
 
   return (
-    <SttChoiceTabs
-      choice={choice}
-      choices={choices}
-      recommended={recommended}
-      onChoiceChange={onChoiceChange}
-      panel={(selected) => (
-        <OfflineSetPanel
-          {...offlineChoice(selected)}
-          downloads={downloads[offlineChoice(selected).engine]}
-        />
-      )}
-    />
+    <>
+      <SttChoiceTabs
+        choice={choice}
+        choices={choices}
+        recommended={recommended}
+        onChoiceChange={onChoiceChange}
+        panel={(selected) => (
+          <OfflineSetPanel
+            {...offlineChoice(selected)}
+            downloads={downloads[offlineChoice(selected).engine]}
+          />
+        )}
+      />
+      {downloading ? (
+        <p className="text-muted-foreground text-xs">
+          {t("voice.stt.finishWhileDownloading")}
+        </p>
+      ) : null}
+    </>
   );
 }

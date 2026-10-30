@@ -321,14 +321,14 @@
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "content/included/appearances/avatar-portraits/app-avatar-model-avatarsample-a-1-new-v1.meta.json",
+      "path": "content/included/appearances/avatar-portraits/app-avatar-model-annie-v1.meta.json",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "content/included/appearances/avatar-portraits/app-avatar-model-avatarsample-a-1-new-v1.webp",
+      "path": "content/included/appearances/avatar-portraits/app-avatar-model-annie-v1.webp",
       "candidate_license": "LicenseRef-pixiv-VRoidPreset",
       "basis": "Explicit owner confirmation of preset model identity and owner-authored embedded metadata; derived renderer portrait retained under corresponding model terms",
       "source": "https://vrm.dev/licenses/1.0/",
@@ -369,7 +369,7 @@
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "content/included/avatars/AvatarSample_A_1_New.vrm",
+      "path": "content/included/avatars/Annie.vrm",
       "candidate_license": "LicenseRef-pixiv-VRoidPreset",
       "basis": "Explicit owner confirmation of preset model identity and owner-authored embedded metadata; derived renderer portrait retained under corresponding model terms",
       "source": "https://vrm.dev/licenses/1.0/",

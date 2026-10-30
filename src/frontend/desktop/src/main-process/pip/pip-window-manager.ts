@@ -786,6 +786,12 @@ export class PipWindowManager {
     this.sendStateChanged();
   }
 
+  /**
+   * Resize the window for a new size scale and remember it. A grip resize
+   * keeps the top-left corner, so no `move` event follows, and a programmatic
+   * `setSize` is not reliably reported as `resize`; the placement is saved
+   * here rather than left to window events.
+   */
   private setPipWindowSizeScale(
     window: BrowserWindow,
     sizeScale: number,
@@ -794,16 +800,16 @@ export class PipWindowManager {
     const nextSize = resolveWindowSizeForScale(sizeScale);
     if (!preserveCenter) {
       window.setSize(nextSize.width, nextSize.height);
-      return;
+    } else {
+      const bounds = window.getBounds();
+      window.setBounds({
+        x: Math.round(bounds.x + (bounds.width - nextSize.width) / 2),
+        y: Math.round(bounds.y + (bounds.height - nextSize.height) / 2),
+        width: nextSize.width,
+        height: nextSize.height,
+      });
     }
-
-    const bounds = window.getBounds();
-    window.setBounds({
-      x: Math.round(bounds.x + (bounds.width - nextSize.width) / 2),
-      y: Math.round(bounds.y + (bounds.height - nextSize.height) / 2),
-      width: nextSize.width,
-      height: nextSize.height,
-    });
+    this.schedulePlacementSave(window);
   }
 
   /**

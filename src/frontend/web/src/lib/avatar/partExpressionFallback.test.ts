@@ -46,7 +46,7 @@ describe("VRoid part expression fallback", () => {
   });
 
   it("plays a part-keyed Reaction overlay as presets without the parts", async () => {
-    const vrm = await loadTestAvatar("AvatarSample_A_1_New");
+    const vrm = await loadTestAvatar("Annie");
     const controller = new ExpressionController(vrm);
     const manager = vrm.expressionManager!;
     for (const expression of [...manager.expressions]) {
@@ -64,7 +64,7 @@ describe("VRoid part expression fallback", () => {
   });
 
   it("plays a part-keyed Gesture clip as presets without the parts", async () => {
-    const vrm = await loadTestAvatar("AvatarSample_A_1_New");
+    const vrm = await loadTestAvatar("Annie");
     const controller = new ExpressionController(vrm);
     const manager = vrm.expressionManager!;
     manager.unregisterExpression(manager.getExpression("Fcl_EYE_Surprised")!);
@@ -81,7 +81,7 @@ describe("VRoid part expression fallback", () => {
 
 describe("Reaction parts over a resting face of the same mood", () => {
   it("only fill the room the whole-face expression leaves", async () => {
-    const vrm = await loadTestAvatar("AvatarSample_A_1_New");
+    const vrm = await loadTestAvatar("Annie");
     const controller = new ExpressionController(vrm);
     const manager = vrm.expressionManager!;
     const reaction = { Fcl_BRW_Angry: 1, Fcl_EYE_Angry: 0.5, Fcl_EYE_Joy: 1 };

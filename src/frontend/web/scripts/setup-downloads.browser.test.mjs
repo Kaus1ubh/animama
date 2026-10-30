@@ -475,15 +475,16 @@ async function mount(options = {}) {
 }
 
 const button = (page, name) => page.getByRole("button", { name, exact: true });
-// Provider tabs carry screen-reader "(connected)" text, so match the start.
+// Provider tabs may carry a Recommended tag and screen-reader "(connected)"
+// text, so match the provider name at the start.
+const providerName = (name) =>
+  new RegExp(`^${name}(\\s*Recommended)?(\\s*\\(connected\\))?$`, "su");
 const providerTab = (page, name) =>
-  page.getByRole("tab", {
-    name: new RegExp(`^${name}( \\(connected\\))?$`, "u"),
-  });
+  page.getByRole("tab", { name: providerName(name) });
 /** The visible provider panel; hidden panels stay mounted but are excluded. */
 const providerPanel = (page, name) =>
   page.getByRole("tabpanel", {
-    name: new RegExp(`^${name}( \\(connected\\))?$`, "u"),
+    name: providerName(name),
   });
 // The OpenAI provider tab panel is also labelled "OpenAI"; take the key field.
 /** The Voice step's ElevenLabs key, after opening its provider tab. */
@@ -772,7 +773,9 @@ test("saving the Anthropic key chooses Claude Haiku 5.5, and Finish sends it", a
     assert.deepEqual(operations, []);
     await button(page, "Save").click();
     await page.getByText("Saved.", { exact: true }).waitFor();
-    await page.getByRole("tab", { name: "Anthropic (connected)" }).waitFor();
+    await page
+      .getByRole("tab", { name: /^Anthropic\s*Recommended\s*\(connected\)$/su })
+      .waitFor();
     assert.equal(
       await page.evaluate(() =>
         JSON.stringify({ ...localStorage, ...sessionStorage }).includes(
@@ -798,7 +801,9 @@ async function saveAnthropicKey(page) {
   await providerTab(page, "Anthropic").click();
   await anthropicKey(page).fill("fixture-key");
   await button(page, "Save").click();
-  await page.getByRole("tab", { name: "Anthropic (connected)" }).waitFor();
+  await page
+    .getByRole("tab", { name: /^Anthropic\s*Recommended\s*\(connected\)$/su })
+    .waitFor();
 }
 
 test("saving the OpenAI key after the Anthropic key makes OpenAI the setup model", async () => {
@@ -810,7 +815,9 @@ test("saving the OpenAI key after the Anthropic key makes OpenAI the setup model
     await providerTab(page, "OpenAI").click();
     await openAiKey(page).fill("fixture-key");
     await button(page, "Save").click();
-    await page.getByRole("tab", { name: "OpenAI (connected)" }).waitFor();
+    await page
+      .getByRole("tab", { name: /^OpenAI\s*Recommended\s*\(connected\)$/su })
+      .waitFor();
     await button(page, "Continue").click();
     await button(page, "Finish").click();
     await button(page, "I am 18 or older and agree").click();
@@ -1058,7 +1065,9 @@ test("OpenAI and Anthropic keys configured before setup do not pin a setup model
       );
     await page.reload();
     await welcome(page);
-    await page.getByRole("tab", { name: "Anthropic (connected)" }).waitFor();
+    await page
+      .getByRole("tab", { name: /^Anthropic\s*Recommended\s*\(connected\)$/su })
+      .waitFor();
     await button(page, "Continue").click();
     await button(page, "Finish").click();
     await button(page, "I am 18 or older and agree").click();

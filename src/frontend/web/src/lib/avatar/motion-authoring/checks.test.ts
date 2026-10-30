@@ -45,12 +45,12 @@ let vrm0: VRM;
 let vrm1: VRM;
 const avatars = () => [
   { id: "AvatarSample_Y_0", vrm: vrm0 },
-  { id: "AvatarSample_A_1_New", vrm: vrm1 },
+  { id: "Annie", vrm: vrm1 },
 ];
 
 beforeAll(async () => {
   vrm0 = await loadVrm0Fixture();
-  vrm1 = await loadTestAvatar("AvatarSample_A_1_New");
+  vrm1 = await loadTestAvatar("Annie");
 });
 
 type Key = {
@@ -244,7 +244,7 @@ describe("checkMotion", () => {
         },
       }),
     );
-    for (const avatar of ["AvatarSample_Y_0", "AvatarSample_A_1_New"]) {
+    for (const avatar of ["AvatarSample_Y_0", "Annie"]) {
       const hand = failures(report.findings, "intersection").find(
         (f) => f.avatar === avatar && f.subject === "rightHand/torso",
       );
@@ -277,7 +277,7 @@ describe("checkMotion", () => {
     );
     const contacts = failures(report.findings, "contact");
     expect(contacts.map((f) => f.avatar).sort()).toEqual([
-      "AvatarSample_A_1_New",
+      "Annie",
       "AvatarSample_Y_0",
     ]);
     expect(contacts[0]).toMatchObject({ subject: "rightIndexDistal→head" });
@@ -293,8 +293,7 @@ describe("checkMotion", () => {
             from: 0.4,
             to: 0.4,
             offset: report.findings.find(
-              (f) =>
-                f.category === "contact" && f.avatar === "AvatarSample_A_1_New",
+              (f) => f.category === "contact" && f.avatar === "Annie",
             )!.actualOffset,
             tolerance: 0.005,
           },
@@ -302,9 +301,7 @@ describe("checkMotion", () => {
       }),
     );
     expect(
-      failures(fixed.findings, "contact").filter(
-        (f) => f.avatar === "AvatarSample_A_1_New",
-      ),
+      failures(fixed.findings, "contact").filter((f) => f.avatar === "Annie"),
     ).toEqual([]);
     expect(contacts[0].from).toBeCloseTo(0.4, 1);
     expect(contacts[0].to).toBeCloseTo(0.8, 1);
@@ -325,7 +322,7 @@ describe("checkMotion", () => {
     // The clip moves its legs itself; ask for the feet checks anyway.
     const report = checkMotion(clip, avatars(), { plantFeet: true });
     const feet = failures(report.findings, "feet");
-    for (const avatar of ["AvatarSample_Y_0", "AvatarSample_A_1_New"]) {
+    for (const avatar of ["AvatarSample_Y_0", "Annie"]) {
       const lifted = feet.find(
         (f) => f.avatar === avatar && f.subject === "leftFoot lifts",
       );
@@ -348,7 +345,7 @@ describe("checkMotion", () => {
     };
     const slides = failures(checkMotion(clip, avatars()).findings, "feet");
     expect(slides.map((f) => f.avatar)).toEqual(
-      expect.arrayContaining(["AvatarSample_Y_0", "AvatarSample_A_1_New"]),
+      expect.arrayContaining(["AvatarSample_Y_0", "Annie"]),
     );
     // Planted, the same shift keeps the feet still.
     const planted = { ...clip, plantFeet: true };
@@ -440,7 +437,7 @@ describe("segmentDistance", () => {
   });
 });
 
-const AVATAR_IDS = ["AvatarSample_Y_0", "AvatarSample_A_1_New"];
+const AVATAR_IDS = ["AvatarSample_Y_0", "Annie"];
 const LIVE_HEAD_LAYERS = [
   "sway",
   "bounce",
@@ -593,7 +590,7 @@ describe("contacts", () => {
     // their own solved arms (A_1's longer forearm folds past 140°).
     expect(
       solved.findings.filter(
-        (f) => f.category === "range" && f.avatar === "AvatarSample_A_1_New",
+        (f) => f.category === "range" && f.avatar === "Annie",
       ),
     ).toMatchObject([{ subject: "rightLowerArm.flexion", severity: "warn" }]);
   });
@@ -861,7 +858,7 @@ describe("palm-to-palm contact", () => {
           : contact,
       ),
     });
-    for (const avatar of ["AvatarSample_Y_0", "AvatarSample_A_1_New"])
+    for (const avatar of ["AvatarSample_Y_0", "Annie"])
       expect(
         failures(report.findings, "intersection").some(
           (f) => f.avatar === avatar && f.subject === "rightHand/leftForearm",

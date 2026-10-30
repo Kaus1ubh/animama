@@ -13,7 +13,7 @@ import { canonicalizeCustomPresetExpressions } from "../vrmExpressionPresets";
 /** Included Avatars used for motion authoring checks: Andrew and Annie. */
 export const INCLUDED_AVATAR_FILES = {
   Andrew: "Andrew.vrm",
-  AvatarSample_A_1_New: "AvatarSample_A_1_New.vrm",
+  Annie: "Annie.vrm",
 } as const;
 
 export type IncludedAvatarId = keyof typeof INCLUDED_AVATAR_FILES;

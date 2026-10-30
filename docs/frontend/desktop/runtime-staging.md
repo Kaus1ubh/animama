@@ -431,7 +431,7 @@ closed while provenance, required notices, or owner approvals are missing.
 
 ## Current content gate
 
-The core starter models are Annie (`AvatarSample_A_1_New.vrm`) and Andrew
+The core starter models are Annie (`Annie.vrm`) and Andrew
 (`Andrew.vrm`), with renderer-captured portraits. Their provenance and
 distinct permission terms are recorded in `content/included/licenses/inventory.json`
 and [source notices](../../../licenses/third-party/art-NOTICES.md). Annie is a

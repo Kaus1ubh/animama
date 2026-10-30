@@ -31,7 +31,7 @@ async def test_validate_avatar_access_allows_public_avatar(monkeypatch) -> None:
     avatar = Avatar(
         id="avt_sample_a1n",
         name="Annie",
-        file_path="/shared/avatars/AvatarSample_A_1_New.vrm",
+        file_path="/shared/avatars/Annie.vrm",
         private=False,
     )
 

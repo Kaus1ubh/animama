@@ -40,7 +40,7 @@ function runtime(): AnimaRuntimeCatalogSnapshot {
       content_revision: "model-3",
       source: {
         type: "public_url",
-        url: "/vrm/AvatarSample_A_1_New.vrm",
+        url: "/vrm/Annie.vrm",
       },
     },
     idle_animations: [],

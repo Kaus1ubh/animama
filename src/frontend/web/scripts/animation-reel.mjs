@@ -57,7 +57,7 @@ const DEFAULT_SOUND_ROOTS = [
   path.join(INCLUDED_CONTENT_ROOT, "sfx"),
 ];
 const AVATAR_ALIASES = {
-  annie: "AvatarSample_A_1_New",
+  annie: "Annie",
   andrew: "Andrew",
 };
 const CAMERAS = ["portrait", "portrait-close", "full-body", "full-body-close"];
@@ -105,7 +105,7 @@ const SOFTWARE_ARGS = [
 ];
 
 export const DEFAULTS = {
-  avatar: "AvatarSample_A_1_New",
+  avatar: "Annie",
   camera: "portrait",
   size: { width: 1920, height: 1080 },
   fps: 30,

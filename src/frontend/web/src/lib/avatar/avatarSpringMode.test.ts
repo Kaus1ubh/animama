@@ -85,7 +85,7 @@ describe("Avatar wind setting", () => {
   it.each([
     ["Andrew", false, true],
     ["Andrew", true, false],
-    ["AvatarSample_A_1_New", false, true],
+    ["Annie", false, true],
   ] as const)(
     "Automatic keeps today's ambient forces (%s, Mochiya %s)",
     async (id, mochiya, ambientForces) => {
@@ -138,7 +138,7 @@ describe("Avatar wind setting", () => {
   });
 
   it("leaves ambient forces off under Automatic when the updraft would lift most hair", async () => {
-    const { vrm, gltf } = await loadModel("AvatarSample_A_1_New");
+    const { vrm, gltf } = await loadModel("Annie");
     // Springs a tenth as stiff as authored, as springs tuned for a world
     // without wind are.
     for (const joint of vrm.springBoneManager!.joints)

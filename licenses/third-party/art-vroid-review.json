@@ -11,9 +11,9 @@
   ],
   "files": [
     {
-      "path": "content/included/avatars/AvatarSample_A_1_New.vrm",
+      "path": "content/included/avatars/Annie.vrm",
       "sha256": "15081670b379842b584062c541680472bbbe0a11a19d5aff4cb59a86f88e3fc9",
-      "portrait_path": "content/included/appearances/avatar-portraits/app-avatar-model-avatarsample-a-1-new-v1.webp",
+      "portrait_path": "content/included/appearances/avatar-portraits/app-avatar-model-annie-v1.webp",
       "portrait_sha256": "094a4da0b8c6af22624f4e8f27cd01a533c20b5ecd0f80b0741d5cdd98d416a0",
       "embedded_vrm_meta": {
         "name": "Annie",

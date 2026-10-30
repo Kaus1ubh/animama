@@ -81,13 +81,9 @@
       "view": "View diagnostics"
     },
     "discardUpload": "Discard unsaved upload",
-    "emptyIncluded": "No Included Avatars are available. You can use My Content or upload a VRM.",
-    "emptyLocal": "No Avatars in My Content yet. Upload a VRM to add one.",
+    "empty": "No Avatars are available yet. Upload a VRM to add one.",
     "fileInput": "Choose a VRM file",
-    "groupLabel": {
-      "included": "Included Avatars",
-      "local": "My Content Avatars"
-    },
+    "groupLabel": "Avatars",
     "inUse": "This Avatar is used by a live Anima. Keep it intact and save your upload under a new name.",
     "label": "Avatar selection",
     "loadFailed": "Avatars could not be loaded. Your selection is preserved.",
@@ -415,6 +411,7 @@
     "chooseAnother": "This saved voice is unavailable. Choose another voice.",
     "cloneUnavailable": "This saved voice is unavailable. Refresh the library.",
     "elevenLabsId": "ElevenLabs voice ID",
+    "elevenLabsLibrary": "Find a voice in the <link>ElevenLabs Voice Library</link>, add it to My Voices, then paste its voice ID here.",
     "elevenLabsPlaceholder": "Enter voice ID",
     "label": "Voice configuration",
     "loadFailed": "Saved voices could not be loaded.",
@@ -426,6 +423,8 @@
       "pocketTts": "PocketTTS"
     },
     "retry": "Retry saved voices",
+    "reuseVoice": "Use another Anima's voice",
+    "reuseVoiceOption": "{{names}} · {{id}}",
     "savedVoiceUnavailable": "Saved voice unavailable"
   }
 }

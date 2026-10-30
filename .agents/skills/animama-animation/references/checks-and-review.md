@@ -4,7 +4,7 @@
 
 `pnpm -s animation check <clip.json> [--json]` plays the clip through the
 production sampler on both Included Avatars, `Andrew` and
-`AvatarSample_A_1_New` (Annie, both VRM 1), each with its own fitted hands,
+`Annie` (both VRM 1), each with its own fitted hands,
 solved legs and solved contacts, and exits 1 on any FAIL. A 2.0 clip supplies
 its `contacts`; feet are checked unless it keys its legs itself without
 `plantFeet`. Findings marked `[canonical]` come from the first Avatar's

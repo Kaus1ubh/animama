@@ -258,3 +258,32 @@ def test_avatar_seeds_retire_only_unreferenced_unmodified_defaults(db_ready: str
                     ]
         finally:
             conn.rollback()
+
+
+def test_avatar_seeds_follow_annies_renamed_model_on_the_untouched_default(db_ready: str) -> None:
+    """A database seeded before the rename finds Annie's model under its new file name."""
+    from animama.runtime.resources import runtime_resource
+
+    url = make_url(db_ready.replace("+asyncpg", "+psycopg"))
+    with psycopg.connect(url.render_as_string(hide_password=False).replace("postgresql+psycopg", "postgresql")) as conn:
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "INSERT INTO avatar (id,name,file_path) "
+                    "VALUES ('avt_sample_a1n','Annie','/shared/avatars/AvatarSample_A_1_New.vrm')"
+                )
+                seeds = runtime_resource("sql").joinpath("02-seed-avatars.sql").read_text()
+                cur.execute(seeds)
+                cur.execute("SELECT file_path FROM avatar WHERE id = 'avt_sample_a1n'")
+                assert cur.fetchone() == ("/shared/avatars/Annie.vrm",)
+
+                # An owner-adopted row keeps the path it was given.
+                cur.execute(
+                    "UPDATE avatar SET file_path = '/shared/avatars/AvatarSample_A_1_New.vrm', "
+                    "user_id = 'owner' WHERE id = 'avt_sample_a1n'"
+                )
+                cur.execute(seeds)
+                cur.execute("SELECT file_path FROM avatar WHERE id = 'avt_sample_a1n'")
+                assert cur.fetchone() == ("/shared/avatars/AvatarSample_A_1_New.vrm",)
+        finally:
+            conn.rollback()

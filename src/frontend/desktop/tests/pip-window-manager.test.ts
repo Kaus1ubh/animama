@@ -94,7 +94,10 @@ const fake = vi.hoisted(() => {
       this.bounds = { ...bounds };
       this.emit("move");
     }
-    setSize() {}
+    /** A grip resize keeps the top-left corner and emits no event. */
+    setSize(width: number, height: number) {
+      this.bounds = { ...this.bounds, width, height };
+    }
     setTitle() {}
     getBounds() {
       return { ...this.bounds };
@@ -382,6 +385,24 @@ describe("PiP placement", () => {
     const restarted = manager();
     pipWindow = await openPip(restarted);
     expect(pipWindow.getBounds()).toEqual(moved);
+    expect(restarted.getState().sizeScale).toBeCloseTo(0.7);
+  });
+
+  it("reopens at the size its resize grip left", async () => {
+    const pip = manager();
+    const pipWindow = await openPip(pip);
+    pipWindow.moveTo(100, 150);
+    const pipContents = pipWindow.webContents as unknown as WebContents;
+    pip.setGripResizing(pipContents, true);
+    fake.cursor.x += 84;
+    fake.cursor.y += 112;
+    vi.advanceTimersByTime(20);
+    pip.setGripResizing(pipContents, false);
+    const resized = pipWindow.getBounds();
+    pip.close();
+
+    const restarted = manager();
+    expect((await openPip(restarted)).getBounds()).toEqual(resized);
     expect(restarted.getState().sizeScale).toBeCloseTo(0.7);
   });
 

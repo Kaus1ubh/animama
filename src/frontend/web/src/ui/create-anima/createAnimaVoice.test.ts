@@ -6,6 +6,8 @@ import {
   draftIssues,
 } from "./createAnimaDraft";
 import { readyDraft, ref } from "./createAnimaTestFixtures";
+import type { PyAnimaSettings } from "@/lib/content/catalogTypes";
+import { reusableElevenLabsVoices } from "./CreateAnimaVoiceStep";
 
 it("places Voice before Identity and includes both provider choices in creation", () => {
   expect(CREATION_STEPS).toEqual([
@@ -61,4 +63,28 @@ it("requires an ElevenLabs ID before leaving Voice without blocking PocketTTS", 
       1,
     ),
   ).toEqual([]);
+});
+
+it("offers each saved ElevenLabs voice once, with the Animas using it", () => {
+  const anima = (displayName: string, voiceId?: string) => ({
+    animaId: displayName.toLowerCase(),
+    displayName,
+    settings: {
+      anima_id: displayName.toLowerCase(),
+      preferences: voiceId
+        ? { speech: { elevenlabs: { primary_voice: { voice_id: voiceId } } } }
+        : {},
+    } as PyAnimaSettings,
+  });
+  expect(
+    reusableElevenLabsVoices([
+      anima("Annie", "voice-a"),
+      anima("Bea"),
+      anima("Andrew", "voice-b"),
+      anima("Cora", "voice-a"),
+    ]),
+  ).toEqual([
+    { voiceId: "voice-a", names: ["Annie", "Cora"] },
+    { voiceId: "voice-b", names: ["Andrew"] },
+  ]);
 });

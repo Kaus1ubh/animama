@@ -99,7 +99,7 @@ function pushIntoHead(
 
 describe("eye details inside the face mesh", () => {
   it("finds lash strands blink moves as regions of the face skin", async () => {
-    const avatar = await loadedTestAvatar("AvatarSample_A_1_New");
+    const avatar = await loadedTestAvatar("Annie");
     const before = avatar.facePartMap!.parts;
     const face = entryOf(avatar, before.face_skin.bindings[0]!);
     const firstNew = face.object.geometry.getIndex()!.count / 3;
@@ -122,7 +122,7 @@ describe("eye details inside the face mesh", () => {
   });
 
   it("finds the regions again while an effect has them hidden", async () => {
-    const avatar = await loadedTestAvatar("AvatarSample_A_1_New");
+    const avatar = await loadedTestAvatar("Annie");
     const face = entryOf(
       avatar,
       avatar.facePartMap!.parts.face_skin.bindings[0]!,
@@ -145,7 +145,7 @@ describe("eye details inside the face mesh", () => {
   });
 
   it("finds regions in an unindexed face mesh", async () => {
-    const avatar = await loadedTestAvatar("AvatarSample_A_1_New");
+    const avatar = await loadedTestAvatar("Annie");
     const face = entryOf(
       avatar,
       avatar.facePartMap!.parts.face_skin.bindings[0]!,
@@ -165,7 +165,7 @@ describe("eye details inside the face mesh", () => {
   });
 
   it("takes each eye's largest region as its line when no line mesh exists", async () => {
-    const avatar = await loadedTestAvatar("AvatarSample_A_1_New");
+    const avatar = await loadedTestAvatar("Annie");
     const before = avatar.facePartMap!.parts;
     const face = entryOf(avatar, before.face_skin.bindings[0]!);
     // Detach the eye-line mesh from blink, as if the model had none.
@@ -246,7 +246,7 @@ describe("a face skinned partly to the neck", () => {
 
 describe("hair merged into the face mesh", () => {
   it("never becomes the face skin", async () => {
-    for (const id of ["Andrew", "AvatarSample_A_1_New"] as const) {
+    for (const id of ["Andrew", "Annie"] as const) {
       const avatar = await loadedTestAvatar(id);
       const before = avatar.facePartMap!.parts;
       // A merged mesh binds blink and aa to every primitive, hair included.
@@ -269,7 +269,7 @@ describe("hair merged into the face mesh", () => {
 
 describe("a model without eye bones", () => {
   it("finds the eyes when blink moves only the upper lids", async () => {
-    const avatar = await loadedTestAvatar("AvatarSample_A_1_New");
+    const avatar = await loadedTestAvatar("Annie");
     const before = avatar.facePartMap!.parts;
     const eyeY = eyeCenters(avatar)[0]!.y;
     removeEyeBones(avatar);
@@ -299,7 +299,7 @@ describe("a model without eye bones", () => {
   });
 
   it("finds each eye from where blink moves the face", async () => {
-    const avatar = await loadedTestAvatar("AvatarSample_A_1_New");
+    const avatar = await loadedTestAvatar("Annie");
     const before = avatar.facePartMap!.parts;
     removeEyeBones(avatar);
     expect(avatar.vrm!.humanoid.getRawBoneNode("leftEye")).toBeNull();
@@ -319,7 +319,7 @@ describe("a model without eye bones", () => {
 
 describe("lashes painted into the face texture", () => {
   it("widens eye cleanup to the eyelids blink moves", async () => {
-    const avatar = await loadedTestAvatar("AvatarSample_A_1_New");
+    const avatar = await loadedTestAvatar("Annie");
     const before = avatar.getFaceTextureAnchorsSnapshot()!.flatten.eyes.left!;
     // With the eye-line mesh out of blink and its material unnamed, the model
     // has no line or lash geometry, as one whose lashes are painted on the face.
@@ -345,7 +345,7 @@ describe("lashes painted into the face texture", () => {
 
 describe("eye layers found without eye bones", () => {
   it("never takes a primitive reaching past the eyes as one", async () => {
-    const avatar = await loadedTestAvatar("AvatarSample_A_1_New");
+    const avatar = await loadedTestAvatar("Annie");
     const before = avatar.facePartMap!.parts;
     removeEyeBones(avatar);
     // No eye layers to find (eyes painted on the face), and the mouth
@@ -387,7 +387,7 @@ describe("eye layers found without eye bones", () => {
   });
 
   it("never takes a part deep inside the head behind the lids as one", async () => {
-    const avatar = await loadedTestAvatar("AvatarSample_A_1_New");
+    const avatar = await loadedTestAvatar("Annie");
     const before = avatar.facePartMap!.parts;
     removeEyeBones(avatar);
     // Eyes painted on the face, and a layer 3 cm inside the head behind
@@ -420,7 +420,7 @@ describe("eye layers found without eye bones", () => {
 
 describe("eye meshes skinned partly to the eye bones", () => {
   it("are found as the eyes where blink moves the face", async () => {
-    const avatar = await loadedTestAvatar("AvatarSample_A_1_New");
+    const avatar = await loadedTestAvatar("Annie");
     const before = avatar.facePartMap!.parts;
     // A VRChat Avatar's eye mesh skins its whites, lids and brows to the head
     // and only its irises to the eye bones: under half of each eye

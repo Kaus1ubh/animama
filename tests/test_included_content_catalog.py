@@ -68,7 +68,7 @@ def test_readable_included_library_projects_every_supported_entry(included: Path
 def test_representative_included_entries_are_human_locatable(included: Path) -> None:
     by_locator = {entry.relative_locator: entry for entry in _scan_included(included)}
 
-    assert "avatars/AvatarSample_A_1_New.vrm" in by_locator
+    assert "avatars/Annie.vrm" in by_locator
     assert "gestures/have-an-idea" in by_locator
     assert "reactions/admiration-2" in by_locator
     assert "vfx/particle/quark/heart-burst" in by_locator
