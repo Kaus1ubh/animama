@@ -533,4 +533,12 @@ test("writes chapters and an audio mix graph for ffmpeg", () => {
     files: [],
     graph: "[1:a]amix=inputs=1:duration=first:normalize=0[aout]",
   });
+  // A sound cut off where its item ends.
+  assert.equal(
+    audioMixGraph(
+      [{ file: "/v.mp3", time: 0.5, volume: 1, maxDuration: 1.25 }],
+      0,
+    ).graph.split(";")[0],
+    "[1:a]atrim=end=1.250,aformat=sample_rates=48000:channel_layouts=stereo,adelay=500:all=1,volume=1[e0]",
+  );
 });

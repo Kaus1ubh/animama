@@ -11,9 +11,11 @@ import {
   namespaceClip,
   parseCueSheet,
   readAlignment,
+  resolveAvatarFile,
 } from "./animation-reel-sheet.mjs";
 
 const BEATS_CLIP = {
+  duration: 2.5,
   beats: [
     { id: "start", time: 0 },
     { id: "pop", time: 0.5 },
@@ -37,6 +39,13 @@ test("parses a cue sheet's takes and rejects invalid ones", () => {
   );
   assert.equal(take.title, "Joy");
   assert.equal(take.camera, "landing");
+  assert.deepEqual(
+    parseCueSheet(
+      { cues: [{ gesture: "a" }], camera: { distance: 1, lift: 0 } },
+      { dir: "/" },
+    )[0].camera,
+    { distance: 1, lift: 0 },
+  );
   assert.equal(take.duration, 3);
   assert.deepEqual(
     take.cues.map(({ kind, spec, at, beat, beatAt, until }) => ({
@@ -100,6 +109,20 @@ test("parses a cue sheet's takes and rejects invalid ones", () => {
     [{ cues: [{ gesture: "a" }], duration: 0 }, /more than 0/],
     [{ cues: [{ gesture: "a" }], fps: 30 }, /unknown field "fps"/],
     [{ speech: { audio: "a.mp3" } }, /alignment must name/],
+    [
+      { cues: [{ gesture: "a", from: -1 }] },
+      /from must be seconds or a beat id/,
+    ],
+    [{ cues: [{ gesture: "a" }], camera: { zoom: 2 } }, /unknown field "zoom"/],
+    [
+      { cues: [{ gesture: "a" }], camera: { distance: "1" } },
+      /distance must be a number/,
+    ],
+    [{ cues: [{ gesture: "a" }], camera: 3 }, /preset name or a framing/],
+    [
+      { speech: { alignment: "t.json", volume: "loud" } },
+      /volume must be a number, 0 or more/,
+    ],
   ])
     assert.throws(() => parseCueSheet(sheet, { dir: "/" }), message);
 });
@@ -143,6 +166,11 @@ test("starts a Gesture from a clip time or beat, or lands a beat on a time", () 
   assert.throws(
     () => gestureStart(cue({ from: "wink" }), BEATS_CLIP),
     /no beat "wink"; its beats are start, pop, settle/,
+  );
+  // A start at or past the clip's end leaves nothing to play.
+  assert.throws(
+    () => gestureStart(cue({ from: 2.98 }), { ...BEATS_CLIP, duration: 3 }),
+    /at or past the end of the 3 s clip/,
   );
 });
 
@@ -300,6 +328,67 @@ test("lists a sheet's takes with their clips resolved and started", async () => 
     await assert.rejects(
       listSheetItems(sheet.replace("takes", "missing")),
       /Cannot read the sheet/,
+    );
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("cuts a carried event's parameter keyframes at the start point", () => {
+  const values = (scale) => ({ scale });
+  const [event] = clipFrom(
+    {
+      duration: 3,
+      events: [
+        {
+          kind: "avatar_vfx",
+          time: 0.5,
+          duration: 2,
+          effectId: "x",
+          parameterKeyframes: [
+            { time: 0, values: values(1) },
+            { time: 0.4, values: values(2) },
+            { time: 1, values: values(3) },
+            { time: 2, values: values(4) },
+          ],
+        },
+      ],
+    },
+    1,
+  ).events;
+  assert.deepEqual(
+    event.parameterKeyframes.map(({ time, values }) => [
+      Number(time.toFixed(3)),
+      values.scale,
+    ]),
+    [
+      [0, 2],
+      [0.498, 3],
+      [1.498, 4],
+    ],
+  );
+  assert.ok(event.parameterKeyframes.at(-1).time <= event.duration);
+});
+
+test("rejects a cue stopped before it starts and a missing Avatar file", async () => {
+  const dir = await mkdtemp(path.join(tmpdir(), "animama-sheet-"));
+  try {
+    const sheet = path.join(dir, "takes.json");
+    await writeFile(
+      sheet,
+      JSON.stringify({
+        cues: [{ reaction: "library:reaction/joy-2", at: 1, until: 1 }],
+      }),
+    );
+    await assert.rejects(listSheetItems(sheet), /until \(1 s\) must be later/);
+    // A file is never taken for an Included Avatar id.
+    await assert.rejects(
+      resolveAvatarFile("Annie", dir, "--avatar-file", { file: true }),
+      /Annie is not a \.vrm file/,
+    );
+    assert.match(
+      await resolveAvatarFile("annie", dir, "--avatar"),
+      /avatars\/Annie\.vrm$/,
     );
   } finally {
     await rm(dir, { recursive: true, force: true });

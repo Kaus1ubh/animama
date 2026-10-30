@@ -15,7 +15,7 @@ import {
  *     "title": "Joy",                     label title (optional)
  *     "detail": "Joy 3 (B) · Double peace pop",   label second line (optional)
  *     "avatar": "../Lapwing.vrm",         a .vrm file or Included Avatar id (optional)
- *     "camera": "landing",                camera preset (optional)
+ *     "camera": "landing",                camera preset, or a framing (optional)
  *     "duration": 3.5,                    fixed length in seconds (optional)
  *     "cues": [
  *       { "gesture": "library:gesture/double-peace-pop", "beat": "pop", "beatAt": 0.8 },
@@ -24,6 +24,11 @@ import {
  *     "speech": { "audio": "take.mp3", "alignment": "take.json", "at": 0.5 }
  *   }
  *
+ * A framing object (`{ "distance": 1, "aim": 1 }`) overrides the landing hero
+ * close-up's fields: `yaw` (degrees), `distance`, `aim` and `rise` in head
+ * heights, `fov` (degrees), and `shift` and `lift` (lens shifts as shares of
+ * the frame).
+ *
  * Times are seconds on the take's clock, from the moment its Avatar stands
  * ready. A Gesture plays on the Avatar's clip player and a Reaction on its
  * reaction layer, so one of each plays together, as in chat; a later cue of
@@ -31,8 +36,9 @@ import {
  * through: `from` is a clip time or beat id, or `beat` and `beatAt` start it
  * so that beat lands at that take time (from its start when `at` is
  * omitted). `until` stops a clip, with its fade; otherwise a looping clip
- * stops after one pass and a talking-scoped one (a Reaction) after `--talk`
- * seconds, as chat stops it. `speech` plays a voice take with ElevenLabs
+ * stops after one pass, and a talking-scoped one (a Reaction) after `--talk`
+ * seconds or, in a take that speaks, once the speech has ended, as chat
+ * holds it while the Anima speaks. `speech` plays a voice take with ElevenLabs
  * character timing (`with-timestamps`): `alignment` names the JSON response
  * (its `alignment`) or the alignment itself, `audio` the audio file (or the
  * response's `audio_base64` is used), `text` the text sent, tags included
@@ -58,11 +64,23 @@ const GESTURE_KEYS = new Set([
 ]);
 const REACTION_KEYS = new Set(["reaction", "at", "until"]);
 const SPEECH_KEYS = new Set(["audio", "alignment", "text", "at", "volume"]);
+/** A landing-style framing's fields (`landing-stage/stops.ts` StageCamera). */
+const CAMERA_KEYS = new Set([
+  "yaw",
+  "distance",
+  "aim",
+  "rise",
+  "fov",
+  "shift",
+  "lift",
+]);
 /**
  * A carried event's start just after the time a clip is sought to: seeking
  * counts events at or before that time as fired.
  */
 const CARRY_EPSILON_SEC = 0.002;
+/** Least of a Gesture left to play after a part-way start. */
+const MIN_REMAINING_SEC = 0.05;
 
 const isRecord = (value) =>
   typeof value === "object" && value !== null && !Array.isArray(value);
@@ -71,10 +89,10 @@ function fail(where, message) {
   throw new EffectSourceError(`${where}: ${message}`);
 }
 
-function seconds(value, where, name, { optional = true } = {}) {
-  if (value === undefined && optional) return null;
+function seconds(value, where, name, unit = "a number of seconds") {
+  if (value === undefined) return null;
   if (typeof value !== "number" || !Number.isFinite(value) || value < 0)
-    fail(where, `${name} must be a number of seconds, 0 or more.`);
+    fail(where, `${name} must be ${unit}, 0 or more.`);
   return value;
 }
 
@@ -98,9 +116,16 @@ export function parseCueSheet(sheet, { dir, name = "sheet" }) {
     const where = `${name} take ${takeIndex + 1}`;
     if (!isRecord(take)) fail(where, "a take is an object.");
     checkKeys(take, TAKE_KEYS, where);
-    for (const key of ["title", "detail", "avatar", "camera"])
+    for (const key of ["title", "detail", "avatar"])
       if (take[key] !== undefined && typeof take[key] !== "string")
         fail(where, `${key} must be a string.`);
+    if (isRecord(take.camera)) {
+      checkKeys(take.camera, CAMERA_KEYS, `${where} camera`);
+      for (const [key, value] of Object.entries(take.camera))
+        if (typeof value !== "number" || !Number.isFinite(value))
+          fail(`${where} camera`, `${key} must be a number.`);
+    } else if (take.camera !== undefined && typeof take.camera !== "string")
+      fail(where, "camera must be a preset name or a framing object.");
     const duration = seconds(take.duration, where, "duration");
     if (duration === 0) fail(where, "duration must be more than 0.");
     if (take.cues !== undefined && !Array.isArray(take.cues))
@@ -117,12 +142,8 @@ export function parseCueSheet(sheet, { dir, name = "sheet" }) {
       checkKeys(cue, kind === "gesture" ? GESTURE_KEYS : REACTION_KEYS, at);
       if (typeof cue[kind] !== "string" || !cue[kind])
         fail(at, `${kind} must name a source.`);
-      if (
-        cue.from !== undefined &&
-        typeof cue.from !== "string" &&
-        seconds(cue.from, at, "from") === null
-      )
-        fail(at, "from must be seconds or a beat id.");
+      if (cue.from !== undefined && typeof cue.from !== "string")
+        seconds(cue.from, at, "from", "seconds or a beat id");
       if ((cue.beat === undefined) !== (cue.beatAt === undefined))
         fail(at, "beat and beatAt go together.");
       if (cue.beat !== undefined && typeof cue.beat !== "string")
@@ -161,7 +182,7 @@ export function parseCueSheet(sheet, { dir, name = "sheet" }) {
             ? null
             : path.resolve(dir, take.speech.audio),
         text: take.speech.text ?? null,
-        volume: seconds(take.speech.volume, at, "volume") ?? 1,
+        volume: seconds(take.speech.volume, at, "volume", "a number") ?? 1,
         where: at,
       };
     }
@@ -194,6 +215,15 @@ function beatTimes(clip) {
  */
 export function gestureStart(cue, clip) {
   const beats = beatTimes(clip);
+  const length = Number(clip?.duration) || 0;
+  const checkFrom = (from) => {
+    if (from > 0 && from >= length - MIN_REMAINING_SEC)
+      fail(
+        cue.where,
+        `it would start ${from} s in, at or past the end of the ${length} s clip.`,
+      );
+    return from;
+  };
   const beatTime = (id) => {
     if (!beats.has(id))
       fail(
@@ -219,11 +249,11 @@ export function gestureStart(cue, clip) {
         cue.where,
         `beat "${cue.beat}" (${time} s in) cannot land at ${cue.beatAt} s when the clip starts at ${cue.at} s.`,
       );
-    return { at: cue.at, from: Math.max(0, from) };
+    return { at: cue.at, from: checkFrom(Math.max(0, from)) };
   }
   const from =
     typeof cue.from === "string" ? beatTime(cue.from) : (cue.from ?? 0);
-  return { at: cue.at ?? 0, from };
+  return { at: cue.at ?? 0, from: checkFrom(from) };
 }
 
 /**
@@ -247,18 +277,43 @@ export function clipFrom(clip, from) {
       const duration = Number.isFinite(event.duration) ? event.duration : null;
       if (duration !== null && time + duration <= from + CARRY_EPSILON_SEC)
         return [];
+      const start = from + CARRY_EPSILON_SEC;
+      const remaining = duration === null ? null : time + duration - start;
       return [
         {
           ...event,
-          time: from + CARRY_EPSILON_SEC,
-          ...(duration !== null
-            ? { duration: time + duration - from - CARRY_EPSILON_SEC }
+          time: start,
+          ...(remaining !== null ? { duration: remaining } : {}),
+          ...(Array.isArray(event.parameterKeyframes) && remaining !== null
+            ? {
+                parameterKeyframes: cutKeyframes(
+                  event.parameterKeyframes,
+                  start - time,
+                  remaining,
+                ),
+              }
             : {}),
         },
       ];
     },
   );
   return { ...clip, events };
+}
+
+/**
+ * An event's parameter keyframes from `offset` seconds into it, for
+ * `remaining` seconds: the last one at or before the cut holds from 0 (its
+ * ease into the next one restarts there), later ones shift earlier.
+ */
+function cutKeyframes(keyframes, offset, remaining) {
+  const held = keyframes.filter((keyframe) => keyframe.time <= offset).at(-1);
+  return [
+    ...(held ? [{ ...held, time: 0 }] : []),
+    ...keyframes
+      .filter((keyframe) => keyframe.time > offset)
+      .map((keyframe) => ({ ...keyframe, time: keyframe.time - offset }))
+      .filter((keyframe) => keyframe.time <= remaining),
+  ];
 }
 
 /**
@@ -320,22 +375,38 @@ export function readAlignment(json, where) {
   };
 }
 
-/** An Avatar file for a take: a `.vrm` path, or an Included Avatar id. */
-export async function resolveAvatarFile(value, dir, where) {
-  const included = /^[A-Za-z0-9_-]+$/.test(value) && !/\.vrm$/i.test(value);
-  if (included) {
-    const name =
-      { annie: "Annie", andrew: "Andrew" }[value.toLowerCase()] ?? value;
-    const file = path.join(INCLUDED_CONTENT_ROOT, "avatars", `${name}.vrm`);
-    if (!(await stat(file).catch(() => null)))
+/** Short names of the Included Avatars, by lower-case alias. */
+export const AVATAR_ALIASES = { annie: "Annie", andrew: "Andrew" };
+
+/** An Included Avatar's file, by id or alias. */
+export const includedAvatarFile = (id) =>
+  path.join(
+    INCLUDED_CONTENT_ROOT,
+    "avatars",
+    `${AVATAR_ALIASES[id.toLowerCase()] ?? id}.vrm`,
+  );
+
+/**
+ * An Avatar file: a `.vrm` path, or (unless `file` is set) an Included
+ * Avatar id.
+ */
+export async function resolveAvatarFile(
+  value,
+  dir,
+  where,
+  { file = false } = {},
+) {
+  if (!file && /^[A-Za-z0-9_-]+$/.test(value) && !/\.vrm$/i.test(value)) {
+    const included = includedAvatarFile(value);
+    if (!(await stat(included).catch(() => null)))
       fail(where, `no Included Avatar ${value}.`);
-    return file;
+    return included;
   }
-  const file = path.resolve(dir, value);
-  if (!/\.vrm$/i.test(file)) fail(where, `${value} is not a .vrm file.`);
-  if (!(await stat(file).catch(() => null))?.isFile())
-    fail(where, `cannot read the Avatar file ${file}.`);
-  return realpath(file);
+  const resolved = path.resolve(dir, value);
+  if (!/\.vrm$/i.test(resolved)) fail(where, `${value} is not a .vrm file.`);
+  if (!(await stat(resolved).catch(() => null))?.isFile())
+    fail(where, `cannot read the Avatar file ${resolved}.`);
+  return realpath(resolved);
 }
 
 /** A Library item's display name: its meta name, else the clip's, else its stem. */
@@ -380,6 +451,11 @@ export async function listSheetItems(file, { localContent = null } = {}) {
         cue.kind === "gesture"
           ? gestureStart(cue, source.clip)
           : { at: cue.at ?? 0, from: 0 };
+      if (cue.until !== null && cue.until <= at)
+        fail(
+          cue.where,
+          `until (${cue.until} s) must be later than its start (${at} s).`,
+        );
       const named = namespaceClip(
         source.clip,
         source.dependencies,

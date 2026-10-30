@@ -803,7 +803,9 @@ from `src/frontend/web`:
     can start part-way through (`from` a clip time or beat id), or `beat` and
     `beatAt` land a named beat on a take time; events still running at the
     start point restart there, and earlier sounds are dropped. `until` stops
-    a clip with its fade. A take may also speak a recorded voice take:
+    a clip with its fade; without it a talking-scoped Reaction is held for
+    `--talk` seconds or, in a take that speaks, until the speech ends. A take
+    may also speak a recorded voice take:
     `speech` names the audio and its ElevenLabs `with-timestamps` response
     (or alignment). The app's lip-sync planner plans the whole take at once,
     and the take drives the mouth, tag expressions, speech gesture timeline

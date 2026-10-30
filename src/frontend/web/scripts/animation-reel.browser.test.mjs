@@ -265,3 +265,70 @@ test(
     }
   },
 );
+
+// A take that fails while opening leaves nothing behind: the next take
+// records exactly as it does on its own. It also frames with a landing-style
+// camera object.
+test(
+  "records the take after a failed one as it records alone",
+  { skip: !hasFfmpeg && "ffmpeg is not installed" },
+  async () => {
+    const dir = await mkdtemp(path.join(tmpdir(), "animama-reel-fail-"));
+    try {
+      const good = {
+        title: "Heart",
+        camera: { distance: 1.1, aim: 1 },
+        duration: 0.6,
+        cues: [{ gesture: "library:gesture/big-arm-heart", at: 0 }],
+      };
+      const record = async (takes, name) => {
+        const sheet = path.join(dir, `${name}.json`);
+        await writeFile(sheet, JSON.stringify({ takes }));
+        const items = await listReelItems({
+          gestures: false,
+          reactions: false,
+          sources: [],
+          sheets: [sheet],
+          cwd: process.cwd(),
+          localContent: null,
+        });
+        const out = path.join(dir, name);
+        const { results } = await recordReel({
+          items,
+          out,
+          format: "png",
+          avatar: "Annie",
+          camera: "landing",
+          label: false,
+          background: "transparent",
+          size: { width: 320, height: 180 },
+          fps: 5,
+          lead: 0,
+          tail: 0,
+          talk: 3,
+          maxSec: 20,
+          crf: 30,
+          catalog: new Map(),
+          localContent: null,
+          software: true,
+          log: () => undefined,
+        });
+        return { results, out };
+      };
+      const after = await record(
+        [{ ...good, camera: "landing:nope" }, good],
+        "after-failure",
+      );
+      assert.match(after.results[0].failure, /Unknown camera landing:nope/);
+      assert.equal(after.results[1].failure, null);
+      const alone = await record([good], "alone");
+      const pixels = async (out) =>
+        (
+          await sharp(path.join(out, "frame-000003.png")).raw().toBuffer()
+        ).toString("base64");
+      assert.equal(await pixels(after.out), await pixels(alone.out));
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  },
+);

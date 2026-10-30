@@ -7,7 +7,11 @@ import {
   isSceneCameraPreset,
 } from "@/ui/main/canvas/sceneCameraPresets";
 
-import { STAGE_STOPS, TALL_ASPECT } from "../landing-stage/stops";
+import {
+  STAGE_STOPS,
+  TALL_ASPECT,
+  type StageCamera,
+} from "../landing-stage/stops";
 import { ReviewStage, TILE_BACKDROP } from "../effect-render/reviewStage";
 import {
   EffectSession,
@@ -34,8 +38,9 @@ import { ReelSpeech, type ReelSpeechRequest } from "./speech";
  * its reaction layer beside it, as chat plays them together. Either one's
  * Avatar, Particle and Scene Effects and sounds start when chat would start
  * them. A looping clip is stopped (with its fade) after one pass, and a
- * talking-scoped one after the request's talking time, as chat stops it when
- * the reply ends, unless the cue says when to stop. A take may also speak a
+ * talking-scoped one after the request's talking time or, in a take that
+ * speaks, once the speech ends, as chat stops it when the reply ends, unless
+ * the cue says when to stop. A take may also speak a
  * recorded voice take (`./speech.ts`): lip-sync, tag expressions and talking
  * hands as chat drives them. Frames advance in fixed 60 Hz steps, so a reel
  * is the same on every run whatever the capture speed. Sounds are not played
@@ -88,11 +93,12 @@ type ReelCue = {
 };
 
 /**
- * A camera: a chat preset, `pip` (the desktop PiP window's default preset)
- * or `landing` / `landing:<stop>` (a landing page stop's framing; `landing`
- * is the hero close-up).
+ * A camera: a chat preset, `pip` (the desktop PiP window's default preset),
+ * `landing` / `landing:<stop>` (a landing page stop's framing; `landing` is
+ * the hero close-up), or a landing-style framing whose fields override the
+ * hero close-up's.
  */
-type ReelCamera = string;
+type ReelCamera = string | Partial<StageCamera>;
 
 type ReelItemRequest = {
   avatar: { id: string; url: string };
@@ -447,10 +453,18 @@ function stopAfter(
 }
 
 /** A cue's stop time: its own, else its clip's default from where it starts. */
-function cueStopAt(cue: ReelCue, talk: number): number | null {
+function cueStopAt(
+  cue: ReelCue,
+  talk: number,
+  speechEnd: number,
+): number | null {
   if (cue.until !== null) return cue.until;
-  const after = stopAfter(parseAnimaPoseClip(cue.clip), talk);
-  return after === null ? null : cue.at + Math.max(0, after - cue.from);
+  const clip = parseAnimaPoseClip(cue.clip);
+  const after = stopAfter(clip, talk);
+  if (after === null) return null;
+  const stop = cue.at + Math.max(0, after - cue.from);
+  // Chat holds a talking-scoped clip until the reply has been spoken.
+  return clip.playback ? Math.max(stop, speechEnd) : stop;
 }
 
 /** Head bone height of the Avatar as it stands: the landing camera's unit. */
@@ -471,6 +485,10 @@ function cameraView(
   camera: ReelCamera,
   { width, height }: ReelItemRequest["size"],
 ): { framing: Framing; offset: { shift: number; lift: number } | null } {
+  if (typeof camera === "object") {
+    const hero = STAGE_STOPS.find(({ id }) => id === "hero")!;
+    return landingView(avatar, { ...hero.camera, ...camera });
+  }
   if (camera === "pip")
     return {
       framing: chatCameraFraming(avatar, DEFAULT_PIP_SCENE_CAMERA_PRESET),
@@ -485,10 +503,16 @@ function cameraView(
     throw new Error(
       `Unknown camera ${camera}; landing stops are ${STAGE_STOPS.map(({ id }) => id).join(", ")}.`,
     );
-  const view =
+  return landingView(
+    avatar,
     width / height < TALL_ASPECT
       ? { ...stop.camera, ...stop.tall }
-      : stop.camera;
+      : stop.camera,
+  );
+}
+
+/** A landing-style framing: orbit, aim and distance in head heights. */
+function landingView(avatar: Avatar, view: StageCamera) {
   const unit = headHeight(avatar);
   const yaw = THREE.MathUtils.degToRad(view.yaw);
   const target = new THREE.Vector3(0, view.aim * unit, 0);
@@ -518,6 +542,16 @@ async function openReelItem(request: ReelItemRequest): Promise<void> {
   document.body.style.background = transparent ? "transparent" : "#000";
   current.review.element.style.background = request.background ?? TILE_BACKDROP;
   const speech = request.speech ? ReelSpeech.plan(request.speech) : null;
+  // Clips are parsed before the Avatar loads, so a bad one fails cleanly.
+  const speechEnd = speech ? speech.at + speech.durationSec : 0;
+  const cues = request.cues
+    .map((cue) => ({
+      cue,
+      stopAt: cueStopAt(cue, request.talk, speechEnd),
+      started: false,
+      stopped: false,
+    }))
+    .sort((a, b) => a.cue.at - b.cue.at);
   const sounds: SessionSound[] = [];
   const session = await EffectSession.open(
     request.avatar.url,
@@ -534,55 +568,57 @@ async function openReelItem(request: ReelItemRequest): Promise<void> {
   );
   current.review.attachCanvas(current.renderer.domElement, session.avatar);
   current.scene.add(session.avatar.scene!);
-  if (request.label) current.label.show(request.label, request.sounds);
-  current.label.element.hidden = !request.label;
-  // Event sinks and effect loads, before any cue plays.
-  await session.apply({ effects: [] });
-  const cues = request.cues
-    .map((cue) => ({
-      cue,
-      stopAt: cueStopAt(cue, request.talk),
-      started: false,
-      stopped: false,
-    }))
-    .sort((a, b) => a.cue.at - b.cue.at);
-  const { framing, offset } = cameraView(
-    session.avatar,
-    request.camera,
-    request.size,
-  );
-  const open: NonNullable<typeof item> = {
-    request,
-    session,
-    framing,
-    offset,
-    cues,
-    gesture: null,
-    reaction: null,
-    speech,
-    firstAt: Math.min(
-      ...request.cues.map(({ at }) => at),
-      speech?.at ?? Infinity,
-    ),
-    idleSince: null,
-    sounds,
-    reported: 0,
-    warnings: new Set(),
-  };
-  if (speech) {
-    if (speech.fallback)
-      open.warnings.add(
-        `speech lip-sync follows the audio alone (${speech.fallback})`,
-      );
-    // The voice's clock is the session's frame clock.
-    speech.attach(session.avatar, {
-      get currentTime() {
-        return session.time;
-      },
-    });
+  // Until the take is open, a failure must take its Avatar off the stage.
+  try {
+    if (request.label) current.label.show(request.label, request.sounds);
+    current.label.element.hidden = !request.label;
+    // Event sinks and effect loads, before any cue plays.
+    await session.apply({ effects: [] });
+    const { framing, offset } = cameraView(
+      session.avatar,
+      request.camera,
+      request.size,
+    );
+    const open: NonNullable<typeof item> = {
+      request,
+      session,
+      framing,
+      offset,
+      cues,
+      gesture: null,
+      reaction: null,
+      speech,
+      firstAt: Math.min(
+        ...request.cues.map(({ at }) => at),
+        speech?.at ?? Infinity,
+      ),
+      idleSince: null,
+      sounds,
+      reported: 0,
+      warnings: new Set(),
+    };
+    if (speech) {
+      if (speech.fallback)
+        open.warnings.add(
+          `speech lip-sync follows the audio alone (${speech.fallback})`,
+        );
+      // The voice's clock is the session's frame clock.
+      speech.attach(session.avatar, {
+        get currentTime() {
+          return session.time;
+        },
+      });
+    }
+    session.setFrameHook((time) => frameHook(open, time));
+    item = open;
+  } catch (error) {
+    current.scene.remove(session.avatar.scene!);
+    session.dispose();
+    current.review.bands.clearScenes();
+    current.review.bands.setAvatar(null);
+    current.label.clear();
+    throw error;
   }
-  session.setFrameHook((time) => frameHook(open, time));
-  item = open;
 }
 
 /** Start and stop cues due at take time `time`, and feed the speech. */

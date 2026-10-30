@@ -25,7 +25,12 @@ import {
   resolveDependencies,
   scanLibrary,
 } from "./effect-render-sources.mjs";
-import { listSheetItems, resolveAvatarFile } from "./animation-reel-sheet.mjs";
+import {
+  AVATAR_ALIASES,
+  includedAvatarFile,
+  listSheetItems,
+  resolveAvatarFile,
+} from "./animation-reel-sheet.mjs";
 import {
   pageClipMedia,
   sourceRoots,
@@ -65,10 +70,6 @@ const DEFAULT_SOUND_ROOTS = [
   path.join(REPO_ROOT, "build-inputs/wow-comedy-sfx"),
   path.join(INCLUDED_CONTENT_ROOT, "sfx"),
 ];
-const AVATAR_ALIASES = {
-  annie: "Annie",
-  andrew: "Andrew",
-};
 /** Chat camera presets, plus `pip` and the landing page stops. */
 const CAMERAS = [
   "portrait",
@@ -243,7 +244,6 @@ function number(value, flag, { min, max, integer = false }) {
   return parsed;
 }
 
-/** Parse argv into reel options; throws `EffectSourceError` on bad input. */
 /** The output format `--out` names: `mp4`, `mov` or `png` (a folder). */
 export function outputFormat(out) {
   const extension = path.extname(out).toLowerCase();
@@ -255,6 +255,7 @@ export function outputFormat(out) {
   );
 }
 
+/** Parse argv into reel options; throws `EffectSourceError` on bad input. */
 export function parseReelArgs(argv) {
   const sources = [];
   const sheets = [];
@@ -785,9 +786,9 @@ export function chapterMetadata(chapters) {
 
 /**
  * The audio inputs and filter graph that mix `sounds` (`{ file, time,
- * volume }`, time in seconds) over `inputOffset` (the silent base track's
- * input index; sound inputs follow it). Each distinct file is one input,
- * split once per use.
+ * volume, maxDuration? }`, times in seconds; `maxDuration` cuts a sound off)
+ * over `inputOffset` (the silent base track's input index; sound inputs
+ * follow it). Each distinct file is one input, split once per use.
  */
 export function audioMixGraph(sounds, inputOffset) {
   const files = [...new Set(sounds.map((sound) => sound.file))];
@@ -806,8 +807,12 @@ export function audioMixGraph(sounds, inputOffset) {
     for (const { sound, index } of list) {
       const source = list.length > 1 ? `[s${index}]` : `[${input}:a]`;
       const delay = Math.max(0, Math.round(sound.time * 1000));
+      const trim =
+        sound.maxDuration === undefined
+          ? ""
+          : `atrim=end=${Math.max(0, sound.maxDuration).toFixed(3)},`;
       filters.push(
-        `${source}aformat=sample_rates=${AUDIO_RATE}:channel_layouts=stereo,adelay=${delay}:all=1,volume=${sound.volume}[e${index}]`,
+        `${source}${trim}aformat=sample_rates=${AUDIO_RATE}:channel_layouts=stereo,adelay=${delay}:all=1,volume=${sound.volume}[e${index}]`,
       );
       mixed.push(`[e${index}]`);
     }
@@ -991,9 +996,6 @@ function webglRenderer(page) {
   });
 }
 
-/** An Included Avatar's file. */
-const includedAvatarFile = (id) =>
-  path.join(INCLUDED_CONTENT_ROOT, "avatars", `${id}.vrm`);
 /** The id a page reports an Avatar file's diagnostics under. */
 const avatarId = (file) => path.basename(file).replace(/\.vrm$/i, "");
 
@@ -1028,7 +1030,7 @@ export async function recordReel({
   const alpha = FORMATS[format].alpha;
   const defaultAvatar = avatarFile ?? includedAvatarFile(avatar);
   for (const item of items)
-    if (item.camera && !isCamera(item.camera))
+    if (typeof item.camera === "string" && !isCamera(item.camera))
       throw new EffectSourceError(
         `Invalid camera ${item.camera} in ${item.stem}; use ${CAMERAS.join(", ")} or landing:<stop>.`,
       );
@@ -1212,7 +1214,12 @@ export async function recordReel({
             result.end = frames / fps;
             // The voice and sounds play only while the item's frames do.
             sounds.push(
-              ...itemSounds.filter((sound) => sound.time < result.end),
+              ...itemSounds
+                .filter((sound) => sound.time < result.end)
+                .map((sound) => ({
+                  ...sound,
+                  maxDuration: result.end - sound.time,
+                })),
             );
             const wall = (performance.now() - started) / 1000;
             log(
@@ -1326,6 +1333,7 @@ async function main(argv) {
       options.avatarFile ?? options.avatar,
       cwd,
       options.avatarFile ? "--avatar-file" : "--avatar",
+      { file: Boolean(options.avatarFile) },
     );
     const items = await listReelItems({ ...options, cwd, localContent });
     if (items.length === 0) throw new EffectSourceError("No items to record.");
