@@ -55,13 +55,70 @@ test("parses reel options and rejects invalid ones", () => {
   ]);
   assert.deepEqual(options.soundRoots, ["a", "b"]);
   assert.equal(options.camera, DEFAULTS.camera);
+  assert.equal(options.format, "mp4");
+  assert.equal(options.label, true);
+  assert.equal(options.background, null);
   assert.deepEqual(parseReelArgs(["--help"]), { help: true });
 
+  // Cue sheets, a local Avatar file, and the alpha formats: transparent
+  // and unlabelled unless a background is given.
+  const sheet = parseReelArgs([
+    "--sheet",
+    "a.json",
+    "--sheet",
+    "b.json",
+    "--avatar-file",
+    "x.vrm",
+    "--camera",
+    "landing:emotion",
+    "--out",
+    "take.mov",
+  ]);
+  assert.deepEqual(sheet.sheets, ["a.json", "b.json"]);
+  assert.equal(sheet.avatarFile, "x.vrm");
+  assert.equal(sheet.camera, "landing:emotion");
+  assert.equal(sheet.format, "mov");
+  assert.equal(sheet.label, false);
+  assert.equal(sheet.background, "transparent");
+  const frames = parseReelArgs([
+    "--sheet",
+    "a.json",
+    "--out",
+    "frames/",
+    "--background",
+    "#fff",
+  ]);
+  assert.equal(frames.format, "png");
+  assert.equal(frames.background, "#fff");
+  assert.equal(
+    parseReelArgs(["--gestures", "--out", "a.mp4", "--no-label"]).label,
+    false,
+  );
+  assert.equal(
+    parseReelArgs(["--gestures", "--out", "a.mp4", "--camera", "pip"]).camera,
+    "pip",
+  );
+
   for (const [argv, message] of [
-    [["--out", "a.mp4"], /--gestures, --reactions, --effects or name sources/],
+    [
+      ["--out", "a.mp4"],
+      /--gestures, --reactions, --effects, --sheet or name sources/,
+    ],
+    [
+      [
+        "--gestures",
+        "--out",
+        "a.mp4",
+        "--avatar",
+        "annie",
+        "--avatar-file",
+        "x.vrm",
+      ],
+      /not both/,
+    ],
     [["--effects", "--out", "a.mp4", "--hold", "0"], /--hold/],
     [["--gestures"], /--out is required/],
-    [["--gestures", "--out", "a.webm"], /\.mp4/],
+    [["--gestures", "--out", "a.webm"], /\.mp4 or \.mov/],
     [["--gestures", "--out", "a.mp4", "--size", "1921x1080"], /even/],
     [["--gestures", "--out", "a.mp4", "--fps", "0"], /--fps/],
     [["--gestures", "--out", "a.mp4", "--camera", "side"], /--camera/],

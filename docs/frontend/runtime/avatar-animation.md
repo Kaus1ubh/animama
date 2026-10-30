@@ -795,6 +795,32 @@ from `src/frontend/web`:
   with pack sounds contains licensed audio, so keep it out of Git and public
   channels. Requires `ffmpeg` with libx264. Frames render on the GPU on macOS
   (about real time) and with SwiftShader elsewhere.
+  - `--sheet <takes.json>` (repeatable) records scripted takes for trailers
+    and reviews; the format is documented in
+    `web/scripts/animation-reel-sheet.mjs`. A take lists Gesture and Reaction
+    cues on its own clock: a Gesture plays on the clip player and a Reaction
+    on the reaction layer beside it, as chat plays them together. A Gesture
+    can start part-way through (`from` a clip time or beat id), or `beat` and
+    `beatAt` land a named beat on a take time; events still running at the
+    start point restart there, and earlier sounds are dropped. `until` stops
+    a clip with its fade. A take may also speak a recorded voice take:
+    `speech` names the audio and its ElevenLabs `with-timestamps` response
+    (or alignment). The app's lip-sync planner plans the whole take at once,
+    and the take drives the mouth, tag expressions, speech gesture timeline
+    and talking hands as chat does, with talking hands off while a Gesture
+    plays. A take can set its own `avatar`, `camera` and `duration`.
+  - `--avatar-file <file.vrm>` reads a local VRM in place (lilToon included);
+    keep third-party Avatars and their reels out of the repository.
+  - `--camera pip` frames the desktop PiP window's default preset (record at
+    its 3:4 shape, such as `--size 1080x1440`); `--camera landing` the landing
+    page hero close-up and `landing:<stop>` any landing stop, using its tall
+    framing when the frame is narrower than 4:5.
+  - `--out` picks the format: `.mp4` (H.264 with the label, `--no-label` to
+    hide it), `.mov` (ProRes 4444 with alpha) or a folder of PNG frames with
+    alpha plus `audio.wav` and `takes.json` (frame ranges). The alpha formats
+    have no label and a transparent background (Scene Effects still draw);
+    `--background <css>` sets one for any format. ProRes needs `ffmpeg` with
+    `prores_ks`.
 - `pnpm -s content:tune` opens the owner's tuning page for Included Gestures
   and the Reaction ladder (see [Tuning Included content](#tuning-included-content)).
 - `pnpm -s animation:save <items.json>` saves clips as Local Gestures through
