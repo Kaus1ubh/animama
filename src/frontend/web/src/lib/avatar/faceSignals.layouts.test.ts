@@ -17,7 +17,7 @@ import { AVATAR_FACE_PART_ROLES } from "./vfx/faceParts";
  * no third-party data). Face parts and Diagnostics must come out as on the
  * unmodified Avatar, with each signal's source shown.
  */
-const AVATAR = "AvatarSample_A_1_New";
+const AVATAR = "Annie";
 const DIGEST = "c".repeat(64);
 
 type Layout = {

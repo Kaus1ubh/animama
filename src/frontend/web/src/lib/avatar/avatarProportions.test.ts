@@ -27,11 +27,7 @@ import { loadWholeBodyAvatar } from "./testing/wholeBodyVrm";
  * accessories the head mesh carries do not count.
  */
 
-const INCLUDED: readonly TestAvatarId[] = [
-  "Andrew",
-  "AvatarSample_A_1_New",
-  VRM0_FIXTURE_ID,
-];
+const INCLUDED: readonly TestAvatarId[] = ["Andrew", "Annie", VRM0_FIXTURE_ID];
 
 describe("Avatar proportions", () => {
   it.each(INCLUDED)("keeps body-sized placement on %s exactly", async (id) => {

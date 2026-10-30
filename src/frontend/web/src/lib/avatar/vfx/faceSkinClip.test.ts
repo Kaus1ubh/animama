@@ -231,7 +231,7 @@ const OTHER_HOLE_PIXEL: [number, number] = [
  * blink regions mapped into the other.
  */
 async function annieWithInnerParts(): Promise<Avatar> {
-  const avatar = await loadedTestAvatar("AvatarSample_A_1_New");
+  const avatar = await loadedTestAvatar("Annie");
   const face = faceEntry(avatar);
   const { left, right } = avatar.getFaceLandmarksSnapshot()!.eyes;
   const eyes = [left!, right!].map((eye) =>
@@ -319,7 +319,7 @@ afterEach(() => {
 });
 
 describe("whole-face art on the face skin's texture", () => {
-  it.each<TestAvatarId>(["Andrew", "AvatarSample_A_1_New", VRM0_FIXTURE_ID])(
+  it.each<TestAvatarId>(["Andrew", "Annie", VRM0_FIXTURE_ID])(
     "covers %s's whole face texture, as before",
     async (id) => {
       const avatar = await loadedTestAvatar(id);
@@ -341,7 +341,7 @@ describe("whole-face art on the face skin's texture", () => {
   );
 
   it("covers only the face skin's triangles on a texture atlas", async () => {
-    const avatar = await loadedTestAvatar("AvatarSample_A_1_New");
+    const avatar = await loadedTestAvatar("Annie");
     const face = faceEntry(avatar);
     // The mouth primitive draws from the face's texture, with a triangle in
     // a part of it the face does not use.
@@ -410,7 +410,7 @@ describe("whole-face art on the face skin's texture", () => {
   });
 
   it("keeps a shared texture's other parts under a replacement", async () => {
-    const avatar = await loadedTestAvatar("AvatarSample_A_1_New");
+    const avatar = await loadedTestAvatar("Annie");
     shareFaceTexture(avatar);
 
     await applyFullFace(avatar, [fullFace("replace")]);
@@ -430,7 +430,7 @@ describe("whole-face art on the face skin's texture", () => {
   });
 
   it("hides the original under a replacement drawn after animated art", async () => {
-    const avatar = await loadedTestAvatar("AvatarSample_A_1_New");
+    const avatar = await loadedTestAvatar("Annie");
     shareFaceTexture(avatar);
     const animated = fullFace("overlay", "animated");
     animated.keyframes = {
@@ -503,7 +503,7 @@ describe("whole-face art on the face skin's texture", () => {
 
 describe("clip triangles", () => {
   it("leave out part regions, whether or not they are hidden", async () => {
-    const avatar = await loadedTestAvatar("AvatarSample_A_1_New");
+    const avatar = await loadedTestAvatar("Annie");
     const face = faceEntry(avatar);
     // Ten of the face's triangles taken as a lash region.
     const regions = new Set([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);

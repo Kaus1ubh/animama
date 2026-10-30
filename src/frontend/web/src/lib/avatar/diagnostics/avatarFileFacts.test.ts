@@ -51,7 +51,7 @@ function webpExtended(width: number, height: number): Uint8Array {
 }
 
 describe("readAvatarFileFacts", () => {
-  it.each(["Andrew", "AvatarSample_A_1_New"] as const)(
+  it.each(["Andrew", "Annie"] as const)(
     "describes the Included Avatar %s",
     async (id) => {
       const facts = readAvatarFileFacts(await readTestAvatarBytes(id));
@@ -166,7 +166,7 @@ describe("readAvatarFileFacts", () => {
 
 describe("avatarFileIssues", () => {
   it("finds nothing in the Included Avatars", async () => {
-    for (const id of ["Andrew", "AvatarSample_A_1_New"] as const) {
+    for (const id of ["Andrew", "Annie"] as const) {
       const facts = readAvatarFileFacts(await readTestAvatarBytes(id));
       expect(avatarFileIssues(facts)).toEqual([]);
     }

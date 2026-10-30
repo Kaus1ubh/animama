@@ -49,7 +49,7 @@ require shipping the OFL text with it.
 
 ## VRoid models and portraits: owner-confirmed permissions
 
-On 2026-09-15 Raymond confirmed that Annie (`AvatarSample_A_1_New.vrm`) is the
+On 2026-09-15 Raymond confirmed that Annie (`Annie.vrm`) is the
 freely distributable pixiv VRoid preset. Its portrait is a direct Animama
 renderer capture.
 

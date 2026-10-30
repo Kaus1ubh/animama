@@ -53,7 +53,7 @@ const API = "/__tune/";
 // Room for every applied edit in one Save all.
 const MAX_BODY_BYTES = 4 * 1024 * 1024;
 const AVATARS = {
-  annie: "AvatarSample_A_1_New",
+  annie: "Annie",
   andrew: "Andrew",
 };
 /**

@@ -7,7 +7,7 @@ import { loadedTestAvatar } from "../testing/loadedTestAvatar";
 import { buildRuntimePrimitiveBindings } from "../vrmEditorInspection";
 import { baseTextureOf } from "./textureUvMapping";
 
-const loadedAnnie = () => loadedTestAvatar("AvatarSample_A_1_New");
+const loadedAnnie = () => loadedTestAvatar("Annie");
 
 /** Add a small triangle centred on `center` to Annie's face skin primitive. */
 function addFaceTriangle(avatar: Avatar, center: THREE.Vector3): void {

@@ -129,102 +129,102 @@ describe("verified eyelid closure profiles", () => {
   });
 });
 
-describe.each([["AvatarSample_A_1_New", 0.2164]] as [
-  IncludedAvatarId,
-  number,
-][])("eyelid closure on %s", (id, k) => {
-  let vrm: VRM;
-  beforeAll(async () => {
-    vrm = (await loadTestAvatarWithGltf(id)).vrm;
-    const sha256 = await readTestAvatarSha256(id);
-    expect(applyEyelidClosureCorrection(vrm, sha256)).toEqual({
-      source: "verified",
-      profile: { happy: 1, relaxed: k },
+describe.each([["Annie", 0.2164]] as [IncludedAvatarId, number][])(
+  "eyelid closure on %s",
+  (id, k) => {
+    let vrm: VRM;
+    beforeAll(async () => {
+      vrm = (await loadTestAvatarWithGltf(id)).vrm;
+      const sha256 = await readTestAvatarSha256(id);
+      expect(applyEyelidClosureCorrection(vrm, sha256)).toEqual({
+        source: "verified",
+        profile: { happy: 1, relaxed: k },
+      });
     });
-  });
 
-  it("scales blink by the eye closure happy and relaxed already add", () => {
-    setWeights(vrm, { happy: 0.5, relaxed: 0.5, blink: 0.4 });
-    expect(morphInfluence(vrm, "blink")).toBeCloseTo(
-      0.4 * (1 - 0.5 - k * 0.5),
-      5,
-    );
-    setWeights(vrm, { happy: 0.9, blink: 0.25 });
-    expect(morphInfluence(vrm, "blink")).toBeCloseTo(0.25 * 0.1, 5);
-    setWeights(vrm, { happy: 1, relaxed: 1, blink: 1 });
-    expect(morphInfluence(vrm, "blink")).toBe(0);
-  });
-
-  it("leaves blink unchanged without happy or relaxed", () => {
-    setWeights(vrm, { blink: 0.8 });
-    expect(morphInfluence(vrm, "blink")).toBeCloseTo(0.8, 5);
-    setWeights(vrm, { blinkLeft: 1, sad: 0.6 });
-    expect(morphInfluence(vrm, "blinkLeft")).toBeCloseTo(1, 5);
-  });
-
-  it("scales each eye's wink channel by the same remaining closure", () => {
-    setWeights(vrm, { relaxed: 1, blinkLeft: 0.6, blinkRight: 0.3 });
-    expect(morphInfluence(vrm, "blinkLeft")).toBeCloseTo(0.6 * (1 - k), 5);
-    expect(morphInfluence(vrm, "blinkRight")).toBeCloseTo(0.3 * (1 - k), 5);
-  });
-
-  it("keeps the authored weights while the morphs are corrected", () => {
-    setWeights(vrm, { happy: 0.7, blink: 0.45 });
-    const manager = vrm.expressionManager!;
-    expect(manager.getValue("blink")).toBeCloseTo(0.45, 5);
-    expect(manager.getValue("happy")).toBeCloseTo(0.7, 5);
-    expect(morphInfluence(vrm, "happy")).toBeCloseTo(0.7, 5);
-    // Repeated updates do not compound the correction.
-    manager.update();
-    manager.update();
-    expect(morphInfluence(vrm, "blink")).toBeCloseTo(0.45 * 0.3, 5);
-  });
-
-  it("corrects blink under VRoid's eye parts as under their whole face", () => {
-    setWeights(vrm, { Fcl_EYE_Joy: 0.75, blink: 1 });
-    expect(morphInfluence(vrm, "blink")).toBeCloseTo(0.25, 5);
-    setWeights(vrm, { Fcl_EYE_Fun: 1, blink: 0.8 });
-    expect(morphInfluence(vrm, "blink")).toBeCloseTo(0.8 * (1 - k), 5);
-    setWeights(vrm, { Fcl_EYE_Joy: 1, blink: 1 });
-    expect(morphInfluence(vrm, "blink")).toBe(0);
-  });
-
-  it("leaves blink unchanged under parts that do not close the eyelids", () => {
-    setWeights(vrm, { Fcl_EYE_Surprised: 1, Fcl_BRW_Joy: 1, blink: 0.7 });
-    expect(morphInfluence(vrm, "blink")).toBeCloseTo(0.7, 5);
-  });
-
-  it("corrects the composed face of the expression controller", () => {
-    const controller = new ExpressionController(vrm);
-    controller.setClipExpressionPrecedence({
-      weight: 1,
-      expressions: { happy: 0.9, blink: 0.15 },
+    it("scales blink by the eye closure happy and relaxed already add", () => {
+      setWeights(vrm, { happy: 0.5, relaxed: 0.5, blink: 0.4 });
+      expect(morphInfluence(vrm, "blink")).toBeCloseTo(
+        0.4 * (1 - 0.5 - k * 0.5),
+        5,
+      );
+      setWeights(vrm, { happy: 0.9, blink: 0.25 });
+      expect(morphInfluence(vrm, "blink")).toBeCloseTo(0.25 * 0.1, 5);
+      setWeights(vrm, { happy: 1, relaxed: 1, blink: 1 });
+      expect(morphInfluence(vrm, "blink")).toBe(0);
     });
-    controller.update(1 / 60);
-    controller.update(0);
-    controller.update(0);
-    expect(controller.getValue("blink")).toBeCloseTo(0.15, 5);
-    expect(morphInfluence(vrm, "blink")).toBeCloseTo(0.15 * 0.1, 5);
 
-    // Reaction overlays keying VRoid eye parts reach the corrected instance.
-    controller.setClipExpressionPrecedence(null);
-    controller.setExpressionOverlay("reaction", {
-      Fcl_EYE_Joy: 0.75,
-      blink: 1,
+    it("leaves blink unchanged without happy or relaxed", () => {
+      setWeights(vrm, { blink: 0.8 });
+      expect(morphInfluence(vrm, "blink")).toBeCloseTo(0.8, 5);
+      setWeights(vrm, { blinkLeft: 1, sad: 0.6 });
+      expect(morphInfluence(vrm, "blinkLeft")).toBeCloseTo(1, 5);
     });
-    controller.update(1 / 60);
-    expect(morphInfluence(vrm, "blink")).toBeCloseTo(0.25, 5);
-    controller.clearExpressionOverlay("reaction");
-    controller.update(1 / 60);
 
-    // An immediate creator write is corrected by the next VRM update.
-    controller.setValue("happy", 0.5);
-    controller.setValue("blink", 0.6);
-    vrm.update(0);
-    expect(morphInfluence(vrm, "blink")).toBeCloseTo(0.6 * 0.5, 5);
-    controller.dispose();
-  });
-});
+    it("scales each eye's wink channel by the same remaining closure", () => {
+      setWeights(vrm, { relaxed: 1, blinkLeft: 0.6, blinkRight: 0.3 });
+      expect(morphInfluence(vrm, "blinkLeft")).toBeCloseTo(0.6 * (1 - k), 5);
+      expect(morphInfluence(vrm, "blinkRight")).toBeCloseTo(0.3 * (1 - k), 5);
+    });
+
+    it("keeps the authored weights while the morphs are corrected", () => {
+      setWeights(vrm, { happy: 0.7, blink: 0.45 });
+      const manager = vrm.expressionManager!;
+      expect(manager.getValue("blink")).toBeCloseTo(0.45, 5);
+      expect(manager.getValue("happy")).toBeCloseTo(0.7, 5);
+      expect(morphInfluence(vrm, "happy")).toBeCloseTo(0.7, 5);
+      // Repeated updates do not compound the correction.
+      manager.update();
+      manager.update();
+      expect(morphInfluence(vrm, "blink")).toBeCloseTo(0.45 * 0.3, 5);
+    });
+
+    it("corrects blink under VRoid's eye parts as under their whole face", () => {
+      setWeights(vrm, { Fcl_EYE_Joy: 0.75, blink: 1 });
+      expect(morphInfluence(vrm, "blink")).toBeCloseTo(0.25, 5);
+      setWeights(vrm, { Fcl_EYE_Fun: 1, blink: 0.8 });
+      expect(morphInfluence(vrm, "blink")).toBeCloseTo(0.8 * (1 - k), 5);
+      setWeights(vrm, { Fcl_EYE_Joy: 1, blink: 1 });
+      expect(morphInfluence(vrm, "blink")).toBe(0);
+    });
+
+    it("leaves blink unchanged under parts that do not close the eyelids", () => {
+      setWeights(vrm, { Fcl_EYE_Surprised: 1, Fcl_BRW_Joy: 1, blink: 0.7 });
+      expect(morphInfluence(vrm, "blink")).toBeCloseTo(0.7, 5);
+    });
+
+    it("corrects the composed face of the expression controller", () => {
+      const controller = new ExpressionController(vrm);
+      controller.setClipExpressionPrecedence({
+        weight: 1,
+        expressions: { happy: 0.9, blink: 0.15 },
+      });
+      controller.update(1 / 60);
+      controller.update(0);
+      controller.update(0);
+      expect(controller.getValue("blink")).toBeCloseTo(0.15, 5);
+      expect(morphInfluence(vrm, "blink")).toBeCloseTo(0.15 * 0.1, 5);
+
+      // Reaction overlays keying VRoid eye parts reach the corrected instance.
+      controller.setClipExpressionPrecedence(null);
+      controller.setExpressionOverlay("reaction", {
+        Fcl_EYE_Joy: 0.75,
+        blink: 1,
+      });
+      controller.update(1 / 60);
+      expect(morphInfluence(vrm, "blink")).toBeCloseTo(0.25, 5);
+      controller.clearExpressionOverlay("reaction");
+      controller.update(1 / 60);
+
+      // An immediate creator write is corrected by the next VRM update.
+      controller.setValue("happy", 0.5);
+      controller.setValue("blink", 0.6);
+      vrm.update(0);
+      expect(morphInfluence(vrm, "blink")).toBeCloseTo(0.6 * 0.5, 5);
+      controller.dispose();
+    });
+  },
+);
 
 describe("eyelid closure for Avatars without a verified profile", () => {
   it("uses the default profile for Andrew, whose happy and relaxed close the eyelids", async () => {
@@ -238,7 +238,7 @@ describe("eyelid closure for Avatars without a verified profile", () => {
   });
 
   it("uses the default profile on a VRoid face whose happy and relaxed close the eyelids", async () => {
-    const { vrm } = await loadTestAvatarWithGltf("AvatarSample_A_1_New");
+    const { vrm } = await loadTestAvatarWithGltf("Annie");
     expect(applyEyelidClosureCorrection(vrm, null)).toEqual({
       source: "default",
       profile: DEFAULT_EYELID_CLOSURE_PROFILE,
@@ -256,7 +256,7 @@ describe("eyelid closure for Avatars without a verified profile", () => {
   });
 
   it("calibrates the measured closure so it reproduces Annie's verified profile", async () => {
-    const { vrm } = await loadTestAvatarWithGltf("AvatarSample_A_1_New");
+    const { vrm } = await loadTestAvatarWithGltf("Annie");
     const measured = (name: string) =>
       Math.min(
         1,

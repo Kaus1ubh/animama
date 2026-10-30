@@ -34,13 +34,13 @@ import {
 } from "./arms";
 
 /** The VRM 0 test fixture and both Included Avatars. */
-const AVATARS = [VRM0_FIXTURE_ID, "AvatarSample_A_1_New", "Andrew"] as const;
+const AVATARS = [VRM0_FIXTURE_ID, "Annie", "Andrew"] as const;
 type AvatarId = (typeof AVATARS)[number];
 const vrms = new Map<AvatarId, VRM>();
 /** Rest height of each rig's head bone above its feet, in metres. */
 const HEAD_HEIGHT: Record<AvatarId, number> = {
   AvatarSample_Y_0: 1.242,
-  AvatarSample_A_1_New: 1.265,
+  Annie: 1.265,
   Andrew: 1.367,
 };
 
@@ -911,7 +911,7 @@ describe.each(AVATARS)("ArmReachSolver on %s", (id) => {
 
 describe("contact scale", () => {
   it("solves the same arm turn on a uniformly larger model (R9)", () => {
-    const vrm = vrms.get("AvatarSample_A_1_New")!;
+    const vrm = vrms.get("Annie")!;
     const factor = 1.5;
     // The same model at 1.5 times the size: CanonicalSkeleton reads only
     // the metadata version and each normalized node's rest position.

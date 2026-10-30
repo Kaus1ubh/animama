@@ -60,7 +60,7 @@ describe("ARKit expressions", () => {
   });
 
   it("finds no ARKit shapes on an Included VRoid Avatar", async () => {
-    const vrm = await loadTestAvatar("AvatarSample_A_1_New");
+    const vrm = await loadTestAvatar("Annie");
     const controller = new ExpressionController(vrm);
     expect(controller.getArkitFaceCapability().resolved.size).toBe(0);
     controller.dispose();

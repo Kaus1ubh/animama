@@ -64,7 +64,7 @@ beforeEach(() => {
 });
 
 describe("Avatar diagnostics", () => {
-  it.each(["Andrew", "AvatarSample_A_1_New", VRM0_FIXTURE_ID] as const)(
+  it.each(["Andrew", "Annie", VRM0_FIXTURE_ID] as const)(
     "find no problems on %s",
     async (id) => {
       const avatar = await loadedTestAvatar(id, DIGEST);
@@ -135,7 +135,7 @@ describe("Avatar diagnostics", () => {
   });
 
   it("report an ignored correction and its unknown bindings once each", async () => {
-    const avatar = await loadedTestAvatar("AvatarSample_A_1_New", DIGEST);
+    const avatar = await loadedTestAvatar("Annie", DIGEST);
     const correction: AvatarFacePartCorrections = {
       schema: AVATAR_FACE_PARTS_SCHEMA,
       vrm_sha256: DIGEST,
@@ -162,7 +162,7 @@ describe("Avatar diagnostics", () => {
   });
 
   it("report a failed part detection and what it leaves unavailable", async () => {
-    const avatar = await loadedTestAvatar("AvatarSample_A_1_New", DIGEST);
+    const avatar = await loadedTestAvatar("Annie", DIGEST);
     detection.fail = true;
     await avatar.setFacePartCorrections(null);
     const diagnostics = avatar.getDiagnostics()!;

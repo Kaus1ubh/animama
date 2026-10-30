@@ -149,7 +149,7 @@ describe("adaptRuntimeSnapshot", () => {
             file_ref: "included-avatar-vrm",
             role: "vrm",
             ordinal: 1,
-            filename: "AvatarSample_A_1_New.vrm",
+            filename: "Annie.vrm",
             media_type: "model/gltf-binary",
             size_bytes: 100,
             sha256: "a".repeat(64),
@@ -171,7 +171,7 @@ describe("adaptRuntimeSnapshot", () => {
       files: [
         {
           role: "vrm",
-          filename: "AvatarSample_A_1_New.vrm",
+          filename: "Annie.vrm",
           url: "/v1/content/files/included-avatar-vrm",
         },
       ],

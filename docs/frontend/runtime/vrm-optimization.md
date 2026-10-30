@@ -91,7 +91,7 @@ shipping it. It accepts sparse and all-zero morph targets only within its bounds
 Each shipped file is its source run through the default command with its
 owner metadata from `src/frontend/web/scripts/vrm-optimize/included-meta/`:
 
-- **`AvatarSample_A_1_New.vrm` (Annie):** the source is the file at commit
+- **`Annie.vrm` (Annie):** the source is the file at commit
   `0a9b3549`.
 - **`Andrew.vrm`:** the source is the owner's export, committed unoptimized in
   `faa29944`.

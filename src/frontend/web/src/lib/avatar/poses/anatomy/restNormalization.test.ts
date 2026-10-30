@@ -161,11 +161,7 @@ describe("hand rest normalization", () => {
       installRestNormalization(rotatedHandRig(new THREE.Quaternion()))
         .normalization,
     ).toBeNull();
-    for (const id of [
-      "AvatarSample_A_1_New",
-      "Andrew",
-      "AvatarSample_Y_0",
-    ] as const) {
+    for (const id of ["Annie", "Andrew", "AvatarSample_Y_0"] as const) {
       const { vrm } = await loadTestAvatarWithGltf(id);
       const update = vrm.humanoid.update;
       expect(

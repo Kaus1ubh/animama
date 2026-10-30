@@ -43,7 +43,7 @@ describe("SpringBonePhysicsController ambient forces", () => {
 
   it("keeps the authored gravity when ambient forces are off", async () => {
     // Annie authors gravity on some joints (up to 0.25) and none on others.
-    const { vrm, gltf, joints, before } = await avatar("AvatarSample_A_1_New");
+    const { vrm, gltf, joints, before } = await avatar("Annie");
     expect(before.some(({ gravityPower }) => gravityPower > 0)).toBe(true);
     const controller = new SpringBonePhysicsController(vrm, {
       sourceGltf: gltf,

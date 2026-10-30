@@ -740,7 +740,14 @@ class AnimaRuntimeService:
         if "avatar" not in occupied:
             anima = await self.session.get(ORMAnima, anima_id)
             avatar_row = await self.session.get(ORMAvatar, anima.avatar_id) if anima and anima.avatar_id else None
-            avatar_item = by_locator.get(f"avatars/{PurePosixPath(avatar_row.file_path).name}") if avatar_row else None
+            # A registered row resolves by catalog identity, which survives a
+            # renamed model file; only an unregistered legacy row uses its path.
+            avatar_item = (
+                (by_id.get(avatar_row.catalog_item_id) if avatar_row.catalog_item_id else None)
+                or by_locator.get(f"avatars/{PurePosixPath(avatar_row.file_path).name}")
+                if avatar_row
+                else None
+            )
             add(
                 "avatar",
                 avatar_item,

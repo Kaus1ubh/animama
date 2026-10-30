@@ -225,7 +225,7 @@ def test_typed_media_moved_but_browser_engine_assets_remained_public(tmp_path: P
     public = ROOT / "src/frontend/web/public"
 
     included = copy_tracked_included(tmp_path / "included")
-    assert (included / "avatars/AvatarSample_A_1_New.vrm").is_file()
+    assert (included / "avatars/Annie.vrm").is_file()
     assert not (included / "gestures/wave/wave.vrma").exists()
     assert not (included / "gestures/wave/wave.meta.json").exists()
     assert (ROOT / "scripts/mixamo-assets.json").is_file()

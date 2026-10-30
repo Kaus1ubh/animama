@@ -120,7 +120,7 @@ test("check results become pass, warn and fail lines", () => {
           [50, 0],
           [80, 3],
         ]),
-        avatar("AvatarSample_A_1_New", [
+        avatar("Annie", [
           [0, 0],
           [40, 0],
         ]),
@@ -153,7 +153,7 @@ test("check results become pass, warn and fail lines", () => {
       parseError: null,
       avatars: [
         avatar("Andrew", [[2]], { warnings: ["No eye_iris part"] }),
-        avatar("AvatarSample_A_1_New", [[0]], {
+        avatar("Annie", [[0]], {
           applied: false,
           activeEffectIds: [],
         }),
@@ -168,7 +168,7 @@ test("check results become pass, warn and fail lines", () => {
     [
       "FAIL Andrew: No eye_iris part",
       "FAIL Andrew: no visible art (at most 2 px changed; 10 needed; if it appears later, try --times)",
-      "FAIL A_1_New: the effect is not active",
+      "FAIL Annie: the effect is not active",
     ],
   );
   // Clip poses missing from the catalog are reported once per effect.
@@ -179,7 +179,7 @@ test("check results become pass, warn and fail lines", () => {
         parseError: null,
         avatars: [
           avatar("Andrew", [[50]], { missingPoseRefs: ["salute"] }),
-          avatar("AvatarSample_A_1_New", [[50]], {
+          avatar("Annie", [[50]], {
             missingPoseRefs: ["salute"],
           }),
         ],
@@ -190,7 +190,7 @@ test("check results become pass, warn and fail lines", () => {
     }).map((line) => `${line.level} ${line.message}`),
     [
       "PASS Andrew: visible in 1 of 1 frames, up to 50 px (front, 1s)",
-      "PASS A_1_New: visible in 1 of 1 frames, up to 50 px (front, 1s)",
+      "PASS Annie: visible in 1 of 1 frames, up to 50 px (front, 1s)",
       "WARN clip poses not in the app catalog rendered as the base pose: salute",
     ],
   );
