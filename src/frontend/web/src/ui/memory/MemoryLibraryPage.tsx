@@ -73,6 +73,10 @@ import {
   type MemoryWorkspaceTreeNode,
 } from "@/lib/memory-entries/workspace-tree";
 import { cn } from "@/lib/utils";
+import {
+  AUTOMATIC_EPISODE_PROCESSING_POLL_MS,
+  useAutomaticEpisodeProcessing,
+} from "@/query/hooks/useAutomaticEpisodeProcessing";
 import { useMemoryEpisodes } from "@/query/hooks/useMemoryEpisodes";
 import {
   useAnimaIdentities,
@@ -266,6 +270,11 @@ export function MemoryLibraryPage({
 
   const pendingEpisodes = useMemoryEpisodes({ status: "pending", limit: 100 });
   const pendingEpisodeCount = pendingEpisodes.data?.items?.length ?? 0;
+  // Watch automatic processing so the pending count and files refresh when a
+  // run finishes while this page is open.
+  useAutomaticEpisodeProcessing({
+    refetchInterval: AUTOMATIC_EPISODE_PROCESSING_POLL_MS,
+  });
   const patchEntry = usePatchMemoryEntry();
   const moveEntry = useMoveMemoryEntry();
   const deleteEntry = useDeleteMemoryEntry();

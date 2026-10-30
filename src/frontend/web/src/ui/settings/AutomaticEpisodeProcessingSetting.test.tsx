@@ -106,6 +106,59 @@ describe("automatic episode processing in the UI", () => {
     expect(container?.textContent).toBe("10");
   });
 
+  it("refreshes cached memory once an automatic run finishes", async () => {
+    const episodesKey = queryKeys.memoryEpisodes.list("owner", {
+      status: "pending",
+      limit: 100,
+    });
+    const entriesKey = queryKeys.memoryEntries.all("owner");
+    client.setQueryData(episodesKey, { items: [] });
+    client.setQueryData(entriesKey, { items: [] });
+    mocks.status = {
+      ...WAITING_STATUS,
+      state: "running",
+      pending_count: 12,
+      batch_size: 12,
+    };
+    await render(<StatusProbe />);
+    expect(client.getQueryState(episodesKey)?.isInvalidated).toBe(false);
+
+    // Another poll while the run continues leaves the memory caches alone.
+    await act(async () => {
+      await client.refetchQueries({
+        queryKey: queryKeys.automaticEpisodeProcessing("owner"),
+      });
+    });
+    expect(client.getQueryState(episodesKey)?.isInvalidated).toBe(false);
+
+    mocks.status = { ...WAITING_STATUS, pending_count: 0 };
+    await act(async () => {
+      await client.refetchQueries({
+        queryKey: queryKeys.automaticEpisodeProcessing("owner"),
+      });
+    });
+
+    expect(client.getQueryState(episodesKey)?.isInvalidated).toBe(true);
+    expect(client.getQueryState(entriesKey)?.isInvalidated).toBe(true);
+  });
+
+  it("refreshes cached episodes when fewer notes are pending", async () => {
+    const episodesKey = queryKeys.memoryEpisodes.all("owner");
+    client.setQueryData(episodesKey, { items: [] });
+    mocks.status = { ...WAITING_STATUS, state: "ready", pending_count: 10 };
+    await render(<StatusProbe />);
+
+    // A whole run can start and finish between two polls.
+    mocks.status = { ...WAITING_STATUS, pending_count: 0 };
+    await act(async () => {
+      await client.refetchQueries({
+        queryKey: queryKeys.automaticEpisodeProcessing("owner"),
+      });
+    });
+
+    expect(client.getQueryState(episodesKey)?.isInvalidated).toBe(true);
+  });
+
   it("stores a new threshold and caches the returned status", async () => {
     const probe: {
       update?: ReturnType<typeof useUpdateAutomaticEpisodeProcessing>;
