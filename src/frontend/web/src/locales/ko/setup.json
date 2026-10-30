@@ -102,6 +102,7 @@
       "download": "다운로드",
       "downloaded": "다운로드됨",
       "downloading": "다운로드 중 {{percent}}",
+      "finishWhileDownloading": "다운로드 중에도 설정을 완료할 수 있습니다. 다운로드는 백그라운드에서 계속됩니다.",
       "gpu": {
         "description": "더 빠르고, 말하는 동안 실시간 미리보기를 표시합니다. CPU 버전과 WebGPU를 지원하는 GPU가 필요합니다.",
         "label": "{{model}} (GPU)",

@@ -102,6 +102,7 @@
       "download": "下载",
       "downloaded": "已下载",
       "downloading": "正在下载 {{percent}}",
+      "finishWhileDownloading": "下载期间也可以完成设置，下载会在后台继续进行。",
       "gpu": {
         "description": "速度更快，说话时可实时预览。需要 CPU 版本和支持 WebGPU 的 GPU。",
         "label": "{{model}}（GPU）",

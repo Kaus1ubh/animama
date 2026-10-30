@@ -50,6 +50,8 @@ const fixture = vi.hoisted(() => ({
   desktopKeys: true,
   localModels: true,
   deepseekHuggingface: true,
+  /** The offline speech set shown as downloading, if any. */
+  downloadingAsset: null as string | null,
 }));
 vi.mock("@/platform/env", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/platform/env")>();
@@ -112,7 +114,7 @@ vi.mock("@/query/hooks/useModelConfiguration", () => {
 vi.mock("@/ui/settings/OfflineSpeechDownloads", () => {
   const asset = (id: string, size: number) => ({
     id,
-    status: "not_installed",
+    status: fixture.downloadingAsset === id ? "downloading" : "not_installed",
     size_bytes: size,
     required_free_bytes: size,
   });
@@ -308,10 +310,16 @@ describe("local first-run setup", () => {
     expect(html).toMatch(
       /<li aria-current="step"[^>]*>AI<span[^>]*>\(optional\)<\/span><\/li>/u,
     );
-    // Cloud carries the Recommended tag; the step no longer lists models.
-    expect(html).toMatch(
-      /role="tab"[^>]*><span[^>]*>Cloud<span[^>]*>Recommended<\/span>/u,
-    );
+    // OpenAI and Anthropic carry the Recommended tag, not a location; the
+    // step no longer lists models.
+    expect(html).toMatch(/role="tab"[^>]*><span[^>]*>Cloud<\/span>/u);
+    for (const provider of ["OpenAI", "Anthropic"])
+      expect(html).toMatch(
+        new RegExp(
+          `role="tab"[^>]*><span[^>]*>${provider}<span[^>]*>Recommended</span>`,
+          "u",
+        ),
+      );
     expect(html).toMatch(/role="tab"[^>]*><span[^>]*>Local</u);
     expect(html).not.toContain("Model for new Animas");
     expect(html).not.toContain("App Settings → Models");
@@ -330,7 +338,7 @@ describe("local first-run setup", () => {
     expect(html).not.toContain("Save your Anthropic key");
     // OpenAI (key set) opens first and is marked connected.
     expect(html).toMatch(
-      /role="tab" aria-selected="true"[^>]*><span[^>]*>OpenAI<span aria-hidden="true"[^>]*><\/span><span class="sr-only"> \(connected\)/u,
+      /role="tab" aria-selected="true"[^>]*><span[^>]*>OpenAI<span[^>]*>Recommended<\/span><span aria-hidden="true"[^>]*><\/span><span class="sr-only"> \(connected\)/u,
     );
     expect(html).toMatch(/<button[^>]*>Back<\/button>/u);
     expect(html).toMatch(/<button[^>]*>Skip for now<\/button>/u);
@@ -351,11 +359,11 @@ describe("local first-run setup", () => {
     });
     // Anthropic (key set) is the first connected provider, so it opens first.
     expect(html).toMatch(
-      /role="tab" aria-selected="true"[^>]*><span[^>]*>Anthropic<span aria-hidden="true"[^>]*><\/span><span class="sr-only"> \(connected\)/u,
+      /role="tab" aria-selected="true"[^>]*><span[^>]*>Anthropic<span[^>]*>Recommended<\/span><span aria-hidden="true"[^>]*><\/span><span class="sr-only"> \(connected\)/u,
     );
     expect(html).toMatch(/<h3[^>]*>Anthropic<\/h3>/u);
-    // Only the Cloud location is recommended; no provider panel is.
-    expect(html.match(/Recommended/gu)).toHaveLength(1);
+    // Only the OpenAI and Anthropic tabs are tagged; no panel is.
+    expect(html.match(/Recommended/gu)).toHaveLength(2);
   });
 
   it("offers only Cloud providers while local models are behind their flag", () => {
@@ -422,6 +430,21 @@ describe("local first-run setup", () => {
         isError: false,
         data: { model_configuration: true },
       };
+    }
+  });
+
+  it("says setup can finish while a speech set downloads", () => {
+    const step = { ...welcomeDone, step: "voice" as const };
+    expect(renderSetup(step)).not.toContain(
+      "You can finish setup while this downloads.",
+    );
+    fixture.downloadingAsset = "sensevoice-stt";
+    try {
+      expect(renderSetup(step)).toContain(
+        "You can finish setup while this downloads.",
+      );
+    } finally {
+      fixture.downloadingAsset = null;
     }
   });
 
