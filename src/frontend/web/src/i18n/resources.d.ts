@@ -1863,13 +1863,9 @@ export default interface Resources {
         "view": "View diagnostics"
       },
       "discardUpload": "Discard unsaved upload",
-      "emptyIncluded": "No Included Avatars are available. You can use My Content or upload a VRM.",
-      "emptyLocal": "No Avatars in My Content yet. Upload a VRM to add one.",
+      "empty": "No Avatars are available yet. Upload a VRM to add one.",
       "fileInput": "Choose a VRM file",
-      "groupLabel": {
-        "included": "Included Avatars",
-        "local": "My Content Avatars"
-      },
+      "groupLabel": "Avatars",
       "inUse": "This Avatar is used by a live Anima. Keep it intact and save your upload under a new name.",
       "label": "Avatar selection",
       "loadFailed": "Avatars could not be loaded. Your selection is preserved.",
@@ -2197,6 +2193,7 @@ export default interface Resources {
       "chooseAnother": "This saved voice is unavailable. Choose another voice.",
       "cloneUnavailable": "This saved voice is unavailable. Refresh the library.",
       "elevenLabsId": "ElevenLabs voice ID",
+      "elevenLabsLibrary": "Find a voice in the <link>ElevenLabs Voice Library</link>, add it to My Voices, then paste its voice ID here.",
       "elevenLabsPlaceholder": "Enter voice ID",
       "label": "Voice configuration",
       "loadFailed": "Saved voices could not be loaded.",
@@ -2208,6 +2205,8 @@ export default interface Resources {
         "pocketTts": "PocketTTS"
       },
       "retry": "Retry saved voices",
+      "reuseVoice": "Use another Anima's voice",
+      "reuseVoiceOption": "{{names}} · {{id}}",
       "savedVoiceUnavailable": "Saved voice unavailable"
     }
   },
@@ -6636,6 +6635,7 @@ export default interface Resources {
           "parakeet": "<link>NVIDIA's Parakeet TDT 0.6B v2</link> transcribes English speech on this device, so your voice never leaves it.",
           "sensevoice": "<link>Alibaba's SenseVoice-Small</link> transcribes Japanese, Korean, Chinese and English speech on this device, so your voice never leaves it."
         },
+        "finishWhileDownloading": "You can finish setup while this downloads. It keeps going in the background.",
         "gpu": {
           "description": "Faster, with live previews as you speak. Needs the CPU version and a WebGPU-capable GPU.",
           "label": "{{model}} (GPU)",
