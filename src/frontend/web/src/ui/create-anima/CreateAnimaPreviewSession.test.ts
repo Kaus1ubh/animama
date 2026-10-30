@@ -1,7 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Avatar } from "@/lib/avatar";
 import type { PyTypedContentPreview } from "@animama/runtime-contracts/sdk";
-import { CreateAnimaPreviewSession } from "./CreateAnimaPreviewSession";
+import {
+  CreateAnimaPreviewSession,
+  PREVIEW_SETTLE_LIMIT_SEC,
+} from "./CreateAnimaPreviewSession";
 
 const mock = vi.hoisted(() => ({
   prepare: vi.fn(),
@@ -64,6 +67,9 @@ function avatar() {
     clearDebugReactionClip: vi.fn(),
     setAutomaticAnimationPlaybackEnabled: vi.fn(),
     update: vi.fn(),
+    isMotionActive: vi.fn(() => false),
+    isClipActive: vi.fn(() => false),
+    stopClip: vi.fn(),
   } as unknown as Avatar;
 }
 const preview = {
@@ -103,6 +109,31 @@ describe("creator-owned preview lifecycle", () => {
     expect(session.avatar).toBeNull();
     session.dispose();
   });
+  it("keeps playing past the timeline until the Avatar settles", async () => {
+    const finished = vi.fn();
+    mock.prepare.mockResolvedValue({ files: new Map(), dispose: vi.fn() });
+    const session = new CreateAnimaPreviewSession(vi.fn(), vi.fn(), finished);
+    const model = avatar();
+    session.bind(model);
+    await session.play(async () => preview);
+    // The 0.1 s timeline has ended; the fade-out and effects still play.
+    vi.mocked(model.isMotionActive).mockReturnValue(true);
+    for (let frame = 0; frame < 10; frame++) session.tick(0.05);
+    expect(finished).not.toHaveBeenCalled();
+    expect(model.update).toHaveBeenCalledTimes(10);
+    vi.mocked(model.isMotionActive).mockReturnValue(false);
+    session.tick(0.05);
+    expect(finished).toHaveBeenCalledTimes(1);
+
+    // A motion that never settles still stops after the settle limit.
+    await session.play(async () => preview);
+    vi.mocked(model.isMotionActive).mockReturnValue(true);
+    const frames = Math.ceil((0.1 + PREVIEW_SETTLE_LIMIT_SEC) / 0.05) + 1;
+    for (let frame = 0; frame < frames; frame++) session.tick(0.05);
+    expect(finished).toHaveBeenCalledTimes(2);
+    session.dispose();
+  });
+
   it("aborts in-flight preparation and ignores a late source after Stop", async () => {
     const status = vi.fn();
     const session = new CreateAnimaPreviewSession(status, vi.fn(), vi.fn());
