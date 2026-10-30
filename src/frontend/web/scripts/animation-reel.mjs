@@ -1170,6 +1170,10 @@ export async function recordReel({
                 talk,
                 maxSec,
               });
+              // A take of fixed length has exactly that many seconds of frames.
+              const frameLimit = item.duration
+                ? Math.max(1, Math.round(item.duration * fps))
+                : Infinity;
               for (let frame = 0; ; frame += 1) {
                 const state = await page.evaluate(
                   (time) => window.reelFrame(time),
@@ -1191,7 +1195,7 @@ export async function recordReel({
                 result.warnings = [
                   ...new Set([...result.warnings, ...state.warnings]),
                 ];
-                if (state.done) break;
+                if (state.done || frame + 1 >= frameLimit) break;
                 if (state.timedOut) {
                   result.warnings.push(
                     `still active ${maxSec} s after starting; cut`,
