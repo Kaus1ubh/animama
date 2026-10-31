@@ -1,8 +1,10 @@
 import type { Avatar, ProceduralSpeechTimingContext } from "@/lib/avatar";
 import type { AvatarUpdateOptions } from "@/lib/avatar/Avatar";
+import type { LipSyncShaping } from "@/lib/avatar/ExpressionController";
 import {
   buildEmotionRuntimeState,
   createEmptyEmotionStateMap,
+  type EmotionRuntimeState,
 } from "@/lib/emotion";
 import { analyseSpeechAudio } from "@/lib/lipsync/audio/features";
 import { base64ToBytes } from "@/lib/lipsync/base64";
@@ -42,6 +44,12 @@ export type ReelSpeechRequest = {
    * `character_start_times_seconds` and `character_end_times_seconds`.
    */
   alignment: unknown;
+  /** How the mouth is shaped: viseme presets or ARKit mouth mixes. */
+  shaping: LipSyncShaping;
+  /** Seconds the mouth moves ahead of the sound. */
+  lead: number;
+  /** Scale on the mouth's openness (capped at fully open). */
+  gain: number;
 };
 
 const RUN_ID = "reel-speech";
@@ -49,13 +57,18 @@ const RUN_ID = "reel-speech";
 const TAG_OVERLAY_OWNER = "lipsync-tags";
 
 /** Neutral feelings: the planner then adds no emotion face or posture. */
-const NEUTRAL = buildEmotionRuntimeState(createEmptyEmotionStateMap());
+export const NEUTRAL_FEELINGS = buildEmotionRuntimeState(
+  createEmptyEmotionStateMap(),
+);
 
 export class ReelSpeech {
   readonly at: number;
   readonly durationSec: number;
   /** Why part of the mouth follows the audio alone, or null. */
   readonly fallback: LipSyncPlan["fallback"];
+  readonly shaping: LipSyncShaping;
+  private readonly lead: number;
+  private readonly gain: number;
   private readonly plan: LipSyncPlan;
   private readonly timeline: SpeechGestureTimeline;
   private readonly chunks: TtsChunkRecord[];
@@ -76,6 +89,9 @@ export class ReelSpeech {
       );
     const text = request.text ?? timing.map(({ char }) => char).join("");
     this.at = request.at;
+    this.shaping = request.shaping;
+    this.lead = request.lead;
+    this.gain = request.gain;
     this.durationSec = pcm.length / request.sampleRate;
     this.plan = createLipSyncPlanner({ text }).plan({
       features: analyseSpeechAudio(pcm, request.sampleRate),
@@ -97,16 +113,35 @@ export class ReelSpeech {
 
   /**
    * Queue the take's mouth frames on `avatar`, with its audio starting at
-   * take time `at` on `clock` (the session's frame clock).
+   * take time `at` on `clock` (the session's frame clock), the mouth `lead`
+   * seconds ahead of it and opened `gain` times as wide.
+   *
+   * @returns The mouth shaping in effect: ARKit falls back to visemes on an
+   *   Avatar without every shape its mixes use.
    */
-  attach(avatar: Avatar, clock: { readonly currentTime: number }): void {
+  attach(
+    avatar: Avatar,
+    clock: { readonly currentTime: number },
+  ): LipSyncShaping {
     const segment = plannedSegment(RUN_ID, this.plan.track.frames);
     avatar.clearLipSync();
+    const shaping = avatar.setLipSyncShaping(this.shaping);
     // The lip-sync player only reads `currentTime`.
     avatar.setAudioContext(clock as AudioContext);
     avatar.initLipSyncSegment(segment.meta);
-    for (const frame of segment.frames) avatar.registerLipSyncFrame(frame);
-    avatar.onSegmentAudioStarted(segment.segmentId, this.at);
+    for (const frame of segment.frames)
+      avatar.registerLipSyncFrame(
+        this.gain === 1
+          ? frame
+          : {
+              ...frame,
+              values: frame.values.map((value) =>
+                Math.min(1, value * this.gain),
+              ),
+            },
+      );
+    avatar.onSegmentAudioStarted(segment.segmentId, this.at - this.lead);
+    return shaping;
   }
 
   /** Whether the take is sounding at take time `time`. */
@@ -115,17 +150,22 @@ export class ReelSpeech {
   }
 
   /**
-   * Chat's per-frame speech inputs at take time `time`: the planner's
-   * talking state while the take sounds (so talking hands may play),
+   * Chat's per-frame speech inputs at take time `time`: the feelings chat
+   * would report then, the planner's talking state while the take sounds
+   * (so talking hands may play),
    * talking hands on while no Gesture plays (chat's Gestures take over from
    * them), the take's tag expressions, and the speech timing talking hands
    * schedule beats from.
    */
-  frame(avatar: Avatar, time: number): AvatarUpdateOptions {
+  frame(
+    avatar: Avatar,
+    time: number,
+    feelings: EmotionRuntimeState = NEUTRAL_FEELINGS,
+  ): AvatarUpdateOptions {
     const speaking = this.speaking(time);
     avatar.updateState(
       {
-        emotionalState: NEUTRAL,
+        emotionalState: feelings,
         signals: { interactionPhase: speaking ? "talking" : "idle" },
       },
       { nowMs: time * 1000, activeRunId: speaking ? RUN_ID : null },

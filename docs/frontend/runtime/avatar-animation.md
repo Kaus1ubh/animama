@@ -810,7 +810,12 @@ from `src/frontend/web`:
     (or alignment). The app's lip-sync planner plans the whole take at once,
     and the take drives the mouth, tag expressions, speech gesture timeline
     and talking hands as chat does, with talking hands off while a Gesture
-    plays. A take can set its own `avatar`, `camera` and `duration`.
+    plays. `shaping` picks viseme presets or ARKit mouth mixes, `gain`
+    widens the mouth and `lead` moves it ahead of the sound (the planned
+    mouth peaks about a frame after the audio). `face` cues add expression
+    weights over the face for a window, ramping in and out, and `mood` cues
+    set the feelings chat would report, which drive the emotion face and
+    posture. A take can set its own `avatar`, `camera` and `duration`.
   - `--avatar-file <file.vrm>` reads a local VRM in place (lilToon included);
     keep third-party Avatars and their reels out of the repository.
   - `--camera pip` frames the desktop PiP window's default preset (record at

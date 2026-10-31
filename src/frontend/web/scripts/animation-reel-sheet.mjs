@@ -42,7 +42,20 @@ import {
  * character timing (`with-timestamps`): `alignment` names the JSON response
  * (its `alignment`) or the alignment itself, `audio` the audio file (or the
  * response's `audio_base64` is used), `text` the text sent, tags included
- * (default: the alignment's characters). Paths are relative to the sheet.
+ * (default: the alignment's characters), `shaping` how the mouth is shaped
+ * (`visemes`, the default, or `arkit` mouth mixes on an Avatar with ARKit
+ * shapes, as the debug modal's switch), `lead` how many seconds the mouth
+ * moves ahead of the sound and `gain` a scale on its openness (default 1). Paths are relative to the sheet.
+ *
+ * Two more cue kinds direct her face while she speaks. A face cue,
+ * `{ "face": { "happy": 0.5, "browInnerUp": 0.3 }, "at": 2, "until": 4,
+ * "fade": 0.25 }`, adds expression weights (Avatar expressions or ARKit
+ * shapes) over the face from `at` to `until`, ramping in and out over `fade`
+ * seconds (default 0.2); overlapping face cues add up. A mood cue,
+ * `{ "mood": { "joy": 18 }, "at": 2, "until": 9 }`, sets the feelings chat
+ * would report (tracked emotions, 0 to 30) for the Avatar's emotion face and
+ * posture; feelings are neutral outside mood cues. Mood cues need speech,
+ * which feeds the Avatar's state.
  */
 
 const TAKE_KEYS = new Set([
@@ -63,7 +76,23 @@ const GESTURE_KEYS = new Set([
   "until",
 ]);
 const REACTION_KEYS = new Set(["reaction", "at", "until"]);
-const SPEECH_KEYS = new Set(["audio", "alignment", "text", "at", "volume"]);
+const FACE_KEYS = new Set(["face", "at", "until", "fade"]);
+const MOOD_KEYS = new Set(["mood", "at", "until"]);
+const SPEECH_KEYS = new Set([
+  "audio",
+  "alignment",
+  "text",
+  "at",
+  "volume",
+  "shaping",
+  "lead",
+  "gain",
+]);
+const SHAPINGS = new Set(["visemes", "arkit"]);
+/** Default ramp (s) of a face cue. */
+const FACE_FADE_SEC = 0.2;
+/** Highest feeling a mood cue can set (`EMOTION_MAX_VALUE`). */
+const MOOD_MAX = 30;
 /** A landing-style framing's fields (`landing-stage/stops.ts` StageCamera). */
 const CAMERA_KEYS = new Set([
   "yaw",
@@ -132,13 +161,23 @@ export function parseCueSheet(sheet, { dir, name = "sheet" }) {
       fail(where, "cues must be a list of Gestures and Reactions.");
     if (!take.cues?.length && take.speech === undefined)
       fail(where, "give at least one cue or speech.");
-    const cues = (take.cues ?? []).map((cue, cueIndex) => {
+    const faces = [];
+    const moods = [];
+    const cues = (take.cues ?? []).flatMap((cue, cueIndex) => {
       const at = `${where} cue ${cueIndex + 1}`;
       if (!isRecord(cue)) fail(at, "a cue is an object.");
+      if ("face" in cue) {
+        faces.push(parseFace(cue, at));
+        return [];
+      }
+      if ("mood" in cue) {
+        moods.push(parseMood(cue, at));
+        return [];
+      }
       const kind =
         "gesture" in cue ? "gesture" : "reaction" in cue ? "reaction" : null;
       if (!kind || ("gesture" in cue && "reaction" in cue))
-        fail(at, 'name one "gesture" or "reaction".');
+        fail(at, 'name one "gesture", "reaction", "face" or "mood".');
       checkKeys(cue, kind === "gesture" ? GESTURE_KEYS : REACTION_KEYS, at);
       if (typeof cue[kind] !== "string" || !cue[kind])
         fail(at, `${kind} must name a source.`);
@@ -150,17 +189,21 @@ export function parseCueSheet(sheet, { dir, name = "sheet" }) {
         fail(at, "beat must be a beat id.");
       if (cue.beat !== undefined && cue.from !== undefined)
         fail(at, "give from or beat and beatAt, not both.");
-      return {
-        kind,
-        spec: cue[kind],
-        at: seconds(cue.at, at, "at"),
-        from: cue.from ?? null,
-        beat: cue.beat ?? null,
-        beatAt: seconds(cue.beatAt, at, "beatAt"),
-        until: seconds(cue.until, at, "until"),
-        where: at,
-      };
+      return [
+        {
+          kind,
+          spec: cue[kind],
+          at: seconds(cue.at, at, "at"),
+          from: cue.from ?? null,
+          beat: cue.beat ?? null,
+          beatAt: seconds(cue.beatAt, at, "beatAt"),
+          until: seconds(cue.until, at, "until"),
+          where: at,
+        },
+      ];
     });
+    if (moods.length && take.speech === undefined)
+      fail(where, "mood cues need speech, which feeds the Avatar's state.");
     let speech = null;
     if (take.speech !== undefined) {
       const at = `${where} speech`;
@@ -168,6 +211,11 @@ export function parseCueSheet(sheet, { dir, name = "sheet" }) {
       checkKeys(take.speech, SPEECH_KEYS, at);
       if (typeof take.speech.alignment !== "string")
         fail(at, "alignment must name the timing JSON file.");
+      if (
+        take.speech.shaping !== undefined &&
+        !SHAPINGS.has(take.speech.shaping)
+      )
+        fail(at, `shaping must be ${[...SHAPINGS].join(" or ")}.`);
       for (const key of ["audio", "text"])
         if (
           take.speech[key] !== undefined &&
@@ -183,6 +231,9 @@ export function parseCueSheet(sheet, { dir, name = "sheet" }) {
             : path.resolve(dir, take.speech.audio),
         text: take.speech.text ?? null,
         volume: seconds(take.speech.volume, at, "volume", "a number") ?? 1,
+        shaping: take.speech.shaping ?? "visemes",
+        lead: seconds(take.speech.lead, at, "lead") ?? 0,
+        gain: seconds(take.speech.gain, at, "gain", "a number") ?? 1,
         where: at,
       };
     }
@@ -193,10 +244,48 @@ export function parseCueSheet(sheet, { dir, name = "sheet" }) {
       camera: take.camera ?? null,
       duration,
       cues,
+      faces,
+      moods,
       speech,
       where,
     };
   });
+}
+
+/** A cue's `at` and `until`, both required, `until` the later. */
+function cueWindow(cue, where) {
+  const at = seconds(cue.at, where, "at");
+  const until = seconds(cue.until, where, "until");
+  if (at === null || until === null) fail(where, "give at and until.");
+  if (until <= at)
+    fail(where, `until (${until} s) must be later than at (${at} s).`);
+  return { at, until };
+}
+
+/** A face cue: expression weights (0 to 1) over a window, with its ramp. */
+function parseFace(cue, where) {
+  checkKeys(cue, FACE_KEYS, where);
+  if (!isRecord(cue.face) || Object.keys(cue.face).length === 0)
+    fail(where, "face maps expression names to weights.");
+  for (const [name, weight] of Object.entries(cue.face))
+    if (typeof weight !== "number" || !(weight >= 0 && weight <= 1))
+      fail(where, `face weight ${name} must be a number from 0 to 1.`);
+  return {
+    ...cueWindow(cue, where),
+    fade: seconds(cue.fade, where, "fade") ?? FACE_FADE_SEC,
+    weights: { ...cue.face },
+  };
+}
+
+/** A mood cue: tracked emotions (0 to 30) over a window. */
+function parseMood(cue, where) {
+  checkKeys(cue, MOOD_KEYS, where);
+  if (!isRecord(cue.mood) || Object.keys(cue.mood).length === 0)
+    fail(where, "mood maps tracked emotions to values.");
+  for (const [name, value] of Object.entries(cue.mood))
+    if (typeof value !== "number" || !(value >= 0 && value <= MOOD_MAX))
+      fail(where, `mood ${name} must be a number from 0 to ${MOOD_MAX}.`);
+  return { ...cueWindow(cue, where), values: { ...cue.mood } };
 }
 
 /** A clip's beat times by id. */
@@ -499,6 +588,9 @@ export async function listSheetItems(file, { localContent = null } = {}) {
         alignment,
         text: take.speech.text,
         volume: take.speech.volume,
+        shaping: take.speech.shaping,
+        lead: take.speech.lead,
+        gain: take.speech.gain,
       };
     }
     items.push({
@@ -515,6 +607,8 @@ export async function listSheetItems(file, { localContent = null } = {}) {
         : null,
       camera: take.camera,
       duration: take.duration,
+      faces: take.faces,
+      moods: take.moods,
       speech,
     });
   }

@@ -3,6 +3,12 @@ import * as THREE from "three";
 import type { Avatar } from "@/lib/avatar";
 import { parseAnimaPoseClip } from "@/lib/avatar/poses/animaPoseClip";
 import {
+  buildEmotionRuntimeState,
+  createEmptyEmotionStateMap,
+  isTrackedEmotion,
+  type EmotionRuntimeState,
+} from "@/lib/emotion";
+import {
   DEFAULT_PIP_SCENE_CAMERA_PRESET,
   isSceneCameraPreset,
 } from "@/ui/main/canvas/sceneCameraPresets";
@@ -25,7 +31,7 @@ import {
   createStage,
   type Framing,
 } from "../effect-render/stage";
-import { ReelSpeech, type ReelSpeechRequest } from "./speech";
+import { NEUTRAL_FEELINGS, ReelSpeech, type ReelSpeechRequest } from "./speech";
 
 /**
  * Action reel page (driven by `scripts/animation-reel.mjs`): plays one take
@@ -42,7 +48,8 @@ import { ReelSpeech, type ReelSpeechRequest } from "./speech";
  * speaks, once the speech ends, as chat stops it when the reply ends, unless
  * the cue says when to stop. A take may also speak a
  * recorded voice take (`./speech.ts`): lip-sync, tag expressions and talking
- * hands as chat drives them. Frames advance in fixed 60 Hz steps, so a reel
+ * hands as chat drives them, with the feelings its mood cues set. Face cues
+ * add expression weights over the face, ramping in and out. Frames advance in fixed 60 Hz steps, so a reel
  * is the same on every run whatever the capture speed. Sounds are not played
  * here: each one a clip event plays is reported with its time, and Node
  * mixes them (and the voice) into the video's audio. An optional label panel
@@ -92,6 +99,18 @@ type ReelCue = {
   clip: unknown;
 };
 
+/** Expression weights added over the face from `at` to `until`. */
+type ReelFace = {
+  at: number;
+  until: number;
+  /** Seconds it ramps in from `at` and out from `until`. */
+  fade: number;
+  weights: Record<string, number>;
+};
+
+/** The feelings chat would report from `at` to `until` (0 to 30 each). */
+type ReelMood = { at: number; until: number; values: Record<string, number> };
+
 /**
  * A camera: a chat preset, `pip` (the desktop PiP window's default preset),
  * `landing` / `landing:<stop>` (a landing page stop's framing; `landing` is
@@ -105,6 +124,8 @@ type ReelItemRequest = {
   size: { width: number; height: number };
   camera: ReelCamera;
   cues: ReelCue[];
+  faces: ReelFace[];
+  moods: ReelMood[];
   /** The effects the cues' events play, by (take-unique) alias. */
   clipMedia: PageClipMedia | null;
   /** The corner label, or null for none. */
@@ -377,6 +398,10 @@ let item: {
   gesture: CueState | null;
   reaction: CueState | null;
   speech: ReelSpeech | null;
+  /** The mood cues' feelings, in cue order. */
+  moods: { at: number; until: number; feelings: EmotionRuntimeState }[];
+  /** Whether the face cues' overlay is set. */
+  faceShown: boolean;
   /** Take time of the first cue: `maxSec` counts from it. */
   firstAt: number;
   /** Session time since which everything has been idle, or null. */
@@ -530,6 +555,42 @@ function landingView(avatar: Avatar, view: StageCamera) {
   };
 }
 
+/** The expression overlay owner face cues use. */
+const FACE_OVERLAY_OWNER = "reel-face";
+
+/** The face cues' summed weights at take time `time`. */
+function faceWeights(
+  faces: readonly ReelFace[],
+  time: number,
+): Record<string, number> {
+  const weights: Record<string, number> = {};
+  for (const face of faces) {
+    if (time < face.at || time > face.until + face.fade) continue;
+    const ramp = (t: number) =>
+      face.fade > 0 ? THREE.MathUtils.smoothstep(t, 0, face.fade) : 1;
+    const envelope = Math.min(
+      ramp(time - face.at),
+      1 - (time > face.until ? ramp(time - face.until) : 0),
+    );
+    for (const [name, weight] of Object.entries(face.weights))
+      weights[name] = (weights[name] ?? 0) + weight * envelope;
+  }
+  return weights;
+}
+
+/** A mood cue's feelings; throws on a name chat does not track. */
+function moodFeelings(mood: ReelMood): EmotionRuntimeState {
+  const values = createEmptyEmotionStateMap();
+  for (const [emotion, value] of Object.entries(mood.values)) {
+    if (!isTrackedEmotion(emotion))
+      throw new Error(
+        `Mood cue at ${mood.at} s: ${emotion} is not a tracked emotion.`,
+      );
+    values[emotion] = value;
+  }
+  return buildEmotionRuntimeState(values);
+}
+
 /**
  * Open one take: a fresh Avatar at rest, its label shown, its speech
  * planned, no cue started.
@@ -542,6 +603,11 @@ async function openReelItem(request: ReelItemRequest): Promise<void> {
   document.body.style.background = transparent ? "transparent" : "#000";
   current.review.element.style.background = request.background ?? TILE_BACKDROP;
   const speech = request.speech ? ReelSpeech.plan(request.speech) : null;
+  const moods = request.moods.map((mood) => ({
+    at: mood.at,
+    until: mood.until,
+    feelings: moodFeelings(mood),
+  }));
   // Clips are parsed before the Avatar loads, so a bad one fails cleanly.
   const speechEnd = speech ? speech.at + speech.durationSec : 0;
   const cues = request.cues
@@ -588,6 +654,8 @@ async function openReelItem(request: ReelItemRequest): Promise<void> {
       gesture: null,
       reaction: null,
       speech,
+      moods,
+      faceShown: false,
       firstAt: Math.min(
         ...request.cues.map(({ at }) => at),
         speech?.at ?? Infinity,
@@ -603,11 +671,15 @@ async function openReelItem(request: ReelItemRequest): Promise<void> {
           `speech lip-sync follows the audio alone (${speech.fallback})`,
         );
       // The voice's clock is the session's frame clock.
-      speech.attach(session.avatar, {
+      const shaping = speech.attach(session.avatar, {
         get currentTime() {
           return session.time;
         },
       });
+      if (shaping !== speech.shaping)
+        open.warnings.add(
+          `the Avatar lacks the shapes for ${speech.shaping} lip-sync; it uses ${shaping}`,
+        );
     }
     session.setFrameHook((time) => frameHook(open, time));
     item = open;
@@ -621,7 +693,10 @@ async function openReelItem(request: ReelItemRequest): Promise<void> {
   }
 }
 
-/** Start and stop cues due at take time `time`, and feed the speech. */
+/**
+ * Start and stop cues due at take time `time`, set the face cues' overlay,
+ * and feed the speech with the mood then.
+ */
 function frameHook(open: NonNullable<typeof item>, time: number) {
   const { session } = open;
   // Within half a frame, so a cue on a frame boundary is not a frame late.
@@ -644,7 +719,26 @@ function frameHook(open: NonNullable<typeof item>, time: number) {
     if (state.cue.kind === "gesture") session.avatar.stopClip();
     else session.stopReaction();
   }
-  return open.speech?.frame(session.avatar, time);
+  const controller = session.avatar.expressionController;
+  if (controller && open.request.faces.length) {
+    const weights = faceWeights(open.request.faces, time);
+    if (Object.keys(weights).length) {
+      controller.setExpressionOverlay(FACE_OVERLAY_OWNER, weights);
+      open.faceShown = true;
+    } else if (open.faceShown) {
+      controller.clearExpressionOverlay(FACE_OVERLAY_OWNER);
+      open.faceShown = false;
+    }
+  }
+  // The latest mood cue covering `time` wins.
+  const mood = open.moods.findLast(
+    ({ at, until }) => time >= at && time < until,
+  );
+  return open.speech?.frame(
+    session.avatar,
+    time,
+    mood?.feelings ?? NEUTRAL_FEELINGS,
+  );
 }
 
 /** Draw the open take at `time` seconds after opening it. */

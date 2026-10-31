@@ -97,8 +97,11 @@ test("parses a cue sheet's takes and rejects invalid ones", () => {
     [{ takes: [] }, /no takes/],
     [{ takes: [{ cues: [] }], fps: 30 }, /no other fields/],
     [{ cues: [] }, /at least one cue or speech/],
-    [{ cues: [{ wave: "a" }] }, /"gesture" or "reaction"/],
-    [{ cues: [{ gesture: "a", reaction: "b" }] }, /"gesture" or "reaction"/],
+    [{ cues: [{ wave: "a" }] }, /"reaction", "face" or "mood"/],
+    [
+      { cues: [{ gesture: "a", reaction: "b" }] },
+      /"reaction", "face" or "mood"/,
+    ],
     [{ cues: [{ reaction: "a", from: 1 }] }, /unknown field "from"/],
     [{ cues: [{ gesture: "a", at: -1 }] }, /at must be/],
     [{ cues: [{ gesture: "a", beat: "pop" }] }, /go together/],
@@ -123,6 +126,75 @@ test("parses a cue sheet's takes and rejects invalid ones", () => {
       { speech: { alignment: "t.json", volume: "loud" } },
       /volume must be a number, 0 or more/,
     ],
+  ])
+    assert.throws(() => parseCueSheet(sheet, { dir: "/" }), message);
+});
+
+test("parses face and mood cues and the speech's mouth options", () => {
+  const [take] = parseCueSheet(
+    {
+      cues: [
+        { gesture: "a" },
+        { face: { happy: 0.5, ウィンク: 1 }, at: 1, until: 2 },
+        { face: { relaxed: 0.4 }, at: 2, until: 3, fade: 0.4 },
+        { mood: { joy: 18 }, at: 0.5, until: 4 },
+      ],
+      speech: {
+        alignment: "t.json",
+        shaping: "arkit",
+        lead: 0.05,
+        gain: 1.5,
+      },
+    },
+    { dir: "/" },
+  );
+  // Face and mood cues leave the clip cues.
+  assert.deepEqual(
+    take.cues.map(({ kind }) => kind),
+    ["gesture"],
+  );
+  assert.deepEqual(take.faces, [
+    { at: 1, until: 2, fade: 0.2, weights: { happy: 0.5, ウィンク: 1 } },
+    { at: 2, until: 3, fade: 0.4, weights: { relaxed: 0.4 } },
+  ]);
+  assert.deepEqual(take.moods, [{ at: 0.5, until: 4, values: { joy: 18 } }]);
+  assert.equal(take.speech.shaping, "arkit");
+  assert.equal(take.speech.lead, 0.05);
+  assert.equal(take.speech.gain, 1.5);
+  const [plain] = parseCueSheet(
+    { speech: { alignment: "t.json" } },
+    { dir: "/" },
+  );
+  assert.equal(plain.speech.shaping, "visemes");
+  assert.equal(plain.speech.lead, 0);
+  assert.equal(plain.speech.gain, 1);
+
+  const speech = { alignment: "t.json" };
+  for (const [sheet, message] of [
+    [{ cues: [{ face: { happy: 0.5 }, at: 1 }], speech }, /give at and until/],
+    [
+      { cues: [{ face: { happy: 0.5 }, at: 2, until: 1 }], speech },
+      /must be later than at/,
+    ],
+    [{ cues: [{ face: {}, at: 0, until: 1 }], speech }, /maps expression/],
+    [
+      { cues: [{ face: { happy: 2 }, at: 0, until: 1 }], speech },
+      /happy must be a number from 0 to 1/,
+    ],
+    [
+      { cues: [{ face: { happy: 1 }, at: 0, until: 1, ease: "in" }], speech },
+      /unknown field "ease"/,
+    ],
+    [
+      { cues: [{ mood: { joy: 40 }, at: 0, until: 1 }], speech },
+      /joy must be a number from 0 to 30/,
+    ],
+    [
+      { cues: [{ gesture: "a" }, { mood: { joy: 10 }, at: 0, until: 1 }] },
+      /mood cues need speech/,
+    ],
+    [{ speech: { alignment: "t.json", shaping: "jaw" } }, /visemes or arkit/],
+    [{ speech: { alignment: "t.json", gain: -1 } }, /gain must be/],
   ])
     assert.throws(() => parseCueSheet(sheet, { dir: "/" }), message);
 });

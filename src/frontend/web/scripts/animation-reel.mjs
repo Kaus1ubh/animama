@@ -1144,6 +1144,9 @@ export async function recordReel({
                   pcm: pcm.toString("base64"),
                   text: item.speech.text,
                   alignment: item.speech.alignment,
+                  shaping: item.speech.shaping,
+                  lead: item.speech.lead,
+                  gain: item.speech.gain,
                 };
                 itemSounds.push({
                   file: audio,
@@ -1157,6 +1160,8 @@ export async function recordReel({
                 size,
                 camera: item.camera ?? camera,
                 cues: itemCues(item, lead),
+                faces: item.faces ?? [],
+                moods: item.moods ?? [],
                 clipMedia: await pageClipMedia(media, { fsUrl, imageUrl }),
                 label: label ? itemLabel : null,
                 sounds: Object.fromEntries(
