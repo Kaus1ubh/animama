@@ -40,6 +40,23 @@ function eyeCenters(avatar: Avatar): THREE.Vector3[] {
   );
 }
 
+/** How far blink moves a face primitive's farthest vertex: its lids' travel. */
+function lidTravel(avatar: Avatar, face: RuntimePrimitiveBindingEntry): number {
+  const targets = face.object.geometry.morphAttributes.position!;
+  const delta = new THREE.Vector3();
+  let farthest = 0;
+  for (const index of blinkTargets(avatar, face.object)) {
+    const target = targets[index]!;
+    for (let vertex = 0; vertex < target.count; vertex += 1) {
+      farthest = Math.max(
+        farthest,
+        delta.fromBufferAttribute(target, vertex).length(),
+      );
+    }
+  }
+  return farthest;
+}
+
 /** The vertices a primitive's triangles use. */
 function primitiveVertices(entry: RuntimePrimitiveBindingEntry): number[] {
   const index = entry.object.geometry.getIndex()!;
@@ -174,21 +191,91 @@ describe("eye details inside the face mesh", () => {
       .binds as unknown as { primitives?: THREE.Object3D[] }[]) {
       bind.primitives = bind.primitives?.filter((mesh) => mesh !== line);
     }
+    const travel = lidTravel(avatar, face);
     const firstNew = face.object.geometry.getIndex()!.count / 3;
     for (const eye of eyeCenters(avatar)) {
       addBlinkStrand(avatar, face, eye, 0.02); // the line
-      addBlinkStrand(avatar, face, eye, 0.006, 0.016); // a lash above it
+      addBlinkStrand(avatar, face, eye, 0.006, { above: 0.016 }); // a lash above it
+      // A wider lower lash that follows the lid part way is never the line.
+      addBlinkStrand(avatar, face, eye, 0.03, {
+        above: -0.008,
+        drop: travel * 0.15,
+      });
     }
     await avatar.setFacePartCorrections(null);
 
     const parts = avatar.facePartMap!.parts;
     expect(parts.eyeline.regions).toEqual([
-      { bindingKey: face.bindingKey, triangles: [firstNew, firstNew + 2] },
+      { bindingKey: face.bindingKey, triangles: [firstNew, firstNew + 3] },
     ]);
     expect(parts.eyelash.regions).toEqual([
-      { bindingKey: face.bindingKey, triangles: [firstNew + 1, firstNew + 3] },
+      {
+        bindingKey: face.bindingKey,
+        triangles: [firstNew + 1, firstNew + 2, firstNew + 4, firstNew + 5],
+      },
     ]);
   });
+
+  it("finds lashes that follow the lid only part of the way", async () => {
+    const avatar = await loadedTestAvatar("Annie");
+    const face = entryOf(
+      avatar,
+      avatar.facePartMap!.parts.face_skin.bindings[0]!,
+    );
+    const travel = lidTravel(avatar, face);
+    const firstNew = face.object.geometry.getIndex()!.count / 3;
+    for (const eye of eyeCenters(avatar)) {
+      // A lower lash under the eye, which blink barely moves...
+      addBlinkStrand(avatar, face, eye, 0.006, {
+        above: -0.008,
+        drop: travel * 0.15,
+      });
+      // ...and an eyeliner wing past the outer corner, moved under half as far.
+      const corner = eye.clone().setX(eye.x + Math.sign(eye.x) * 0.016);
+      addBlinkStrand(avatar, face, corner, 0.006, {
+        above: 0.004,
+        drop: travel * 0.4,
+      });
+    }
+    await avatar.setFacePartCorrections(null);
+
+    expect(avatar.facePartMap!.parts.eyelash.regions).toEqual([
+      {
+        bindingKey: face.bindingKey,
+        triangles: [firstNew, firstNew + 1, firstNew + 2, firstNew + 3],
+      },
+    ]);
+  });
+
+  // The middle of each Avatar's own brow (its FaceBrow primitive) above the
+  // eye centre: Annie's tall lids reach past the brow's lower edge.
+  it.each([
+    ["Annie", 0.029],
+    ["Andrew", 0.025],
+  ] as const)(
+    "leaves out a brow at %s's brow height that blink drags part way",
+    async (id, browHeight) => {
+      const avatar = await loadedTestAvatar(id);
+      const face = entryOf(
+        avatar,
+        avatar.facePartMap!.parts.face_skin.bindings[0]!,
+      );
+      const travel = lidTravel(avatar, face);
+      const firstNew = face.object.geometry.getIndex()!.count / 3;
+      for (const eye of eyeCenters(avatar)) {
+        addBlinkStrand(avatar, face, eye, 0.01); // a lash, found as before
+        addBlinkStrand(avatar, face, eye, 0.03, {
+          above: browHeight,
+          drop: travel * 0.3,
+        });
+      }
+      await avatar.setFacePartCorrections(null);
+
+      expect(avatar.facePartMap!.parts.eyelash.regions).toEqual([
+        { bindingKey: face.bindingKey, triangles: [firstNew, firstNew + 2] },
+      ]);
+    },
+  );
 });
 
 describe("a face skinned partly to the neck", () => {

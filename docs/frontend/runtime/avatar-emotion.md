@@ -424,6 +424,27 @@ ARKit mix or the preset. `Fcl_EYE_Spread` plays びっくり or ARKit's wide eye
   scale reproduces Annie's verified relaxed. VRoid faces keep VRoid's profile
   (Annie's verified one, the default for others such as Andrew). Winks
   (`Fcl_EYE_Close_L`/`_R`) are not corrected, so the open eye keeps blinking.
+- Stacking limits (`faceShapeStacking.ts`) keep content authored on VRoid
+  faces from over-driving these expressions. Many Reactions key Joy and Fun
+  eyes together, which suits VRoid's squinting Fun eyes; on an MMD face 笑い
+  and なごみ each close the lids fully, so together they fold the lashes. After
+  every expression-manager update, on the morphs the expressions Animama built
+  bind:
+  - Lid-closing expressions together close the lids at most once, measured as
+    above: an ARKit mix by its share of blink's motion, another shape as shut
+    once it moves the lid's own vertices 69% as far as blink does (VRoid's
+    happy). Two weaker shapes that only meet when stacked therefore stop at
+    that calibration. The one closing furthest keeps its shape and the others
+    give way in their lid-closing morphs, on every mesh those morphs move, so
+    a whole-face mood keeps its brows and mouth.
+  - A morph they share (Joy and Fun both play にこり and にっこり) moves no
+    further than the furthest any single expression takes it.
+  - A mood's mouth morph eases back by how much of its motion the current
+    viseme shapes already make, so a full smile and a wide `ih` don't pull the
+    mouth corners twice as far; lip sync keeps its full strength.
+
+  Single expressions, and stacks within these limits, play as authored; VRoid
+  faces play their own parts untouched.
 
 `vrm:inspect` prints each mood's region sources, as `Avatar.load` decides them.
 
