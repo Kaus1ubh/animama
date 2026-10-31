@@ -406,34 +406,46 @@ function cutKeyframes(keyframes, offset, remaining) {
 }
 
 /**
- * `clip` and its dependencies with every dependency alias prefixed
- * (`<prefix>:<alias>`), in its events too, so the clips of one take cannot
- * claim each other's effects and sounds.
+ * `clip` and its dependencies with every dependency alias renamed by
+ * `rename(dependency)`, in its events too.
  */
-export function namespaceClip(clip, dependencies, prefix) {
+export function renameClipAliases(clip, dependencies, rename) {
+  const list = Array.isArray(dependencies) ? dependencies : [];
   const renamed = new Map(
-    (Array.isArray(dependencies) ? dependencies : [])
+    list
       .filter((dependency) => typeof dependency?.alias === "string")
-      .map((dependency) => [dependency.alias, `${prefix}:${dependency.alias}`]),
+      .map((dependency) => [dependency.alias, rename(dependency)]),
   );
-  const rename = (value) => renamed.get(value) ?? value;
+  const alias = (value) => renamed.get(value) ?? value;
   return {
     clip: {
       ...clip,
       events: (Array.isArray(clip.events) ? clip.events : []).map((event) => {
         const next = { ...event };
         for (const key of ["effectId", "presetId", "cueId"])
-          if (typeof next[key] === "string") next[key] = rename(next[key]);
+          if (typeof next[key] === "string") next[key] = alias(next[key]);
         return next;
       }),
     },
-    dependencies: (Array.isArray(dependencies) ? dependencies : []).map(
-      (dependency) =>
-        typeof dependency?.alias === "string"
-          ? { ...dependency, alias: rename(dependency.alias) }
-          : dependency,
+    dependencies: list.map((dependency) =>
+      typeof dependency?.alias === "string"
+        ? { ...dependency, alias: alias(dependency.alias) }
+        : dependency,
     ),
   };
+}
+
+/**
+ * `clip` and its dependencies with every dependency alias prefixed
+ * (`<prefix>:<alias>`), in its events too, so the clips of one take cannot
+ * claim each other's effects and sounds.
+ */
+export function namespaceClip(clip, dependencies, prefix) {
+  return renameClipAliases(
+    clip,
+    dependencies,
+    (dependency) => `${prefix}:${dependency.alias}`,
+  );
 }
 
 /**

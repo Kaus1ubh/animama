@@ -8,29 +8,16 @@ import {
   isTrackedEmotion,
   type EmotionRuntimeState,
 } from "@/lib/emotion";
-import {
-  DEFAULT_PIP_SCENE_CAMERA_PRESET,
-  isSceneCameraPreset,
-} from "@/ui/main/canvas/sceneCameraPresets";
 
-import {
-  STAGE_STOPS,
-  TALL_ASPECT,
-  type StageCamera,
-} from "../landing-stage/stops";
 import { ReviewStage, TILE_BACKDROP } from "../effect-render/reviewStage";
 import {
   EffectSession,
-  placeCamera,
   seedRandom,
   type PageClipMedia,
   type SessionSound,
 } from "../effect-render/session";
-import {
-  chatCameraFraming,
-  createStage,
-  type Framing,
-} from "../effect-render/stage";
+import { createStage, type Framing } from "../effect-render/stage";
+import { cameraView, placeReelCamera, type ReelCamera } from "./camera";
 import { NEUTRAL_FEELINGS, ReelSpeech, type ReelSpeechRequest } from "./speech";
 
 /**
@@ -110,14 +97,6 @@ type ReelFace = {
 
 /** The feelings chat would report from `at` to `until` (0 to 30 each). */
 type ReelMood = { at: number; until: number; values: Record<string, number> };
-
-/**
- * A camera: a chat preset, `pip` (the desktop PiP window's default preset),
- * `landing` / `landing:<stop>` (a landing page stop's framing; `landing` is
- * the hero close-up), or a landing-style framing whose fields override the
- * hero close-up's.
- */
-type ReelCamera = string | Partial<StageCamera>;
 
 type ReelItemRequest = {
   avatar: { id: string; url: string };
@@ -492,69 +471,6 @@ function cueStopAt(
   return clip.playback ? Math.max(stop, speechEnd) : stop;
 }
 
-/** Head bone height of the Avatar as it stands: the landing camera's unit. */
-function headHeight(avatar: Avatar): number {
-  const head = avatar.vrm?.humanoid.getRawBoneNode("head");
-  if (!head) throw new Error("The Avatar has no head bone to frame.");
-  return head.getWorldPosition(new THREE.Vector3()).y;
-}
-
-/**
- * Where the camera stands for `camera`: a chat preset, `pip`, or a landing
- * page stop placed as `landing-stage/stage.ts` places it (orbit, aim and
- * distance in head heights, the stop's tall framing on a tall frame) with
- * its lens shift.
- */
-function cameraView(
-  avatar: Avatar,
-  camera: ReelCamera,
-  { width, height }: ReelItemRequest["size"],
-): { framing: Framing; offset: { shift: number; lift: number } | null } {
-  if (typeof camera === "object") {
-    const hero = STAGE_STOPS.find(({ id }) => id === "hero")!;
-    return landingView(avatar, { ...hero.camera, ...camera });
-  }
-  if (camera === "pip")
-    return {
-      framing: chatCameraFraming(avatar, DEFAULT_PIP_SCENE_CAMERA_PRESET),
-      offset: null,
-    };
-  if (isSceneCameraPreset(camera))
-    return { framing: chatCameraFraming(avatar, camera), offset: null };
-  const stopId = /^landing(?::(.+))?$/.exec(camera);
-  const stop =
-    stopId && STAGE_STOPS.find(({ id }) => id === (stopId[1] ?? "hero"));
-  if (!stop)
-    throw new Error(
-      `Unknown camera ${camera}; landing stops are ${STAGE_STOPS.map(({ id }) => id).join(", ")}.`,
-    );
-  return landingView(
-    avatar,
-    width / height < TALL_ASPECT
-      ? { ...stop.camera, ...stop.tall }
-      : stop.camera,
-  );
-}
-
-/** A landing-style framing: orbit, aim and distance in head heights. */
-function landingView(avatar: Avatar, view: StageCamera) {
-  const unit = headHeight(avatar);
-  const yaw = THREE.MathUtils.degToRad(view.yaw);
-  const target = new THREE.Vector3(0, view.aim * unit, 0);
-  return {
-    framing: {
-      position: new THREE.Vector3(
-        Math.sin(yaw) * view.distance * unit,
-        target.y + view.rise * unit,
-        Math.cos(yaw) * view.distance * unit,
-      ),
-      target,
-      fov: view.fov,
-    },
-    offset: { shift: view.shift, lift: view.lift },
-  };
-}
-
 /** The expression overlay owner face cues use. */
 const FACE_OVERLAY_OWNER = "reel-face";
 
@@ -748,19 +664,7 @@ async function reelFrame(time: number): Promise<ReelFrame> {
   const { session, request } = current;
   await session.advanceTo(time);
 
-  placeCamera(stage.camera, "front", session.avatar, current.framing);
-  const { width, height } = request.size;
-  if (current.offset)
-    // A negative x offset moves the subject right; a positive y offset, up.
-    stage.camera.setViewOffset(
-      width,
-      height,
-      -current.offset.shift * width,
-      current.offset.lift * height,
-      width,
-      height,
-    );
-  else stage.camera.clearViewOffset();
+  placeReelCamera(stage.camera, session.avatar, current, request.size);
   stage.renderer.render(stage.scene, stage.camera);
   await stage.review.seek(session.time);
 

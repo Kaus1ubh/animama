@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Combo lab</title>
+    <link rel="icon" href="data:," />
+    <link rel="stylesheet" href="./combo.css" />
+  </head>
+  <body>
+    <main class="layout">
+      <section class="stage-area">
+        <div id="stage-host" class="stage-host"></div>
+        <p id="status" class="status muted">Loading the Library…</p>
+      </section>
+      <aside class="panel">
+        <section class="group">
+          <div class="row">
+            <label class="field grow">
+              <span>Avatar</span>
+              <select id="avatar"></select>
+            </label>
+          </div>
+          <div class="row">
+            <label class="field grow">
+              <span>Camera</span>
+              <select id="camera">
+                <option value="landing">Landing close-up</option>
+                <option value="medium" selected>Medium</option>
+                <option value="landing:emotion">Landing emotions</option>
+                <option value="landing:gestures">Landing gestures</option>
+                <option value="portrait-close">PiP (portrait close)</option>
+                <option value="portrait">Portrait</option>
+                <option value="full-body-close">Full body close</option>
+                <option value="full-body">Full body</option>
+              </select>
+            </label>
+            <label class="field">
+              <span>Backdrop</span>
+              <select id="backdrop">
+                <option value="landing">Landing</option>
+                <option value="grey">Grey</option>
+              </select>
+            </label>
+          </div>
+        </section>
+
+        <section class="group">
+          <h2>Gesture</h2>
+          <input id="gesture-filter" type="search" placeholder="Filter" />
+          <select id="gesture" size="6"></select>
+          <div class="row">
+            <label class="field grow">
+              <span>Start from</span>
+              <select id="gesture-from"></select>
+            </label>
+            <label class="field">
+              <span>Delay (s)</span>
+              <input
+                id="gesture-delay"
+                type="number"
+                step="0.05"
+                min="0"
+                value="0"
+              />
+            </label>
+          </div>
+        </section>
+
+        <section class="group">
+          <h2>Reaction</h2>
+          <input id="reaction-filter" type="search" placeholder="Filter" />
+          <select id="reaction" size="6"></select>
+          <div class="row">
+            <label class="field">
+              <span>Delay (s)</span>
+              <input
+                id="reaction-delay"
+                type="number"
+                step="0.05"
+                min="0"
+                value="0"
+              />
+            </label>
+            <label class="field">
+              <span>Hold (s)</span>
+              <input
+                id="reaction-hold"
+                type="number"
+                step="0.1"
+                min="0.1"
+                placeholder="auto"
+              />
+            </label>
+          </div>
+        </section>
+
+        <section class="group transport">
+          <button type="button" id="play" class="primary">Play</button>
+          <button type="button" id="stop">Stop</button>
+          <label class="check"
+            ><input type="checkbox" id="loop" checked /> Loop</label
+          >
+          <button type="button" id="copy">Copy cue sheet</button>
+        </section>
+
+        <section class="group expressions">
+          <div class="row">
+            <h2 class="grow">Expressions</h2>
+            <button type="button" id="reset-face">Reset</button>
+          </div>
+          <div class="row">
+            <input
+              id="expression-filter"
+              type="search"
+              class="grow"
+              placeholder="Filter"
+            />
+            <label class="check"
+              ><input type="checkbox" id="active-only" /> Active only</label
+            >
+          </div>
+          <p class="muted small">
+            Sliders add weight over the face. Bars show each one's live weight.
+          </p>
+          <div id="expression-list" class="expression-list"></div>
+        </section>
+        <textarea id="sheet" class="sheet" rows="8" readonly hidden></textarea>
+      </aside>
+    </main>
+    <script type="module" src="./combo.ts"></script>
+  </body>
+</html>
