@@ -1,5 +1,6 @@
 import type { Avatar, ProceduralSpeechTimingContext } from "@/lib/avatar";
 import type { AvatarUpdateOptions } from "@/lib/avatar/Avatar";
+import type { FramePayload } from "@/lib/avatar/types";
 import type { LipSyncShaping } from "@/lib/avatar/ExpressionController";
 import {
   buildEmotionRuntimeState,
@@ -53,6 +54,15 @@ export type ReelSpeechRequest = {
 };
 
 const RUN_ID = "reel-speech";
+
+/** A `vowel5` mouth frame opened `gain` times as wide, capped at fully open. */
+function widened(frame: FramePayload, gain: number): FramePayload {
+  if (gain === 1 || !Array.isArray(frame.values)) return frame;
+  return {
+    ...frame,
+    values: frame.values.map((value: number) => Math.min(1, value * gain)),
+  };
+}
 /** The expression overlay owner tag events use, as in chat. */
 const TAG_OVERLAY_OWNER = "lipsync-tags";
 
@@ -130,16 +140,7 @@ export class ReelSpeech {
     avatar.setAudioContext(clock as AudioContext);
     avatar.initLipSyncSegment(segment.meta);
     for (const frame of segment.frames)
-      avatar.registerLipSyncFrame(
-        this.gain === 1
-          ? frame
-          : {
-              ...frame,
-              values: frame.values.map((value) =>
-                Math.min(1, value * this.gain),
-              ),
-            },
-      );
+      avatar.registerLipSyncFrame(widened(frame, this.gain));
     avatar.onSegmentAudioStarted(segment.segmentId, this.at - this.lead);
     return shaping;
   }
