@@ -18,6 +18,7 @@ import {
 } from "../effect-render/session";
 import { createStage, type Framing } from "../effect-render/stage";
 import { cameraView, placeReelCamera, type ReelCamera } from "./camera";
+import { stopAfter } from "./playback";
 import { NEUTRAL_FEELINGS, ReelSpeech, type ReelSpeechRequest } from "./speech";
 
 /**
@@ -432,28 +433,6 @@ function expressionWeights(avatar: Avatar): [string, number][] {
     .getAvailableExpressions()
     .map((name): [string, number] => [name, avatar.getExpressionValue(name)])
     .filter(([, weight]) => weight >= EXPRESSION_MIN_WEIGHT);
-}
-
-/**
- * When to stop a clip that does not end by itself, in seconds after it
- * starts: a talking-scoped clip after `talk` seconds and its timed events, a
- * loop after one pass; null for a clip that completes on its own.
- */
-function stopAfter(
-  clip: ReturnType<typeof parseAnimaPoseClip>,
-  talk: number,
-): number | null {
-  if (clip.playback) {
-    const eventsEnd = Math.max(
-      0,
-      ...(clip.events ?? []).map(
-        (event) =>
-          event.time + ("duration" in event ? (event.duration ?? 0) : 0),
-      ),
-    );
-    return Math.max(talk, clip.duration, eventsEnd);
-  }
-  return clip.loop === true ? clip.duration : null;
 }
 
 /** A cue's stop time: its own, else its clip's default from where it starts. */

@@ -67,7 +67,20 @@ test("lists every Included Gesture and Reaction with shared media", async () => 
   assert.ok(catalog.reactions.length > 100);
   const heart = catalog.gestures.find(({ stem }) => stem === "big-arm-heart");
   assert.equal(heart.spec, "library:gesture/big-arm-heart");
-  assert.ok(heart.beats.some(({ id }) => id === "heart"));
+  // Only the beats a cue sheet can start from: not the first or the last.
+  assert.deepEqual(
+    heart.beats.map(({ id }) => id),
+    [
+      "anticipate",
+      "raise",
+      "heart",
+      "leanL",
+      "leanR",
+      "leanL2",
+      "leanR2",
+      "release",
+    ],
+  );
   // Reactions by emotion, then intensity.
   const joy = catalog.reactions.filter(({ emotion }) => emotion === "joy");
   assert.deepEqual(

@@ -5,6 +5,8 @@ import { createServer } from "vite";
 
 import { compareReactions } from "./animation-reel.mjs";
 import {
+  MIN_REMAINING_SEC,
+  clipFrom,
   renameClipAliases,
   resolveAvatarFile,
 } from "./animation-reel-sheet.mjs";
@@ -47,7 +49,8 @@ const USAGE = [
   "an Avatar, shows its live expression weights, adds weight to any expression",
   "or ARKit shape, and copies the result as an animation:reel cue sheet take.",
   "Each --avatar-file or --avatar (repeatable) adds an Avatar to its picker;",
-  "with none, both Included Avatars.",
+  "with none, both Included Avatars. --port picks the port (default: any free",
+  "one) and --no-open leaves the browser closed.",
 ].join("\n");
 
 /** Parse argv; throws `EffectSourceError` on bad input. */
@@ -109,11 +112,18 @@ function pickerEntry(kind, stem, source, clip) {
         ? source.meta.name
         : (clip.name ?? stem),
     duration: Number(clip.duration) || 0,
-    beats: (Array.isArray(clip.beats) ? clip.beats : []).map((beat) => ({
-      id: beat.id,
-      time: beat.time,
-      label: beat.label ?? beat.id,
-    })),
+    // The beats a Gesture can start from, as cue sheets accept them.
+    beats: (Array.isArray(clip.beats) ? clip.beats : [])
+      .filter(
+        (beat) =>
+          beat.time > 0 &&
+          beat.time < (Number(clip.duration) || 0) - MIN_REMAINING_SEC,
+      )
+      .map((beat) => ({
+        id: beat.id,
+        time: beat.time,
+        label: beat.label ?? beat.id,
+      })),
     emotion: typeof hint.emotion === "string" ? hint.emotion : null,
     intensity: Number.isInteger(hint.intensity) ? hint.intensity : null,
   };
@@ -192,10 +202,13 @@ export async function startComboServer({
   const allow = [webRoot, INCLUDED_VFX_ROOT, ...files];
   const fsUrl = (file) => `/@fs${file}`;
   const page = {
-    avatars: files.map((file) => ({
+    avatars: files.map((file, index) => ({
       id: path.basename(file).replace(/\.vrm$/i, ""),
       url: fsUrl(file),
-      file,
+      // What a cue sheet names it by: an Included Avatar's id, else its file.
+      sheet: avatars[index].file
+        ? file
+        : path.basename(file).replace(/\.vrm$/i, ""),
     })),
     gestures: catalog.gestures,
     reactions: catalog.reactions,
@@ -258,9 +271,20 @@ export async function startComboServer({
             if (route === "catalog") return sendJson(response, 200, page);
             if (route === "clip") {
               const clip = catalog.clips.get(url.searchParams.get("spec"));
-              return clip
-                ? sendJson(response, 200, clip)
-                : sendJson(response, 404, { error: "No such clip." });
+              if (!clip)
+                return sendJson(response, 404, { error: "No such clip." });
+              // From a beat, prepared as the reel prepares it (`clipFrom`).
+              const from = url.searchParams.get("from");
+              const beat = from
+                ? clip.beats?.find(({ id }) => id === from)
+                : null;
+              if (from && !beat)
+                return sendJson(response, 404, { error: "No such beat." });
+              return sendJson(
+                response,
+                200,
+                beat ? clipFrom(clip, beat.time) : clip,
+              );
             }
             sendJson(response, 404, { error: "Not found." });
           });

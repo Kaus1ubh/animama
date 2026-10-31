@@ -829,8 +829,8 @@ from `src/frontend/web`:
     have no label and a transparent background (Scene Effects still draw);
     `--background <css>` sets one for any format. ProRes needs `ffmpeg` with
     `prores_ks`.
-- `pnpm -s animation:combo [--avatar-file <file.vrm>]... [--avatar annie|andrew]...`
-  opens a live page for trying combinations before recording them: pick any
+- `pnpm -s animation:combo [--avatar-file <file.vrm>]... [--avatar annie|andrew]... [--port <n>] [--no-open]`
+  (both Included Avatars by default) opens a live page for trying combinations before recording them: pick any
   Included Gesture (optionally from a beat) and Reaction, with start delays
   and a Reaction hold, and play them together on the chosen Avatar as chat
   does, with their effects but no sounds. Ticked Included Avatar and Particle

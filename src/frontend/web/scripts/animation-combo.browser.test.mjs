@@ -13,10 +13,17 @@ import { listSheetItems } from "./animation-reel-sheet.mjs";
 // face weight, and copies a cue sheet take the reel recorder accepts.
 test("plays a combination and copies it as a cue sheet take", async () => {
   const server = await startComboServer({
-    avatars: [{ value: "Annie", file: false }],
+    avatars: [
+      { value: "Annie", file: false },
+      { value: "Andrew", file: false },
+    ],
   });
+  // The macOS GPU draws in real time; SwiftShader elsewhere is too slow to.
+  const gpu = process.platform === "darwin";
   const browser = await chromium.launch({
-    args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"],
+    args: gpu
+      ? ["--use-angle=metal", "--enable-gpu", "--ignore-gpu-blocklist"]
+      : ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"],
   });
   const dir = await mkdtemp(path.join(tmpdir(), "animama-combo-"));
   try {
@@ -29,14 +36,30 @@ test("plays a combination and copies it as a cue sheet take", async () => {
     await page.waitForFunction(() => window.comboReady === true, null, {
       timeout: 120_000,
     });
-    await page.selectOption("#gesture", "library:gesture/big-arm-heart");
-    await page.selectOption("#gesture-from", "heart");
-    await page.selectOption("#reaction", "library:reaction/love-3");
-    await page.fill("#reaction-hold", "2");
-    await page.click("#play");
-    await page.waitForFunction(() =>
-      document.querySelector("#status")?.textContent?.includes("Love 3"),
+    const state = () => page.evaluate(() => window.comboState());
+    // Session time follows the wall clock (timed in the page).
+    const rate = await page.evaluate(
+      () =>
+        new Promise((resolve) => {
+          const begin = [performance.now(), window.comboState().time];
+          setTimeout(() => {
+            const time = window.comboState().time - begin[1];
+            resolve(time / ((performance.now() - begin[0]) / 1000));
+          }, 2000);
+        }),
     );
+    if (gpu) assert.ok(rate > 0.85 && rate < 1.15, `${rate}x real time`);
+    else assert.ok(rate > 0, "session time advances");
+    // Switching Avatars twice in a row leaves one on stage.
+    await page.selectOption("#avatar", "1");
+    await page.selectOption("#avatar", "0");
+    await page.waitForFunction(
+      () => document.querySelector("#status")?.textContent === "Annie ready.",
+      null,
+      { timeout: 120_000 },
+    );
+    await page.waitForTimeout(3000);
+    assert.equal((await state()).avatarsOnStage, 1);
     // An Avatar and a Particle Effect stay on; the face camera follows.
     await page.fill("#effect-filter", "blush");
     await page.locator(".effect:visible input").first().check();
@@ -48,6 +71,15 @@ test("plays a combination and copies it as a cue sheet take", async () => {
     await page.selectOption("#camera", "face");
     await page.waitForTimeout(500);
     assert.doesNotMatch(await page.textContent("#status"), /did not/);
+    await page.selectOption("#gesture", "library:gesture/big-arm-heart");
+    await page.selectOption("#gesture-from", "heart");
+    await page.selectOption("#reaction", "library:reaction/love-3");
+    await page.fill("#reaction-hold", "2");
+    await page.click("#play");
+    await page.waitForFunction(() => {
+      const playing = window.comboState();
+      return playing?.gesture && playing.reaction;
+    });
     await page.fill("#expression-filter", "happy");
     await page
       .locator(".expression:visible input[type=range]")

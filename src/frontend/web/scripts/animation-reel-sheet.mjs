@@ -109,7 +109,7 @@ const CAMERA_KEYS = new Set([
  */
 const CARRY_EPSILON_SEC = 0.002;
 /** Least of a Gesture left to play after a part-way start. */
-const MIN_REMAINING_SEC = 0.05;
+export const MIN_REMAINING_SEC = 0.05;
 
 const isRecord = (value) =>
   typeof value === "object" && value !== null && !Array.isArray(value);

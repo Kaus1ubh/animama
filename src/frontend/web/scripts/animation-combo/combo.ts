@@ -10,6 +10,7 @@ import {
   type ReelCamera,
   type ReelCameraView,
 } from "../animation-reel/camera";
+import { stopAfter } from "../animation-reel/playback";
 import { ReviewStage, TILE_BACKDROP } from "../effect-render/reviewStage";
 import { EffectSession, type PageClipMedia } from "../effect-render/session";
 import {
@@ -43,7 +44,8 @@ type PickerEntry = {
 };
 
 type Catalog = {
-  avatars: { id: string; url: string; file: string }[];
+  /** `sheet` is how a cue sheet names it: an Included id or a file path. */
+  avatars: { id: string; url: string; sheet: string }[];
   gestures: PickerEntry[];
   reactions: PickerEntry[];
   media: PageClipMedia;
@@ -64,6 +66,15 @@ const CAMERAS: Record<string, ReelCamera> = {
 };
 /** Seconds a talking-scoped Reaction is held when Hold is blank, as the reel's `--talk`. */
 const TALK_SEC = 3;
+/** Shortest Hold a cue sheet accepts as later than its start. */
+const MIN_HOLD_SEC = 0.1;
+/**
+ * Most session time the clock may run ahead of the frames: slow frames catch
+ * up by advancing several steps between draws, up to this much.
+ */
+const MAX_BACKLOG_SEC = 1;
+/** Longest gap between draws that counts as playing time (a hidden tab pauses). */
+const MAX_TICK_SEC = 0.5;
 /** Rest between loops, in seconds. */
 const LOOP_REST_SEC = 0.6;
 /** The expression overlay owner the sliders use. */
@@ -109,6 +120,10 @@ let stage: ReturnType<typeof createStage> & {
   size: { width: number; height: number };
 };
 let session: EffectSession | null = null;
+/** Increases with every Avatar load, so a superseded load drops its result. */
+let loadToken = 0;
+/** Wall-clock session time the frames catch up to. */
+let clock = 0;
 /** Each camera's framing for the open Avatar, taken as it stands at rest. */
 let views = new Map<string, ReelCameraView>();
 /** Slider weights by expression name. */
@@ -122,7 +137,12 @@ let rows: { name: string; row: HTMLElement; label: HTMLElement }[] = [];
 
 /** What Play scheduled, on the session clock. */
 let plan: {
-  gesture: { clip: unknown; from: number; at: number } | null;
+  gesture: {
+    clip: unknown;
+    from: number;
+    at: number;
+    stopAt: number | null;
+  } | null;
   reaction: {
     clip: unknown;
     spec: string;
@@ -130,6 +150,7 @@ let plan: {
     stopAt: number | null;
   } | null;
   gestureStarted: boolean;
+  gestureStopped: boolean;
   reactionStarted: boolean;
   reactionStopped: boolean;
   idleSince: number | null;
@@ -149,14 +170,33 @@ async function fetchJson<T>(url: string): Promise<T> {
   return (await response.json()) as T;
 }
 
-async function clipFor(spec: string): Promise<unknown> {
-  if (!clips.has(spec))
+/**
+ * A Library clip, started from `from` (a beat id) as the reel starts a cue
+ * from it: the server re-times the events still running there.
+ */
+async function clipFor(spec: string, from = ""): Promise<unknown> {
+  const key = `${spec}#${from}`;
+  if (!clips.has(key))
     clips.set(
-      spec,
-      await fetchJson(`/__combo/clip?spec=${encodeURIComponent(spec)}`),
+      key,
+      await fetchJson(
+        `/__combo/clip?spec=${encodeURIComponent(spec)}${from ? `&from=${encodeURIComponent(from)}` : ""}`,
+      ),
     );
-  return clips.get(spec);
+  return clips.get(key);
 }
+
+const errorText = (error: unknown) =>
+  error instanceof Error ? error.message : String(error);
+
+/** Run an action from a control, showing its failure in the status line. */
+const act = (action: () => Promise<void> | void) => () => {
+  void Promise.resolve()
+    .then(action)
+    .catch((error: unknown) => setStatus(errorText(error), true));
+};
+
+const currentAvatar = () => catalog.avatars[Number(ui.avatar.value)]!;
 
 const selected = (list: PickerEntry[], select: HTMLSelectElement) =>
   list.find(({ spec }) => spec === select.value) ?? null;
@@ -193,9 +233,9 @@ function fillGestureFrom(): void {
   const gesture = selected(catalog.gestures, ui.gesture);
   ui.gestureFrom.replaceChildren(
     new Option("The start", ""),
-    ...(gesture?.beats ?? [])
-      .filter((beat) => beat.time > 0)
-      .map((beat) => new Option(`${beat.label} (${beat.time} s)`, beat.id)),
+    ...(gesture?.beats ?? []).map(
+      (beat) => new Option(`${beat.label} (${beat.time} s)`, beat.id),
+    ),
   );
 }
 
@@ -238,7 +278,8 @@ function closeSession(): void {
 }
 
 async function openAvatar(): Promise<void> {
-  const avatar = catalog.avatars.find(({ id }) => id === ui.avatar.value)!;
+  const avatar = currentAvatar();
+  const token = ++loadToken;
   closeSession();
   setStatus(`Loading ${avatar.id}…`);
   const next = await EffectSession.open(
@@ -260,17 +301,35 @@ async function openAvatar(): Promise<void> {
     },
     stage.review,
   );
+  // A later pick superseded this load while the file loaded.
+  if (token !== loadToken) {
+    next.dispose();
+    return;
+  }
   stage.review.attachCanvas(stage.renderer.domElement, next.avatar);
   stage.scene.add(next.avatar.scene!);
-  await next.apply({ effects: [] });
-  next.setFrameHook(frameHook);
-  views = new Map(
-    [...ui.camera.options].map(({ value }) => [
-      value,
-      cameraView(next.avatar, CAMERAS[value] ?? value, stage.size),
-    ]),
-  );
+  try {
+    await next.apply({ effects: [] });
+    next.setFrameHook(frameHook);
+    views = new Map(
+      [...ui.camera.options].map(({ value }) => [
+        value,
+        cameraView(next.avatar, CAMERAS[value] ?? value, stage.size),
+      ]),
+    );
+  } catch (error) {
+    stage.scene.remove(next.avatar.scene!);
+    next.dispose();
+    stage.review.bands.setAvatar(null);
+    throw error;
+  }
+  if (token !== loadToken) {
+    stage.scene.remove(next.avatar.scene!);
+    next.dispose();
+    return;
+  }
   session = next;
+  clock = next.time;
   buildExpressionList();
   applyFace();
   for (const id of effectsOn) void setEffect(id, true);
@@ -279,26 +338,43 @@ async function openAvatar(): Promise<void> {
 
 /** Start and stop the planned clips due at session time `time`. */
 function frameHook(time: number): void {
-  if (!plan || !session) return;
+  const current = plan;
+  if (!current || !session) return;
   const due = time + 1e-6;
-  if (plan.gesture && !plan.gestureStarted && plan.gesture.at <= due) {
-    session.playGesture(plan.gesture.clip, plan.gesture.from);
-    plan.gestureStarted = true;
+  const { gesture, reaction } = current;
+  try {
+    if (gesture && !current.gestureStarted && gesture.at <= due) {
+      current.gestureStarted = true;
+      session.playGesture(gesture.clip, gesture.from);
+    }
+    if (reaction && !current.reactionStarted && reaction.at <= due) {
+      current.reactionStarted = true;
+      session.playReaction(reaction.clip, reaction.spec);
+    }
+  } catch (error) {
+    plan = null;
+    setStatus(errorText(error), true);
+    return;
   }
-  const reaction = plan.reaction;
-  if (reaction && !plan.reactionStarted && reaction.at <= due) {
-    session.playReaction(reaction.clip, reaction.spec);
-    plan.reactionStarted = true;
+  if (
+    gesture &&
+    current.gestureStarted &&
+    !current.gestureStopped &&
+    gesture.stopAt !== null &&
+    gesture.stopAt <= due
+  ) {
+    current.gestureStopped = true;
+    session.avatar.stopClip();
   }
   if (
     reaction &&
-    plan.reactionStarted &&
-    !plan.reactionStopped &&
+    current.reactionStarted &&
+    !current.reactionStopped &&
     reaction.stopAt !== null &&
     reaction.stopAt <= due
   ) {
+    current.reactionStopped = true;
     session.stopReaction();
-    plan.reactionStopped = true;
   }
 }
 
@@ -310,42 +386,54 @@ const seconds = (input: HTMLInputElement, fallback: number) => {
 };
 
 /**
- * How long a Reaction plays before it is stopped: Hold, or for a
- * talking-scoped one `TALK_SEC` and its timed events, as the reel holds it;
- * null for one that ends by itself.
+ * How long a clip plays before it is stopped, from where it starts: one
+ * pass of a loop, `TALK_SEC` and the timed events of a talking-scoped one,
+ * as the reel stops it; null for one that ends by itself.
  */
+function clipHold(clip: unknown): number | null {
+  return stopAfter(parseAnimaPoseClip(clip), TALK_SEC);
+}
+
+/** The Reaction's hold: Hold when given (at least `MIN_HOLD_SEC`), else its clip's. */
 function reactionHold(clip: unknown): number | null {
-  if (ui.reactionHold.value !== "") return seconds(ui.reactionHold, TALK_SEC);
-  const parsed = parseAnimaPoseClip(clip);
-  if (!parsed.playback) return parsed.loop ? parsed.duration : null;
-  const eventsEnd = Math.max(
-    0,
-    ...(parsed.events ?? []).map(
-      (event) => event.time + ("duration" in event ? (event.duration ?? 0) : 0),
-    ),
-  );
-  return Math.max(TALK_SEC, parsed.duration, eventsEnd);
+  const hold = seconds(ui.reactionHold, -1);
+  return hold >= MIN_HOLD_SEC ? hold : clipHold(clip);
 }
 
 async function play(): Promise<void> {
-  if (!session) return;
+  const current = session;
+  if (!current) return;
   const gesture = selected(catalog.gestures, ui.gesture);
   const reaction = selected(catalog.reactions, ui.reaction);
   if (!gesture && !reaction) {
+    plan = null;
     setStatus("Pick a Gesture, a Reaction or both.", true);
     return;
   }
-  const start = session.time;
-  const beat = gesture?.beats.find(({ id }) => id === ui.gestureFrom.value);
+  const from = ui.gestureFrom.value;
+  const gestureClip = gesture ? await clipFor(gesture.spec, from) : null;
   const reactionClip = reaction ? await clipFor(reaction.spec) : null;
+  // The Avatar changed while the clips loaded.
+  if (current !== session) return;
+  // Clips the new plan has no replacement for stop now.
+  if (!gesture) current.avatar.stopClip();
+  if (!reaction) current.stopReaction();
+  const start = current.time;
+  const gestureAt = start + seconds(ui.gestureDelay, 0);
   const reactionAt = start + seconds(ui.reactionDelay, 0);
+  const gestureHold = gestureClip ? clipHold(gestureClip) : null;
   const hold = reactionClip ? reactionHold(reactionClip) : null;
+  const fromTime = gesture?.beats.find(({ id }) => id === from)?.time ?? 0;
   plan = {
     gesture: gesture
       ? {
-          clip: await clipFor(gesture.spec),
-          from: beat?.time ?? 0,
-          at: start + seconds(ui.gestureDelay, 0),
+          clip: gestureClip,
+          from: fromTime,
+          at: gestureAt,
+          stopAt:
+            gestureHold === null
+              ? null
+              : gestureAt + Math.max(0, gestureHold - fromTime),
         }
       : null,
     reaction: reaction
@@ -357,6 +445,7 @@ async function play(): Promise<void> {
         }
       : null,
     gestureStarted: false,
+    gestureStopped: false,
     reactionStarted: false,
     reactionStopped: false,
     idleSince: null,
@@ -385,8 +474,8 @@ function maybeLoop(): void {
   plan.idleSince = idle ? (plan.idleSince ?? session.time) : null;
   if (plan.idleSince === null || session.time - plan.idleSince < LOOP_REST_SEC)
     return;
-  if (ui.loop.checked) void play();
-  else plan = null;
+  plan = null;
+  if (ui.loop.checked) act(play)();
 }
 
 /** Turn one panel effect on or off on the open Avatar. */
@@ -411,7 +500,10 @@ async function setEffect(id: string, on: boolean): Promise<void> {
       appliedId: id,
     }))
   )
-    setStatus(`${effect.name} did not play.`, true);
+    setStatus(
+      `${effect.name} did not play: ${avatar.particleVFXController?.getSnapshot().warnings.at(-1) ?? "no particle controller"}`,
+      true,
+    );
 }
 
 function buildEffectList(): void {
@@ -487,6 +579,9 @@ function buildExpressionList(): void {
     avatar.expressionController?.getArkitFaceCapability().resolved.keys() ?? [],
   );
   const names = avatar.getAvailableExpressions();
+  // Weights for expressions another Avatar had would drive hidden shapes.
+  for (const name of [...face.keys()])
+    if (!names.includes(name)) face.delete(name);
   const groups: [string, string[]][] = [
     ["Expressions", names.filter((name) => !arkit.has(name))],
     ["ARKit shapes", names.filter((name) => arkit.has(name))],
@@ -574,16 +669,20 @@ function updateMeters(): void {
 function cueSheet(): object {
   const gesture = selected(catalog.gestures, ui.gesture);
   const reaction = selected(catalog.reactions, ui.reaction);
-  const avatar = catalog.avatars.find(({ id }) => id === ui.avatar.value)!;
+  const avatar = currentAvatar();
   const gestureAt = seconds(ui.gestureDelay, 0);
   const reactionAt = seconds(ui.reactionDelay, 0);
   const from = ui.gestureFrom.value;
-  const reactionClip = reaction ? clips.get(reaction.spec) : null;
+  const reactionClip = reaction ? clips.get(`${reaction.spec}#`) : null;
   const hold = reactionClip ? reactionHold(reactionClip) : null;
+  const gestureClip = gesture ? clips.get(`${gesture.spec}#${from}`) : null;
+  const fromTime = gesture?.beats.find(({ id }) => id === from)?.time ?? 0;
+  const gestureHold = gestureClip ? clipHold(gestureClip) : null;
   const gestureEnd = gesture
     ? gestureAt +
-      gesture.duration -
-      (gesture.beats.find(({ id }) => id === from)?.time ?? 0)
+      (gestureHold === null
+        ? gesture.duration - fromTime
+        : Math.max(0, gestureHold - fromTime))
     : 0;
   const end = Math.max(
     gestureEnd,
@@ -596,7 +695,7 @@ function cueSheet(): object {
     title: [gesture?.name, reaction && reactionLabel(reaction)]
       .filter(Boolean)
       .join(" + "),
-    avatar: avatar.file,
+    avatar: avatar.sheet,
     camera,
     duration: round(end + 0.5),
     cues: [
@@ -614,7 +713,7 @@ function cueSheet(): object {
             {
               reaction: reaction.spec,
               at: round(reactionAt),
-              ...(ui.reactionHold.value !== "" && hold !== null
+              ...(seconds(ui.reactionHold, -1) >= MIN_HOLD_SEC && hold !== null
                 ? { until: round(reactionAt + hold) }
                 : {}),
             },
@@ -635,8 +734,14 @@ function cueSheet(): object {
 }
 
 async function copySheet(): Promise<void> {
-  // Load the Reaction's clip, so its default hold is known.
+  const gesture = selected(catalog.gestures, ui.gesture);
   const reaction = selected(catalog.reactions, ui.reaction);
+  if (!gesture && !reaction && !face.size) {
+    setStatus("Pick a Gesture, a Reaction or a face weight first.", true);
+    return;
+  }
+  // Load the clips, so their default holds are known.
+  if (gesture) await clipFor(gesture.spec, ui.gestureFrom.value);
   if (reaction) await clipFor(reaction.spec);
   const text = `${JSON.stringify(cueSheet(), null, 2)}\n`;
   ui.sheet.hidden = false;
@@ -656,18 +761,21 @@ async function copySheet(): Promise<void> {
 let busy = false;
 let last = performance.now();
 let frames = 0;
+/**
+ * Advance to wall-clock time at any display rate: the clock keeps the part
+ * of a frame each tick leaves over (`advanceTo` steps whole 60 Hz frames).
+ */
 function tick(now: number): void {
   requestAnimationFrame(tick);
-  const current = session;
-  if (!current || busy) {
-    last = now;
-    return;
-  }
-  busy = true;
-  const delta = Math.min(0.1, (now - last) / 1000);
+  const delta = Math.min(MAX_TICK_SEC, (now - last) / 1000);
   last = now;
+  const current = session;
+  if (!current) return;
+  clock = Math.min(clock + delta, current.time + MAX_BACKLOG_SEC);
+  if (busy) return;
+  busy = true;
   void current
-    .advanceTo(current.time + delta)
+    .advanceTo(clock)
     .then(async () => {
       if (current !== session) return;
       const view = views.get(ui.camera.value);
@@ -679,9 +787,7 @@ function tick(now: number): void {
       frames += 1;
       if (ui.activeOnly.checked && frames % 6 === 0) filterExpressions();
     })
-    .catch((error: unknown) =>
-      setStatus(error instanceof Error ? error.message : String(error), true),
-    )
+    .catch((error: unknown) => setStatus(errorText(error), true))
     .finally(() => {
       busy = false;
     });
@@ -689,8 +795,9 @@ function tick(now: number): void {
 
 async function start(): Promise<void> {
   catalog = await fetchJson<Catalog>("/__combo/catalog");
+  // By index: two Avatar files may share a name.
   ui.avatar.replaceChildren(
-    ...catalog.avatars.map(({ id }) => new Option(id, id)),
+    ...catalog.avatars.map(({ id }, index) => new Option(id, String(index))),
   );
   fillPicker(ui.gesture, catalog.gestures, "", (entry) => entry.name);
   fillPicker(ui.reaction, catalog.reactions, "", reactionLabel);
@@ -715,17 +822,13 @@ async function start(): Promise<void> {
     ),
   );
   ui.gesture.addEventListener("change", fillGestureFrom);
-  ui.gesture.addEventListener("dblclick", () => void play());
-  ui.reaction.addEventListener("dblclick", () => void play());
-  ui.avatar.addEventListener("change", () =>
-    openAvatar().catch((error: unknown) =>
-      setStatus(error instanceof Error ? error.message : String(error), true),
-    ),
-  );
+  ui.gesture.addEventListener("dblclick", act(play));
+  ui.reaction.addEventListener("dblclick", act(play));
+  ui.avatar.addEventListener("change", act(openAvatar));
   ui.backdrop.addEventListener("change", applyBackdrop);
-  ui.play.addEventListener("click", () => void play());
+  ui.play.addEventListener("click", act(play));
   ui.stop.addEventListener("click", stop);
-  ui.copy.addEventListener("click", () => void copySheet());
+  ui.copy.addEventListener("click", act(copySheet));
   ui.resetFace.addEventListener("click", () => {
     face.clear();
     applyFace();
@@ -736,20 +839,40 @@ async function start(): Promise<void> {
   ui.clearEffects.addEventListener("click", clearEffects);
   ui.expressionFilter.addEventListener("input", filterExpressions);
   ui.activeOnly.addEventListener("change", filterExpressions);
-  await openAvatar();
+  // Frames run from the start, so picking another Avatar after a failed
+  // load still shows it.
   requestAnimationFrame(tick);
+  await openAvatar();
 }
 
 declare global {
   interface Window {
     comboReady?: boolean;
+    /** Playback state, for tests. */
+    comboState?: () => {
+      time: number;
+      gesture: boolean;
+      reaction: boolean;
+      avatarsOnStage: number;
+    } | null;
   }
 }
+
+window.comboState = () =>
+  session
+    ? {
+        time: session.time,
+        gesture: session.avatar.isClipActive(),
+        reaction: session.isReactionActive(),
+        // The stage holds its lights and the Avatars' scenes.
+        avatarsOnStage: stage.scene.children.filter(
+          (child) => !(child instanceof THREE.Light),
+        ).length,
+      }
+    : null;
 
 start()
   .then(() => {
     window.comboReady = true;
   })
-  .catch((error: unknown) =>
-    setStatus(error instanceof Error ? error.message : String(error), true),
-  );
+  .catch((error: unknown) => setStatus(errorText(error), true));
