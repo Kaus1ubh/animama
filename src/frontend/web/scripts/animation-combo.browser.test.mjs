@@ -9,8 +9,8 @@ import { chromium } from "playwright";
 import { startComboServer } from "./animation-combo.mjs";
 import { listSheetItems } from "./animation-reel-sheet.mjs";
 
-// The page plays a Gesture and a Reaction together, adds a face weight, and
-// copies a cue sheet take the reel recorder accepts.
+// The page plays a Gesture and a Reaction together, keeps effects on, adds a
+// face weight, and copies a cue sheet take the reel recorder accepts.
 test("plays a combination and copies it as a cue sheet take", async () => {
   const server = await startComboServer({
     avatars: [{ value: "Annie", file: false }],
@@ -37,6 +37,17 @@ test("plays a combination and copies it as a cue sheet take", async () => {
     await page.waitForFunction(() =>
       document.querySelector("#status")?.textContent?.includes("Love 3"),
     );
+    // An Avatar and a Particle Effect stay on; the face camera follows.
+    await page.fill("#effect-filter", "blush");
+    await page.locator(".effect:visible input").first().check();
+    await page.fill("#effect-filter", "sparkle hearts");
+    await page.locator(".effect:visible input").first().check();
+    await page.check("#applied-only");
+    await page.fill("#effect-filter", "");
+    assert.equal(await page.locator(".effect:visible").count(), 2);
+    await page.selectOption("#camera", "face");
+    await page.waitForTimeout(500);
+    assert.doesNotMatch(await page.textContent("#status"), /did not/);
     await page.fill("#expression-filter", "happy");
     await page
       .locator(".expression:visible input[type=range]")

@@ -11,11 +11,12 @@ import {
 import {
   EffectSourceError,
   INCLUDED_CONTENT_ROOT,
+  loadAnyEffectDescriptor,
   resolveClipSource,
   resolveDependencies,
   scanLibrary,
 } from "./effect-render-sources.mjs";
-import { pageClipMedia } from "./effect-render.mjs";
+import { pageClipMedia, pageEffect, pageParticle } from "./effect-render.mjs";
 import { openBrowser, sendJson, trustedRequest } from "./local-page-server.mjs";
 
 /**
@@ -27,7 +28,8 @@ import { openBrowser, sendJson, trustedRequest } from "./local-page-server.mjs";
  *
  * Serves `scripts/animation-combo/` on 127.0.0.1: pick any Included Gesture
  * and Reaction, play them together as chat does (with their Avatar, Particle
- * and Scene Effects, no sounds), add weight to any expression or ARKit shape
+ * and Scene Effects, no sounds), turn any Included Avatar or Particle Effect
+ * on and off over them, add weight to any expression or ARKit shape
  * the Avatar has while watching its live weights, and copy the result as a
  * cue sheet take for `pnpm -s animation:reel --sheet`. Avatar files are read
  * in place; the page reads nothing else outside the web root and the
@@ -120,7 +122,8 @@ function pickerEntry(kind, stem, source, clip) {
 /**
  * Every Included Gesture (by stem) and Reaction (by emotion, then
  * intensity), their clips by spec with effect aliases keyed by content id
- * (`mediaKey`), and the media those keys resolve to.
+ * (`mediaKey`), the media those keys resolve to, and every Included Avatar
+ * and Particle Effect (by stem) to apply on its own.
  */
 export async function loadComboCatalog({ cwd = process.cwd() } = {}) {
   const lists = { gesture: [], reaction: [] };
@@ -146,11 +149,25 @@ export async function loadComboCatalog({ cwd = process.cwd() } = {}) {
       lists[kind].push(entry);
     }
   }
+  const effects = { avatar: [], particle: [] };
+  for (const [kind, scan] of [
+    ["avatar", "effect"],
+    ["particle", "particle"],
+  ])
+    for (const { descriptorPath, descriptor } of await scanLibrary(
+      INCLUDED_CONTENT_ROOT,
+      scan,
+    ))
+      effects[kind].push(
+        await loadAnyEffectDescriptor(descriptorPath, descriptor),
+      );
   return {
     gestures: lists.gesture,
     reactions: lists.reaction.sort(compareReactions),
     clips,
     media: await resolveDependencies([...dependencies.values()]),
+    avatarEffects: effects.avatar,
+    particleEffects: effects.particle,
   };
 }
 
@@ -187,6 +204,14 @@ export async function startComboServer({
       fsUrl,
       imageUrl: async (file) => fsUrl(file),
     }),
+    avatarEffects: await Promise.all(
+      catalog.avatarEffects.map((effect) =>
+        pageEffect(effect, async (file) => fsUrl(file)),
+      ),
+    ),
+    particleEffects: catalog.particleEffects.map((particle) =>
+      pageParticle(particle, fsUrl),
+    ),
   };
   let origin = "";
   const server = await createServer({

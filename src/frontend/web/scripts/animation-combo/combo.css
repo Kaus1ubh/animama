@@ -152,6 +152,32 @@ button.primary {
   font-size: 12px;
 }
 
+.effect-list {
+  max-height: 210px;
+  overflow-y: auto;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 4px;
+}
+
+.effect {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 4px;
+  border-radius: 4px;
+}
+
+.effect.is-on {
+  background: var(--accent-soft);
+}
+
+.effect-kind {
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 11px;
+}
+
 .expression-list {
   display: grid;
   gap: 2px;

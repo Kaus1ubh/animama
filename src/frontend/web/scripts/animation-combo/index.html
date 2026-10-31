@@ -25,12 +25,13 @@
             <label class="field grow">
               <span>Camera</span>
               <select id="camera">
-                <option value="landing">Landing close-up</option>
                 <option value="medium" selected>Medium</option>
+                <option value="landing">Landing close-up</option>
+                <option value="portrait">Portrait</option>
+                <option value="face">Face zoom (follows her head)</option>
+                <option value="portrait-close">PiP (portrait close)</option>
                 <option value="landing:emotion">Landing emotions</option>
                 <option value="landing:gestures">Landing gestures</option>
-                <option value="portrait-close">PiP (portrait close)</option>
-                <option value="portrait">Portrait</option>
                 <option value="full-body-close">Full body close</option>
                 <option value="full-body">Full body</option>
               </select>
@@ -93,6 +94,28 @@
               />
             </label>
           </div>
+        </section>
+
+        <section class="group">
+          <div class="row">
+            <h2 class="grow">Effects</h2>
+            <button type="button" id="clear-effects">Clear</button>
+          </div>
+          <div class="row">
+            <input
+              id="effect-filter"
+              type="search"
+              class="grow"
+              placeholder="Filter"
+            />
+            <label class="check"
+              ><input type="checkbox" id="applied-only" /> On only</label
+            >
+          </div>
+          <p class="muted small">
+            Ticked effects stay on over the Gesture and Reaction.
+          </p>
+          <div id="effect-list" class="effect-list"></div>
         </section>
 
         <section class="group transport">

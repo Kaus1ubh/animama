@@ -1,6 +1,8 @@
 import * as THREE from "three";
 
+import type { PreviewParticleEffect } from "@/lib/avatar/motion-authoring/preview/previewMedia";
 import { parseAnimaPoseClip } from "@/lib/avatar/poses/animaPoseClip";
+import { applyAvatarVFXEffectById } from "@/lib/avatar/vfx/runtime";
 
 import {
   cameraView,
@@ -10,7 +12,11 @@ import {
 } from "../animation-reel/camera";
 import { ReviewStage, TILE_BACKDROP } from "../effect-render/reviewStage";
 import { EffectSession, type PageClipMedia } from "../effect-render/session";
-import { createStage } from "../effect-render/stage";
+import {
+  createStage,
+  effectEntry,
+  type EffectSource,
+} from "../effect-render/stage";
 import { STAGE_STOPS } from "../landing-stage/stops";
 
 /**
@@ -20,8 +26,10 @@ import { STAGE_STOPS } from "../landing-stage/stops";
  * on the clip player, the Reaction on the reaction layer, both with their
  * effects. The expression panel lists every expression and ARKit shape the
  * Avatar has, shows each one's live weight, and adds slider weights over the
- * face (an expression overlay, as a cue sheet's face cue adds them). "Copy
- * cue sheet" turns the current setup into a take for `animation:reel`.
+ * face (an expression overlay, as a cue sheet's face cue adds them). Ticked
+ * Avatar and Particle Effects are applied on their own and stay on until
+ * unticked. "Copy cue sheet" turns the current setup (without those effects)
+ * into a take for `animation:reel`.
  */
 
 type PickerEntry = {
@@ -39,7 +47,14 @@ type Catalog = {
   gestures: PickerEntry[];
   reactions: PickerEntry[];
   media: PageClipMedia;
+  avatarEffects: EffectSource[];
+  particleEffects: PreviewParticleEffect[];
 };
+
+/** An effect the effects panel can turn on, by its applied id. */
+type PanelEffect =
+  | { kind: "avatar"; id: string; name: string; source: EffectSource }
+  | { kind: "particle"; id: string; name: string; alias: string };
 
 /** The pickers' cameras by option value; `medium` is not a preset name. */
 const CAMERAS: Record<string, ReelCamera> = {
@@ -80,6 +95,10 @@ const ui = {
   expressionFilter: byId<HTMLInputElement>("expression-filter"),
   activeOnly: byId<HTMLInputElement>("active-only"),
   expressions: byId<HTMLDivElement>("expression-list"),
+  effectFilter: byId<HTMLInputElement>("effect-filter"),
+  appliedOnly: byId<HTMLInputElement>("applied-only"),
+  effects: byId<HTMLDivElement>("effect-list"),
+  clearEffects: byId<HTMLButtonElement>("clear-effects"),
   sheet: byId<HTMLTextAreaElement>("sheet"),
 };
 
@@ -94,6 +113,11 @@ let session: EffectSession | null = null;
 let views = new Map<string, ReelCameraView>();
 /** Slider weights by expression name. */
 const face = new Map<string, number>();
+/** Every effect the panel offers, by applied id. */
+let panelEffects = new Map<string, PanelEffect>();
+/** The applied ids of the effects that are on. */
+const effectsOn = new Set<string>();
+let effectRows: { effect: PanelEffect; row: HTMLElement }[] = [];
 let rows: { name: string; row: HTMLElement; label: HTMLElement }[] = [];
 
 /** What Play scheduled, on the session clock. */
@@ -226,6 +250,13 @@ async function openAvatar(): Promise<void> {
       clipMedia: catalog.media,
       expression: null,
       clipPlayback: "avatar",
+      // Particle Effects the panel plays, beside the clips' own.
+      particles: catalog.particleEffects.filter(
+        ({ alias }) =>
+          !catalog.media.particleEffects.some(
+            (particle) => particle.alias === alias,
+          ),
+      ),
     },
     stage.review,
   );
@@ -242,6 +273,7 @@ async function openAvatar(): Promise<void> {
   session = next;
   buildExpressionList();
   applyFace();
+  for (const id of effectsOn) void setEffect(id, true);
   setStatus(`${avatar.id} ready.`);
 }
 
@@ -355,6 +387,98 @@ function maybeLoop(): void {
     return;
   if (ui.loop.checked) void play();
   else plan = null;
+}
+
+/** Turn one panel effect on or off on the open Avatar. */
+async function setEffect(id: string, on: boolean): Promise<void> {
+  const avatar = session?.avatar;
+  const effect = panelEffects.get(id);
+  if (!avatar || !effect) return;
+  if (effect.kind === "avatar") {
+    if (!on) return avatar.vfxController?.removeEffect(id);
+    const applied = await applyAvatarVFXEffectById({
+      avatar,
+      effectId: effect.source.contentId,
+      appliedEffectId: id,
+      effectEntry: effectEntry(effect.source),
+    });
+    if (!applied)
+      setStatus(`${effect.name} did not apply on this Avatar.`, true);
+  } else if (!on) avatar.particleVFXController?.clearEffect(id);
+  else if (
+    !(await avatar.particleVFXController?.playEffect({
+      effectId: effect.alias,
+      appliedId: id,
+    }))
+  )
+    setStatus(`${effect.name} did not play.`, true);
+}
+
+function buildEffectList(): void {
+  panelEffects = new Map<string, PanelEffect>([
+    ...catalog.avatarEffects.map((source): [string, PanelEffect] => [
+      `combo:${source.contentId}`,
+      {
+        kind: "avatar",
+        id: `combo:${source.contentId}`,
+        name: source.name,
+        source,
+      },
+    ]),
+    ...catalog.particleEffects.map((particle): [string, PanelEffect] => [
+      `combo:${particle.alias}`,
+      {
+        kind: "particle",
+        id: `combo:${particle.alias}`,
+        name: particle.name,
+        alias: particle.alias,
+      },
+    ]),
+  ]);
+  effectRows = [...panelEffects.values()]
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .map((effect) => {
+      const row = document.createElement("label");
+      row.className = "effect";
+      const box = document.createElement("input");
+      box.type = "checkbox";
+      box.addEventListener("change", () => {
+        if (box.checked) effectsOn.add(effect.id);
+        else effectsOn.delete(effect.id);
+        row.classList.toggle("is-on", box.checked);
+        void setEffect(effect.id, box.checked);
+      });
+      const kind = document.createElement("span");
+      kind.className = "effect-kind";
+      kind.textContent = effect.kind === "avatar" ? "Avatar" : "Particle";
+      row.append(box, document.createTextNode(effect.name), kind);
+      return { effect, row };
+    });
+  ui.effects.replaceChildren(...effectRows.map(({ row }) => row));
+  filterEffects();
+}
+
+function filterEffects(): void {
+  const words = ui.effectFilter.value
+    .toLowerCase()
+    .split(/\s+/)
+    .filter(Boolean);
+  for (const { effect, row } of effectRows) {
+    const text = `${effect.name} ${effect.id}`.toLowerCase();
+    row.hidden =
+      !words.every((word) => text.includes(word)) ||
+      (ui.appliedOnly.checked && !effectsOn.has(effect.id));
+  }
+}
+
+function clearEffects(): void {
+  for (const id of effectsOn) void setEffect(id, false);
+  effectsOn.clear();
+  for (const { row } of effectRows) {
+    row.classList.remove("is-on");
+    row.querySelector("input")!.checked = false;
+  }
+  filterEffects();
 }
 
 function buildExpressionList(): void {
@@ -517,12 +641,15 @@ async function copySheet(): Promise<void> {
   const text = `${JSON.stringify(cueSheet(), null, 2)}\n`;
   ui.sheet.hidden = false;
   ui.sheet.value = text;
+  const left = effectsOn.size
+    ? " Ticked effects are not part of cue sheets."
+    : "";
   try {
     await navigator.clipboard.writeText(text);
-    setStatus("Copied the cue sheet take.");
+    setStatus(`Copied the cue sheet take.${left}`);
   } catch {
     ui.sheet.select();
-    setStatus("Select the cue sheet below and copy it.");
+    setStatus(`Select the cue sheet below and copy it.${left}`);
   }
 }
 
@@ -568,6 +695,7 @@ async function start(): Promise<void> {
   fillPicker(ui.gesture, catalog.gestures, "", (entry) => entry.name);
   fillPicker(ui.reaction, catalog.reactions, "", reactionLabel);
   fillGestureFrom();
+  buildEffectList();
   buildStage();
   ui.gestureFilter.addEventListener("input", () => {
     fillPicker(
@@ -603,6 +731,9 @@ async function start(): Promise<void> {
     applyFace();
     buildExpressionList();
   });
+  ui.effectFilter.addEventListener("input", filterEffects);
+  ui.appliedOnly.addEventListener("change", filterEffects);
+  ui.clearEffects.addEventListener("click", clearEffects);
   ui.expressionFilter.addEventListener("input", filterExpressions);
   ui.activeOnly.addEventListener("change", filterExpressions);
   await openAvatar();

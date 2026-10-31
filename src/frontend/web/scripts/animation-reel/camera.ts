@@ -21,6 +21,7 @@ import {
 
 /**
  * A camera: a chat preset, `pip` (the desktop PiP window's default preset),
+ * `face` (a face close-up that follows the head, as review sheets draw it),
  * `landing` / `landing:<stop>` (a landing page stop's framing; `landing` is
  * the hero close-up), or a landing-style framing whose fields override the
  * hero close-up's.
@@ -31,6 +32,8 @@ export type ReelCamera = string | Partial<StageCamera>;
 export type ReelCameraView = {
   framing: Framing;
   offset: { shift: number; lift: number } | null;
+  /** Follow the head in a face close-up instead of standing still. */
+  face?: boolean;
 };
 
 type Size = { width: number; height: number };
@@ -57,6 +60,12 @@ export function cameraView(
     const hero = STAGE_STOPS.find(({ id }) => id === "hero")!;
     return landingView(avatar, { ...hero.camera, ...camera });
   }
+  if (camera === "face")
+    return {
+      framing: chatCameraFraming(avatar, "portrait"),
+      offset: null,
+      face: true,
+    };
   if (camera === "pip")
     return {
       framing: chatCameraFraming(avatar, DEFAULT_PIP_SCENE_CAMERA_PRESET),
@@ -102,10 +111,10 @@ function landingView(avatar: Avatar, view: StageCamera): ReelCameraView {
 export function placeReelCamera(
   camera: THREE.PerspectiveCamera,
   avatar: Avatar,
-  { framing, offset }: ReelCameraView,
+  { framing, offset, face }: ReelCameraView,
   { width, height }: Size,
 ): void {
-  placeCamera(camera, "front", avatar, framing);
+  placeCamera(camera, face ? "face" : "front", avatar, framing);
   if (offset)
     // A negative x offset moves the subject right; a positive y offset, up.
     camera.setViewOffset(
