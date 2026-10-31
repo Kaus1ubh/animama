@@ -9,6 +9,7 @@ import {
   applyEyelidClosureCorrection,
   type EyelidClosureCorrection,
 } from "./eyelidClosure";
+import { installFaceShapeStacking } from "./faceShapeStacking";
 import { type FaceSignals, registerFaceSignals } from "./faceSignals";
 import { registerIrisHideExpression } from "./irisHideExpression";
 import { registerMmdFace } from "./mmdFaceExpressions";
@@ -37,8 +38,10 @@ export type PreparedVrm = {
  * shapes first (`faceSignals.ts`), then the face names content keys are
  * registered region by region (MMD morphs, then ARKit mixes, then
  * `Fcl_EYE_Iris_Hide`) before the eyelid closure correction, which measures
- * them. Face part detection (`Avatar.load`) runs after this. Arms and hands
- * whose rest differs from VRoid's are normalized (`restNormalization.ts`).
+ * them, and the stacking limits on the expressions Animama built
+ * (`faceShapeStacking.ts`). Face part detection (`Avatar.load`) runs after
+ * this. Arms and hands whose rest differs from VRoid's are normalized
+ * (`restNormalization.ts`).
  * Every step is idempotent.
  *
  * The motion checks load models without it, because they read the file's own
@@ -53,6 +56,7 @@ export function prepareLoadedVrm(
   const arkitFace = registerArkitFace(vrm);
   registerIrisHideExpression(vrm, ownFaceNames(vrm));
   const eyelidClosure = applyEyelidClosureCorrection(vrm, options.vrmSha256);
+  installFaceShapeStacking(vrm);
   const restPose = installRestNormalization(vrm);
   return { faceSignals, arkitFace, eyelidClosure, restPose };
 }

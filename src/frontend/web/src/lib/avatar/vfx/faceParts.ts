@@ -201,6 +201,13 @@ const HIGHLIGHT_MAX_AREA_RATIO = 0.5;
 const BLINK_MOVED_MIN_SHARE = 0.8;
 /** …and about as far as the eyelid skin does. */
 const BLINK_DISPLACEMENT_MIN_RATIO = 0.5;
+/**
+ * Lashes along a lid's outer and lower edges follow it only part of the way
+ * (about 13% for a lower lash and 45% for an eyeliner wing tip on a converted
+ * VRChat Avatar), so an island inside the box its lid sweeps qualifies when
+ * blink moves it this share as far as the lid.
+ */
+const LID_EDGE_DETAIL_MIN_RATIO = 0.1;
 /** …and are small compared with the face skin. */
 const EYE_DETAIL_MAX_AREA_RATIO = 0.25;
 /**
@@ -211,7 +218,10 @@ const EYE_DETAIL_MAX_AREA_RATIO = 0.25;
 const EYE_WINDOW_HALF_WIDTH = 3;
 const EYE_WINDOW_HALF_HEIGHT = 2.5;
 const MOVED_EPSILON = 1e-4;
-/** How far past the eyelids an eye layer found without eye bones may reach. */
+/**
+ * How far past the eyelids an eye layer found without eye bones, or a lash
+ * that follows its lid part of the way, may reach, as a share of their size.
+ */
 const EYE_REGION_MARGIN = 0.25;
 /**
  * How deep behind its lid's front an eye layer found without eye bones may
@@ -226,6 +236,11 @@ const EYE_LAYER_MAX_DEPTH = 0.15;
  * the skin around them that moves a little with it.
  */
 const BLINK_REGION_MIN_SHARE = 0.5;
+/**
+ * A lid's edge (its lash line) is the part blink moves at least this share as
+ * far as the farthest vertex on that side; the lid skin above it moves less.
+ */
+const LASH_LINE_MIN_SHARE = 0.9;
 /** An estimated eye's confidence, by what its position comes from. */
 const EYE_ESTIMATE_CONFIDENCE: Record<AvatarEyeEstimate, number> = {
   blink: 0.5,
@@ -718,6 +733,12 @@ type BlinkEyeRegion = {
    * far it moves: the middle of the eye opening the lid closes over.
    */
   center: THREE.Vector3;
+  /**
+   * The highest rest height (anchor-space y) of the vertices blink moves at
+   * least {@link LASH_LINE_MIN_SHARE} as far as the farthest: the top of the
+   * open lid's edge, below the lid skin and brows above it.
+   */
+  lashLineTop: number;
 };
 
 /**
@@ -753,6 +774,7 @@ function measureBlinkRegions(
     const bounds = new THREE.Box3();
     const center = new THREE.Vector3();
     let weight = 0;
+    let lashLineTop = -Infinity;
     for (const { point, delta } of kept) {
       bounds.expandByPoint(point);
       bounds.expandByPoint(point.clone().add(delta));
@@ -762,12 +784,16 @@ function measureBlinkRegions(
         distance,
       );
       weight += distance;
+      if (distance >= farthest * LASH_LINE_MIN_SHARE) {
+        lashLineTop = Math.max(lashLineTop, point.y);
+      }
     }
     return {
       vertices: kept.map(({ vertex }) => vertex),
       points: kept.map(({ point }) => point),
       bounds,
       center: center.multiplyScalar(1 / weight),
+      lashLineTop,
     };
   };
   return { left: regionOf(moved.left), right: regionOf(moved.right) };
@@ -1377,20 +1403,22 @@ function detectFromSignals(context: Context): {
 
     // Lines and lashes kept inside the face or eye primitives as their own
     // islands. An eye line found as a primitive leaves every region a lash;
-    // otherwise each eye's largest region is its line.
+    // otherwise each eye's largest region that follows its lid all the way is
+    // its line.
     const regions = findEyeDetailRegions(context, {
       entries: unique([faceSkin, ...eyeParts.iris, ...eyeParts.white]),
       blink,
       referenceMax: reference.max,
       faceArea,
       window: detailWindow,
+      lidSweeps: measureLidSweeps(context, faceSkin.object),
     });
     if (regions.length > 0) {
       const lines = parts.eyeline
         ? []
         : (["left", "right"] as const).flatMap((side) => {
             const largest = regions
-              .filter((region) => region.side === side)
+              .filter((region) => region.side === side && !region.lidEdge)
               .sort((a, b) => b.area - a.area)[0];
             return largest ? [largest] : [];
           });
@@ -1560,13 +1588,47 @@ type DetailRegion = {
   triangles: number[];
   area: number;
   side: "left" | "right";
+  /** Follows its lid only part of the way (a lower lash, a wing tip). */
+  lidEdge: boolean;
 };
+
+/** The box each eye's lid sweeps; see {@link measureLidSweeps}. */
+type LidSweeps = Record<"left" | "right", THREE.Box3 | null>;
+
+/**
+ * The box each eye's lid sweeps on the face skin, in anchor space: its blink
+ * region (open and closed) grown by {@link EYE_REGION_MARGIN} of its size on
+ * every axis, but reaching no higher than the open lid's lash line. Lower
+ * lashes hang below the closed lid and wing tips reach past the outer corner;
+ * brows, and lid skin that a tall blink region includes, sit above the lash
+ * line. Null for a side blink leaves still or whose lid piece holds no lash
+ * line, where islands keep the half-travel rule.
+ */
+function measureLidSweeps(context: Context, face: THREE.Mesh): LidSweeps {
+  const regions = measureBlinkRegions(
+    context,
+    face,
+    collectPlayingMorphBinds(context.vrm, "blink", face),
+  );
+  const grown = (region: BlinkEyeRegion | null) => {
+    if (!region || !Number.isFinite(region.lashLineTop)) return null;
+    const size = region.bounds.getSize(new THREE.Vector3());
+    const box = region.bounds
+      .clone()
+      .expandByVector(size.multiplyScalar(EYE_REGION_MARGIN));
+    box.max.y = Math.min(box.max.y, region.lashLineTop);
+    return box;
+  };
+  return { left: grown(regions.left), right: grown(regions.right) };
+}
 
 /**
  * Islands of the given primitives that blink moves almost entirely and about
  * as far as the eyelid, small next to the face and inside the eye window: eye
- * lines and lashes modelled inside the face or eye mesh. The primitive's own
- * main island never qualifies, because blink moves only its lids.
+ * lines and lashes modelled inside the face or eye mesh. Inside the box its
+ * lid sweeps, an island blink moves only part as far still qualifies, as a
+ * `lidEdge` lash. The primitive's own main island never qualifies, because
+ * blink moves only its lids.
  */
 function findEyeDetailRegions(
   context: Context,
@@ -1576,16 +1638,21 @@ function findEyeDetailRegions(
     referenceMax: number;
     faceArea: number;
     window: EyeWindow | null;
+    lidSweeps: LidSweeps;
   },
 ): DetailRegion[] {
   if (args.referenceMax <= 0) return [];
+  const lowestRatio =
+    args.lidSweeps.left || args.lidSweeps.right
+      ? LID_EDGE_DETAIL_MIN_RATIO
+      : BLINK_DISPLACEMENT_MIN_RATIO;
   const regions: DetailRegion[] = [];
   for (const entry of args.entries) {
     const mesh = entry.object;
     if (!args.blink.has(mesh)) continue;
     const displacement = morphDisplacements(mesh, args.blink);
-    // Nothing here moves as far as a lid: no island can qualify.
-    const threshold = args.referenceMax * BLINK_DISPLACEMENT_MIN_RATIO;
+    // Nothing here moves far enough with a lid: no island can qualify.
+    const threshold = args.referenceMax * lowestRatio;
     if (!displacement.some((value) => value >= threshold)) continue;
     const points = anchorSpacePoints(context, mesh);
     const islands = splitTriangleIslands(context, entry);
@@ -1598,9 +1665,15 @@ function findEyeDetailRegions(
         max = Math.max(max, value);
       }
       const shape = measureTriangles(points, island.corners);
+      // The avatar's left is +x in VRM 1 head space and -x in VRM 0's.
+      const side = shape.center.x * context.frontSign >= 0 ? "left" : "right";
+      const lidEdge =
+        max < args.referenceMax * BLINK_DISPLACEMENT_MIN_RATIO &&
+        max >= args.referenceMax * LID_EDGE_DETAIL_MIN_RATIO &&
+        Boolean(args.lidSweeps[side]?.containsPoint(shape.center));
       if (
         moved / island.vertices.length >= BLINK_MOVED_MIN_SHARE &&
-        max >= args.referenceMax * BLINK_DISPLACEMENT_MIN_RATIO &&
+        (max >= args.referenceMax * BLINK_DISPLACEMENT_MIN_RATIO || lidEdge) &&
         shape.area > 0 &&
         shape.area <= args.faceArea * EYE_DETAIL_MAX_AREA_RATIO &&
         (!args.window || isInsideWindow(shape.center, args.window))
@@ -1609,8 +1682,8 @@ function findEyeDetailRegions(
           entry,
           triangles: island.triangles,
           area: shape.area,
-          // The avatar's left is +x in VRM 1 head space and -x in VRM 0's.
-          side: shape.center.x * context.frontSign >= 0 ? "left" : "right",
+          side,
+          lidEdge,
         });
       }
     }

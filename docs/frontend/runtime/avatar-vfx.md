@@ -370,7 +370,9 @@ review renders' face view and `animation:render` follow suit.
 Eye planes default to closing the eyes (`forceBlink` holds `blink` at 1 at full intensity; a fading event weights it, see the fades section),
 hiding eye highlights, lines and lashes (`hideEyeDetails`) and cleaning up the
 painted eye area (`faceCleanup`). `skinBackdrop`, off by default, adds a
-skin-coloured plane behind eye or mouth art (render order 949).
+skin-coloured plane behind eye or mouth art (render order 949). It is lit like
+the face when the face uses MToon or a built-in material; on a lilToon or
+other custom-shader face it is a plain, unlit card.
 
 ### Face cleanup
 
@@ -400,7 +402,7 @@ VRM specification does not define. `detectAvatarFaceParts`
 | `eye_left`, `eye_right` (irises) | Primitives with at least half their skin weight on the humanoid `leftEye`/`rightEye` bones (or whose material a look-at expression moves through a texture transform). Without either, the primitives skinned to the head (eye bones included, as an eye mesh may skin only its irises to them) within that eye region with a triangle behind an eyelid `blink` moves on the face skin: its outline meets the lid's in the front view and a corner lies no deeper than 15% of the lids' width behind the lid's front, so an eye card larger than the lid counts; sides follow the head's left-right axis. A part deep inside the head or beside it (ears) whose outline merely spans the lids does not count. Iris, white and highlight are told apart by projected area and depth. One primitive may hold both eyes. An eye with no geometry of its own is `estimated` (see below). |
 | `face_skin`                      | The head-skinned primitive of the mesh that both `blink` and `aa` morph (presets left empty are filled from MMD, ARKit or VRChat shapes first, `faceSignals.ts`), with the most area around the eyes. A face skinned partly to the neck or jaw (under 90% head weight) wins instead when its head-weighted vertices cover more and blink moves it; primitives on spring joints (merged-in hair) never do. With neither, a primitive they morph that holds the body (under half its weight on the head, or over 35% below the neck) is face skin as its head region (see below). When `aa` morphs no mesh (a mouth swapped between separate meshes by material binds, or none authored), the same rules pick among the primitives `blink` alone morphs, and the mouth anchor is estimated from the eyes; only when that finds nothing either does Diagnostics warn that the expressions move no mesh. |
 | `eye_highlight`                  | Separated from the iris by size and depth.                                                                                                                                                                                                                                     |
-| `eyeline`, `eyelash`             | Small primitives of the face mesh that `blink` moves almost entirely; the larger is the eye line. Islands of the face or eye primitives that `blink` moves the same way are part `regions` (triangle lists, runtime only): lashes, or each eye's largest island as its line when no line primitive exists. |
+| `eyeline`, `eyelash`             | Small primitives of the face mesh that `blink` moves almost entirely; the larger is the eye line. Islands of the face or eye primitives that `blink` moves the same way are part `regions` (triangle lists, runtime only): lashes, or each eye's largest island as its line when no line primitive exists. Elsewhere an island must move at least half as far as the lid, but inside the box an eye's lid sweeps on the face skin (its `blink` region grown by a quarter of its size, reaching no higher than the open lid's lash line), a tenth is enough: lower lashes and eyeliner wing tips follow the lid only part of the way. Such an island is always a lash, never the line. Brows sit above the lash line, so a brow `blink` drags is left out. |
 | `hair`                           | Primitives in the head subtree with a real share of spring-joint weight (used to keep forehead and top planes clear).                                                                                                                                                          |
 
 Each part reports its `node:mesh:primitive` bindings, a source (`signals`,
@@ -1232,6 +1234,11 @@ per render; a silhouette adds one skinned draw per overlaid primitive (about
   mouth art over a dark painted face (a robot's screen) is placed but barely
   shows, and nothing checks whether a fringe, hood or modelled eye in front
   hides floating art.
+- Eye overlays that close the eyes hide only the eye details `blink` moves:
+  a lower-lid line that stays still when the Avatar blinks remains visible,
+  as do lash layers above the open lid's lash line. Lids that do not quite
+  meet when closed (some converted VRChat Avatars) show a faint dotted seam
+  where the eye behind them shows through.
 - The mouth anchor follows the vertices the mouth shapes (`aa`, `ee`, `ih`,
   `oh`, `ou`) move most, or an estimate without them; on a face whose jaw
   moves with those shapes (some converted VRChat Avatars), mouth decals sit
