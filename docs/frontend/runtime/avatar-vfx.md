@@ -370,7 +370,9 @@ review renders' face view and `animation:render` follow suit.
 Eye planes default to closing the eyes (`forceBlink` holds `blink` at 1 at full intensity; a fading event weights it, see the fades section),
 hiding eye highlights, lines and lashes (`hideEyeDetails`) and cleaning up the
 painted eye area (`faceCleanup`). `skinBackdrop`, off by default, adds a
-skin-coloured plane behind eye or mouth art (render order 949).
+skin-coloured plane behind eye or mouth art (render order 949). It is lit like
+the face when the face uses MToon or a built-in material; on a lilToon or
+other custom-shader face it is a plain, unlit card.
 
 ### Face cleanup
 
