@@ -2,6 +2,7 @@ import {
   VRMExpressionMorphTargetBind,
   type VRM,
   type VRMExpression,
+  type VRMExpressionBind,
 } from "@pixiv/three-vrm";
 import type { BufferGeometry } from "three";
 
@@ -175,9 +176,9 @@ export function applyEyelidClosureCorrection(
     const expression = manager.getExpression(name);
     return expression !== null && !isAnimamaFaceExpression(expression);
   });
-  const blinkMotion = morphDisplacements(blink);
+  const blinkMotion = bindDisplacements(blink.binds);
   const share = (expression: VRMExpression) =>
-    eyelidClosingShare(morphDisplacements(expression), blinkMotion);
+    eyelidClosingShare(bindDisplacements(expression.binds), blinkMotion);
   const closes = (expression: VRMExpression) =>
     share(expression) >= EYELID_CLOSING_MIN_SHARE;
 
@@ -194,16 +195,8 @@ export function applyEyelidClosureCorrection(
    * and is not one-sided.
    */
   const correctMeasured = (expression: VRMExpression): number => {
-    if (isOneSided(expression)) return 0;
-    // ARKit mixes keep their share along blink (as reviewed with #688); other
-    // expressions are calibrated on VRoid's happy, which closes the eyes fully.
-    const measured = arkitMixOf(expression)
-      ? Math.min(1, share(expression))
-      : Math.min(
-          1,
-          eyelidClosingPeakShare(morphDisplacements(expression), blinkMotion) /
-            CLOSED_LID_PEAK_SHARE,
-        );
+    if (isOneSidedExpression(expression)) return 0;
+    const measured = lidClosureAmount(expression, blinkMotion);
     if (measured < EYELID_CLOSING_MIN_SHARE) return 0;
     correct(expression, measured);
     return measured;
@@ -247,10 +240,51 @@ const BLINK_PRESETS: ReadonlySet<string> = new Set([
 ]);
 
 /**
+ * How far an expression closes the lids at weight 1, as a share of a full
+ * closure (0–1). ARKit mixes keep their share along blink (as reviewed with
+ * #688); other expressions are calibrated on VRoid's happy, which closes the
+ * eyes fully ({@link CLOSED_LID_PEAK_SHARE}).
+ *
+ * @param blinkMotion Blink's per-vertex motion ({@link bindDisplacements}).
+ */
+export function lidClosureAmount(
+  expression: VRMExpression,
+  blinkMotion: Map<BufferGeometry, Float32Array>,
+): number {
+  return Math.min(1, lidClosureStrength(expression, blinkMotion));
+}
+
+/**
+ * {@link lidClosureAmount} before it is capped at a full closure: above 1, how
+ * far past shut the expression would push the lids, which tells apart two
+ * expressions that each close them fully.
+ */
+export function lidClosureStrength(
+  expression: VRMExpression,
+  blinkMotion: Map<BufferGeometry, Float32Array>,
+): number {
+  const motion = bindDisplacements(expression.binds);
+  return arkitMixOf(expression)
+    ? eyelidClosingShare(motion, blinkMotion)
+    : eyelidClosingPeakShare(motion, blinkMotion) / CLOSED_LID_PEAK_SHARE;
+}
+
+/** Whether these binds move blink's vertices closed at all. */
+export function bindsCloseLids(
+  binds: readonly VRMExpressionBind[],
+  blinkMotion: Map<BufferGeometry, Float32Array>,
+): boolean {
+  return (
+    eyelidClosingShare(bindDisplacements(binds), blinkMotion) >=
+    EYELID_CLOSING_MIN_SHARE
+  );
+}
+
+/**
  * Whether an expression closes one eye only: an ARKit mix that moves one
  * side's shape without the other's, or a VRoid one-eye part (`…_L`, `…_R`).
  */
-function isOneSided(expression: VRMExpression): boolean {
+export function isOneSidedExpression(expression: VRMExpression): boolean {
   const mix = arkitMixOf(expression);
   return mix ? isOneSidedMix(mix) : /_(L|R)$/.test(expression.expressionName);
 }
@@ -268,8 +302,8 @@ export function measureEyelidClosure(
   const blink = manager?.getExpression("blink");
   const expression = manager?.getExpression(expressionName);
   if (!blink || !expression) return null;
-  const blinkMotion = morphDisplacements(blink);
-  const motion = morphDisplacements(expression);
+  const blinkMotion = bindDisplacements(blink.binds);
+  const motion = bindDisplacements(expression.binds);
   return {
     average: eyelidClosingShare(motion, blinkMotion),
     peak: eyelidClosingPeakShare(motion, blinkMotion),
@@ -381,12 +415,15 @@ function eyelidClosingPeakShare(
   );
 }
 
-/** Per-vertex morph displacement of an expression at weight 1, per geometry. */
-function morphDisplacements(
-  expression: VRMExpression,
+/**
+ * Per-vertex morph displacement of expression binds at weight 1, per geometry
+ * (bind weights applied; binds other than morph targets are ignored).
+ */
+export function bindDisplacements(
+  binds: readonly VRMExpressionBind[],
 ): Map<BufferGeometry, Float32Array> {
   const result = new Map<BufferGeometry, Float32Array>();
-  for (const bind of expression.binds) {
+  for (const bind of binds) {
     if (!(bind instanceof VRMExpressionMorphTargetBind)) continue;
     for (const primitive of bind.primitives) {
       const geometry = primitive.geometry;
