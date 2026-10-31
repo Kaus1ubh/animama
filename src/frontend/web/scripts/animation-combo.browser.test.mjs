@@ -68,6 +68,14 @@ test("plays a combination and copies it as a cue sheet take", async () => {
     await page.check("#applied-only");
     await page.fill("#effect-filter", "");
     assert.equal(await page.locator(".effect:visible").count(), 2);
+    // A ticked Particle Effect replays when it ends (Sparkle Hearts lasts
+    // at most 4.5 s).
+    await page.waitForTimeout(6000);
+    assert.ok(
+      (await state()).particles.includes(
+        "combo:builtin:particle-effect:sparkle-hearts",
+      ),
+    );
     await page.selectOption("#camera", "face");
     await page.waitForTimeout(500);
     assert.doesNotMatch(await page.textContent("#status"), /did not/);

@@ -833,8 +833,10 @@ from `src/frontend/web`:
   (both Included Avatars by default) opens a live page for trying combinations before recording them: pick any
   Included Gesture (optionally from a beat) and Reaction, with start delays
   and a Reaction hold, and play them together on the chosen Avatar as chat
-  does, with their effects but no sounds. Ticked Included Avatar and Particle
-  Effects stay on over them. The expression panel lists every
+  does, with their effects but no sounds. Ticked Included Avatar Effects stay
+  on over them and ticked Particle Effects replay whenever they end; both
+  share the app's effect limits with the clips' own effects, so the page can
+  drop a clip particle the recording would keep. The expression panel lists every
   expression and ARKit shape the Avatar has with its live weight, and its
   sliders add weight over the face. "Copy cue sheet" gives the setup as an
   `animation:reel --sheet` take (Gesture, Reaction and face cues, the Avatar

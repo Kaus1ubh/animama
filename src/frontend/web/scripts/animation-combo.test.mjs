@@ -6,6 +6,7 @@ import {
   mediaKey,
   parseComboArgs,
 } from "./animation-combo.mjs";
+import { MIN_REMAINING_SEC } from "./animation-reel-sheet.mjs";
 
 test("parses combo page options", () => {
   assert.deepEqual(parseComboArgs([]), {
@@ -67,20 +68,14 @@ test("lists every Included Gesture and Reaction with shared media", async () => 
   assert.ok(catalog.reactions.length > 100);
   const heart = catalog.gestures.find(({ stem }) => stem === "big-arm-heart");
   assert.equal(heart.spec, "library:gesture/big-arm-heart");
-  // Only the beats a cue sheet can start from: not the first or the last.
-  assert.deepEqual(
-    heart.beats.map(({ id }) => id),
-    [
-      "anticipate",
-      "raise",
-      "heart",
-      "leanL",
-      "leanR",
-      "leanL2",
-      "leanR2",
-      "release",
-    ],
-  );
+  // Only the beats a cue sheet can start from: none at 0 or near the end.
+  assert.ok(heart.beats.some(({ id }) => id === "heart"));
+  for (const gesture of catalog.gestures)
+    for (const beat of gesture.beats)
+      assert.ok(
+        beat.time > 0 && beat.time < gesture.duration - MIN_REMAINING_SEC,
+        `${gesture.stem} ${beat.id}`,
+      );
   // Reactions by emotion, then intensity.
   const joy = catalog.reactions.filter(({ emotion }) => emotion === "joy");
   assert.deepEqual(

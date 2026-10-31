@@ -28,9 +28,9 @@ import { STAGE_STOPS } from "../landing-stage/stops";
  * effects. The expression panel lists every expression and ARKit shape the
  * Avatar has, shows each one's live weight, and adds slider weights over the
  * face (an expression overlay, as a cue sheet's face cue adds them). Ticked
- * Avatar and Particle Effects are applied on their own and stay on until
- * unticked. "Copy cue sheet" turns the current setup (without those effects)
- * into a take for `animation:reel`.
+ * Avatar Effects stay on until unticked; ticked Particle Effects, which end
+ * by themselves, replay whenever they end. "Copy cue sheet" turns the current
+ * setup (without those effects) into a take for `animation:reel`.
  */
 
 type PickerEntry = {
@@ -132,6 +132,10 @@ const face = new Map<string, number>();
 let panelEffects = new Map<string, PanelEffect>();
 /** The applied ids of the effects that are on. */
 const effectsOn = new Set<string>();
+/** Ticked Particle Effects loading or playing now, by applied id. */
+const particlesBusy = new Set<string>();
+/** Ticked effects whose last play failed, so the failure is shown once. */
+const effectsFailed = new Set<string>();
 let effectRows: { effect: PanelEffect; row: HTMLElement }[] = [];
 let rows: { name: string; row: HTMLElement; label: HTMLElement }[] = [];
 
@@ -320,19 +324,25 @@ async function openAvatar(): Promise<void> {
   } catch (error) {
     stage.scene.remove(next.avatar.scene!);
     next.dispose();
+    stage.review.bands.clearScenes();
     stage.review.bands.setAvatar(null);
-    throw error;
+    // A superseded load's failure is not the open Avatar's.
+    if (token === loadToken) throw error;
+    return;
   }
   if (token !== loadToken) {
     stage.scene.remove(next.avatar.scene!);
     next.dispose();
+    stage.review.bands.clearScenes();
+    stage.review.bands.setAvatar(null);
     return;
   }
   session = next;
   clock = next.time;
   buildExpressionList();
   applyFace();
-  for (const id of effectsOn) void setEffect(id, true);
+  particlesBusy.clear();
+  for (const id of effectsOn) applyEffect(id, true);
   setStatus(`${avatar.id} ready.`);
 }
 
@@ -483,6 +493,11 @@ async function setEffect(id: string, on: boolean): Promise<void> {
   const avatar = session?.avatar;
   const effect = panelEffects.get(id);
   if (!avatar || !effect) return;
+  const failed = (reason: string) => {
+    if (!effectsFailed.has(id))
+      setStatus(`${effect.name} did not ${reason}`, true);
+    effectsFailed.add(id);
+  };
   if (effect.kind === "avatar") {
     if (!on) return avatar.vfxController?.removeEffect(id);
     const applied = await applyAvatarVFXEffectById({
@@ -491,19 +506,50 @@ async function setEffect(id: string, on: boolean): Promise<void> {
       appliedEffectId: id,
       effectEntry: effectEntry(effect.source),
     });
-    if (!applied)
-      setStatus(`${effect.name} did not apply on this Avatar.`, true);
-  } else if (!on) avatar.particleVFXController?.clearEffect(id);
-  else if (
-    !(await avatar.particleVFXController?.playEffect({
-      effectId: effect.alias,
-      appliedId: id,
-    }))
-  )
-    setStatus(
-      `${effect.name} did not play: ${avatar.particleVFXController?.getSnapshot().warnings.at(-1) ?? "no particle controller"}`,
-      true,
-    );
+    if (applied) effectsFailed.delete(id);
+    else failed("apply on this Avatar.");
+    return;
+  }
+  const particles = avatar.particleVFXController;
+  if (!on) {
+    particles?.clearEffect(id);
+    return;
+  }
+  particlesBusy.add(id);
+  try {
+    if (await particles?.playEffect({ effectId: effect.alias, appliedId: id }))
+      effectsFailed.delete(id);
+    // Shares the app's particle budget with the clips' own particles.
+    else
+      failed(
+        `play: ${particles?.getSnapshot().warnings.at(-1) ?? "no particle controller"}`,
+      );
+  } finally {
+    particlesBusy.delete(id);
+  }
+}
+
+/** `setEffect`, with a failure shown in the status line. */
+function applyEffect(id: string, on: boolean): void {
+  setEffect(id, on).catch((error: unknown) =>
+    setStatus(errorText(error), true),
+  );
+}
+
+/** Replay ticked Particle Effects that have ended. */
+function replayParticles(): void {
+  const particles = session?.avatar.particleVFXController;
+  if (!particles) return;
+  const active = new Set(
+    particles.getSnapshot().activeInstances.map(({ appliedId }) => appliedId),
+  );
+  for (const id of effectsOn)
+    if (
+      panelEffects.get(id)?.kind === "particle" &&
+      !active.has(id) &&
+      !particlesBusy.has(id)
+    )
+      applyEffect(id, true);
 }
 
 function buildEffectList(): void {
@@ -538,7 +584,8 @@ function buildEffectList(): void {
         if (box.checked) effectsOn.add(effect.id);
         else effectsOn.delete(effect.id);
         row.classList.toggle("is-on", box.checked);
-        void setEffect(effect.id, box.checked);
+        effectsFailed.delete(effect.id);
+        applyEffect(effect.id, box.checked);
       });
       const kind = document.createElement("span");
       kind.className = "effect-kind";
@@ -564,8 +611,9 @@ function filterEffects(): void {
 }
 
 function clearEffects(): void {
-  for (const id of effectsOn) void setEffect(id, false);
+  for (const id of effectsOn) applyEffect(id, false);
   effectsOn.clear();
+  effectsFailed.clear();
   for (const { row } of effectRows) {
     row.classList.remove("is-on");
     row.querySelector("input")!.checked = false;
@@ -785,6 +833,7 @@ function tick(now: number): void {
       maybeLoop();
       updateMeters();
       frames += 1;
+      if (frames % 15 === 0) replayParticles();
       if (ui.activeOnly.checked && frames % 6 === 0) filterExpressions();
     })
     .catch((error: unknown) => setStatus(errorText(error), true))
@@ -854,6 +903,7 @@ declare global {
       gesture: boolean;
       reaction: boolean;
       avatarsOnStage: number;
+      particles: string[];
     } | null;
   }
 }
@@ -868,6 +918,10 @@ window.comboState = () =>
         avatarsOnStage: stage.scene.children.filter(
           (child) => !(child instanceof THREE.Light),
         ).length,
+        particles:
+          session.avatar.particleVFXController
+            ?.getSnapshot()
+            .activeInstances.map(({ appliedId }) => appliedId) ?? [],
       }
     : null;
 

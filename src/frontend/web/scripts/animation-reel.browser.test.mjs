@@ -327,6 +327,23 @@ test(
           await sharp(path.join(out, "frame-000003.png")).raw().toBuffer()
         ).toString("base64");
       assert.equal(await pixels(after.out), await pixels(alone.out));
+      // The face camera is a close-up that follows the head, not the
+      // portrait preset it starts from.
+      const face = await record([{ ...good, camera: "face" }], "face");
+      const portrait = await record(
+        [{ ...good, camera: "portrait" }],
+        "portrait",
+      );
+      const opaque = async (out) => {
+        const data = await sharp(path.join(out, "frame-000003.png"))
+          .raw()
+          .toBuffer();
+        let count = 0;
+        for (let i = 3; i < data.length; i += 4)
+          if (data[i] === 255) count += 1;
+        return count;
+      };
+      assert.ok((await opaque(face.out)) > 1.5 * (await opaque(portrait.out)));
     } finally {
       await rm(dir, { recursive: true, force: true });
     }

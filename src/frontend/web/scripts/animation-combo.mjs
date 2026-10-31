@@ -7,6 +7,7 @@ import { compareReactions } from "./animation-reel.mjs";
 import {
   MIN_REMAINING_SEC,
   clipFrom,
+  includedAvatarFile,
   renameClipAliases,
   resolveAvatarFile,
 } from "./animation-reel-sheet.mjs";
@@ -206,9 +207,11 @@ export async function startComboServer({
       id: path.basename(file).replace(/\.vrm$/i, ""),
       url: fsUrl(file),
       // What a cue sheet names it by: an Included Avatar's id, else its file.
-      sheet: avatars[index].file
-        ? file
-        : path.basename(file).replace(/\.vrm$/i, ""),
+      sheet:
+        !avatars[index].file &&
+        file === includedAvatarFile(avatars[index].value)
+          ? path.basename(file).replace(/\.vrm$/i, "")
+          : file,
     })),
     gestures: catalog.gestures,
     reactions: catalog.reactions,

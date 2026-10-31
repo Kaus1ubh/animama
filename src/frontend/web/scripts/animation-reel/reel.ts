@@ -16,8 +16,13 @@ import {
   type PageClipMedia,
   type SessionSound,
 } from "../effect-render/session";
-import { createStage, type Framing } from "../effect-render/stage";
-import { cameraView, placeReelCamera, type ReelCamera } from "./camera";
+import { createStage } from "../effect-render/stage";
+import {
+  cameraView,
+  placeReelCamera,
+  type ReelCamera,
+  type ReelCameraView,
+} from "./camera";
 import { stopAfter } from "./playback";
 import { NEUTRAL_FEELINGS, ReelSpeech, type ReelSpeechRequest } from "./speech";
 
@@ -370,9 +375,8 @@ type CueState = {
 let item: {
   request: ReelItemRequest;
   session: EffectSession;
-  framing: Framing;
-  /** Lens shift of a landing page framing, as shares of the frame. */
-  offset: { shift: number; lift: number } | null;
+  /** Where the camera stands (a face close-up follows the head). */
+  view: ReelCameraView;
   cues: CueState[];
   /** The Gesture and Reaction cues playing, which their stops apply to. */
   gesture: CueState | null;
@@ -535,16 +539,11 @@ async function openReelItem(request: ReelItemRequest): Promise<void> {
     current.label.element.hidden = !request.label;
     // Event sinks and effect loads, before any cue plays.
     await session.apply({ effects: [] });
-    const { framing, offset } = cameraView(
-      session.avatar,
-      request.camera,
-      request.size,
-    );
+    const view = cameraView(session.avatar, request.camera, request.size);
     const open: NonNullable<typeof item> = {
       request,
       session,
-      framing,
-      offset,
+      view,
       cues,
       gesture: null,
       reaction: null,
@@ -643,7 +642,7 @@ async function reelFrame(time: number): Promise<ReelFrame> {
   const { session, request } = current;
   await session.advanceTo(time);
 
-  placeReelCamera(stage.camera, session.avatar, current, request.size);
+  placeReelCamera(stage.camera, session.avatar, current.view, request.size);
   stage.renderer.render(stage.scene, stage.camera);
   await stage.review.seek(session.time);
 
