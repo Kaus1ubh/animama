@@ -29,8 +29,9 @@ minors. Setup asks you to confirm your age. Animama does not verify it.
 - With OpenAI Responses models, the same request asks OpenAI to check your
   message. If it flags possible suicide or self-harm, the app shows a crisis
   card after the reply with crisis lines for your region. The Anima cannot hide
-  or change the card. Other model providers don't show the card, and the check
-  can miss or misread messages.
+  or change the card. Other providers, such as Anthropic, have no check and no
+  card, so only the Anima's instructions above apply. The check can also miss
+  or misread messages.
 - Chat is never blocked because of the check.
 
 ## Crisis lines
@@ -44,15 +45,16 @@ minors. Setup asks you to confirm your age. Animama does not verify it.
 | Australia | [Lifeline](https://www.lifeline.org.au/) | Call 13 11 14; text 0477 13 11 14; chat online | 000 |
 | New Zealand | [1737, Need to talk?](https://1737.org.nz/) | Call or text 1737 | 111 |
 
-Last verified 2026-09-25. Your region comes from your system settings; change
+Last verified 2026-11-01. Your region comes from your system settings; change
 it in Settings → Safety. Elsewhere, contact a local crisis line or emergency
 number.
 
 ## Your data
 
 - The safety features send nothing beyond your normal request to the model
-  provider you chose. Animama has no telemetry and reports crisis cards to no
-  one.
+  provider you chose, and Animama reports crisis cards to no one. The desktop
+  app has no telemetry; Animama Cloud's telemetry and conversation traces are
+  described in its [Privacy Notice](https://animama.ai/privacy/).
 - Chats are saved as usual. Animas are instructed not to save details of a
   suicide or self-harm crisis to memory unless you ask them to.
 - For safety, Animama stores only when the AI notice was last shown, your age
@@ -61,3 +63,8 @@ number.
 
 A self-hosted server's operator can change or turn off the notice and crisis
 card, and may log message previews. The desktop app always uses the defaults.
+
+## Contact
+
+To report a safety concern or a problem with this protocol, email
+ray@animama.ai. Last updated 2026-11-01.
