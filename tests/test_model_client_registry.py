@@ -6,9 +6,10 @@ from hashlib import sha256
 from types import SimpleNamespace
 from typing import Any
 
-import httpx
+import httpx2
 import pytest
 from openai import APIStatusError
+from openai._models import construct_type
 from openai.types.chat import ChatCompletionChunk, ChatCompletionFunctionToolParam, ChatCompletionToolUnionParam
 from openai.types.responses import (
     ResponseCompletedEvent,
@@ -19,6 +20,7 @@ from openai.types.responses import (
     ResponseIncompleteEvent,
     ResponseOutputItemAddedEvent,
     ResponseOutputItemDoneEvent,
+    ResponseStreamEvent,
     ResponseTextDeltaEvent,
     ResponseTextDoneEvent,
     ResponseWebSearchCallCompletedEvent,
@@ -333,7 +335,7 @@ def _responses_usage() -> dict[str, Any]:
         "input_tokens": 4,
         "output_tokens": 6,
         "total_tokens": 10,
-        "input_tokens_details": {"cached_tokens": 2},
+        "input_tokens_details": {"cache_write_tokens": 0, "cached_tokens": 2},
         "output_tokens_details": {"reasoning_tokens": 3},
     }
 
@@ -345,8 +347,8 @@ def _api_status_error(
     url: str = "https://api.openai.example/v1/responses",
     headers: dict[str, str] | None = None,
 ) -> APIStatusError:
-    request = httpx.Request("POST", url)
-    response = httpx.Response(status_code, json=body, headers=headers, request=request)
+    request = httpx2.Request("POST", url)
+    response = httpx2.Response(status_code, json=body, headers=headers, request=request)
     return APIStatusError("OpenAI Responses request failed", response=response, body=body)
 
 
@@ -1334,6 +1336,43 @@ async def test_openai_responses_client_uses_sdk_stream_and_scoped_cursor() -> No
 
 
 @pytest.mark.asyncio
+async def test_openai_responses_client_accepts_response_done_without_newer_sdk_fields() -> None:
+    """Compatible servers end with response.done and may omit fields newer SDKs require."""
+    usage = _responses_usage()
+    usage["input_tokens_details"] = {"cached_tokens": 2}
+    # Built like the SDK stream parser, which leaves an untyped event's response as a dict.
+    done_event = construct_type(
+        type_=ResponseStreamEvent,
+        value={"type": "response.done", "sequence_number": 3, "response": _response_payload(usage=usage)},
+    )
+    fake_openai = _FakeOpenAIClient(
+        [],
+        response_events=[
+            _responses_text_delta_event('{"speech":"Hello"}', sequence_number=1),
+            _responses_text_done_event('{"speech":"Hello"}', sequence_number=2),
+            done_event,
+        ],
+    )
+    client = OpenAIResponsesModelClient(
+        api_key="sk-test",
+        client=fake_openai,  # type: ignore[arg-type]
+        timeout=12.0,
+    )
+
+    deltas = await _collect(
+        client.stream(_spec(provider_type=OPENAI_RESPONSES_HTTP_PROVIDER_TYPE, messages=_messages_with_instructions()))
+    )
+
+    public_deltas = _public_deltas(deltas)
+    assert [delta.kind for delta in public_deltas] == ["text_delta", "final", "done"]
+    final = public_deltas[1].final
+    assert final is not None
+    assert final.text == '{"speech":"Hello"}'
+    assert final.usage.input_tokens == 4
+    assert final.usage.input_tokens_details.cached_tokens == 2
+
+
+@pytest.mark.asyncio
 async def test_openai_responses_client_emits_typed_apply_patch_with_functions_and_structured_output() -> None:
     fake_openai = _FakeOpenAIClient([], response_events=[_responses_completed_event()])
     client = OpenAIResponsesModelClient(
@@ -1918,7 +1957,6 @@ async def test_openai_responses_client_converts_memory_tools_and_parses_function
                     "sequence_number": 2,
                     "output_index": 0,
                     "item_id": "fc_1",
-                    "name": "memory_read_files",
                     "arguments": '{"paths":"profile.md"}',
                 }
             ),

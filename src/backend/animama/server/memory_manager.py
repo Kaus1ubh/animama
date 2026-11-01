@@ -28,6 +28,7 @@ from animama.adapters.repositories.sqlalchemy.memory_episode_repo import SQLAlch
 from animama.adapters.repositories.sqlalchemy.memory_manager_repo import SQLAlchemyMemoryManagerRepository
 from animama.adapters.repositories.sqlalchemy.model_provider_repo import SQLAlchemyModelProviderRepository
 from animama.adapters.repositories.sqlalchemy.uow import SQLAlchemyUnitOfWork
+from animama.app.model_clients.credentials import connection_for_model_provider
 from animama.app.ports.memory_manager_runtime import MemoryManagerRuntime
 from animama.app.services.memory_entry_service import MemoryEntryService
 from animama.app.services.memory_episode_service import MemoryEpisodeService
@@ -122,8 +123,33 @@ async def local_memory_manager_service(
     )
 
 
+async def local_memory_manager_model_usable(
+    user_id: str,
+    *,
+    roles: ModelRoleResolver,
+    llm_skip: bool | None = None,
+) -> bool:
+    """Whether the owner's Memory Manager role resolves a tool-capable model whose key is present.
+
+    The deterministic runtime (``ANIMAMA_LLM_SKIP``) needs neither.
+    """
+
+    if llm_skip is None:
+        llm_skip = _truthy_env(os.getenv("ANIMAMA_LLM_SKIP"))
+    if llm_skip:
+        return True
+    row = (await roles.resolve(user_id, ROLE_MEMORY_MANAGER)).model_provider
+    if row is None:
+        return False
+    try:
+        connection = connection_for_model_provider(row)
+    except ValueError:
+        return False
+    return build_model_credential_resolver().resolve(connection).usable
+
+
 def _truthy_env(value: str | None) -> bool:
     return str(value or "").strip().lower() in {"1", "true", "yes", "y", "on"}
 
 
-__all__ = ["local_memory_manager_service"]
+__all__ = ["local_memory_manager_model_usable", "local_memory_manager_service"]

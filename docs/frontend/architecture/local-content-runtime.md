@@ -19,6 +19,7 @@ GET    /v1/content/items/{item_id}
 POST   /v1/content:rescan
 DELETE /v1/content/items/{item_id}
 GET    /v1/content/files/{file_ref}
+GET    /v1/content/files/{file_ref}/sha256/{sha256}
 GET    /v1/content/previews/{preview_id}/revisions/{revision}/files/{file_ref}
 
 GET    /v1/{typed-family}
@@ -166,9 +167,13 @@ remount instead of serving replacement bytes.
 
 There is no application Cache Storage, IndexedDB, or OPFS copy of the content
 library. Chromium's HTTP cache may reuse runtime revision members and complete
-binary bundles without a request (ADR 0028) and revalidates other protected
-responses; a cache hit is never required for correctness, and every reused member
-is verified again. Browser memory and HTTP caches are disposable and are not
+binary bundles (ADR 0028), and Included files read at their digest URL (ADR 0033),
+without a request, and revalidates other protected responses; a cache hit is never
+required for correctness, and every reused member is verified again. Library
+thumbnails and particle manifests use the `url` each file descriptor names rather
+than building one from `file_ref`, and Anima presentation images are read with
+`cache: "default"`, so a later visit reuses Included files and a release that
+changes their bytes changes their URLs. Browser memory and HTTP caches are disposable and are not
 backed up.
 
 The manifest GET negotiates gzip with an identity fallback. Its
@@ -243,7 +248,10 @@ its setup step (the worker's five status stages, matched by text in
 `use-pocket-tts-runtime.ts`), Parakeet while dictation or Voice Mode starts,
 and any Parakeet CPU/GPU or Voice Clone encoder download, wherever it was
 started (`ui/app/ModelDownloads.tsx`). Local reads say "Loading"; downloads say
-"Downloading", with size and progress. Pocket voices are small and are not
+"Downloading", with size and progress. Where the runtime reports
+`automatic_episode_processing`, the chat checks `/v1/memory/automatic-processing`
+every five seconds while the page is visible and adds "Crystallizing N notes into
+memory…" while an automatic run works. Pocket voices are small and are not
 listed. Chat readiness is not repeated there: the composer disables Send until
 chat is ready. A missing or invalid optional
 root is excluded from playback with its dependents; unrelated content and text

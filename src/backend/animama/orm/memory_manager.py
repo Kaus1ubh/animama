@@ -25,11 +25,22 @@ class ORMMemoryManagerRun(SqlalchemyBase, TimestampMixin):
             name="memory_manager_runs_kind_valid",
         ),
         Index("ix_memory_manager_runs_user_status_created", "user_id", "status", "created_at"),
+        # One open owner run and one open automatic run per user (metadata.origin, spec #775).
         Index(
             "uq_memory_manager_runs_user_open",
             "user_id",
             unique=True,
-            postgresql_where=sa_text("status IN ('active', 'waiting_approval')"),
+            postgresql_where=sa_text(
+                "status IN ('active', 'waiting_approval') AND COALESCE(metadata ->> 'origin', 'owner') = 'owner'"
+            ),
+        ),
+        Index(
+            "uq_memory_manager_runs_user_open_automatic",
+            "user_id",
+            unique=True,
+            postgresql_where=sa_text(
+                "status IN ('active', 'waiting_approval') AND metadata ->> 'origin' = 'automatic'"
+            ),
         ),
     )
 

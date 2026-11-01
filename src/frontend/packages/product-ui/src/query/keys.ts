@@ -165,6 +165,9 @@ export const queryKeys = {
     /** An Avatar's effective face part correction and revision. */
     faceParts: (userId: string, itemId: string) =>
       [...queryKeys.avatars.all(userId), "face-parts", itemId] as const,
+    /** An Avatar's wind and material settings (local runtimes only). */
+    settings: (userId: string, itemId: string) =>
+      [...queryKeys.avatars.all(userId), "settings", itemId] as const,
     /** An Avatar item's preview files, for creator model previews. */
     preview: (userId: string, itemId: string) =>
       [...queryKeys.avatars.all(userId), "preview", itemId] as const,
@@ -214,6 +217,9 @@ export const queryKeys = {
   /** The installation's application web search backend (local composition). */
   webSearchSettings: (userId: string) =>
     ["web-search-settings", userId] as const,
+  /** The owner's automatic episode-processing setting and state (local composition). */
+  automaticEpisodeProcessing: (userId: string) =>
+    ["automatic-episode-processing", userId] as const,
   userFiles: {
     all: (userId: string) => ["user-files", userId] as const,
     list: (userId: string) =>

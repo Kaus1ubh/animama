@@ -13,6 +13,7 @@ from .archive import ORMArchive
 from .archive_passage import ORMArchivePassage
 from .avatar import ORMAvatar
 from .avatar_face_part_override import ORMAvatarFacePartOverride
+from .avatar_setting_override import ORMAvatarSettingOverride
 from .avatar_upload import ORMAvatarUpload
 from .base import Base, vector_type
 from .chat_compactions import ORMChatCompaction
@@ -79,6 +80,7 @@ __all__ = [
     "ORMAnimaContentBinding",
     "ORMAvatar",
     "ORMAvatarFacePartOverride",
+    "ORMAvatarSettingOverride",
     "ORMAvatarUpload",
     "ORMModelConnection",
     "ORMModelProvider",

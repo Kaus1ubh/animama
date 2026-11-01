@@ -23,7 +23,8 @@ export type SetupSttChoice = SttChoice;
  * system default applies). `ttsProvider` stays null until the owner picks a
  * provider in the Voice step, so an untouched default is not written.
  * `sttChoice` stays null until the owner picks a speech-to-text tab; Finish
- * saves the recommended one when it is untouched.
+ * saves the recommended one when it is untouched, without an offline engine,
+ * so it keeps following the UI Locale.
  */
 export type SetupDraft = {
   step: SetupStep;

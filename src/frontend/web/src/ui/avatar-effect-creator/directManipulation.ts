@@ -1,6 +1,10 @@
 import * as THREE from "three";
 
 import type { AvatarVFXManipulationFrame } from "@/lib/avatar/vfx/placement-guide-types";
+import {
+  baseTextureOf,
+  TextureUvMapping,
+} from "@/lib/avatar/vfx/textureUvMapping";
 
 /*
  * Screen and drag maths for moving, scaling and turning Avatar Effect art on
@@ -331,14 +335,20 @@ export function stickerDragOffset(args: {
   };
 }
 
-/** The UV where a ray first meets a mesh's surface, or null. */
+/**
+ * Where a ray first meets a mesh's surface, as a position on its texture's
+ * image (the UV through the texture's transform, unwrapped so a drag stays
+ * continuous), or null.
+ */
 export function raycastSurfaceUv(
   ray: THREE.Ray,
   mesh: THREE.Mesh,
 ): { x: number; y: number } | null {
   const raycaster = new THREE.Raycaster(ray.origin, ray.direction);
   const [hit] = raycaster.intersectObject(mesh, false);
-  return hit?.uv ? { x: hit.uv.x, y: hit.uv.y } : null;
+  return hit?.uv
+    ? TextureUvMapping.of(baseTextureOf(mesh)).transform(hit.uv)
+    : null;
 }
 
 /** Arrow-key nudge distance in CSS pixels; Shift moves further. */

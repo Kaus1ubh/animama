@@ -48,6 +48,7 @@ from animama.domain.content_documents import (
 from animama.domain.emotions import TRACKED_EMOTION_SET
 
 from .avatar_face_parts import local_face_parts, normalize_face_parts
+from .avatar_settings import document_mode, document_wind_strength
 from .clip_format import validate_action_clip_files
 from .content_file_validation import ContentFileInvalidError
 from .content_gltf import MAX_VRM_SOURCE_BYTES, validate_vrm_stream
@@ -168,7 +169,11 @@ _COMMON_FIELDS = frozenset(
 )
 
 _KIND_FIELDS: dict[ContentKind, frozenset[str]] = {
-    ContentKind.AVATAR: frozenset({"compatibility", "model_role", "face_parts"}),
+    # A package sidecar also carries the exporter's Avatar settings; a Local
+    # Save strips them, because the settings table is their authority.
+    ContentKind.AVATAR: frozenset(
+        {"compatibility", "model_role", "face_parts", "spring_mode", "wind_strength", "material_mode"}
+    ),
     ContentKind.GESTURE: frozenset(
         {"semantic_key", "implementation", "config", "runtime_defaults", "technical_source"}
     ),
@@ -920,6 +925,9 @@ class ContentTypeHandler:
                 model_role="model",
                 compatibility=_object(raw.get("compatibility"), field_name="compatibility"),
                 face_parts=normalize_face_parts(face_parts) if face_parts is not None else None,
+                spring_mode=document_mode(raw.get("spring_mode"), field="spring_mode"),
+                wind_strength=document_wind_strength(raw.get("wind_strength")),
+                material_mode=document_mode(raw.get("material_mode"), field="material_mode"),
             )
         if kind is ContentKind.APPEARANCE:
             return AppearanceDocumentV1(
@@ -1030,6 +1038,9 @@ class ContentTypeHandler:
                     "model_role": document.model_role,
                     "compatibility": document.compatibility,
                     "face_parts": document.face_parts,
+                    "spring_mode": document.spring_mode,
+                    "wind_strength": document.wind_strength,
+                    "material_mode": document.material_mode,
                 }
             )
         elif isinstance(document, AppearanceDocumentV1):

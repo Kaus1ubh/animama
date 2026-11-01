@@ -20,6 +20,7 @@ import type {
   PyAnimaPresentation,
 } from "@/lib/content/catalogTypes";
 import { useAnimaPresentationImage } from "@/query/hooks/useAnimaPresentationImage";
+import { chatSearchHighlightTerms } from "@/lib/chat/chat-search-terms";
 import { runtimeImageStyle } from "@/lib/runtime-content/imagePresentation";
 import { useAnimas } from "@/query/hooks/useAnimas";
 import { useSearchChatMessages } from "@/query/mutations/useSearchChatMessages";
@@ -85,21 +86,8 @@ function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-function queryTerms(value: string): string[] {
-  const seen = new Set<string>();
-  return (value.match(/[A-Za-z0-9_]{2,}/g) ?? [])
-    .map((term) => term.toLowerCase())
-    .filter((term) => {
-      if (seen.has(term)) return false;
-      seen.add(term);
-      return true;
-    })
-    .sort((a, b) => b.length - a.length)
-    .slice(0, 8);
-}
-
 function highlightMatches(value: string, query: string): ReactNode {
-  const terms = queryTerms(query);
+  const terms = chatSearchHighlightTerms(query);
   if (terms.length === 0) return value;
 
   const matcher = new RegExp(`(${terms.map(escapeRegExp).join("|")})`, "gi");

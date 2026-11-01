@@ -388,6 +388,39 @@ describe("privileged runtime IPC", () => {
     );
   });
 
+  it("changes the login item only from the main window and only with a boolean", async () => {
+    await expect(invoke("login-item:status", main.event)).resolves.toEqual({
+      available: false,
+    });
+    await expect(invoke("login-item:set", main.event, true)).rejects.toThrow(
+      "feature_unavailable",
+    );
+    const enabled = {
+      available: true,
+      enabled: true,
+      blockedBySystem: false,
+    } as const;
+    const setLoginItem = vi.fn(() => enabled);
+    operations.setLoginItem = setLoginItem;
+    await expect(invoke("login-item:set", main.event, true)).resolves.toEqual(
+      enabled,
+    );
+    expect(setLoginItem).toHaveBeenCalledWith(true);
+    for (const invalid of ["true", 1, null, { enabled: true }])
+      await expect(
+        invoke("login-item:set", main.event, invalid),
+      ).rejects.toThrow("ipc_arguments_invalid");
+    await expect(
+      invoke("login-item:set", main.event, true, "--hidden"),
+    ).rejects.toThrow("ipc_arguments_invalid");
+    const companion = caller(4, "http://127.0.0.1:41234/desktop/pip/a");
+    for (const event of [recovery.event, companion.event])
+      await expect(invoke("login-item:set", event, false)).rejects.toThrow(
+        "ipc_caller_rejected",
+      );
+    expect(setLoginItem).toHaveBeenCalledOnce();
+  });
+
   it("keeps one cleanup when a window is registered again for a reloaded page", () => {
     callers.register(recovery.window, "recovery", "data:text/html,reloaded");
     expect(
@@ -573,11 +606,11 @@ describe("independent runtime recovery page", () => {
   });
 
   it.each([
-    ["darwin", "ログインキーチェーン", "pnpm desktop:mac:reset"],
-    ["win32", "一時プロファイル", "%LOCALAPPDATA%\\Animama"],
+    ["darwin", "ログインキーチェーン", "pnpm desktop:mac:reset", true],
+    ["win32", "一時プロファイル", "%LOCALAPPDATA%\\Animama", false],
   ] as const)(
     "gives %s its own secure-storage and fresh-profile advice in the shell locale",
-    async (platform, storage, reset) => {
+    async (platform, storage, reset, retryHidden) => {
       const page = await loadRuntimePage(
         "data:text/html,recovery",
         "recovery",
@@ -585,6 +618,8 @@ describe("independent runtime recovery page", () => {
       );
       page.render({ state: "error", code: "secure_storage_unavailable" });
       expect(page.element("#message").textContent).toContain(storage);
+      // A refused macOS Keychain needs a relaunch; Windows can retry the key wait.
+      expect(page.element("#retry").hidden).toBe(retryHidden);
       page.render({ state: "error", code: "database_schema_mismatch" });
       const message = String(page.element("#message").textContent);
       expect(message).toContain(reset);

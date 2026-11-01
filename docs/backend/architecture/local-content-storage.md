@@ -302,6 +302,7 @@ DELETE /v1/content/items/{item_id}?expected_revision=...
 POST   /v1/content/evidence:resolve
 POST   /v1/content/previews:prepare
 GET    /v1/content/files/{file_ref}
+GET    /v1/content/files/{file_ref}/sha256/{sha256}
 GET    /v1/content/previews/{preview_id}/revisions/{revision}/files/{file_ref}
 
 GET    /v1/{typed-family}
@@ -327,10 +328,21 @@ Registered-byte routes resolve the admitted installation principal first, verify
 resolve the safe relative locator inside its configured root, reject links and
 non-regular files, and recheck exact size and SHA-256 before streaming. They
 accept no path. Digest ETags are evaluated after authorization and integrity
-checks. Local delivery uses private revalidation, except runtime revision members
-and complete binary bundles, which the browser may keep for a year
-(`private, max-age=31536000, immutable`, ADR 0028); authorization never depends on
+checks. Local delivery uses private revalidation, except runtime revision members,
+complete binary bundles (ADR 0028) and Included files read at their digest URL
+(ADR 0033), which the browser may keep for a year
+(`private, max-age=31536000, immutable`); authorization never depends on
 browser cache state for any request that reaches the server.
+
+Catalog and typed file descriptors carry each file's `url`. An Included file's
+`file_ref` survives a release that changes its bytes, so its URL also names its
+digest, `/v1/content/files/{file_ref}/sha256/{sha256}`, and a release that
+changes the bytes changes the URL. That route serves only Included files whose
+registered digest still matches, and answers anything else, including the old
+digest after a release, with `404 content_file_not_found`. Owner and
+installation-shared files keep `/v1/content/files/{file_ref}` and its
+revalidated policy. Anima presentation images and Avatar portraits follow the
+same rule.
 
 Mounted runtime-manifest JSON has gzip/identity content
 negotiation. Its full descriptor and current lease remain in each response;
@@ -346,13 +358,14 @@ Runtime delivery bundles aggregate delivery only; creator files remain individua
 editable and retain their catalog refs and revisions. Bundles select small
 executable JSON sequences and manifests and small PNG, JPEG and WebP images outside
 the Avatar's and voice's closures, Idle members first (limits in the
-[HTTP API](http-api.md)). Every request checks the existing owner snapshot,
+[HTTP API](http-api.md)). Issuance stores each bundle's member list with the
+snapshot. Every request reads only that list from the live owner snapshot,
 bulk-authorizes current catalog pins, then reopens and verifies each source file
 before considering a 304. JSON text retains original bytes; images keep their exact
 bytes in a framed body. One changed file produces an isolated error and
 scan-required marking. Complete JSON bundles use private revalidation and gzip,
 complete binary bundles the immutable policy;
-mixed errors use `no-store`. Bundles create no files, schema, lease extensions,
+mixed errors use `no-store`. Bundles create no files, lease extensions,
 shared cross-Anima caches, or backup requirements. VRM/VRMA, audio and larger files
 retain their individual byte routes.
 
@@ -385,14 +398,20 @@ dependencies and are rejected as direct equipment. No loadout write copies
 bytes or hot-swaps an active mount.
 
 Runtime issuance resolves each selected root independently, reopens and hashes
-its complete dependency closure, deduplicates members, enforces budgets, and
+its complete dependency closure (all of a compile's files in one worker-thread
+call), deduplicates members, enforces budgets, and
 persists one exact internal revision, safe diagnostics, and a bounded map of
 every admitted catalog item to its revision. A changed or broken root and its
 dependents are omitted; unrelated roots and text chat remain available.
 Canonical path, role, media type, size, and digest facts remain registered once
 in `content_catalog_files`; runtime issuance does not copy them into per-file
-rows. Immediately before insertion, one set-based check proves the complete
-item/file union still matches the compiled descriptor.
+rows. Compilation takes no locks and writes nothing. Files it found changed are
+marked for Rescan first; then a short final transaction locks the loadout row,
+confirms its revision is the one compiled, and one set-based check proves the
+complete item/file union still matches the compiled descriptor before insertion. Issuing an unchanged loadout again renews its unexpired
+snapshot after the same checks, without compiling or reopening files (see the
+[HTTP API](http-api.md)). Idle playback facts are cached in process by the motion
+file's SHA-256 and the Gesture's implementation and settings.
 
 The runtime file route resolves the canonical `file_ref`, its parent item, and
 the snapshot pin in one read-only database statement. It rejects expired,
@@ -414,6 +433,11 @@ uses `animama-content-package/3`. Export resolves saved authority and exact sour
 revisions, canonicalizes descriptors and writes immutable reviewed bytes under
 `data/staging/exports`. Installation-local references are rewritten to opaque
 package entry IDs. The manifest never appears in everyday Local folders.
+An Avatar's portable sidecar may carry the exporter's owner settings
+(`spring_mode`, `wind_strength`, `material_mode`). Neither Save nor import writes them into a
+Local sidecar: Save strips them and import moves them into the importer's
+`avatar_setting_overrides` (see
+[Avatar settings](../features/custom-animas-and-content.md#avatar-settings)).
 
 Import receives sequential bounded parts directly into one private archive under
 `data/staging/imports`. Review seals its hash, validates the complete typed graph

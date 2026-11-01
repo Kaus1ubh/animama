@@ -124,4 +124,25 @@ describe("chat input submit state", () => {
       }),
     ).toMatchObject({ action: "start-voice", icon: "voice" });
   });
+  it("names the Voice Mode shortcut in the start and stop tooltips", () => {
+    const options = {
+      ...baseState,
+      submitMode: "text-or-voice" as const,
+      voiceModeShortcut: "⌃⌥`",
+    };
+    expect(resolveChatInputSubmitState(options)).toMatchObject({
+      tooltip: "Voice mode",
+      tooltipShortcut: "⌃⌥`",
+    });
+    expect(
+      resolveChatInputSubmitState({ ...options, isVoiceModeActive: true }),
+    ).toMatchObject({ tooltip: "Stop voice mode", tooltipShortcut: "⌃⌥`" });
+    // An unavailable control explains why instead of offering the shortcut.
+    expect(
+      resolveChatInputSubmitState({ ...options, voiceAvailable: false }),
+    ).toMatchObject({
+      tooltip: "Offline speech recognition is unavailable",
+      tooltipShortcut: null,
+    });
+  });
 });

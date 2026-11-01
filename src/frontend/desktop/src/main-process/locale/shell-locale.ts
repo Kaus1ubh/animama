@@ -1,12 +1,5 @@
 import type { BrowserWindow } from "electron";
 import {
-  closeSync,
-  constants,
-  fstatSync,
-  openSync,
-  readFileSync,
-} from "node:fs";
-import {
   isUiLocale,
   localeDirection,
   resolveLocale,
@@ -19,7 +12,7 @@ import ko from "../../locales/ko.json" with { type: "json" };
 import zhHans from "../../locales/zh-Hans.json" with { type: "json" };
 import zhHant from "../../locales/zh-Hant.json" with { type: "json" };
 import { writeLog } from "../logging.js";
-import { atomicWrite } from "../runtime/atomic-file.js";
+import { atomicWrite, readSmallJsonFile } from "../runtime/atomic-file.js";
 
 /**
  * The desktop shell's own text (startup/recovery page, window titles and the
@@ -98,26 +91,15 @@ const MAX_CACHE_BYTES = 1024;
  * content is only ignored here; the next applied locale replaces it.
  */
 export function readCachedLocale(file: string): UiLocale | null {
-  let descriptor: number | undefined;
-  try {
-    // Never follow a link planted in place of the cache.
-    descriptor = openSync(file, constants.O_RDONLY | constants.O_NOFOLLOW);
-    const stat = fstatSync(descriptor);
-    if (!stat.isFile() || stat.size > MAX_CACHE_BYTES) return null;
-    const cache: unknown = JSON.parse(readFileSync(descriptor, "utf8"));
-    if (
-      !cache ||
-      typeof cache !== "object" ||
-      (cache as { version?: unknown }).version !== LOCALE_CACHE_VERSION
-    )
-      return null;
-    const { locale } = cache as { locale?: unknown };
-    return isUiLocale(locale) ? locale : null;
-  } catch {
+  const cache = readSmallJsonFile(file, MAX_CACHE_BYTES);
+  if (
+    !cache ||
+    typeof cache !== "object" ||
+    (cache as { version?: unknown }).version !== LOCALE_CACHE_VERSION
+  )
     return null;
-  } finally {
-    if (descriptor !== undefined) closeSync(descriptor);
-  }
+  const { locale } = cache as { locale?: unknown };
+  return isUiLocale(locale) ? locale : null;
 }
 
 /** Save the applied locale atomically in the private profile directory. */

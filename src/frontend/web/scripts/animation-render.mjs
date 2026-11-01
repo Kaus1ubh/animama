@@ -4,11 +4,14 @@ import { fileURLToPath } from "node:url";
 import { chromium } from "playwright";
 import { createServer } from "vite";
 
+import { resolveAvatarFile } from "./avatar-file.mjs";
+
 /**
- * Render review contact sheets for a Gesture clip on both Included Avatars.
+ * Render review contact sheets for a Gesture clip on both Included Avatars,
+ * or on one local VRM with `--avatar-file`.
  *
  *   pnpm -s animation:render <clip.json> --out <dir> [--times 0,0.5,1]
- *     [--rows 8] [--side right|left] [--tile 220x330]
+ *     [--rows 8] [--side right|left] [--tile 220x330] [--avatar-file <a.vrm>]
  *
  * Writes `<clip id>.png`: one row per time; per Avatar a front view, a ¾ and a
  * side view from the Avatar's own `--side` (default right), and a face
@@ -17,7 +20,7 @@ import { createServer } from "vite";
 const webRoot = fileURLToPath(new URL("..", import.meta.url));
 const repoRoot = path.resolve(webRoot, "../../..");
 const avatarDir = path.join(repoRoot, "content/included/avatars");
-const AVATARS = ["Andrew", "AvatarSample_A_1_New"];
+const AVATARS = ["Andrew", "Annie"];
 
 export async function renderGestureSheet({
   clip,
@@ -26,6 +29,7 @@ export async function renderGestureSheet({
   tile,
   side = "right",
   view = "body",
+  avatarFile = null,
 }) {
   const server = await createServer({
     configFile: false,
@@ -46,7 +50,12 @@ export async function renderGestureSheet({
     optimizeDeps: {
       entries: [path.join(webRoot, "scripts/animation-render/render.ts")],
     },
-    server: { host: "127.0.0.1", port: 0, fs: { allow: [webRoot, avatarDir] } },
+    server: {
+      host: "127.0.0.1",
+      port: 0,
+      // Vite allows single files, so only the local Avatar itself is served.
+      fs: { allow: [webRoot, avatarDir, ...(avatarFile ? [avatarFile] : [])] },
+    },
   });
   let browser;
   try {
@@ -81,10 +90,18 @@ export async function renderGestureSheet({
         side,
         view,
         tile: tile ?? { width: 220, height: 330 },
-        avatars: AVATARS.map((id) => ({
-          id,
-          url: `${origin}/@fs${path.join(avatarDir, `${id}.vrm`)}`,
-        })),
+        // A local Avatar file replaces both Included Avatars.
+        avatars: avatarFile
+          ? [
+              {
+                id: path.basename(avatarFile).replace(/\.vrm$/i, ""),
+                url: `${origin}/@fs${avatarFile}`,
+              },
+            ]
+          : AVATARS.map((id) => ({
+              id,
+              url: `${origin}/@fs${path.join(avatarDir, `${id}.vrm`)}`,
+            })),
       },
     );
     if (errors.length) throw new Error(errors.join("\n"));
@@ -109,12 +126,14 @@ export function defaultTimes(duration, rows = 8) {
 }
 
 const USAGE = [
-  "Usage: pnpm -s animation:render <clip.json> --out <dir> [--times 0,0.5,1] [--rows 8] [--side right|left] [--view body|hands] [--tile 220x330]",
+  "Usage: pnpm -s animation:render <clip.json> --out <dir> [--times 0,0.5,1] [--rows 8] [--side right|left] [--view body|hands] [--tile 220x330] [--avatar-file <a.vrm>]",
   "Renders one row per time: per Avatar a front view (its right hand on the viewer's left),",
   "a 3/4 and a side view from the Avatar's own --side, and a face close-up. --view hands",
   "instead shows close-ups of the --side hand from the front, 3/4, below and facing the palm",
   "(written as <id>.<side>-hand.png). Each tile is --tile pixels (larger tiles help judge",
-  "small motions); the sheet adds a 64 px label column and a 28 px header.",
+  "small motions); the sheet adds a 64 px label column and a 28 px header. --avatar-file",
+  "renders on that VRM instead of the Included Avatars, such as a converted Avatar kept",
+  "outside the repository.",
 ].join("\n");
 
 const OPTIONS = new Set([
@@ -124,6 +143,7 @@ const OPTIONS = new Set([
   "--side",
   "--view",
   "--tile",
+  "--avatar-file",
 ]);
 
 async function main(argv) {
@@ -163,6 +183,17 @@ async function main(argv) {
     return 2;
   }
   const cwd = process.env.INIT_CWD ?? process.cwd();
+  let avatarFile = null;
+  if (values["--avatar-file"]) {
+    try {
+      avatarFile = await resolveAvatarFile(
+        path.resolve(cwd, values["--avatar-file"]),
+      );
+    } catch (error) {
+      console.log(error.message);
+      return 2;
+    }
+  }
   const clip = JSON.parse(await readFile(path.resolve(cwd, input), "utf8"));
   const duration = clip.duration ?? 0;
   const outFile = path.resolve(
@@ -177,6 +208,7 @@ async function main(argv) {
     side,
     view,
     tile: { width: Number(tileMatch[1]), height: Number(tileMatch[2]) },
+    avatarFile,
   });
   console.log(`Wrote ${outFile}`);
   if (result.missingPoseRefs.length)

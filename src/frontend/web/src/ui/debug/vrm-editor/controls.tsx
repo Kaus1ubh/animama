@@ -87,7 +87,7 @@ export function WarningList({ warnings }: { warnings: string[] }) {
 
 export function Table({ children }: { children: ReactNode }) {
   return (
-    <div className="border-border/60 overflow-x-scroll overflow-y-hidden rounded-lg border [scrollbar-gutter:stable]">
+    <div className="border-border/60 [scrollbar-gutter:stable] overflow-x-scroll overflow-y-hidden rounded-lg border">
       <table className="divide-border/60 min-w-full divide-y text-left text-sm">
         {children}
       </table>

@@ -42,6 +42,11 @@ export type AgeConfirmationDialogProps = {
   failure: (cause: unknown) => string;
   /** False while the answer cannot be sent yet. */
   canConfirm?: boolean;
+  /**
+   * Terms the confirm button also accepts, shown above the safety link, with
+   * the button's matching label. Hosted accounts accept them at sign-up instead.
+   */
+  agreement?: { text: ReactNode; confirmLabel: string };
   /** What a person who declined can do; without it they can go back and answer again. */
   declinedAction?: { label: string; run: () => void };
   /** Runtime-specific controls below the safety link, given whether an answer is being sent. */
@@ -57,6 +62,7 @@ export function AgeConfirmationDialog({
   confirm,
   failure,
   canConfirm = true,
+  agreement,
   declinedAction,
   children,
 }: AgeConfirmationDialogProps) {
@@ -100,6 +106,9 @@ export function AgeConfirmationDialog({
           <DialogTitle>{t("ageConfirmation.heading")}</DialogTitle>
           <DialogDescription>{t("ageConfirmation.notice")}</DialogDescription>
         </DialogHeader>
+        {agreement ? (
+          <p className="text-muted-foreground text-sm">{agreement.text}</p>
+        ) : null}
         <Link
           to="/safety"
           className="text-muted-foreground text-xs underline underline-offset-2"
@@ -143,7 +152,7 @@ export function AgeConfirmationDialog({
               >
                 {submitting
                   ? t("ageConfirmation.opening")
-                  : t("ageConfirmation.confirm")}
+                  : (agreement?.confirmLabel ?? t("ageConfirmation.confirm"))}
               </Button>
             </>
           )}

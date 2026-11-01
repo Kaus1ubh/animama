@@ -147,8 +147,14 @@ The chat model may write short bracketed directions in `speech`, such as
 - **Grammar.** A tag starts with a letter and holds only letters, spaces and
   `,.!?'’-`, at most 64 characters, in `[…]` or `<…>`. A `[…]` followed by `(`
   is a Markdown link label, not a tag.
-- **Prompt.** `app/chat/speech_tags.py` adds an "Audio Tags in Speech" section
-  to the stable instructions, chosen by the turn's speech options:
+- **Prompt.** `app/chat/speech_tags.py` adds a "Speech" section to the stable
+  instructions, chosen by the turn's speech options. With a voice on it first
+  asks for `speech` that reads naturally aloud, with links, URLs, file paths,
+  code, markdown, lists, tables and emoji moved to `display`. The web client
+  sends `tts` for every voice: Pocket TTS and browser speech send only
+  `enabled` and their `provider` for this rule, and the server speaks (and
+  queues speech segments) only for ElevenLabs and Gemini. Its audio-tag
+  rules:
   - **Gemini:** the neutral set: `[laughs]`, `[chuckles]`, `[giggles]`,
     `[sighs]`, `[gasps]`, `[breathes]`, `[short pause]`, `[long pause]` and
     `[whispers]`.
@@ -157,8 +163,13 @@ The chat model may write short bracketed directions in `speech`, such as
   - **Every other turn** (speech off, Pocket TTS, browser speech) is told not
     to write tags.
 
-  Tag names stay in English in every language. Changing the voice changes the
-  stable prefix once ([prompt caching](../runtime/prompt-caching.md)).
+  Tag names stay in English in every language, and a sound is written as its
+  tag, never spelled out in words. How often to tag follows the row's
+  instruction style: Anthropic rows are asked to tag sparingly, while other
+  rows are told the moments a sound belongs to (a laugh, sigh, gasp or
+  whisper), since GPT-6 Luna read "sparingly" as almost never. Changing the
+  voice changes the stable prefix once
+  ([prompt caching](../runtime/prompt-caching.md)).
 - **Provider text.** `ProviderSpeechText(provider)`, one instance per reply:
   - respells neutral tags (`[laughs]` becomes `<laugh>` on Gemini and stays
     `[laughs]` on ElevenLabs);

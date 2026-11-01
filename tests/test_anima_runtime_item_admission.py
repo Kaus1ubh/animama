@@ -5,6 +5,7 @@ import json
 import struct
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from typing import Any
 from uuid import uuid4
 
 import pytest
@@ -93,6 +94,12 @@ def _descriptor(
         total_bytes=sum(file.size_bytes for file in files),
         revision=f"rcd2-{_digest(item.id)}",
     )
+
+
+def _fence(descriptor: RuntimeContentDescriptor) -> dict[str, Any]:
+    """The pins and files issuance rechecks for a compiled descriptor."""
+
+    return {"pins": descriptor.admitted_item_revisions, "members": descriptor.members}
 
 
 async def _add_item(
@@ -187,12 +194,12 @@ async def test_runtime_file_authorization_uses_one_read_only_item_pin_projection
     service = AnimaRuntimeService(async_session)
     await service._recheck_admission(  # noqa: SLF001 - exact issue-time fence
         user_id=owner,
-        descriptor=_descriptor(item, files),
+        **_fence(_descriptor(item, files)),
     )
     with pytest.raises(RuntimeSnapshotError, match="runtime_remount_required"):
         await service._recheck_admission(  # noqa: SLF001 - whole-item invariant regression
             user_id=owner,
-            descriptor=_descriptor(item, files[:1]),
+            **_fence(_descriptor(item, files[:1])),
         )
 
     statements: list[str] = []
@@ -275,7 +282,7 @@ async def test_issue_recheck_holds_catalog_rows_stable_until_snapshot_insert(
     async with async_session_factory() as issuer, async_session_factory() as editor:
         await AnimaRuntimeService(issuer)._recheck_admission(  # noqa: SLF001
             user_id="lock-test-owner",
-            descriptor=descriptor,
+            **_fence(descriptor),
         )
         await editor.execute(text("SET LOCAL lock_timeout = '100ms'"))
         with pytest.raises(DBAPIError):

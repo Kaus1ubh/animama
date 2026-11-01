@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { Avatar } from "../Avatar";
+import { BODY_EFFECT_SCALE_BAND, bodyEffectScale } from "../avatarProportions";
 import type { AnimaPoseClipEventSink } from "../poses/PoseController";
 import { buildRuntimePrimitiveBindings } from "../vrmEditorInspection";
 import {
@@ -41,21 +42,25 @@ type Rig = {
  * outline material (as three-vrm adds for MToon) and morph targets, and a
  * transparent iris layer that writes no depth.
  */
-function createRig(metaVersion: "0" | "1" = "1"): Rig {
+function createRig(metaVersion: "0" | "1" = "1", size = 1): Rig {
   const scene = new THREE.Group();
   if (metaVersion === "0") scene.rotation.y = Math.PI;
   const hips = new THREE.Bone();
-  hips.position.set(0, 0.8, 0);
+  hips.position.set(0, 0.8 * size, 0);
   const chest = new THREE.Bone();
-  chest.position.set(0, 0.3, 0);
+  chest.position.set(0, 0.3 * size, 0);
   const head = new THREE.Bone();
-  head.position.set(0, 0.25, 0);
-  hips.add(chest);
+  head.position.set(0, 0.25 * size, 0);
+  // `avatarScale` 1.04 (head 1.3 above the feet) at size 1.
+  const leftFoot = new THREE.Bone();
+  leftFoot.position.set(0.1 * size, -0.75 * size, 0);
+  hips.add(chest, leftFoot);
   chest.add(head);
   scene.add(hips);
+  const height = AVATAR_HEIGHT * size;
 
-  const geometry = new THREE.BoxGeometry(0.4, AVATAR_HEIGHT, 0.2);
-  geometry.translate(0, AVATAR_HEIGHT / 2, 0);
+  const geometry = new THREE.BoxGeometry(0.4, height, 0.2);
+  geometry.translate(0, height / 2, 0);
   const count = geometry.getAttribute("position").count;
   geometry.setAttribute(
     "skinIndex",
@@ -97,7 +102,12 @@ function createRig(metaVersion: "0" | "1" = "1"): Rig {
   head.add(iris);
   scene.updateMatrixWorld(true);
 
-  const bones: Record<string, THREE.Object3D> = { hips, chest, head };
+  const bones: Record<string, THREE.Object3D> = {
+    hips,
+    chest,
+    head,
+    leftFoot,
+  };
   const avatar = {
     sourceUrl: null,
     sourceKey: null,
@@ -105,8 +115,10 @@ function createRig(metaVersion: "0" | "1" = "1"): Rig {
     scene,
     vrm: {
       meta: { metaVersion },
+      scene,
       humanoid: {
         getNormalizedBoneNode: (name: string) => bones[name] ?? null,
+        getRawBoneNode: (name: string) => bones[name] ?? null,
       },
     },
     faceLandmarks: null,
@@ -192,8 +204,8 @@ describe("body, sticker and silhouette Avatar Effects", () => {
   const controllers: AvatarVFXController[] = [];
   const camera = new THREE.PerspectiveCamera();
 
-  const create = (metaVersion: "0" | "1" = "1") => {
-    rig = createRig(metaVersion);
+  const create = (metaVersion: "0" | "1" = "1", size = 1) => {
+    rig = createRig(metaVersion, size);
     controller = new AvatarVFXController(rig.avatar);
     controllers.push(controller);
     return controller;
@@ -278,6 +290,46 @@ describe("body, sticker and silhouette Avatar Effects", () => {
         );
         expect(normal.z).toBeCloseTo(1);
       }
+    });
+
+    it("keeps authored metres inside the Included sizes and scales outside them", () => {
+      // The Included Avatars' `avatarScale`.
+      expect(bodyEffectScale(1.012)).toBe(1);
+      expect(bodyEffectScale(1.094)).toBe(1);
+      expect(bodyEffectScale(BODY_EFFECT_SCALE_BAND.min)).toBe(1);
+      expect(bodyEffectScale(BODY_EFFECT_SCALE_BAND.max)).toBe(1);
+      expect(bodyEffectScale(0.6)).toBeCloseTo(
+        0.6 / BODY_EFFECT_SCALE_BAND.min,
+      );
+      expect(bodyEffectScale(1.8)).toBeCloseTo(
+        1.8 / BODY_EFFECT_SCALE_BAND.max,
+      );
+    });
+
+    it("scales size and offset together on a larger model", async () => {
+      create("1", 1.6);
+      // Head 1.3 × 1.6 above the feet, over the 1.25 m reference.
+      const scale = (1.3 * 1.6) / 1.25 / BODY_EFFECT_SCALE_BAND.max;
+      await apply(
+        entry("heart", "body", {
+          bone: "chest",
+          offset: { x: 0.05, y: 0.1, z: 0.2 },
+          size: 0.3,
+        }),
+      );
+      const [plane] = named(rig.chest, "AvatarAttachmentVFX:heart");
+      const mesh = plane as THREE.Mesh;
+      rig.scene.updateMatrixWorld(true);
+      renderHook(mesh, camera);
+      const position = new THREE.Vector3();
+      const size = new THREE.Vector3();
+      mesh.matrixWorld.decompose(position, new THREE.Quaternion(), size);
+      const expected = new THREE.Vector3(0.05, 0.1, 0.2)
+        .multiplyScalar(scale)
+        .applyMatrix4(rig.chest.matrixWorld);
+      expect(position.distanceTo(expected)).toBeLessThan(1e-6);
+      // The authored 0.3 m geometry, drawn `scale` times as large.
+      expect(size.y).toBeCloseTo(scale);
     });
 
     it("falls back along the bone chain and reports the resolved bone", async () => {
@@ -540,6 +592,12 @@ describe("body, sticker and silhouette Avatar Effects", () => {
       expect(named(rig.scene, "AvatarAttachmentVFX:clip:a")).toEqual([]);
       expect(controller.getSnapshot().warnings).toEqual([
         'Removed "a": at most 4 body, sticker or silhouette effects can be active.',
+      ]);
+      expect(controller.getSnapshot().issues).toEqual([
+        {
+          code: "effect_attachment_limit",
+          params: { effectId: "a", limit: MAX_ACTIVE_ATTACHMENT_EFFECTS },
+        },
       ]);
       expect(warn.mock.calls[0]![1]).toMatchObject({
         code: "avatar_effect_attachment_limit",

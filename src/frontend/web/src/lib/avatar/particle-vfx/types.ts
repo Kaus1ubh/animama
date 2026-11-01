@@ -150,6 +150,8 @@ export type ParticleVFXRuntimeInstance = {
   durationSec: number | null;
   elapsedSec: number;
   transform: ParticleVFXTransform;
+  /** `transform` as placed on this Avatar, scaled by its body size. */
+  placement: ParticleVFXTransform;
   followAnchor: boolean;
   usesWorldSpace: boolean;
   object: Object3D;

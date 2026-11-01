@@ -72,13 +72,9 @@
       "title": "이미 사용 중인 아바타 이름입니다"
     },
     "discardUpload": "저장되지 않은 업로드 삭제",
-    "emptyIncluded": "사용할 수 있는 기본 제공 아바타가 없습니다. 내 콘텐츠를 사용하거나 VRM을 업로드할 수 있습니다.",
-    "emptyLocal": "내 콘텐츠에 아직 아바타가 없습니다. VRM을 업로드해 추가하세요.",
+    "empty": "아직 사용할 수 있는 아바타가 없습니다. VRM을 업로드해 추가하세요.",
     "fileInput": "VRM 파일 선택",
-    "groupLabel": {
-      "included": "기본 제공 아바타",
-      "local": "내 콘텐츠 아바타"
-    },
+    "groupLabel": "아바타",
     "inUse": "실행 중인 Anima가 이 아바타를 사용하고 있습니다. 그대로 두고 업로드한 파일은 새 이름으로 저장하세요.",
     "label": "아바타 선택",
     "loadFailed": "아바타를 불러올 수 없습니다. 선택은 유지됩니다.",
@@ -102,7 +98,14 @@
     "search": "아바타 검색",
     "searchPlaceholder": "아바타 검색…",
     "showMore": "아바타 더 보기",
-    "upload": "VRM 업로드"
+    "upload": "VRM 업로드",
+    "diagnostics": {
+      "checking": "이 아바타를 확인하는 중…",
+      "noProblems": "문제가 발견되지 않았습니다.",
+      "failed": "Animama가 이 아바타를 불러오지 못했습니다.",
+      "view": "진단 보기",
+      "problems_other": "문제 {{count}}개가 발견되었습니다."
+    }
   },
   "completion": {
     "degraded": "일부 런타임 콘텐츠를 사용할 수 없습니다. Anima는 정상적으로 만들어졌습니다.",
@@ -404,6 +407,7 @@
     "chooseAnother": "이 저장된 음성은 사용할 수 없습니다. 다른 음성을 선택하세요.",
     "cloneUnavailable": "이 저장된 음성은 사용할 수 없습니다. 라이브러리를 새로 고치세요.",
     "elevenLabsId": "ElevenLabs 음성 ID",
+    "elevenLabsLibrary": "<link>ElevenLabs 보이스 라이브러리</link>에서 목소리를 찾아 내 보이스에 추가한 뒤, 그 보이스 ID를 여기에 붙여 넣으세요.",
     "elevenLabsPlaceholder": "음성 ID 입력",
     "label": "음성 설정",
     "loadFailed": "저장된 음성을 불러올 수 없습니다.",
@@ -414,6 +418,9 @@
       "elevenLabs": "ElevenLabs",
       "pocketTts": "PocketTTS"
     },
+    "reuseVoice": "다른 Anima의 목소리 사용",
+    "retry": "아바타 다시 불러오기",
+    "reuseVoiceOption": "{{names}} · {{id}}",
     "retry": "저장된 음성 다시 불러오기",
     "savedVoiceUnavailable": "저장된 음성을 사용할 수 없음"
   }

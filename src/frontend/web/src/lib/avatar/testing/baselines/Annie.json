@@ -1,0 +1,494 @@
+{
+  "faceParts": {
+    "parts": {
+      "face_skin": {
+        "role": "face_skin",
+        "source": "signals",
+        "bindings": [
+          "91:0:3"
+        ],
+        "confidence": 0.9
+      },
+      "eye_left": {
+        "role": "eye_left",
+        "source": "signals",
+        "bindings": [
+          "91:0:1"
+        ],
+        "confidence": 0.9
+      },
+      "eye_right": {
+        "role": "eye_right",
+        "source": "signals",
+        "bindings": [
+          "91:0:1"
+        ],
+        "confidence": 0.9
+      },
+      "eye_highlight": {
+        "role": "eye_highlight",
+        "source": "signals",
+        "bindings": [
+          "91:0:2"
+        ],
+        "confidence": 0.8
+      },
+      "eyeline": {
+        "role": "eyeline",
+        "source": "signals",
+        "bindings": [
+          "91:0:6"
+        ],
+        "confidence": 0.7
+      },
+      "eyelash": {
+        "role": "eyelash",
+        "bindings": [],
+        "source": "missing",
+        "confidence": 0
+      },
+      "hair": {
+        "role": "hair",
+        "source": "signals",
+        "bindings": [
+          "93:2:0",
+          "93:2:1",
+          "93:2:2",
+          "93:2:3"
+        ],
+        "confidence": 0.8
+      }
+    },
+    "eyeWhite": [],
+    "diagnostics": [],
+    "issues": []
+  },
+  "landmarks": {
+    "status": "ready",
+    "warnings": [],
+    "issues": [],
+    "anchorName": "Normalized_J_Bip_C_Head",
+    "anchorType": "Object3D",
+    "faceBindingKey": "91:0:3",
+    "faceMaterialName": "N00_000_00_Face_00_SKIN (Instance)",
+    "faceBoundsLocal": {
+      "min": {
+        "x": -0.096878,
+        "y": -0.034123,
+        "z": -0.026806
+      },
+      "max": {
+        "x": 0.096878,
+        "y": 0.188648,
+        "z": 0.120926
+      },
+      "size": {
+        "x": 0.193756,
+        "y": 0.222771,
+        "z": 0.147732
+      },
+      "center": {
+        "x": 0,
+        "y": 0.077263,
+        "z": 0.04706
+      }
+    },
+    "frontZLocal": 0.120926,
+    "boxHoverClearanceLocal": 0,
+    "boxHoverFrontZLocal": 0.120926,
+    "eyes": {
+      "left": {
+        "bindingKey": "91:0:1",
+        "materialName": "N00_000_00_EyeIris_00_EYE (Instance)",
+        "vertexCount": 117,
+        "boundsLocal": {
+          "min": {
+            "x": 0.024985,
+            "y": 0.04209,
+            "z": 0.079995
+          },
+          "max": {
+            "x": 0.051899,
+            "y": 0.073093,
+            "z": 0.092531
+          },
+          "size": {
+            "x": 0.026914,
+            "y": 0.031002,
+            "z": 0.012536
+          },
+          "center": {
+            "x": 0.038442,
+            "y": 0.057592,
+            "z": 0.086263
+          }
+        },
+        "centerLocal": {
+          "x": 0.038826,
+          "y": 0.057982,
+          "z": 0.086362
+        },
+        "centerWorld": {
+          "x": 0.038826,
+          "y": 1.409066,
+          "z": 0.067122
+        },
+        "projectedFrontLocal": {
+          "x": 0.038826,
+          "y": 0.057982,
+          "z": 0.120926
+        },
+        "projectedFrontWorld": {
+          "x": 0.038826,
+          "y": 1.409066,
+          "z": 0.101687
+        },
+        "normalizedBoxCoord": {
+          "u": 0.700386,
+          "v": 0.413449,
+          "w": 0.766035
+        },
+        "projectedBoxCoord": {
+          "u": 0.700386,
+          "v": 0.413449,
+          "w": 1
+        },
+        "textureRect": {
+          "x": 0.619883,
+          "y": 0.21102,
+          "width": 0.246412,
+          "height": 0.562738
+        }
+      },
+      "right": {
+        "bindingKey": "91:0:1",
+        "materialName": "N00_000_00_EyeIris_00_EYE (Instance)",
+        "vertexCount": 115,
+        "boundsLocal": {
+          "min": {
+            "x": -0.051899,
+            "y": 0.042091,
+            "z": 0.079995
+          },
+          "max": {
+            "x": -0.025001,
+            "y": 0.073093,
+            "z": 0.091748
+          },
+          "size": {
+            "x": 0.026898,
+            "y": 0.031002,
+            "z": 0.011752
+          },
+          "center": {
+            "x": -0.03845,
+            "y": 0.057592,
+            "z": 0.085872
+          }
+        },
+        "centerLocal": {
+          "x": -0.039043,
+          "y": 0.057808,
+          "z": 0.086255
+        },
+        "centerWorld": {
+          "x": -0.039043,
+          "y": 1.408892,
+          "z": 0.067016
+        },
+        "projectedFrontLocal": {
+          "x": -0.039043,
+          "y": 0.057808,
+          "z": 0.120926
+        },
+        "projectedFrontWorld": {
+          "x": -0.039043,
+          "y": 1.408892,
+          "z": 0.101687
+        },
+        "normalizedBoxCoord": {
+          "u": 0.298496,
+          "v": 0.412668,
+          "w": 0.765314
+        },
+        "projectedBoxCoord": {
+          "u": 0.298496,
+          "v": 0.412668,
+          "w": 1
+        },
+        "textureRect": {
+          "x": 0.133704,
+          "y": 0.21102,
+          "width": 0.246411,
+          "height": 0.562738
+        }
+      }
+    }
+  },
+  "textureAnchors": {
+    "status": "ready",
+    "warnings": [],
+    "issues": [],
+    "faceBindingKey": "91:0:3",
+    "faceMaterialName": "N00_000_00_Face_00_SKIN (Instance)",
+    "anchors": {
+      "undereye": {
+        "left": {
+          "anchor": "undereye",
+          "side": "left",
+          "source": "geometric",
+          "localPoint": {
+            "x": 0.040514,
+            "y": 0.041778,
+            "z": 0.088311
+          },
+          "worldPoint": {
+            "x": 0.040514,
+            "y": 1.392862,
+            "z": 0.069072
+          },
+          "uv": {
+            "u": 0.652998,
+            "v": 0.588459
+          },
+          "referenceSizeLocal": {
+            "width": 0.020186,
+            "height": 0.012401
+          },
+          "referenceSizeUv": {
+            "width": 0.056149,
+            "height": 0.026452
+          }
+        },
+        "right": {
+          "anchor": "undereye",
+          "side": "right",
+          "source": "geometric",
+          "localPoint": {
+            "x": -0.040716,
+            "y": 0.041748,
+            "z": 0.088188
+          },
+          "worldPoint": {
+            "x": -0.040716,
+            "y": 1.392832,
+            "z": 0.068949
+          },
+          "uv": {
+            "u": 0.34626,
+            "v": 0.588483
+          },
+          "referenceSizeLocal": {
+            "width": 0.020173,
+            "height": 0.012401
+          },
+          "referenceSizeUv": {
+            "width": 0.055913,
+            "height": 0.026625
+          }
+        }
+      },
+      "blush": {
+        "left": {
+          "anchor": "blush",
+          "side": "left",
+          "source": "geometric",
+          "localPoint": {
+            "x": 0.043365,
+            "y": 0.030415,
+            "z": 0.09231
+          },
+          "worldPoint": {
+            "x": 0.043365,
+            "y": 1.381499,
+            "z": 0.07307
+          },
+          "uv": {
+            "u": 0.653742,
+            "v": 0.636979
+          },
+          "referenceSizeLocal": {
+            "width": 0.020186,
+            "height": 0.013951
+          },
+          "referenceSizeUv": {
+            "width": 0.050176,
+            "height": 0.053556
+          }
+        },
+        "right": {
+          "anchor": "blush",
+          "side": "right",
+          "source": "geometric",
+          "localPoint": {
+            "x": -0.043554,
+            "y": 0.030409,
+            "z": 0.092166
+          },
+          "worldPoint": {
+            "x": -0.043554,
+            "y": 1.381494,
+            "z": 0.072927
+          },
+          "uv": {
+            "u": 0.345563,
+            "v": 0.637029
+          },
+          "referenceSizeLocal": {
+            "width": 0.020173,
+            "height": 0.013951
+          },
+          "referenceSizeUv": {
+            "width": 0.050034,
+            "height": 0.053473
+          }
+        }
+      },
+      "mouth": {
+        "center": {
+          "anchor": "mouth",
+          "side": null,
+          "source": "expression",
+          "localPoint": {
+            "x": 0.000013,
+            "y": 0.000661,
+            "z": 0.104926
+          },
+          "worldPoint": {
+            "x": 0.000013,
+            "y": 1.351745,
+            "z": 0.085687
+          },
+          "uv": {
+            "u": 0.500098,
+            "v": 0.758489
+          },
+          "referenceSizeLocal": {
+            "width": 0.04156,
+            "height": 0.014632
+          },
+          "referenceSizeUv": {
+            "width": 0.164436,
+            "height": 0.034603
+          }
+        }
+      }
+    },
+    "flatten": {
+      "sample": {
+        "center": {
+          "region": "sample",
+          "side": null,
+          "source": "geometric",
+          "localPoint": {
+            "x": -0.000097,
+            "y": 0.058175,
+            "z": 0.100396
+          },
+          "worldPoint": {
+            "x": -0.000097,
+            "y": 1.40926,
+            "z": 0.081157
+          },
+          "uv": {
+            "u": 0.5,
+            "v": 0.546931
+          },
+          "referenceSizeLocal": {
+            "width": 0.015574,
+            "height": 0.010902
+          },
+          "referenceSizeUv": {
+            "width": 0.057493,
+            "height": 0.035643
+          }
+        }
+      },
+      "eyes": {
+        "left": {
+          "region": "eye",
+          "side": "left",
+          "source": "geometric",
+          "localPoint": {
+            "x": 0.039711,
+            "y": 0.067204,
+            "z": 0.088717
+          },
+          "worldPoint": {
+            "x": 0.039711,
+            "y": 1.418289,
+            "z": 0.069478
+          },
+          "uv": {
+            "u": 0.654128,
+            "v": 0.538874
+          },
+          "referenceSizeLocal": {
+            "width": 0.071322,
+            "height": 0.041853
+          },
+          "referenceSizeUv": {
+            "width": 0.214613,
+            "height": 0.130462
+          }
+        },
+        "right": {
+          "region": "eye",
+          "side": "right",
+          "source": "geometric",
+          "localPoint": {
+            "x": -0.039922,
+            "y": 0.067212,
+            "z": 0.088611
+          },
+          "worldPoint": {
+            "x": -0.039922,
+            "y": 1.418296,
+            "z": 0.069371
+          },
+          "uv": {
+            "u": 0.345146,
+            "v": 0.538839
+          },
+          "referenceSizeLocal": {
+            "width": 0.071279,
+            "height": 0.041853
+          },
+          "referenceSizeUv": {
+            "width": 0.214527,
+            "height": 0.130437
+          }
+        }
+      },
+      "mouth": {
+        "center": {
+          "region": "mouth",
+          "side": null,
+          "source": "expression",
+          "localPoint": {
+            "x": 0.000013,
+            "y": 0.000661,
+            "z": 0.104926
+          },
+          "worldPoint": {
+            "x": 0.000013,
+            "y": 1.351745,
+            "z": 0.085687
+          },
+          "uv": {
+            "u": 0.500098,
+            "v": 0.758489
+          },
+          "referenceSizeLocal": {
+            "width": 0.056106,
+            "height": 0.024875
+          },
+          "referenceSizeUv": {
+            "width": 0.201527,
+            "height": 0.09039
+          }
+        }
+      }
+    }
+  }
+}

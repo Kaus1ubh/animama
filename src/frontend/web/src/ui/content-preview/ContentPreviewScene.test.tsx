@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { PreviewRuntimeCatalogSession } from "@/lib/content-preview/PreviewRuntimeCatalogSession";
 import type { ContentPreviewTarget } from "@/lib/content-preview/types";
 import type { RuntimeCatalogEntry } from "@/lib/runtime-content/types";
+import { usePreviewDockAvatarStore } from "@/stores/preview-dock-avatar-store";
 import { DEFAULT_AVATAR_TRANSFORM } from "@/ui/main/canvas/transform-state";
 import { ContentPreviewScene } from "./ContentPreviewScene";
 
@@ -16,11 +17,20 @@ const harness = vi.hoisted(() => ({
     loads: string[];
     disposed: boolean;
     pending: Deferred[];
+    /** Each load's settings, then each live wind change. */
+    settings: string[];
   }>,
+  settings: {
+    springMode: "automatic",
+    springModeRef: { current: "automatic" },
+    materialMode: "automatic" as string | null,
+  },
   three: {
     camera: {},
     gl: { domElement: {} },
   },
+  /** The motion playback each play request starts. */
+  playMotion: async () => false as boolean,
 }));
 
 vi.mock("@/lib/avatar", () => ({
@@ -29,6 +39,7 @@ vi.mock("@/lib/avatar", () => ({
       loads: [] as string[],
       disposed: false,
       pending: [] as Deferred[],
+      settings: [] as string[],
     };
     isReady = false;
     isDisposed = false;
@@ -36,8 +47,17 @@ vi.mock("@/lib/avatar", () => ({
     constructor() {
       harness.avatars.push(this.record);
     }
-    load({ sourceKey }: { sourceKey: string }) {
+    load({
+      sourceKey,
+      springMode,
+      materialMode,
+    }: {
+      sourceKey: string;
+      springMode: string;
+      materialMode: string;
+    }) {
       this.record.loads.push(sourceKey);
+      this.record.settings.push(`load ${springMode} ${materialMode}`);
       this.isReady = false;
       this.scene = null;
       return new Promise<void>((resolve, reject) => {
@@ -56,10 +76,16 @@ vi.mock("@/lib/avatar", () => ({
       this.isReady = false;
       this.record.disposed = true;
     }
+    setSpringMode(mode: string) {
+      this.record.settings.push(`wind ${mode}`);
+    }
     setAutomaticAnimationPlaybackEnabled() {}
     resetAnimations() {}
     update() {}
   },
+}));
+vi.mock("@/query/hooks/useAvatarSettings", () => ({
+  useAvatarLoadSettings: () => harness.settings,
 }));
 vi.mock("@react-three/fiber", () => ({
   useThree: () => harness.three,
@@ -101,7 +127,7 @@ vi.mock("@/lib/content-preview/effects", () => ({
 }));
 vi.mock("@/lib/content-preview/playback", () => ({
   boundedContentPreviewFrameDelta: (delta: number) => delta,
-  playContentPreviewMotion: async () => false,
+  playContentPreviewMotion: () => harness.playMotion(),
 }));
 vi.mock("@/lib/content-preview/lifecycle", () => ({
   acquireContentPreviewResource: () => () => undefined,
@@ -120,7 +146,7 @@ function avatarEntry(revision: string): RuntimeCatalogEntry {
     display_name: "Annie",
     description: null,
     config_schema_version: 1,
-    config: {},
+    config: { avatar_catalog_item_id: "item-annie" },
     content_revision: revision,
     source: { type: "public_url", url: "/fixtures/annie.vrm" },
   };
@@ -155,7 +181,11 @@ let root: Root;
 let preparationRequest = 0;
 
 /** Render one new preparation, as the host does for each prepared target. */
-async function show(target: ContentPreviewTarget, avatarRevision: string) {
+async function show(
+  target: ContentPreviewTarget,
+  avatarRevision: string,
+  requests: { play?: number; stop?: number } = {},
+) {
   preparationRequest += 1;
   const props: ComponentProps<typeof ContentPreviewScene> = {
     active: true,
@@ -163,10 +193,10 @@ async function show(target: ContentPreviewTarget, avatarRevision: string) {
     avatarEntry: avatarEntry(avatarRevision),
     catalog,
     loop: false,
-    playRequest: 0,
+    playRequest: requests.play ?? 0,
     preparationRequest,
     resetCameraRequest: 0,
-    stopRequest: 0,
+    stopRequest: requests.stop ?? 0,
     target,
     moveAvatar: false,
     onAvatarChange: noop,
@@ -195,6 +225,13 @@ async function failLoads(index: number) {
 
 beforeEach(() => {
   harness.avatars = [];
+  harness.settings = {
+    springMode: "automatic",
+    springModeRef: { current: "automatic" },
+    materialMode: "automatic",
+  };
+  harness.three = { camera: {}, gl: { domElement: {} } };
+  harness.playMotion = async () => false;
   preparationRequest = 0;
   container = document.createElement("div");
   document.body.append(container);
@@ -206,7 +243,66 @@ afterEach(() => {
   container.remove();
 });
 
+/**
+ * The Avatar's settings as `useAvatarLoadSettings` reports them; its ref is
+ * one object for the component's life.
+ */
+function settings(springMode: string, materialMode: string | null) {
+  harness.settings.springModeRef.current = springMode;
+  harness.settings = {
+    springMode,
+    springModeRef: harness.settings.springModeRef,
+    materialMode,
+  };
+}
+
+describe("ContentPreviewScene Avatar settings", () => {
+  it("waits for the material setting, then loads with both settings", async () => {
+    settings("automatic", null);
+    await show(gesture("wave"), "avatar-r1");
+    expect(harness.avatars[0].loads).toEqual([]);
+
+    settings("springs_off", "simple");
+    await show(gesture("wave"), "avatar-r1");
+    expect(harness.avatars[0].settings).toContain("load springs_off simple");
+  });
+
+  it("changes the wind live and reloads only for a material change", async () => {
+    await show(gesture("wave"), "avatar-r1");
+    await finishLoads(0);
+
+    settings("off", "automatic");
+    await show(gesture("wave"), "avatar-r1");
+    expect(harness.avatars[0].loads).toEqual(["avatar-r1"]);
+    expect(harness.avatars[0].settings.at(-1)).toBe("wind off");
+
+    settings("off", "simple");
+    await show(gesture("wave"), "avatar-r1");
+    expect(harness.avatars[0].loads).toEqual(["avatar-r1", "avatar-r1"]);
+    expect(harness.avatars[0].settings.at(-1)).toBe("load off simple");
+  });
+});
+
 describe("ContentPreviewScene", () => {
+  it("publishes its Avatar to Diagnostics only while a load has finished", async () => {
+    const dock = () => usePreviewDockAvatarStore.getState();
+    await show(gesture("wave"), "avatar-r1");
+    expect(dock().avatar).toBeNull();
+    await finishLoads(0);
+    expect(dock().avatar).not.toBeNull();
+    expect(dock().itemId).toBe("item-annie");
+
+    // A new model revision withdraws it until that load finishes.
+    await show(gesture("wave"), "avatar-r2");
+    expect(dock().avatar).toBeNull();
+    await finishLoads(1);
+    expect(dock().avatar).not.toBeNull();
+
+    act(() => root.unmount());
+    expect(dock()).toEqual({ avatar: null, itemId: null });
+    root = createRoot(container);
+  });
+
   it("reuses the loaded Avatar for a target with the same model revision", async () => {
     await show(gesture("wave"), "avatar-r1");
     await finishLoads(0);
@@ -258,6 +354,22 @@ describe("ContentPreviewScene", () => {
     expect(harness.avatars[0].loads).toEqual(["avatar-r1"]);
   });
 
+  it("loads an Avatar the actor re-creates", async () => {
+    await show(gesture("wave"), "avatar-r1");
+    await finishLoads(0);
+
+    // Any change to the creation effect's inputs re-creates the Avatar (a new
+    // camera here); the new instance must load rather than stay empty.
+    harness.three = { ...harness.three, camera: {} };
+    await show(gesture("bow"), "avatar-r1");
+
+    expect(harness.avatars).toHaveLength(2);
+    expect(harness.avatars[0].disposed).toBe(true);
+    expect(harness.avatars[1].loads).toEqual(["avatar-r1"]);
+    await finishLoads(1);
+    expect(onStatusChange).toHaveBeenLastCalledWith("ready");
+  });
+
   it("loads a different model revision into a new Avatar", async () => {
     await show(gesture("wave"), "avatar-r1");
     await show(gesture("wave"), "avatar-r2");
@@ -271,5 +383,45 @@ describe("ContentPreviewScene", () => {
       loads: ["avatar-r2"],
       disposed: false,
     });
+  });
+});
+
+describe("ContentPreviewScene Stop", () => {
+  it("ends a play still preparing: its later failure reports nothing", async () => {
+    let fail: (error: Error) => void = noop;
+    harness.playMotion = () =>
+      new Promise<boolean>((_resolve, reject) => {
+        fail = reject;
+      });
+    // One target object, as the host keeps it across Play and Stop.
+    const wave = gesture("wave");
+    await show(wave, "avatar-r1");
+    await finishLoads(0);
+    await show(wave, "avatar-r1", { play: 1 });
+    expect(onStatusChange).toHaveBeenCalledWith("loading", expect.any(String));
+
+    // The host's Stop: status "ready", then the preparation fails.
+    await show(wave, "avatar-r1", { play: 1, stop: 1 });
+    onStatusChange.mockClear();
+    await act(async () => fail(new Error("Effect load aborted.")));
+
+    expect(onStatusChange).not.toHaveBeenCalledWith("error", expect.anything());
+  });
+
+  it("ends a play still preparing: its later success does not play", async () => {
+    let succeed: (played: boolean) => void = noop;
+    harness.playMotion = () =>
+      new Promise<boolean>((resolve) => {
+        succeed = resolve;
+      });
+    const wave = gesture("wave");
+    await show(wave, "avatar-r1");
+    await finishLoads(0);
+    await show(wave, "avatar-r1", { play: 1 });
+    await show(wave, "avatar-r1", { play: 1, stop: 1 });
+    onStatusChange.mockClear();
+    await act(async () => succeed(true));
+
+    expect(onStatusChange).not.toHaveBeenCalledWith("playing");
   });
 });

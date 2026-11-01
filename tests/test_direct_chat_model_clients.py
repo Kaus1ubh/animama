@@ -299,7 +299,7 @@ def test_direct_chat_prompt_assembler_emits_system_history_then_current_message(
         ("assistant", "second"),
         ("developer", "compacted context"),
         ("assistant", "third"),
-        ("developer", f"# List of memory files\n\nfiles: []\n\n{COMPANION_GUARDRAILS.strip()}"),
+        ("developer", "# List of memory files\n\nfiles: []"),
         ("user", "current"),
     ]
     system_message = prompt.messages[0]["content"]
@@ -354,14 +354,13 @@ def test_direct_chat_prompt_assembler_lists_attached_upload_overviews_in_request
     assert "outline_truncated:" not in request_context
     system_content = prompt.messages[0]["content"]
     assert isinstance(system_content, str)
-    assert "do not read memory files merely because the tools are available" in system_content
-    assert "Attached files are user-provided source documents for the current turn" in system_content
-    assert "retrieve relevant source content with the uploaded-file tools before answering" in system_content
-    assert "A file appearing in the attached-file list is accessible through those tools" in system_content
-    assert "do not substitute personal memory files for an attachment" in system_content
-    assert "Use `search_uploaded_files` for relevance lookup" in system_content
-    assert "Use `read_uploaded_file_chunks` for whole-document synthesis" in system_content
-    assert "returned search snippets and read chunks—not overview metadata alone—as evidence" in system_content
+    assert "or for an unrelated technical or attachment question" in system_content
+    # Attachment guidance travels with the attached-file list, not in the cached system message.
+    assert "user's source documents for this turn" not in system_content
+    assert "read its content with the uploaded-file tools before answering" in request_context
+    assert "Never claim a listed file is unavailable" in request_context
+    assert "do not answer from memory files instead" in request_context
+    assert "a mixed request may need both the uploaded-file and memory tools" in request_context
 
     folded_prompt = DirectChatPromptAssembler().assemble(
         user_message="Compare the attached files",
@@ -372,7 +371,7 @@ def test_direct_chat_prompt_assembler_lists_attached_upload_overviews_in_request
     assert [message["role"] for message in folded_prompt.messages] == ["system", "user"]
     folded_system = folded_prompt.messages[0]["content"]
     assert isinstance(folded_system, str)
-    assert "Do not default to reading `PROFILE.md`" in folded_system
+    assert "or for an unrelated technical or attachment question" in folded_system
     assert folded_system.endswith(COMPANION_GUARDRAILS.strip())
     assert 'filename: "first-notes.md"' not in folded_system
     # Without a developer role the attachment list travels in the user message's turn-context block.
@@ -380,7 +379,7 @@ def test_direct_chat_prompt_assembler_lists_attached_upload_overviews_in_request
     assert isinstance(folded_user, str)
     assert folded_user.startswith("<turn_context>\n# List of attached user-uploaded files")
     assert folded_user.endswith("</turn_context>\n\nCompare the attached files")
-    assert folded_user.index('title: "Milestones"') < folded_user.index("# Companion Guardrails")
+    assert "# Companion Guardrails" not in folded_user
     assert 'filename: "first-notes.md"' in folded_user
     assert "chunk_count: 12" in folded_user
     assert 'description: "Project notes and milestones."' in folded_user
@@ -403,13 +402,11 @@ def test_direct_chat_prompt_assembler_bounds_attachment_context_deterministicall
 
     first = assembler.assemble(user_message="Summarize", anima_identity="Identity", attached_files=attachments)
     second = assembler.assemble(user_message="Summarize", anima_identity="Identity", attached_files=attachments)
-    first_trailing = first.messages[-2]["content"]
+    first_context = first.messages[-2]["content"]
     second_context = second.messages[-2]["content"]
 
-    assert isinstance(first_trailing, str)
-    assert first_trailing.endswith(COMPANION_GUARDRAILS.strip())
-    first_context = first_trailing.removesuffix(f"\n\n{COMPANION_GUARDRAILS.strip()}")
-    assert first_trailing == second_context
+    assert isinstance(first_context, str)
+    assert first_context == second_context
     assert len(first_context) <= MAX_ATTACHED_FILE_CONTEXT_CHARS
     assert "attachment_context_truncated: true" in first_context
     assert "outline_truncated: true" in first_context

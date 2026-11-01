@@ -100,7 +100,7 @@ the neutral owner and injected client, never the local startup adapter.
 The local composition retains first-run setup. Capability guards explain
 unavailable direct links; native utility routes still require the desktop
 platform. See the [composition contract](../../../contracts/hosted-web.md) for
-consumer-owned admission and the six hosted exceptions.
+consumer-owned admission and the eight hosted exceptions.
 
 App Settings opens a route-independent modal without changing the active Anima,
 chat or URL.

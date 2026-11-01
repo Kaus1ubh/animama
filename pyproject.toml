@@ -8,7 +8,9 @@ license = "LicenseRef-Proprietary"
 license-files = ["LICENSE"]
 authors = [{ name = "Raymond Van" }]
 dependencies = [
-    "fastapi[standard]>=0.121",
+    "fastapi[standard]>=0.141.1",
+    # Imported directly; 1.3.1 is the first release without the known Starlette advisories.
+    "starlette>=1.3.1,<2",
     "uvicorn[standard]>=0.30",
     "pydantic>=2.10,<3",
     "typing-extensions>=4.12.2,<5",
@@ -22,11 +24,15 @@ dependencies = [
     "llama-index-core>=0.10.0",
     "aiofiles>=23.0.0",
     "debugpy>=1.8.17",
-    "openai>=2.41.1,<3",
-    "openai-agents>=0.18.0,<0.19.0",
-    "anthropic>=1.12,<2",
+    "openai>=3.39.0,<4",
+    "openai-agents>=0.24.0,<0.25.0",
+    "anthropic>=2.3.0,<3",
+    # Both imported directly: the provider SDKs use httpx2 and no longer install httpx,
+    # which the backend's own HTTP clients still use.
+    "httpx>=0.28.1,<1",
+    "httpx2>=2.16.0,<3",
     "google-genai>=2.25,<3",
-    "pillow>=12.0.0,<13",
+    "pillow>=13.0.0,<14",
     "pypdf>=6.0.0,<7",
     "opentelemetry-api>=1.38.0",
     "opentelemetry-sdk>=1.38.0",
@@ -60,20 +66,32 @@ Documentation = "https://github.com/raymond-van/animama/tree/main/docs/backend"
 
 [project.optional-dependencies]
 file-worker = [
-    "docling==2.100.0",
-    "torch>=2.2.2,<3",
+    "docling==2.142.1",
+    "torch>=2.13,<3",
     "torchvision>=0.17.2,<1",
 ]
 voice = ["numpy>=2.2.0,<3"]
 viz = ["graphviz>=0.17"]
 realtime = []
-encrypt = ["cryptography>=45.0,<46"]
+encrypt = ["cryptography>=50.0,<51"]
 
 [tool.uv.sources]
 torch = [{ index = "pytorch-cpu" }]
 torchvision = [{ index = "pytorch-cpu" }]
 
 [tool.uv]
+# Lock-only holds on releases that change the generated SDK, request behaviour or the
+# desktop document worker; the published wheel keeps its broader ranges.
+constraint-dependencies = [
+    # 2.13+ merges identical Input/Output schemas, renaming generated SDK types.
+    "pydantic<2.13",
+    # 0.142+ adds native OpenTelemetry, and 0.147-0.162 change request parsing
+    # (omitted vs null JSON values, form defaults); adopt them in their own change.
+    "fastapi<0.142",
+    # torch 2.14 grows libtorch_cpu by about 140 MB, which puts the desktop document worker
+    # over its reviewed size ceiling; 2.13 already carries the advisory fix.
+    "torch<2.14",
+]
 conflicts = [
     [
         { group = "dev" },

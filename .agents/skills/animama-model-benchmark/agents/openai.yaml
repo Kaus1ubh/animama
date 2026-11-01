@@ -1,0 +1,4 @@
+interface:
+  display_name: "Animama Model Benchmark"
+  short_description: "Benchmark chat models through chat's real turn path"
+  default_prompt: "Use $animama-model-benchmark to plan, run, judge and report a model benchmark for: <configurations or question>. Ask for the caps before any paid call."

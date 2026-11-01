@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback } from "react";
+import { Stethoscope } from "lucide-react";
+import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import {
@@ -11,7 +12,15 @@ import {
   type BehaviorFlag,
   type BehaviorOverride,
 } from "@/lib/settings/behavior-defaults";
+import { runtimeAvatarModelSha256 } from "@/lib/runtime-content/runtimeAvatarFaceParts";
+import { adaptRuntimeSnapshot } from "@/lib/runtime-content/runtimeSnapshotAdapter";
 import { cn } from "@/lib/utils";
+import { useAnimaLoadout } from "@/query/hooks/useAnimaLoadout";
+import { useAnimaRuntimeCatalog } from "@/query/hooks/useAnimaRuntimeCatalog";
+import { useAvatarSettingsAvailable } from "@/query/hooks/useAvatarSettings";
+import { AvatarDiagnosticsDialog } from "@/ui/animas/AvatarDiagnosticsDialog";
+import { AvatarSettingsRows } from "@/ui/animas/AvatarSettingsRows";
+import { Button } from "@/ui/components/button";
 import {
   Select,
   SelectContent,
@@ -97,7 +106,64 @@ function InheritableSettingRow({
   );
 }
 
-export function AnimaSettingsModal() {
+/** The Anima's Avatar settings: the shared rows for its Avatar item. */
+function AnimaAvatarSettingsRows({ animaId }: { animaId: string }) {
+  const { available } = useAvatarSettingsAvailable();
+  const loadout = useAnimaLoadout(animaId);
+  const runtime = useAnimaRuntimeCatalog(available ? animaId : null);
+  const vrmSha256 = useMemo(
+    () =>
+      runtime.data
+        ? runtimeAvatarModelSha256(
+            adaptRuntimeSnapshot(runtime.data).avatar_model,
+          )
+        : null,
+    [runtime.data],
+  );
+  return (
+    <AvatarSettingsRows
+      itemId={loadout.data?.avatar_source?.catalog_item_id ?? null}
+      vrmSha256={vrmSha256}
+    />
+  );
+}
+
+/** The Anima's Avatar diagnostics, opened in their own dialog. */
+function AvatarDiagnosticsRow({ animaId }: { animaId: string }) {
+  const { t } = useTranslation("settings");
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="border-border/60 bg-background flex flex-col gap-3 rounded-lg border px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+      <div className="min-w-0">
+        <p className="text-foreground text-sm font-medium">
+          {t("animaSettings.rows.avatar_diagnostics.label")}
+        </p>
+        <p className="text-muted-foreground text-xs">
+          {t("animaSettings.rows.avatar_diagnostics.description")}
+        </p>
+      </div>
+      <Button
+        variant="outline"
+        className="w-full shrink-0 sm:w-48"
+        onClick={() => setOpen(true)}
+      >
+        <Stethoscope /> {t("animaSettings.rows.avatar_diagnostics.open")}
+      </Button>
+      <AvatarDiagnosticsDialog
+        source={{ kind: "anima", animaId }}
+        open={open}
+        onOpenChange={setOpen}
+      />
+    </div>
+  );
+}
+
+type AnimaSettingsModalProps = {
+  /** The Anima whose Avatar the Diagnostics section describes. */
+  animaId?: string | null;
+};
+
+export function AnimaSettingsModal({ animaId }: AnimaSettingsModalProps = {}) {
   const { t } = useTranslation("settings");
   const {
     userPreferences,
@@ -181,6 +247,18 @@ export function AnimaSettingsModal() {
           />
         </div>
       </div>
+
+      {animaId ? (
+        <div>
+          <p className="text-muted-foreground text-xs font-medium tracking-wider uppercase">
+            {t("animaSettings.headings.avatar")}
+          </p>
+          <div className="mt-3 grid gap-3">
+            <AnimaAvatarSettingsRows animaId={animaId} />
+            <AvatarDiagnosticsRow animaId={animaId} />
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

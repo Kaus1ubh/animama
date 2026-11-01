@@ -290,8 +290,8 @@ or migration behavior.
   core; never add an unsigned-worker bypass. See the staging guide for release
   input approvals, producer commands, and the outstanding native artifact gates.
 - Platform dev builds are documented in `../../docs/frontend/desktop/platforms.md`.
-- `pnpm desktop:mac` requires a complete fresh stage and audit, explicitly skips
-  ad-hoc signing, and rechecks the packaged inventory. Unlicensed decorative SFX
+- `pnpm desktop:mac` requires a complete fresh stage and audit, explicitly
+  disables signing (`identity: null`), and rechecks the packaged inventory. Unlicensed decorative SFX
   are excluded from tracked runtime definitions; never restore their ignored
   bytes or metadata as build inputs. Component tests are not substitutes for
   packaged acceptance. Windows has an unsigned development package and
@@ -412,6 +412,14 @@ Prefer minimal, surgical diffs in:
   nearby code.
 - Reuse existing utilities such as `createLogger`, `queryKeys`, `cn`, env
   helpers, settings helpers, and provider helpers.
+- Log through `createLogger`. Production builds print only warnings and errors.
+  Settings → About → Copy diagnostics summary includes recent warnings, errors
+  and `milestone` calls (lifecycle events such as a chat turn or voice session
+  starting) from that window's main thread, message text included. Log lengths,
+  counts and IDs, never chat or speech text, memories, settings values or file
+  names; warning, error and milestone messages interpolate only fixed codes,
+  labels and numbers. Keep milestones to events a support reader needs, not
+  per-event detail.
 - Prefer existing dependencies. If adding a dependency is necessary, update the
   lockfile and explain why the new package is warranted.
 - Avoid broad renames or moves unless requested.

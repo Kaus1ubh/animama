@@ -47,7 +47,7 @@ async def test_owned_avatar_byte_reuse_is_not_cross_owner_or_included(async_sess
             assert row.owner_user_id == fixture.owner and row.scope == "owner"
 
             # An Included copy is not an owner-owned reuse candidate.
-            included = await upload_avatar(client, "IncludedCopy", vrm("AvatarSample_A_1_New"))
+            included = await upload_avatar(client, "IncludedCopy", vrm("Annie"))
             assert included.status_code == 200, included.text
             assert included.json()["item_id"] != fixture.items["included-avatar"].id
 
@@ -261,15 +261,15 @@ async def test_included_avatars_keep_their_shipped_portraits(async_session, tmp_
 
 async def test_included_avatar_reports_its_shipped_portrait(async_session, tmp_path, monkeypatch):
     async with anima_creation_fixture(async_session, tmp_path) as fixture:
-        portrait = fixture.paths.included_root / "appearances/avatar-portraits/app-avatar-model-avatarsample-a-1-new-v1"
+        portrait = fixture.paths.included_root / "appearances/avatar-portraits/app-avatar-model-annie-v1"
         portrait.parent.mkdir(parents=True, exist_ok=True)
         portrait.with_suffix(".webp").write_bytes(image_bytes(portrait=True, format="WEBP", portrait_size=256))
         portrait.with_suffix(".meta.json").write_text(
             json.dumps(
                 {
-                    "content_id": "builtin:avatar-portrait:AvatarSample_A_1_New",
+                    "content_id": "builtin:avatar-portrait:Annie",
                     "name": "Test portrait",
-                    "avatar_model": "AvatarSample_A_1_New",
+                    "avatar_model": "Annie",
                     "width": 256,
                     "height": 256,
                     "renderer_version": 1,
@@ -288,7 +288,7 @@ async def test_included_avatar_reports_its_shipped_portrait(async_session, tmp_p
         async with local_client(app) as client:
             included = await client.get(f"/v1/avatar-content/{fixture.items['included-avatar'].id}")
         assert included.json()["portrait"] == {
-            "url": f"/v1/content/files/{image.file_ref}",
+            "url": f"/v1/content/files/{image.file_ref}/sha256/{image.sha256}",
             "avatar_revision_sha256": None,
             "renderer_version": 1,
             "capture_preset_version": 2,

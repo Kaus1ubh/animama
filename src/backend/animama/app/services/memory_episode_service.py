@@ -188,6 +188,11 @@ class MemoryEpisodeService:
             processed_at=processed_at,
         )
 
+    async def lock_batch_selection(self, *, user_id: str) -> None:
+        """Hold the owner's batch-selection lock until the current transaction ends."""
+
+        await self._memory_episodes.lock_batch_selection(user_id=user_id)
+
     async def select_pending_batch_for_update(
         self,
         *,

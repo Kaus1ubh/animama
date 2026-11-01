@@ -8,6 +8,8 @@
   "provider_credentials": false,
   "chat_file_uploads": false,
   "anima_creation": false,
+  "automatic_episode_processing": false,
+  "library_previews": false,
   "local_filesystem_administration": false,
   "native_features": false,
   "user_file_processing": {

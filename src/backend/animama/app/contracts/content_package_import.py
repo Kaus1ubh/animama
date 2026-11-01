@@ -15,12 +15,21 @@ class ImportModel(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
 
+# ``avatar_setting_not_stored``: the package carries the sender's Avatar settings
+# (wind, materials), but this installation stores none, so the copy uses Automatic.
+# ``avatar_extension_unsupported``: the Avatar's model uses a glTF extension this
+# runtime cannot decode yet (Draco), so it imports but cannot be shown.
+type ImportItemNotice = Literal["avatar_setting_not_stored", "avatar_extension_unsupported"]
+
+
 class ReviewedImportItem(ImportModel):
     entry_id: str
     kind: PackageContentKind
     original_name: str
     name: str
     selected: bool
+    # What the import leaves out of this item, shown before the user confirms.
+    notices: tuple[ImportItemNotice, ...] = ()
 
 
 class ReviewedNonPortableItem(ImportModel):

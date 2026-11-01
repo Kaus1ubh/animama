@@ -19,6 +19,7 @@ from animama.product_http.ports import get_read_session, get_write_session
 from animama.product_http.routes import ROUTERS
 from animama.server.app import create_local_app
 from animama.server.config import Settings
+from tests.route_support import served_routes
 
 ROOT = Path(__file__).resolve().parents[1]
 HOSTED = json.loads((ROOT / "contracts/runtime-capabilities/hosted.json").read_text())
@@ -32,12 +33,14 @@ PERMISSIONS = (
     "provider_credentials",
     "chat_file_uploads",
     "anima_creation",
+    "automatic_episode_processing",
     "local_filesystem_administration",
     "native_features",
     "user_file_processing.enabled",
     "web_search.configuration",
 )
 RUNTIME_STATE = (
+    "library_previews",
     "offline_speech_enabled",
     "offline_multilingual_speech_enabled",
     "companion_safety.enabled",
@@ -89,9 +92,9 @@ def route_table(app: FastAPI) -> list[tuple[str, str, str]]:
     """The app's ordered (method, path, handler) table, one entry per method."""
 
     table = []
-    for route in app.router.routes:
+    for route in served_routes(app):
         assert isinstance(route, APIRoute | APIWebSocketRoute), route
-        methods = ["WEBSOCKET"] if isinstance(route, APIWebSocketRoute) else sorted(route.methods)
+        methods = ["WEBSOCKET"] if isinstance(route, APIWebSocketRoute) else sorted(route.methods or ())
         table += [(method, route.path, route.endpoint.__name__) for method in methods]
     return table
 
@@ -155,10 +158,10 @@ def depends_on(dependant: Dependant, call: object) -> bool:
 def test_moved_handlers_use_the_session_their_access_names(tmp_path: Path) -> None:
     # access is provisional until a family moves; then it must match the handler.
     specs = {(spec.method, spec.path): spec for spec in ROUTES}
-    for route in local_app(tmp_path, desktop=False, web_root=False).router.routes:
+    for route in served_routes(local_app(tmp_path, desktop=False, web_root=False)):
         if not (isinstance(route, APIRoute) and route.endpoint.__module__.startswith("animama.product_http.")):
             continue
-        for method in route.methods:
+        for method in route.methods or ():
             spec = specs[(method, route.path)]
             assert spec.disposition == "shared", route.path
             if spec.access in ("read", "write"):
@@ -166,6 +169,9 @@ def test_moved_handlers_use_the_session_their_access_names(tmp_path: Path) -> No
                 assert depends_on(route.dependant, expected), (method, route.path, spec.access)
             if spec.access == "read":
                 # A read route never opens a write session the composition must settle.
+                assert not depends_on(route.dependant, get_write_session), (method, route.path)
+            if spec.access == "staged":
+                # Its write session is opened only for the final write, never held while it prepares.
                 assert not depends_on(route.dependant, get_write_session), (method, route.path)
             if spec.access == "stream":
                 # A stream prepares on a write session that the composition settles before the body runs.
@@ -178,9 +184,9 @@ def test_moved_handlers_use_the_session_their_access_names(tmp_path: Path) -> No
 
 def test_the_package_serves_exactly_the_served_stages(tmp_path: Path) -> None:
     modules: dict[tuple[str, str], str] = {}
-    for route in local_app(tmp_path, desktop=True, web_root=True).router.routes:
+    for route in served_routes(local_app(tmp_path, desktop=True, web_root=True)):
         assert isinstance(route, APIRoute | APIWebSocketRoute), route
-        methods = ["WEBSOCKET"] if isinstance(route, APIWebSocketRoute) else sorted(route.methods)
+        methods = ["WEBSOCKET"] if isinstance(route, APIWebSocketRoute) else sorted(route.methods or ())
         for method in methods:
             modules[(method, route.path)] = route.endpoint.__module__
     for spec in ROUTES:
@@ -194,7 +200,7 @@ def test_the_package_serves_exactly_the_served_stages(tmp_path: Path) -> None:
 def test_each_stage_shares_the_planned_routes() -> None:
     # The ExecPlan's stages; audio isolation stays local (owner, 2026-10-10).
     shared = Counter(spec.stage for spec in ROUTES if spec.disposition == "shared")
-    assert shared == {2: 45, 3: 80, 4: 18, 5: 1}
+    assert shared == {2: 45, 3: 81, 4: 18, 5: 1}
 
 
 def test_routers_mount_the_served_routes_in_inventory_order() -> None:
@@ -204,7 +210,7 @@ def test_routers_mount_the_served_routes_in_inventory_order() -> None:
         for router in ROUTERS
         for route in router.routes
         if isinstance(route, APIRoute)
-        for method in sorted(route.methods)
+        for method in sorted(route.methods or ())
     ]
     served = [
         (spec.method, spec.path, spec.handler)
@@ -212,6 +218,18 @@ def test_routers_mount_the_served_routes_in_inventory_order() -> None:
         if spec.disposition == "shared" and spec.stage in SERVED_STAGES
     ]
     assert mounted == served
+
+
+def test_avatar_settings_routes_belong_to_the_local_composition() -> None:
+    # Only the local composition stores per-owner Avatar settings, so a consumer
+    # mounting ROUTERS never serves them (its ProductContent may omit the store).
+    specs = {
+        (spec.method, spec.handler): spec for spec in ROUTES if spec.path == "/v1/avatar-content/{item_id}/settings"
+    }
+    assert set(specs) == {("GET", "get_avatar_settings"), ("PUT", "save_avatar_settings")}
+    assert all(spec.disposition == "local" for spec in specs.values())
+    shared_paths = {route.path for router in ROUTERS for route in router.routes if isinstance(route, APIRoute)}
+    assert "/v1/avatar-content/{item_id}/settings" not in shared_paths
 
 
 def test_route_specs_reject_mismatched_stage_or_capability() -> None:

@@ -227,7 +227,9 @@ state locally because search results are transient navigation data rather than
 cached chat state. It shares the user-scoped `useAnimas` list query to map each
 result's `anima_id` to its lightweight display name and profile thumbnail,
 instead of resolving one complete runtime catalog per result. The endpoint
-paginates distinct chats, not individual message hits. Matching snippet terms are highlighted as escaped React text nodes.
+paginates distinct chats, not individual message hits. Matching snippet terms are highlighted as escaped React text nodes; `chatSearchHighlightTerms`
+(`web/src/lib/chat/chat-search-terms.ts`) follows the backend's word rules, so a
+non-ASCII word such as `京都` is highlighted whole.
 
 ## Anima presentation and typed catalogs
 

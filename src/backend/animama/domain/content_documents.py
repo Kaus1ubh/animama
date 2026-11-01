@@ -159,6 +159,12 @@ class AvatarDocumentV1(ContentDocumentV1):
     compatibility: dict[str, Any] = field(default_factory=dict)
     # A validated ``animama/avatar-face-parts/1`` correction (JSON form), or None.
     face_parts: dict[str, Any] | None = None
+    # The exporter's non-Automatic owner settings, carried only by a package's
+    # Avatar sidecar (None is Automatic). Import moves them into the importer's
+    # settings table; a Local sidecar's values are never applied.
+    spring_mode: str | None = None
+    wind_strength: int | None = None
+    material_mode: str | None = None
 
 
 @dataclass(frozen=True, slots=True)

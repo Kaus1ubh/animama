@@ -22,7 +22,7 @@ import {
   type HandShape,
 } from "./handPresets";
 
-describe.each(["AvatarSample_A_1_New", "Andrew"] as const)(
+describe.each(["Annie", "Andrew"] as const)(
   "hand offsets on %s",
   (avatarId) => {
     let vrm: VRM;

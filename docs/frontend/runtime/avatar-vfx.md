@@ -24,6 +24,7 @@ Frontend paths are relative to `src/frontend/web/src/`.
 | Parser and limits      | `lib/avatar/vfx/definition.ts`, `effect-image-limits.ts`, `effect-image.ts`, `effectSource.ts`                                                         |
 | Runtime                | `lib/avatar/vfx/AvatarVFXController.ts`, `AvatarAttachmentEffects.ts`, `silhouetteOverlay.ts`, `animation.ts`, `types.ts`                              |
 | Face parts and anchors | `lib/avatar/vfx/faceParts.ts`, `profiles.ts` (name fallback), `AvatarFaceLandmarks.ts`, `AvatarFaceTextureAnchors.ts`, `lib/avatar/humanoidAnchors.ts` |
+| Texture layouts        | `lib/avatar/vfx/textureUvMapping.ts` (UVs to image positions), `faceIsland.ts` (the face's UV island), `faceSkinClip.ts` (clips whole-face art to the face skin) |
 | Creator                | `ui/avatar-effect-creator/`, editor document `lib/avatar/vfx/editor/`, shared creator code `ui/content-creator/`                                       |
 | Template picker        | `lib/effects/effectTemplates.ts`, `ui/create/EffectTemplatePickerDialog.tsx`, thumbnails `assets/effect-templates/`                                    |
 | Conversion             | `src/backend/animama/app/services/avatar_effect_conversion.py`, `scripts/content/convert_avatar_effects.py`                                            |
@@ -208,13 +209,98 @@ replaces that instance.
 
 - **`full` and `eyes`** use the part's texture layout, so full-face art must
   match the Avatar's UV layout. `hideParts` hides other detected parts while
-  the effect is active.
+  the effect is active. `full` art is drawn only on the face skin's own
+  triangles of its texture: in each `face_skin` primitive on that image, the
+  face's UV island (`selectFaceIsland`, as anchors use) and the islands
+  outside its outline in the front view, such as VRoid's ears, less any
+  eye-line or lash `regions` and, in a primitive that also holds the neck or
+  body (under 90% head-weighted), the triangles not weighted to the head
+  (`createFaceVertexFilter`); a small neck island on a mostly head-weighted
+  face primitive lies outside the outline and keeps the art. A face that is
+  the head region of a whole-body primitive keeps only its face island
+  ([Faces inside a whole-body mesh](#faces-inside-a-whole-body-mesh)).
+  An inner mouth, teeth or eyes inside the face's outline are left out. The
+  clip is made only where it removes something: when another primitive's
+  material also draws the image (a texture atlas), or when those rules drop
+  triangles. Each clip triangle grows about 1–1.5 px at the texture's full
+  resolution, so filtering there leaves no seam at the island's edge. The
+  clip is built once per binding and slot as a `Path2D`; an opaque clipped
+  replacement hides the original texture only inside it. VRoid faces on
+  their own texture, the Included Avatars among them, need no clip.
+  `eyes` art is drawn for a VRoid iris texture: one
+  iris per half, the art cell being the whole half, about twice the iris.
+  When an iris does not sit in its half that way (inside it, roughly centred,
+  covering at least 40% of it in each direction), as on an Avatar whose eyes
+  share a texture atlas with other parts, `resolveIrisEyeLayout` draws each
+  eye's art in a cell 1.9 times its own iris rectangle, clipped to that
+  rectangle so it cannot reach the other eye. The iris rectangle is that of
+  the eye landmark's island, or of a layer over the whole eye with a larger
+  texture area (its painted art). On VRoid irises the image's x grows toward
+  the Avatar's left on both eyes; an eye whose art runs the other way
+  (`textureMirrored`, mirrored UVs) has its cell `flipped`, so everything drawn
+  there (art, offsets and turns) is mirrored about the cell's centre and reads
+  as on VRoid. Eyes sharing one rectangle draw the same art, unmirrored and
+  oriented for the viewer's left eye; with mirrored UVs the other eye shows
+  it mirrored, as on VRoid.
 - **Decals** (`undereye`, `blush`, `mouth`) are placed at UV anchors that
   `AvatarFaceTextureAnchors` computes at load: a 3D landmark is projected onto
-  the `face_skin` mesh and its UV is interpolated. The anchor sets position,
-  pivot and reference size; it does not clip the art, so a tear can run below
-  the eye. `span` stretches one image across both anchors; use it only for art
-  drawn that way.
+  the `face_skin` mesh and its UV is interpolated. Projection stays on the face
+  skin's own UV island, because a converted Avatar's face primitive can also
+  hold its neck, inner mouth or eye sockets on other parts of the texture: the
+  island nearest the point between the eyes among those spanning both eye
+  centres, within half the eyes' spacing of that point. Without one (a face
+  unwrapped in two halves) the whole primitive is used. The anchor sets position, pivot and
+  reference size; it does not clip the art, so a tear can run below the eye,
+  except on a face inside a whole-body mesh, whose decals keep to the face.
+  `span` stretches one image across both anchors; use it only for art drawn
+  that way.
+- **Covered anchors.** Art painted on the skin does not show under a surface
+  modelled just in front of it, up to 10% of the eyes' spacing in front along
+  the face's front axis (`FaceCover` in `faceCover.ts`): the face primitive's
+  triangles outside its island (eye dots, a low-poly eye shape, a nose) and
+  the iris, white and highlight parts. Hair in its own primitives is not
+  counted, but hair, a hood or a hat in the face primitive is, when it lies
+  outside the face's island that close (a whole-body or partly head-weighted
+  face). Eye-line and lash parts are left out, since their strands are
+  usually cut out of a texture; eye-line and lash regions of the face
+  primitive count only when the face material is opaque. An under-eye or
+  cheek anchor under a surface moves down in steps of 1% of the eye spacing
+  until nothing covers it, by at most half the spacing, and then half its
+  reference height further where that stays uncovered, so the art sits below
+  eyes modelled larger than their estimate. A mouth anchor counts as covered
+  only when the points half its width to either side are covered too, since
+  mouth art reaches past a nose over its centre. An anchor still covered keeps
+  `covered: true` in the snapshot, and decals placed on it are skipped with
+  `effect_anchor_covered`; the load log lists the anchors moved and left
+  covered. Anchors nothing covers, the Included Avatars' among them, stay
+  where they were.
+- **Darkening art on a dark face.** Before a `multiply` decal is drawn, its
+  change is estimated per colour channel from means: multiply scales each
+  channel of the surface by the art's, so at opacity `o` a channel changes by
+  about `o × S × (1 − A × T)` from the surface's mean colour `S` under the
+  decal (the brightest of its placements), the art's mean colour `A` and its
+  tint `T`. Where the largest channel change is under 8/255 (the step the
+  review renders count as visible), the decal is skipped with
+  `effect_surface_too_dark`: Included `shiver_undereye` on the neutral dark
+  grey screen of a low-poly robot face, say (about 7/255). It changes the red
+  channel of the Included Avatars' skin by about 34/255 and of a dark brown
+  skin by about 25/255. Being an estimate from means, it can skip
+  art that would show faintly on a few lighter pixels of a mixed surface.
+  Whole-face art is not checked.
+- **What the face shows.** Painted `face_skin` art needs the face material to
+  draw a base colour texture (`map`) through the first UV set, the one anchors
+  and the clip read, and, for an overlay, one whose image can be painted.
+  Otherwise (a texture read through a second UV set, or art that would reach
+  only MToon's shade texture, which shows in shadow) the effect is skipped
+  with `effect_face_texture_hidden`.
+- **Texture transforms.** Anchors, iris rectangles, the face clip and the
+  creator's surface handles read positions on the texture's image, not raw
+  UVs (`TextureUvMapping`): the UV through the base texture's transform
+  (`KHR_texture_transform` offset, scale and rotation; three-vrm ports VRM 0's
+  `_MainTex_ST` tiling to the same transform), then wrapped by its
+  `wrapS`/`wrapT` (repeat, mirrored repeat or clamp) when outside 0–1. A
+  shape (a triangle, an anchor's extent) wraps whole by one reference point.
+  An untransformed texture maps UVs inside 0–1 to themselves.
 
 ### Floating effects (`face_landmark`)
 
@@ -227,10 +313,66 @@ sit just in front of the iris landmarks; mouth planes start at the projected
 mouth point, sized from its anchor; forehead and top planes use positions around
 the face bounds, clear of detected hair.
 
+Planes follow the Avatar's measured size ([Size-aware
+placement](#size-aware-placement)). Eye planes are 6 cm high, scaled up by eyes
+taller than 4 cm (the Included irises are 2.4–3.3 cm), and an estimated eye's
+plane also stays a twentieth of the eye spacing in front of the face surface
+measured over it. Forehead and top planes are 8 cm high; on a big-headed Avatar
+they scale with the face, and the top-edge row moves from the face's top to
+the top of the head box (ears, hat or hood included), so horns or a crown sit
+on a robot's head rather than its screen.
+
+### Size-aware placement
+
+`avatarProportions.ts` measures each VRM at load and after a face part
+correction, before effects or poses change it:
+
+- The face's size: the larger of the height and width of the face's UV island
+  within the face bounds (0.220–0.223 m on the Included Avatars), which
+  `Avatar` registers from its texture anchors. Ears, hats, hoods and hair the
+  face mesh carries are left out. Without a face, the head box below stands
+  in, against the Included head boxes' 0.25 m.
+- The head box: vertices skinned mainly to the head and eye bones, in the
+  normalized head bone's space, as the review renders judge "on the head".
+  Accessories skinned to the head count; head art keeps clear of it. Only a
+  missing face or a big head reads it, so it is measured only then, from the
+  meshes the model showed at load, which leaves out effect art added since.
+- `avatarScale`: the head bone above the feet over 1.25 m.
+- The body, on a big head only: rest heights below the head bone of the neck,
+  shoulders (upper arms), upper chest, chest, spine, hips, feet and ground,
+  the torso's width (half the shoulders' plus half the hips') and the arm and
+  leg lengths, read against the Included Avatars' (`REFERENCE_AVATAR_BODY`).
+
+The face's share of the head bone's height decides how far placement follows
+it: up to 0.3 nothing changes (the Included Avatars measure 0.16–0.18, anime
+proportions up to about 0.25); from 0.4 (twice the Included share: chibi,
+mascot and robot Avatars) placement uses the face's size over the Included
+face (`headSized`), ramping between. That scales box planes, body planes on
+the head bone, stickers around the head (below), Particle Effects
+([Avatar Particle Effects](avatar-particle-vfx.md)), hand contacts on the
+head ([Avatar animation](avatar-animation.md)), and the chat's camera presets.
+
+The camera presets are framed for the Included Avatars. Portrait and Portrait
+(close) scale their offsets from the head bone and their distance by
+`headFramingScale`; Full body and Full body (close) scale their camera and aim
+about the floor by `bodyFramingScale`. Both are 1 on the Included Avatars and
+the body's size (`bodyEffectScale`) for other adult proportions. On a big head
+Full body follows the height to the top of the head box over the Included
+Avatars' 1.15 times their head bone's, so a short chibi fills the frame and
+its head stays in view. Portrait follows the face's size but shows no more
+than Full body (close), and Portrait (close) no more than three quarters of
+Portrait, since a chibi's face is about half its height; both aim at the head
+box's centre (`headFramingCenter`) rather than the head bone at the skull's
+base, so a hat stays in view. Choosing a preset, or loading another Avatar with one
+chosen, frames it afresh. Creator previews, which reuse these presets, the
+review renders' face view and `animation:render` follow suit.
+
 Eye planes default to closing the eyes (`forceBlink` holds `blink` at 1 at full intensity; a fading event weights it, see the fades section),
 hiding eye highlights, lines and lashes (`hideEyeDetails`) and cleaning up the
 painted eye area (`faceCleanup`). `skinBackdrop`, off by default, adds a
-skin-coloured plane behind eye or mouth art (render order 949).
+skin-coloured plane behind eye or mouth art (render order 949). It is lit like
+the face when the face uses MToon or a built-in material; on a lilToon or
+other custom-shader face it is a plain, unlit card.
 
 ### Face cleanup
 
@@ -257,17 +399,116 @@ VRM specification does not define. `detectAvatarFaceParts`
 
 | Part                             | Signal                                                                                                                                                                                                                                                                         |
 | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `eye_left`, `eye_right` (irises) | Primitives with at least half their skin weight on the humanoid `leftEye`/`rightEye` bones (or whose material a look-at expression moves through a texture transform). Iris, white and highlight are told apart by projected area and depth. One primitive may hold both eyes. |
-| `face_skin`                      | The head-skinned primitive of the mesh that both `blink` and `aa` morph, with the most area around the eyes.                                                                                                                                                                   |
+| `eye_left`, `eye_right` (irises) | Primitives with at least half their skin weight on the humanoid `leftEye`/`rightEye` bones (or whose material a look-at expression moves through a texture transform). Without either, the primitives skinned to the head (eye bones included, as an eye mesh may skin only its irises to them) within that eye region with a triangle behind an eyelid `blink` moves on the face skin: its outline meets the lid's in the front view and a corner lies no deeper than 15% of the lids' width behind the lid's front, so an eye card larger than the lid counts; sides follow the head's left-right axis. A part deep inside the head or beside it (ears) whose outline merely spans the lids does not count. Iris, white and highlight are told apart by projected area and depth. One primitive may hold both eyes. An eye with no geometry of its own is `estimated` (see below). |
+| `face_skin`                      | The head-skinned primitive of the mesh that both `blink` and `aa` morph (presets left empty are filled from MMD, ARKit or VRChat shapes first, `faceSignals.ts`), with the most area around the eyes. A face skinned partly to the neck or jaw (under 90% head weight) wins instead when its head-weighted vertices cover more and blink moves it; primitives on spring joints (merged-in hair) never do. With neither, a primitive they morph that holds the body (under half its weight on the head, or over 35% below the neck) is face skin as its head region (see below). When `aa` morphs no mesh (a mouth swapped between separate meshes by material binds, or none authored), the same rules pick among the primitives `blink` alone morphs, and the mouth anchor is estimated from the eyes; only when that finds nothing either does Diagnostics warn that the expressions move no mesh. |
 | `eye_highlight`                  | Separated from the iris by size and depth.                                                                                                                                                                                                                                     |
-| `eyeline`, `eyelash`             | Small primitives of the face mesh that `blink` moves almost entirely; the larger is the eye line.                                                                                                                                                                              |
+| `eyeline`, `eyelash`             | Small primitives of the face mesh that `blink` moves almost entirely; the larger is the eye line. Islands of the face or eye primitives that `blink` moves the same way are part `regions` (triangle lists, runtime only): lashes, or each eye's largest island as its line when no line primitive exists. Elsewhere an island must move at least half as far as the lid, but inside the box an eye's lid sweeps on the face skin (its `blink` region grown by a quarter of its size, reaching no higher than the open lid's lash line), a tenth is enough: lower lashes and eyeliner wing tips follow the lid only part of the way. Such an island is always a lash, never the line. Brows sit above the lash line, so a brow `blink` drags is left out. |
 | `hair`                           | Primitives in the head subtree with a real share of spring-joint weight (used to keep forehead and top planes clear).                                                                                                                                                          |
 
 Each part reports its `node:mesh:primitive` bindings, a source (`signals`,
-`names`, `corrected` or `missing`) and a confidence. Material and node names
+`names`, `corrected`, `estimated` or `missing`) and a confidence. Face landmarks span every
+`face_skin` binding (a correction may list several), counting only the
+head-weighted vertices of one that also holds the neck or body, or the head
+region of one that holds the whole body; texture
+anchors project onto the face binding nearest the eyes. Material and node names
 (`profiles.ts`) are a fallback per part; if detection itself fails, the Avatar
 still loads with name matching and logs `avatar_face_parts_detection_failed`.
 Detection takes a few milliseconds per Avatar and never writes world matrices.
+
+### Eyes without geometry
+
+An eye painted on the face skin, or modelled inside the face primitive, has no
+mesh part to find. When the face skin is known and detection, names and any
+correction leave an eye missing, it is `estimated` with an `estimate` naming
+what places it, in this order. Detection measures the place once
+(`eyeEstimates` on the part map, on the first face skin binding as the
+landmarks take it) and the landmarks build the eye from it.
+
+- `blink`: where `blink` moves the face skin on that side. The eye's region is
+  the vertices it moves at least half as far as the farthest there (the lid and
+  lash line), keeping the connected piece with the most vertices and pieces
+  overlapping it, so a brow it also lowers is left out. The landmark sits
+  halfway between their open and closed positions, averaged by how far each
+  moves, and is sized like an iris (55% of the region's width, 67% of its
+  height, as on the Included Avatars). Its `textureRect` bounds the region's
+  UVs on the face texture.
+- `eye_bone`: the humanoid eye bone, moved along the face's front axis onto
+  the front of the face, with an iris 14% of the face's width. Only triangles
+  facing the front, in the front half of the face's depth, count, so the back
+  of the head cannot; where none covers the bone (an eye hole) the nearest
+  one's depth is used. The bone must sit at least 10% of the face's width to
+  its own side, inside the face in the front view and above its lowest
+  quarter; otherwise the eye stays missing. This assumes the bone sits behind
+  the eye, as VRChat rigs place it; VRoid's eye bones sit nearer the nose, but
+  VRoid eyes always have meshes.
+
+The VRM look-at origin does not place eyes: three-vrm fills a default offset
+when a file has none, so it says nothing about where this model's eyes are.
+
+The landmark carries the same `estimate`. Eye planes on such an Avatar hang
+from the head as usual but are held by the face skin binding, since no binding
+is an iris; blush, under-eye, mouth, forehead and top placements read the
+landmarks as for any eye. An estimated eye's `textureRect` lies on the face
+texture, so the iris layout (`resolveIrisEyeLayout`) ignores it. Iris surface
+art (`face_surface` `eyes`) still needs an iris mesh part; on an estimated eye
+it is skipped with `effect_iris_mesh_missing` ("this avatar's left eye has no
+iris mesh"). With neither a
+blink region nor eye bones that mark the eyes, the eyes stay missing, and eye
+effects are skipped naming them.
+
+### Faces inside a whole-body mesh
+
+Low-poly Avatars often keep the whole body in one primitive on one material and
+texture, with the face painted on. When no other face skin qualifies, a
+primitive that `blink` and `aa` (or `blink` alone, as above) morph and that
+holds the body (under half its skin weight on the head, or over 35% below the
+neck, as on a one-mesh chibi) is face skin as its head region: the triangles
+whose corners are all skinned mainly to the head (or its non-spring
+descendants) and that face forward, with their centre in the front half of
+the head's depth. The back and sides of the head, the neck, the body and hair
+on spring joints are left out.
+`blink` or `aa` must move a vertex of the region, so the face is where the
+Avatar blinks or speaks. Among several such primitives the one covering the
+most of the eye window (or of the front view) wins.
+
+The region then narrows to the face itself: the UV island between the eyes,
+chosen as texture anchors choose it (`findFaceIslandTriangles` in
+`faceIsland.ts`), and the islands inside its outline (painted-on eyes, mouth,
+brows). The eyes are where `blink` moves the primitive on each side, else the
+humanoid eye bones; without both, or without such an island, the region stays
+whole. A fringe, hood rim or visor skinned to the head in front of the face is
+its own island and goes, so it neither sets the face's front (where eye planes
+and anchors sit) nor takes its art.
+
+The region is the part's `regions` entry for that binding (triangle lists,
+runtime only; `findFaceSkinRegion`), and everything that reads the face keeps
+to it: landmark bounds and eye estimates (`createFaceVertexFilter`), texture
+anchors, and the `full` art clip, which keeps the face island alone. The body
+shares the texture, so decals and the face cleanup under eye and mouth art are
+clipped to the same island; on other faces they draw unclipped.
+The clip is measured as the face is drawn without effects, so it stays whole
+after an effect hid the face. Where it cannot be built (UVs the clip cannot
+read, or no face triangle left to draw through), whole-face art is not drawn
+and the controller warns (`effect_placement_failed`), since unclipped it would
+cover the body. Hiding face skin (`hideParts`, the creator's hide face skin)
+hides only the region's triangles, as eye details are hidden, never the
+primitive and the body with it, and never the face the effect's own art is on
+(whole-face art, or eye art held by the face when the eyes have no mesh). Body, sticker and
+silhouette effects are unaffected. Detection runs once at load; Avatars whose
+face skin is found otherwise never run it.
+
+A correction or a material name that makes such a primitive face skin keeps it
+to its head region when one can be measured. Without one, a corrected
+primitive is face skin whole, as the user chose it. One found only by its name
+needs what detection needs, a head region that blinking or the mouth moves;
+otherwise it is not face skin, so a whole-body mesh detection rejected cannot
+become the face by its material's name.
+
+Diagnostics shows such a face as found by "Head of a whole-body mesh part",
+held in one shared part. When such primitives exist but none has a head region
+that blinking or the mouth moves (a rig whose mesh never uses its head bone,
+say), detection reports `face_parts_whole_body_head_missing` and face effects
+are skipped as for any missing face skin.
 
 ### Corrections
 
@@ -293,7 +534,9 @@ marks a part absent), and the VRM file's `vrm_sha256`.
 Primitive keys are stable only for identical VRM bytes. A correction whose
 `vrm_sha256` does not match the loaded file is ignored with a diagnostic, so it
 never applies to a different model; clearing it restores detection. The chat
-canvas passes the correction and the VRM digest to `Avatar.load`;
+canvas and Avatar previews (the Library dock, Included Avatars picked in the
+creators, Avatar Diagnostics) pass the correction and the VRM digest to
+`Avatar.load`;
 `Avatar.setFacePartCorrections` rebuilds the parts, landmarks, anchors and
 bindings and re-applies the active effects.
 
@@ -303,15 +546,43 @@ it, and an effect on any of those roles uses it. A part the user changed comes
 first, so it is the binding's primary role, and correcting Eyelashes to the
 eye-line mesh paints eyelash effects there while eye-line effects still work.
 Hiding eye details never hides a mesh that is also face skin or an iris.
+Regions of those meshes are hidden instead: while the effect is on, their
+triangles are rewritten in place as degenerate triangles
+(`PrimitiveRegionHider`, reference-counted per effect, outlines included) and
+restored when the last effect using them ends, and before face parts are
+detected again. A region in an unindexed primitive cannot be hidden; the
+effect still plays and reports `eye_detail_not_hidden`. When a face has no
+line or lash geometry at all, its lashes are taken to be painted into the face
+texture, and eye cleanup covers each eyelid `blink` moves rather than an
+eye-sized region; lines painted beside lash geometry are not cleaned up. The
+Face parts panel shows a part found only as regions as "Found inside another
+mesh part"; correcting that part replaces its regions with the chosen
+primitives.
 
 ### Missing parts
 
 An effect whose part is missing (face skin for every face effect, the covered
-eye for an eye plane, the painted part for a surface effect) is not applied.
+eye for an eye plane, which an estimated eye serves, the painted part for a
+surface effect) is not applied.
 The controller logs one `avatar_effect_face_part_unavailable` warning per
 effect and part and lists it in its snapshot warnings, which the VRM debug
 panel shows. In chat, the Gesture or Reaction continues without the effect. The
 creator names the missing part on its stage and toolbar.
+
+### Diagnostic codes
+
+Every finding the face parts, landmarks, texture anchors, springs and the VFX
+controller report carries a stable code with parameters (part roles, binding
+keys, counts, runtime effect ids) beside its English text, in `issues` next to
+the existing `diagnostics` or `warnings`. A Local effect's runtime id derives
+from its name, so shareable reports name effects by source and item id
+instead. `lib/avatar/diagnostics/issues.ts`
+lists the codes, such as `face_parts_correction_other_file`,
+`landmarks_eyes_missing` and `effect_face_part_missing`. [Avatar
+diagnostics](../features/anima-management.md#avatar-diagnostics) and the Avatar
+Effect creator's toolbar word them from the `animas` catalog; the English text
+remains for logs and the debug panels. A new warning gets a code there and a
+catalog entry in every locale.
 
 ## 6) Attachments beyond the face
 
@@ -325,18 +596,27 @@ delegates them to `AvatarAttachmentEffects`.
   anchors (for example `chest` → `upperChest` → `spine` → `hips`). `offset` is
   in metres in the bone's frame (+x toward the viewer's right when facing the
   Avatar, +y up, +z forward, on VRM 0 and 1); `size` is the plane height in
-  metres. It faces each camera (`facing: "camera"`) or keeps the bone's
-  orientation (`"bone"`).
+  metres. Both are authored for the Included Avatars: a model whose
+  `avatarScale` (rest head height above the feet over 1.25 m, the measure
+  contacts use) lies outside `BODY_EFFECT_SCALE_BAND` (0.91–1.2, the Included
+  Avatars' 1.012 and 1.094 widened by 10%) scales them by its size over the
+  nearer edge. On the `head` bone of a big-headed Avatar they scale by the
+  head's size instead ([Size-aware placement](#size-aware-placement)), so a
+  sparkle stays beside the head. It faces each camera (`facing: "camera"`) or
+  keeps the bone's orientation (`"bone"`).
 - **`sticker`**: a camera-facing image beside the head (`around: "head"`) or
   the body centre (between the hips and head). `size` and the screen-plane
   `offset` are fractions of the Avatar's height, measured at load from the bind
-  pose, so stickers stay readable on any model. They ignore depth (render order
-  960), so the Avatar never hides them.
+  pose, so stickers stay readable on any model; around a big head they are
+  fractions of 1.6 m (the Included Avatars' height) times the head scale, so
+  they keep beside it. They ignore depth (render order 960), so the Avatar never
+  hides them.
 - **`silhouette`**: art drawn only over the Avatar's visible pixels. Each
   depth-writing primitive gets an overlay mesh sharing its geometry, skeleton
   and live morph weights (render order 940, `LessEqual` depth with a small
-  polygon offset). It honours the original material's alpha cutout and changes
-  no material or canvas option. MToon outlines and layers that write no depth
+  polygon offset). It honours the original material's alpha cutout, including
+  a lilToon cut-out's `_Cutoff`, tiling and alpha mask, and changes no
+  material or canvas option. MToon outlines and layers that write no depth
   (irises, highlights, brows, eye lines, lashes) get no overlay.
   `fill: "pattern"` tiles the art in screen space from the hips (at
   `patternScale` 1 a tile is a quarter of the Avatar's on-screen height, so
@@ -466,9 +746,12 @@ regions and the sampled skin patch. Guides affect only the preview.
 ### Face parts panel
 
 **Face parts** lists the selected Avatar's parts with their status: Detected
-with a confidence, uncertain (found by name or below 70%), Corrected (only a
-part the user changed; a saved correction also pins the required parts at
-their detected values) or Missing. **Edit** a part, then tick its mesh parts in
+with a confidence, uncertain (found by name or below 70%), Position estimated
+(an eye without a mesh part of its own, see [Eyes without
+geometry](#eyes-without-geometry)), Corrected (only a part the user changed; a
+saved correction also pins the required parts at their detected values) or
+Missing. A correction names mesh parts for both eyes, so it cannot be saved
+while an eye is only estimated. **Edit** a part, then tick its mesh parts in
 the list or choose **Pick on the avatar** and click the Avatar. **Save correction** stores it with the
 Avatar through the face-parts route and rebuilds the preview, and **Use detected
 parts** removes it. A draft correction belongs to the Avatar it was made on and
@@ -686,13 +969,41 @@ and sounds on Included Gestures and Reactions, use `pnpm -s content:tune`
   with a warning), and
   `--together` applies every source on one sheet.
 - The run exits 1 when an effect leaves a controller warning or no active
-  effect.
+  effect, or when an Avatar Effect's art (applied directly or played by the
+  clip) draws nothing visible or mostly outside the head; the failure names
+  the effect. Each Avatar Effect is judged on its own: every tile is rendered
+  again without only its art, as `effects check` does (a face effect keeps
+  its face options with transparent stand-in images, and a Reaction plays
+  the same clip, so its mood face and other effects are in both). Changed
+  pixels (a channel off by more than 8) count where the art belongs: within
+  the head's projected bounds for art painted on the face, those bounds
+  grown by half on each side for art placed at the eyes, mouth, forehead or
+  top, anywhere for body, sticker and silhouette art. Art must change 0.1% of
+  a tile there in at least one tile, so tiny eye art can fall under it on
+  small front-only tiles or on a large head the views frame loosely. Face and
+  landmark art must keep at least half of its changes there in the front and
+  ¾ views; a `--views face` run skips that test, because the face view shows
+  only the head. Neither test judges where on the head art lands or how much
+  of it shows: art misplaced inside the head, or hidden but for a sliver by a
+  hood, fringe or modelled eye, passes, so look at the sheets. Body and sticker
+  art centred outside every tile (art in a hand below the frame in the rest
+  pose; check it with `--with-clip <gesture>`) and a clip's effect not
+  active at any rendered time are not judged; the run prints a `Note:` line
+  for each. Particle and Scene Effects are left out of these
+  captures and keep only the warning and active-effect checks.
 - `--all-included` renders every Included Avatar Effect. `--thumbnail`
   renders an Avatar Effect on Annie with the portrait head framing, keeping
   the effect's own expression state.
 - `--diff` counts a pixel when a channel changes by more than `--threshold`
   (default 8 of 255) and writes a diff image. The same source and revision diff
   to 0 pixels.
+- `--avatar-file <a.vrm>` renders on that VRM instead of the Included
+  Avatars, for example a converted Avatar kept outside the repository; keep its
+  sheets outside the repository too.
+- `--materials simple` loads the Avatar with the Simple material setting (a
+  lilToon Avatar's glTF fallback materials); `liltoon` and the default
+  `automatic` draw lilToon. Avatars without lilToon materials look the same
+  under every value.
 - `--rendering classic` renders the classic Avatar look instead of the app's
   default enhanced rendering (the chat canvas's CSS filter is not part of the
   rendered pixels). `CHROMIUM_PATH` points Playwright at a preinstalled
@@ -769,8 +1080,66 @@ animated eye plane, a body effect and a silhouette). The scenarios alternate
 over `--rounds` passes, and GPU samples voided by a disjoint event are dropped
 and counted. The budget is a mean added frame time of at most 2 ms. A software
 WebGL renderer is refused. Options: `--frames`, `--warmup`, `--rounds`,
-`--clip`, `--effects`, `--headed`, `--json <file>` and `--rendering
-<enhanced|classic>`.
+`--clip`, `--effects`, `--headed`, `--json <file>`, `--rendering
+<enhanced|classic>` and `--avatar-file <a.vrm>`, which measures that VRM
+instead of the Included Avatars (not with `--reaction`). Further options, not
+with `--reaction`: `--materials <automatic|liltoon|simple>` loads the Avatar
+with that Materials setting; `--pixel-ratios 1,1.5,2` repeats each measurement
+at those device pixel ratios; `--fps <n>` paces frames like the app
+(`nextSceneFrame`; chat renders at 60 fps, or 30 while idle) instead of using
+every display frame; and `--saturate <n>` times batches of n frames rendered
+back to back instead (below).
+
+Pace GPU comparisons with `--fps 60`. Headless Chromium can run at 120 frames
+per second. A heavy Avatar then saturates the GPU, and the timer query also
+counts queued work, so a lilToon Avatar's GPU time reads high and changes
+inconsistently. Light loads can run at a lower GPU clock, so their absolute
+times read higher than a busy GPU's would. Compare results only from runs made
+under the same conditions. Each pass's GPU mean is kept in the JSON
+(`passes`), so another job using the GPU shows up as drift between rounds.
+
+Because a paced light frame runs at a lower clock, paced timings also narrow the
+differences between scenarios: a change that halves a frame's work can read as a
+small saving. To measure the work itself, use `--saturate 10` (1–100). Each
+sample renders that many frames back to back, waits for the GPU with a 1-pixel
+readback and reports the wall time per frame (labelled "frame (saturated)", and
+kept in `passes` in place of the GPU mean) with the submission time per frame as
+CPU time; `--fps` then sets only the animation step. Each stage first renders
+back to back for about 2 s so the clock is up, and each pass starts with idle
+gaps of 400 ms and 150 ms, so a GPU trace taken alongside (Instruments' Metal
+System Trace with `--all-processes` and a time limit that ends before the bench
+exits) can be cut into passes. Where a frame's wall time is close to its CPU
+time the run is CPU-bound and hides the GPU's share, as for the Included
+Avatars.
+
+`--breakdown <materials,features,layers,mixed|all>` breaks the Avatar's plain
+frame cost down instead (no effects). The baseline alternates with scenarios
+that each change one thing. Every scenario reports GPU and CPU time, draw
+calls and triangles from `renderer.info`. It also reports the share of the
+Avatar's pixels that change in one probe frame of the same pose:
+
+- **materials:** each glTF material hidden, and each drawn alone;
+- **features:** each lilToon feature switched off on every material that
+  uses it (toon shadow, rim, matcaps, emission, normal maps, reflection and
+  the other `_Use*` switches; the outline pass, the two-pass pre-pass,
+  blending and alpha test through the shader variant), then all but
+  transparency together. Then the runtime's depth pre-pass for opaque lilToon
+  primitives is switched off, and prototype drawing changes follow; none of
+  them ships. They are blending off on opaque materials, morph targets
+  dropped, and morph weights read from a uniform array;
+- **layers:** each structural layer hidden: the eye stack, irises, eye
+  highlights, eye-bone eye whites, eye lines, eyelashes, face skin and hair
+  as face-part detection finds them, the alpha-blended and alpha-tested
+  primitives, and the rest;
+- **mixed:** lilToon on chosen materials, with the rest drawn with the glTF
+  fallbacks of a second, Simple load of the file.
+
+`--apply <ids>` applies feature scenarios by id (for example
+`outline,shadow`) to every measurement. It measures a combination, or
+a breakdown on top of one. The output names materials by glTF index and
+layers by structure, never by the file's material or mesh names. It labels
+the Avatar with its file name, so rename a private file before sharing
+results.
 
 `--reaction <path|library:reaction/...>` measures one Reaction's Avatar,
 Particle and Scene Effects instead: the Reaction replays every `--replay`
@@ -788,7 +1157,9 @@ update transforms and animated composites redraw and re-upload. The controller
 caches the original texture, cleanup fills, static layers and static segments
 between animated layers, so a tick redraws only what moves. An animated
 full-face texture is the most expensive effect; it dominates the heavy
-combination's GPU p95. Camera-facing planes and stickers compose one matrix
+combination's GPU p95. Where whole-face art needs a clip, each redraw also
+clips with the face skin's cached `Path2D` (VRoid faces on their own texture
+need none). Camera-facing planes and stickers compose one matrix
 per render; a silhouette adds one skinned draw per overlaid primitive (about
 11–13 on the Included Avatars).
 
@@ -799,6 +1170,7 @@ per render; a silhouette adds one skinned draw per overlaid primitive (about
 | Save fails naming a field                                                                                  | The backend refused the definition (`avatar_effect_definition_invalid`); the creator opens and outlines the control. Fix that value.                                                                                       |
 | "Conversion required" at Save, preview, Equip or import                                                    | A `/1` definition. Rescan or run `content_cli` for Local content, the conversion script for a descriptor folder; re-export a package from a converted installation. A failed Local conversion is listed in Content Health. |
 | Effect never appears on one Avatar                                                                         | The snapshot or **Effect warnings** list `avatar_effect_face_part_unavailable`: open **Face parts**, correct the missing or uncertain part and save.                                                                       |
+| An effect is skipped or degraded on one Avatar in chat                                                     | Anima settings → **Avatar diagnostics** → **Warnings** names the effect and the reason, with its [code](#diagnostic-codes).                                                                                                |
 | A saved correction has no effect                                                                           | The VRM bytes changed (`vrm_sha256` mismatch) or an Included Avatar's revision changed; correct the parts again.                                                                                                           |
 | Requests reading Avatars or starting chat fail with `relation "avatar_face_part_overrides" does not exist` | The development database predates the table. Reset it (see [development operations](../../backend/operations/development.md#database)).                                                                                    |
 | A body, sticker or silhouette effect vanished                                                              | A fifth attachment replaced the oldest (`avatar_effect_attachment_limit`).                                                                                                                                                 |
@@ -814,8 +1186,78 @@ per render; a silhouette adds one skinned draw per overlaid primitive (about
 
 ## 12) Limitations
 
-- Detection is tuned and tested on the two Included (VRoid) Avatars; other
-  models may need a correction. Without eye bones, side assignment may be wrong.
+- Detection is tuned on the two Included (VRoid) Avatars and tested on them
+  with synthetic additions (lashes inside the face mesh, a face skinned partly
+  to the neck, no eye bones, eyes without meshes); other models may need a
+  correction. A face inside a whole-body mesh is found by skinning, facing
+  and UV islands: a face unwrapped on one island with a fringe or hood rim
+  takes the effect's art there too, and a cheek or chin skinned partly to the
+  neck, facing sideways or unwrapped apart from the face stays unpainted. A
+  face mesh is taken as a whole-body mesh when under half its skin weight is
+  on the head or over 35% is below the neck (a one-mesh chibi). One skinned at
+  least half to the head with little body weight (a VRChat face with its neck,
+  or a mascot whose face mesh carries a small body) keeps every head-weighted
+  triangle instead, so whole-face art also tints its ears and any hair, hat or
+  hood skinned to the head bone. A small
+  head-skinned primitive that `blink` and `aa` also morph (in the same mesh,
+  say) takes the face from a whole-body primitive, because the whole-body
+  rule applies only when no other face skin qualifies. Eyes without meshes are
+  estimated, not measured: an estimate
+  from the eye bone is off where the bone does not sit behind the eye, and
+  one from blinking leans toward the lid above the eye and is sized like an
+  iris, but at least 30% of the eye spacing wide and high; blush and
+  under-eye art move below eye dots or shapes larger than that ([Painted
+  effects](#painted-effects-face_surface)), the cheek as far down as the
+  under-eye art so they stay apart. Painted eyes much larger or smaller than
+  that still get art sized for the estimate. With both eye bones, eye
+  landmarks skip islands wider than the distance between them, such as a
+  dome some VRChat eye meshes put around each eyeball.
+- Size-aware placement scales by the face's UV island, so a face unwrapped
+  with its ears, hat or hood on one island counts them, and an Avatar loaded
+  without a face falls back to the head box, which counts every ear, hat, hood
+  or hair skinned to the head bone without hair bones. On a big head,
+  top-edge art sits on the head box's top, ears, hats and hoods included, so
+  horns can float well above a tall ear. On adult proportions, forehead and
+  top art sits at the face and body art on the head bone at its authored
+  offset, so a hood or helmet standing well clear of the face can hide most
+  of an anger mark or a Reaction's sparkle. A big head's art is placed by
+  scaling about the head bone, which assumes the bone sits at the skull's
+  base as on VRoid models.
+- Whole-face art (`full`) is laid out for VRoid's dedicated face texture and
+  clipped to the face's island. Where the face is a small island of a shared
+  texture, as on many BOOTH and low-poly Avatars, most of the image falls
+  outside it: a tint such as `face_red` covers the face, but detail drawn
+  across the image, such as `petrified_cracks`' crack lines, barely shows,
+  and an island laid out unlike VRoid's face can be covered only in part.
+- The checks that skip art which would not show are partial. Only
+  `multiply` decals are compared with the surface under them, so dark eye or
+  mouth art over a dark painted face (a robot's screen) is placed but barely
+  shows, and nothing checks whether a fringe, hood or modelled eye in front
+  hides floating art.
+- Eye overlays that close the eyes hide only the eye details `blink` moves:
+  a lower-lid line that stays still when the Avatar blinks remains visible,
+  as do lash layers above the open lid's lash line. Lids that do not quite
+  meet when closed (some converted VRChat Avatars) show a faint dotted seam
+  where the eye behind them shows through.
+- The mouth anchor follows the vertices the mouth shapes (`aa`, `ee`, `ih`,
+  `oh`, `ou`) move most, or an estimate without them; on a face whose jaw
+  moves with those shapes (some converted VRChat Avatars), mouth decals sit
+  slightly low.
+- The `full` art clip tells the face's own islands by their outline in the
+  front view: an island unwrapped apart inside the face's outline (a nose
+  patch, say) is left out with the inner mouth, and an inner part reaching
+  past the outline is kept. A face unwrapped in halves, with no island
+  spanning both eyes, keeps every island. Lower mipmap levels can still blend
+  art across an island's border, as the growth holds only at full
+  resolution.
+- An iris layout mirrors an eye whose art runs mirrored against VRoid's, but
+  `span` iris art is drawn across both cells without it; the painted-art layer
+  is chosen by texture area, so a stretched layer covering the whole eye can
+  be taken for it.
+- Texture transforms are read when the anchors, landmarks and clip are built,
+  so an expression that moves a texture (a texture-transform bind) is not
+  followed. Decal anchors assume the shade texture shares the base texture's
+  transform, and only the first UV set is read.
 - Hidden face parts and face cleanup cannot fade; they switch at half the
   event's envelope.
 - Decal quality depends on the cached anchors, and cleanup quality on the

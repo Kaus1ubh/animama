@@ -15,7 +15,6 @@ import * as Dialog from "@radix-ui/react-dialog";
 import {
   AudioLines,
   Brain,
-  Database,
   Info,
   Keyboard,
   KeyRound,
@@ -43,6 +42,7 @@ import {
   DEFAULT_ANIMAMA_PREFERENCES,
   isParakeetWebgpuPreferred,
   mergePreferences,
+  offlineSttEnginePreference,
   toGeminiTtsModelId,
   type ElevenLabsTtsModelId,
   type GeminiTtsModelId,
@@ -50,7 +50,7 @@ import {
   type SettingsPreferences,
 } from "@/lib/settings/preferences";
 import {
-  DEFAULT_DESKTOP_SHORTCUTS,
+  defaultDesktopShortcuts,
   formatDesktopShortcut,
   resolveDesktopShortcuts,
   shortcutFromKeyboardEvent,
@@ -61,6 +61,7 @@ import {
   type DesktopShortcutIssue,
   type DesktopShortcutMap,
 } from "@/lib/settings/desktop-shortcuts";
+import { useDesktopLoginItem } from "@/hooks/useDesktopLoginItem";
 import { useDesktopUpdates } from "@/hooks/useDesktopUpdates";
 import { APPEARANCE_COLOR_TOKENS } from "@/lib/theme/appearance-overrides";
 import { BEHAVIOR_FLAGS } from "@/lib/settings/behavior-defaults";
@@ -71,6 +72,7 @@ import {
 } from "@/ui/settings/AboutSettings";
 import {
   AppBehaviorSetting,
+  AutomaticEpisodeProcessingSetting,
   behaviorLabel,
   ResetAppSettingsSetting,
 } from "@/ui/settings/BehaviorDataSettings";
@@ -104,6 +106,7 @@ import {
 import {
   recommendedSttChoice,
   availableSttChoices,
+  sttChoicePatch,
   type SttChoice,
 } from "@/lib/speech/stt-choices";
 import {
@@ -135,12 +138,12 @@ import {
 } from "@/ui/settings/DesktopCredentialsPanel";
 import { DesktopFeaturePacksPanel } from "@/ui/settings/DesktopFeaturePacksPanel";
 import { DesktopUpdatesPanel } from "@/ui/settings/DesktopUpdatesPanel";
+import { LaunchAtLoginSetting } from "@/ui/settings/LaunchAtLoginSetting";
 import { VoiceCloneSettings } from "@/ui/settings/VoiceDownloads";
 import { ChoiceTabsList } from "@/ui/settings/choice-tabs/ChoiceTabsList";
 import { Tabs, TabsContent } from "@/ui/components/tabs";
 import {
   getSttSettingsOptions,
-  getSttSettingsPreference,
   getSttSettingsSelection,
 } from "@/lib/speech/stt-settings";
 import {
@@ -159,6 +162,7 @@ import {
   availableSettingsSections,
   type SettingsSearchEntry,
 } from "@/ui/settings/settings-search";
+import { useAutomaticEpisodeProcessingAvailable } from "@/query/hooks/useAutomaticEpisodeProcessing";
 import { useRuntimeCapabilities } from "@/query/hooks/useRuntimeCapabilities";
 import { fetchRuntimeCapabilities } from "@/query/runtime-capabilities";
 import {
@@ -199,6 +203,7 @@ function ShortcutRecorder({
   onKeyDown,
 }: ShortcutRecorderProps) {
   const { t } = useTranslation("settings");
+  const { os } = useRuntimePlatform();
   return (
     <SettingsRow
       label={label}
@@ -224,7 +229,7 @@ function ShortcutRecorder({
             ? allowMouseShortcut
               ? t("shortcuts.pressKeysOrMouse")
               : t("shortcuts.pressKeys")
-            : formatDesktopShortcut(shortcut, (button) =>
+            : formatDesktopShortcut(shortcut, os, (button) =>
                 t("shortcuts.mouseButton", { button }),
               )}
         </Button>
@@ -243,12 +248,16 @@ function shortcutActionLabel(
       return t("shortcuts.actions.press_to_talk");
     case "quick_chat":
       return t("shortcuts.actions.quick_chat");
+    case "toggle_dictation":
+      return t("shortcuts.actions.toggle_dictation");
     case "toggle_voice_mode":
       return t("shortcuts.actions.toggle_voice_mode");
     case "toggle_voice_mute":
       return t("shortcuts.actions.toggle_voice_mute");
     case "skip_tts":
       return t("shortcuts.actions.skip_tts");
+    case "toggle_pip":
+      return t("shortcuts.actions.toggle_pip");
   }
 }
 
@@ -304,13 +313,12 @@ function initializationFailureText(
 const sections = [
   "General",
   "Models",
-  "Appearance",
   "Voice",
   "Shortcuts",
   "Memory & Emotion",
+  "Appearance",
   "Safety",
   "API Keys",
-  "Data",
   "Advanced",
   "About",
 ] as const;
@@ -326,7 +334,6 @@ const SECTION_LABEL_KEYS = {
   "Memory & Emotion": "sections.memoryEmotion",
   Safety: "sections.safety",
   "API Keys": "sections.apiKeys",
-  Data: "sections.data",
   Advanced: "sections.advanced",
   About: "sections.about",
 } as const satisfies Record<ApplicationSettingsSection, string>;
@@ -338,6 +345,7 @@ const SECTION_LABEL_KEYS = {
 type SettingGroupId =
   | "profile"
   | "audio"
+  | "startup"
   | "defaultModels"
   | "webSearch"
   | "animama"
@@ -365,6 +373,8 @@ function settingGroupLabel(
       return t("groups.profile");
     case "audio":
       return t("groups.audio");
+    case "startup":
+      return t("groups.startup");
     case "defaultModels":
       return t("groups.defaultModels");
     case "webSearch":
@@ -438,7 +448,6 @@ const SECTION_ICONS: Record<ApplicationSettingsSection, LucideIcon> = {
   "Memory & Emotion": Brain,
   Safety: LifeBuoy,
   "API Keys": KeyRound,
-  Data: Database,
   Advanced: SlidersHorizontal,
   About: Info,
 };
@@ -546,6 +555,8 @@ const shortcutRows: Array<{
 }> = [
   { action: "press_to_talk", allowMouseShortcut: true },
   { action: "quick_chat" },
+  { action: "toggle_pip" },
+  { action: "toggle_dictation" },
   { action: "toggle_voice_mode" },
   { action: "toggle_voice_mute" },
   { action: "skip_tts" },
@@ -577,20 +588,21 @@ export function ApplicationSettingsModal({
   );
   const [selectedSttProvider, setSelectedSttProvider] =
     useState<SttProvider | null>(null);
-  // The offline engine whose tab the owner last opened in Speech-to-Text.
-  const [sttViewEngine, setSttViewEngine] = useState<OfflineSttEngine | null>(
-    null,
-  );
   const [parakeetWebgpuPreferred, setParakeetWebgpuPreferred] = useState(
     isParakeetWebgpuPreferred(resolvedUserPreferences),
   );
+  // The offline engine the owner chose; null follows the UI Locale.
+  const [offlineSttEngine, setOfflineSttEngine] =
+    useState<OfflineSttEngine | null>(
+      offlineSttEnginePreference(resolvedUserPreferences),
+    );
   const [ttsEnabled, setTtsEnabled] = useState(false);
   const [selectedTtsProvider, setSelectedTtsProvider] =
     useState<TtsProvider | null>(null);
   const [selectedGeminiModelId, setSelectedGeminiModelId] =
     useState<GeminiTtsModelId>(DEFAULT_GEMINI_TTS_MODEL_ID);
   const [desktopShortcuts, setDesktopShortcuts] = useState<DesktopShortcutMap>(
-    DEFAULT_DESKTOP_SHORTCUTS,
+    defaultDesktopShortcuts(platform.os),
   );
   const [recordingShortcutAction, setRecordingShortcutAction] =
     useState<DesktopShortcutAction | null>(null);
@@ -610,10 +622,16 @@ export function ApplicationSettingsModal({
   const [isInitializing, setIsInitializing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const runtimeCapabilities = useRuntimeCapabilities();
-  // The offline choice is served by the UI Locale's engine (Parakeet for
-  // English, SenseVoice otherwise), read through `i18n` so it follows a
-  // language switch.
-  const offlineRoute = routeOfflineSpeech(i18n.resolvedLanguage);
+  const automaticEpisodeProcessingAvailable =
+    useAutomaticEpisodeProcessingAvailable();
+  // The offline choice runs the owner's engine, else the UI Locale's
+  // (Parakeet for English, SenseVoice otherwise), which is also the
+  // recommended one; read through `i18n` so both follow a language switch.
+  const offlineRoute = routeOfflineSpeech(
+    i18n.resolvedLanguage,
+    offlineSttEngine,
+  );
+  const localeSttEngine = routeOfflineSpeech(i18n.resolvedLanguage).engine;
   const parakeetAvailable = runtimeCapabilities.data
     ? offlineSpeechAvailable(offlineRoute, runtimeCapabilities.data)
     : null;
@@ -625,13 +643,14 @@ export function ApplicationSettingsModal({
   } = modelSettingsAvailability(runtimeCapabilities.data);
   const initializedForOpenRef = useRef(false);
   const savedSttProviderRef = useRef<SttProvider | null>(null);
+  const savedOfflineSttEngineRef = useRef<OfflineSttEngine | null>(null);
   const savedTtsProviderRef = useRef<TtsProvider | null>(null);
   const savedGeminiModelIdRef = useRef<GeminiTtsModelId>(
     DEFAULT_GEMINI_TTS_MODEL_ID,
   );
   const savedTtsEnabledRef = useRef(false);
   const savedDesktopShortcutsRef = useRef<DesktopShortcutMap>(
-    DEFAULT_DESKTOP_SHORTCUTS,
+    defaultDesktopShortcuts(platform.os),
   );
   const savedAvatarTransformControlsEnabledRef = useRef(false);
   const updateUserPreferencesRef = useRef(updateUserPreferences);
@@ -645,6 +664,13 @@ export function ApplicationSettingsModal({
   useEffect(() => {
     setParakeetWebgpuPreferred(savedParakeetWebgpuPreferred);
   }, [savedParakeetWebgpuPreferred]);
+  const savedOfflineSttEngine = offlineSttEnginePreference(
+    resolvedUserPreferences,
+  );
+  useEffect(() => {
+    setOfflineSttEngine(savedOfflineSttEngine);
+    savedOfflineSttEngineRef.current = savedOfflineSttEngine;
+  }, [savedOfflineSttEngine]);
   const savedTtsProvider = toTtsProvider(
     resolvedUserPreferences?.speech?.tts_provider,
   );
@@ -656,8 +682,9 @@ export function ApplicationSettingsModal({
     () =>
       resolveDesktopShortcuts(
         resolvedUserPreferences?.speech?.desktop_shortcuts,
+        platform.os,
       ),
-    [resolvedUserPreferences?.speech?.desktop_shortcuts],
+    [platform.os, resolvedUserPreferences?.speech?.desktop_shortcuts],
   );
   const savedAvatarTransformControlsEnabled =
     resolvedUserPreferences?.presentation?.enable_avatar_transform_controls ===
@@ -741,6 +768,7 @@ export function ApplicationSettingsModal({
 
     let cancelled = false;
     const initialSavedSttProvider = savedSttProviderRef.current;
+    const initialSavedOfflineSttEngine = savedOfflineSttEngineRef.current;
     const initialSavedTtsProvider = savedTtsProviderRef.current;
     const initialSavedGeminiModelId = savedGeminiModelIdRef.current;
     const initialSavedTtsEnabled = savedTtsEnabledRef.current;
@@ -758,7 +786,7 @@ export function ApplicationSettingsModal({
         const resolved = resolveRoutedSttProvider({
           savedProvider: initialSavedSttProvider,
           platform,
-          route: routeOfflineSpeech(),
+          route: routeOfflineSpeech(undefined, initialSavedOfflineSttEngine),
           capabilities,
         });
         const resolvedTts = resolvePreferredTtsProvider({
@@ -864,20 +892,20 @@ export function ApplicationSettingsModal({
   const currentSttOption = sttProviderOptions.find(
     (option) => option.id === selectedSttOption,
   );
-  // The Speech-to-Text tabs: the browser (web only), then each offline model.
-  // A saved offline choice shows under the engine last viewed, else the UI
-  // Locale's; either browser recognizer shows as the browser.
+  // The Speech-to-Text tabs: the browser (web only), then each offline model,
+  // the UI Locale's first. A saved offline choice shows under the engine that
+  // runs; either browser recognizer shows as the browser.
   const sttChoices = availableSttChoices(
-    offlineRoute.engine,
+    localeSttEngine,
     getSttProviderOptions(parakeetAvailable, platform, offlineRoute.engine),
   );
-  const sttRecommended = recommendedSttChoice(offlineRoute.engine, sttChoices);
+  const sttRecommended = recommendedSttChoice(localeSttEngine, sttChoices);
   const savedSttChoice: SttChoice | null =
     selectedSttProvider === "browser_external" ||
     selectedSttProvider === "browser_local"
       ? "browser_external"
       : selectedSttProvider === "parakeet"
-        ? `${sttViewEngine ?? offlineRoute.engine}_${parakeetWebgpuPreferred ? "gpu" : "cpu"}`
+        ? `${offlineRoute.engine}_${parakeetWebgpuPreferred ? "gpu" : "cpu"}`
         : null;
   const sttChoice =
     savedSttChoice && sttChoices.includes(savedSttChoice)
@@ -890,59 +918,48 @@ export function ApplicationSettingsModal({
   const firstAvailableTtsProvider =
     ttsProviderOptions.find((option) => !option.disabled)?.id ?? null;
 
-  const handleSttProviderChange = useCallback(
-    (value: string) => {
-      const nextSpeech = getSttSettingsPreference(value);
-      if (!nextSpeech || isSaving || isInitializing) return;
-      const nextProvider = nextSpeech.stt_provider;
-      const nextOption = sttProviderOptions.find(
-        (option) => option.id === value,
-      );
-      // An offline choice is saved before its set is installed: its tab
-      // offers the download, and dictation says the model is missing.
-      if (!nextOption || (nextOption.disabled && nextProvider !== "parakeet")) {
-        if (nextOption?.reason) {
-          toast.error(nextOption.reason);
-        }
-        return;
-      }
-      const previousProvider = selectedSttProvider;
-      const previousWebgpu = parakeetWebgpuPreferred;
-      setSelectedSttProvider(nextProvider);
-      setParakeetWebgpuPreferred(
-        nextSpeech.stt_parakeet_webgpu ?? previousWebgpu,
-      );
-      setIsSaving(true);
-
-      void updateUserPreferences({ speech: nextSpeech })
-        .catch(() => {
-          setSelectedSttProvider(previousProvider);
-          setParakeetWebgpuPreferred(previousWebgpu);
-          toast.error(t("voice.stt.updateFailed"));
-        })
-        .finally(() => setIsSaving(false));
-    },
-    [
-      isInitializing,
-      isSaving,
-      selectedSttProvider,
-      parakeetWebgpuPreferred,
-      sttProviderOptions,
-      t,
-      updateUserPreferences,
-    ],
-  );
-
+  /**
+   * Save a Speech-to-Text choice: its provider, GPU preference and, for an
+   * offline choice, its engine (`sttChoicePatch`). An offline choice is saved
+   * before its set is installed: its tab offers the download, and dictation
+   * says the model is missing.
+   */
   const handleSttChoiceChange = (choice: SttChoice) => {
-    const engine = sttChoiceEngine(choice);
-    if (engine !== "browser") setSttViewEngine(engine);
-    const value =
-      choice === "browser_external"
-        ? "browser_external"
-        : choice.endsWith("_gpu")
-          ? "parakeet_webgpu"
-          : "parakeet";
-    if (value !== selectedSttOption) handleSttProviderChange(value);
+    if (choice === savedSttChoice || isSaving || isInitializing) return;
+    const nextSpeech = sttChoicePatch(choice);
+    const nextProvider = nextSpeech.stt_provider;
+    const nextOption = sttProviderOptions.find(
+      (option) =>
+        option.id ===
+        getSttSettingsSelection(
+          nextProvider,
+          nextSpeech.stt_parakeet_webgpu === true,
+        ),
+    );
+    if (!nextOption || (nextOption.disabled && nextProvider !== "parakeet")) {
+      if (nextOption?.reason) {
+        toast.error(nextOption.reason);
+      }
+      return;
+    }
+    const previousProvider = selectedSttProvider;
+    const previousWebgpu = parakeetWebgpuPreferred;
+    const previousEngine = offlineSttEngine;
+    setSelectedSttProvider(nextProvider);
+    setParakeetWebgpuPreferred(
+      nextSpeech.stt_parakeet_webgpu ?? previousWebgpu,
+    );
+    setOfflineSttEngine(nextSpeech.stt_offline_engine ?? previousEngine);
+    setIsSaving(true);
+
+    void updateUserPreferences({ speech: nextSpeech })
+      .catch(() => {
+        setSelectedSttProvider(previousProvider);
+        setParakeetWebgpuPreferred(previousWebgpu);
+        setOfflineSttEngine(previousEngine);
+        toast.error(t("voice.stt.updateFailed"));
+      })
+      .finally(() => setIsSaving(false));
   };
 
   const handleTtsEnabledChange = useCallback(
@@ -1229,6 +1246,7 @@ export function ApplicationSettingsModal({
   // The updates panel renders nothing while updates are unavailable (browser,
   // unpackaged or unsupported desktop), so its entry is hidden then too.
   const desktopUpdates = useDesktopUpdates();
+  const loginItem = useDesktopLoginItem(open);
   const credentialsAvailable = useDesktopCredentialsAvailable();
   const desktopShortcutsAvailable =
     platform.isDesktop && Boolean(platform.desktopBridge.shortcuts);
@@ -1360,6 +1378,16 @@ export function ApplicationSettingsModal({
           showTitle={false}
         />
       ),
+    },
+    {
+      id: "launch-at-login",
+      section: "General",
+      ...inGroup("startup"),
+      label: t("launchAtLogin.label"),
+      keywords: ["startup", "login", "autostart", "open automatically", "boot"],
+      // Packaged macOS and Windows apps only.
+      hidden: !loginItem.status.available,
+      render: () => <LaunchAtLoginSetting loginItem={loginItem} />,
     },
     {
       id: "feature-packs",
@@ -1555,20 +1583,20 @@ export function ApplicationSettingsModal({
           <SttChoiceTabs
             choice={sttChoice}
             choices={sttChoices}
-            recommended={recommendedSttChoice(offlineRoute.engine, sttChoices)}
+            recommended={sttRecommended}
             onChoiceChange={handleSttChoiceChange}
             selected={savedSttChoice ? sttChoiceEngine(savedSttChoice) : null}
             panel={(choice) => (
               <OfflineEngineSettingsPanel
                 engine={sttChoiceEngine(choice) as OfflineSttEngine}
                 set={choice.endsWith("_gpu") ? "gpu" : "cpu"}
-                routed={sttChoiceEngine(choice) === offlineRoute.engine}
               />
             )}
           />
           <SpeechLanguageNotice
             direction="speechToText"
             provider={selectedSttOption}
+            engine={offlineSttEngine}
           />
           {isInitializing ? (
             <p className="text-muted-foreground text-xs">
@@ -1773,6 +1801,15 @@ export function ApplicationSettingsModal({
       }),
     ),
     {
+      id: "behavior-automatic-episode-processing",
+      section: "Memory & Emotion",
+      ...inGroup("animaDefaults"),
+      label: t("behavior.automaticProcessing.label"),
+      keywords: ["memory", "episode", "notes", "memory manager", "automatic"],
+      hidden: !automaticEpisodeProcessingAvailable,
+      render: () => <AutomaticEpisodeProcessingSetting disabled={isBusy} />,
+    },
+    {
       id: "safety",
       section: "Safety",
       label: t("safety.entryLabel"),
@@ -1793,17 +1830,6 @@ export function ApplicationSettingsModal({
           updateUserPreferences={updateUserPreferences}
           disabled={isBusy}
         />
-      ),
-    },
-    {
-      id: "reset-app-settings",
-      section: "Data",
-      ...inGroup("appData"),
-      label: t("data.reset.label"),
-      keywords: ["reset", "defaults", "restore", "clear"],
-      // Close so controls holding local copies reload the restored values.
-      render: () => (
-        <ResetAppSettingsSetting onReset={() => onOpenChange(false)} />
       ),
     },
     {
@@ -1886,6 +1912,17 @@ export function ApplicationSettingsModal({
             />
           }
         />
+      ),
+    },
+    {
+      id: "reset-app-settings",
+      section: "Advanced",
+      ...inGroup("appData"),
+      label: t("data.reset.label"),
+      keywords: ["reset", "defaults", "restore", "clear"],
+      // Close so controls holding local copies reload the restored values.
+      render: () => (
+        <ResetAppSettingsSetting onReset={() => onOpenChange(false)} />
       ),
     },
   ];

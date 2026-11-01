@@ -4,7 +4,7 @@
 
 INSERT INTO avatar (id, name, file_path, identity, model_type, private, created_at, updated_at)
 VALUES
-  ('avt_sample_a1n', 'Annie', '/shared/avatars/AvatarSample_A_1_New.vrm', $$
+  ('avt_sample_a1n', 'Annie', '/shared/avatars/Annie.vrm', $$
 # Annie
 
 ## Appearance
@@ -18,6 +18,16 @@ ribbon accents over a black lace-trimmed top.
 - Stays attentive, warm, and honest about what she does or does not know.
 $$, 'vrm', false, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
 ON CONFLICT (id) DO NOTHING;
+
+-- Annie's model file was renamed from AvatarSample_A_1_New.vrm; follow it on
+-- the untouched default row so the legacy Avatar still finds its catalog item.
+UPDATE avatar
+SET file_path = '/shared/avatars/Annie.vrm', updated_at = CURRENT_TIMESTAMP
+WHERE id = 'avt_sample_a1n'
+  AND file_path = '/shared/avatars/AvatarSample_A_1_New.vrm'
+  AND private = false
+  AND user_id IS NULL
+  AND catalog_item_id IS NULL;
 
 -- Retire only untouched legacy defaults whose model files were removed.
 -- Preserve every Anima/upload reference and any owner or catalog adoption.

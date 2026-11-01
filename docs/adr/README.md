@@ -22,8 +22,8 @@ production readiness or publication rights.
 | 0005 | [Client-rendered shared UI and local/native composition](0005-client-rendered-ui-and-local-native-composition.md)                                  | accepted                                                      |
 | 0006 | [Human and AI software development lifecycle](0006-human-ai-software-development-lifecycle.md)                                                     | accepted; planning superseded by 0007, review amended by 0027 |
 | 0007 | [Repository-owned specifications and execution plans](0007-repository-owned-planning.md)                                                           | accepted                                                      |
-| 0008 | [Non-overridable companion guardrail](0008-non-overridable-companion-guardrail.md)                                                                 | accepted; placement amended by 0023                           |
-| 0009 | [Shared user memory and per-Anima relationship memory](0009-shared-user-memory-and-per-anima-relationship-memory.md)                               | accepted                                                      |
+| 0008 | [Non-overridable companion guardrail](0008-non-overridable-companion-guardrail.md)                                                                 | accepted; placement amended by 0023 and on 2026-10-25                           |
+| 0009 | [Shared user memory and per-Anima relationship memory](0009-shared-user-memory-and-per-anima-relationship-memory.md)                               | accepted; partly superseded by 0034                           |
 | 0010 | [Shared voice model objects and optional downloads](0010-shared-model-object-distribution.md)                                                      | accepted; partly superseded by 0012                           |
 | 0011 | [Application-owned companion features and composition catalog policy](0011-application-owned-companion-features-and-composition-catalog-policy.md) | accepted                                                      |
 | 0012 | [Parakeet speech models as backend model assets](0012-backend-parakeet-model-assets.md)                                                            | accepted                                                      |
@@ -38,13 +38,17 @@ production readiness or publication rights.
 | 0021 | [Shared product HTTP routes for every composition](0021-shared-product-http-routes.md)                                                             | accepted                                                      |
 | 0022 | [Optional licensed sounds for built-in effects](0022-optional-licensed-effect-sounds.md)                                                           | proposed; amended by 0025 and on 2026-10-16                   |
 | 0023 | [Native Anthropic Messages provider](0023-native-anthropic-messages-provider.md)                                                                   | accepted                                                      |
-| 0024 | [The UI Locale is the conversation language](0024-ui-locale-is-the-conversation-language.md)                                                       | accepted; amended by 0029                                     |
+| 0024 | [The UI Locale is the conversation language](0024-ui-locale-is-the-conversation-language.md)                                                       | accepted; amended by 0029 and 0031                            |
 | 0025 | [Per-use Avatar Effect overrides](0025-per-use-avatar-effect-overrides.md)                                                                         | accepted                                                      |
 | 0026 | [One built-in Idle pool per Anima replaces Idle Style content](0026-built-in-idle-pool-per-anima.md)                                               | accepted                                                      |
 | 0027 | [Risk-tiered review and a single suite run per candidate](0027-risk-tiered-review-and-single-suite-run.md)                                         | accepted; amends 0006                                         |
-| 0028 | [Browser-cacheable runtime revision members](0028-cacheable-runtime-revision-members.md)                                                           | accepted                                                      |
-| 0029 | [SenseVoice-Small for Japanese, Korean and Chinese offline speech recognition](0029-sensevoice-offline-speech-recognition.md)                      | accepted                                                      |
+| 0028 | [Browser-cacheable runtime revision members](0028-cacheable-runtime-revision-members.md)                                                           | accepted; amended on 2026-10-28                               |
+| 0029 | [SenseVoice-Small for Japanese, Korean and Chinese offline speech recognition](0029-sensevoice-offline-speech-recognition.md)                      | accepted; amended by 0031                                     |
 | 0030 | [An Anima's Gestures are its binding rows](0030-anima-gestures-are-binding-rows.md)                                                                | accepted                                                      |
+| 0031 | [The offline speech engine is the owner's choice](0031-offline-speech-engine-is-the-owners-choice.md)                                              | accepted; amends 0024 and 0029                                |
+| 0032 | [VRM stays the Avatar container; ARKit shapes are a face capability](0032-vrm-container-with-arkit-face-shapes.md)                                 | accepted                                                      |
+| 0033 | [Digest-keyed URLs for Included content files](0033-digest-keyed-included-content-file-urls.md)                                                    | proposed                                                      |
+| 0034 | [Automatic episode processing and the profile in every turn](0034-automatic-episode-processing-and-profile-context.md)                             | accepted; partly supersedes 0009                              |
 
 ## When and how to record a decision
 

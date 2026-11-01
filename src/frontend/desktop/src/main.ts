@@ -1,4 +1,11 @@
-import { app, BrowserWindow, safeStorage, session, shell } from "electron";
+import {
+  app,
+  BrowserWindow,
+  nativeImage,
+  safeStorage,
+  session,
+  shell,
+} from "electron";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -12,6 +19,7 @@ import {
   writeLog,
 } from "./main-process/logging.js";
 import { installFullscreenIpc } from "./main-process/fullscreen/fullscreen-ipc.js";
+import { installTitleBarIpc } from "./main-process/window/title-bar.js";
 import { installPipIpc } from "./main-process/pip/pip-ipc.js";
 import { installQuickChatIpc } from "./main-process/quick-chat/quick-chat-ipc.js";
 import { installShortcutsIpc } from "./main-process/shortcuts/shortcuts-ipc.js";
@@ -61,6 +69,7 @@ import {
   createWindowsUpdateAdapter,
   verifyUpdaterPublisher,
 } from "./main-process/updates/electron-adapter.js";
+import { LoginItem } from "./main-process/login-item/login-item.js";
 
 const currentDir = dirname(fileURLToPath(import.meta.url));
 const preloadPath = join(currentDir, "preload.cjs");
@@ -76,6 +85,21 @@ try {
 }
 // Taskbar grouping and notifications use the ID the installer's shortcuts carry.
 if (process.platform === "win32") app.setAppUserModelId("com.animama.desktop");
+
+/**
+ * Unpackaged runs launch Electron's own binary, so they would show its icon.
+ * Packaged builds carry the app icon in their bundle or executable instead.
+ */
+function showDevelopmentIcon(): void {
+  if (app.isPackaged) return;
+  const build = join(app.getAppPath(), "build");
+  if (process.platform === "darwin") {
+    app.dock?.setIcon(nativeImage.createFromPath(join(build, "icon-mac.png")));
+    return;
+  }
+  const icon = nativeImage.createFromPath(join(build, "icon.png"));
+  app.on("browser-window-created", (_event, window) => window.setIcon(icon));
+}
 
 // The lock precedes database migrations, sessions, safeStorage, logs and services.
 const ownsInstance = app.requestSingleInstanceLock();
@@ -277,9 +301,11 @@ else {
           );
         installSessionGuards(desktopConfig.allowedWebOrigin, desktopSession);
         installFullscreenIpc();
+        installTitleBarIpc();
         installPipIpc({
           config: desktopConfig,
           locale: shellLocale,
+          placementFile: paths.pipPlacement,
           preloadPath,
         });
         installQuickChatIpc({
@@ -373,6 +399,7 @@ else {
     }
   }
 
+  const loginItem = new LoginItem(app);
   installRuntimeIpc(callers, {
     status: () => currentStatus,
     retry: async () => {
@@ -420,6 +447,8 @@ else {
       return updates.restart();
     },
     setLocale: (locale) => shellLocale.apply(locale),
+    loginItem: () => loginItem.status(),
+    setLoginItem: (enabled) => loginItem.setEnabled(enabled),
   });
 
   /** A menu failure must never block startup or recovery. */
@@ -484,6 +513,7 @@ else {
   void app
     .whenReady()
     .then(async () => {
+      showDevelopmentIcon();
       // Replaces Electron's English default menu before any window opens.
       applyApplicationMenu(shellLocale.strings);
       if (identityError) {

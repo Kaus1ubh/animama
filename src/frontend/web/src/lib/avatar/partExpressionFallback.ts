@@ -16,30 +16,20 @@
  * the same vertices; `ExpressionController` applies that cap.
  */
 
-const PRESET_BY_MOOD: Readonly<Record<string, string>> = {
-  Joy: "happy",
-  Fun: "relaxed",
-  Sorrow: "sad",
-  Surprised: "surprised",
-  Angry: "angry",
-};
-
-const PART_PATTERN = /^Fcl_(ALL|BRW|EYE|MTH)_(Joy|Fun|Sorrow|Surprised|Angry)$/;
+import { parseVroidMoodPart } from "./vroidMoodParts";
 
 /**
  * The VRM preset whose whole-face morph contains this VRoid part, mouth parts
  * included: at full weight the preset already moves the part's vertices fully.
  */
 export function wholeFacePresetForPart(name: string): string | null {
-  const mood = PART_PATTERN.exec(name)?.[2];
-  return mood ? (PRESET_BY_MOOD[mood] ?? null) : null;
+  return parseVroidMoodPart(name)?.preset ?? null;
 }
 
 /** The VRM preset a VRoid whole-face, brow or eye part falls back to. */
 export function fallbackPresetForPart(name: string): string | null {
-  return PART_PATTERN.exec(name)?.[1] === "MTH"
-    ? null
-    : wholeFacePresetForPart(name);
+  const part = parseVroidMoodPart(name);
+  return part && part.region !== "MTH" ? part.preset : null;
 }
 
 /**

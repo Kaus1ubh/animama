@@ -10,7 +10,15 @@
   and its [specification snapshot](../plans/internationalization/internationalization-spec.md)
 - Amended: 2026-10-21, offline speech recognition follows the conversation
   language: SenseVoice-Small serves Japanese, Korean and Chinese, and Parakeet
-  English ([ADR 0029](0029-sensevoice-offline-speech-recognition.md))
+  English ([ADR 0029](0029-sensevoice-offline-speech-recognition.md));
+  2026-10-25, the language picker no longer labels non-English locales Beta;
+  2026-10-25, the owner may choose the offline engine, and the language sets
+  only its default ([ADR 0031](0031-offline-speech-engine-is-the-owners-choice.md));
+  2026-10-29, the owner chose that memory text follows the conversation: every
+  memory writer is told to write new memory in the language of the conversation
+  it comes from, keep names as the user wrote them, leave existing text
+  untranslated and name files in ASCII; memory search matches non-ASCII words
+  ([issue #793](https://github.com/raymond-van/animama/issues/793))
 
 ## Context
 
@@ -46,8 +54,8 @@ showed backend English verbatim.
 3. **Codes from the backend, words in the frontend.** The backend sends stable
    codes and parameters; frontend catalogs word them. Backend English stays
    for logs and API clients and is shown only as secondary technical detail.
-4. **Beta locales.** Non-English locales ship machine-translated and are marked
-   Beta. A missing translation shows English. CI fails on catalog errors
+4. **Beta locales.** Non-English locales ship machine-translated; the picker
+   does not label them. A missing translation shows English. CI fails on catalog errors
    (stale keys, placeholder changes, keys missing from English, raw strings in
    converted UI) but only reports untranslated keys.
 5. **Shared runtime.** The locale contract lives in
@@ -88,7 +96,9 @@ showed backend English verbatim.
 - The model's instruction text, the Companion Guardrails, memory guidance and
   starter Anima identities stay English; only the reply language changes. Text
   the Anima writes for itself (episodic notes, `MEMORIES.md` edits) may follow
-  the conversation; memory behavior does not change.
+  the conversation; memory behavior does not change (amended 2026-10-29: every
+  memory writer is told to write new memory text in the language of the
+  conversation it comes from, and memory search matches non-ASCII words).
 - Browser journeys keep English accessible-name selectors and run in English;
   a pseudo-locale check covers untranslated text and overflow. The
   pseudo-locale is not a conversation language.

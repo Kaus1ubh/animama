@@ -4,7 +4,7 @@
       "copied": "診断情報をコピーしました。",
       "copy": "概要をコピー",
       "copyFailed": "診断情報をクリップボードにコピーできませんでした。",
-      "description": "不具合報告用に、バージョン、プラットフォーム、コンポーネントの状態をコピーします。キー、チャット、記憶は含まれません。",
+      "description": "不具合報告用に、バージョン、プラットフォーム、コンポーネントの状態、最近のアクティビティ、警告、エラーをコピーします。キー、チャット、記憶は含まれません。",
       "entryLabel": "診断の概要をコピー",
       "label": "診断"
     },
@@ -49,6 +49,32 @@
     }
   },
   "animaSettings": {
+    "avatar": {
+      "materials": {
+        "description": "lilToon は作者の意図どおりに描画し、シンプルは描画の負荷が軽くなります。自動は lilToon を使い、このデバイスの GPU に必要な場合はフレームレートを 45、30 または 24 fps に下げます。24 fps でも重すぎる場合だけシンプルを使います。このアバターを使うすべての場所に適用され、アバターを読み込み直します。",
+        "label": "マテリアル",
+        "modes": {
+          "automatic": "自動",
+          "liltoon": "lilToon",
+          "simple": "シンプル"
+        }
+      },
+      "wind": {
+        "description": "風と上昇気流でこのアバターの髪や服をどう揺らすか。このアバターを使うすべての場所に適用されます。",
+        "label": "風と周囲の力",
+        "modes": {
+          "automatic": "自動",
+          "off": "オフ",
+          "on": "オン",
+          "springs_off": "揺れものオフ"
+        }
+      },
+      "windStrength": {
+        "label": "風の強さ",
+        "description": "風と上昇気流の強さです（なし〜既定の2倍）。自動では、この強さでアバターの髪が持ちこたえられないほど柔らかい場合はオフにします。",
+        "value": "{{percent}}%"
+      }
+    },
     "choices": {
       "appDefaultOff": "アプリのデフォルト（オフ）",
       "appDefaultOn": "アプリのデフォルト（オン）",
@@ -56,10 +82,16 @@
       "on": "オン"
     },
     "headings": {
+      "avatar": "アバター",
       "emotion": "感情",
       "memory": "記憶"
     },
     "rows": {
+      "avatar_diagnostics": {
+        "description": "Animama がこの Anima のアバターで見つけた内容を確認し、サポート用のレポートをコピーできます。",
+        "label": "アバター診断",
+        "open": "診断を開く"
+      },
       "emotion_updates": {
         "description": "チャット中に感情の状態を更新します。オフにすると新しい感情のリアクションは止まりますが、ジェスチャーは再生されます。",
         "tooltip": "オフにすると、今の気分は保たれ、ジェスチャーは引き続き再生されます。"
@@ -75,6 +107,7 @@
       }
     },
     "updateFailed": {
+      "avatar": "アバターの設定を保存できませんでした。",
       "emotion": "感情の設定を更新できませんでした。",
       "memory": "記憶の設定を更新できませんでした。"
     }
@@ -182,6 +215,19 @@
   },
   "behavior": {
     "appDefaultLabel": "{{label}}（アプリのデフォルト）",
+    "automaticProcessing": {
+      "dailyLimit": "本日の上限に達しました。明日続けます。",
+      "description": "チャットのメモがこの件数たまったら、記憶ファイルにまとめます。",
+      "label": "エピソードのメモを自動で処理",
+      "memoryOff": "自動で処理するには、記憶と記憶の更新をオンにしてください。",
+      "needsModel": "ツールに対応した記憶マネージャーのモデルが必要です。モデルの設定で選択してください。",
+      "notes_other": "{{count}} 件ごと",
+      "off": "オフ",
+      "paused": "失敗が続いたため一時停止しました。この設定を変更すると再試行します。最後のエラー: {{error}}",
+      "retrying": "失敗したため、後で再試行します。最後のエラー: {{error}}",
+      "running_other": "{{count}} 件のメモを記憶にまとめています…",
+      "updateFailed": "メモの自動処理の設定を更新できませんでした。"
+    },
     "blockedByMemory": "記憶の更新を許可するには、記憶をオンにしてください。",
     "flags": {
       "emotion_updates": {
@@ -260,11 +306,11 @@
     "microphone": "マイク",
     "profile": "プロフィール",
     "speechToText": "音声認識",
+    "startup": "起動",
     "textToSpeech": "読み上げ",
     "webSearch": "Web 検索"
   },
   "language": {
-    "description": "Animama と Anima の言語です。メニューやメッセージに加え、Anima が話す言葉と聞き取る言葉にも使われます。ベータ版の言語は機械翻訳です。",
     "keywords": [
       "言語",
       "ロケール",
@@ -273,6 +319,15 @@
     "label": "言語",
     "saveFailed": "言語を変更できませんでした。",
     "systemDefaultResolved": "システムのデフォルト（{{language}}）"
+  },
+  "launchAtLogin": {
+    "label": "ログイン時に起動",
+    "description": "コンピューターにログインしたときに Animama を自動的に開きます。",
+    "blocked": {
+      "macos": "システム設定 → 一般 → ログイン項目と機能拡張 で許可するまで、Animama はログイン時に開きません。",
+      "windows": "設定 → アプリ → スタートアップ でオンにするまで、Animama はログイン時に開きません。"
+    },
+    "updateFailed": "「ログイン時に起動」を変更できませんでした。"
   },
   "modal": {
     "close": "アプリ設定を閉じる",
@@ -329,7 +384,6 @@
     "advanced": "詳細",
     "apiKeys": "API キー",
     "appearance": "外観",
-    "data": "データ",
     "general": "一般",
     "memoryEmotion": "記憶と感情",
     "models": "モデル",
@@ -342,6 +396,8 @@
       "press_to_talk": "プッシュトゥトーク",
       "quick_chat": "クイックチャット",
       "skip_tts": "読み上げをスキップ",
+      "toggle_dictation": "音声入力のオン/オフ",
+      "toggle_pip": "ピクチャー・イン・ピクチャーのオン/オフ",
       "toggle_voice_mode": "音声モードのオン/オフ",
       "toggle_voice_mute": "ミュートの切り替え"
     },

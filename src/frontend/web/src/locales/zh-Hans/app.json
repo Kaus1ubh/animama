@@ -142,8 +142,13 @@
   },
   "pip": {
     "close": "关闭画中画",
+    "controls": "画中画控件",
     "resize": "调整画中画大小",
-    "unavailable": "画中画不可用。请继续在此窗口中使用伙伴。"
+    "sceneBackground": "场景背景",
+    "stopVoiceMode": "停止语音模式",
+    "switchCamera": "切换相机（当前：{{preset}}）",
+    "unavailable": "画中画不可用。请继续在此窗口中使用伙伴。",
+    "voiceMode": "语音模式"
   },
   "quickChat": {
     "incompatibleModel": "该模型以不同方式保存对话。请打开主聊天，在新聊天中继续。",

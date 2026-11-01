@@ -30,6 +30,8 @@ import { Slider } from "@/ui/components/slider";
 import {
   Tooltip,
   TooltipContent,
+  TooltipDetails,
+  TooltipLabel,
   TooltipTrigger,
 } from "@/ui/components/tooltip";
 import { UnavailableAction } from "@/ui/components/unavailable-action";
@@ -895,9 +897,16 @@ function ChatInputModelSelector({
 
 ChatInputModelSelector.displayName = "ChatInputModelSelector";
 
-type ChatInputDictationProps = React.ComponentProps<typeof Button>;
+type ChatInputDictationProps = React.ComponentProps<typeof Button> & {
+  /** Lines under the Dictate tooltip, e.g. its speech engine. */
+  engineDetails?: readonly string[] | null;
+};
 
-function ChatInputDictation({ className, ...props }: ChatInputDictationProps) {
+function ChatInputDictation({
+  className,
+  engineDetails,
+  ...props
+}: ChatInputDictationProps) {
   const { t } = useTranslation("chat");
   const context = useContext(ChatInputContext);
   const activeMicMode = context.activeMicMode ?? null;
@@ -910,6 +919,7 @@ function ChatInputDictation({ className, ...props }: ChatInputDictationProps) {
   const onVoiceMicToggle = context.onVoiceMicToggle;
   const dictationStream = context.dictationStream;
   const hasDictationStream = Boolean(dictationStream);
+  const shortcuts = context.micShortcuts;
   const micWaveformMode =
     context.micWaveformMode ??
     (context.showMicWaveform === false ? "none" : "live");
@@ -992,7 +1002,12 @@ function ChatInputDictation({ className, ...props }: ChatInputDictationProps) {
             </Button>
           </TooltipTrigger>
           <TooltipContent avoidCollisions={false} side="bottom">
-            {actionLabel}
+            <TooltipLabel
+              label={actionLabel}
+              shortcut={
+                isVoiceMode ? shortcuts?.voiceMute : shortcuts?.dictation
+              }
+            />
           </TooltipContent>
         </Tooltip>
       </div>
@@ -1016,8 +1031,18 @@ function ChatInputDictation({ className, ...props }: ChatInputDictationProps) {
           <span className="sr-only">{t("composer.dictation.start")}</span>
         </Button>
       </TooltipTrigger>
-      <TooltipContent avoidCollisions={false} side="bottom">
-        {t("composer.dictation.start")}
+      {/* Flips above a composer at the window's bottom edge, like Voice
+          Mode, so the engine line stays visible. */}
+      <TooltipContent side="bottom">
+        <TooltipDetails
+          title={
+            <TooltipLabel
+              label={t("composer.dictation.start")}
+              shortcut={shortcuts?.dictation}
+            />
+          }
+          lines={engineDetails}
+        />
       </TooltipContent>
     </Tooltip>
   );

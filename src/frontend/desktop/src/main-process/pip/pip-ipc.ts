@@ -11,6 +11,7 @@ export const PIP_TOGGLE_CHANNEL = "anima:pip:toggle";
 export const PIP_GET_STATE_CHANNEL = "anima:pip:get-state";
 export const PIP_SET_BACKGROUND_MODE_CHANNEL = "anima:pip:set-background-mode";
 export const PIP_SET_SIZE_SCALE_CHANNEL = "anima:pip:set-size-scale";
+export const PIP_SET_GRIP_RESIZING_CHANNEL = "anima:pip:set-grip-resizing";
 export const PIP_PUBLISH_RUNTIME_MESSAGE_CHANNEL =
   "anima:pip:publish-runtime-message";
 export const PIP_STATE_CHANGED_CHANNEL = "anima:pip:state-changed";
@@ -20,6 +21,7 @@ export const PIP_CURSOR_SNAPSHOT_CHANNEL = "anima:pip:cursor-snapshot";
 type InstallPipIpcOptions = {
   config: DesktopConfig;
   locale: ShellLocale;
+  placementFile: string;
   preloadPath: string;
 };
 
@@ -36,6 +38,7 @@ function assertLiveSender(event: IpcMainInvokeEvent) {
 export function installPipIpc({
   config,
   locale,
+  placementFile,
   preloadPath,
 }: InstallPipIpcOptions): void {
   if (pipIpcInstalled) return;
@@ -45,6 +48,7 @@ export function installPipIpc({
     config,
     locale,
     cursorSnapshotChannel: PIP_CURSOR_SNAPSHOT_CHANNEL,
+    placementFile,
     preloadPath,
     runtimeMessageChannel: PIP_RUNTIME_MESSAGE_CHANNEL,
     stateChangedChannel: PIP_STATE_CHANGED_CHANNEL,
@@ -83,6 +87,13 @@ export function installPipIpc({
     PIP_SET_SIZE_SCALE_CHANNEL,
     (_event: IpcMainInvokeEvent, sizeScale: unknown) => {
       return manager.setSizeScale(sizeScale);
+    },
+  );
+
+  ipcMain.handle(
+    PIP_SET_GRIP_RESIZING_CHANNEL,
+    (event: IpcMainInvokeEvent, active: unknown) => {
+      manager.setGripResizing(assertLiveSender(event), active);
     },
   );
 

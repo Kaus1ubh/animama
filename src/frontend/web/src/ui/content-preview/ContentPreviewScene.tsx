@@ -37,7 +37,15 @@ import {
   runtimeContentDownloadUrl,
   type RuntimeContentUrlLease,
 } from "@/lib/runtime-content/runtimeContentDelivery";
-import { runtimeAvatarModelSha256 } from "@/lib/runtime-content/runtimeAvatarFaceParts";
+import { useAvatarLoadSettings } from "@/query/hooks/useAvatarSettings";
+import {
+  registerPreviewDockAvatar,
+  unregisterPreviewDockAvatar,
+} from "@/stores/preview-dock-avatar-store";
+import {
+  resolveRuntimeAvatarFaceParts,
+  runtimeAvatarItemId,
+} from "@/lib/runtime-content/runtimeAvatarFaceParts";
 import type { SceneVFXRuntimeEntry } from "@/lib/scene-vfx/types";
 import {
   applyAvatarTransformToObject,
@@ -46,6 +54,7 @@ import {
 } from "@/ui/main/canvas/transform-state";
 import { AvatarPreviewSurface } from "@/ui/avatar-preview/AvatarPreviewSurface";
 import type { SceneCameraSettings } from "@/ui/main/canvas/sceneCameraPresets";
+import { useSceneFrameDemand } from "@/ui/main/canvas/sceneFramePacing";
 import { failureLine } from "@/lib/errors/apiError";
 
 const PARTICLE_PREVIEW_CAMERA: SceneCameraSettings = {
@@ -115,8 +124,18 @@ function PreviewActor({
   const avatarLoadRef = useRef<"loading" | "ready" | "failed">("loading");
   const [avatarLoadAttempt, setAvatarLoadAttempt] = useState(0);
   const avatarRef = useRef<Avatar | null>(null);
+  // Between previews an idle Avatar lets the dock render at 30 fps.
+  const frameDemand = useSceneFrameDemand();
+  // The current instance as state, so loading follows a re-created Avatar
+  // (any change to the creation effect's inputs) instead of leaving it
+  // unloaded.
+  const [avatarInstance, setAvatarInstance] = useState<Avatar | null>(null);
   const loadGenerationRef = useRef(0);
   const handledPlayRequestRef = useRef(0);
+  // Stop and deactivation end the current play: a preparation still in flight
+  // then neither starts playback nor reports its failure over the host's
+  // "ready".
+  const playTokenRef = useRef(0);
   const firstMotionFrameRef = useRef(false);
   const [sceneObject, setSceneObject] = useState<Object3D | null>(null);
   const [avatarRoot, setAvatarRoot] = useState<Group | null>(null);
@@ -136,6 +155,9 @@ function PreviewActor({
     [applySoundPlayer, catalog, onSceneVFXChange],
   );
   const avatarSourceKey = avatarEntry.content_revision;
+  const { springMode, springModeRef, materialMode } = useAvatarLoadSettings(
+    runtimeAvatarItemId(avatarEntry),
+  );
 
   useEffect(() => {
     const releaseAvatar = acquireContentPreviewResource("dock", "avatar");
@@ -145,29 +167,36 @@ function PreviewActor({
     });
     avatar.setAutomaticAnimationPlaybackEnabled(false);
     avatarRef.current = avatar;
+    setAvatarInstance(avatar);
     onAvatarChange(avatar);
     return () => {
       avatarRef.current = null;
+      setAvatarInstance(null);
       onAvatarChange(null);
+      unregisterPreviewDockAvatar(avatar);
       avatar.dispose();
       releaseAvatar();
     };
   }, [camera, catalog, gl.domElement, onAvatarChange]);
 
   useEffect(() => {
-    const avatar = avatarRef.current;
-    if (!avatar) return;
-    return attachContentPreviewClipEventBridge(avatar, clipEventBridge);
-  }, [clipEventBridge]);
+    if (!avatarInstance) return;
+    return attachContentPreviewClipEventBridge(avatarInstance, clipEventBridge);
+  }, [avatarInstance, clipEventBridge]);
 
   useEffect(() => {
     avatarEntryRef.current = avatarEntry;
   }, [avatarEntry]);
 
   useEffect(() => {
+    avatarInstance?.setSpringMode(springMode);
+  }, [avatarInstance, springMode]);
+
+  useEffect(() => {
     const t = getI18n().getFixedT(null, "actionEditor");
-    const avatar = avatarRef.current;
-    if (!avatar) return;
+    const avatar = avatarInstance;
+    // Materials are built at load; wait for the Avatar's setting.
+    if (!avatar || !materialMode) return;
     const entry = avatarEntryRef.current;
     const logicalUrl = runtimeContentEntryUrl(entry);
     if (!logicalUrl) {
@@ -178,6 +207,8 @@ function PreviewActor({
     const generation = ++loadGenerationRef.current;
     const controller = new AbortController();
     avatarLoadRef.current = "loading";
+    // Diagnostics reads the dock's Avatar only once this load has finished.
+    unregisterPreviewDockAvatar(avatar);
     setSceneObject(null);
     setAvatarReadyKey(null);
     onStatusChange("loading", t("preview.loadingAvatar"));
@@ -194,7 +225,10 @@ function PreviewActor({
           filePath: download.url,
           sourceUrl: logicalUrl,
           sourceKey: avatarSourceKey,
-          vrmSha256: runtimeAvatarModelSha256(entry),
+          // The saved face part correction, so parts match the chat's.
+          ...resolveRuntimeAvatarFaceParts(entry),
+          springMode: springModeRef.current,
+          materialMode,
         });
         if (
           controller.signal.aborted ||
@@ -205,6 +239,7 @@ function PreviewActor({
           return;
         }
         avatar.setAutomaticAnimationPlaybackEnabled(false);
+        registerPreviewDockAvatar(avatar, runtimeAvatarItemId(entry));
         avatarLoadRef.current = "ready";
         setSceneObject(avatar.scene);
         setAvatarReadyKey(avatarSourceKey);
@@ -223,7 +258,14 @@ function PreviewActor({
       }
     })();
     return () => controller.abort();
-  }, [avatarLoadAttempt, avatarSourceKey, onStatusChange]);
+  }, [
+    avatarInstance,
+    avatarLoadAttempt,
+    avatarSourceKey,
+    materialMode,
+    onStatusChange,
+    springModeRef,
+  ]);
 
   useEffect(() => {
     // Each new preparation, including Retry, either reuses the loaded model or
@@ -243,6 +285,7 @@ function PreviewActor({
 
   useEffect(() => {
     const avatar = avatarRef.current;
+    playTokenRef.current += 1;
     clipEventBridge.reset();
     avatar?.resetAnimations();
     clearContentPreviewEffects({
@@ -255,6 +298,7 @@ function PreviewActor({
 
   useEffect(() => {
     if (active) return;
+    playTokenRef.current += 1;
     const avatar = avatarRef.current;
     clipEventBridge.reset();
     avatar?.resetAnimations();
@@ -290,6 +334,8 @@ function PreviewActor({
       return;
     handledPlayRequestRef.current = playRequest;
     let cancelled = false;
+    const token = ++playTokenRef.current;
+    const isCurrent = () => !cancelled && playTokenRef.current === token;
     clipEventBridge.reset();
     avatar.resetAnimations();
     clearContentPreviewEffects({
@@ -306,7 +352,7 @@ function PreviewActor({
             catalog,
             command: effectCommand,
             onSceneVFXChange,
-            isCurrent: () => !cancelled,
+            isCurrent,
             playApplySound: (runtimeId) =>
               applySoundPlayer.play(catalog, runtimeId),
             stopApplySound: applySoundPlayer.stop,
@@ -323,12 +369,12 @@ function PreviewActor({
           catalog,
           target,
           loop,
-          isCurrent: () => !cancelled,
+          isCurrent,
           onFinished: () => onStatusChange("ready"),
           onMissingDependencies,
           onDependenciesLoadingChange,
         });
-        if (!cancelled && didPlay) {
+        if (isCurrent() && didPlay) {
           // Flush the zero-time expression overlay before the immediate
           // Playing render exposes its observation snapshot.
           avatar.update(0);
@@ -338,7 +384,7 @@ function PreviewActor({
           onStatusChange("playing");
         }
       } catch (error) {
-        if (!cancelled) onStatusChange("error", errorMessage(error));
+        if (isCurrent()) onStatusChange("error", errorMessage(error));
       }
     })();
     return () => {
@@ -369,6 +415,12 @@ function PreviewActor({
       );
       firstMotionFrameRef.current = false;
       avatarRef.current?.update(playbackDelta);
+    }
+    if (frameDemand) {
+      const avatar = avatarRef.current;
+      frameDemand.avatarIdle = Boolean(
+        avatar?.isReady && !avatar.isMotionActive(),
+      );
     }
   });
 

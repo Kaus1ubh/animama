@@ -1,6 +1,7 @@
 import * as THREE from "three";
 
 import type { Avatar } from "../Avatar";
+import { measureAvatarProportions } from "../avatarProportions";
 import {
   PARTICLE_VFX_ROOT_OBJECT_NAME,
   applyParticleVFXRectangleShapeAutoFit,
@@ -9,6 +10,7 @@ import {
 import {
   createParticleVFXEffectContainer,
   createParticleVFXEmitterAnchorBindings,
+  placeParticleVFXEmittersOnBody,
   updateParticleVFXEmitterAnchors,
   type ParticleVFXEmitterAnchorBindings,
 } from "./emitterAnchors";
@@ -17,7 +19,10 @@ import { cloneParticleVFXPrefab } from "./quarksClone";
 import {
   alignParticleVFXRootToAvatar,
   cloneParticleVFXTransform,
+  getParticleVFXCombinedOffset,
   mergeParticleVFXTransform,
+  particleVFXPlacementScale,
+  placeParticleVFXTransform,
   resolveParticleVFXAnchorLocalPosition,
 } from "./runtime";
 import {
@@ -270,7 +275,10 @@ export class ParticleVFXController {
       effect.defaultTransform,
       request.transform,
     );
-    const fallbackResolvedAnchor = this._resolveAnchor(anchor, transform);
+    // Authored on the Included Avatars; placed in proportion to this one.
+    const proportions = measureAvatarProportions(this._avatar.vrm);
+    const placement = placeParticleVFXTransform(transform, proportions, anchor);
+    const fallbackResolvedAnchor = this._resolveAnchor(anchor, placement);
     if (!fallbackResolvedAnchor) {
       this._pushWarning(
         `Particle VFX "${effect.id}" could not resolve a host.`,
@@ -279,7 +287,7 @@ export class ParticleVFXController {
     }
     const autoFitResult = resolveParticleVFXAvatarBoundsRectangleFit({
       avatar: this._avatar,
-      transform,
+      transform: placement,
       shapeAutoFit: effect.shapeAutoFit,
     });
     if (autoFitResult.warning) {
@@ -337,8 +345,16 @@ export class ParticleVFXController {
         }
       }
       const emitterAnchors = createParticleVFXEmitterAnchorBindings(object);
-      applyInitialInstanceTransform(object, resolvedAnchor, transform);
+      applyInitialInstanceTransform(object, resolvedAnchor, placement);
       this._root.add(object);
+      placeParticleVFXEmittersOnBody({
+        bindings: emitterAnchors,
+        proportions,
+        defaultAnchor: anchor,
+        authoredOffset: getParticleVFXCombinedOffset(transform),
+        placedOffset: getParticleVFXCombinedOffset(placement),
+        scale: particleVFXPlacementScale(proportions, anchor),
+      });
       for (const warning of updateParticleVFXEmitterAnchors({
         bindings: emitterAnchors,
         avatar: this._avatar,
@@ -365,6 +381,7 @@ export class ParticleVFXController {
         durationSec: lifetime.kind === "duration" ? lifetime.durationSec : null,
         elapsedSec: 0,
         transform,
+        placement,
         followAnchor,
         usesWorldSpace,
         object,
@@ -453,7 +470,7 @@ export class ParticleVFXController {
       if (instance.followAnchor) {
         const resolvedAnchor = this._resolveAnchor(
           instance.anchor,
-          instance.transform,
+          instance.placement,
         );
         if (resolvedAnchor) {
           instance.resolvedAnchor = resolvedAnchor;

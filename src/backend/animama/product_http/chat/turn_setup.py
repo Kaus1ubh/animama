@@ -232,6 +232,8 @@ async def prepare_direct_chat_turn(
                 commit_on_write=False,
             ),
             animas=repositories.animas,
+            memory_episodes=repositories.memory_episodes,
+            user_settings=repositories.user_settings,
         ),
         memory_tool_service=SessionBackedMemoryToolService(
             sessions,

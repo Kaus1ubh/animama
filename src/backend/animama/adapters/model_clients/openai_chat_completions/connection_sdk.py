@@ -10,7 +10,7 @@ from __future__ import annotations
 import os
 from typing import Any
 
-import httpx
+import httpx2
 from openai import AsyncOpenAI, Omit
 
 from animama.app.model_clients import ModelClientProviderError
@@ -31,14 +31,14 @@ CONNECT_TIMEOUT_SECONDS = 10.0
 """Longest wait to open a connection; local presets allow minutes for replies only."""
 
 
-def connection_timeout(seconds: float | None) -> httpx.Timeout | None:
+def connection_timeout(seconds: float | None) -> httpx2.Timeout | None:
     """Timeout for requests to a connection: ``seconds`` overall, but at most
     ``CONNECT_TIMEOUT_SECONDS`` to connect, so a stopped server fails quickly
     even when a loading model may take minutes to answer."""
 
     if seconds is None:
         return None
-    return httpx.Timeout(seconds, connect=min(seconds, CONNECT_TIMEOUT_SECONDS))
+    return httpx2.Timeout(seconds, connect=min(seconds, CONNECT_TIMEOUT_SECONDS))
 
 
 def connection_for_request(model_provider: ModelProvider) -> ModelConnection:
@@ -72,7 +72,7 @@ def base_client_for_connection(
     connection: ModelConnection,
     *,
     base_url: str,
-    timeout: float | httpx.Timeout | None,
+    timeout: float | httpx2.Timeout | None,
 ) -> AsyncOpenAI:
     """Build a long-lived SDK client for a connection that holds no key.
 
@@ -121,7 +121,7 @@ def sdk_client_for_connection(
     *,
     credential: ModelCredential,
     base_url: str,
-    timeout: float | httpx.Timeout | None,
+    timeout: float | httpx2.Timeout | None,
 ) -> AsyncOpenAI:
     """Build a single-use SDK client that cannot fall back to process OpenAI settings."""
 

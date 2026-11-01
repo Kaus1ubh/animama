@@ -1,9 +1,10 @@
 """Deterministic delivery bundles, independent of storage and runtime identity.
 
 A bundle is a transport hint over issued descriptor members: the members' own sizes
-and SHA-256 digests stay the integrity authority. Issuance and serving both call
-``select_runtime_bundles`` on the same stored catalog, so a bundle ID names the same
-members for the life of a revision.
+and SHA-256 digests stay the integrity authority. Issuance calls
+``select_runtime_bundles`` once and stores each bundle's members with the snapshot;
+serving reads those stored lists, so a bundle ID names the same members for the life
+of a revision even if this selection changes later.
 """
 
 from __future__ import annotations

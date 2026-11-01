@@ -62,6 +62,13 @@ def _effective_metadata(item: CatalogContentEntry) -> dict[str, Any]:
     return metadata
 
 
+_VerificationKey = tuple[str, str | None, str, int, str]
+
+
+def _verification_key(file: CatalogContentFile) -> _VerificationKey:
+    return (file.source.value, file.source_mount_id, file.relative_path, file.size_bytes, file.sha256)
+
+
 @dataclass(frozen=True, slots=True)
 class _CandidateRoot:
     selection: RuntimeContentRootSelection
@@ -86,116 +93,61 @@ class RuntimeContentClosureCompiler:
         visible_items: list[CatalogContentEntry] | None = None,
         mark_scan_required: bool = True,
     ) -> RuntimeContentDescriptor:
+        """Compile the selections, marking files that changed since their last scan for Rescan unless told not to."""
+
+        descriptor, changed = await self.compile_with_changes(
+            user_id=user_id, loadout_revision=loadout_revision, selections=selections, visible_items=visible_items
+        )
+        if mark_scan_required:
+            for source, paths in changed.items():
+                await self._catalog.mark_scan_required(source=source, relative_paths=paths)
+        return descriptor
+
+    async def compile_with_changes(
+        self,
+        *,
+        user_id: str,
+        loadout_revision: int,
+        selections: tuple[RuntimeContentRootSelection, ...],
+        visible_items: list[CatalogContentEntry] | None = None,
+    ) -> tuple[RuntimeContentDescriptor, dict[ContentSource, tuple[str, ...]]]:
+        """Compile without writing; also return the files that changed since their last scan.
+
+        The caller decides when to mark those paths for Rescan.
+        """
+
         items = visible_items if visible_items is not None else await self._catalog.list_visible(user_id=user_id)
         by_id = {item.id: item for item in items}
         diagnostics: list[RuntimeContentDiagnostic] = []
         candidates: list[_CandidateRoot] = []
-        verification: dict[tuple[str, str | None, str, int, str], bool] = {}
         changed_paths: dict[ContentSource, set[str]] = {}
 
-        async def verified(file: CatalogContentFile) -> bool:
-            key = (file.source.value, file.source_mount_id, file.relative_path, file.size_bytes, file.sha256)
-            cached = verification.get(key)
-            if cached is not None:
-                return cached
-            try:
-                opened = await asyncio.to_thread(
-                    self._store.open_verified_file,
-                    source=file.source,
-                    source_mount_id=file.source_mount_id,
-                    relative_path=file.relative_path,
-                    expected_size_bytes=file.size_bytes,
-                    expected_sha256=file.sha256,
-                    media_type=file.media_type,
-                )
-            except (ContentIntegrityError, ContentPathError, OSError):
-                verification[key] = False
-                changed_paths.setdefault(file.source, set()).add(file.relative_path)
-                return False
-            opened.handle.close()
-            verification[key] = True
-            return True
+        # Resolve every root's closure first, keeping each root's place in selection order.
+        outcomes = [self._resolve(selection, by_id) for selection in selections]
+        # One worker-thread call opens and hashes the union of their files.
+        files = {
+            _verification_key(file): file
+            for outcome in outcomes
+            if isinstance(outcome, list)
+            for item in outcome
+            for file in item.files
+        }
+        verified = await asyncio.to_thread(self._verify, list(files.values())) if files else {}
 
-        for selection in selections:
+        for selection, outcome in zip(selections, outcomes, strict=True):
+            if isinstance(outcome, RuntimeContentDiagnostic):
+                diagnostics.append(outcome)
+                continue
             root_id = _root_id(selection)
-            root = by_id.get(selection.catalog_item_id)
-            if root is None or root.kind is not selection.kind:
-                diagnostics.append(
-                    RuntimeContentDiagnostic(
-                        root_id=root_id,
-                        slot_key=selection.slot_key,
-                        code="catalog_root_unavailable",
-                        message="The selected content item is no longer available.",
-                        item_id=selection.catalog_item_id,
-                    )
-                )
-                continue
-            if root.status is not ContentStatus.VALID or root.revision_sha256 is None:
-                diagnostics.append(
-                    RuntimeContentDiagnostic(
-                        root_id=root_id,
-                        slot_key=selection.slot_key,
-                        code=f"catalog_root_{root.status.value}",
-                        message="The selected content item is not currently valid.",
-                        item_id=root.id,
-                    )
-                )
-                continue
-
-            ordered: list[CatalogContentEntry] = []
-            visiting: set[str] = set()
-            visited: set[str] = set()
-            unavailable: CatalogContentEntry | None = None
-
-            def visit(
-                item: CatalogContentEntry,
-                *,
-                _ordered: list[CatalogContentEntry] = ordered,
-                _visited: set[str] = visited,
-                _visiting: set[str] = visiting,
-            ) -> bool:
-                nonlocal unavailable
-                if item.id in _visited:
-                    return True
-                if item.id in _visiting:
-                    unavailable = item
-                    return False
-                if (
-                    item.kind in RETIRED_CONTENT_KINDS
-                    or item.status is not ContentStatus.VALID
-                    or item.revision_sha256 is None
-                ):
-                    unavailable = item
-                    return False
-                _visiting.add(item.id)
-                for dependency_id in item.dependency_item_ids:
-                    dependency = by_id.get(dependency_id)
-                    if dependency is None or not visit(dependency):
-                        unavailable = dependency or item
-                        _visiting.remove(item.id)
-                        return False
-                _visiting.remove(item.id)
-                _visited.add(item.id)
-                _ordered.append(item)
-                return True
-
-            if not visit(root):
-                diagnostics.append(
-                    RuntimeContentDiagnostic(
-                        root_id=root_id,
-                        slot_key=selection.slot_key,
-                        code="runtime_dependency_unavailable",
-                        message="A required content dependency is unavailable.",
-                        item_id=unavailable.id if unavailable else root.id,
-                    )
-                )
-                continue
-
+            root = by_id[selection.catalog_item_id]
+            ordered = outcome
             members: dict[str, RuntimeContentMember] = {}
             changed_item: CatalogContentEntry | None = None
             for item in ordered:
                 for file in item.files:
-                    if not await verified(file):
+                    if not verified[_verification_key(file)]:
+                        # Only a root's first changed file is reported for Rescan.
+                        changed_paths.setdefault(file.source, set()).add(file.relative_path)
                         changed_item = item
                         break
                     file_ref = file.file_ref
@@ -232,8 +184,9 @@ class RuntimeContentClosureCompiler:
                     gesture = TypedContentService.parse(root).document
                     if not isinstance(gesture, GestureDocumentV1):
                         raise ContentDocumentError("idle_gesture_required", "Idle pools require Gesture content")
+                    # The motion file is a member of this verified closure.
                     facts = await read_gesture_idle_playback(
-                        document=gesture, item=root, dependency_items=by_id, store=self._store
+                        document=gesture, item=root, dependency_items=by_id, store=self._store, verified=True
                     )
                     idle_playback = {root.id: asdict(facts)}
                 except (
@@ -261,10 +214,6 @@ class RuntimeContentClosureCompiler:
                     idle_playback=idle_playback,
                 )
             )
-
-        if mark_scan_required:
-            for source, paths in changed_paths.items():
-                await self._catalog.mark_scan_required(source=source, relative_paths=tuple(sorted(paths)))
 
         admitted_roots: list[RuntimeContentRoot] = []
         admitted_entries: dict[str, CatalogContentEntry] = {}
@@ -371,7 +320,7 @@ class RuntimeContentClosureCompiler:
                 {"root_id": item.root_id, "code": item.code, "item_id": item.item_id} for item in diagnostics
             ],
         }
-        return RuntimeContentDescriptor(
+        descriptor = RuntimeContentDescriptor(
             loadout_revision=loadout_revision,
             roots=tuple(admitted_roots),
             entries=entries,
@@ -381,6 +330,94 @@ class RuntimeContentClosureCompiler:
             total_bytes=sum(member.size_bytes for member in ordered_members),
             revision=f"rcd2-{_digest(identity)}",
         )
+        return descriptor, {source: tuple(sorted(paths)) for source, paths in changed_paths.items()}
+
+    @staticmethod
+    def _resolve(
+        selection: RuntimeContentRootSelection, by_id: dict[str, CatalogContentEntry]
+    ) -> list[CatalogContentEntry] | RuntimeContentDiagnostic:
+        """The root's valid dependency closure, dependencies first, or why it is unavailable."""
+
+        root_id = _root_id(selection)
+        root = by_id.get(selection.catalog_item_id)
+        if root is None or root.kind is not selection.kind:
+            return RuntimeContentDiagnostic(
+                root_id=root_id,
+                slot_key=selection.slot_key,
+                code="catalog_root_unavailable",
+                message="The selected content item is no longer available.",
+                item_id=selection.catalog_item_id,
+            )
+        if root.status is not ContentStatus.VALID or root.revision_sha256 is None:
+            return RuntimeContentDiagnostic(
+                root_id=root_id,
+                slot_key=selection.slot_key,
+                code=f"catalog_root_{root.status.value}",
+                message="The selected content item is not currently valid.",
+                item_id=root.id,
+            )
+
+        ordered: list[CatalogContentEntry] = []
+        visiting: set[str] = set()
+        visited: set[str] = set()
+        unavailable: CatalogContentEntry | None = None
+
+        def visit(item: CatalogContentEntry) -> bool:
+            nonlocal unavailable
+            if item.id in visited:
+                return True
+            if item.id in visiting:
+                unavailable = item
+                return False
+            if (
+                item.kind in RETIRED_CONTENT_KINDS
+                or item.status is not ContentStatus.VALID
+                or item.revision_sha256 is None
+            ):
+                unavailable = item
+                return False
+            visiting.add(item.id)
+            for dependency_id in item.dependency_item_ids:
+                dependency = by_id.get(dependency_id)
+                if dependency is None or not visit(dependency):
+                    unavailable = dependency or item
+                    visiting.remove(item.id)
+                    return False
+            visiting.remove(item.id)
+            visited.add(item.id)
+            ordered.append(item)
+            return True
+
+        if not visit(root):
+            return RuntimeContentDiagnostic(
+                root_id=root_id,
+                slot_key=selection.slot_key,
+                code="runtime_dependency_unavailable",
+                message="A required content dependency is unavailable.",
+                item_id=unavailable.id if unavailable else root.id,
+            )
+        return ordered
+
+    def _verify(self, files: list[CatalogContentFile]) -> dict[_VerificationKey, bool]:
+        """Open and hash each registered file; runs in one worker thread per compile."""
+
+        results: dict[_VerificationKey, bool] = {}
+        for file in files:
+            try:
+                opened = self._store.open_verified_file(
+                    source=file.source,
+                    source_mount_id=file.source_mount_id,
+                    relative_path=file.relative_path,
+                    expected_size_bytes=file.size_bytes,
+                    expected_sha256=file.sha256,
+                    media_type=file.media_type,
+                )
+            except (ContentIntegrityError, ContentPathError, OSError):
+                results[_verification_key(file)] = False
+                continue
+            opened.handle.close()
+            results[_verification_key(file)] = True
+        return results
 
 
 __all__ = ["RuntimeContentClosureCompiler"]

@@ -29,6 +29,7 @@
       "orbitTarget": "궤도 중심",
       "orbitTargetYSource": "궤도 중심 Y 기준",
       "orbitTargetYSourceLabel": "궤도 중심 Y 기준",
+      "pipTitle": "PiP 카메라",
       "position": "카메라 위치",
       "positionYSource": "카메라 Y 기준",
       "positionYSourceLabel": "카메라 Y 기준",
@@ -157,6 +158,12 @@
       "unavailable": "모델을 사용할 수 없습니다. 다른 모델을 선택하세요.",
       "unavailableShort": "모델을 사용할 수 없음",
       "webSearch": "웹 검색"
+    },
+    "speechEngines": {
+      "offline": "{{engine}} {{variant}}",
+      "stt": "STT: {{stt}}",
+      "tts": "TTS: {{tts}}",
+      "ttsOff": "끔"
     }
   },
   "header": {
@@ -179,6 +186,7 @@
     "contentProgress": "애니메이션과 효과 불러오는 중({{completed}}/{{total}})",
     "download": "{{item}} 다운로드 중({{size}})",
     "downloadProgress": "{{item}} 다운로드 중({{size}} 중 {{percent}})",
+    "episodeProcessing_other": "메모 {{count}}개를 기억으로 정리하는 중…",
     "speechToText": "음성 텍스트 변환(Parakeet) 불러오는 중",
     "textToSpeech": "텍스트 음성 변환(PocketTTS) 불러오는 중",
     "textToSpeechStep": "텍스트 음성 변환(PocketTTS) 불러오는 중, {{total}}단계 중 {{step}}단계"
@@ -239,9 +247,7 @@
     }
   },
   "speech": {
-    "install": "받아쓰기와 음성 모드를 사용하려면 오프라인 음성 인식을 설치하세요",
-    "installFromMainWindow": "기본 Animama 창에서 앱 설정 → 음성을 열어 다운로드하세요.",
-    "unavailableHere": "이곳에서는 받아쓰기와 음성 모드용 오프라인 음성 인식을 사용할 수 없습니다"
+    "skip": "읽어 주기 건너뛰기"
   },
   "suggestions": {
     "rockPaperScissors": "가위바위보 하기",

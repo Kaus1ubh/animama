@@ -1,5 +1,6 @@
 import hashlib
 import json
+import logging
 import uuid
 from contextlib import contextmanager
 from pathlib import Path
@@ -17,7 +18,7 @@ from alembic.util import CommandError
 ROOT = Path(__file__).parents[1]
 BASELINE_MIGRATION = ROOT / "alembic" / "versions" / "0001_baseline.py"
 BASELINE_SQL = ROOT / "alembic" / "versions" / "0001_baseline.sql"
-BASELINE_SHA256 = "67c1e040e7963519fc18eb5b95d624398161bb92e93aed5e0d900d0754f3703e"
+BASELINE_SHA256 = "438446a4a68e40391786337c6f0acd68e7398cf32dc9b82416bc59c975af1ad6"
 
 
 def test_baseline_does_not_import_live_metadata() -> None:
@@ -33,7 +34,7 @@ def test_baseline_artifact_has_the_reviewed_schema_fingerprint() -> None:
     assert hashlib.sha256(baseline).hexdigest() == BASELINE_SHA256
     sql = baseline.decode("utf-8")
     assert "CREATE EXTENSION IF NOT EXISTS vector" in sql
-    assert sql.count("CREATE TABLE ") == 45
+    assert sql.count("CREATE TABLE ") == 47
 
 
 def test_current_schema_is_the_single_root_and_head() -> None:
@@ -60,8 +61,11 @@ def test_fresh_database_migrates_to_head(db_url: str, monkeypatch) -> None:  # n
     second_schema = f"migration_fresh_{uuid.uuid4().hex}"
     with admin_engine.begin() as connection:
         connection.exec_driver_sql(f'CREATE SCHEMA "{second_schema}"')
+    # Alembic runs in-process with the backend, so it must not silence loggers that already exist.
+    existing_logger = logging.getLogger("animama.tests.existing_before_migration")
     try:
         command.upgrade(config, "head")
+        assert not existing_logger.disabled
         engine = create_engine(migration_url)
         try:
             tables = set(inspect(engine).get_table_names())
@@ -264,3 +268,40 @@ def test_fresh_creation_receipts_are_owner_scoped_and_survive_absent_animas(
         with engine.connect() as connection:
             assert connection.scalar(text("SELECT count(*) FROM anima_creation_receipts")) == 2
             assert connection.scalar(text("SELECT count(*) FROM anima_starter_receipts")) == 0
+
+
+def test_fresh_avatar_setting_overrides_store_only_non_automatic_modes(
+    db_url: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Owner settings are keyed by owner and Avatar item, hold valid modes only and go with the item."""
+
+    with migration_schema(db_url, monkeypatch) as (config, engine):
+        command.upgrade(config, "head")
+        assert inspect(engine).get_pk_constraint("avatar_setting_overrides")["constrained_columns"] == [
+            "owner_user_id",
+            "avatar_item_id",
+        ]
+        (item_fk,) = inspect(engine).get_foreign_keys("avatar_setting_overrides")
+        assert item_fk["referred_table"] == "content_catalog_items"
+        assert item_fk["options"]["ondelete"] == "CASCADE"
+        insert = text(
+            "INSERT INTO avatar_setting_overrides (owner_user_id, avatar_item_id, spring_mode, material_mode) "
+            "VALUES (:owner, 'avatar-item', :spring, :material)"
+        )
+        with engine.begin() as connection:
+            connection.execute(
+                text(
+                    "INSERT INTO content_catalog_items "
+                    "(id, source, scope, kind, relative_locator, display_name, status) "
+                    "VALUES ('avatar-item', 'included', 'included', 'avatar', 'avatars/a.vrm', 'A', 'valid')"
+                )
+            )
+            connection.execute(insert, {"owner": "a", "spring": "springs_off", "material": None})
+            connection.execute(insert, {"owner": "b", "spring": None, "material": "simple"})
+        # Automatic is stored as NULL, never as a value.
+        for spring, material in (("automatic", None), ("windy", None), (None, "automatic"), (None, "mtoon")):
+            with pytest.raises(IntegrityError), engine.begin() as connection:
+                connection.execute(insert, {"owner": "c", "spring": spring, "material": material})
+        with engine.begin() as connection:
+            connection.execute(text("DELETE FROM content_catalog_items WHERE id = 'avatar-item'"))
+            assert connection.scalar(text("SELECT count(*) FROM avatar_setting_overrides")) == 0

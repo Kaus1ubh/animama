@@ -2,9 +2,12 @@ import {
   VRMExpressionMorphTargetBind,
   type VRM,
   type VRMExpression,
+  type VRMExpressionBind,
 } from "@pixiv/three-vrm";
 import type { BufferGeometry } from "three";
 
+import { arkitMixOf, isAnimamaFaceExpression } from "./arkitFaceExpressions";
+import type { ArkitMix } from "./arkitFaceCompositions";
 import { registerMorphTargetExpressions } from "./morphTargetExpressions";
 
 /**
@@ -32,6 +35,20 @@ import { registerMorphTargetExpressions } from "./morphTargetExpressions";
  * instead of the whole face gets the same correction from the same profile. Because the rule lives in the manager, every
  * surface that applies expressions — the chat runtime, creator writes, review
  * renders — inherits it, and expression weights keep their authored values.
+ *
+ * Other models measure instead of using VRoid's constants (R4). Each
+ * lid-closing expression (the mood presets, and the MMD morphs and ARKit
+ * mixes `arkitFaceExpressions.ts` and `mmdFaceExpressions.ts` register before
+ * this runs, such as MMD's 笑い or relaxed's partial `eyeBlink*`) reduces
+ * blink by how far it closes the lids. Visemes `faceSignals.ts` filled from
+ * other shapes are measured too; a mouth-only shape measures about 0 and is
+ * left alone. An ARKit mix uses its share of blink's
+ * motion; other expressions use the share at the lid's own vertices scaled so
+ * that VRoid's happy counts as closed ({@link CLOSED_LID_PEAK_SHARE}), since a
+ * smiling arc also raises the lower lid. One-sided expressions (a wink) are
+ * left uncorrected, because three-vrm's blink override would also stop the
+ * open eye blinking. VRoid faces (with VRoid eye parts of their own, Andrew
+ * included) keep the default profile.
  */
 
 /** The share of a full eye closure each mood expression adds at weight 1. */
@@ -51,15 +68,15 @@ export const VERIFIED_EYELID_CLOSURE_PROFILES: Readonly<
   Record<string, { readonly avatar: string; profile: EyelidClosureProfile }>
 > = {
   "15081670b379842b584062c541680472bbbe0a11a19d5aff4cb59a86f88e3fc9": {
-    avatar: "AvatarSample_A_1_New",
+    avatar: "Annie",
     profile: { happy: 1, relaxed: 0.2164 },
   },
 };
 
 /**
- * Applied to other Avatars for each mood expression whose morphs move the
- * eyelids closed, rounded from VRoid measurements: Annie's above and 0.1767
- * on a VRoid VRM 0 sample.
+ * Applied to VRoid faces without a verified profile (Andrew among them) for
+ * each mood expression whose morphs move the eyelids closed, rounded from
+ * VRoid measurements: Annie's above and 0.1767 on a VRoid VRM 0 sample.
  */
 export const DEFAULT_EYELID_CLOSURE_PROFILE: EyelidClosureProfile = {
   happy: 1,
@@ -73,6 +90,28 @@ export const DEFAULT_EYELID_CLOSURE_PROFILE: EyelidClosureProfile = {
  * measures 0.
  */
 const EYELID_CLOSING_MIN_SHARE = 0.05;
+
+/**
+ * Lid vertices, for the measured closure: those blink moves at least this
+ * share of its furthest vertex's squared motion (the lid edge, not the skin
+ * around it).
+ */
+const LID_VERTEX_MIN_MOTION = 0.25;
+
+/**
+ * The percentile of the lid vertices' closure a measured correction uses: near
+ * the most-closed part of the lid, ignoring a few stray vertices.
+ */
+const LID_CLOSURE_PERCENTILE = 0.9;
+
+/**
+ * The lid-vertex share (`eyelidClosingPeakShare`) at which an expression has
+ * closed the eyes: VRoid's happy measures 0.69 on Annie, whose verified
+ * profile suppresses blink fully, because its lower lids rise too. Dividing by
+ * it reproduces Annie's verified relaxed (0.145 / 0.69 = 0.21, against 0.2164)
+ * and the default profile on Andrew (0.19, against 0.2).
+ */
+export const CLOSED_LID_PEAK_SHARE = 0.69;
 
 /**
  * Expressions whose morphs close the eyelids, each with the profile entry that
@@ -92,20 +131,29 @@ const CORRECTED_EXPRESSIONS: readonly {
 const PART_EXPRESSIONS = ["Fcl_EYE_Joy", "Fcl_EYE_Fun"];
 
 export type EyelidClosureCorrection = {
-  source: "verified" | "default";
+  /**
+   * `verified` and `default` (VRoid faces) use a profile for the mood
+   * expressions; `measured` measures every lid-closing expression.
+   */
+  source: "verified" | "default" | "measured";
+  /** For `measured`, the shares measured for happy and relaxed (0 if absent). */
   profile: EyelidClosureProfile;
 };
 
 /**
  * Install the eyelid closure correction on a loaded VRM. Call once after
- * loading (after expression canonicalization).
+ * loading, after expression canonicalization and the face registrations
+ * (`registerFaceSignals`, `registerMmdFace`, `registerArkitFace`).
  *
- * A verified profile is chosen by `vrmSha256`. Other Avatars use the default
- * profile for each mood expression whose morphs measurably close the eyelids,
- * and no correction for the rest. VRoid eye parts that exist only as morph
- * targets are registered as expressions first, so the correction is installed
- * on the instances the runtime later drives. An expression that declares its own
- * `overrideBlink` keeps the native behavior, so it is never corrected twice.
+ * A verified profile is chosen by `vrmSha256`; other VRoid faces use the
+ * default profile and other models are measured. Expressions Animama
+ * registered (MMD morphs, ARKit mixes and their compositions, and visemes
+ * filled from other shapes) are measured on every model; blink presets,
+ * filled or not, are what the correction scales and are never measured. VRoid eye parts that exist only
+ * as morph targets are registered as expressions first, so the correction is
+ * installed on the instances the runtime later drives. An expression that
+ * declares its own `overrideBlink` keeps the native behavior, so it is never
+ * corrected twice.
  *
  * @returns The profile in effect, or null when the model has no blink.
  */
@@ -122,34 +170,160 @@ export function applyEyelidClosureCorrection(
 
   registerMorphTargetExpressions(vrm, PART_EXPRESSIONS);
 
-  const verified =
-    VERIFIED_EYELID_CLOSURE_PROFILES[vrmSha256?.trim().toLowerCase() ?? ""];
-  const blinkMotion = morphDisplacements(blink);
-  const closes = (expression: VRMExpression) =>
-    eyelidClosingShare(morphDisplacements(expression), blinkMotion) >=
-    EYELID_CLOSING_MIN_SHARE;
-  const correction: EyelidClosureCorrection = verified
-    ? { source: "verified", profile: verified.profile }
-    : { source: "default", profile: defaultProfileFor(vrm, closes) };
-
-  for (const { name, profile } of CORRECTED_EXPRESSIONS) {
+  const digest = vrmSha256?.trim().toLowerCase() ?? "";
+  const verified = VERIFIED_EYELID_CLOSURE_PROFILES[digest];
+  const vroidFace = PART_EXPRESSIONS.some((name) => {
     const expression = manager.getExpression(name);
-    if (!expression || expression.overrideBlink !== "none") continue;
-    // Unverified models correct each expression only if it closes the lids.
-    const share =
-      verified || closes(expression) ? correction.profile[profile] : 0;
-    if (share <= 0) continue;
+    return expression !== null && !isAnimamaFaceExpression(expression);
+  });
+  const blinkMotion = bindDisplacements(blink.binds);
+  const share = (expression: VRMExpression) =>
+    eyelidClosingShare(bindDisplacements(expression.binds), blinkMotion);
+  const closes = (expression: VRMExpression) =>
+    share(expression) >= EYELID_CLOSING_MIN_SHARE;
+
+  const correct = (expression: VRMExpression, amount: number) => {
+    if (amount <= 0 || expression.overrideBlink !== "none") return;
     // Replaces the library's `none` amount (always 0) for this instance only.
     Object.defineProperty(expression, "overrideBlinkAmount", {
       configurable: true,
-      get: () => share * expression.outputWeight,
+      get: () => amount * expression.outputWeight,
     });
+  };
+  /**
+   * Correct by the lid closure measured on the model, when it closes the lids
+   * and is not one-sided.
+   */
+  const correctMeasured = (expression: VRMExpression): number => {
+    if (isOneSidedExpression(expression)) return 0;
+    const measured = lidClosureAmount(expression, blinkMotion);
+    if (measured < EYELID_CLOSING_MIN_SHARE) return 0;
+    correct(expression, measured);
+    return measured;
+  };
+
+  let correction: EyelidClosureCorrection;
+  if (verified || vroidFace) {
+    const profile = verified
+      ? verified.profile
+      : defaultProfileFor(vrm, closes);
+    correction = { source: verified ? "verified" : "default", profile };
+    for (const { name, profile: entry } of CORRECTED_EXPRESSIONS) {
+      const expression = manager.getExpression(name);
+      if (!expression || isAnimamaFaceExpression(expression)) continue;
+      // An unverified face corrects each expression only if it closes the lids.
+      correct(expression, verified || closes(expression) ? profile[entry] : 0);
+    }
+  } else {
+    const profile = { happy: 0, relaxed: 0 };
+    for (const { name, profile: entry } of CORRECTED_EXPRESSIONS) {
+      const expression = manager.getExpression(name);
+      if (!expression || isAnimamaFaceExpression(expression)) continue;
+      const measured = correctMeasured(expression);
+      if (name === entry) profile[entry] = measured;
+    }
+    correction = { source: "measured", profile };
+  }
+  for (const expression of manager.expressions) {
+    // The blink presets are what the correction overrides, never corrected.
+    if (BLINK_PRESETS.has(expression.expressionName)) continue;
+    if (isAnimamaFaceExpression(expression)) correctMeasured(expression);
   }
   return correction;
 }
 
+/** The presets three-vrm's blink override scales. */
+const BLINK_PRESETS: ReadonlySet<string> = new Set([
+  "blink",
+  "blinkLeft",
+  "blinkRight",
+]);
+
 /**
- * The default profile, keeping each entry only when its whole-face expression
+ * How far an expression closes the lids at weight 1, as a share of a full
+ * closure (0–1). ARKit mixes keep their share along blink (as reviewed with
+ * #688); other expressions are calibrated on VRoid's happy, which closes the
+ * eyes fully ({@link CLOSED_LID_PEAK_SHARE}).
+ *
+ * @param blinkMotion Blink's per-vertex motion ({@link bindDisplacements}).
+ */
+export function lidClosureAmount(
+  expression: VRMExpression,
+  blinkMotion: Map<BufferGeometry, Float32Array>,
+): number {
+  return Math.min(1, lidClosureStrength(expression, blinkMotion));
+}
+
+/**
+ * {@link lidClosureAmount} before it is capped at a full closure: above 1, how
+ * far past shut the expression would push the lids, which tells apart two
+ * expressions that each close them fully.
+ */
+export function lidClosureStrength(
+  expression: VRMExpression,
+  blinkMotion: Map<BufferGeometry, Float32Array>,
+): number {
+  const motion = bindDisplacements(expression.binds);
+  return arkitMixOf(expression)
+    ? eyelidClosingShare(motion, blinkMotion)
+    : eyelidClosingPeakShare(motion, blinkMotion) / CLOSED_LID_PEAK_SHARE;
+}
+
+/** Whether these binds move blink's vertices closed at all. */
+export function bindsCloseLids(
+  binds: readonly VRMExpressionBind[],
+  blinkMotion: Map<BufferGeometry, Float32Array>,
+): boolean {
+  return (
+    eyelidClosingShare(bindDisplacements(binds), blinkMotion) >=
+    EYELID_CLOSING_MIN_SHARE
+  );
+}
+
+/**
+ * Whether an expression closes one eye only: an ARKit mix that moves one
+ * side's shape without the other's, or a VRoid one-eye part (`…_L`, `…_R`).
+ */
+export function isOneSidedExpression(expression: VRMExpression): boolean {
+  const mix = arkitMixOf(expression);
+  return mix ? isOneSidedMix(mix) : /_(L|R)$/.test(expression.expressionName);
+}
+
+/**
+ * How far an expression closes the lids, for tests and tools: blink's motion
+ * shared on average and at the lid's own vertices (the measured correction).
+ * Null without the expression or a blink.
+ */
+export function measureEyelidClosure(
+  vrm: VRM,
+  expressionName: string,
+): { average: number; peak: number } | null {
+  const manager = vrm.expressionManager;
+  const blink = manager?.getExpression("blink");
+  const expression = manager?.getExpression(expressionName);
+  if (!blink || !expression) return null;
+  const blinkMotion = bindDisplacements(blink.binds);
+  const motion = bindDisplacements(expression.binds);
+  return {
+    average: eyelidClosingShare(motion, blinkMotion),
+    peak: eyelidClosingPeakShare(motion, blinkMotion),
+  };
+}
+
+/** Whether a mix moves one side's shape without the other side's. */
+function isOneSidedMix(mix: ArkitMix): boolean {
+  return Object.keys(mix).some((shape) => {
+    const other = shape.endsWith("Left")
+      ? shape.replace(/Left$/, "Right")
+      : shape.endsWith("Right")
+        ? shape.replace(/Right$/, "Left")
+        : null;
+    return other !== null && !(other in mix);
+  });
+}
+
+/**
+ * The default profile for a VRoid face, keeping each entry only when its whole-face expression
  * (or, without one, its VRoid eye part) closes the eyelids.
  */
 function defaultProfileFor(
@@ -161,7 +335,8 @@ function defaultProfileFor(
       ({ profile }) => profile === entry,
     )
       .map(({ name }) => vrm.expressionManager?.getExpression(name))
-      .find((candidate) => candidate);
+      // Animama's own expressions are corrected by their measured share.
+      .find((candidate) => candidate && !isAnimamaFaceExpression(candidate));
     return expression ? closes(expression) : false;
   };
   return {
@@ -172,7 +347,8 @@ function defaultProfileFor(
 
 /**
  * How far an expression moves blink's vertices along blink's own motion, as a
- * share of that motion: Σ(expression · blink) / Σ|blink|².
+ * share of that motion: Σ(expression · blink) / Σ|blink|². An average: enough
+ * to tell whether an expression closes the lids at all.
  */
 function eyelidClosingShare(
   expressionMotion: Map<BufferGeometry, Float32Array>,
@@ -190,12 +366,64 @@ function eyelidClosingShare(
   return blinkSquared > 0 ? along / blinkSquared : 0;
 }
 
-/** Per-vertex morph displacement of an expression at weight 1, per geometry. */
-function morphDisplacements(
-  expression: VRMExpression,
+/**
+ * The share of blink's motion an expression closes at the lid's own vertices
+ * (those blink moves at least {@link LID_VERTEX_MIN_MOTION} of its furthest
+ * vertex): each vertex's (expression · blink) / |blink|², taking the
+ * {@link LID_CLOSURE_PERCENTILE} percentile. An arched smile closes the middle
+ * of the lid more than its average along blink shows (about 0.62 on VRoid's
+ * happy, which needs 1), so reducing blink by this share keeps every part of
+ * the lid at or above shut, while an expression that moves the lid as blink
+ * does (an ARKit `eyeBlink` mix) gets its exact share.
+ */
+function eyelidClosingPeakShare(
+  expressionMotion: Map<BufferGeometry, Float32Array>,
+  blinkMotion: Map<BufferGeometry, Float32Array>,
+): number {
+  let furthest = 0;
+  for (const blink of blinkMotion.values()) {
+    for (let i = 0; i < blink.length; i += 3) {
+      furthest = Math.max(
+        furthest,
+        blink[i]! ** 2 + blink[i + 1]! ** 2 + blink[i + 2]! ** 2,
+      );
+    }
+  }
+  if (furthest === 0) return 0;
+  const shares: number[] = [];
+  for (const [geometry, blink] of blinkMotion) {
+    const motion = expressionMotion.get(geometry);
+    for (let i = 0; i < blink.length; i += 3) {
+      const squared = blink[i]! ** 2 + blink[i + 1]! ** 2 + blink[i + 2]! ** 2;
+      if (squared < furthest * LID_VERTEX_MIN_MOTION) continue;
+      const along = motion
+        ? blink[i]! * motion[i]! +
+          blink[i + 1]! * motion[i + 1]! +
+          blink[i + 2]! * motion[i + 2]!
+        : 0;
+      shares.push(Math.max(0, along / squared));
+    }
+  }
+  shares.sort((a, b) => a - b);
+  return (
+    shares[
+      Math.min(
+        shares.length - 1,
+        Math.floor(shares.length * LID_CLOSURE_PERCENTILE),
+      )
+    ] ?? 0
+  );
+}
+
+/**
+ * Per-vertex morph displacement of expression binds at weight 1, per geometry
+ * (bind weights applied; binds other than morph targets are ignored).
+ */
+export function bindDisplacements(
+  binds: readonly VRMExpressionBind[],
 ): Map<BufferGeometry, Float32Array> {
   const result = new Map<BufferGeometry, Float32Array>();
-  for (const bind of expression.binds) {
+  for (const bind of binds) {
     if (!(bind instanceof VRMExpressionMorphTargetBind)) continue;
     for (const primitive of bind.primitives) {
       const geometry = primitive.geometry;

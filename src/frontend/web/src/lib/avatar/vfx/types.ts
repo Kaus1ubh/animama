@@ -1,3 +1,4 @@
+import type { AvatarIssue } from "../diagnostics/issues";
 import type {
   AvatarEffectAppearance,
   AvatarEffectDefinitionV2,
@@ -454,6 +455,20 @@ export type AvatarVFXModelProfile = {
     left: AvatarVFXNormalizedRect;
     right: AvatarVFXNormalizedRect;
     mirrorRight: boolean;
+    /** Where each eye's art may draw, when its cell reaches past its iris. */
+    clip?: {
+      left: AvatarVFXNormalizedRect;
+      right: AvatarVFXNormalizedRect;
+    };
+    /**
+     * Cells whose iris UVs run mirrored against VRoid's (the eye landmark's
+     * `textureMirrored`). Everything drawn there (art, offsets and turns) is
+     * mirrored about the cell's centre, so it reads on screen as on VRoid.
+     */
+    flipped?: {
+      left: boolean;
+      right: boolean;
+    };
   };
   faceLayout?: {
     rect: AvatarVFXNormalizedRect;
@@ -530,6 +545,8 @@ export type AvatarVFXSnapshot = {
   attachmentEffects: AvatarVFXAttachmentEffectSnapshot[];
   flatten: AvatarVFXFaceFlattenSnapshot;
   warnings: string[];
+  /** `warnings` as stable codes, for the Diagnostics view. */
+  issues: AvatarIssue[];
 };
 
 /**

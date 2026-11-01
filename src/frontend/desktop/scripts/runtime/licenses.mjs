@@ -12,6 +12,7 @@ import path from "node:path";
 import {
   buildPython,
   desktopRoot,
+  electronDist,
   filesIn,
   frontendRoot,
   nativeLockFile,
@@ -27,8 +28,10 @@ import { PRIVATE_PACKS } from "./private-packs.mjs";
 import { PROCESS_GUARD } from "./process-guard.mjs";
 import { VC_RUNTIME_DLL } from "./windows-platform.mjs";
 
+// "NOTICES" too: three-liltoon ships lilToon's and its bundled shaders' notices
+// as dist/THIRD_PARTY_NOTICES.md.
 const NOTICE_NAME =
-  /(?:^|[._ -])(?:licen[cs]e|copying|notice|copyright)(?:[._ -]|$)/iu;
+  /(?:^|[._ -])(?:licen[cs]e|copying|notices?|copyright)(?:[._ -]|$)/iu;
 // Source and map files can share notice words (for example an icon named
 // "copyright.js"), whereas bundle notices use text extensions such as
 // "bundle.js.LICENSE.txt".
@@ -186,7 +189,6 @@ export function writeLicenses(target, contentInventory) {
       source: "https://visualstudio.microsoft.com/license-terms/",
       review: "pending",
     });
-  const electronDist = path.join(desktopRoot, "node_modules/electron/dist");
   records.push({
     id: "electron",
     name: "Electron + Chromium",
@@ -198,7 +200,7 @@ export function writeLicenses(target, contentInventory) {
     review: "pending",
     notices: ["LICENSE", "LICENSES.chromium.html"].map((name) => ({
       path: name,
-      text: readFileSync(path.join(electronDist, name), "utf8"),
+      text: readFileSync(path.join(electronDist(), name), "utf8"),
     })),
   });
   const contentRecords = new Map();

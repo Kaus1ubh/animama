@@ -43,9 +43,9 @@ export type MemoryNote = "profile" | "identity" | "memories";
 /** The Avatars the stage offers; the first loads with the page. */
 export const STAGE_AVATARS: StageAvatar[] = [
   {
-    id: "AvatarSample_A_1_New",
+    id: "Annie",
     name: "Annie",
-    portrait: "app-avatar-model-avatarsample-a-1-new-v1.webp",
+    portrait: "app-avatar-model-annie-v1.webp",
     pronouns: { subject: "she", object: "her", possessive: "her" },
     identity: [
       {

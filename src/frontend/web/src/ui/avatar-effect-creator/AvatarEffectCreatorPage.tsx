@@ -58,12 +58,7 @@ import { preflightContentFile, sha256File } from "@/lib/content/contentUploads";
 import { createUniqueContentName } from "@/lib/content/uniqueContentName";
 import { previewSoundForCopy } from "@/lib/content/previewSound";
 import { avatarEffectTemplate } from "@/lib/effects/effectTemplates";
-import {
-  apiErrorLine,
-  failureLine,
-  uncodedErrorText,
-  WordedError,
-} from "@/lib/errors/apiError";
+import { failureLine, WordedError } from "@/lib/errors/apiError";
 import { useAvatarFaceParts } from "@/query/hooks/useAvatarFaceParts";
 import { useAvatarEffect, useSoundEffects } from "@/query/hooks/useEffects";
 import { AvatarPreviewSurface } from "@/ui/avatar-preview/AvatarPreviewSurface";
@@ -93,6 +88,7 @@ import {
 } from "@/ui/content-creator/contentCreatorModelPreview";
 import { CreatorTemplateDraftDialog } from "@/ui/content-creator/CreatorTemplateDraftDialog";
 import { CreatorTimelineTransport } from "@/ui/content-creator/CreatorTimeline";
+import { avatarIssueText } from "@/ui/animas/avatarIssueText";
 import { useContentCreatorAvatar } from "@/ui/content-creator/useContentCreatorAvatar";
 import { useContentCreatorModelPreview } from "@/ui/content-creator/useContentCreatorModelPreview";
 import { useCreatorLeaveGuard } from "@/ui/content-creator/useCreatorLeaveGuard";
@@ -114,11 +110,11 @@ import {
   avatarEffectPreviewCompatibility,
   avatarEffectSnapshotFingerprint,
   createAvatarEffectHistorySnapshot,
-  createAvatarEffectObjectUrlLease,
   equalAvatarEffectHistorySnapshots,
   NO_AVATAR_EFFECT_IMAGES,
   type AvatarEffectHistorySnapshot,
 } from "./avatarEffectCreatorBehavior";
+import { useAvatarEffectImageUrls } from "./useAvatarEffectImageUrls";
 import { AvatarEffectFacePartsPanel } from "./AvatarEffectFacePartsPanel";
 import { AvatarEffectGuideRenderer } from "./AvatarEffectGuideRenderer";
 import { AvatarEffectInspector } from "./AvatarEffectInspector";
@@ -183,6 +179,7 @@ export function AvatarEffectCreatorPage({
   templateId?: string;
 }) {
   const { t, i18n } = useTranslation("effects");
+  const { t: tAnimas } = useTranslation("animas");
   const formatters = useFormatters();
   const navigate = useNavigate();
   const userId = useRuntimeCacheKey();
@@ -270,10 +267,10 @@ export function AvatarEffectCreatorPage({
   const [importOpen, setImportOpen] = useState(false);
   const [importText, setImportText] = useState("");
   const [importError, setImportError] = useState<string | null>(null);
-  const [imageUrls, setImageUrls] = useState<{
-    image: string | null;
-    otherEyeImage: string | null;
-  }>({ image: null, otherEyeImage: null });
+  const imageUrls = useAvatarEffectImageUrls(
+    imageResources.image?.file ?? null,
+    imageResources.otherEyeImage?.file ?? null,
+  );
   /** Bumped when the preview Avatar's face part map is rebuilt. */
   const [facePartsVersion, setFacePartsVersion] = useState(0);
   const [pickingRole, setPickingRole] = useState<AvatarFacePartRole | null>(
@@ -461,25 +458,6 @@ export function AvatarEffectCreatorPage({
     [soundQuery.data?.pages],
   );
   const soundAudio = useContentPreviewAudio(soundPreview);
-
-  const imageFile = imageResources.image?.file ?? null;
-  const otherEyeFile = imageResources.otherEyeImage?.file ?? null;
-  useEffect(() => {
-    const leases = {
-      image: imageFile ? createAvatarEffectObjectUrlLease(imageFile) : null,
-      otherEyeImage: otherEyeFile
-        ? createAvatarEffectObjectUrlLease(otherEyeFile)
-        : null,
-    };
-    setImageUrls({
-      image: leases.image?.url ?? null,
-      otherEyeImage: leases.otherEyeImage?.url ?? null,
-    });
-    return () => {
-      leases.image?.dispose();
-      leases.otherEyeImage?.dispose();
-    };
-  }, [imageFile, otherEyeFile]);
 
   useEffect(() => {
     if (!document.sound) {
@@ -852,8 +830,8 @@ export function AvatarEffectCreatorPage({
     },
     [previewAvatar],
   );
-  // Apply the saved correction when the loaded Avatar does not have it yet
-  // (Included previews load without it).
+  // Apply the saved correction when the loaded Avatar does not have it yet:
+  // one saved after the preview loaded, or a preview cached from before.
   const savedCorrection = facePartsQuery.data?.face_parts ?? null;
   useEffect(() => {
     if (!previewAvatar || !facePartsQuery.isSuccess) return;
@@ -1045,10 +1023,13 @@ export function AvatarEffectCreatorPage({
               ? validation.map((issue) => issue.message)
               : []),
             ...(missingPartMessage ? [missingPartMessage] : []),
-            // Runtime diagnostics are English; elsewhere they become detail.
-            ...(vfxSnapshot?.warnings ?? []).map((warning) =>
-              apiErrorLine(
-                uncodedErrorText(warning, t("creator.previewWarning")),
+            // What the preview Avatar skipped or degraded, as Diagnostics
+            // words it; the only effect here is the one being edited.
+            ...(vfxSnapshot?.issues ?? []).map((issue) =>
+              avatarIssueText(
+                tAnimas,
+                issue,
+                () => document.name.trim() || undefined,
               ),
             ),
             ...[

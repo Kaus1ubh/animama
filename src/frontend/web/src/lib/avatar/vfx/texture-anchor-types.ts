@@ -1,11 +1,18 @@
+import type { AvatarIssue } from "../diagnostics/issues";
 import type { AvatarVFXSide, AvatarVFXTextureAnchor } from "./types";
 import type { AvatarFaceLandmarkVector } from "./landmark-types";
 
+/**
+ * A position on the face texture's image, 0–1 with `v` down from its top
+ * edge: the mesh UV through the texture's transform and wrapping
+ * (`TextureUvMapping`), so art drawn there lands on the projected point.
+ */
 export type AvatarFaceTextureUvCoordinate = {
   u: number;
   v: number;
 };
 
+/** A size on the face texture's image (`Uv` sizes) or in anchor space. */
 export type AvatarFaceTextureReferenceSize = {
   width: number;
   height: number;
@@ -27,6 +34,12 @@ export type AvatarFaceTextureAnchorSnapshot = {
   uv: AvatarFaceTextureUvCoordinate;
   referenceSizeLocal: AvatarFaceTextureReferenceSize;
   referenceSizeUv: AvatarFaceTextureReferenceSize;
+  /**
+   * Set when a surface lies over the anchor (eyes or a mouth modelled over
+   * the skin, `FaceCover`), so art painted there would not show and is
+   * skipped. Absent on an anchor that shows.
+   */
+  covered?: true;
 };
 
 export type AvatarFaceTextureFlattenRegionSnapshot = {
@@ -43,6 +56,8 @@ export type AvatarFaceTextureFlattenRegionSnapshot = {
 export type AvatarFaceTextureAnchorsSnapshot = {
   status: "unavailable" | "ready";
   warnings: string[];
+  /** `warnings` as stable codes, for the Diagnostics view. */
+  issues: AvatarIssue[];
   faceBindingKey: string | null;
   faceMaterialName: string | null;
   anchors: {

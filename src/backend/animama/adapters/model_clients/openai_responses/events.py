@@ -253,7 +253,7 @@ def events_from_response_stream_event(
                 item_id=event.item_id,
                 output_index=event.output_index,
                 tool_type="function",
-                tool_name=event.name,
+                # The event carries no tool name; response.output_item.done reports it.
                 arguments_length=len(event.arguments or ""),
                 details=details,
             ),
@@ -366,12 +366,21 @@ def events_from_response_stream_event(
 
 
 def response_from_terminal_event(event: ResponseStreamEvent) -> Response:
-    """Extract or validate the terminal Response object from an SDK event."""
+    """Extract or build the terminal Response object from an SDK event.
+
+    The SDK types ``response.completed`` but leaves the ``response.done`` payload
+    from compatible servers as a mapping. Build it leniently, as the SDK builds
+    typed events, because such servers omit fields that newer SDK releases mark
+    required (for example ``usage.input_tokens_details.cache_write_tokens``).
+    """
 
     response = get_value(event, "response")
     if isinstance(response, Response):
         return response
-    return Response.model_validate(jsonable(response) or {})
+    payload = jsonable(response)
+    if not isinstance(payload, dict):
+        raise ValueError(f"{response_event_type(event)} event carried no response object")
+    return Response.construct(**payload)
 
 
 def response_event_type(event: object) -> str:

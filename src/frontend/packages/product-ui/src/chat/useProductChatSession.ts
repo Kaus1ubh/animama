@@ -96,7 +96,7 @@ export type UseProductChatSessionResult = {
     smartTurnScore?: number | null;
     smartTurnLatencyMs?: number | null;
     clearInput?: boolean;
-  }) => Promise<void>;
+  }) => Promise<boolean>;
   handleStop: () => void;
   restoreFailedMessage: (text: string) => void;
   handleSkipTts: () => void;
@@ -312,9 +312,9 @@ export function useProductChatSession({
   );
 
   useEffect(() => {
-    logger.info("UseAnima", "Anima Data", {
-      anima,
+    logger.info("UseAnima", "Anima data changed", {
       id: animaId,
+      loaded: anima != null,
     });
   }, [anima, animaId, logger]);
 
@@ -525,8 +525,8 @@ export function useProductChatSession({
         return rows.concat(pending.nextMessages);
       });
       logger.info("Chat", "Refreshing messages cache with next messages", {
-        nextMessages: pending.nextMessages,
-        messagesKey: pending.messagesKey,
+        runId: pending.runId,
+        messageCount: pending.nextMessages.length,
       });
       clearStreamingState();
       setLocalMessages((prev) =>
@@ -618,6 +618,9 @@ export function useProductChatSession({
     const previousId = previousChatIdRef.current;
     const nextId = activeChatId ?? null;
     if ((previousId && previousId !== nextId) || (!nextId && previousId)) {
+      // Leaving a chat ends its reply as Stop does; a reply left running
+      // would speak, animate and report failures in the next chat.
+      stop();
       cancelTts();
       abortAvatarRun(streamingRunId);
       clearAvatarVisemeBridgeRun(streamingRunId, { clearAvatarLipSync: true });
@@ -632,6 +635,7 @@ export function useProductChatSession({
     clearAvatarVisemeBridgeRun,
     clearStreamingState,
     activeChatId,
+    stop,
     streamingRunId,
   ]);
 
@@ -719,8 +723,8 @@ export function useProductChatSession({
 
   useEffect(() => {
     logger.debug("Chat Messages", "Preparing display messages", {
-      serverMessages,
-      localMessages,
+      serverMessageCount: serverMessages.length,
+      localMessageCount: localMessages.length,
       streamingRunId,
     });
   }, [serverMessages, localMessages, streamingRunId, logger]);
@@ -769,6 +773,9 @@ export function useProductChatSession({
     streamingRunId,
   ]);
 
+  // Resolves false when the message was not accepted (empty, a reply is
+  // already streaming, or a precondition failed) and nothing was sent or
+  // cleared; true once an accepted message's run has ended, however it ended.
   const submitMessage = useCallback(
     async (args: {
       text: string;
@@ -779,7 +786,7 @@ export function useProductChatSession({
       smartTurnJobId?: string | null;
       smartTurnScore?: number | null;
       smartTurnLatencyMs?: number | null;
-    }) => {
+    }): Promise<boolean> => {
       const {
         text,
         clearInput = true,
@@ -800,7 +807,7 @@ export function useProductChatSession({
         smartTurnLatencyMs,
       });
       const trimmed = text.trim();
-      if (!trimmed || isStreaming) return;
+      if (!trimmed || isStreaming) return false;
       const startTime = performance.now();
       let interactionStatus: "ok" | "error" | "invalid" = "ok";
       const runId = genRunId();
@@ -843,7 +850,7 @@ export function useProductChatSession({
           interactionStatus = "invalid";
           logger.warn("Submit", "Missing anima id", { animaId });
           toast.error(t("session.toasts.missingAnima"));
-          return;
+          return false;
         }
         if (!anima || anima.id !== animaId) {
           interactionStatus = "invalid";
@@ -852,7 +859,7 @@ export function useProductChatSession({
             loadedAnimaId: anima?.id ?? null,
           });
           toast.error(t("session.toasts.animaLoading"));
-          return;
+          return false;
         }
         if (
           !capabilities.chat ||
@@ -861,22 +868,22 @@ export function useProductChatSession({
         ) {
           interactionStatus = "invalid";
           toast.error(t("session.toasts.runtimeLoading"));
-          return;
+          return false;
         }
         if (routeChatId && isActiveChatLoading) {
           interactionStatus = "invalid";
           toast.error(t("session.toasts.chatLoading"));
-          return;
+          return false;
         }
         if (routeChatId && (isActiveChatError || !activeChat)) {
           interactionStatus = "invalid";
           toast.error(t("session.toasts.chatLoadFailed"));
-          return;
+          return false;
         }
         if (isModelProvidersLoading) {
           interactionStatus = "invalid";
           toast.error(t("session.toasts.modelsLoading"));
-          return;
+          return false;
         }
 
         const modelGate = chatModelSendGate(activeChat, activeModelProvider);
@@ -892,7 +899,7 @@ export function useProductChatSession({
           } else {
             toast.error(t("session.toasts.selectModel"));
           }
-          return;
+          return false;
         }
 
         // 2) Clear input eagerly once the submission is accepted locally.
@@ -1134,7 +1141,9 @@ export function useProductChatSession({
             );
           },
           onToken: (token, data) => {
-            logger.info("Chat", "SSE received token", { token });
+            logger.debug("Chat", "SSE received token", {
+              length: token.length,
+            });
             // is_delta controls how this event's text mutates the current part:
             // append for deltas, replace for complete/correction events.
             // part_final is independent; it only means this part is finished,
@@ -1482,7 +1491,7 @@ export function useProductChatSession({
         if (error instanceof Error && error.name === "AbortError") {
           abortAvatarRun();
           clearAvatarVisemeBridgeAll({ clearAvatarLipSync: true });
-          return;
+          return true;
         }
         interactionStatus = "error";
         logger.error("Chat", "Failed to send message", error);
@@ -1500,6 +1509,7 @@ export function useProductChatSession({
           submit_reason: submitReason,
         });
       }
+      return true;
     },
     [
       isStreaming,
@@ -1574,8 +1584,8 @@ export function useProductChatSession({
       smartTurnScore?: number | null;
       smartTurnLatencyMs?: number | null;
       clearInput?: boolean;
-    }) => {
-      await submitMessage({
+    }) =>
+      submitMessage({
         text: args.text,
         clearInput: args.clearInput ?? true,
         inputMode: args.inputMode ?? "typed",
@@ -1584,8 +1594,7 @@ export function useProductChatSession({
         smartTurnJobId: args.smartTurnJobId ?? null,
         smartTurnScore: args.smartTurnScore ?? null,
         smartTurnLatencyMs: args.smartTurnLatencyMs ?? null,
-      });
-    },
+      }),
     [submitMessage],
   );
   const restoreFailedMessage = useCallback(

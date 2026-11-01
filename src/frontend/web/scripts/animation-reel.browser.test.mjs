@@ -57,7 +57,7 @@ test(
       const { results, duration, soundCount } = await recordReel({
         items,
         out,
-        avatar: "AvatarSample_A_1_New",
+        avatar: "Annie",
         camera: "portrait",
         size: { width: 640, height: 360 },
         fps: 10,

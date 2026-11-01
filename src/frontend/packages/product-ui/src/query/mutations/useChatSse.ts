@@ -529,7 +529,6 @@ export function useChatSse() {
             logger.info("useChatSse", "SSE chat title updated", {
               runId: data.run_id,
               chatId: data.chat_id,
-              title: data.title,
             });
             args.onChatTitleUpdated?.(data);
             continue;
@@ -570,7 +569,6 @@ export function useChatSse() {
               logger.info("useChatSse", "Received first token", {
                 animaId: args.animaId,
                 runId: expectedRunId,
-                preview: data.text?.slice(0, 40),
               });
             }
 

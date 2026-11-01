@@ -1,10 +1,10 @@
 import type { GeminiTtsCapability } from "@animama/runtime-contracts/api-types";
+import type { OfflineSttEngine } from "@/lib/speech/offline-stt/routing";
 import type { MicSensitivity } from "@/lib/voice/microphone-preferences";
 import type { AppearanceOverrides } from "@/lib/theme/appearance-overrides";
-import {
-  DEFAULT_DESKTOP_SHORTCUTS,
-  type DesktopShortcut,
-  type DesktopShortcutAction,
+import type {
+  DesktopShortcut,
+  DesktopShortcutAction,
 } from "@/lib/settings/desktop-shortcuts";
 
 export type PreferenceToggleSection = {
@@ -81,8 +81,16 @@ export const GEMINI_TTS_MODEL_OPTIONS: Array<{
 
 export type SpeechPreferences = {
   stt_provider?: SttProviderPreference;
-  /** Experimental: run local Parakeet on WebGPU when available (default off). */
+  /**
+   * Run offline recognition on WebGPU when available (default off); the GPU
+   * preference for both offline engines, despite its name.
+   */
   stt_parakeet_webgpu?: boolean;
+  /**
+   * The offline engine the owner chose; absent follows the UI Locale
+   * (`routeOfflineSpeech`). Read with `offlineSttEnginePreference`.
+   */
+  stt_offline_engine?: OfflineSttEngine;
   tts_enabled?: boolean;
   tts_provider?: TtsProviderPreference;
   tts_elevenlabs_model_id?: ElevenLabsTtsModelId;
@@ -116,6 +124,13 @@ export type PresentationPreferences = {
   enhanced_rendering?: boolean;
   disable_animation?: boolean;
   disable_vfx?: boolean;
+  /**
+   * The chat canvas's camera preset (`SceneCameraPreset`); missing or unknown
+   * uses Portrait. Fine-tuned camera positions are not saved.
+   */
+  camera_preset?: string;
+  /** The desktop PiP window's camera preset; missing uses Portrait close. */
+  pip_camera_preset?: string;
   /**
    * App stage scene behind the Avatar (`dreamy`, `sakura`, …) or `none`;
    * missing means Dreamy in light mode and Sakura in dark mode. A bound
@@ -159,7 +174,7 @@ export const DEFAULT_ANIMAMA_PREFERENCES: SettingsPreferences = {
     tts_enabled: true,
     tts_provider: "pocket_tts",
     tts_elevenlabs_model_id: DEFAULT_ELEVENLABS_TTS_MODEL_ID,
-    desktop_shortcuts: DEFAULT_DESKTOP_SHORTCUTS,
+    // Desktop shortcuts default per OS through `resolveDesktopShortcuts`.
   },
   presentation: {
     enable_avatar_transform_controls: false,
@@ -353,4 +368,15 @@ export function isParakeetWebgpuPreferred(
   preferences: SettingsPreferences | null | undefined,
 ): boolean {
   return preferences?.speech?.stt_parakeet_webgpu === true;
+}
+
+/**
+ * The offline speech engine the owner chose, or `null` to follow the UI
+ * Locale. Saved preferences are untyped JSON, so any other value is ignored.
+ */
+export function offlineSttEnginePreference(
+  preferences: SettingsPreferences | null | undefined,
+): OfflineSttEngine | null {
+  const engine: unknown = preferences?.speech?.stt_offline_engine;
+  return engine === "parakeet" || engine === "sensevoice" ? engine : null;
 }

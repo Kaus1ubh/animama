@@ -20,7 +20,7 @@ const FEET: VRMHumanBoneName[] = [
 ];
 
 describe("PlantedLegSolver", () => {
-  it.each([VRM0_FIXTURE_ID, "AvatarSample_A_1_New", "Andrew"] as const)(
+  it.each([VRM0_FIXTURE_ID, "Annie", "Andrew"] as const)(
     "keeps %s's feet planted while the hips lean, shift and crouch",
     async (id) => {
       const vrm = await loadTestAvatar(id);

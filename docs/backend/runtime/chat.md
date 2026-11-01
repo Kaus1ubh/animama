@@ -100,19 +100,20 @@ composition loads its owned settings before calling this shared policy.
 Direct chat always
 opens the anima identity file because it is anima configuration. With memory
 influence enabled it also opens the Anima's `MEMORIES.md` and places it as
-`# Anima Memories` directly after `# Anima Identity`; a missing, blank or
-unreadable file is omitted without failing the turn. When
+`# Anima Memories` directly after `# Anima Identity`, then the owner's
+`PROFILE.md` as `# User Profile` and this Anima's recent `remember` notes from
+other chats as `# Recent Notes` (see [Memory](../features/memory.md#current-direct-chat-boundary)).
+A missing, blank or unreadable file is omitted without failing the turn. When
 `disable_memory_influence` is true, direct chat still keeps anima identity
-active; `MEMORIES.md` and the memory file list are omitted.
-The turn context, placed just before the user message, holds the memory file list,
-the attached-file list and, always last, the
-[Companion Guardrails](../../adr/0008-non-overridable-companion-guardrail.md),
-which also end the stable system instructions.
+active; `MEMORIES.md`, the profile, the notes and the memory file list are omitted.
+The turn context, placed just before the user message, holds the memory file list
+and the attached-file list; a turn with neither sends none. The
+[Companion Guardrails](../../adr/0008-non-overridable-companion-guardrail.md)
+end the stable system instructions, once per turn.
 Provider rows that expose `supports_developer_role: false`, such as rows on
 connections with the `fold_developer_role` option (the default for non-OpenAI
 presets), receive the same text in a `<turn_context>` block at the start of
-the user message instead, so the guardrail remains the final instruction text
-before the user's words. Anthropic rows receive it as a mid-conversation
+the user message instead. Anthropic rows receive it as a mid-conversation
 `system` message after the user message, because Anthropic accepts one only
 after a user turn. See the [turn layout](prompt-caching.md#turn-layout).
 Memory tools also depend on the selected row. A row without tool calling runs
@@ -160,7 +161,8 @@ catalog, including owner-added rows and model connections, is described in
    validates chat ownership, model capabilities, and chat API-standard
    compatibility before opening SSE. It also resolves
    [companion safety](#companion-safety), which never blocks the turn.
-2. The executor loads required `IDENTITY.md`, optional `MEMORIES.md`, current
+2. The executor loads required `IDENTITY.md`, optional `MEMORIES.md` and
+   `PROFILE.md`, recent episode notes, current
    memory/attachment navigation, and local history when the provider needs
    replay. It assembles
    the prompt, ending with the Companion Guardrails, and closes the setup
@@ -259,9 +261,10 @@ edit Anima identity, move/delete files, or change arbitrary metadata. Workflow o
 `product_http/chat/safety.py` and `app/safety/` own per-turn safety. The
 user-facing contract is the [safety and crisis protocol](../../safety/crisis-protocol.md).
 
-- **Companion Guardrails.** `COMPANION_GUARDRAILS` is always the final
-  instruction text of every provider request, including in the forced-final
-  tool-limit request. No setting disables it
+- **Companion Guardrails.** `COMPANION_GUARDRAILS` always ends the system
+  instructions of every provider request, and the forced-final tool-limit and
+  structured-reply repair requests restate it after their instruction. No
+  setting disables it
   ([ADR 0008](../../adr/0008-non-overridable-companion-guardrail.md)).
 - **Effective configuration.** Setup combines operator settings
   (`ANIMAMA_COMPANION_SAFETY_ENABLED`, `ANIMAMA_AI_NOTICE_ENABLED`,
@@ -336,13 +339,16 @@ they are not forwarded directly to browser clients over `chat:sse`.
 
 Main structured turns use one JSON shape: `emotional_tone`,
 `emotional_intensity`, nullable `gesture`, `speech`, and nullable `display`.
-All fields are required in the provider JSON schema; `gesture: null` or
-`gesture: ""` means no avatar gesture, and `display: null` means no separate
-visual response. Gesture choices come from the Gestures equipped in the mounted
+All fields are required in the provider JSON schema, and the guidance asks for
+`null` for an absent value. `gesture: null` (or `""`, which the parser also
+accepts) means no avatar gesture; `display: null` means no separate visual
+response. Gesture choices come from the Gestures equipped in the mounted
 runtime snapshot. The provider schema's `gesture` enum is `null` plus those
 selectors, and the response guidance appends an
 `Available Gestures for this Anima:` block with one
-`- {selector}: {name} — {description}` line per Gesture. An Anima with no
+`- {selector}: {description}` line per Gesture. The description falls back to
+the Gesture's name when empty; the name is otherwise left out, because
+selectors are usually readable semantic keys. An Anima with no
 equipped Gestures gets a `null`-only enum and no block. Motion types, catalog
 item or file IDs, storage locators, package manifests and resource URLs are not
 sent to the model. The final parsed `gesture` is normalized and dropped unless

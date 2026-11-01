@@ -89,6 +89,10 @@ Local content.
 
 ### Installation Settings
 
+`ORMEpisodeProcessingSettings` (local only, `episode_processing_settings`, keyed by
+`user_id`) holds the owner's automatic episode-processing `threshold` (NULL for the
+default, 0 for Off, otherwise 5–50, checked) and its last change, `reset_at`.
+
 `ORMInstallationSettings` maps the singleton `installation_settings` row. Its
 small-integer primary key is constrained to `1`.
 `installation_principal_id` is non-null and unique; the baseline generates
@@ -173,6 +177,14 @@ face-part correction for one Included Avatar item, keyed by
 `(owner_user_id, avatar_item_id)` and cascaded with the item. It applies only
 while `avatar_revision_sha256` equals the item's current revision; Local
 Avatars keep the correction in their sidecar instead.
+`ORMAvatarSettingOverride` maps `avatar_setting_overrides`: one owner's
+settings for one Local or Included Avatar item, keyed by
+`(owner_user_id, avatar_item_id)` and cascaded with the item. Nullable
+`spring_mode` (`on`, `off`, `springs_off`), integer `wind_strength`
+(0–200 percent) and `material_mode` (`liltoon`, `simple`) are checked by
+constraint; NULL means Automatic (100 percent for the strength), and the
+repository removes a row once all three are NULL. Rows have no revision or digest binding, so
+they survive an in-place Avatar update.
 
 Typed documents themselves are framework-neutral domain values and are parsed
 by the closed kind-handler registry; the catalog's bounded metadata projection
@@ -183,7 +195,7 @@ is not the application semantic model.
 `ORMUserProfile` stores private installation personalization in
 `user_profiles`. Its primary key is the installation principal in the retained
 `user_id` ownership column. The only mutable field is nullable
-`display_name VARCHAR(80)`; null is allowed only for the pending-setup
+`display_name VARCHAR(30)`; null is allowed only for the pending-setup
 placeholder. Saving personalization requires a nonblank name. Creation and update
 timestamps complete the row.
 
@@ -258,8 +270,12 @@ owner/Anima/effective revision. Its bounded `admitted_item_revisions` JSON
 object pins every admitted catalog item to the revision used by the typed
 projection; canonical file facts remain registered once in
 `content_catalog_files`. The snapshot also stores the immutable typed catalog
-body and its digest, while response URLs and the current lease expiry are
-overlaid when it is read. There is no per-runtime file-membership table.
+body and its digest, and `bundles`, the delivery bundles issued with it (each
+bundle's format and member list by bundle ID), so a bundle read loads only its
+own members. `inputs_digest` digests everything the snapshot was compiled from, so
+issuing an unchanged loadout again renews it instead of compiling; it is null for a
+compile that found changed files. Response URLs and the current lease expiry are
+overlaid when the snapshot is read. There is no per-runtime file-membership table.
 
 Chat turn setup authorizes the issued snapshot and consumes its persisted
 Gesture/Reaction inventory instead of rebuilding against mutable catalog
@@ -450,9 +466,10 @@ path index:
   committed by approval, and a consistent nullable
   `undone_at`/positive `undo_version` pair. Constraints
   prevent non-positive application/Undo Versions and incomplete Undo audit
-  pairs. The partial unique index
-  `uq_memory_manager_runs_user_open` enforces at most one run per user whose
-  status is `active` or `waiting_approval`. Superseded active runs retain their
+  pairs. The partial unique indexes enforce at most one owner-started run
+  (`uq_memory_manager_runs_user_open`) and one automatic run
+  (`uq_memory_manager_runs_user_open_automatic`, `metadata.origin =
+  'automatic'`) per user whose status is `active` or `waiting_approval`. Superseded active runs retain their
   transcript and durable runtime state and record
   `metadata.completion_reason = "superseded_by_new_run"`.
 - `ORMAnimaMemoryReflection` maps to `anima_memory_reflections`, one row per

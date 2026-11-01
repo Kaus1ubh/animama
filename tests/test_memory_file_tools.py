@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+import sys
+import uuid
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from typing import Any, cast
@@ -14,6 +16,7 @@ from animama.adapters.repositories.sqlalchemy.memory_entry_repo import SQLAlchem
 from animama.adapters.repositories.sqlalchemy.uow import SQLAlchemyUnitOfWork
 from animama.adapters.repositories.sqlalchemy.user_file_processing_repo import SQLAlchemyUserFileProcessingRepository
 from animama.app.chat import memory_tools as memory_tools_module
+from animama.app.chat.memory_context import MEMORY_SYSTEM_GUIDANCE
 from animama.app.chat.memory_cue import AnimaMemoriesTurn
 from animama.app.chat.memory_tools import (
     MEMORY_TOOL_APPLY_PATCH,
@@ -27,6 +30,7 @@ from animama.app.chat.memory_tools import (
     MemoryToolExecutionContext,
     memory_tool_specs,
 )
+from animama.app.model_clients.context_budget import estimate_text_tokens
 from animama.app.ports.anima_port import AnimaRepository
 from animama.app.services.memory_entry_service import (
     MemoryEntryConflictError,
@@ -226,6 +230,48 @@ class _ConflictOnWriteMemoryService:
         raise MemoryEntryConflictError("Memory entry already exists")
 
 
+@pytest.mark.parametrize("name", [MEMORY_TOOL_APPLY_PATCH, MEMORY_TOOL_WRITE_FILE])
+def test_write_tools_carry_the_description_maintenance_rule(name: str) -> None:
+    tool = next(
+        tool for tool in memory_tool_specs(allow_reads=False, allow_writes=True) if tool["function"]["name"] == name
+    )
+    description = tool["function"]["parameters"]["properties"]["description"]
+
+    assert description["type"] == ["string", "null"]
+    assert "Give a new file a useful one" in description["description"]
+    assert "keep the description verbatim while it is still accurate" in description["description"]
+    assert "scope or durable contents change materially" in description["description"]
+
+
+def test_memory_guidance_prompts_searching_past_chats_before_answering_from_memory() -> None:
+    assert "Notes from past chats with this user are logged there" in MEMORY_SYSTEM_GUIDANCE
+    assert f"`{MEMORY_TOOL_SEARCH_MEMORY_FILES}` searches the whole log" in MEMORY_SYSTEM_GUIDANCE
+    assert "your most recent ones from other chats appear under Recent Notes" in MEMORY_SYSTEM_GUIDANCE
+    assert "appears under User Profile, so read it only to edit it or, when it is cut," in MEMORY_SYSTEM_GUIDANCE
+    assert "search or read memory before you answer a question about the user's news, plans, projects" in (
+        MEMORY_SYSTEM_GUIDANCE
+    )
+    assert "before you say you do not remember something" in MEMORY_SYSTEM_GUIDANCE
+    assert "If a search finds nothing relevant, search once more with other words." in MEMORY_SYSTEM_GUIDANCE
+    assert "Skip this when the answer is already in this conversation" in MEMORY_SYSTEM_GUIDANCE
+    assert "or for an unrelated technical or attachment question" in MEMORY_SYSTEM_GUIDANCE
+
+
+def test_search_memory_tool_advises_distinctive_keywords_matched_on_any_word() -> None:
+    tool = next(
+        tool
+        for tool in memory_tool_specs(allow_reads=True, allow_writes=False)
+        if tool["function"]["name"] == MEMORY_TOOL_SEARCH_MEMORY_FILES
+    )
+    description = tool["function"]["description"]
+
+    assert "episode log of notes from past chats" in description
+    assert "Use 2-5 distinctive keywords" in description
+    assert "A file matches when it contains any keyword or quoted phrase" in description
+    assert "files that match more of them rank first" in description
+    assert "Separate words with spaces, in Japanese, Chinese or Thai too" in description
+
+
 def test_memory_tool_schemas_are_strict_and_do_not_expose_expected_version() -> None:
     tools = memory_tool_specs(allow_reads=True, allow_writes=True)
 
@@ -270,11 +316,14 @@ def test_memory_tool_schemas_are_strict_and_do_not_expose_expected_version() -> 
     assert search_tool["function"]["parameters"]["properties"] == {
         "query": {
             "type": "string",
-            "description": "Search text using PostgreSQL web-search syntax when useful.",
+            "description": "2-5 distinctive keywords or quoted phrases, for example `piano recital Emma`.",
         },
         "include_episodic_memory": {
             "type": "boolean",
-            "description": "Whether generated episode logs are included. Defaults to true for callers.",
+            "description": (
+                "true also searches the episode log of past chats, so use true to recall them; false searches "
+                "memory files only."
+            ),
         },
     }
     assert search_tool["function"]["parameters"]["required"] == ["query", "include_episodic_memory"]
@@ -305,8 +354,11 @@ def test_memory_tool_schemas_are_strict_and_do_not_expose_expected_version() -> 
             ],
         },
     }
-    assert "quoted phrases, OR, and -term exclusions" in search_tool["function"]["description"]
     assert "quoted phrases, OR, and -term exclusions" in upload_tool["function"]["description"]
+    assert (
+        "keyword matching finds text without spaces only where it appears exactly"
+        in (upload_tool["function"]["description"])
+    )
     upload_description = upload_tool["function"]["description"]
     assert "accessible through uploaded-file tools" in upload_description
     assert "relevance lookup, exact phrases, or locating a chunk" in upload_description
@@ -378,6 +430,36 @@ async def test_memory_tools_reject_paths_outside_user_root(async_session, path: 
     assert result["errors"][0]["path"] == path
     assert result["errors"][0]["code"] == "invalid_path"
     assert result["errors"][0]["retryable"] is False
+
+
+@pytest.mark.asyncio
+async def test_memory_tools_return_non_english_text_as_written(async_session) -> None:
+    await _put_user_file(async_session, "trip.md", "週末に京都で抹茶を飲みました。", description="旅行のメモ")
+
+    output = await _tool_service(async_session).execute(
+        tool_name=MEMORY_TOOL_READ_FILES,
+        arguments={"paths": ["trip.md"]},
+        context=_context(),
+        tool_call_id="call-read-japanese",
+    )
+
+    assert "週末に京都で抹茶を飲みました。" in output and "旅行のメモ" in output
+    assert "\\u" not in output
+
+
+@pytest.mark.asyncio
+async def test_memory_tools_say_file_names_must_be_ascii(async_session) -> None:
+    result = _loads(
+        await _tool_service(async_session).execute(
+            tool_name=MEMORY_TOOL_READ_FILES,
+            arguments={"paths": ["趣味.md"]},
+            context=_context(),
+            tool_call_id="call-read-japanese-name",
+        )
+    )
+
+    assert result["errors"][0]["code"] == "invalid_path"
+    assert "ASCII letters, digits" in result["errors"][0]["message"]
 
 
 @pytest.mark.asyncio
@@ -550,6 +632,176 @@ async def test_memory_search_can_exclude_episodes_before_result_limit(async_sess
             }
         ],
     }
+
+
+async def _search_memory_results(async_session, query: str) -> list[dict[str, Any]]:  # noqa: ANN001
+    search = _loads(
+        await _tool_service(async_session).execute(
+            tool_name=MEMORY_TOOL_SEARCH_MEMORY_FILES,
+            arguments={"query": query},
+            context=_context(),
+            tool_call_id="call-search",
+        )
+    )
+    assert search["ok"] is True
+    return cast(list[dict[str, Any]], search["memory_results"])
+
+
+async def _search_memory_paths(async_session, query: str) -> list[str]:  # noqa: ANN001
+    return [result["path"] for result in await _search_memory_results(async_session, query)]
+
+
+async def _put_episode_log(async_session, relative_path: str, text: str) -> None:  # noqa: ANN001
+    await _put_user_file(
+        async_session,
+        relative_path,
+        f"# Episodes\n\n- [ ] {text}",
+        kind=MEMORY_EPISODE_LOG_ENTRY_KIND,
+        allow_system_managed=True,
+    )
+
+
+@pytest.mark.asyncio
+async def test_memory_search_matches_notes_containing_only_some_query_words(async_session) -> None:
+    job_log = "episodes/2026/10/2026-10-20.md"
+    book_log = "episodes/2026/10/2026-10-21.md"
+    await _put_episode_log(
+        async_session,
+        job_log,
+        "The user got a junior designer job at a children's publisher, starting on 10 November.",
+    )
+    await _put_episode_log(
+        async_session,
+        book_log,
+        "The user is making their own picture book, 'Pickle and the Moon', about their cat.",
+    )
+
+    assert await _search_memory_paths(async_session, "new job start date") == [job_log]
+    assert await _search_memory_paths(async_session, "picture book title") == [book_log]
+
+
+@pytest.mark.asyncio
+async def test_memory_search_ranks_notes_matching_more_query_words_first(async_session) -> None:
+    job_log = "episodes/2026/10/2026-10-20.md"
+    await _put_episode_log(
+        async_session,
+        job_log,
+        "The user got a junior designer job at a children's publisher, starting on 10 November.",
+    )
+    await _put_user_file(async_session, "shopping.md", "The user bought new boots, new gloves and a new scarf.")
+
+    assert await _search_memory_paths(async_session, "new job start date") == [job_log, "shopping.md"]
+
+
+@pytest.mark.asyncio
+async def test_memory_search_handles_long_queries(async_session) -> None:
+    await _put_user_file(async_session, "job.md", "The user got a junior designer job.")
+    await _put_user_file(async_session, "pickle.md", "The user's job notes mention Pickle.")
+    filler = " ".join(f"filler{index}" for index in range(400))
+    exclusions = " ".join(f"-absent{index}" for index in range(400))
+    # The test runner raises the recursion limit; the server runs with Python's default.
+    runner_limit = sys.getrecursionlimit()
+    sys.setrecursionlimit(1000)
+    try:
+        paths = await _search_memory_paths(async_session, f"job {filler} {exclusions} -pickle")
+    finally:
+        sys.setrecursionlimit(runner_limit)
+
+    assert paths == ["job.md"]
+
+
+@pytest.mark.asyncio
+async def test_memory_search_keeps_phrases_and_exclusions(async_session) -> None:
+    await _put_user_file(async_session, "pickle.md", "The user's picture book is called Pickle and the Moon.")
+    await _put_user_file(async_session, "library.md", "The user borrowed a picture book about trains.")
+    await _put_user_file(async_session, "album.md", "The user's photo book has a picture of the moon.")
+
+    assert set(await _search_memory_paths(async_session, '"picture book"')) == {"pickle.md", "library.md"}
+    assert await _search_memory_paths(async_session, '"picture book" -pickle') == ["library.md"]
+    assert await _search_memory_paths(async_session, "moon -pickle") == ["album.md"]
+    assert set(await _search_memory_paths(async_session, "trains OR photo")) == {"library.md", "album.md"}
+    assert set(await _search_memory_paths(async_session, "-pickle")) == {"library.md", "album.md"}
+    # Exclusions that parse to nothing, a bare "-" or a stop word, exclude nothing.
+    assert await _search_memory_paths(async_session, "moon - pickle") == ["pickle.md", "album.md"]
+    assert set(await _search_memory_paths(async_session, "moon -the")) == {"pickle.md", "album.md"}
+
+
+@pytest.mark.asyncio
+async def test_memory_search_finds_words_inside_unspaced_text(async_session) -> None:
+    # The english parser keeps each run of Japanese text as one token, so only the whole sentence matched.
+    await _put_user_file(async_session, "kyoto.md", "週末に京都で抹茶を飲みました。")
+    await _put_user_file(async_session, "autumn.md", "京都の紅葉がきれいでした。")
+    await _put_user_file(async_session, "seoul.md", "주말에 서울에서 커피를 마셨다.")
+
+    assert await _search_memory_paths(async_session, "抹茶") == ["kyoto.md"]
+    assert set(await _search_memory_paths(async_session, "京都")) == {"kyoto.md", "autumn.md"}
+    assert await _search_memory_paths(async_session, "京都 抹茶") == ["kyoto.md", "autumn.md"]
+    assert await _search_memory_paths(async_session, "京都 -抹茶") == ["autumn.md"]
+    assert set(await _search_memory_paths(async_session, "-抹茶")) == {"autumn.md", "seoul.md"}
+    assert await _search_memory_paths(async_session, '"京都で抹茶"') == ["kyoto.md"]
+    assert await _search_memory_paths(async_session, "「抹茶」") == ["kyoto.md"]
+    assert set(await _search_memory_paths(async_session, "京都 -。")) == {"kyoto.md", "autumn.md"}
+    assert await _search_memory_paths(async_session, "서울") == ["seoul.md"]
+
+
+@pytest.mark.asyncio
+async def test_memory_search_keeps_marks_that_end_non_ascii_words(async_session) -> None:
+    # The Thai tone mark ending แม่ (mother) is a combining mark, not punctuation; แมว is cat.
+    await _put_user_file(async_session, "cat.md", "แมวของฉันชื่อมะลิ")
+    await _put_user_file(async_session, "mother.md", "แม่ของฉันชอบชา")
+
+    assert await _search_memory_paths(async_session, "แม่") == ["mother.md"]
+    assert await _search_memory_paths(async_session, "ฉัน -แม่") == ["cat.md"]
+
+
+@pytest.mark.asyncio
+async def test_memory_search_matches_non_ascii_text_literally(async_session) -> None:
+    await _put_user_file(async_session, "juice.md", "果汁100%のジュースを買いました。")
+    await _put_user_file(async_session, "tea.md", "果汁100円のお茶を買いました。")
+    await _put_user_file(async_session, "kyoto.md", "京都の紅葉がきれいでした。")
+    await _put_user_file(async_session, "photos.md", "写真は C:\\データ\\写真 に保存しました。")
+    await _put_user_file(async_session, "album.md", "データ写真を整理しました。")
+
+    # %, _ and \ match only themselves.
+    assert await _search_memory_paths(async_session, "果汁100%の") == ["juice.md"]
+    assert await _search_memory_paths(async_session, "京_の") == []
+    assert await _search_memory_paths(async_session, "データ\\写真") == ["photos.md"]
+    assert await _search_memory_paths(async_session, "。") == []
+
+
+@pytest.mark.asyncio
+async def test_memory_search_keeps_ascii_words_whole(async_session) -> None:
+    await _put_user_file(async_session, "music.md", "The user's favourite category is jazz.")
+
+    assert await _search_memory_paths(async_session, "cat") == []
+
+
+@pytest.mark.asyncio
+async def test_memory_search_snippet_shows_the_matched_non_ascii_word(async_session) -> None:
+    await _put_user_file(async_session, "diary.md", "あ" * 1000 + "週末に京都で抹茶を飲みました。")
+
+    [result] = await _search_memory_results(async_session, "抹茶")
+    [single_character] = await _search_memory_results(async_session, "茶")
+
+    assert "京都で抹茶" in result["snippet"]
+    assert "京都で抹茶" in single_character["snippet"]
+
+
+@pytest.mark.asyncio
+async def test_memory_search_handles_long_non_ascii_queries(async_session) -> None:
+    await _put_user_file(async_session, "kyoto.md", "週末に京都で抹茶を飲みました。")
+    await _put_user_file(async_session, "autumn.md", "京都の紅葉がきれいでした。")
+    filler = " ".join(f"言葉{index}" for index in range(400))
+    exclusions = " ".join(f"-無い{index}" for index in range(400))
+    # The test runner raises the recursion limit; the server runs with Python's default.
+    runner_limit = sys.getrecursionlimit()
+    sys.setrecursionlimit(1000)
+    try:
+        paths = await _search_memory_paths(async_session, f"京都 {filler} {exclusions} -紅葉")
+    finally:
+        sys.setrecursionlimit(runner_limit)
+
+    assert paths == ["kyoto.md"]
 
 
 @pytest.mark.asyncio
@@ -890,6 +1142,54 @@ async def test_search_uploaded_files_falls_back_to_keyword(async_session) -> Non
 
 
 @pytest.mark.asyncio
+async def test_uploaded_file_keyword_search_finds_words_inside_unspaced_text(async_session) -> None:
+    await _insert_uploaded_file_chunk(async_session, file_id="kyoto", text="週末に京都で抹茶を飲みました。")
+    await _insert_uploaded_file_chunk(async_session, file_id="autumn", text="京都の紅葉がきれいでした。Alpha notes.")
+    await _insert_uploaded_file_chunk(async_session, file_id="alpha", text="Alpha project notes.")
+    await _insert_uploaded_file_chunk(async_session, file_id="kyoto-en", text="We visited Kyoto in spring.")
+    repo = SQLAlchemyUserFileProcessingRepository(async_session)
+
+    async def file_ids(query: str) -> list[str]:
+        return sorted({hit.file_id for hit in await repo.keyword_search(user_id="user-1", query=query, limit=10)})
+
+    assert await file_ids("抹茶") == ["kyoto"]
+    assert await file_ids("「京都」") == ["autumn", "kyoto"]
+    # Every word is required, as for English words.
+    assert await file_ids("京都 抹茶") == ["kyoto"]
+    assert await file_ids("京都 Alpha") == ["autumn"]
+    assert await file_ids("京都 -抹茶") == ["autumn"]
+    assert await file_ids("to 抹茶") == ["kyoto"]
+    # The whole query keeps its full-text match, so English alternatives beside OR still match.
+    assert await file_ids("京都 OR Kyoto") == ["kyoto-en"]
+    assert await file_ids("Alpha") == ["alpha", "autumn"]
+    assert await file_ids("京_の") == []
+
+
+@pytest.mark.asyncio
+async def test_search_uploaded_files_snippet_shows_the_matched_non_ascii_word(async_session) -> None:
+    await _insert_uploaded_file_chunk(
+        async_session, file_id="diary", text="あ" * 1000 + "週末に京都で抹茶を飲みました。"
+    )
+
+    search = _loads(
+        await _tool_service(
+            async_session,
+            include_user_files=True,
+            allowed_uploaded_files={"diary": "diary.txt"},
+        ).execute(
+            tool_name=MEMORY_TOOL_SEARCH_UPLOADED_FILES,
+            arguments={"query": "抹茶", "file_names": ["diary.txt"]},
+            context=_context(),
+            tool_call_id="call-search",
+        )
+    )
+
+    assert search["ok"] is True
+    [result] = search["uploaded_file_results"]
+    assert "京都で抹茶" in result["snippet"]
+
+
+@pytest.mark.asyncio
 async def test_read_uploaded_file_chunks_returns_ordered_paginated_content_without_private_state(
     async_session,
 ) -> None:
@@ -1147,7 +1447,8 @@ async def test_read_uploaded_file_chunks_applies_deterministic_response_bound(
         include_user_files=True,
         allowed_uploaded_files={"file-bounded": "bounded.txt"},
     )
-    monkeypatch.setattr(memory_tools_module, "MAX_UPLOADED_FILE_READ_RESPONSE_CHARS", 650)
+    # About 650 characters of ASCII.
+    monkeypatch.setattr(memory_tools_module, "MAX_UPLOADED_FILE_READ_RESPONSE_TOKENS", 162)
     arguments = {"file_name": "bounded.txt", "start_chunk": 0, "chunk_count": 3}
 
     first = await service.execute(
@@ -1165,11 +1466,41 @@ async def test_read_uploaded_file_chunks_applies_deterministic_response_bound(
     result = _loads(first)
 
     assert first == second
-    assert len(first) <= 650
+    assert estimate_text_tokens(first) <= 162
     assert result["response_truncated"] is True
     assert len(result["files"][0]["chunks"]) == 1
     assert result["files"][0]["next_start_chunk"] == 1
     assert result["files"][0]["has_more"] is True
+
+
+@pytest.mark.asyncio
+async def test_read_uploaded_file_chunks_bounds_japanese_text_by_tokens(async_session, monkeypatch) -> None:
+    await _insert_uploaded_file_chunk(
+        async_session,
+        file_id="file-japanese",
+        original_filename="diary.txt",
+        text=["京" * 300, "都" * 300, "茶" * 300],
+    )
+    service = _tool_service(
+        async_session,
+        include_user_files=True,
+        allowed_uploaded_files={"file-japanese": "diary.txt"},
+    )
+    # Room for three 300-character English chunks, but only one Japanese chunk at one token per character.
+    monkeypatch.setattr(memory_tools_module, "MAX_UPLOADED_FILE_READ_RESPONSE_TOKENS", 400)
+
+    output = await service.execute(
+        tool_name=MEMORY_TOOL_READ_UPLOADED_FILE_CHUNKS,
+        arguments={"file_name": "diary.txt", "start_chunk": 0, "chunk_count": 3},
+        context=_context(),
+        tool_call_id="call-read-japanese",
+    )
+    result = _loads(output)
+
+    assert "京" * 300 in output and "\\u" not in output
+    assert estimate_text_tokens(output) <= 400
+    assert len(result["files"][0]["chunks"]) == 1
+    assert result["response_truncated"] is True
 
 
 @pytest.mark.asyncio
@@ -1185,7 +1516,7 @@ async def test_read_uploaded_file_chunks_rejects_one_oversized_legacy_chunk(asyn
         include_user_files=True,
         allowed_uploaded_files={"file-oversized": "oversized.txt"},
     )
-    monkeypatch.setattr(memory_tools_module, "MAX_UPLOADED_FILE_READ_RESPONSE_CHARS", 1_000)
+    monkeypatch.setattr(memory_tools_module, "MAX_UPLOADED_FILE_READ_RESPONSE_TOKENS", 250)
 
     result = _loads(
         await service.execute(
@@ -1762,8 +2093,9 @@ def _anima_context(
     *,
     seen_version: int | None = 1,
     native: bool = False,
+    writable: bool = True,
 ) -> tuple[MemoryToolExecutionContext, AnimaMemoriesTurn]:
-    turn = AnimaMemoriesTurn(seen_version=seen_version)
+    turn = AnimaMemoriesTurn(seen_version=seen_version, writable=writable)
     return replace(_native_context() if native else _context(), anima_memories=turn), turn
 
 
@@ -2137,6 +2469,62 @@ async def test_self_memories_alias_is_unavailable_without_turn_access(async_sess
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("alias", [_SELF_MEMORIES, " [SELF]/memories.md ", "[Self]/MEMORIES.md"])
+async def test_a_read_only_turn_reads_self_memories_but_every_edit_is_refused(async_session, alias: str) -> None:
+    """The model benchmark's `remember`-only arm: MEMORIES.md stays readable, and shared files stay writable."""
+
+    await _put_anima_memories(async_session, _MEMORIES_BODY)
+    tools = _anima_tool_service(async_session)
+    context, turn = _anima_context(writable=False)
+    native_context, _ = _anima_context(native=True, writable=False)
+
+    read = _loads(
+        await tools.execute(
+            tool_name=MEMORY_TOOL_READ_FILES, arguments={"paths": _SELF_MEMORIES}, context=context, tool_call_id="r"
+        )
+    )
+    patch = _loads(
+        await tools.execute(
+            tool_name=MEMORY_TOOL_APPLY_PATCH,
+            arguments=_patch_arguments(alias, "We met at the lake.", "We met at the sea."),
+            context=context,
+            tool_call_id="p",
+        )
+    )
+    write = _loads(
+        await tools.execute(
+            tool_name=MEMORY_TOOL_WRITE_FILE,
+            arguments=_replace_arguments(alias, "Rewritten.\n"),
+            context=context,
+            tool_call_id="w",
+        )
+    )
+    native = _loads(
+        await tools.execute_native_patch(
+            operation={"type": "update_file", "path": alias, "diff": "@@\n-We met at the lake.\n+Sea\n"},
+            context=native_context,
+            tool_call_id="n",
+        )
+    )
+    shared = _loads(
+        await tools.execute(
+            tool_name=MEMORY_TOOL_WRITE_FILE,
+            arguments=_replace_arguments("PROFILE.md", "Likes kayaking.\n", mode="create"),
+            context=context,
+            tool_call_id="s",
+        )
+    )
+
+    assert read["files"][0]["content"] == _MEMORIES_BODY
+    for refused in (patch, write, native):
+        assert refused["ok"] is False and refused["code"] == "read_only", refused
+        assert "read-only" in refused["message"]
+    assert shared["ok"] is True
+    assert (await _anima_memories(async_session)).version == 1
+    assert turn.cue() is None
+
+
+@pytest.mark.asyncio
 async def test_failed_self_memories_edit_leaves_no_turn_change(async_session) -> None:
     await _put_anima_memories(async_session, _MEMORIES_BODY)
     context, turn = _anima_context()
@@ -2197,3 +2585,47 @@ async def test_reading_a_missing_self_memories_names_the_repair_action(async_ses
     error = read["errors"][0]
     assert (error["path"], error["code"], error["retryable"]) == (_SELF_MEMORIES, "not_found", False)
     assert "repair" in error["message"]
+
+
+@pytest.mark.asyncio
+async def test_a_chat_memory_write_gives_up_on_a_locked_file_with_a_busy_error(
+    async_session,
+    async_session_factory,
+) -> None:
+    from sqlalchemy import select
+
+    from animama.orm import ORMMemoryEntry
+    from animama.product_http.chat.session_services import SessionBackedMemoryToolService
+    from tests.product_http_support import local_turn_sessions
+
+    owner_id = f"user-{uuid.uuid4()}"
+    entry = await _memory_service(async_session).put_file_by_path(
+        user_id=owner_id, path="PROFILE.md", content="# About me\n", kind="user_profile"
+    )
+    await async_session.commit()
+    tools = SessionBackedMemoryToolService(
+        local_turn_sessions(async_session_factory, owner_id), max_file_bytes=32 * 1024, lock_timeout_seconds=0.2
+    )
+    context = replace(_context(), user_id=owner_id)
+
+    async with async_session_factory() as holder:
+        # Another transaction, such as a Memory Manager approval, holds the file's row lock.
+        await holder.execute(select(ORMMemoryEntry.id).where(ORMMemoryEntry.id == entry.id).with_for_update())
+        result = _loads(
+            await tools.execute(
+                tool_name=MEMORY_TOOL_WRITE_FILE,
+                arguments={
+                    "path": "PROFILE.md",
+                    "mode": "replace",
+                    "content": "# About me\n\nSam",
+                    "description": None,
+                },
+                context=context,
+                tool_call_id="call-busy",
+            )
+        )
+        await holder.rollback()
+
+    assert result["ok"] is False
+    assert result["code"] == "busy"
+    assert result["retryable"] is True

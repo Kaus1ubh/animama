@@ -6,6 +6,11 @@ import {
 } from "@pixiv/three-vrm";
 import { Euler, MathUtils, Quaternion } from "three";
 
+import {
+  foldMissingTorsoRotations,
+  torsoFoldsOf,
+} from "./anatomy/optionalBones";
+
 export const ANIMA_POSE_SCHEMA = "animaPose/1.0" as const;
 
 export type AnimaPoseParent = {
@@ -144,11 +149,19 @@ export function applyAnimaPoseToVrm(
     skippedExpressions: [],
   };
 
-  const humanoidPose = sanitizedPose.humanoid;
+  // A rig without an upper chest (or chest) bends with the bone below it.
+  const humanoidPose =
+    sanitizedPose.humanoid &&
+    foldMissingTorsoRotations(
+      sanitizedPose.humanoid,
+      torsoFoldsOf(vrm.humanoid),
+    );
   if (humanoidPose && Object.keys(humanoidPose).length > 0) {
     const mergedPose = cloneVRMPose(vrm.humanoid.getNormalizedPose());
 
-    for (const boneName of getAnimaPoseHumanoidBoneNames(sanitizedPose)) {
+    for (const boneName of Object.keys(humanoidPose).filter(
+      isVRMHumanBoneName,
+    ) as VRMHumanBoneName[]) {
       const transform = humanoidPose[boneName];
       if (!transform || !vrm.humanoid.getNormalizedBoneNode(boneName)) {
         result.skippedHumanoidBones.push(boneName);

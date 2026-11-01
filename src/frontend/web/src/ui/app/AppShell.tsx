@@ -189,11 +189,14 @@ export function AppShell({ children, className }: AppShellProps) {
     };
   }, []);
 
+  // The shell spans the whole window and pads its pages below the desktop
+  // title strip; a page draws behind the window buttons by extending into
+  // that padding, as the Anima scene does.
   return (
     <AppShellContext.Provider value={value}>
       <div
         className={cn(
-          "bg-background dark:bg-background relative mx-auto flex h-screen w-full flex-1 flex-col overflow-hidden",
+          "bg-background dark:bg-background relative mx-auto flex h-dvh w-full flex-1 flex-col overflow-hidden pt-(--app-titlebar-height)",
           className,
         )}
       >

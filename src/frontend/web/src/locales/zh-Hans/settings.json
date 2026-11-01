@@ -4,7 +4,7 @@
       "copied": "已复制诊断信息。",
       "copy": "复制摘要",
       "copyFailed": "无法将诊断信息复制到剪贴板。",
-      "description": "复制版本、平台和组件状态，用于错误报告。绝不包含密钥、聊天和记忆。",
+      "description": "复制版本、平台、组件状态、最近的活动以及警告和错误，用于错误报告。绝不包含密钥、聊天和记忆。",
       "entryLabel": "复制诊断摘要",
       "label": "诊断"
     },
@@ -49,6 +49,32 @@
     }
   },
   "animaSettings": {
+    "avatar": {
+      "materials": {
+        "description": "lilToon 按作者的设计绘制此虚拟形象；简单材质的绘制开销更低。自动使用 lilToon，并在此设备的 GPU 需要时将帧率降至 45、30 或 24 fps；只有连 24 fps 都负担不了时才改用简单材质。适用于使用此虚拟形象的所有地方，并会重新加载它。",
+        "label": "材质",
+        "modes": {
+          "automatic": "自动",
+          "liltoon": "lilToon",
+          "simple": "简单"
+        }
+      },
+      "wind": {
+        "description": "风和上升气流如何吹动此虚拟形象的头发和衣服。适用于使用此虚拟形象的所有地方。",
+        "label": "风与环境力",
+        "modes": {
+          "automatic": "自动",
+          "off": "关",
+          "on": "开",
+          "springs_off": "关闭弹簧"
+        }
+      },
+      "windStrength": {
+        "label": "风力",
+        "description": "风和上升气流的强度，从无到默认值的两倍。自动模式下，如果此虚拟形象的头发太软、在此强度下撑不住，就会关闭它们。",
+        "value": "{{percent}}%"
+      }
+    },
     "choices": {
       "appDefaultOff": "应用默认（关）",
       "appDefaultOn": "应用默认（开）",
@@ -56,10 +82,16 @@
       "on": "开"
     },
     "headings": {
+      "avatar": "虚拟形象",
       "emotion": "情绪",
       "memory": "记忆"
     },
     "rows": {
+      "avatar_diagnostics": {
+        "description": "查看 Animama 在此 Anima 的虚拟形象中发现的内容，并复制报告以便寻求支持。",
+        "label": "虚拟形象诊断",
+        "open": "打开诊断"
+      },
       "emotion_updates": {
         "description": "在聊天中更新情绪状态。关闭后，新的情绪反应会停止，但动作仍会播放。",
         "tooltip": "关闭后，会保留当前心情，动作仍会播放。"
@@ -75,6 +107,7 @@
       }
     },
     "updateFailed": {
+      "avatar": "无法保存虚拟形象设置。",
       "emotion": "无法更新情绪设置。",
       "memory": "无法更新记忆设置。"
     }
@@ -180,6 +213,19 @@
   },
   "behavior": {
     "appDefaultLabel": "{{label}}（应用默认）",
+    "automaticProcessing": {
+      "dailyLimit": "已达今日上限，明天继续。",
+      "description": "聊天笔记积累到此数量时，将其整理进记忆文件。",
+      "label": "自动处理经历笔记",
+      "memoryOff": "开启“记忆”和“记忆更新”后才能自动处理笔记。",
+      "needsModel": "需要支持工具的记忆管理器模型，请在模型设置中选择。",
+      "notes_other": "每 {{count}} 条笔记",
+      "off": "关闭",
+      "paused": "多次失败后已暂停。更改此设置即可重试。最后的错误：{{error}}",
+      "retrying": "失败后将稍后重试。最后的错误：{{error}}",
+      "running_other": "正在将 {{count}} 条笔记整理进记忆…",
+      "updateFailed": "无法更新笔记自动处理设置。"
+    },
     "blockedByMemory": "开启记忆后才能允许记忆更新。",
     "flags": {
       "emotion_updates": {
@@ -258,11 +304,11 @@
     "microphone": "麦克风",
     "profile": "个人资料",
     "speechToText": "语音转文本",
+    "startup": "启动",
     "textToSpeech": "文字转语音",
     "webSearch": "网页搜索"
   },
   "language": {
-    "description": "Animama 和 Anima 使用的语言：包括菜单、消息，以及 Anima 说话和听懂的语言。测试版语言为机器翻译。",
     "keywords": [
       "语言",
       "区域设置",
@@ -271,6 +317,15 @@
     "label": "语言",
     "saveFailed": "无法更改语言。",
     "systemDefaultResolved": "系统默认（{{language}}）"
+  },
+  "launchAtLogin": {
+    "label": "登录时启动",
+    "description": "登录电脑时自动打开 Animama。",
+    "blocked": {
+      "macos": "在“系统设置 → 通用 → 登录项与扩展”中允许之前，Animama 不会在登录时打开。",
+      "windows": "在“设置 → 应用 → 启动”中开启之前，Animama 不会在登录时打开。"
+    },
+    "updateFailed": "无法更改“登录时启动”。"
   },
   "modal": {
     "close": "关闭应用设置",
@@ -327,7 +382,6 @@
     "advanced": "高级",
     "apiKeys": "API 密钥",
     "appearance": "外观",
-    "data": "数据",
     "general": "通用",
     "memoryEmotion": "记忆与情绪",
     "models": "模型",
@@ -340,6 +394,8 @@
       "press_to_talk": "按键说话",
       "quick_chat": "快速聊天",
       "skip_tts": "跳过朗读",
+      "toggle_dictation": "开关听写",
+      "toggle_pip": "开关画中画",
       "toggle_voice_mode": "开关语音模式",
       "toggle_voice_mute": "切换静音"
     },

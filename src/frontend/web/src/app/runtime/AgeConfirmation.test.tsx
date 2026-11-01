@@ -110,6 +110,8 @@ describe("hosted 18+ confirmation", () => {
     expect(document.querySelector('[role="note"]')?.textContent).toBe(
       "Animama on the web is in beta. The desktop app gives the best experience.",
     );
+    // Hosted accounts accept the Terms at sign-up, not here.
+    expect(document.body.textContent).not.toContain("Terms of Service");
   });
 
   it("confirms through the hosted relay and opens the same app without remounting it", async () => {
@@ -155,11 +157,27 @@ describe("local first-run confirmation", () => {
     await act(async () => view.button("I'm under 18")!.click());
     expect(view.button("Sign out")).toBeUndefined();
     await act(async () => view.button("Go back")!.click());
-    await act(async () => view.button("I am 18 or older")!.click());
+    await act(async () => view.button("I am 18 or older and agree")!.click());
     expect(fixture.completeOnboarding).toHaveBeenCalledWith({
       displayName: "Ray",
       adultConfirmed: true,
     });
     expect(fixture.confirmAge).not.toHaveBeenCalled();
+  });
+
+  it("asks the owner to agree to the published Terms and Privacy Notice", () => {
+    render(FirstRunAgeConfirmation);
+    const link = (name: string) =>
+      Array.from(document.querySelectorAll("a")).find((item) =>
+        item.textContent?.startsWith(name),
+      );
+    expect(link("Terms of Service")?.getAttribute("href")).toBe(
+      "https://animama.ai/terms/",
+    );
+    expect(link("Privacy Notice")?.getAttribute("href")).toBe(
+      "https://animama.ai/privacy/",
+    );
+    // A new-window request lets the desktop shell open the system browser.
+    expect(link("Terms of Service")?.getAttribute("target")).toBe("_blank");
   });
 });

@@ -68,6 +68,10 @@ Local setup and host/key administration schemas remain in the server composition
 - `product_http/routes/typed_content.py` (shared): typed product
   List/Get/Save/Preview routes over the shared catalog, Avatar portraits and
   face parts.
+- `server/routers/avatar_settings.py`: the owner's per-Avatar settings (wind and
+  materials). Only the local composition mounts it; without an
+  `avatar_settings` store in `ProductContent` it answers 503
+  `avatar_settings_unavailable`.
 - `product_http/routes/loadouts.py` (shared): typed Anima loadout read plus optimistic,
   idempotent family plan/commit commands.
 - `product_http/routes/anima_runtime.py` (shared): exact runtime issuance, lease
@@ -129,6 +133,7 @@ Local setup and host/key administration schemas remain in the server composition
   "provider_credentials": true,
   "chat_file_uploads": true,
   "anima_creation": true,
+  "library_previews": true,
   "local_filesystem_administration": true,
   "native_features": true,
   "user_file_processing": {
@@ -172,18 +177,23 @@ local server package, so any composition can return the same contract; the local
 router is a thin adapter. `runtime_kind` is presentation metadata (`desktop`,
 `self_hosted_web` or `hosted`), not an authentication mode or a feature gate;
 the local composition never reports `hosted`. Capability schema version 2 is
-exported in `local-http` contract version 15.0.0. `chat`, `model_selection` and
+exported in `local-http` contract version 21.0.0. `chat`, `model_selection` and
 `model_role_selection` admit chat and choices from the composition's catalog,
 independently of provider administration. The local adapter reports them true.
 `provider_credentials` and `local_filesystem_administration` describe owner key
 and host administration; the local adapter reports both true. `native_features`
 is true only for desktop; browser fullscreen/PiP use browser detection instead.
 See the [hosted composition handoff](../../../contracts/hosted-web.md) for its
-separate account authority, retained workflows and six exceptions.
+separate account authority, retained workflows and eight exceptions.
 `chat_file_uploads` and
 `anima_creation` report whether the composition offers chat file uploads and
 Anima creation. The local composition always reports both `true`; React hides
 the corresponding entry points only when a value is `false`.
+`library_previews` says whether Library cards load item previews (the
+`?variant=thumbnail` copy of a content file and a Particle tile's manifest tint).
+It defaults to `true`, so an adapter that omits it keeps previews; the local
+adapter reports `true`. When it is `false`, cards show their family icons and
+request none. The Library's Preview action and Avatar portraits do not depend on it.
 `model_configuration` is true when the composition's
 catalog policy enables owner models, which only the local composition does; the
 local-only [model configuration routes](#model-configuration) exist only then.
@@ -228,6 +238,19 @@ telemetry. The local composition never reports it, even with its
 `^(/[A-Za-z0-9_-]+)+$`, and the web app posts bounded OTLP/HTTP JSON metrics and
 error logs to `{path}/metrics` and `{path}/logs`; see
 [browser telemetry](../../frontend/architecture/overview.md#browser-telemetry).
+
+## Automatic Episode Processing
+
+Local composition only (`automatic_episode_processing` capability). See
+[automatic episode processing](../features/memory-manager-and-episodic-memory.md#when-automatic-runs-start-local-composition).
+
+- `GET /v1/memory/automatic-processing`: `{threshold, state, pending_count,
+  runs_today, last_error, next_attempt_at, batch_size, started_at}`. `state` is
+  `off`, `memory_off`, `needs_model`, `running`, `paused`, `backing_off`,
+  `waiting` or `ready`; `batch_size` and `started_at` are set while `running`.
+- `PUT /v1/memory/automatic-processing`: `{threshold}`, 0 (Off) or 5–50; other
+  values fail validation (422). A changed value lifts a failure pause. Returns the
+  status and starts a check at once.
 
 ## Web Search
 
@@ -339,7 +362,19 @@ location and recovery are in [model assets](../operations/model-assets.md#downlo
   current revision, dependencies, and opaque file registrations. Content Health
   polls it, so it negotiates gzip or identity and is delivered through the
   composition's JSON policy; locally that is a wire ETag (`private, no-cache`)
-  and an unchanged catalog answers `If-None-Match` with 304.
+  and an unchanged catalog answers `If-None-Match` with 304 before any of its
+  body is built. The route hands the policy a `DeferredJsonBody` whose
+  validator combines the response's schema with
+  `ContentCatalogService.visible_revision`: the caller's identity, the
+  catalog's Included generation and a revision of the caller's own and
+  installation-shared rows. The ETag adds the negotiated encoding. A policy
+  passes that body on to `encoded_json_response` while the request's session is
+  still open. The SQL adapter derives both revisions from row `updated_at`
+  values, so every write to a catalog row must set it. Only the schema and the
+  Included generation follow releases. The SQL generation changes with a release
+  only because the local composition reconciles every row at start-up. A
+  composition that does not must override `included_generation` with a value
+  that changes with every application revision, such as that revision.
   Unsupported encodings fail with 406 `content_encoding_not_acceptable`.
 - `GET /v1/content/items/{item_id}` reads one visible item.
 - `POST /v1/content:rescan` performs an authoritative scan of registered
@@ -354,15 +389,27 @@ location and recovery are in [model assets](../operations/model-assets.md#downlo
 - `GET /v1/content/files/{file_ref}` authorizes one opaque registration,
   revalidates filesystem containment, regular-file/link state, exact size, and
   SHA-256, then streams the bytes. It accepts no path or storage key. Digest
-  ETags are evaluated only after authorization and integrity checks.
-  `?variant=thumbnail` returns a Library-sized copy instead: a PNG, JPEG or
+  ETags are evaluated only after authorization and integrity checks. The local
+  reply is `private, no-cache`.
+- `GET /v1/content/files/{file_ref}/sha256/{sha256}` does the same for an
+  Included file whose registered digest is `sha256`, and the local reply is
+  `private, max-age=31536000, immutable` (ADR 0033). A file that is not
+  Included, or whose digest has changed, is `404 content_file_not_found`, so
+  the URL never answers with other bytes; a digest that is not 64 lowercase hex
+  characters is 422. Catalog items, typed content files, Anima presentation
+  images and Avatar portraits name each file by its `url`: this route for
+  Included files, the one above for every other file.
+- On either route, `?variant=thumbnail` returns a Library-sized copy instead: a PNG, JPEG or
   WebP larger than 128 pixels on a side becomes a WebP within 128 × 128
   (first frame, aspect and alpha kept) whose ETag is its own digest; smaller
   rasters and SVG return unchanged. Decoding uses the bounded image reader
   (40 million pixels, 16,384 per side), so an oversized canvas is refused from
-  its header. Thumbnails are cached in process by source digest. Other media
-  types, or an image that is over budget or cannot be decoded, fail with 422
-  `content_thumbnail_unsupported`.
+  its header. The source is shrunk before EXIF orientation and a JPEG decodes at
+  a reduced scale; a source that would still decode to more than 4096 × 4096
+  pixels (a larger PNG or WebP) is refused, and at most two decode at once per
+  process, so a preview's memory stays bounded. Thumbnails are cached in process
+  by source digest. Other media types, or an image that is over budget or cannot
+  be decoded, fail with 422 `content_thumbnail_unsupported`.
 
 In embedded desktop, byte delivery uses the exact immutable Included mount
 recorded with the item or preview. Unmounted/mismatched sources fail closed;
@@ -388,7 +435,7 @@ are under `/v1/content`:
 | `DELETE /package-exports/{export_id}` | Discard an inactive owned cache. |
 | `POST /package-imports` | Allocate a private stage with operation ID, filename and total byte length. |
 | `PUT /package-imports/{stage_id}/parts/{index}` | Send sequential 8 MiB binary parts (the final part may be shorter); exact retries return the original acknowledgement. |
-| `POST /package-imports/{stage_id}/review` | Seal and validate the whole archive; freeze fresh content identities, dependency copies and automatic `-2`/`-3` collision names. |
+| `POST /package-imports/{stage_id}/review` | Seal and validate the whole archive; freeze fresh content identities, dependency copies and automatic `-2`/`-3` collision names. Each item lists `notices` about what the import leaves out: `avatar_setting_not_stored` when it carries Avatar settings this composition does not store, and `avatar_extension_unsupported` when an Avatar's model uses a glTF extension the runtime cannot decode yet (Draco; it still imports). |
 | `GET /package-imports/{stage_id}` | Read received-byte progress and the public review; no private paths or install plan are exposed. |
 | `POST /package-imports/{stage_id}/commit` | Submit the operation ID and review digest to install the whole package through one recoverable content/Anima transaction. |
 | `GET /package-operations/{operation_id}` | Resolve the durable result or report pending/recovery state before another submission. |
@@ -457,7 +504,7 @@ dependency; none accepts an owner ID or internal credential from the body.
 - `POST /v1/runtime/onboarding:complete`: accept only
   `{ "display_name": string, "adult_confirmed": boolean,
   "chat_model_provider_id"?: string }`. The name is
-  required and nonblank (1–80 characters); `adult_confirmed` must be `true`,
+  required and nonblank (1–30 characters); `adult_confirmed` must be `true`,
   otherwise the route returns 422 `adult_confirmation_required`. It atomically
   saves private personalization, guarded `PROFILE.md` synchronization, the
   owner's 18+ self-attestation, and write-once first-run completion. The
@@ -574,7 +621,20 @@ Gesture/Reaction roots and cannot be equipped directly.
 
 `GET /v1/animas/{anima_id}/runtime` independently compiles selected roots and
 their transitive dependencies into one persisted owner-scoped exact revision.
-Concurrent reads may reuse that effective revision. The snapshot pins the
+Concurrent reads may reuse that effective revision. It compiles and projects on
+the composition's read session without locks or writes, then opens a short write
+session. It first marks files found changed for Rescan, which commits on its own,
+then locks the loadout row, rechecks the loadout revision, every pinned item and
+the complete file union, and inserts or renews the snapshot. If the loadout changed in between, or a reused
+snapshot expired meanwhile, issuance prepares again, up to three attempts in all,
+then refuses with 409 `snapshot_conflict`. An
+unexpired snapshot compiled from the same inputs (the backend build, loadout
+revision, root selections, every catalog entry the roots reach, and the owner's
+Included Avatar face-part overrides) is renewed without compiling, reading content
+bytes or projecting again; the final transaction still rechecks it like a new one.
+Byte and bundle reads that reach the server verify every file, so a file changed
+on disk without a catalog change is caught there and marked for Rescan; a browser
+reusing an immutable cached copy sends no such request (ADR 0028). The snapshot pins the
 complete admitted `catalog_item_id -> revision_sha256` map and persists one
 immutable typed catalog body; it does not copy a row for every file. Each
 member carries its canonical opaque `content_catalog_files.file_ref`. The file
@@ -601,10 +661,10 @@ size/digest bytes, and SSE, WebSockets, uploads and range streams are unaffected
 The manifest's `bundles` list advertises delivery bundles of optional members, each
 with an `id`, a `format` (`json` or `binary`), its URL, `file_refs` and total original
 bytes. `GET /v1/animas/{anima_id}/runtime/revisions/{revision}/bundles/{bundle_id}`
-serves one. Selection is deterministic and server-owned (`domain/runtime_bundles.py`),
-run on the stored catalog at issuance and again when serving, so a bundle ID (a
-SHA-256 of its format and member set) names the same members for the revision's
-life; an unknown ID returns 404. Selection takes projected optional members only,
+serves one. Selection is deterministic and server-owned (`domain/runtime_bundles.py`)
+and runs once at issuance, which stores each bundle's member list with the snapshot,
+so a bundle ID (a SHA-256 of its format and member set) names the same members for
+the revision's life; an unknown ID returns 404. Selection takes projected optional members only,
 never the Avatar's or voice's closures or descriptor/meta files. It partitions them
 into Idle JSON, Idle binary, other JSON and other binary (Idle bundles come first),
 sorts each by `file_ref` and packs it next-fit: JSON `sequence` and `manifest` files
@@ -618,8 +678,8 @@ unavailable member has `error` instead of `text`. Text preserves the original UT
 bytes, including whitespace, for browser size/SHA-256 verification. A binary bundle
 answers the frame `AMB1`, a 4-byte big-endian header length, a UTF-8 JSON header
 `{version: 1, revision, members: [{file_ref, size}]}` (or `error` instead of `size`),
-then the available members' bytes in header order. After loading the owner's issued
-snapshot, one joined query checks all of a bundle's members against the live lease,
+then the available members' bytes in header order. After loading that bundle's member
+list from the owner's issued snapshot, one joined query checks all of its members against the live lease,
 current visibility and pinned revisions. Each file is then opened and verified on
 disk, with bounded reads off the event loop. Physical changes mark the catalog
 scan-required in a write session of their own; independent good members remain
@@ -672,9 +732,9 @@ The reference includes a normalized `presentation` object with Fill/Fit,
 focal point, and zoom. These fields are revisioned presentation semantics;
 saved position strings are normalized for backward compatibility.
 
-`RuntimeImageReference.source_type` is `catalog`; its API-relative
-`/v1/content/files/{file_ref}` URL is fetched with normal authentication. Both
-Included and Local portraits use this protected route. The presentation
+`RuntimeImageReference.source_type` is `catalog`; its API-relative URL is
+fetched with normal authentication: `/v1/content/files/{file_ref}/sha256/{sha256}`
+for an Included image and `/v1/content/files/{file_ref}` for a Local one. The presentation
 revision includes selected source and crop/focal semantics, while catalog file
 integrity remains independently enforced. Detail and mutation responses retain
 `PyAnimaResponse` and do not compile the list projection.
@@ -874,13 +934,13 @@ single system instruction. When memory influence is enabled it
 also opens `MEMORIES.md` and appends it directly after the identity; a missing
 or blank file is omitted without failing the turn. User profile memory entries are seeded
 during installation bootstrap but their content is not injected into direct chat
-context yet. Direct chat adds one request-local `developer` message
-immediately before the latest user message. When memory influence is enabled
+context yet. When a turn has context, direct chat adds one request-local
+`developer` message immediately before the latest user message. When memory influence is enabled
 it starts with a `# List of memory files` section. The list includes only
 user-scope file entries (`anima_id IS NULL`), uses cached paths such as
 `PROFILE.md`, and omits anima-scoped files and tree formatting. Any attached-file
-list follows, and the Companion Guardrails always end the
-message, as they end the system instructions. `disable_memory_influence`
+list follows. The Companion Guardrails end the system instructions; the turn
+context does not repeat them. `disable_memory_influence`
 suppresses the list and `MEMORIES.md` while keeping required anima identity
 active. Rows that do not support OpenAI's `developer` message role, including
 every row on a connection with the `fold_developer_role` compatibility option,
@@ -1213,8 +1273,8 @@ failed runtime results fail the run and leave the task and rows pending.
 
 `POST /v1/memory/manager/runs:reflect` accepts `anima_id` and
 `auto_approve_diffs`, and starts a Reflection over that owned Anima's oldest
-uncovered chat turns across all its chats, at most 400 turns or 200,000
-characters of turn text. It follows the same open-run rules: it supersedes an
+uncovered chat turns across all its chats, at most 400 turns or 51,000
+estimated tokens of turn text. It follows the same open-run rules: it supersedes an
 open run without a pending approval and returns `409` while one is pending. A missing or foreign Anima returns `404`.
 It also returns `409` without creating a run when the Anima's `MEMORIES.md`
 needs repair or no turn is uncovered (`There are no new turns with <name> to
@@ -1323,7 +1383,13 @@ structured response text fall back to raw `content`. The API accepts `query`, `l
 prefix FTS for partial terms instead of web-search operator syntax, hides
 internal rows, uses a generated `search_vector` column backed by a partial GIN
 index scoped to visible user/assistant content, joins through
-`chats` for ownership, and returns one result per chat. The best matching
+`chats` for ownership, and returns one result per chat. A message must match
+every query word. A word containing a non-ASCII letter or digit, such as `京都`,
+matches as a case-insensitive substring of the indexed text instead, because the
+`english` parser keeps unspaced Japanese, Chinese and Thai text as one token
+([memory search](../features/memory.md#search_memory_files) has the details). A
+query of only such words scans the owner's visible messages without the index.
+At most eight prefix terms and eight substring words are used. The best matching
 visible message in each chat supplies the snippet and score, while the response
 includes chat/anima metadata including the anima `profile_picture_url` for
 result rendering.
@@ -1416,6 +1482,21 @@ model digest returns `422 content_invalid` with reason
 `avatar_face_parts_digest_mismatch`. A Local save rewrites the sidecar and
 returns the new revision; an Included save stores only the caller's override.
 See [face-part corrections](../features/custom-animas-and-content.md#face-part-corrections).
+
+`GET /v1/avatar-content/{item_id}/settings` (`get_avatar_settings`) returns
+the caller's effective settings for a current admitted Local or Included Avatar
+as `{item_id, spring_mode, spring_mode_source, wind_strength,
+wind_strength_source, material_mode, material_mode_source}`. `spring_mode` is
+`automatic`, `on`, `off` or `springs_off`; `wind_strength` is a whole percent
+from 0 to 200 (100 by default); `material_mode` is `automatic`, `liltoon` or
+`simple`; each source is `stored` or `default` (nothing is saved).
+`PUT` (`save_avatar_settings`) takes `{spring_mode?, wind_strength?,
+material_mode?}` and returns the same state: an omitted field keeps its stored
+value, and `automatic`, `null` or a strength of 100 clears it. An unknown, invalid or non-Avatar item, or
+another owner's Local Avatar, returns `404 content_not_found`; an unknown
+value or key returns 422. Saving writes no Avatar files and leaves the
+revision unchanged. Both routes are local-only. See
+[Avatar settings](../features/custom-animas-and-content.md#avatar-settings).
 
 Appearance and portrait images are typed `appearance` catalog items. Focused
 `/v1/animas/{anima_id}/appearance:plan` and `:commit` commands store

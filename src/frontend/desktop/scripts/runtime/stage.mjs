@@ -1,10 +1,12 @@
 import { mkdirSync, rmSync } from "node:fs";
 import path from "node:path";
 import {
+  assertFrontendDependenciesCurrent,
   buildPython,
   cacheRoot,
   copyTree,
   desktopRoot,
+  electronDist,
   executableSuffix,
   frontendRoot,
   nativeLockFile,
@@ -56,6 +58,7 @@ const logged = (name, command, argv, options = {}) => {
 };
 
 try {
+  assertFrontendDependenciesCurrent();
   syncBuildEnvironment();
   logged(
     "starter-content",
@@ -160,11 +163,9 @@ try {
     throw new Error(
       "Electron does not match the pinned runtime source manifest",
     );
-  copyTree(
-    path.join(desktopRoot, "node_modules/electron/dist"),
-    path.join(target.output, "electron"),
-    { preserveLinks: true },
-  );
+  copyTree(electronDist(), path.join(target.output, "electron"), {
+    preserveLinks: true,
+  });
   normalizeTree(path.join(target.output, "app"));
   writeJson(path.join(target.runtime, "build-evidence.json"), {
     schema: "animama-desktop-build-evidence/1",

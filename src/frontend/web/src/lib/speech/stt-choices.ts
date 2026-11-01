@@ -5,8 +5,8 @@ import type { SttProviderOption } from "@/lib/speech/stt-provider";
 /**
  * A Speech-to-Text choice in setup and App Settings: an offline model on the
  * CPU or GPU, or (on the web only) the browser's recognizer. Offline choices
- * save the offline provider and the GPU preference; the UI Locale still
- * decides which offline model runs.
+ * save the offline provider, the GPU preference and the engine, which then
+ * runs whatever the UI Locale.
  */
 export const STT_CHOICES = [
   "sensevoice_cpu",
@@ -53,17 +53,31 @@ export function recommendedSttChoice(
     : `${engine}_cpu`;
 }
 
+/** The offline engine of an offline choice (`sensevoice_gpu`). */
+export function sttChoiceOfflineEngine(
+  choice: Exclude<SttChoice, "browser_external">,
+): OfflineSttEngine {
+  return choice.startsWith("sensevoice") ? "sensevoice" : "parakeet";
+}
+
 /**
  * The speech preferences a Speech-to-Text choice saves. Either offline model's
- * choice saves the offline provider and the GPU preference; the UI Locale picks
- * the model. The browser keeps the saved GPU preference.
+ * choice saves the offline provider, the GPU preference and (unless
+ * `saveEngine` is false, for a default the owner did not pick) its engine.
+ * The browser keeps the saved GPU preference and engine for a later offline
+ * choice.
  */
 export function sttChoicePatch(
   choice: SttChoice,
-): Pick<SpeechPreferences, "stt_provider" | "stt_parakeet_webgpu"> {
+  { saveEngine = true }: { saveEngine?: boolean } = {},
+): Required<Pick<SpeechPreferences, "stt_provider">> &
+  Pick<SpeechPreferences, "stt_parakeet_webgpu" | "stt_offline_engine"> {
   if (choice === "browser_external") return { stt_provider: choice };
   return {
     stt_provider: "parakeet",
     stt_parakeet_webgpu: choice.endsWith("_gpu"),
+    ...(saveEngine
+      ? { stt_offline_engine: sttChoiceOfflineEngine(choice) }
+      : {}),
   };
 }

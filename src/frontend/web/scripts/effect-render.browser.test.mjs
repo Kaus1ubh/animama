@@ -72,6 +72,175 @@ test("renders effect sheets and fails on a controller warning", async () => {
   }
 });
 
+/** An Avatar Effect folder `stem` whose art is an opaque red disc. */
+async function discEffect(dir, stem, definition) {
+  const { default: sharp } = await import("sharp");
+  const size = 128;
+  const data = Buffer.alloc(size * size * 4);
+  for (let y = 0; y < size; y += 1)
+    for (let x = 0; x < size; x += 1)
+      if ((x - 64) ** 2 + (y - 64) ** 2 <= 56 ** 2)
+        data.set([230, 40, 60, 255], (y * size + x) * 4);
+  const folder = path.join(dir, stem);
+  await mkdir(folder);
+  await sharp(data, { raw: { width: size, height: size, channels: 4 } })
+    .png()
+    .toFile(path.join(folder, `${stem}.png`));
+  await writeFile(
+    path.join(folder, `${stem}.json`),
+    JSON.stringify({
+      content_type: "avatar_effect",
+      name: stem,
+      definition: {
+        schema: "animama/avatar-effect/2",
+        art: { image: `${stem}.png` },
+        ...definition,
+      },
+    }),
+  );
+  return folder;
+}
+
+// Effects that apply without a warning on both Included Avatars but whose
+// art cannot be seen where it belongs fail, each named: a blush decal moved
+// off the face texture draws nothing, and a huge disc placed at the mouth
+// but pushed below the chin draws mostly outside the head. An Included
+// effect passes with all its art on the head; on one sheet with the unseen
+// blush, Included heart eyes still pass, since each effect is judged against
+// a capture without only its own art. A Reaction is compared with its own
+// clip played without the art, so its mood face does not count: with the
+// unseen blush it fails too.
+test("fails art that draws nothing visible or mostly outside the head", async () => {
+  const dir = await mkdtemp(path.join(tmpdir(), "animama-effect-render-art-"));
+  try {
+    const effects = [
+      await resolveEffectSource("library:blush"),
+      await resolveEffectSource(
+        await discEffect(dir, "unseen_blush", {
+          region: "blush",
+          attachment: {
+            kind: "face_surface",
+            area: "blush",
+            part: "face_skin",
+            layout: "single",
+            side: "right",
+            offset: { x: 2, y: 2 },
+          },
+        }),
+      ),
+      await resolveEffectSource(
+        await discEffect(dir, "sunk_mouth", {
+          region: "mouth",
+          attachment: {
+            kind: "face_landmark",
+            landmark: "mouth",
+            scale: { x: 20, y: 20 },
+            offset: { y: -0.25, z: 0.1 },
+          },
+        }),
+      ),
+    ];
+    const options = {
+      outFileFor: (effect) => path.join(dir, `${effect.stem}.png`),
+      times: [0.5],
+      views: ["front", "face"],
+      tile: { width: 96, height: 120 },
+    };
+    const error = await renderEffectSheets({ effects, ...options }).then(
+      () => null,
+      (rejection) => rejection,
+    );
+
+    assert.ok(error instanceof EffectRenderFailure, String(error));
+    const [included, unseen, sunk] = error.results;
+    assert.deepEqual(included.failures, []);
+    for (const avatar of included.avatars) {
+      const [art] = avatar.art;
+      assert.equal(art.effect, "blush");
+      assert.equal(art.kind, "face");
+      assert.ok(art.peak >= 12, `peak ${art.peak}`);
+      assert.equal(art.wide.inside, art.wide.changed);
+    }
+    for (const [result, pattern] of [
+      [
+        unseen,
+        /^(Andrew|Annie): unseen_blush draws nothing visible on the head: no pixel changed there, 12 needed in a tile; 0 px changed in all tiles$/,
+      ],
+      [
+        sunk,
+        /^(Andrew|Annie): sunk_mouth draws mostly outside the head: \d+\.\d% of the \d+ px it changes in the front views are on or around the head \(50% needed\)$/,
+      ],
+    ]) {
+      assert.equal(result.failures.length, 2, result.failures.join("\n"));
+      for (const failure of result.failures) assert.match(failure, pattern);
+    }
+    assert.match(
+      error.message,
+      /^unseen_blush: Andrew: unseen_blush draws nothing visible/m,
+    );
+
+    // Together with heart eyes on one sheet, only the unseen blush fails.
+    const together = await renderEffectSheets({
+      ...options,
+      effects: [await resolveEffectSource("library:heart_eyes"), effects[1]],
+      together: true,
+    }).then(
+      () => null,
+      (rejection) => rejection,
+    );
+    assert.ok(together instanceof EffectRenderFailure, String(together));
+    const [pair] = together.results;
+    assert.equal(pair.stem, "heart_eyes+unseen_blush");
+    assert.equal(pair.failures.length, 2, pair.failures.join("\n"));
+    for (const failure of pair.failures)
+      assert.match(failure, /^(Andrew|Annie): unseen_blush /);
+    for (const avatar of pair.avatars)
+      assert.deepEqual(
+        avatar.art.map((art) => art.effect),
+        ["heart_eyes", "unseen_blush"],
+      );
+
+    // sadness-2 plays its one Avatar Effect at 0.1 s; play the unseen blush.
+    const reaction = await resolveClipSource("library:reaction/sadness-2");
+    const replay = await renderEffectSheets({
+      ...options,
+      effects: [],
+      clip: {
+        ...reaction.clip,
+        events: reaction.clip.events.map((event) =>
+          event.kind === "avatar_vfx"
+            ? { ...event, effectId: "unseen" }
+            : event,
+        ),
+      },
+      clipMedia: {
+        avatarEffects: [{ alias: "unseen", effect: effects[1] }],
+        particleEffects: [],
+        sceneEffects: [],
+        notices: [],
+      },
+      clipStem: "sadness-unseen",
+    }).then(
+      () => null,
+      (rejection) => rejection,
+    );
+    assert.ok(replay instanceof EffectRenderFailure, String(replay));
+    const [played] = replay.results;
+    assert.deepEqual(
+      played.avatars.map((avatar) => avatar.activeEffectIds),
+      [["unseen"], ["unseen"]],
+    );
+    assert.equal(played.failures.length, 2, played.failures.join("\n"));
+    for (const failure of played.failures)
+      assert.match(
+        failure,
+        /: unseen draws nothing visible on the head: no pixel changed there/,
+      );
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
 // Body, sticker and silhouette effects applied together on both Avatars:
 // each attachment is active and none leaves a warning.
 test("renders body, sticker and silhouette attachments together", async () => {
@@ -123,6 +292,16 @@ test("renders body, sticker and silhouette attachments together", async () => {
 
     assert.equal(result.stem, "heart+doki+shade");
     assert.deepEqual(result.failures, []);
+    // The body and sticker art planes were found and judged in view.
+    assert.deepEqual(result.notes, []);
+    for (const avatar of result.avatars) {
+      const planes = avatar.art.filter((art) => art.artId);
+      assert.deepEqual(planes.map((art) => art.effect).sort(), [
+        "doki",
+        "heart",
+      ]);
+      for (const art of planes) assert.equal(art.artSeen, true, art.effect);
+    }
     for (const avatar of result.avatars) {
       assert.deepEqual(avatar.activeEffectIds.sort(), [
         "doki",
@@ -161,11 +340,17 @@ test("renders every effect kind together and a Reaction's effects", async () => 
       together: true,
       outFileFor: () => path.join(dir, "together.png"),
       times: [0.5],
-      views: ["front"],
+      // star3's iris art is a few pixels in a front tile this small; the art
+      // check sees it in the face view.
+      views: ["front", "face"],
       tile,
     });
     assert.equal(together.stem, "star3+confetti+scene-vfx-emotion-joy");
     assert.deepEqual(together.failures, []);
+    // The art is judged without the particles and Scene layers.
+    for (const avatar of together.avatars)
+      for (const art of avatar.art)
+        assert.equal(art.wide.inside, art.wide.changed, art.effect);
     for (const avatar of together.avatars)
       assert.deepEqual(avatar.activeEffectIds.sort(), [
         "builtin:avatar-effect:star3",
@@ -191,6 +376,12 @@ test("renders every effect kind together and a Reaction's effects", async () => 
     const played = await renderReaction("sadness-4.png");
     assert.equal(played.stem, "sadness-4");
     assert.deepEqual(played.failures, []);
+    // Each of its Avatar Effects was measured against the clip without it.
+    for (const avatar of played.avatars)
+      assert.deepEqual(avatar.art.map((art) => art.effect).sort(), [
+        "streaming_tears",
+        "texture_black_1",
+      ]);
     for (const avatar of played.avatars)
       for (const id of [
         "texture_black_1",
@@ -335,6 +526,42 @@ test("renders particle art without tone mapping when its material opts out", asy
     for (const pixel of greyUntoned)
       for (const channel of pixel)
         assert.ok(Math.abs(channel - 128) <= 2, `${pixel}`);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+// A local Avatar file outside the repository replaces both Included Avatars,
+// and an upper-case extension does not leak into the sheet's label.
+test("renders on a local Avatar file instead of the Included Avatars", async () => {
+  const dir = await mkdtemp(
+    path.join(tmpdir(), "animama-effect-render-avatar-file-"),
+  );
+  try {
+    const avatarFile = path.join(dir, "Local-Avatar.VRM");
+    await cp(
+      path.resolve(
+        import.meta.dirname,
+        "../../../../content/included/avatars/Andrew.vrm",
+      ),
+      avatarFile,
+    );
+    const tile = { width: 96, height: 120 };
+    const [result] = await renderEffectSheets({
+      effects: [await resolveEffectSource("library:blush")],
+      outFileFor: (effect) => path.join(dir, `${effect.stem}.png`),
+      times: [0.1],
+      tile,
+      avatarFile,
+    });
+
+    assert.deepEqual(result.failures, []);
+    assert.deepEqual(
+      result.avatars.map((avatar) => avatar.id),
+      ["Local-Avatar"],
+    );
+    const png = await readFile(result.outFile);
+    assert.equal(png.readUInt32BE(16), 64 + 3 * tile.width);
   } finally {
     await rm(dir, { recursive: true, force: true });
   }

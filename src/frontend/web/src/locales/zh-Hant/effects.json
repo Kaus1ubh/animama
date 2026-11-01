@@ -375,7 +375,6 @@
     },
     "previewAvatarFailed": "無法載入預覽虛擬形象。",
     "previewNoun": "預覽",
-    "previewWarning": "預覽虛擬形象回報了這個特效的問題。",
     "recoveredDraft": "已復原本機草稿",
     "recovery": {
       "unavailable": "瀏覽器當機復原無法使用。請在儲存完成前保持此分頁開啟。"
@@ -443,7 +442,9 @@
       "changed": "已變更，未儲存",
       "corrected": "已修正",
       "detected": "已偵測 · {{confidence, number(style: percent)}}",
+      "estimated": "位置為推測",
       "foundByName": "依名稱找到 · {{confidence, number(style: percent)}}，請檢查",
+      "insideShared": "在其他網格部件中找到",
       "missing": "缺少",
       "uncertain": "已偵測 · {{confidence, number(style: percent)}}，請檢查"
     },

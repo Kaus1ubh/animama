@@ -5,6 +5,7 @@ import {
   createTextureFromImage,
   resolveArtFrameSize,
 } from "./effectArt";
+import { lilToonAlphaSource } from "../liltoon/lilToonSurface";
 import type { AvatarSilhouetteVFXEntry } from "./types";
 
 /*
@@ -16,9 +17,10 @@ import type { AvatarSilhouetteVFXEntry } from "./types";
  * child of the primitive with an identity transform, so it deforms, animates
  * and hides with it. Its material samples the primitive's original base map
  * only for alpha cutout (never a face effect's composite texture, which the
- * controller owns and disposes), and draws the art in screen space. `LessEqual` depth with
- * a one-unit polygon offset keeps exactly the frontmost depth-writing
- * surface's overlay at each pixel, so hidden parts never show through.
+ * controller owns and disposes), with a lilToon cut-out's tiling and alpha
+ * mask, and draws the art in screen space. `LessEqual` depth with a one-unit
+ * polygon offset keeps exactly the frontmost depth-writing surface's overlay
+ * at each pixel, so hidden parts never show through.
  *
  * Excluded: MToon outlines (a single overlay material draws each triangle once,
  * ignoring the outline's duplicate geometry group) and transparent layers that
@@ -53,6 +55,11 @@ uniform sampler2D sourceMap;
 uniform float useSourceMap;
 uniform float sourceOpacity;
 uniform float sourceAlphaTest;
+uniform sampler2D alphaMask;
+uniform float alphaMaskMode;
+uniform float alphaMaskScale;
+uniform float alphaMaskValue;
+uniform mat3 alphaMaskTransform;
 uniform sampler2D artMap;
 uniform vec4 artFrame;
 uniform vec2 patternOrigin;
@@ -68,6 +75,19 @@ void main() {
   // Respect the primitive's own cutout so hair cards and lashes keep their shape.
   float sourceAlpha = sourceOpacity;
   if (useSourceMap > 0.5) sourceAlpha *= texture2D(sourceMap, vSourceUv).a;
+  // A lilToon alpha mask: 1 replaces, 2 multiplies, 3 adds, 4 subtracts.
+  if (alphaMaskMode > 0.5) {
+    vec2 maskUv = (alphaMaskTransform * vec3(vSourceUv, 1.0)).xy;
+    float mask = clamp(
+      texture2D(alphaMask, maskUv).r * alphaMaskScale + alphaMaskValue,
+      0.0,
+      1.0
+    );
+    if (alphaMaskMode < 1.5) sourceAlpha = mask;
+    else if (alphaMaskMode < 2.5) sourceAlpha *= mask;
+    else if (alphaMaskMode < 3.5) sourceAlpha = clamp(sourceAlpha + mask, 0.0, 1.0);
+    else sourceAlpha = clamp(sourceAlpha - mask, 0.0, 1.0);
+  }
   if (sourceAlpha < max(sourceAlphaTest, 0.001)) discard;
   vec4 art;
   if (flatFill > 0.5) {
@@ -122,6 +142,8 @@ export type SilhouetteOverlay = {
 type MaterialWithMap = THREE.Material & {
   map?: THREE.Texture | null;
   isOutline?: boolean;
+  /** Set by three-liltoon's `LilToonMaterial`. */
+  isLilToonMaterial?: boolean;
 };
 
 /**
@@ -199,6 +221,19 @@ export function averageArtColor(image: CanvasImageSource): THREE.Color {
   }
 }
 
+/**
+ * The overlay reproduces an MToon or glTF primitive's depth exactly; one unit
+ * of bias absorbs precision noise. A slope factor or more units would also
+ * pass layered cloth just behind (seen as double coverage at a VRoid sample's
+ * cuffs).
+ * three-liltoon skins and projects in its own order, so its depth drifts
+ * further: eight units hide that without a slope factor, and its silhouette
+ * edges can still differ by a pixel.
+ */
+function polygonOffsetUnits(source: MaterialWithMap): number {
+  return source.isLilToonMaterial ? -8 : -1;
+}
+
 function createOverlayMaterial(
   source: MaterialWithMap,
   shared: SilhouetteUniforms,
@@ -206,9 +241,14 @@ function createOverlayMaterial(
 ): THREE.ShaderMaterial {
   // Only a cutout or blended surface has a shape inside its triangles; an
   // opaque one ignores its map's alpha, as the avatar's own shader does.
+  // three-liltoon reports a cut-out's `_Cutoff` as `alphaTest` and its main
+  // texture as `map`, but places that texture by `_MainTex_ST` and may shape
+  // the cut with an alpha mask, which `lilToonAlphaSource` reads.
   const cutout = source.alphaTest > 0 || source.transparent;
+  const lilToon = cutout ? lilToonAlphaSource(source) : null;
   const map = cutout ? (source.map ?? null) : null;
-  if (map?.matrixAutoUpdate) map.updateMatrix();
+  if (!lilToon && map?.matrixAutoUpdate) map.updateMatrix();
+  const mask = lilToon?.alphaMask ?? null;
   const material = new THREE.ShaderMaterial({
     name: `AvatarSilhouetteVFX:${source.name}`,
     vertexShader: VERTEX_SHADER,
@@ -218,21 +258,27 @@ function createOverlayMaterial(
       sourceMap: { value: map },
       useSourceMap: { value: map ? 1 : 0 },
       sourceMapTransform: {
-        value: map ? map.matrix : new THREE.Matrix3(),
+        value: lilToon
+          ? lilToon.mainTransform
+          : map
+            ? map.matrix
+            : new THREE.Matrix3(),
       },
       sourceOpacity: { value: cutout ? source.opacity : 1 },
       sourceAlphaTest: { value: cutout ? source.alphaTest : 0 },
+      alphaMask: { value: mask?.texture ?? null },
+      alphaMaskMode: { value: mask?.mode ?? 0 },
+      alphaMaskScale: { value: mask?.scale ?? 1 },
+      alphaMaskValue: { value: mask?.value ?? 0 },
+      alphaMaskTransform: { value: mask?.transform ?? new THREE.Matrix3() },
     },
     transparent: true,
     depthTest: true,
     depthWrite: false,
     depthFunc: THREE.LessEqualDepth,
-    // The overlay reproduces its primitive's depth exactly; one unit of bias
-    // absorbs precision noise. A slope factor or more units would also pass
-    // layered cloth just behind (seen as double coverage at a VRoid sample's cuffs).
     polygonOffset: true,
     polygonOffsetFactor: 0,
-    polygonOffsetUnits: -1,
+    polygonOffsetUnits: polygonOffsetUnits(source),
     side: source.side,
     toneMapped: false,
   });

@@ -29,6 +29,7 @@
       "orbitTarget": "环绕中心",
       "orbitTargetYSource": "环绕中心 Y 来源",
       "orbitTargetYSourceLabel": "环绕中心 Y 来源",
+      "pipTitle": "画中画相机",
       "position": "相机位置",
       "positionYSource": "相机 Y 来源",
       "positionYSourceLabel": "相机 Y 来源",
@@ -157,6 +158,12 @@
       "unavailable": "模型不可用。请选择其他模型。",
       "unavailableShort": "模型不可用",
       "webSearch": "网络搜索"
+    },
+    "speechEngines": {
+      "offline": "{{engine}} {{variant}}",
+      "stt": "STT：{{stt}}",
+      "tts": "TTS：{{tts}}",
+      "ttsOff": "关闭"
     }
   },
   "header": {
@@ -179,6 +186,7 @@
     "contentProgress": "正在加载动画和特效（{{completed}}/{{total}}）",
     "download": "正在下载{{item}}（{{size}}）",
     "downloadProgress": "正在下载{{item}}（{{size}}，已完成 {{percent}}）",
+    "episodeProcessing_other": "正在将 {{count}} 条笔记整理进记忆…",
     "speechToText": "正在加载语音转文本（Parakeet）",
     "textToSpeech": "正在加载文字转语音（PocketTTS）",
     "textToSpeechStep": "正在加载文字转语音（PocketTTS），第 {{step}} 步，共 {{total}} 步"
@@ -239,9 +247,7 @@
     }
   },
   "speech": {
-    "install": "安装离线语音识别以使用听写和语音模式",
-    "installFromMainWindow": "请在 Animama 主窗口中打开“应用设置 → 语音”进行下载。",
-    "unavailableHere": "此处无法使用听写和语音模式所需的离线语音识别"
+    "skip": "跳过朗读"
   },
   "suggestions": {
     "rockPaperScissors": "玩石头剪刀布",

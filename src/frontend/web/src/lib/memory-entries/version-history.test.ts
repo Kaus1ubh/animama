@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { PyMemoryEntryVersionSummary } from "@/lib/content/catalogTypes";
 import {
   flattenMemoryEntryVersionPages,
+  memoryVersionChangeLabel,
   memoryVersionOperationLabel,
   memoryVersionSubtitle,
   memoryVersionTitle,
@@ -46,5 +47,20 @@ describe("memory version history", () => {
     expect(memoryVersionOperationLabel("delete")).toBe("Deleted");
     expect(memoryVersionOperationLabel("undo")).toBe("Undone");
     expect(memoryVersionOperationLabel("revert")).toBe("Reverted");
+  });
+
+  it("labels versions that automatic episode processing wrote", () => {
+    expect(
+      memoryVersionChangeLabel({
+        ...summary(2),
+        change_metadata: { trigger: "automatic_episode_processing" },
+      }),
+    ).toBe("Automatic update from episode notes");
+    expect(
+      memoryVersionChangeLabel({
+        ...summary(2),
+        change_metadata: { source_type: "memory_manager_approval" },
+      }),
+    ).toBe(memoryVersionOperationLabel("update"));
   });
 });

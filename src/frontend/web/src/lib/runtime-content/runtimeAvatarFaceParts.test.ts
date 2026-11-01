@@ -19,7 +19,7 @@ import { adaptRuntimeSnapshot } from "./runtimeSnapshotAdapter";
 
 const ANNIE = fileURLToPath(
   new URL(
-    "../../../../../../content/included/avatars/AvatarSample_A_1_New.vrm",
+    "../../../../../../content/included/avatars/Annie.vrm",
     import.meta.url,
   ),
 );
@@ -52,7 +52,7 @@ function snapshot(avatar: Partial<PyRuntimeAvatar>, sha256: string) {
           file_ref: "annie-vrm",
           role: "model",
           ordinal: 1,
-          filename: "AvatarSample_A_1_New.vrm",
+          filename: "Annie.vrm",
           media_type: "model/gltf-binary",
           size_bytes: 100,
           sha256,
@@ -117,7 +117,7 @@ describe("resolveRuntimeAvatarFaceParts", () => {
     });
 
     // What `Avatar.load` does with these options.
-    const { vrm, gltf } = await loadTestAvatarWithGltf("AvatarSample_A_1_New");
+    const { vrm, gltf } = await loadTestAvatarWithGltf("Annie");
     const map = detectAvatarFaceParts(vrm, gltf, {
       corrections: loadOptions.facePartCorrections,
       vrmSha256: loadOptions.vrmSha256,

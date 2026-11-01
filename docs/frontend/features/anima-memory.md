@@ -217,7 +217,15 @@ acts on the selected file.
 
 App Settings → Memory & Emotion sets installation-wide defaults for memory,
 memory updates and emotion updates. Each Anima's settings offer "App default",
-On or Off; turning memory off also stops memory updates. The Memory Manager's
+On or Off; turning memory off also stops memory updates. Where the runtime reports
+`automatic_episode_processing` (the local app), the same section has "Process episode
+notes automatically": Off, or a pending-note count from 5 to 50 (default 10) that
+starts a backend Memory Manager run. Its description shows what the backend reports
+from `/v1/memory/automatic-processing`: running, paused after failures, retrying,
+the daily limit, a missing model, or memory turned off. The value is stored by the
+backend, not in preferences, so Reset app settings does not change it. Versions an
+automatic run writes are labelled "Automatic update from episode notes" in a file's
+version history. The Memory Manager's
 model is chosen in App Settings → Models → Default models (saved as
 `models.memory_manager_model_provider_id`): any tool-calling model from any
 connection. "Same as Chat" clears the choice, so the manager uses the operator
@@ -273,7 +281,8 @@ Manager behavior without reviewing the batch again. If more pending items exist,
 `Process episodes` remains available for a new specialized batch; starting it
 supersedes the current active conversation, while an unresolved approval blocks
 the action. A stale no-work response refreshes the pending count without
-replacing the current conversation.
+replacing the current conversation. While an automatic run is processing, the
+backend refuses the action with `409` and the toast shows its reason.
 
 While an Anima's `MEMORIES.md` is selected, in either work mode, the Work-pane
 header shows `Reflect` beside `Manual | Memory Manager` (accessible name

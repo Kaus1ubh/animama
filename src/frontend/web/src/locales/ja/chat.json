@@ -29,6 +29,7 @@
       "orbitTarget": "オービットの中心",
       "orbitTargetYSource": "オービット中心の Y 基準",
       "orbitTargetYSourceLabel": "オービット中心の Y 基準",
+      "pipTitle": "PiP のカメラ",
       "position": "カメラの位置",
       "positionYSource": "カメラの Y 基準",
       "positionYSourceLabel": "カメラの Y 基準",
@@ -157,6 +158,12 @@
       "unavailable": "モデルを利用できません。別のモデルを選択してください。",
       "unavailableShort": "モデルを利用できません",
       "webSearch": "ウェブ検索"
+    },
+    "speechEngines": {
+      "offline": "{{engine}} {{variant}}",
+      "stt": "STT: {{stt}}",
+      "tts": "TTS: {{tts}}",
+      "ttsOff": "オフ"
     }
   },
   "header": {
@@ -179,6 +186,7 @@
     "contentProgress": "アニメーションとエフェクトを読み込み中（{{completed}}/{{total}}）",
     "download": "{{item}}をダウンロード中（{{size}}）",
     "downloadProgress": "{{item}}をダウンロード中（{{size}} 中 {{percent}}）",
+    "episodeProcessing_other": "{{count}} 件のメモを記憶にまとめています…",
     "speechToText": "音声認識（Parakeet）を読み込み中",
     "textToSpeech": "読み上げ（PocketTTS）を読み込み中",
     "textToSpeechStep": "読み上げ（PocketTTS）を読み込み中（ステップ {{step}}/{{total}}）"
@@ -239,9 +247,7 @@
     }
   },
   "speech": {
-    "install": "音声入力と音声モードを使うには、オフライン音声認識をインストールしてください",
-    "installFromMainWindow": "メインの Animama ウィンドウで「アプリ設定 → 音声」を開いてダウンロードしてください。",
-    "unavailableHere": "ここでは音声入力と音声モード用のオフライン音声認識を利用できません"
+    "skip": "読み上げをスキップ"
   },
   "suggestions": {
     "rockPaperScissors": "じゃんけんしよう",

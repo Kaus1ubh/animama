@@ -1,12 +1,19 @@
 import * as THREE from "three";
-import { VRM, VRMLoaderPlugin, VRMUtils } from "@pixiv/three-vrm";
-import {
-  VRMAnimationLoaderPlugin,
-  type VRMAnimation,
-} from "@pixiv/three-vrm-animation";
-import type { GLTF } from "three/examples/jsm/loaders/GLTFLoader.js";
-import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { VRM, VRMUtils } from "@pixiv/three-vrm";
+import type { VRMAnimation } from "@pixiv/three-vrm-animation";
+import type {
+  GLTF,
+  GLTFLoader,
+} from "three/examples/jsm/loaders/GLTFLoader.js";
+import { createAvatarGltfLoader } from "./avatarGltfLoader";
 import { AnimationManager } from "./AnimationManager";
+import {
+  bodyFramingScale,
+  headFramingCenter,
+  headFramingScale,
+  measureAvatarProportions,
+  setAvatarFaceSize,
+} from "./avatarProportions";
 import { releaseModelScene } from "./releaseModelScene";
 import type { AvatarFaceDebugBox } from "./vfx/AvatarFaceDebugBox";
 import { DEBUG_ENABLED } from "@/platform/env";
@@ -20,7 +27,10 @@ import {
 import type { AvatarVFXParsedEntry } from "./vfx/types";
 import { AvatarVFXController } from "./vfx/AvatarVFXController";
 import { ParticleVFXController } from "./particle-vfx/ParticleVFXController";
-import { ExpressionController } from "./ExpressionController";
+import {
+  ExpressionController,
+  type LipSyncShaping,
+} from "./ExpressionController";
 import {
   ReactionClipPlayer,
   type ReactionClipPlayerSnapshot,
@@ -84,8 +94,24 @@ import {
   retargetPoseForVrm0,
 } from "./poses/poseRetargeting";
 import { canonicalizeCustomPresetExpressions } from "./vrmExpressionPresets";
-import { withEnhancedMToonPatch } from "./enhanced-rendering/mtoonPatch";
-import { applyEyelidClosureCorrection } from "./eyelidClosure";
+import {
+  lilToonMaterialStateOf,
+  type LilToonMaterialState,
+} from "./liltoon/lilToon";
+import {
+  automaticMaterialsDecision,
+  type AutomaticMaterialsDecision,
+} from "./liltoon/lilToonGpuCheck";
+import { setCanvasFrameCap } from "./canvasFrameCap";
+import { irisHideBindOf } from "./irisHideExpression";
+import type { RestPoseCheck } from "./poses/anatomy/restNormalization";
+import { prepareLoadedVrm } from "./prepareLoadedVrm";
+import type { ArkitFace } from "./arkitFaceExpressions";
+import {
+  collectAvatarLiveDiagnostics,
+  type AvatarLiveDiagnostics,
+} from "./diagnostics/avatarDiagnostics";
+import type { AvatarIssue } from "./diagnostics/issues";
 import {
   countAnimaPoseClipEventsByKind,
   DEFAULT_ANIMA_POSE_CLIP_TRANSITION,
@@ -101,9 +127,17 @@ import {
 } from "./poses/animaPoseClip/interpolation";
 import type { AvatarPoseClipSnapshot, AvatarPoseSnapshot } from "./poses/types";
 import {
+  rememberAvatarFileLilToon,
+  resolveAmbientForces,
+  rendersLilToon,
+  type AvatarMaterialMode,
+  type AvatarSpringMode,
+} from "./avatarSettings";
+import {
   SpringBonePhysicsController,
   type SpringBonePhysicsParams,
   type SpringBonePhysicsSnapshot,
+  springsTunedWithoutAmbientForces,
 } from "./spring-bone/SpringBonePhysicsController";
 import type {
   SpringBoneSemantic,
@@ -371,6 +405,7 @@ export class Avatar {
   public state: AvatarAnimationState = "idle";
 
   private static _gltfLoader: GLTFLoader | null = null;
+  private static _simpleGltfLoader: GLTFLoader | null = null;
   private static _vrmaCache = new Map<string, Promise<VRMAnimation | null>>();
 
   private _camera: THREE.Object3D;
@@ -390,6 +425,8 @@ export class Avatar {
   private _pendingAutomaticPlaybackResumeFadeSec: number | null = null;
   private _automaticAnimationPlaybackEnabled: boolean = true;
   private _vrmaRootedPlaybackEnabled: boolean = false;
+  /** Requested `vowel5` shaping; kept when this instance loads another model. */
+  private _lipSyncShaping: LipSyncShaping = "visemes";
   private readonly _mediaCatalog: AnimaRuntimeMediaProvider;
   private _lastAnimationPromise: Promise<THREE.AnimationAction> | null = null;
   private _focusLinesProjectionScratch = new THREE.Vector3();
@@ -407,6 +444,25 @@ export class Avatar {
   private _isVrm0: boolean = false;
   private _vrmSha256: string | null = null;
   private _facePartCorrections: AvatarFacePartCorrections | null = null;
+  private _arkitFace: ArkitFace | null = null;
+  private _restPose: RestPoseCheck | null = null;
+  private _springMode: AvatarSpringMode = "automatic";
+  /** Automatic's wind choice for the loaded file. */
+  private _automaticAmbientForces: boolean = true;
+  /**
+   * Why Automatic leaves wind and the updraft off for the loaded file: its
+   * springs were converted from a world without them, or its hair is too
+   * soft to hold against them at the current strength; null when they apply.
+   */
+  private _automaticAmbientForcesOff: "converted" | "soft_hair" | null = null;
+  /** The owner's wind strength, as a multiple of the default. */
+  private _windStrength: number = 1;
+  private _materialMode: AvatarMaterialMode = "automatic";
+  private _automaticMaterials: AutomaticMaterialsDecision | null = null;
+  private _lilToonMaterials: LilToonMaterialState = "none";
+  private _facePartIssues: AvatarIssue[] = [];
+  private _diagnosticsListeners = new Set<() => void>();
+  private _unsubscribeVfxDiagnostics: (() => void) | null = null;
 
   /** sha256 of the loaded VRM bytes, when the load supplied it. */
   get vrmSha256(): string | null {
@@ -416,6 +472,81 @@ export class Avatar {
   /** The face part correction last given at load or by `setFacePartCorrections`. */
   get facePartCorrections(): AvatarFacePartCorrections | null {
     return this._facePartCorrections;
+  }
+
+  /** The wind setting in effect. */
+  get springMode(): AvatarSpringMode {
+    return this._springMode;
+  }
+
+  /** Whether wind and updraft move the springs under the current setting. */
+  get ambientForces(): boolean {
+    return resolveAmbientForces(this._springMode, this._automaticAmbientForces);
+  }
+
+  /** The owner's wind strength in effect, as a multiple of the default. */
+  get windStrength(): number {
+    return this._windStrength;
+  }
+
+  /**
+   * Why Automatic leaves wind and the updraft off for this Avatar (converted
+   * springs, or hair too soft at the current strength), or null.
+   */
+  get automaticAmbientForcesOff(): "converted" | "soft_hair" | null {
+    return this._automaticAmbientForcesOff;
+  }
+
+  /** The material setting the loaded model was built with. */
+  get materialMode(): AvatarMaterialMode {
+    return this._materialMode;
+  }
+
+  /**
+   * What the Materials setting's Automatic chose for this load and why (the
+   * GPU check); null under an explicit lilToon or Simple setting.
+   */
+  get automaticMaterials(): AutomaticMaterialsDecision | null {
+    return this._automaticMaterials;
+  }
+
+  /** How the loaded file's authored lilToon materials render. */
+  get lilToonMaterials(): LilToonMaterialState {
+    return this._lilToonMaterials;
+  }
+
+  /** The loaded model's ARKit coverage, as the load-time installs found it. */
+  get arkitFace(): ArkitFace | null {
+    return this._arkitFace;
+  }
+  /** How far the loaded model rests from VRoid's T-pose, and what was normalized. */
+  get restPose(): RestPoseCheck | null {
+    return this._restPose;
+  }
+
+  /** Findings this Avatar recorded itself (not its parts' or controllers'). */
+  get loadIssues(): readonly AvatarIssue[] {
+    return this._facePartIssues;
+  }
+
+  /** What Diagnostics shows for the loaded model; null before a load. */
+  getDiagnostics(): AvatarLiveDiagnostics | null {
+    return this.vrm ? collectAvatarLiveDiagnostics(this) : null;
+  }
+
+  /**
+   * Called when `getDiagnostics()` may have changed: a load or unload, a face
+   * part change, an effect warning or an expression the model cannot play.
+   */
+  subscribeDiagnostics(listener: () => void): () => void {
+    this._diagnosticsListeners.add(listener);
+    return () => {
+      this._diagnosticsListeners.delete(listener);
+    };
+  }
+
+  private _notifyDiagnostics(): void {
+    for (const listener of [...this._diagnosticsListeners]) listener();
   }
 
   constructor(
@@ -445,6 +576,11 @@ export class Avatar {
   ): Promise<void> {
     // Unload any existing VRM first
     this.unload();
+    this._springMode = spec.springMode ?? "automatic";
+    this._windStrength = spec.windStrength ?? 1;
+    this._materialMode = spec.materialMode ?? "automatic";
+    this._automaticMaterials =
+      this._materialMode === "automatic" ? automaticMaterialsDecision() : null;
 
     onProgress?.({ phase: "setup", message: "Setting up..." });
 
@@ -462,6 +598,7 @@ export class Avatar {
         });
       },
       spec.resourceUrls,
+      this._automaticMaterials?.choice ?? this._materialMode,
     );
     if (this._isDisposed) {
       releaseModelScene(vrm.scene);
@@ -472,11 +609,32 @@ export class Avatar {
     this.sourceKey = spec.sourceKey?.trim() || spec.filePath;
 
     this.vrm = vrm;
+    this._lilToonMaterials = lilToonMaterialStateOf(gltf);
     this._isVrm0 = isVrm0(vrm);
     this._vrmSha256 = spec.vrmSha256?.trim().toLowerCase() || null;
-    const eyelidClosure = applyEyelidClosureCorrection(vrm, this._vrmSha256);
+    if (this._vrmSha256) {
+      rememberAvatarFileLilToon(
+        this._vrmSha256,
+        this._lilToonMaterials !== "none",
+      );
+    }
+    const { faceSignals, arkitFace, eyelidClosure, restPose } =
+      prepareLoadedVrm(vrm, { vrmSha256: this._vrmSha256 });
+    this._arkitFace = arkitFace;
+    this._restPose = restPose;
+    if (Object.values(faceSignals).some((source) => source !== "preset")) {
+      logger.info("Load", "Blink and viseme sources", faceSignals);
+    }
     if (eyelidClosure) {
       logger.info("Load", "Eyelid closure correction", eyelidClosure);
+    }
+    if (restPose.normalization) {
+      logger.info("Load", "Rest pose normalized to VRoid's", {
+        arms: restPose.armsNormalized,
+        hands: restPose.handsNormalized,
+        bones: restPose.normalization.bones.size,
+        maxDegrees: Math.round(restPose.normalization.maxDegrees),
+      });
     }
     this.poseController = new PoseController(vrm, {
       isVrm0: this._isVrm0,
@@ -508,10 +666,9 @@ export class Avatar {
         viewportElement: this._viewportElement,
       },
     );
-    this.springBonePhysicsController = new SpringBonePhysicsController(vrm, {
-      sourceGltf: gltf,
-    });
+    this._installSpringPhysics(vrm, gltf);
     this.expressionController = new ExpressionController(vrm);
+    this.expressionController.setLipSyncShaping(this._lipSyncShaping);
     this.reactionClipPlayer = new ReactionClipPlayer(
       this.expressionController,
       {
@@ -527,13 +684,36 @@ export class Avatar {
     this._detectFaceParts(spec.facePartCorrections ?? null);
     this.faceLandmarks = new AvatarFaceLandmarks(this);
     this.faceTextureAnchors = new AvatarFaceTextureAnchors(this);
+    this._measureProportions();
     this.vfxController = new AvatarVFXController(this, this._mediaCatalog);
+    this._unsubscribeVfxDiagnostics = this.vfxController.subscribe(() =>
+      this._notifyDiagnostics(),
+    );
+    // `Fcl_EYE_Iris_Hide` on a model without that shape hides its irises.
+    irisHideBindOf(vrm)?.setListener((hidden) =>
+      this.vfxController?.setIrisHidden(hidden),
+    );
+    this.expressionController.setUnresolvedExpressionListener(() =>
+      this._notifyDiagnostics(),
+    );
     this.particleVFXController = new ParticleVFXController(
       this,
       this._mediaCatalog,
     );
     this._syncPoseClipEventSink();
     this._syncReactionClipEventSink();
+    // Automatic's lilToon frame cap, on the canvas this Avatar draws on. Set
+    // either way: a load that overlapped this one may have set a cap.
+    if (this._viewportElement) {
+      setCanvasFrameCap(
+        this._viewportElement,
+        this,
+        this._lilToonMaterials === "rendered"
+          ? (this._automaticMaterials?.fpsCap ?? null)
+          : null,
+      );
+    }
+    this._notifyDiagnostics();
 
     onProgress?.({ phase: "animation", ratio: 1, message: "Ready" });
   }
@@ -544,6 +724,8 @@ export class Avatar {
   unload(): void {
     // Detach before any controller cleanup so no frame can draw a half-released model.
     this.vrm?.scene.removeFromParent();
+    if (this._viewportElement)
+      setCanvasFrameCap(this._viewportElement, this, null);
     this._poseClipOnFinished = null;
     this.springBonePhysicsController?.dispose();
     this.springBonePhysicsController = null;
@@ -561,6 +743,9 @@ export class Avatar {
       this.faceTextureAnchors = null;
       this.faceLandmarks?.dispose();
       this.faceLandmarks = null;
+      this._unsubscribeVfxDiagnostics?.();
+      this._unsubscribeVfxDiagnostics = null;
+      irisHideBindOf(this.vrm)?.setListener(null);
       this.vfxController?.dispose();
       this.vfxController = null;
       this.particleVFXController?.dispose();
@@ -577,8 +762,14 @@ export class Avatar {
       this.facePartMap = null;
       this._vrmSha256 = null;
       this._facePartCorrections = null;
+      this._arkitFace = null;
+      this._restPose = null;
+      this._lilToonMaterials = "none";
+      this._automaticMaterials = null;
+      this._facePartIssues = [];
       this.animationManager = null;
       this.expressionController = null;
+      this._notifyDiagnostics();
     }
     this._isVrm0 = false;
     this.state = "idle";
@@ -606,6 +797,7 @@ export class Avatar {
   dispose(): void {
     this.unload();
     this._isDisposed = true;
+    this._diagnosticsListeners.clear();
     // Callers' closures can outlive a disposed Avatar; holding their sinks,
     // providers or canvas would keep their previous model state alive.
     this._poseClipExternalEventSink = null;
@@ -663,6 +855,23 @@ export class Avatar {
     return this.state;
   }
 
+  /**
+   * Whether anything beyond the idle loop is playing: a non-idle state
+   * (listening, thinking, a gesture or speech), a pose or reaction clip, or an
+   * Avatar or particle effect. The scene renders at its full rate while this
+   * holds. Read every frame, so it reads cached state and allocates nothing.
+   */
+  isMotionActive(): boolean {
+    return (
+      this.state !== "idle" ||
+      this.isClipActive() ||
+      Boolean(this.reactionClipPlayer?.isActive()) ||
+      (this.particleVFXController?.getSnapshot().activeCount ?? 0) > 0 ||
+      (this.vfxController?.getObservationSnapshot().activeEffects.length ?? 0) >
+        0
+    );
+  }
+
   setFaceDebugBoxVisible(visible: boolean): void {
     if (!__ANIMAMA_DEV_BUILD__ || !DEBUG_ENABLED) return;
     this._faceDebugVisible = visible;
@@ -688,6 +897,10 @@ export class Avatar {
     corrections: AvatarFacePartCorrections | null,
   ): Promise<void> {
     if (!this.isReady) return;
+    // Hidden eye-detail regions read as empty triangles: show them before
+    // detection, landmarks and anchors measure the meshes. The refresh below
+    // re-applies the effects that hide them.
+    this.vfxController?.restoreHiddenRegions();
     this._detectFaceParts(corrections);
     this.faceDebugBox?.dispose();
     this.faceDebugBox = null;
@@ -695,14 +908,38 @@ export class Avatar {
     this.faceLandmarks?.dispose();
     this.faceLandmarks = new AvatarFaceLandmarks(this);
     this.faceTextureAnchors = new AvatarFaceTextureAnchors(this);
+    this._measureProportions();
     this.setFaceDebugBoxVisible(this._faceDebugVisible);
     await this.vfxController?.refreshFaceParts();
+    this._notifyDiagnostics();
+  }
+
+  /**
+   * Register the measured face for size-aware placement and measure the
+   * model's proportions (`avatarProportions.ts`), at load and after a face
+   * correction, before effects or Gestures change the model. Effects,
+   * contacts and camera presets read the cached result.
+   */
+  private _measureProportions(): void {
+    const vrm = this.vrm;
+    if (!vrm) return;
+    setAvatarFaceSize(vrm, this.faceTextureAnchors?.getFaceExtent() ?? null);
+    const proportions = measureAvatarProportions(vrm);
+    if (proportions.bigHead > 0) {
+      logger.info("Load", "Head art and framing follow a big head", {
+        measuredFrom: proportions.measuredFrom,
+        headSize: proportions.headSize,
+        avatarScale: proportions.avatarScale,
+        bigHead: proportions.bigHead,
+      });
+    }
   }
 
   private _detectFaceParts(
     corrections: AvatarFacePartCorrections | null,
   ): void {
     this._facePartCorrections = corrections;
+    this._facePartIssues = [];
     if (!this.vrm || !this.sourceGltf) {
       this.facePartMap = null;
       return;
@@ -719,6 +956,7 @@ export class Avatar {
       // An unusual model must not fail the load: without a part map,
       // landmarks and VFX bindings use material names as before.
       this.facePartMap = null;
+      this._facePartIssues = [{ code: "face_parts_detection_failed" }];
       logger.warn("FaceParts", "Face part detection failed; using names", {
         reason: "avatar_face_parts_detection_failed",
         error: error instanceof Error ? error.message : String(error),
@@ -820,14 +1058,8 @@ export class Avatar {
     // 8. Update runtime VFX before VRM materials upload their texture transforms.
     this.vfxController?.update(delta);
 
-    // 9. Update spring-bone settings before three-vrm runs spring physics.
-    this.springBonePhysicsController?.update(delta, {
-      avatarState: this.state,
-      emotionLabel: this.emotion_label,
-    });
-
-    // 10. Update VRM internals (IK, constraints, spring bones)
-    this.vrm.update(delta);
+    // 9–10. Spring settings, then VRM internals (IK, constraints, springs).
+    this.updateModel(delta);
 
     // 11. Update particle VFX after VRM constraints/spring bones settle anchors.
     this.particleVFXController?.update(delta);
@@ -837,6 +1069,80 @@ export class Avatar {
       this.springBonePhysicsController?.updateHelpers();
     // Notify after the final rendered pose and occurrence effects have settled.
     poseClipFinished?.();
+  }
+
+  /**
+   * Advance the model itself: spring settings, then three-vrm (constraints,
+   * look-at, expressions, springs, materials). Surfaces that drive the pose
+   * themselves call this instead of `vrm.update`, so the wind setting applies
+   * everywhere.
+   */
+  updateModel(delta: number): void {
+    const vrm = this.vrm;
+    if (this._isDisposed || !vrm) return;
+    this.springBonePhysicsController?.update(delta, {
+      avatarState: this.state,
+      emotionLabel: this.emotion_label,
+    });
+    vrm.update(delta);
+    // three-vrm has no switch for springs; Springs off undoes this frame's step.
+    if (this._springMode === "springs_off") vrm.springBoneManager?.reset();
+  }
+
+  /** Spring physics for a loaded model, under the current wind setting. */
+  private _installSpringPhysics(vrm: VRM, gltf: GLTF): void {
+    const converted = springsTunedWithoutAmbientForces(gltf.parser.json);
+    this.springBonePhysicsController = new SpringBonePhysicsController(vrm, {
+      sourceGltf: gltf,
+      ambientForces: false,
+      ambientStrength: this._windStrength,
+    });
+    this._automaticAmbientForcesOff = converted ? "converted" : null;
+    this._decideAutomaticAmbientForces();
+  }
+
+  /**
+   * Automatic's wind choice for the loaded file at the current strength:
+   * none for converted springs, none when the updraft would lift most of the
+   * hair (`SpringBonePhysicsController.updraftLiftsHair`), else wind and the
+   * updraft. Applies the setting in effect to the springs.
+   */
+  private _decideAutomaticAmbientForces(): void {
+    const controller = this.springBonePhysicsController;
+    if (this._automaticAmbientForcesOff !== "converted") {
+      this._automaticAmbientForcesOff = controller?.updraftLiftsHair(
+        this._windStrength,
+      )
+        ? "soft_hair"
+        : null;
+    }
+    this._automaticAmbientForces = this._automaticAmbientForcesOff === null;
+    controller?.setAmbientForces(this.ambientForces);
+  }
+
+  /**
+   * Change the wind setting live. Springs off returns every spring joint to
+   * its rest rotation at once; leaving it resumes the simulation from rest.
+   */
+  /**
+   * Change the wind strength live (a multiple of the default; 0 adds no wind
+   * or updraft). Automatic weighs it again, so a softer breeze may keep wind
+   * on an Avatar whose hair the full one would lift.
+   */
+  setWindStrength(strength: number): void {
+    if (strength === this._windStrength) return;
+    this._windStrength = strength;
+    this.springBonePhysicsController?.setAmbientStrength(strength);
+    this._decideAutomaticAmbientForces();
+    this._notifyDiagnostics();
+  }
+
+  setSpringMode(mode: AvatarSpringMode): void {
+    if (mode === this._springMode) return;
+    this._springMode = mode;
+    this.springBonePhysicsController?.setAmbientForces(this.ambientForces);
+    if (mode === "springs_off") this.vrm?.springBoneManager?.reset();
+    this._notifyDiagnostics();
   }
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -1008,6 +1314,28 @@ export class Avatar {
       this.poseController?.forgetDefaultPoseOffsets();
       this.poseController?.applyDefaultPoses();
     }
+  }
+
+  /** Whether the loaded model can shape `vowel5` lip sync with ARKit mixes. */
+  canShapeLipSyncWithArkit(): boolean {
+    return this.expressionController?.canShapeLipSyncWithArkit() ?? false;
+  }
+
+  /** The `vowel5` lip-sync shaping in effect on the loaded model. */
+  getLipSyncShaping(): LipSyncShaping {
+    return (
+      this.expressionController?.getLipSyncShaping() ?? this._lipSyncShaping
+    );
+  }
+
+  /**
+   * Choose `vowel5` lip-sync shaping (a comparison setting in the debug
+   * panel). The request also applies to models loaded later; a model without
+   * every vowel shape keeps its visemes.
+   */
+  setLipSyncShaping(shaping: LipSyncShaping): LipSyncShaping {
+    this._lipSyncShaping = shaping;
+    return this.expressionController?.setLipSyncShaping(shaping) ?? shaping;
   }
 
   isVrmaRootedPlaybackEnabled(): boolean {
@@ -2293,6 +2621,34 @@ export class Avatar {
     return headNode.getWorldPosition(new THREE.Vector3());
   }
 
+  /**
+   * How much larger than the Included Avatars' framing the chat's head
+   * presets frame this Avatar (`headFramingScale`): 1 for the Included
+   * Avatars, its size outside their band, a big head's face size over theirs,
+   * so Portrait shows its face.
+   */
+  getHeadFramingScale(): number {
+    return headFramingScale(measureAvatarProportions(this.vrm));
+  }
+
+  /**
+   * Where the chat's head presets aim, in metres above the head bone
+   * (`headFramingCenter`): 0 for adult proportions, a big head's centre.
+   */
+  getHeadFramingCenter(): number {
+    return headFramingCenter(measureAvatarProportions(this.vrm));
+  }
+
+  /**
+   * How much larger than the Included Avatars' framing the chat's full-body
+   * presets frame this Avatar (`bodyFramingScale`): 1 for the Included
+   * Avatars, its size outside their band, and for a big head its height to
+   * the top of its head, so a short chibi fills the frame as they do.
+   */
+  getBodyFramingScale(): number {
+    return bodyFramingScale(measureAvatarProportions(this.vrm));
+  }
+
   getCameraAnchorY(anchor: "hips" | "chest" | "head"): number | null {
     if (!this.vrm) return null;
 
@@ -3084,35 +3440,38 @@ export class Avatar {
   // Shared GLTF loader (VRM + VRMA)
   // ─────────────────────────────────────────────────────────────────────────
 
-  private static _getGLTFLoader(): GLTFLoader {
-    if (Avatar._gltfLoader) return Avatar._gltfLoader;
+  private static _getGLTFLoader(lilToon: boolean = true): GLTFLoader {
+    const cached = lilToon ? Avatar._gltfLoader : Avatar._simpleGltfLoader;
+    if (cached) return cached;
 
-    const loader = Avatar._createGLTFLoader();
-    Avatar._gltfLoader = loader;
+    const loader = Avatar._createGLTFLoader(undefined, lilToon);
+    if (lilToon) Avatar._gltfLoader = loader;
+    else Avatar._simpleGltfLoader = loader;
     return loader;
   }
 
-  private static _createGLTFLoader(manager?: THREE.LoadingManager): GLTFLoader {
-    const loader = new GLTFLoader(manager);
-    loader.register((parser) =>
-      withEnhancedMToonPatch(new VRMLoaderPlugin(parser)),
-    );
-    loader.register((parser) => new VRMAnimationLoaderPlugin(parser));
-    return loader;
+  private static _createGLTFLoader(
+    manager?: THREE.LoadingManager,
+    lilToon: boolean = true,
+  ): GLTFLoader {
+    return createAvatarGltfLoader({ manager, lilToon });
   }
 
   private static async _loadVrm(
     url: string,
     onProgress?: (loaded: number, total: number) => void,
     resourceUrls?: Readonly<Record<string, string>>,
+    materialMode: AvatarMaterialMode = "automatic",
   ): Promise<{ gltf: GLTF; vrm: VRM }> {
+    const lilToon = rendersLilToon(materialMode);
     const loader = resourceUrls
       ? Avatar._createGLTFLoader(
           new THREE.LoadingManager().setURLModifier(
             preparedModelUrlResolver(url, resourceUrls),
           ),
+          lilToon,
         )
-      : Avatar._getGLTFLoader();
+      : Avatar._getGLTFLoader(lilToon);
 
     let gltf: GLTF;
     try {

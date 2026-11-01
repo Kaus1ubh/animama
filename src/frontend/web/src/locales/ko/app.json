@@ -142,8 +142,13 @@
   },
   "pip": {
     "close": "화면 속 화면 닫기",
+    "controls": "화면 속 화면 컨트롤",
     "resize": "화면 속 화면 크기 조정",
-    "unavailable": "화면 속 화면을 사용할 수 없습니다. 이 창에서 계속 컴패니언을 사용하세요."
+    "sceneBackground": "장면 배경",
+    "stopVoiceMode": "음성 모드 중지",
+    "switchCamera": "카메라 전환 (현재: {{preset}})",
+    "unavailable": "화면 속 화면을 사용할 수 없습니다. 이 창에서 계속 컴패니언을 사용하세요.",
+    "voiceMode": "음성 모드"
   },
   "quickChat": {
     "incompatibleModel": "이 모델은 대화를 다른 방식으로 보관합니다. 메인 채팅을 열어 새 채팅에서 계속하세요.",

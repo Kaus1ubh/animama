@@ -194,6 +194,7 @@ def _install_context(monkeypatch: pytest.MonkeyPatch, app: FastAPI, sessions: li
         ),
         unit_of_work=SimpleNamespace(commit=AsyncMock()),
         memory_entries=None,
+        memory_episodes=None,
         user_file_processing=None,
     )
     app.state.session_factory = session_factory

@@ -12,17 +12,34 @@ import { BROWSER_STEP_TIMEOUT_MS } from "./fixtures/browser-timeouts.mjs";
 // the Finish payload. Only native IPC and HTTP are simulated.
 const webRoot = fileURLToPath(new URL("..", import.meta.url));
 const fixture = path.join(webRoot, "tests/fixtures/setup-downloads");
-let server, browser, origin;
-before(async () => {
-  server = await createServer({
+
+/**
+ * Setup's providers depend on two build flags: `VITE_ENABLE_LOCAL_MODELS`
+ * (default on) and `VITE_ENABLE_DEEPSEEK_HUGGINGFACE` (default off, #783).
+ * Most tests drive local servers and DeepSeek, so their server turns both on;
+ * a second server builds the default, with neither flag set.
+ */
+async function startServer(allProviders) {
+  const started = await createServer({
     configFile: false,
     root: webRoot,
     publicDir: false,
-    cacheDir: path.join(webRoot, "node_modules/.vite-setup-downloads"),
+    cacheDir: path.join(
+      webRoot,
+      `node_modules/.vite-setup-downloads${allProviders ? "" : "-default"}`,
+    ),
     logLevel: "error",
     define: {
       __ANIMAMA_DEV_BUILD__: "false",
       __ANIMAMA_APP_VERSION__: '"test"',
+      // Both flags are set (on, or unset) either way, so a developer's own
+      // .env cannot change the build.
+      ...Object.fromEntries(
+        [
+          "import.meta.env.VITE_ENABLE_LOCAL_MODELS",
+          "import.meta.env.VITE_ENABLE_DEEPSEEK_HUGGINGFACE",
+        ].map((key) => [key, allProviders ? '"true"' : "undefined"]),
+      ),
     },
     optimizeDeps: { entries: [path.join(fixture, "main.tsx")] },
     resolve: {
@@ -33,13 +50,21 @@ before(async () => {
     },
     server: { host: "127.0.0.1", port: 0 },
   });
-  await server.listen();
-  origin = `http://127.0.0.1:${server.httpServer.address().port}`;
+  await started.listen();
+  return started;
+}
+const originOf = (started) =>
+  `http://127.0.0.1:${started.httpServer.address().port}`;
+let server, defaultServer, browser;
+before(async () => {
+  server = await startServer(true);
+  defaultServer = await startServer(false);
   browser = await chromium.launch({ headless: true });
 });
 after(async () => {
   await browser?.close();
   await server?.close();
+  await defaultServer?.close();
 });
 
 const OPENAI_MODEL = "OpenAIResponsesHTTPAgent:gpt-6-luna";
@@ -75,7 +100,8 @@ const PRESETS = [
 
 /**
  * Mount setup with intercepted HTTP. `options.modelConfiguration` false is
- * the hosted composition; `options.detect` maps a local preset to its models.
+ * the hosted composition; `options.detect` maps a local preset to its models;
+ * `options.defaultBuild` mounts the build with no provider flags set.
  */
 async function mount(options = {}) {
   const page = await browser.newPage({
@@ -424,6 +450,7 @@ async function mount(options = {}) {
       json: { detail: "Unexpected fixture route" },
     });
   });
+  const origin = originOf(options.defaultBuild ? defaultServer : server);
   await page.goto(`${origin}/tests/fixtures/setup-downloads/index.html`);
   try {
     await page.getByLabel("Display name", { exact: true }).waitFor();
@@ -448,15 +475,16 @@ async function mount(options = {}) {
 }
 
 const button = (page, name) => page.getByRole("button", { name, exact: true });
-// Provider tabs carry screen-reader "(connected)" text, so match the start.
+// Provider tabs may carry a Recommended tag and screen-reader "(connected)"
+// text, so match the provider name at the start.
+const providerName = (name) =>
+  new RegExp(`^${name}(\\s*Recommended)?(\\s*\\(connected\\))?$`, "su");
 const providerTab = (page, name) =>
-  page.getByRole("tab", {
-    name: new RegExp(`^${name}( \\(connected\\))?$`, "u"),
-  });
+  page.getByRole("tab", { name: providerName(name) });
 /** The visible provider panel; hidden panels stay mounted but are excluded. */
 const providerPanel = (page, name) =>
   page.getByRole("tabpanel", {
-    name: new RegExp(`^${name}( \\(connected\\))?$`, "u"),
+    name: providerName(name),
   });
 // The OpenAI provider tab panel is also labelled "OpenAI"; take the key field.
 /** The Voice step's ElevenLabs key, after opening its provider tab. */
@@ -519,7 +547,7 @@ test("only Welcome gates; steps move focus to their headings and Skip finishes w
     await page.getByLabel("Display name", { exact: true }).fill("Ada Lovelace");
     // Age confirmation belongs after the wizard.
     assert.equal(await next.isEnabled(), true);
-    assert.equal(await button(page, "I am 18 or older").count(), 0);
+    assert.equal(await button(page, "I am 18 or older and agree").count(), 0);
     await next.click();
 
     await heading(page, "Choose your AI").waitFor();
@@ -565,7 +593,7 @@ test("only Welcome gates; steps move focus to their headings and Skip finishes w
     );
     await button(page, "I'm under 18").click();
     await page.getByText(/only for adults 18 and older/u).waitFor();
-    assert.equal(await button(page, "I am 18 or older").count(), 0);
+    assert.equal(await button(page, "I am 18 or older and agree").count(), 0);
     assert.equal(bodies.onboarding, undefined);
     await page.reload();
     await page.getByRole("dialog", { name: "Before you start" }).waitFor();
@@ -576,7 +604,7 @@ test("only Welcome gates; steps move focus to their headings and Skip finishes w
       .filter({ hasText: /^You$/u })
       .waitFor();
     assert.equal(await page.getByTestId("profile-name").innerText(), "You");
-    await button(page, "I am 18 or older").click();
+    await button(page, "I am 18 or older and agree").click();
     await page.getByText("Setup complete", { exact: true }).waitFor();
     await page
       .getByTestId("profile-name")
@@ -678,7 +706,7 @@ test("saving the OpenAI key chooses OpenAI; Finish saves the recommended speech 
       /^CPU \(/u,
     );
     await button(page, "Finish").click();
-    await button(page, "I am 18 or older").click();
+    await button(page, "I am 18 or older and agree").click();
     await page.getByText("Setup complete", { exact: true }).waitFor();
 
     assert.deepEqual(operations, [{ method: "credentials.apply" }]);
@@ -697,6 +725,29 @@ test("saving the OpenAI key chooses OpenAI; Finish saves the recommended speech 
       "PATCH /v1/users/me/settings",
       "POST /v1/runtime/onboarding:complete",
     ]);
+  } finally {
+    await page.close();
+  }
+});
+
+test("a SenseVoice pick under English is saved as the engine that runs", async () => {
+  const { page, bodies } = await mount();
+  try {
+    await toVoice(page);
+    // Parakeet, the English default, says it hears English only.
+    await page.getByText("Recognizes English only.", { exact: true }).waitFor();
+    await page.getByRole("tab", { name: /^SenseVoice/u }).click();
+    await page
+      .getByText(/^Recognizes Japanese, Korean, Chinese and English\./u)
+      .waitFor();
+    await button(page, "Finish").click();
+    await button(page, "I am 18 or older and agree").click();
+    await page.getByText("Setup complete", { exact: true }).waitFor();
+    assert.deepEqual(bodies.settings.preferences.speech, {
+      stt_provider: "parakeet",
+      stt_parakeet_webgpu: false,
+      stt_offline_engine: "sensevoice",
+    });
   } finally {
     await page.close();
   }
@@ -722,7 +773,9 @@ test("saving the Anthropic key chooses Claude Haiku 5.5, and Finish sends it", a
     assert.deepEqual(operations, []);
     await button(page, "Save").click();
     await page.getByText("Saved.", { exact: true }).waitFor();
-    await page.getByRole("tab", { name: "Anthropic (connected)" }).waitFor();
+    await page
+      .getByRole("tab", { name: /^Anthropic\s*Recommended\s*\(connected\)$/su })
+      .waitFor();
     assert.equal(
       await page.evaluate(() =>
         JSON.stringify({ ...localStorage, ...sessionStorage }).includes(
@@ -734,7 +787,7 @@ test("saving the Anthropic key chooses Claude Haiku 5.5, and Finish sends it", a
     await button(page, "Continue").click();
     await heading(page, "Set up voice").waitFor();
     await button(page, "Finish").click();
-    await button(page, "I am 18 or older").click();
+    await button(page, "I am 18 or older and agree").click();
     await page.getByText("Setup complete", { exact: true }).waitFor();
     assert.deepEqual(operations, [{ method: "credentials.apply" }]);
     assert.equal(bodies.onboarding.chat_model_provider_id, HAIKU);
@@ -748,7 +801,9 @@ async function saveAnthropicKey(page) {
   await providerTab(page, "Anthropic").click();
   await anthropicKey(page).fill("fixture-key");
   await button(page, "Save").click();
-  await page.getByRole("tab", { name: "Anthropic (connected)" }).waitFor();
+  await page
+    .getByRole("tab", { name: /^Anthropic\s*Recommended\s*\(connected\)$/su })
+    .waitFor();
 }
 
 test("saving the OpenAI key after the Anthropic key makes OpenAI the setup model", async () => {
@@ -760,10 +815,12 @@ test("saving the OpenAI key after the Anthropic key makes OpenAI the setup model
     await providerTab(page, "OpenAI").click();
     await openAiKey(page).fill("fixture-key");
     await button(page, "Save").click();
-    await page.getByRole("tab", { name: "OpenAI (connected)" }).waitFor();
+    await page
+      .getByRole("tab", { name: /^OpenAI\s*Recommended\s*\(connected\)$/su })
+      .waitFor();
     await button(page, "Continue").click();
     await button(page, "Finish").click();
-    await button(page, "I am 18 or older").click();
+    await button(page, "I am 18 or older and agree").click();
     await page.getByText("Setup complete", { exact: true }).waitFor();
     assert.equal(bodies.onboarding.chat_model_provider_id, OPENAI_MODEL);
   } finally {
@@ -788,7 +845,7 @@ test("adding a model after the Anthropic key makes it the setup model", async ()
     await dialog.waitFor({ state: "hidden" });
     await button(page, "Continue").click();
     await button(page, "Finish").click();
-    await button(page, "I am 18 or older").click();
+    await button(page, "I am 18 or older and agree").click();
     await page.getByText("Setup complete", { exact: true }).waitFor();
     assert.equal(
       bodies.onboarding.chat_model_provider_id,
@@ -1008,10 +1065,12 @@ test("OpenAI and Anthropic keys configured before setup do not pin a setup model
       );
     await page.reload();
     await welcome(page);
-    await page.getByRole("tab", { name: "Anthropic (connected)" }).waitFor();
+    await page
+      .getByRole("tab", { name: /^Anthropic\s*Recommended\s*\(connected\)$/su })
+      .waitFor();
     await button(page, "Continue").click();
     await button(page, "Finish").click();
-    await button(page, "I am 18 or older").click();
+    await button(page, "I am 18 or older and agree").click();
     await page.getByText("Setup complete", { exact: true }).waitFor();
     assert.equal(bodies.onboarding.chat_model_provider_id, undefined);
   } finally {
@@ -1037,7 +1096,7 @@ test("Finish waits for a key save in flight, then saves ElevenLabs as the provid
     release();
     await page.getByText("Saved.", { exact: true }).waitFor();
     await button(page, "Finish").click();
-    await button(page, "I am 18 or older").click();
+    await button(page, "I am 18 or older and agree").click();
     await page.getByText("Setup complete", { exact: true }).waitFor();
     assert.equal(bodies.settings.preferences.speech.tts_provider, "elevenlabs");
     assert.equal(bodies.settings.preferences.speech.tts_enabled, true);
@@ -1083,7 +1142,7 @@ test("a local server's model is added and becomes the setup model", async () => 
     );
     await button(page, "Continue").click();
     await button(page, "Finish").click();
-    await button(page, "I am 18 or older").click();
+    await button(page, "I am 18 or older and agree").click();
     await page.getByText("Setup complete", { exact: true }).waitFor();
     assert.equal(
       bodies.onboarding.chat_model_provider_id,
@@ -1120,7 +1179,7 @@ test("saving the OpenAI key after adding a local model makes OpenAI the setup mo
     await page.getByText("Saved.", { exact: true }).waitFor();
     await button(page, "Continue").click();
     await button(page, "Finish").click();
-    await button(page, "I am 18 or older").click();
+    await button(page, "I am 18 or older and agree").click();
     await page.getByText("Setup complete", { exact: true }).waitFor();
     assert.equal(bodies.onboarding.chat_model_provider_id, OPENAI_MODEL);
   } finally {
@@ -1137,7 +1196,7 @@ test("with no local server, Set up later moves on without a model", async () => 
     await button(page, "Set up later").click();
     await heading(page, "Set up voice").waitFor();
     await button(page, "Finish").click();
-    await button(page, "I am 18 or older").click();
+    await button(page, "I am 18 or older and agree").click();
     await page.getByText("Setup complete", { exact: true }).waitFor();
     assert.equal(bodies.onboarding.chat_model_provider_id, undefined);
   } finally {
@@ -1154,7 +1213,7 @@ test("a refused setup model is explained and Finish can retry after skipping it"
     await page.getByText("Saved.", { exact: true }).waitFor();
     await button(page, "Continue").click();
     await button(page, "Finish").click();
-    await button(page, "I am 18 or older").click();
+    await button(page, "I am 18 or older and agree").click();
     await page.getByText(/chosen model can no longer be used/u).waitFor();
     await button(page, "Back to setup").click();
     await button(page, "Back").click();
@@ -1162,7 +1221,7 @@ test("a refused setup model is explained and Finish can retry after skipping it"
     await heading(page, "Set up voice").waitFor();
     // Skipping AI clears the choice; OpenAI is chosen again only if returning.
     await button(page, "Finish").click();
-    await button(page, "I am 18 or older").click();
+    await button(page, "I am 18 or older and agree").click();
     await page.getByText("Setup complete", { exact: true }).waitFor();
     assert.equal(bodies.onboarding.chat_model_provider_id, undefined);
   } finally {
@@ -1194,9 +1253,25 @@ test("the hosted composition's AI step offers no model choice", async () => {
     await page.reload();
     await page.getByRole("dialog", { name: "Before you start" }).waitFor();
     assert.equal(bodies.onboarding, undefined);
-    await button(page, "I am 18 or older").click();
+    await button(page, "I am 18 or older and agree").click();
     await page.getByText("Setup complete", { exact: true }).waitFor();
     assert.equal(bodies.onboarding.chat_model_provider_id, undefined);
+  } finally {
+    await page.close();
+  }
+});
+
+test("the default build's AI step offers Local but not DeepSeek or Hugging Face", async () => {
+  const { page, errors } = await mount({ defaultBuild: true });
+  try {
+    await welcome(page);
+    await providerTab(page, "OpenAI").waitFor();
+    await providerTab(page, "OpenRouter").waitFor();
+    assert.equal(await providerTab(page, "DeepSeek").count(), 0);
+    assert.equal(await providerTab(page, "Hugging Face").count(), 0);
+    await page.getByRole("tab", { name: "Local" }).click();
+    await providerTab(page, "Ollama").waitFor();
+    assert.deepEqual(errors, []);
   } finally {
     await page.close();
   }
@@ -1226,7 +1301,7 @@ test("a speech download keeps running after Finish and survives renderer recreat
     await button(page, "Continue").click();
     await button(page, "Continue").click();
     await button(page, "Finish").click();
-    await button(page, "I am 18 or older").click();
+    await button(page, "I am 18 or older and agree").click();
     await page.getByText("Setup complete", { exact: true }).waitFor();
     assert.equal(assets[0].status, "downloading");
   } finally {
@@ -1284,7 +1359,7 @@ test("steps, keys and downloads work when setup details cannot be retained", asy
     assert.deepEqual(operations, [{ method: "credentials.apply" }]);
     assert.equal(installs(requests).length, 1);
     await button(page, "Finish").click();
-    await button(page, "I am 18 or older").click();
+    await button(page, "I am 18 or older and agree").click();
     await page.getByText("Setup complete", { exact: true }).waitFor();
   } finally {
     await page.close();

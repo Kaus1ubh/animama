@@ -16,19 +16,12 @@
     "cancel": "取消下載",
     "confirmRemoval": "確認移除",
     "downloading": "正在下載 {{percent}}",
-    "installed": "已安裝",
-    "installedWithNote": "已安裝 · {{note}}",
-    "lowSpace": "可用空間不足：下載需要 {{size}} 的可用空間。",
     "notAvailable": "無法使用",
-    "progressLabel": "{{label}} 下載進度",
-    "retry": "重試下載",
     "sections": {
-      "speechToText": "語音轉文字",
       "voiceClone": "語音複製"
     },
     "size": "需下載 {{size}}",
     "sizeRetry": "需下載 {{size}} · 可重試",
-    "verifying": "正在驗證下載…",
     "errors": {
       "notReady": "安裝尚未就緒。請重新開啟後再試一次。",
       "statusUnavailable": "無法取得下載狀態。請重新開啟後再試一次。"
@@ -81,13 +74,6 @@
     }
   },
   "offlineSpeech": {
-    "checking": "正在檢查離線語音辨識…",
-    "cpu": {
-      "download": "下載 CPU 模型",
-      "label": "CPU 模型",
-      "remove": "移除 CPU 模型"
-    },
-    "description": "聽寫和語音模式會在此裝置上轉錄，音訊不會離開此裝置。",
     "developmentAcquire": "此開發環境從主機提供語音模型：執行 {{cpuCommand}}（如需 GPU 加速，還要執行 {{gpuCommand}}），然後重新執行 {{resetCommand}}。",
     "failures": {
       "downloadFailed": "下載未完成。請檢查網路連線，然後重試。",
@@ -100,37 +86,24 @@
     },
     "gpu": {
       "blocked": {
-        "checking": "正在檢查 WebGPU 支援…",
-        "missing": "此版本無法使用 GPU 加速。",
-        "needsCpu": "請先下載 CPU 模型。",
-        "noWebgpu": "此瀏覽器或裝置無法使用 WebGPU。"
+        "needsCpu": "請先下載 CPU 模型。"
       },
-      "description": "辨識更快，並提供即時預覽。需要 CPU 模型和支援 WebGPU 的裝置。",
-      "download": "下載 GPU 加速",
       "fellBack": "上次 WebGPU 載入失敗，因此語音辨識改用 CPU。",
-      "label": "GPU 加速",
-      "remove": "移除 GPU 加速",
-      "removeFirst": "請先移除 GPU 加速。",
-      "unavailableNow": "目前無法使用 GPU 加速。"
+      "removeFirst": "請先移除 GPU 加速。"
     },
-    "listUnavailable": "無法使用語音下載。請重新開啟設定以重試。",
     "refusals": {
       "busy": "此模型仍在變更中。請稍後再試。",
       "changeFailed": "變更未能完成。請稍後再試。",
       "inUse": "語音辨識正在使用中。請關閉聽寫和語音模式後再移除。"
     },
-    "title": "離線語音辨識",
-    "turnedOff": "此伺服器已關閉離線語音辨識。",
     "engines": {
       "parakeet": {
         "languages": "英語",
-        "model": "NVIDIA 的 Parakeet TDT 0.6B v2",
-        "attribution": "模型署名（CC BY 4.0）"
+        "model": "NVIDIA 的 Parakeet TDT 0.6B v2"
       },
       "sensevoice": {
         "languages": "日語、韓語和中文",
-        "model": "阿里巴巴的 SenseVoice-Small",
-        "attribution": "模型署名（FunASR Model License）"
+        "model": "阿里巴巴的 SenseVoice-Small"
       }
     }
   },
@@ -271,6 +244,9 @@
   },
   "languageNotice": {
     "speechToText": "要以{{language}}使用離線語音辨識，請下載對應的模型。",
+    "speechToTextEnglishOnly": "Parakeet 僅辨識英語。要用{{language}}和 Anima 說話，請選擇 SenseVoice。",
+    "speechToTextModel": "要使用 SenseVoice，請下載其模型。",
+    "speechToTextModelUnavailable": "此伺服器不提供 SenseVoice。",
     "textToSpeech": "Pocket TTS 僅支援英語。要讓 Anima 用{{language}}說話，請選擇 ElevenLabs 或 Gemini。",
     "speechToTextUnavailable": "此伺服器不提供{{language}}的離線語音辨識。"
   }

@@ -274,7 +274,7 @@ async def test_removal_control_blocks_live_jobs_and_preserves_the_queue(async_se
 
 @pytest.mark.parametrize("desktop_token", ["c" * 64, None])
 async def test_local_composition_reports_uploads_and_anima_creation(async_session, tmp_path, desktop_token):
-    """Local desktop and self-hosted web both admit uploads and Anima creation."""
+    """Local desktop and self-hosted web both admit uploads and Anima creation and keep Library previews."""
 
     app = _app(async_session, tmp_path)
     app.state.runtime_settings = app.state.runtime_settings.model_copy(
@@ -288,6 +288,17 @@ async def test_local_composition_reports_uploads_and_anima_creation(async_sessio
     assert body["chat"] and body["model_selection"] and body["model_role_selection"]
     assert body["provider_credentials"] and body["local_filesystem_administration"]
     assert body["native_features"] is bool(desktop_token)
+    assert body["library_previews"] is True
+    assert body["automatic_episode_processing"] is True
+
+
+def test_library_previews_are_on_unless_a_runtime_turns_them_off():
+    """A composition that omits the field keeps Library previews."""
+
+    from animama.app.contracts.runtime_capabilities import RuntimeCapabilities
+
+    assert RuntimeCapabilities.model_fields["library_previews"].default is True
+    assert RuntimeCapabilities.model_json_schema()["properties"]["library_previews"]["default"] is True
 
 
 @pytest.mark.parametrize("desktop_token", ["c" * 64, None])
@@ -358,7 +369,7 @@ def test_capability_contract_is_neutral_and_admits_hosted_presentation():
 
 
 def test_hosted_parity_contract_keeps_choices_independent_of_administration():
-    """The six exceptions never imply loss of chat or operator-catalog choices."""
+    """The eight exceptions never imply loss of chat or operator-catalog choices."""
 
     import json
     from pathlib import Path
@@ -379,6 +390,9 @@ def test_hosted_parity_contract_keeps_choices_independent_of_administration():
     assert capabilities.web_search.configuration is False
     assert capabilities.local_filesystem_administration is False
     assert capabilities.native_features is False
+    assert capabilities.library_previews is False
+    # Hosted never processes episode notes in the background (spec #775).
+    assert capabilities.automatic_episode_processing is False
 
 
 @pytest.mark.parametrize(

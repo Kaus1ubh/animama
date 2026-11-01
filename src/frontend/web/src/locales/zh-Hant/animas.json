@@ -80,6 +80,227 @@
     },
     "zoom": "縮放 {{zoom}}×"
   },
+  "avatarDiagnostics": {
+    "close": "關閉",
+    "copied": "已複製報告。",
+    "copyFailed": "無法複製到剪貼簿。",
+    "copyReport": "複製報告",
+    "description": "Animama 在此虛擬形象的檔案中發現的內容，以及它的播放方式。",
+    "expressions": {
+      "arkit": "ARKit 臉部形態",
+      "arkitValue": "{{resolved}} / {{total}}",
+      "customNames_other": "{{count}} 個自訂名稱",
+      "fromArkit": "{{name}}（ARKit）",
+      "missing": "缺少的表情",
+      "playsFaces": "透過 ARKit 形態播放情緒",
+      "present": "標準表情",
+      "unresolved": "被要求但此虛擬形象沒有",
+      "fromBlinkSides": "{{name}}（左右眼眨眼）",
+      "fromMmd": "{{name}}（MMD）",
+      "fromVrchat": "{{name}}（VRChat）",
+      "moods": "情緒臉部",
+      "moodValue": "眉毛 {{brow}} · 眼睛 {{eye}} · 嘴 {{mouth}}",
+      "regionSources": {
+        "vroid": "自帶部件",
+        "mmd": "MMD",
+        "arkit": "ARKit",
+        "preset": "預設",
+        "none": "無"
+      }
+    },
+    "face": {
+      "confidence": "信心度",
+      "foundBy": "識別方式",
+      "landmarks": "臉部特徵點",
+      "meshParts": "網格部件",
+      "part": "部位",
+      "ready": "就緒",
+      "sharedRegions_other": "共用部件內 {{count}} 處",
+      "sources": {
+        "corrected": "你的修正",
+        "estimatedBlink": "根據眨眼推測",
+        "estimatedEyeBone": "根據眼睛骨骼推測",
+        "headRegion": "全身網格部件的頭部",
+        "missing": "找不到",
+        "names": "材質名稱",
+        "signals": "模型資料"
+      },
+      "textureAnchors": "臉部紋理錨點",
+      "unavailable": "無法使用"
+    },
+    "file": {
+      "extensionsRequired": "必要擴充",
+      "extensionsUsed": "使用的擴充",
+      "format": "格式",
+      "formatNotVrm": "{{container}} · 不是 VRM",
+      "formatVrm": "{{container}} · VRM {{version}}",
+      "imageExternal": "位於檔案外",
+      "imageFormat": "格式",
+      "imagePixels": "像素",
+      "imagesCaption": "內嵌的圖像",
+      "imageSize": "大小",
+      "materialKind": "{{kind}} {{number}}",
+      "materials": "材質",
+      "meshes": "網格",
+      "meshesValue": "{{meshes}} 個網格，{{primitives}} 個網格部件（{{morphed}} 個帶形態鍵）",
+      "size": "檔案大小",
+      "textures": "圖像",
+      "texturesValue_other": "{{count}} 張圖像 · {{size}}",
+      "unreadable": "無法將此檔案讀取為 glTF 或 VRM 檔案。"
+    },
+    "identity": {
+      "included": "內建虛擬形象",
+      "local": "本機虛擬形象",
+      "unknown": "虛擬形象",
+      "upload": "未儲存的上傳"
+    },
+    "issues": {
+      "anchors_face_skin_missing": "找不到臉部皮膚，因此無法放置繪於臉部的特效。",
+      "anchors_landmarks_unavailable": "臉部特徵點無法使用，因此無法放置繪於臉部的特效。",
+      "anchors_mouth_missing": "在臉部紋理上找不到嘴的位置。",
+      "anchors_projection_failed": "無法對應臉部紋理，因此無法放置繪於臉部的特效。",
+      "anEffect": "某個特效",
+      "avatar_extension_unsupported": "此檔案需要 glTF 擴充 {{extension}}，但此應用程式尚無法載入，因此無法顯示虛擬形象。",
+      "avatar_load_failed": "無法載入虛擬形象。請在「檔案」中檢查其必要擴充。",
+      "effect_anchor_covered": "已略過 {{effect}}：它在臉部的繪製位置位於此虛擬形象的其他部分之下（例如建模在皮膚上方的眼睛或鼻子），因此不會顯示。",
+      "effect_attachment_limit": "已移除 {{effect}}：身體、貼紙或剪影特效最多同時顯示 {{limit}} 個。",
+      "effect_face_part_missing": "已略過 {{effect}}：此虛擬形象未識別到{{part}}。",
+      "effect_face_skin_required": "{{effect}} 需要臉部皮膚，但找不到。",
+      "effect_face_texture_hidden": "已略過 {{effect}}：臉部皮膚的材質沒有透過第一組 UV 顯示基礎顏色紋理，因此繪於其上的內容不會顯示。",
+      "effect_iris_mesh_missing": "已略過 {{effect}}：此虛擬形象的{{part}}是在臉部上推測的，沒有可供繪製的瞳孔網格部件。",
+      "effect_load_failed": "{{effect}} 無法載入其圖像。",
+      "effect_overlay_required": "{{effect}} 在此臉部上需要疊加模式。",
+      "effect_placement_failed": "{{effect}} 無法放置到此虛擬形象上。",
+      "effect_skin_color_unavailable": "{{effect}} 無法為背景取樣臉部膚色。",
+      "effect_surface_too_dark": "已略過 {{effect}}：它會使繪製位置的臉部變暗，但該處的臉部本身太暗，變化無法顯示。",
+      "effect_target_incompatible": "{{effect}} 與其放置的部件不相符。",
+      "effect_target_unknown": "{{effect}} 指定了不存在的模型部件。",
+      "effect_target_unresolved": "{{effect}} 在此虛擬形象上找不到適合的部件。",
+      "effect_unknown": "有一個特效在此安裝中無法使用。",
+      "effect_wrong_kind": "{{effect}} 無法以這種方式顯示。",
+      "eye_detail_not_hidden": "{{effect}} 會播放，但無法隱藏共用網格部件中的{{part}}。",
+      "face_parts_correction_digest_unknown": "此檔案的摘要未知，因此忽略了已儲存的臉部部位修正。",
+      "face_parts_correction_invalid": "無法讀取已儲存的臉部部位修正，已忽略。",
+      "face_parts_correction_other_file": "已儲存的臉部部位修正是為其他檔案製作的，已忽略。",
+      "face_parts_correction_schema_unsupported": "已儲存的臉部部位修正格式不受支援，已忽略。",
+      "face_parts_correction_unknown_bindings_other": "{{part}}的已儲存修正指定了此模型沒有的 {{count}} 個網格部件。",
+      "face_parts_detection_failed": "無法識別臉部部位，因此依材質名稱放置特效。",
+      "face_parts_expressions_missing": "模型的眨眼或「aa」表情不會移動任何網格（缺少該表情，或只切換材質），也沒有可替代它的 MMD、ARKit 或 VRChat 形態，因此無法據此找到臉部皮膚和眼部細節。",
+      "face_parts_whole_body_head_missing": "一個網格部件包含整個身體，但其中蒙皮到頭部骨骼、朝向前方的部分在眨眼或張嘴時都不會移動，因此無法找到臉部，臉部的形象特效將被略過。",
+      "file_unavailable": "無法下載虛擬形象檔案。",
+      "file_unreadable": "虛擬形象檔案不是可讀取的 glTF 或 VRM 檔案。",
+      "landmarks_anchor_missing": "找不到用來固定臉部特徵點的頭部。",
+      "landmarks_eyes_missing": "臉部找不到眼睛，因此眼部特效無法使用。",
+      "landmarks_face_bounds_failed": "無法測量臉部皮膚。",
+      "landmarks_face_skin_missing": "找不到臉部皮膚，因此臉部特徵點無法使用。",
+      "morph_target_names_mismatched_other": "有 {{count}} 個網格的形態鍵名稱在網格部件之間或與形態鍵數量不一致，因此這些形態鍵保持未命名，其中的 MMD 變形或 ARKit 形態都無法使用。",
+      "scene_bindings_unavailable": "無法列出已載入模型的網格部件。",
+      "springs_helper_failed": "無法繪製彈簧骨骼參考線。",
+      "springs_metadata_missing": "檔案沒有彈簧骨骼設定，因此彈簧以一半強度擺動。",
+      "springs_source_unavailable": "無法讀取檔案的彈簧骨骼資料，因此彈簧使用預設設定。",
+      "springs_unmapped_joints_other": "有 {{count}} 個彈簧關節無法與檔案的彈簧資料對應。",
+      "face_expressions_none": "此虛擬形象沒有用於情緒的臉部形態（VRoid 部件、MMD 變形、ARKit 形態或情緒預設），因此臉部保持中性；情緒透過動作和特效表現。",
+      "iris_hide_unavailable": "內容要求隱藏瞳孔（Fcl_EYE_Iris_Hide），但無法隱藏此虛擬形象的瞳孔網格部件：未找到，或與臉部皮膚共用網格部件。"
+    },
+    "json": {
+      "collapseAll": "全部摺疊",
+      "copied": "已複製 JSON。",
+      "copy": "複製 JSON",
+      "description": "以資料形式顯示同一份報告，方便與支援人員分享。",
+      "expandAll": "全部展開"
+    },
+    "loading": "正在讀取虛擬形象…",
+    "materialKinds": {
+      "liltoon": "lilToon",
+      "mtoon": "MToon",
+      "pbr": "標準",
+      "unlit": "Unlit"
+    },
+    "materials": {
+      "label": "lilToon 材質",
+      "milliseconds": "{{value}} 毫秒",
+      "nextLoad": "下次載入：{{state}} · {{why}}（在本次載入後測得）",
+      "rendered": "使用 lilToon 算繪",
+      "renderedAt": "使用 lilToon 算繪（{{fps}} fps）",
+      "simple": "簡單材質",
+      "value": "{{state}} · {{why}}",
+      "why": {
+        "automatic": "由自動選擇",
+        "automaticNotMeasured": "由自動選擇：尚未測量此 GPU 的 lilToon 幀時間",
+        "automaticRemeasuring": "由自動選擇：此 GPU 繪製一幀 lilToon 用時 {{measured}}，超過 {{fps}} fps 的 {{budget}} 上限；改用簡單材質前會再次測量",
+        "automaticSlow": "由自動選擇：此 GPU 繪製一幀 lilToon 用時 {{measured}}，超過 {{fps}} fps 的 {{budget}} 上限",
+        "automaticUnsupported": "由自動選擇：此瀏覽器無法測量 GPU 時間",
+        "automaticWithin": "由自動選擇：此 GPU 繪製一幀 lilToon 用時 {{measured}}，未超過 {{fps}} fps 的 {{budget}} 上限",
+        "chosen": "設為{{mode}}",
+        "failed": "lilToon 無法載入"
+      }
+    },
+    "motion": {
+      "humanoidBones": "人形骨骼",
+      "missingBones": "缺少的必要骨骼",
+      "missingOptionalBones": "缺少的選用骨骼",
+      "optionalCovers": {
+        "contacts": "接觸改用靠近手部的下一節手指骨骼",
+        "motionAndContacts": "動作、姿勢與接觸改用下一層骨骼",
+        "nothing": "動作不會移動它們"
+      },
+      "standIn": "{{bone}} → {{standIn}}",
+      "notChecked": "尚未檢查",
+      "restPose": "靜止姿勢",
+      "springs": "彈簧骨骼",
+      "springsValue": "{{joints}} 個關節 · {{colliders}} 個碰撞體",
+      "wind": "風與環境力",
+      "windEffect": {
+        "held": "彈簧保持在靜止姿勢",
+        "off": "無風和上升氣流",
+        "on": "風和上升氣流已開啟（{{percent}}）",
+        "softHair": "無風和上升氣流：頭髮太軟，撐不住",
+        "tunedWithout": "無風和上升氣流：其彈簧是在沒有它們的情況下調校的"
+      },
+      "windValue": "{{mode}} · {{effect}}",
+      "restPoseValue": "{{arms}} · {{hands}}",
+      "arms": {
+        "tPose": "T 姿勢",
+        "normalized": "手臂靜止時偏離 T 姿勢 {{degrees}}°，已正規化"
+      },
+      "hands": {
+        "vroid": "手部與 VRoid 相同",
+        "normalized": "手部已按 VRoid 正規化（{{degrees}}°）"
+      }
+    },
+    "navigationLabel": "診斷分區",
+    "no": "否",
+    "none": "無",
+    "notLoaded": "無法載入虛擬形象，因此只顯示其檔案資訊。",
+    "privacy": "報告只包含數量、標準名稱和代碼，不含檔案路徑或名稱。",
+    "sections": {
+      "expressions": "表情",
+      "face": "臉部",
+      "file": "檔案",
+      "json": "原始 JSON",
+      "motion": "動態",
+      "warnings": "警告",
+      "warningsCount_other": "警告（{{count}}）"
+    },
+    "settingSource": {
+      "default": "預設設定",
+      "stored": "已為此虛擬形象儲存"
+    },
+    "source": {
+      "live": "位於聊天舞台",
+      "offscreen": "為此檢視載入",
+      "dock": "位於預覽中",
+      "uploadStage": "位於預覽舞台",
+      "notLoaded": "未能載入"
+    },
+    "title": "虛擬形象診斷",
+    "unavailable": "此 Anima 沒有可檢查的虛擬形象。",
+    "unknown": "未知",
+    "warnings": {
+      "none": "未發現問題。"
+    },
+    "yes": "是"
+  },
   "badges": {
     "starter": "內建",
     "starterShort": "內"

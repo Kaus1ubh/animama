@@ -14,6 +14,9 @@ from animama.adapters.repositories.sqlalchemy.anima_package_source_repo import S
 from animama.adapters.repositories.sqlalchemy.avatar_face_part_override_repo import (
     SQLAlchemyAvatarFacePartOverrideRepository,
 )
+from animama.adapters.repositories.sqlalchemy.avatar_setting_override_repo import (
+    SQLAlchemyAvatarSettingOverrideRepository,
+)
 from animama.adapters.repositories.sqlalchemy.content_catalog_repo import SQLAlchemyContentCatalog
 from animama.adapters.repositories.sqlalchemy.product_repositories import SQLAlchemyProductRepositories
 from animama.adapters.repositories.sqlalchemy.user_profile_repo import SQLAlchemyUserProfileRepository
@@ -24,6 +27,7 @@ from animama.app.safety.crisis_resources import CrisisResourceTable
 from animama.app.services.anima_package_source_service import AnimaPackageSourceService
 from animama.app.services.anima_runtime_service import AnimaRuntimeService
 from animama.app.services.avatar_face_parts_service import AvatarFacePartsService
+from animama.app.services.avatar_settings_service import AvatarSettingsService
 from animama.app.services.chat_compaction_service import ChatCompactionSettings
 from animama.app.services.chat_title_generation_service import ChatTitleGenerationSettings
 from animama.app.services.content_catalog_service import ContentCatalogService
@@ -39,7 +43,12 @@ from animama.app.services.typed_content_service import TypedContentService
 from animama.app.web_search import WebSearchToolService
 from animama.domain.content_catalog import VerifiedContentFile
 from animama.domain.request_principal import RequestPrincipal
-from animama.product_http.delivery import PackageDownloadResponse, encoded_json_response, verified_file_response
+from animama.product_http.delivery import (
+    DeferredJsonBody,
+    PackageDownloadResponse,
+    encoded_json_response,
+    verified_file_response,
+)
 from animama.product_http.ports import (
     ChatTurnAdmission,
     ChatTurnLease,
@@ -62,6 +71,7 @@ from animama.server.embedding_refresh import (
     wake_embedding_refresh,
 )
 from animama.server.embeddings import role_embedder
+from animama.server.episode_processing import wake_automatic_episode_processing
 from animama.server.gemini_tts_service import LocalGeminiSpeech
 from animama.server.installation_personalization import (
     FirstRunIncompleteError,
@@ -90,6 +100,7 @@ def local_product_content(
     content = ContentCatalogService(store=store, catalog=catalog)
     saves = ContentSaveService(content=content)
     overrides = SQLAlchemyAvatarFacePartOverrideRepository(session)
+    settings_overrides = SQLAlchemyAvatarSettingOverrideRepository(session)
     packages = ContentPackageService(
         content=content,
         stages=stages,
@@ -105,6 +116,7 @@ def local_product_content(
         default_model_provider_id=settings.anima_default_model_provider_id,
         max_identity_bytes=settings.anima_memory_file_max_bytes,
         face_part_overrides=overrides,
+        avatar_setting_overrides=settings_overrides,
     )
     return ProductContent(
         catalog=content,
@@ -116,17 +128,22 @@ def local_product_content(
         packages=packages,
         store=store,
         runtime=AnimaRuntimeService(session, store=store),
+        avatar_settings=AvatarSettingsService(catalog=catalog, overrides=settings_overrides, commit=session.commit),
     )
 
 
 class LocalChatTurnLease:
     """The local guard admits every turn: one owner, no metering and no session lease."""
 
+    def __init__(self, app: FastAPI) -> None:
+        self._app = app
+
     async def check(self) -> None:
         return None
 
     async def settle(self, outcome: ChatTurnOutcome) -> None:
-        return None
+        # The turn and its episode note are saved by now; check whether enough notes are pending.
+        wake_automatic_episode_processing(self._app)
 
 
 class LocalChatTurnServices:
@@ -165,7 +182,8 @@ class LocalChatTurnServices:
         return None
 
 
-# Bytes named by an exact runtime revision never change under that name (ADR 0028).
+# Bytes named by an exact runtime revision (ADR 0028) or an Included file's digest
+# (ADR 0033) never change under that name.
 IMMUTABLE_PRIVATE = "private, max-age=31536000, immutable"
 
 
@@ -250,7 +268,7 @@ class LocalProductPorts:
         )
 
     async def admit_chat_turn(self, principal: RequestPrincipal, admission: ChatTurnAdmission) -> ChatTurnLease:
-        return LocalChatTurnLease()
+        return LocalChatTurnLease(self._app)
 
     def chat_turn(self, principal: RequestPrincipal, lease: ChatTurnLease) -> LocalChatTurnServices:
         return LocalChatTurnServices(self._app, principal)
@@ -301,7 +319,7 @@ class LocalProductPorts:
     async def json_response(
         self,
         request: Request,
-        body: bytes,
+        body: bytes | DeferredJsonBody,
         *,
         encoding: str,
         headers: dict[str, str],
@@ -337,6 +355,8 @@ class LocalProductPorts:
     def user_settings_changed(self, principal: RequestPrincipal) -> None:
         # The embeddings role may have changed; re-check stored vectors now.
         wake_embedding_refresh(self._app)
+        # Memory flags or the Memory Manager model may have changed too.
+        wake_automatic_episode_processing(self._app)
 
     async def embedding_refresh_status(
         self, session: AsyncSession, principal: RequestPrincipal, embedding_model_id: str | None

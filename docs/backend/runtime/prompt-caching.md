@@ -15,7 +15,7 @@ and reports the share of input tokens each provider path served from cache on
 every turn.
 
 Each run tags its synthetic identity with a fresh nonce. Runs stay isolated
-while the shared text before the identity (the core instructions, about 265
+while the shared text before the identity (the core instructions, about 120
 tokens) is shorter than the provider's minimum cacheable length. The harness
 sends no tools.
 
@@ -73,25 +73,23 @@ model. Chat Completions sends it only on connections with
 from three parts:
 
 - **Stable instructions:** core instructions, Anima identity, `MEMORIES.md`,
-  memory guidance, response guidance with the Gesture list, the audio-tag rule
+  `PROFILE.md`, this Anima's recent episode notes, memory guidance, response guidance with the Gesture list, the Speech section
   for the selected voice, the conversation language section under a
   non-English UI Locale, and then the Companion Guardrails.
 - **History**, replayed exactly as stored.
-- **Turn context:** the memory map, then the attachment list, then the
-  guardrails again, immediately before the user's new message (after it on
-  Anthropic Messages).
+- **Turn context:** the memory map, then the attachment list, immediately
+  before the user's new message (after it on Anthropic Messages). A turn with
+  neither sends no turn context.
 
-The last instruction text the model reads before the user's words is therefore
-always the guardrails, word for word
-([ADR 0008](../../adr/0008-non-overridable-companion-guardrail.md)); on
-Anthropic Messages the turn context after the user's words also ends with them.
+The guardrails appear once per turn, at the end of the stable instructions
+([ADR 0008](../../adr/0008-non-overridable-companion-guardrail.md)).
 
 | Path | Request order |
 | --- | --- |
-| Chat Completions with a developer role | system (stable instructions); developer (app compaction summary, when there is one); history; developer (turn context); user |
-| Chat Completions without a developer role (the row lacks the role, or its connection sets `fold_developer_role`) | system (stable instructions, a `# Turn Context` description of the block, the compaction summary, then the guardrails); history; user (a `<turn_context>` block holding the turn context, then the user's words) |
-| OpenAI Responses | `instructions` (stable instructions); input: developer item (turn context), user item |
-| Anthropic Messages | `system` (stable instructions); history, starting at the latest compaction block when the server has compacted; user; mid-conversation `system` message (turn context) |
+| Chat Completions with a developer role | system (stable instructions); developer (app compaction summary, when there is one); history; developer (turn context, when there is any); user |
+| Chat Completions without a developer role (the row lacks the role, or its connection sets `fold_developer_role`) | system (stable instructions, a `# Turn Context` description of the block, the compaction summary, then the guardrails); history; user (a `<turn_context>` block holding the turn context, when there is any, then the user's words) |
+| OpenAI Responses | `instructions` (stable instructions); input: developer item (turn context, when there is any), user item |
+| Anthropic Messages | `system` (stable instructions); history, starting at the latest compaction block when the server has compacted; user; mid-conversation `system` message (turn context, when there is any) |
 
 On Responses the chain lives in OpenAI server state (`previous_response_id`,
 `store: true`). With a cursor, a request sends only the new items. Each turn's
@@ -102,11 +100,14 @@ first turn, incognito turns (`store: false`) and the stale-cursor replay.
 
 On Anthropic Messages the turn context follows the user's words, because
 Anthropic accepts a mid-conversation `system` message only after a user turn. No
-tagged block is used. Anthropic rows get their own phrasing of the
-non-guardrail sections (`app/chat/anthropic_instructions.py`): the identity and
-`MEMORIES.md` are delimited with XML tags, the response guidance matches strict
-structured output, and a short `# Turn Context` section describes the trailing
-system message. The directives and the guardrails are the same on every path.
+tagged block is used. Anthropic rows differ only where the transport needs it
+(`app/chat/anthropic_instructions.py`): the identity, `MEMORIES.md`, the profile
+and the recent notes are delimited with XML tags, the shared response guidance gains a line that keeps
+tool calls ahead of the JSON answer, and a short `# Turn Context` section
+describes the trailing system message. Apart from how often the Speech section
+asks for audio tags, which follows the instruction style
+(`app/chat/speech_tags.py`), the directives and the guardrails are the same on
+every path.
 
 Anthropic chats compact on Anthropic's server, never through app compaction.
 Every request sends threshold compaction (`compact_20260112`) with a trigger
@@ -153,7 +154,7 @@ other OpenAI-compatible servers never receive them. Anthropic uses its own
   - on Anthropic, text in the user turn after the tool results or after the
     invalid reply, because Haiku 5.5 may ignore a system message placed right
     after tool results. With no reply before it, the text joins the
-    turn-context message.
+    turn-context message, or the user's turn when there is no turn context.
 - On Anthropic, each round resends the earlier rounds' assistant content
   exactly as returned (a compaction block, signed thinking, text, web-search
   blocks and `tool_use`), carried in the request-local continuation. A round
@@ -178,14 +179,16 @@ Anima, per chat, or per turn.
 | Part | Class | Where it is | Changes when |
 | --- | --- | --- | --- |
 | Tool definitions | per turn | before all instructions (OpenAI and Anthropic render tools first) | uploaded-file tools are added only on turns with attachments; write tools follow incognito and memory options; native web search follows the shared control. Any change misses the whole cache, so a turn with attachments and the turn after it miss. |
-| Core instructions | per Anima | stable instructions, first | the Anima's name changes |
-| Anima identity (`IDENTITY.md`) | per Anima | stable instructions | the owner edits the identity |
+| Core instructions | per provider style | stable instructions, first | never; they name no Anima |
+| Anima identity (a "Your name is …" line, then `IDENTITY.md`) | per Anima | stable instructions | the owner renames the Anima or edits the identity |
 | Anima memories (`MEMORIES.md`) | per Anima | stable instructions | a chat memory tool or a Memory Manager Reflection edits it. On Responses this also misses the stored chain's prefix; edits are rare. |
+| User profile (`PROFILE.md`, first 16 KiB) | per installation | stable instructions | the owner, a chat memory tool or the Memory Manager edits it; automatic episode processing can edit it during a chat. On Responses this also misses the stored chain's prefix. |
+| Recent notes (this Anima's newest `remember` notes from other chats) | per Anima | stable instructions | another chat with the Anima saves a note, or a local day passes and the 14-day window moves; the current chat's notes and processing status never change it. On Responses a change also misses the stored chain's prefix. |
 | Memory and response guidance | per Anima | stable instructions | memory-write flags or the response format change |
 | Gesture list and response schema | per Anima | stable instructions (response guidance) and `response_format` | the Anima's loadout changes; the schema's `gesture` enum changes with it |
-| Audio-tag rule (`app/chat/speech_tags.py`) | per Anima | stable instructions, after response guidance | the turn's voice changes: Gemini, Eleven v4 Turbo and every other case (speech off, Pocket TTS, browser speech) each have their own rule |
-| Conversation language | per installation | stable instructions, after the audio-tag rule | the owner switches the UI Locale to or from a non-English language |
-| Companion Guardrails | per installation | end of the stable instructions, and end of the turn context | never ([ADR 0008](../../adr/0008-non-overridable-companion-guardrail.md)) |
+| Speech section (`app/chat/speech_tags.py`) | per Anima | stable instructions, after response guidance | the turn's voice changes: speech off, Gemini, Eleven v4 Turbo and the other voices (Pocket TTS, browser speech) each have their own section |
+| Conversation language | per installation | stable instructions, after the Speech section | the owner switches the UI Locale to or from a non-English language |
+| Companion Guardrails | per installation | end of the stable instructions | never ([ADR 0008](../../adr/0008-non-overridable-companion-guardrail.md)) |
 | Compaction summary | per chat | developer message after the system message, or the end of the system message before the guardrails (rows without a developer role); on Anthropic, a compaction block at the head of the history | app compaction runs (Chat Completions). The trigger is the smallest of `ANIMAMA_CHAT_COMPACTION_THRESHOLD_TOKENS` (default 90,000), 70% of the context window, and 75% of the window left after the reply reserve. On Anthropic the server compacts when a request's input reaches the row's trigger. Each compaction misses the history cache once. |
 | History | per turn | after the stable instructions | every turn (append) |
 | Memory map (file paths and descriptions) | per installation | turn context | a memory file is added, removed, moved or re-described |

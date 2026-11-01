@@ -29,6 +29,7 @@
       "orbitTarget": "環繞中心",
       "orbitTargetYSource": "環繞中心 Y 來源",
       "orbitTargetYSourceLabel": "環繞中心 Y 來源",
+      "pipTitle": "子母畫面相機",
       "position": "相機位置",
       "positionYSource": "相機 Y 來源",
       "positionYSourceLabel": "相機 Y 來源",
@@ -157,6 +158,12 @@
       "unavailable": "模型無法使用。請選擇其他模型。",
       "unavailableShort": "模型無法使用",
       "webSearch": "網路搜尋"
+    },
+    "speechEngines": {
+      "offline": "{{engine}} {{variant}}",
+      "stt": "STT：{{stt}}",
+      "tts": "TTS：{{tts}}",
+      "ttsOff": "關閉"
     }
   },
   "header": {
@@ -179,6 +186,7 @@
     "contentProgress": "正在載入動畫和特效（{{completed}}/{{total}}）",
     "download": "正在下載{{item}}（{{size}}）",
     "downloadProgress": "正在下載{{item}}（{{size}}，已完成 {{percent}}）",
+    "episodeProcessing_other": "正在將 {{count}} 則筆記整理進記憶…",
     "speechToText": "正在載入語音轉文字（Parakeet）",
     "textToSpeech": "正在載入文字轉語音（PocketTTS）",
     "textToSpeechStep": "正在載入文字轉語音（PocketTTS），第 {{step}} 步，共 {{total}} 步"
@@ -239,9 +247,7 @@
     }
   },
   "speech": {
-    "install": "安裝離線語音辨識以使用聽寫和語音模式",
-    "installFromMainWindow": "請在 Animama 主視窗中開啟「應用程式設定 → 語音」進行下載。",
-    "unavailableHere": "此處無法使用聽寫和語音模式所需的離線語音辨識"
+    "skip": "略過朗讀"
   },
   "suggestions": {
     "rockPaperScissors": "玩剪刀石頭布",

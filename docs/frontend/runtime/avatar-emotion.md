@@ -339,6 +339,143 @@ Relevant files:
 - `src/frontend/web/src/lib/avatar/ExpressionController.ts`
 - `src/frontend/web/src/lib/avatar/Avatar.ts`
 
+### Faces on non-VRoid Avatars
+
+Content keys VRM mood presets and VRoid `Fcl_*` parts. Avatars converted from
+VRChat or exported from Unity or Blender usually have neither, but carry
+standard MMD face morphs, ARKit shapes, or both. At load (`prepareLoadedVrm`)
+Animama gives such an Avatar the names content keys, region by region: each
+mood splits into brow, eye and mouth, `Fcl_BRW_<Mood>`, `Fcl_EYE_<Mood>` and
+`Fcl_MTH_<Mood>` play one region each, and the preset and `Fcl_ALL_<Mood>`
+play all three. Each region plays, in order:
+
+1. the model's own VRoid part;
+2. its standard MMD morph (`mmdFaceExpressions.ts`);
+3. the ARKit mix of `arkitFaceCompositions.json`, when every shape that
+   region of the table uses resolves (`arkitFaceExpressions.ts`);
+4. the VRM preset fallback below.
+
+| Mood      | Brows  | Eyes     | Mouth    |
+| --------- | ------ | -------- | -------- |
+| Joy       | にこり | 笑い     | にっこり |
+| Fun       | にこり | なごみ   | にっこり |
+| Sorrow    | 困る   | –        | –        |
+| Angry     | 怒り   | じと目   | –        |
+| Surprised | 上     | びっくり | お       |
+
+Only these standard MMD names are used, and まばたき, ウィンク and ウィンク右 for
+blinks and あいうえお for visemes (below). Regions without one (–) use the
+ARKit mix or the preset. `Fcl_EYE_Spread` plays びっくり or ARKit's wide eyes.
+
+- The preset and `Fcl_ALL_<Mood>` combine their regions' MMD morphs and ARKit
+  mixes and replace a preset the file authors, so such Avatars show the same
+  faces in Animama. A mood with a region neither covers keeps the file's own
+  preset whole, because one preset cannot be split by region; without one, that
+  region stays neutral. Content keying a single region still plays its MMD
+  morph or mix.
+- An Avatar with VRoid mood parts of its own, such as a VRoid model with added
+  ARKit ("Perfect Sync") shapes, keeps its authored face.
+- Other parts: `Fcl_EYE_Close`, `_L` and `_R` play ARKit's blink shapes, or
+  else `blink`, `blinkLeft` and `blinkRight`; `Fcl_MTH_Large` and `Fcl_MTH_A`
+  play ARKit's `jawOpen` only. MMD's お is not used for them, and moods never
+  use mouth visemes. `Fcl_EYE_Iris_Hide` hides the detected irises as eye
+  effects do (`irisHideExpression.ts`, from weight 0.5); an iris it cannot
+  hide (not found, or in the face skin's mesh part) is reported
+  (`iris_hide_unavailable`).
+- A preset that plays nothing (no binds, or binds at weight 0 or on a missing
+  shape) counts as absent: three-vrm registers every preset, bound or not.
+- Absent blink and viseme presets (`blink`, `blinkLeft`, `blinkRight`, `aa`,
+  `ih`, `ou`, `ee`, `oh`) are filled first, from other shapes
+  (`faceSignals.ts`), so face part detection, idle and Gesture blinks and
+  viseme lip sync work unchanged. A file's own bound preset always stays. `blink` tries the file's own
+  `blinkLeft` and `blinkRight` together, then MMD's まばたき (or ウィンク plus
+  ウィンク右), ARKit's `eyeBlinkLeft` plus `eyeBlinkRight`, and VRChat's
+  `vrc.blink` (or `vrc.blink_left` plus `vrc.blink_right`); each side's blink
+  tries ウィンク / ウィンク右 (the unsuffixed wink is the model's left eye),
+  then ARKit's side, then VRChat's. Visemes try MMD's あいうえお, then VRChat's
+  `vrc.v_aa`, `v_ih`, `v_ou`, `v_e` and `v_oh`, then the ARKit `vowels` mix
+  below when every shape it uses resolves, because authored vowel shapes beat
+  an approximation. VRChat names match like ARKit names (case, separators and
+  the side token's spelling ignored); MMD names match exactly. Filled blinks
+  remain subject to three-vrm's `overrideBlink` and to the eyelid closure
+  correction, which never scales a blink preset by itself. Diagnostics and
+  `vrm:inspect` show each preset's source.
+- A name that resolves to nothing is reported once per Avatar in Diagnostics.
+  So are emotion-map names the Avatar cannot play, such as `Fcl_MTH_Large`
+  beside a smile without `jawOpen`; positive emotions without any smile use the
+  whole `relaxed` fallback instead.
+- A model with no VRoid parts, MMD morphs, ARKit shapes or mood presets keeps a
+  neutral face, and Diagnostics says so (`face_expressions_none`).
+- Diagnostics lists each mood's source per region (`own parts`, MMD, ARKit,
+  preset or none).
+- The table's `vowels` can shape lip sync on Avatars with every vowel shape, a
+  separate bar from the moods
+  ([ARKit lip-sync shaping](avatar-lipsync.md#arkit-lip-sync-shaping)). With
+  the default viseme lip sync a mood's `jawOpen` adds to separate viseme
+  morphs, except where the visemes were filled from ARKit mixes (an Avatar
+  without viseme presets, MMD vowels or VRChat visemes); there, and under
+  ARKit lip-sync shaping, it stacks on the same `jawOpen` morph.
+- The eyelid closure correction (`eyelidClosure.ts`) measures each
+  lid-closing expression on the model (mood presets, MMD morphs such as 笑い,
+  ARKit mixes) and reduces blink by how far it closes the lids. An ARKit mix
+  uses its share of blink's motion. Other expressions use the share at the
+  lid's own vertices, scaled so that VRoid's happy counts as closed (a smiling
+  arc also raises the lower lid, which blink's motion does not show); that
+  scale reproduces Annie's verified relaxed. VRoid faces keep VRoid's profile
+  (Annie's verified one, the default for others such as Andrew). Winks
+  (`Fcl_EYE_Close_L`/`_R`) are not corrected, so the open eye keeps blinking.
+- Stacking limits (`faceShapeStacking.ts`) keep content authored on VRoid
+  faces from over-driving these expressions. Many Reactions key Joy and Fun
+  eyes together, which suits VRoid's squinting Fun eyes; on an MMD face 笑い
+  and なごみ each close the lids fully, so together they fold the lashes. After
+  every expression-manager update, on the morphs the expressions Animama built
+  bind:
+  - Lid-closing expressions together close the lids at most once, measured as
+    above: an ARKit mix by its share of blink's motion, another shape as shut
+    once it moves the lid's own vertices 69% as far as blink does (VRoid's
+    happy). Two weaker shapes that only meet when stacked therefore stop at
+    that calibration. The one closing furthest keeps its shape and the others
+    give way in their lid-closing morphs, on every mesh those morphs move, so
+    a whole-face mood keeps its brows and mouth.
+  - A morph they share (Joy and Fun both play にこり and にっこり) moves no
+    further than the furthest any single expression takes it.
+  - A mood's mouth morph eases back by how much of its motion the current
+    viseme shapes already make, so a full smile and a wide `ih` don't pull the
+    mouth corners twice as far; lip sync keeps its full strength.
+
+  Single expressions, and stacks within these limits, play as authored; VRoid
+  faces play their own parts untouched.
+
+`vrm:inspect` prints each mood's region sources, as `Avatar.load` decides them.
+
+To make a converted Avatar emote in other VRM apps too, bake the mood presets
+into a copy of its file (from `src/frontend/web`):
+
+```bash
+pnpm -s vrm:bake-expressions <source.vrm> --out <baked.vrm> [--replace]
+```
+
+It writes `happy`, `angry`, `sad`, `relaxed` and `surprised` from the same
+table, binding each mesh's own spelling of each ARKit shape (or, as the app
+does, scaling an expression the file authors under that ARKit name), plus an empty
+`neutral` when the file has none. It keeps presets that already bind something
+unless `--replace` (an authored `neutral` is always kept), and lists table
+shapes the file lacks or matches ambiguously. Animama plays the baked presets
+for moods it cannot compose from the Avatar's MMD morphs and ARKit shapes, or
+when it has VRoid mood parts; `vrm:inspect` shows which. Only VRM 1.0 files are supported.
+It changes nothing but those preset entries, never modifies the source and never
+overwrites an existing output. The baked presets keep `overrideBlink: none`, so
+another app's automatic blink can close the lids past shut while a preset that
+partly closes them (`happy`, `relaxed`, `sad`) is shown; Animama's own correction does not travel with the file.
+
+Tune faces by editing the JSON table. Aim for each region, at weight 1, to move
+about as far as the VRoid part it stands for on an Included Avatar (relaxed's
+mouth, `mouthSmile` 1, matches `Fcl_MTH_Fun`), because the emotion map's
+weights were chosen for VRoid parts. ARKit has no closed-arc eye
+shape, so happy's eyes are a partial blink with a squint. On faces whose bangs
+cover the brows, only the eye and mouth regions show. Affection, esteem and
+delight key `Fcl_MTH_Fun`, so tuning relaxed's mouth retunes all three.
+
 ### Reaction clip mapping
 
 Turn-scoped reactions use the `emotion.update` metadata, not the persisted

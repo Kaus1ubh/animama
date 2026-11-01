@@ -114,8 +114,8 @@ def render_episode_processing_instructions(
                 f"  - ref: {item.ref}",
                 f"    occurred_at: {item.episode.occurred_at.isoformat()}",
                 f"    local_date: {item.episode.local_date.isoformat()}",
-                f"    source_anima: {json.dumps(item.source_anima_name)}",
-                f"    text: {json.dumps(item.episode.text)}",
+                f"    source_anima: {json.dumps(item.source_anima_name, ensure_ascii=False)}",
+                f"    text: {json.dumps(item.episode.text, ensure_ascii=False)}",
             )
         )
     return "\n".join(lines)

@@ -24,11 +24,12 @@ import {
 } from "@/ui/components/dialog";
 import { Input } from "@/ui/components/input";
 import { contentEntryName } from "@/lib/content/nameIdentifiers";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/ui/components/tabs";
 import { itemReference } from "./createAnimaContent";
 import { sameRef, type CreateAnimaDraft } from "./createAnimaDraft";
 import { creatorErrorText } from "./createAnimaErrors";
 import { checkCreationVrm } from "./createAnimaFiles";
+import type { CreationStageAvatar } from "./CreateAnimaStage";
+import { CreateAnimaUploadDiagnostics } from "./CreateAnimaUploadDiagnostics";
 
 /** The server remains authoritative; offer only an unambiguous caller-editable collision. */
 export function avatarCollisionTarget(
@@ -47,6 +48,36 @@ export function avatarCollisionTarget(
   return matches.length === 1 ? matches[0] : undefined;
 }
 
+const UNLOADED_STAGE: CreationStageAvatar = { avatar: null, status: "loading" };
+
+/**
+ * An Avatar card's picture: its portrait (shipped, or captured when a Local
+ * Avatar was first shown here) or a placeholder. A portrait that fails to
+ * load falls back to the placeholder.
+ */
+function AvatarThumbnail({ url }: { url: string | null | undefined }) {
+  const [failed, setFailed] = useState<string | null>(null);
+  return (
+    <div className="bg-muted/30 flex h-28 items-center justify-center overflow-hidden rounded-lg">
+      {url && failed !== url ? (
+        <img
+          src={url}
+          alt=""
+          loading="lazy"
+          decoding="async"
+          className="size-full object-contain"
+          onError={() => setFailed(url)}
+        />
+      ) : (
+        <UserRound
+          className="text-muted-foreground/60 size-11"
+          aria-hidden="true"
+        />
+      )}
+    </div>
+  );
+}
+
 export function CreateAnimaAvatarStep({
   draft,
   sources,
@@ -56,6 +87,7 @@ export function CreateAnimaAvatarStep({
   onFile,
   onSelect,
   onWorking,
+  stageAvatar = UNLOADED_STAGE,
 }: {
   draft: CreateAnimaDraft;
   sources: AnimaCreationSources;
@@ -65,16 +97,12 @@ export function CreateAnimaAvatarStep({
   onFile: (file: File | null) => void;
   onSelect: (source: ItemRevisionRef, meaningful?: boolean) => Promise<void>;
   onWorking: (working: boolean) => void;
+  /** The stage's Avatar for the chosen file, for its Diagnostics status. */
+  stageAvatar?: CreationStageAvatar;
 }) {
   const { t } = useTranslation("create");
   const formatters = useFormatters();
   const avatars = sources.avatars.data ?? [];
-  const selected = avatars.find(
-    (item) => item.item_id === draft.avatar?.item_id,
-  );
-  const [tab, setTab] = useState(
-    selected?.source === "local" ? "local" : "included",
-  );
   const [search, setSearch] = useState("");
   const [limit, setLimit] = useState(8);
   const [name, setName] = useState(file?.name.replace(/\.vrm$/i, "") ?? "");
@@ -144,7 +172,6 @@ export function CreateAnimaAvatarStep({
       if (!alive.current) return;
       await onSelect(itemReference(saved));
       onFile(null);
-      setTab("local");
       setNotice(
         !replace && avatars.some((item) => item.item_id === saved.item_id)
           ? t("avatarStep.alreadySaved")
@@ -172,12 +199,10 @@ export function CreateAnimaAvatarStep({
       if (alive.current) working(false);
     }
   };
-  const filtered = avatars.filter(
-    (item) =>
-      item.source === tab &&
-      `${item.name} ${item.description ?? ""}`
-        .toLowerCase()
-        .includes(search.toLowerCase()),
+  const filtered = avatars.filter((item) =>
+    `${item.name} ${item.description ?? ""}`
+      .toLowerCase()
+      .includes(search.toLowerCase()),
   );
 
   return (
@@ -203,20 +228,18 @@ export function CreateAnimaAvatarStep({
             void selectFile(next);
           }}
         />
-        <Tabs
-          value={tab}
-          onValueChange={(value) => {
-            setTab(value);
-            setLimit(8);
-          }}
-        >
+        <div className="space-y-3">
           <div className="flex items-center gap-2">
-            <TabsList className="grid min-w-0 flex-1 grid-cols-2">
-              <TabsTrigger value="included">
-                {t("sources.included")}
-              </TabsTrigger>
-              <TabsTrigger value="local">{t("sources.local")}</TabsTrigger>
-            </TabsList>
+            <Input
+              className="min-w-0 flex-1"
+              aria-label={t("avatarStep.search")}
+              placeholder={t("avatarStep.searchPlaceholder")}
+              value={search}
+              onChange={(event) => {
+                setSearch(event.target.value);
+                setLimit(8);
+              }}
+            />
             <Button
               type="button"
               variant="outline"
@@ -227,124 +250,96 @@ export function CreateAnimaAvatarStep({
               onClick={() => fileInputRef.current?.click()}
             >
               <Upload className="size-4" />
-              {/* Phones give the source switch the room; the stage also offers upload. */}
+              {/* Phones give the search the room; the stage also offers upload. */}
               <span className="hidden sm:inline">{t("avatarStep.upload")}</span>
             </Button>
           </div>
-          {(["included", "local"] as const).map((source) => (
-            <TabsContent key={source} value={source} className="space-y-3">
-              <Input
-                aria-label={t("avatarStep.search")}
-                placeholder={t("avatarStep.searchPlaceholder")}
-                value={search}
-                onChange={(event) => {
-                  setSearch(event.target.value);
-                  setLimit(8);
-                }}
-              />
-              {sources.avatars.isLoading ? (
-                <p role="status" className="text-muted-foreground text-sm">
-                  {t("avatarStep.loading")}
-                </p>
-              ) : sources.avatars.isError ? (
-                <div role="alert" className="space-y-2 text-sm">
-                  <p>{t("avatarStep.loadFailed")}</p>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => void sources.avatars.refetch()}
+          {sources.avatars.isLoading ? (
+            <p role="status" className="text-muted-foreground text-sm">
+              {t("avatarStep.loading")}
+            </p>
+          ) : sources.avatars.isError ? (
+            <div role="alert" className="space-y-2 text-sm">
+              <p>{t("avatarStep.loadFailed")}</p>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => void sources.avatars.refetch()}
+              >
+                {t("avatarStep.retry")}
+              </Button>
+            </div>
+          ) : !filtered.length ? (
+            <p className="text-muted-foreground rounded-xl border border-dashed p-5 text-sm">
+              {search ? t("avatarStep.noMatches") : t("avatarStep.empty")}
+            </p>
+          ) : (
+            <div
+              role="radiogroup"
+              aria-label={t("avatarStep.groupLabel")}
+              className="grid grid-cols-2 gap-3"
+            >
+              {filtered.slice(0, limit).map((item) => {
+                const checked = sameRef(draft.avatar, item);
+                return (
+                  <label
+                    key={item.item_id}
+                    className={cn(
+                      "focus-within:ring-ring relative flex cursor-pointer flex-col gap-2 rounded-xl border p-3 focus-within:ring-2",
+                      checked
+                        ? "border-primary bg-primary/5"
+                        : "bg-background hover:bg-muted/30",
+                      busy && "pointer-events-none opacity-60",
+                    )}
                   >
-                    {t("avatarStep.retry")}
-                  </Button>
-                </div>
-              ) : !filtered.length ? (
-                <p className="text-muted-foreground rounded-xl border border-dashed p-5 text-sm">
-                  {search
-                    ? t("avatarStep.noMatches")
-                    : source === "local"
-                      ? t("avatarStep.emptyLocal")
-                      : t("avatarStep.emptyIncluded")}
-                </p>
-              ) : (
-                <div
-                  role="radiogroup"
-                  aria-label={
-                    source === "local"
-                      ? t("avatarStep.groupLabel.local")
-                      : t("avatarStep.groupLabel.included")
-                  }
-                  className="grid grid-cols-2 gap-3"
-                >
-                  {filtered.slice(0, limit).map((item) => {
-                    const checked = sameRef(draft.avatar, item);
-                    return (
-                      <label
-                        key={item.item_id}
-                        className={cn(
-                          "focus-within:ring-ring relative flex cursor-pointer flex-col gap-2 rounded-xl border p-3 focus-within:ring-2",
-                          checked
-                            ? "border-primary bg-primary/5"
-                            : "bg-background hover:bg-muted/30",
-                          busy && "pointer-events-none opacity-60",
-                        )}
-                      >
-                        <input
-                          className="sr-only"
-                          type="radio"
-                          name="creation-avatar-source"
-                          aria-label={
-                            item.source === "local"
-                              ? t("avatarStep.optionLabel.local", {
-                                  name: item.name,
-                                })
-                              : t("avatarStep.optionLabel.included", {
-                                  name: item.name,
-                                })
-                          }
-                          checked={checked}
-                          disabled={busy}
-                          value={item.item_id}
-                          onChange={() => void choose(itemReference(item))}
+                    <input
+                      className="sr-only"
+                      type="radio"
+                      name="creation-avatar-source"
+                      aria-label={
+                        item.source === "local"
+                          ? t("avatarStep.optionLabel.local", {
+                              name: item.name,
+                            })
+                          : t("avatarStep.optionLabel.included", {
+                              name: item.name,
+                            })
+                      }
+                      checked={checked}
+                      disabled={busy}
+                      value={item.item_id}
+                      onChange={() => void choose(itemReference(item))}
+                    />
+                    <AvatarThumbnail url={item.portrait?.url} />
+                    <span className="flex items-center justify-between gap-2 text-sm font-medium">
+                      <span className="min-w-0 break-words">{item.name}</span>
+                      {checked ? (
+                        <Check
+                          className="text-primary size-4 shrink-0"
+                          aria-hidden="true"
                         />
-                        <div className="bg-muted/30 flex h-24 items-center justify-center rounded-lg">
-                          <UserRound
-                            className="text-muted-foreground/60 size-11"
-                            aria-hidden="true"
-                          />
-                        </div>
-                        <span className="flex items-center justify-between gap-2 text-sm font-medium">
-                          <span className="min-w-0 break-words">
-                            {item.name}
-                          </span>
-                          {checked ? (
-                            <Check
-                              className="text-primary size-4 shrink-0"
-                              aria-hidden="true"
-                            />
-                          ) : null}
-                        </span>
-                        <span className="text-muted-foreground text-xs">
-                          {source === "local"
-                            ? t("sources.local")
-                            : t("sources.included")}
-                        </span>
-                      </label>
-                    );
-                  })}
-                </div>
-              )}
-              {filtered.length > limit ? (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setLimit((value) => value + 12)}
-                >
-                  {t("avatarStep.showMore")}
-                </Button>
-              ) : null}
-            </TabsContent>
-          ))}
-        </Tabs>
+                      ) : null}
+                    </span>
+                    <span className="text-muted-foreground text-xs">
+                      {item.source === "local"
+                        ? t("sources.local")
+                        : t("sources.included")}
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
+          )}
+          {filtered.length > limit ? (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setLimit((value) => value + 12)}
+            >
+              {t("avatarStep.showMore")}
+            </Button>
+          ) : null}
+        </div>
         {file ? (
           <div className="mt-4 space-y-3 rounded-xl border p-4">
             <p className="text-sm break-all">
@@ -353,6 +348,7 @@ export function CreateAnimaAvatarStep({
                 size: formatters.fileSize(file.size),
               })}
             </p>
+            <CreateAnimaUploadDiagnostics file={file} stage={stageAvatar} />
             <label htmlFor="creation-vrm-name" className="text-sm font-medium">
               {t("avatarStep.saveAs")}
             </label>

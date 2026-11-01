@@ -24,6 +24,11 @@ import {
   resolveParticleVFXAnchorLocalPosition,
 } from "@/lib/avatar/particle-vfx";
 import type { ParticleVFXCatalogEntry } from "@/lib/avatar/particle-vfx";
+import {
+  measureAvatarProportions,
+  torsoSizeScale,
+} from "@/lib/avatar/avatarProportions";
+import { loadWholeBodyAvatar } from "@/lib/avatar/testing/wholeBodyVrm";
 import { EMPTY_RUNTIME_MEDIA_PROVIDER } from "@/lib/runtime-content/AnimaRuntimeMediaCatalog";
 
 /**
@@ -890,6 +895,272 @@ describe("ParticleVFXController", () => {
       );
     } finally {
       effect.shapeAutoFit = previousShapeAutoFit;
+      controller.dispose();
+    }
+  });
+
+  it("places effects in proportion to a smaller Avatar's body", async () => {
+    // Hips 0.5 m up, the head 0.5 m above them and a foot 5 cm off the
+    // ground: `avatarScale` 0.76, under the Included Avatars' size band.
+    const scene = new Group();
+    const hips = new Object3D();
+    hips.position.set(0, 0.5, 0);
+    const head = new Object3D();
+    head.position.set(0, 0.5, 0);
+    const leftFoot = new Object3D();
+    leftFoot.position.set(0.1, -0.45, 0);
+    hips.add(head, leftFoot);
+    scene.add(hips);
+    scene.updateMatrixWorld(true);
+    const bones: Record<string, Object3D> = { hips, head, leftFoot };
+    const avatar = {
+      scene,
+      vrm: {
+        humanoid: { getNormalizedBoneNode: (name: string) => bones[name] },
+      },
+    } as unknown as Avatar;
+    const controller = new ParticleVFXController(
+      avatar,
+      TEST_PARTICLE_MEDIA_PROVIDER,
+    );
+    quarksMockState.loadQueue.push({
+      kind: "resolve",
+      object: createMockQuarksPrefab(),
+    });
+
+    try {
+      await expect(
+        controller.playEffect({
+          effectId: "heart-fixture",
+          appliedId: "small-burst",
+        }),
+      ).resolves.toBe(true);
+      const root = scene.getObjectByName(PARTICLE_VFX_ROOT_OBJECT_NAME);
+      const object = root?.children.find((child) =>
+        child.name.startsWith("ParticleVFX:heart-fixture:small-burst"),
+      );
+      const scale = 0.76 / 0.91;
+      const authored = testParticleEntry("heart-fixture").defaultTransform;
+      // Offset and size shrink together; the snapshot keeps the authored values.
+      expect(object?.position.y).toBeCloseTo(1 + authored.offset.y * scale);
+      expect(object?.scale.x).toBeCloseTo(authored.scale.x * scale);
+      expect(controller.getSnapshot().activeInstances[0]?.transform).toEqual(
+        authored,
+      );
+    } finally {
+      controller.dispose();
+    }
+  });
+
+  it("keeps head effects outside a big head", async () => {
+    // A chibi head: twice the adult share of the Avatar's height.
+    const avatar = await loadWholeBodyAvatar({ headScale: 2 });
+    const stars = getParticleVFXCatalogEntryById("dizzy-stars")!;
+    expect(stars.defaultAnchor).toBe("head");
+    const controller = new ParticleVFXController(avatar, {
+      ...TEST_PARTICLE_MEDIA_PROVIDER,
+      resolveParticleVFX: async (runtimeId: string) =>
+        runtimeId === stars.id ? stars : null,
+    });
+    quarksMockState.loadQueue.push({
+      kind: "resolve",
+      object: createMockQuarksPrefab(),
+    });
+
+    try {
+      await expect(
+        controller.playEffect({ effectId: stars.id, appliedId: "stars" }),
+      ).resolves.toBe(true);
+      const root = avatar.scene!.getObjectByName(
+        PARTICLE_VFX_ROOT_OBJECT_NAME,
+      )!;
+      const object = root.children.find((child) =>
+        child.name.startsWith("ParticleVFX:dizzy-stars:stars"),
+      )!;
+      const proportions = measureAvatarProportions(avatar.vrm);
+      const head = avatar
+        .vrm!.humanoid.getNormalizedBoneNode("head")!
+        .getWorldPosition(new Vector3());
+      // The orbit above the head (and its fringe), not inside it, at the
+      // head's size.
+      expect(object.position.y - head.y).toBeGreaterThan(
+        proportions.headBox!.max.y,
+      );
+      expect(object.scale.x).toBeCloseTo(
+        stars.defaultTransform.scale.x * proportions.headScale,
+      );
+    } finally {
+      controller.dispose();
+    }
+  });
+
+  it.each([1, 0] as const)(
+    "places emitters among a chibi body's landmarks, not at one scale (VRM %i)",
+    async (vrm) => {
+      // A short chibi: a twice-sized head on a body 0.4 times the adult's.
+      const avatar = await loadWholeBodyAvatar({
+        headScale: 2,
+        bodyScale: 0.4,
+        vrm,
+      });
+      const cascade = getParticleVFXCatalogEntryById("musical-cascade")!;
+      expect(cascade.defaultAnchor).toBe("head");
+      const controller = new ParticleVFXController(avatar, {
+        ...TEST_PARTICLE_MEDIA_PROVIDER,
+        resolveParticleVFX: async (runtimeId: string) =>
+          runtimeId === cascade.id ? cascade : null,
+      });
+      // Musical Cascade's notes start beside the Included Avatars' upper
+      // chest, 0.27 m below the head bone; its glints a hand's width above
+      // the head bone.
+      const prefab = createMockQuarksPrefab({ emitterName: "notes" });
+      prefab.children[0]!.position.set(0.25, -0.27, 0.12);
+      const glints = new MockParticleEmitter(createMockParticleSystem(false));
+      glints.name = "glints";
+      glints.position.set(0, 0.1, 0);
+      prefab.add(glints);
+      quarksMockState.loadQueue.push({ kind: "resolve", object: prefab });
+
+      try {
+        await expect(
+          controller.playEffect({ effectId: cascade.id, appliedId: "notes" }),
+        ).resolves.toBe(true);
+        const bone = (name: string) =>
+          avatar
+            .vrm!.humanoid.getNormalizedBoneNode(name as never)!
+            .getWorldPosition(new Vector3());
+        const at = (name: string) =>
+          avatar.scene!.getObjectByName(name)!.getWorldPosition(new Vector3());
+        const proportions = measureAvatarProportions(avatar.vrm);
+        expect(proportions.bigHead).toBe(1);
+        // The notes start between the chibi's chest and shoulders, beside its
+        // torso, rather than 0.27 m times the head's size down its legs.
+        // Sideways distances in the scene, where a VRM 0 model's left is -x.
+        const notes = at("notes");
+        expect(notes.y).toBeGreaterThan(bone("chest").y);
+        expect(notes.y).toBeLessThan(bone("leftUpperArm").y);
+        expect(Math.abs(notes.x)).toBeGreaterThan(
+          Math.abs(bone("leftUpperArm").x),
+        );
+        expect(Math.abs(notes.x)).toBeLessThan(0.25);
+        // Above the head bone the head's size still places them.
+        expect(at("glints").y - bone("head").y).toBeCloseTo(
+          0.1 * proportions.headScale,
+        );
+      } finally {
+        controller.dispose();
+      }
+    },
+  );
+
+  it("scales offsets from a chibi's hands by its arm", async () => {
+    const avatar = await loadWholeBodyAvatar({ headScale: 2, bodyScale: 0.4 });
+    const controller = new ParticleVFXController(
+      avatar,
+      TEST_PARTICLE_MEDIA_PROVIDER,
+    );
+    // A chest effect with sparks a hand's width off the left hand.
+    const prefab = createMockQuarksPrefab({ emitterName: "torso" });
+    const sparks = new MockParticleEmitter(createMockParticleSystem(false));
+    sparks.name = "sparks";
+    sparks.userData.animamaParticleAnchor = "leftHand";
+    sparks.position.set(0.1, 0, 0);
+    prefab.add(sparks);
+    quarksMockState.loadQueue.push({ kind: "resolve", object: prefab });
+
+    try {
+      await expect(
+        controller.playEffect({
+          effectId: "heart-fixture",
+          appliedId: "sparks",
+          anchor: "chest",
+          transform: { offset: { x: 0, y: 0, z: 0 }, depthOffset: 0 },
+        }),
+      ).resolves.toBe(true);
+      const hand = avatar
+        .vrm!.humanoid.getNormalizedBoneNode("leftHand")!
+        .getWorldPosition(new Vector3());
+      const sparksAt = avatar
+        .scene!.getObjectByName("sparks")!
+        .getWorldPosition(new Vector3());
+      // The synthetic arm is 0.5 m long at full size: 0.2 m here.
+      expect(sparksAt.x - hand.x).toBeCloseTo(0.1 * (0.2 / 0.44), 4);
+      expect(sparksAt.y).toBeCloseTo(hand.y, 4);
+      // Following the hand keeps the placed offset rather than the authored one.
+      const handBone = avatar.vrm!.humanoid.getNormalizedBoneNode("leftHand")!;
+      handBone.position.y += 0.05;
+      controller.update(0.1);
+      const movedHand = handBone.getWorldPosition(new Vector3());
+      const movedSparks = avatar
+        .scene!.getObjectByName("sparks")!
+        .getWorldPosition(new Vector3());
+      expect(movedSparks.x - movedHand.x).toBeCloseTo(0.1 * (0.2 / 0.44), 4);
+      expect(movedSparks.y).toBeCloseTo(movedHand.y, 4);
+    } finally {
+      controller.dispose();
+    }
+  });
+
+  it("sizes a chibi's chest effect by its torso, not its head height", async () => {
+    const avatar = await loadWholeBodyAvatar({ headScale: 2, bodyScale: 0.4 });
+    const controller = new ParticleVFXController(
+      avatar,
+      TEST_PARTICLE_MEDIA_PROVIDER,
+    );
+    quarksMockState.loadQueue.push({
+      kind: "resolve",
+      object: createMockQuarksPrefab(),
+    });
+
+    try {
+      await expect(
+        controller.playEffect({
+          effectId: "heart-fixture",
+          appliedId: "burst",
+          anchor: "chest",
+        }),
+      ).resolves.toBe(true);
+      const root = avatar.scene!.getObjectByName(
+        PARTICLE_VFX_ROOT_OBJECT_NAME,
+      )!;
+      const object = root.children.find((child) =>
+        child.name.startsWith("ParticleVFX:heart-fixture:burst"),
+      )!;
+      const proportions = measureAvatarProportions(avatar.vrm);
+      const torso = torsoSizeScale(proportions.body)!;
+      expect(torso).toBeGreaterThan(proportions.bodyScale);
+      expect(object.scale.x).toBeCloseTo(
+        testParticleEntry("heart-fixture").defaultTransform.scale.x * torso,
+      );
+    } finally {
+      controller.dispose();
+    }
+  });
+
+  it("keeps authored emitter positions on adult proportions", async () => {
+    const avatar = await loadWholeBodyAvatar();
+    const controller = new ParticleVFXController(
+      avatar,
+      TEST_PARTICLE_MEDIA_PROVIDER,
+    );
+    const prefab = createMockQuarksPrefab({ emitterName: "notes" });
+    prefab.children[0]!.position.set(0.25, -0.27, 0.12);
+    quarksMockState.loadQueue.push({ kind: "resolve", object: prefab });
+
+    try {
+      await expect(
+        controller.playEffect({
+          effectId: "heart-fixture",
+          appliedId: "notes",
+          anchor: "head",
+          transform: { offset: { x: 0, y: 0, z: 0 }, depthOffset: 0 },
+        }),
+      ).resolves.toBe(true);
+      expect(measureAvatarProportions(avatar.vrm).body).toBeNull();
+      expect(
+        avatar.scene!.getObjectByName("notes")!.position.toArray(),
+      ).toEqual([0.25, -0.27, 0.12]);
+    } finally {
       controller.dispose();
     }
   });

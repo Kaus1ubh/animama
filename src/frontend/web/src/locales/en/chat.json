@@ -29,6 +29,7 @@
       "orbitTarget": "Orbit Target",
       "orbitTargetYSource": "Orbit Target Y Source",
       "orbitTargetYSourceLabel": "Orbit target Y source",
+      "pipTitle": "PiP camera",
       "position": "Camera Position",
       "positionYSource": "Camera Y Source",
       "positionYSourceLabel": "Camera Y source",
@@ -159,6 +160,12 @@
       "unavailable": "Model unavailable. Select another model.",
       "unavailableShort": "Model unavailable",
       "webSearch": "Web search"
+    },
+    "speechEngines": {
+      "offline": "{{engine}} {{variant}}",
+      "stt": "STT: {{stt}}",
+      "tts": "TTS: {{tts}}",
+      "ttsOff": "Off"
     }
   },
   "header": {
@@ -181,6 +188,8 @@
     "contentProgress": "Loading animations and effects ({{completed}}/{{total}})",
     "download": "Downloading {{item}} ({{size}})",
     "downloadProgress": "Downloading {{item}}: {{percent}} of {{size}}",
+    "episodeProcessing_one": "Crystallizing {{count}} note into memory…",
+    "episodeProcessing_other": "Crystallizing {{count}} notes into memory…",
     "speechToText": "Loading Speech-to-Text (Parakeet)",
     "textToSpeech": "Loading Text-to-Speech (PocketTTS)",
     "textToSpeechStep": "Loading Text-to-Speech (PocketTTS), step {{step}} of {{total}}"
@@ -241,9 +250,7 @@
     }
   },
   "speech": {
-    "install": "Install offline speech recognition to use dictation and Voice Mode",
-    "installFromMainWindow": "Open App Settings → Voice in the main Animama window to download it.",
-    "unavailableHere": "Offline speech recognition for dictation and Voice Mode is not available here"
+    "skip": "Skip speech"
   },
   "suggestions": {
     "joke": "Tell me a joke",

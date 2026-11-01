@@ -227,7 +227,8 @@ describe("pose creator model selection", () => {
       activeAvatar: {
         applyPose,
         clearAllExpressionOverrides,
-        vrm: { update },
+        // A complete rig: every humanoid bone is present.
+        vrm: { update, humanoid: { getNormalizedBoneNode: () => ({}) } },
       } as unknown as Avatar,
     });
 
@@ -525,7 +526,8 @@ describe("pose creator model selection", () => {
       activeAvatar: {
         applyPose,
         clearAllExpressionOverrides,
-        vrm: { update },
+        // A complete rig: every humanoid bone is present.
+        vrm: { update, humanoid: { getNormalizedBoneNode: () => ({}) } },
       } as never,
     });
     const store = usePoseCreatorStore.getState();

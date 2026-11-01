@@ -82,8 +82,8 @@ function canChat(model: PyConfiguredModel): boolean {
 }
 
 /**
- * Setup's AI step: where models run (Cloud, recommended, | Local) and a tab
- * per provider. OpenAI and Anthropic take their keys; other providers connect
+ * Setup's AI step: where models run (Cloud | Local) and a tab per provider,
+ * with OpenAI and Anthropic tagged as recommended. They take their keys; other providers connect
  * with the same form as App Settings → Models. Each local server tab looks
  * for that server at its default address and adds one of its models. The
  * model new Animas chat with is whichever was set up last (saving the OpenAI
@@ -389,7 +389,7 @@ function ModelChooser({
     local: locationProviderGroups(allConnections, "local"),
   };
   const activeProvider = (where: SetupModelLocation) =>
-    providerTab[where] ?? defaultLocationProvider(groups[where]);
+    defaultLocationProvider(groups[where], providerTab[where]);
 
   /** Show a new connection's provider tab and add its first model. */
   const connected = (saved: PyModelConnection) => {
@@ -488,11 +488,7 @@ function ModelChooser({
         value={shownLocation}
         onValueChange={(value) => onLocationChange(value as SetupModelLocation)}
       >
-        <ModelLocationTabsList
-          locations={locations}
-          active={shownLocation}
-          recommended="cloud"
-        />
+        <ModelLocationTabsList locations={locations} active={shownLocation} />
         {/* Every location and provider panel stays mounted, so a typed key
             or open form survives a tab switch. */}
         {locations.map((where) => (
@@ -514,6 +510,7 @@ function ModelChooser({
                 label={t("ai.providerTabs", {
                   location: modelLocationLabel(where),
                 })}
+                showRecommended
               />
               {groups[where].map(({ entry }) => (
                 <TabsContent

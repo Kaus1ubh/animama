@@ -188,6 +188,7 @@ describe("Avatar Effect v2 runtime features", () => {
     landmarks = {
       status: "ready",
       warnings: [],
+      issues: [],
       anchorName: "head",
       anchorType: "bone",
       faceBindingKey: "face",
@@ -211,11 +212,13 @@ describe("Avatar Effect v2 runtime features", () => {
         projectedFrontWorld: null,
         normalizedBoxCoord: { u: 0.5, v: 0.5, w: 0.5 },
         projectedBoxCoord: { u: 0.5, v: 0.5, w: 1 },
+        textureRect: null,
       };
     }
     anchors = {
       status: "ready",
       warnings: [],
+      issues: [],
       faceBindingKey: "face",
       faceMaterialName: "Face Skin",
       anchors: {
@@ -457,6 +460,28 @@ describe("Avatar Effect v2 runtime features", () => {
         expect(unmirrored[0]).toBeCloseTo(unmirrored[1]!);
       },
     );
+
+    it("mirrors the whole drawing in an eye whose UVs run mirrored", async () => {
+      // Irises in their VRoid halves (a 200 × 100 texture); the Avatar's left
+      // eye, the viewer's right cell, has mirrored UVs.
+      const iris = (x: number) => ({ x, y: 0.21, width: 0.25, height: 0.56 });
+      landmarks.eyes.left!.textureRect = iris(0.62);
+      landmarks.eyes.right!.textureRect = iris(0.13);
+      landmarks.eyes.left!.textureMirrored = true;
+
+      // VRoid moves both eyes' art the same way; the flipped cell moves its
+      // art back, so on screen both eyes move alike.
+      const shift = await shiftOf({}, staticOffset);
+      expect(shift[0]).toBeCloseTo(10);
+      expect(shift[1]).toBeCloseTo(-10);
+      // VRoid mirrors the viewer's right eye's art; mirrored UVs already do.
+      const [left, right] = allDraws()
+        .filter((draw) => draw.image === image)
+        .slice(-2)
+        .sort((a, b) => a.points[0]!.x - b.points[0]!.x);
+      expect(left!.points[1]!.x).toBeGreaterThan(left!.points[0]!.x);
+      expect(right!.points[1]!.x).toBeGreaterThan(right!.points[0]!.x);
+    });
 
     it.each([
       ["static", staticOffset],
@@ -810,6 +835,7 @@ describe("Avatar Effect v2 runtime features", () => {
       },
       eyeWhite: [],
       diagnostics: [],
+      issues: [],
     });
     const withParts = (map: AvatarFacePartMap) => {
       const avatar = { ...avatarStub, facePartMap: map } as Avatar;
@@ -854,6 +880,12 @@ describe("Avatar Effect v2 runtime features", () => {
       });
       expect(partController.getSnapshot().warnings).toEqual([
         'Skipped "Test": this avatar has no detected left eye.',
+      ]);
+      expect(partController.getSnapshot().issues).toEqual([
+        {
+          code: "effect_face_part_missing",
+          params: { effectId: effect.id, part: "eye_left" },
+        },
       ]);
     });
 

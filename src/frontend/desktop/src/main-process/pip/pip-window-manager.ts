@@ -7,6 +7,17 @@ import {
 } from "../locale/shell-locale.js";
 import { writeLog } from "../logging.js";
 import { installWindowGuards } from "../security/guards.js";
+import {
+  readPipPlacement,
+  resolveCornerPipBounds,
+  resolveSavedPipBounds,
+  writePipPlacement,
+  type PipPlacement,
+} from "./pip-placement.js";
+import {
+  floatingWindowType,
+  floatOnAllWorkspaces,
+} from "../window/floating-window.js";
 
 export type DesktopPipBackgroundMode = "transparent" | "scene";
 
@@ -35,8 +46,19 @@ export type DesktopPipCursorSnapshot = {
   sentAtMs: number;
 };
 
+/**
+ * Messages between the owner window and PiP. PiP sends `ready`,
+ * `camera-preset` and `voice-command`; the owner sends Avatar `snapshot` /
+ * `incremental` state and `voice` state.
+ */
 export type DesktopPipRuntimeMessage = {
-  type: "ready" | "snapshot" | "incremental";
+  type:
+    | "ready"
+    | "snapshot"
+    | "incremental"
+    | "camera-preset"
+    | "voice"
+    | "voice-command";
   sequence: number;
   sentAtMs: number;
   animaId: string;
@@ -48,12 +70,14 @@ type PipWindowManagerOptions = {
   /** Supplies the localized window title. */
   locale: ShellLocale;
   cursorSnapshotChannel: string;
+  /** Where this machine remembers the PiP window's position and size. */
+  placementFile: string;
   preloadPath: string;
   runtimeMessageChannel: string;
   stateChangedChannel: string;
 };
 
-type PipMouseZone = "outside" | "interactive" | "pass-through";
+export type PipMouseZone = "outside" | "interactive" | "pass-through";
 
 type Point = {
   x: number;
@@ -77,16 +101,14 @@ const MAX_PIP_HEIGHT = 1200;
 const DEFAULT_BACKGROUND_MODE: DesktopPipBackgroundMode = "transparent";
 const DEFAULT_PIP_SIZE_SCALE = 0.5;
 const MAX_PIP_SIZE_SCALE = 1.6;
-const PIP_DEFAULT_RIGHT_MARGIN = 24;
-const PIP_DEFAULT_BOTTOM_MARGIN = 32;
 const PIP_MOUSE_POLL_INTERVAL_MS = 50;
-const PIP_RESIZE_HIT_ZONE_SIZE = 10;
-const PIP_CLOSE_HIT_ZONE_SIZE = 20;
-const PIP_DRAG_HANDLE_SIZE = 20;
-const PIP_DRAG_HANDLE_LEFT = 4;
-const PIP_DRAG_HANDLE_TOP = 4;
-const PIP_SIZE_SLIDER_SIDE_OFFSET = 24;
-const PIP_TOP_CONTROL_HIT_ZONE_HEIGHT = 20;
+/** Moves and resizes arrive continuously; save once the window settles. */
+const PIP_PLACEMENT_SAVE_DELAY_MS = 500;
+/** The route's hover toolbar spans the top of the window, about 33px tall. */
+const PIP_TOOLBAR_HIT_ZONE_HEIGHT = 40;
+/** The route's resize grip sits in the bottom-right corner. */
+const PIP_RESIZE_GRIP_HIT_ZONE_SIZE = 24;
+const PIP_RESIZE_INTERVAL_MS = 16;
 
 function readAnimaId(value: unknown): string {
   if (typeof value !== "string") {
@@ -137,6 +159,23 @@ function resolveSizeScaleForWindowSize(width: number, height: number): number {
   return clampPipSizeScale((widthScale + heightScale) / 2);
 }
 
+/**
+ * The size scale that brings the window's bottom-right corner closest to the
+ * cursor after it moved `dx`/`dy` from where a grip drag began. The aspect
+ * ratio is fixed, so the corner follows the cursor's movement along the
+ * window's diagonal.
+ */
+export function resolveCornerResizeScale(
+  startScale: number,
+  dx: number,
+  dy: number,
+): number {
+  const diagonalScale =
+    (dx * DEFAULT_PIP_WIDTH + dy * DEFAULT_PIP_HEIGHT) /
+    (DEFAULT_PIP_WIDTH ** 2 + DEFAULT_PIP_HEIGHT ** 2);
+  return clampPipSizeScale(startScale + diagonalScale);
+}
+
 function resolveWindowSizeForScale(sizeScale: number): {
   width: number;
   height: number;
@@ -182,34 +221,17 @@ function isPipRouteUrl(value: string, allowedWebOrigin: string): boolean {
   }
 }
 
+/** Flush with the bottom-right corner of the owner window's display. */
 function resolveDefaultPipBounds(
   ownerContents: WebContents,
-  width: number,
-  height: number,
+  size: { width: number; height: number },
 ): Bounds {
   const ownerWindow = BrowserWindow.fromWebContents(ownerContents);
   const display =
     ownerWindow && !ownerWindow.isDestroyed()
       ? screen.getDisplayMatching(ownerWindow.getBounds())
       : screen.getPrimaryDisplay();
-  const { workArea } = display;
-
-  return {
-    x: Math.max(
-      workArea.x,
-      Math.round(
-        workArea.x + workArea.width - width - PIP_DEFAULT_RIGHT_MARGIN,
-      ),
-    ),
-    y: Math.max(
-      workArea.y,
-      Math.round(
-        workArea.y + workArea.height - height - PIP_DEFAULT_BOTTOM_MARGIN,
-      ),
-    ),
-    width,
-    height,
-  };
+  return resolveCornerPipBounds(display.workArea, size);
 }
 
 function syncPipWindowVisibility(
@@ -243,62 +265,26 @@ function isPointInsideBounds(point: Point, bounds: Bounds): boolean {
   );
 }
 
-function isInResizeZone(
+function isInResizeGripZone(
   localX: number,
   localY: number,
   bounds: Bounds,
 ): boolean {
   return (
-    localX < PIP_RESIZE_HIT_ZONE_SIZE ||
-    localX >= bounds.width - PIP_RESIZE_HIT_ZONE_SIZE ||
-    localY < PIP_RESIZE_HIT_ZONE_SIZE ||
-    localY >= bounds.height - PIP_RESIZE_HIT_ZONE_SIZE
+    localX >= bounds.width - PIP_RESIZE_GRIP_HIT_ZONE_SIZE &&
+    localY >= bounds.height - PIP_RESIZE_GRIP_HIT_ZONE_SIZE
   );
 }
 
-function isInCloseZone(
-  localX: number,
-  localY: number,
+/**
+ * Where the cursor is relative to the PiP window. Only the hover toolbar and
+ * the resize grip take mouse input; the rest of the window passes clicks to
+ * the app underneath.
+ */
+export function classifyPipMouseZone(
+  cursor: Point,
   bounds: Bounds,
-): boolean {
-  return (
-    localX >= bounds.width - PIP_CLOSE_HIT_ZONE_SIZE &&
-    localY < PIP_CLOSE_HIT_ZONE_SIZE
-  );
-}
-
-function isInDragHandleZone(
-  localX: number,
-  localY: number,
-  bounds: Bounds,
-): boolean {
-  const dragHandleLeft = PIP_DRAG_HANDLE_LEFT;
-  const dragHandleRight = Math.min(
-    bounds.width,
-    dragHandleLeft + PIP_DRAG_HANDLE_SIZE,
-  );
-
-  return (
-    localX >= dragHandleLeft &&
-    localX < dragHandleRight &&
-    localY >= PIP_DRAG_HANDLE_TOP &&
-    localY < PIP_DRAG_HANDLE_TOP + PIP_DRAG_HANDLE_SIZE
-  );
-}
-
-function isInSizeSliderZone(
-  localX: number,
-  localY: number,
-  bounds: Bounds,
-): boolean {
-  return (
-    localX >= PIP_SIZE_SLIDER_SIDE_OFFSET &&
-    localX < bounds.width - PIP_SIZE_SLIDER_SIDE_OFFSET &&
-    localY < PIP_TOP_CONTROL_HIT_ZONE_HEIGHT
-  );
-}
-
-function classifyPipMouseZone(cursor: Point, bounds: Bounds): PipMouseZone {
+): PipMouseZone {
   if (!isPointInsideBounds(cursor, bounds)) {
     return "outside";
   }
@@ -306,10 +292,8 @@ function classifyPipMouseZone(cursor: Point, bounds: Bounds): PipMouseZone {
   const localX = cursor.x - bounds.x;
   const localY = cursor.y - bounds.y;
   if (
-    isInResizeZone(localX, localY, bounds) ||
-    isInCloseZone(localX, localY, bounds) ||
-    isInDragHandleZone(localX, localY, bounds) ||
-    isInSizeSliderZone(localX, localY, bounds)
+    localY < PIP_TOOLBAR_HIT_ZONE_HEIGHT ||
+    isInResizeGripZone(localX, localY, bounds)
   ) {
     return "interactive";
   }
@@ -359,7 +343,10 @@ function normalizeRuntimeMessage(value: unknown): DesktopPipRuntimeMessage {
   if (
     message.type !== "ready" &&
     message.type !== "snapshot" &&
-    message.type !== "incremental"
+    message.type !== "incremental" &&
+    message.type !== "camera-preset" &&
+    message.type !== "voice" &&
+    message.type !== "voice-command"
   ) {
     throw new Error("Expected valid PiP runtime message type");
   }
@@ -392,6 +379,10 @@ export class PipWindowManager {
   private readonly config: DesktopConfig;
   private readonly locale: ShellLocale;
   private readonly cursorSnapshotChannel: string;
+  private readonly placementFile: string;
+  /** The saved placement; undefined until the file is first read. */
+  private placement: PipPlacement | null | undefined;
+  private placementSaveTimer: ReturnType<typeof setTimeout> | null = null;
   private readonly preloadPath: string;
   private readonly runtimeMessageChannel: string;
   private readonly stateChangedChannel: string;
@@ -404,6 +395,8 @@ export class PipWindowManager {
   private pipWindow: BrowserWindow | null = null;
   private pipRuntimeStateReady = false;
   private pipRendererReady = false;
+  /** Follows the cursor while the route's resize grip is held. */
+  private gripResizeTimer: ReturnType<typeof setInterval> | null = null;
   private state: DesktopPipState = {
     isOpen: false,
     animaId: null,
@@ -417,6 +410,7 @@ export class PipWindowManager {
     this.config = options.config;
     this.locale = options.locale;
     this.cursorSnapshotChannel = options.cursorSnapshotChannel;
+    this.placementFile = options.placementFile;
     this.preloadPath = options.preloadPath;
     this.runtimeMessageChannel = options.runtimeMessageChannel;
     this.stateChangedChannel = options.stateChangedChannel;
@@ -434,25 +428,30 @@ export class PipWindowManager {
     this.ownerContents = ownerContents;
     this.closePipWhenOwnerDestroyed(ownerContents);
 
+    // PiP reopens where the owner last left it on this machine.
+    const placement = this.savedPlacement();
     this.state = {
       isOpen: true,
       animaId: options.animaId,
       chatId: options.chatId,
       backgroundMode: options.backgroundMode,
       isHovered: false,
-      sizeScale: resolveSizeScaleForWindowSize(options.width, options.height),
+      sizeScale: placement
+        ? clampPipSizeScale(placement.sizeScale)
+        : resolveSizeScaleForWindowSize(options.width, options.height),
     };
+    const initialBounds = this.resolveOpenBounds(
+      ownerContents,
+      placement,
+      this.state.sizeScale,
+    );
 
     if (this.pipWindow?.isDestroyed() === false) {
       this.startMouseTracking(this.pipWindow);
       this.resetPipReadiness();
       this.setPipMouseEventsIgnored(this.pipWindow, false);
       this.pipWindow.hide();
-      this.setPipWindowDefaultBounds(
-        this.pipWindow,
-        ownerContents,
-        this.state.sizeScale,
-      );
+      this.pipWindow.setBounds(initialBounds);
       await this.loadPipRoute(this.pipWindow, options.animaId, options.chatId);
       this.syncPipWindowVisibility(this.pipWindow);
       if (this.pipWindow.isVisible()) {
@@ -462,17 +461,8 @@ export class PipWindowManager {
       return this.getState();
     }
 
-    const initialBounds = resolveDefaultPipBounds(
-      ownerContents,
-      options.width,
-      options.height,
-    );
-
     const pipWindow = new BrowserWindow({
-      x: initialBounds.x,
-      y: initialBounds.y,
-      width: options.width,
-      height: options.height,
+      ...initialBounds,
       minWidth: MIN_PIP_WIDTH,
       minHeight: MIN_PIP_HEIGHT,
       frame: false,
@@ -484,7 +474,7 @@ export class PipWindowManager {
       skipTaskbar: true,
       fullscreenable: false,
       show: false,
-      type: "toolbar",
+      type: floatingWindowType(),
       title: this.locale.strings.text("windows.pip"),
       webPreferences: {
         preload: this.preloadPath,
@@ -500,7 +490,7 @@ export class PipWindowManager {
     keepLocalizedTitle(pipWindow, this.locale, "windows.pip");
     installWindowGuards(pipWindow, this.config.allowedWebOrigin);
     pipWindow.setAlwaysOnTop(true, "floating");
-    pipWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+    floatOnAllWorkspaces(pipWindow);
     this.startMouseTracking(pipWindow);
 
     const syncVisibility = () => {
@@ -516,6 +506,7 @@ export class PipWindowManager {
     };
 
     pipWindow.webContents.on("will-navigate", () => {
+      this.stopGripResize();
       this.resetPipReadiness();
       if (!pipWindow.isDestroyed() && pipWindow.isVisible()) {
         this.setPipMouseEventsIgnored(pipWindow, false);
@@ -528,6 +519,7 @@ export class PipWindowManager {
 
     const handleClosed = () => {
       if (this.pipWindow !== pipWindow) return;
+      this.stopGripResize();
       this.pipWindow = null;
       this.pipMouseEventsIgnored = false;
       this.stopMouseTracking();
@@ -540,13 +532,23 @@ export class PipWindowManager {
       this.sendStateChanged();
     };
 
+    pipWindow.on("move", () => this.schedulePlacementSave(pipWindow));
+    pipWindow.on("resize", () => this.schedulePlacementSave(pipWindow));
     pipWindow.on("close", () => {
       this.setPipMouseEventsIgnored(pipWindow, false);
     });
-    pipWindow.on("closed", handleClosed);
+    pipWindow.on("closed", () => {
+      // Keep a move made just before closing; quitting destroys the window
+      // without a `close` event, but `closed` follows both.
+      this.flushPlacementSave();
+      handleClosed();
+    });
     pipWindow.on("hide", () => {
+      this.stopGripResize();
       this.setPipMouseEventsIgnored(pipWindow, false);
     });
+    // A release outside the window after it lost focus never reaches the grip.
+    pipWindow.on("blur", () => this.stopGripResize());
     await this.loadPipRoute(pipWindow, options.animaId, options.chatId);
     this.sendStateChanged();
     return this.getState();
@@ -563,6 +565,7 @@ export class PipWindowManager {
   }
 
   close(): DesktopPipState {
+    this.stopGripResize();
     const window = this.pipWindow;
     if (window && !window.isDestroyed()) {
       this.setPipMouseEventsIgnored(window, false);
@@ -607,6 +610,52 @@ export class PipWindowManager {
     return this.getState();
   }
 
+  /**
+   * Starts or ends a drag of the PiP route's bottom-right resize grip. While
+   * it lasts, the window keeps its top-left corner and scales so its
+   * bottom-right corner follows the cursor, and mouse input stays on so the
+   * release reaches the grip wherever the cursor is.
+   */
+  setGripResizing(sender: WebContents, rawActive: unknown): void {
+    const window = this.pipWindow;
+    if (
+      !window ||
+      window.isDestroyed() ||
+      window.webContents.id !== sender.id
+    ) {
+      writeLog("info", "Ignored PiP resize from a renderer other than PiP");
+      return;
+    }
+    this.stopGripResize();
+    if (rawActive !== true) return;
+
+    this.setPipMouseEventsIgnored(window, false);
+    const startCursor = screen.getCursorScreenPoint();
+    const startScale = this.state.sizeScale;
+    this.gripResizeTimer = setInterval(() => {
+      if (window.isDestroyed()) {
+        this.stopGripResize();
+        return;
+      }
+      const cursor = screen.getCursorScreenPoint();
+      const sizeScale = resolveCornerResizeScale(
+        startScale,
+        cursor.x - startCursor.x,
+        cursor.y - startCursor.y,
+      );
+      if (sizeScale === this.state.sizeScale) return;
+      this.state = { ...this.state, sizeScale };
+      this.setPipWindowSizeScale(window, sizeScale, false);
+      this.sendStateChanged();
+    }, PIP_RESIZE_INTERVAL_MS);
+  }
+
+  private stopGripResize(): void {
+    if (this.gripResizeTimer === null) return;
+    clearInterval(this.gripResizeTimer);
+    this.gripResizeTimer = null;
+  }
+
   publishRuntimeMessage(sender: WebContents, rawMessage: unknown): void {
     const message = normalizeRuntimeMessage(rawMessage);
     if (!this.state.isOpen || !this.state.animaId) {
@@ -621,11 +670,20 @@ export class PipWindowManager {
     if (!isOwnerSender && !isPipSender) {
       throw new Error("PiP runtime message came from an unknown renderer");
     }
-    if (message.type === "ready" && !isPipSender) {
-      writeLog("info", "Ignored PiP ready message from owner renderer");
+    // PiP sends readiness, camera preset requests and voice commands; the
+    // owner sends state.
+    const fromPipOnly =
+      message.type === "ready" ||
+      message.type === "camera-preset" ||
+      message.type === "voice-command";
+    if (fromPipOnly && !isPipSender) {
+      writeLog(
+        "info",
+        `Ignored PiP ${message.type} message from owner renderer`,
+      );
       return;
     }
-    if (message.type !== "ready" && !isOwnerSender) {
+    if (!fromPipOnly && !isOwnerSender) {
       writeLog("info", "Ignored PiP runtime state from PiP renderer");
       return;
     }
@@ -644,7 +702,10 @@ export class PipWindowManager {
       : (this.pipWindow?.webContents ?? null);
     if (isLiveWebContents(target)) {
       target.send(this.runtimeMessageChannel, message);
-      if (!isPipSender && this.pipRendererReady) {
+      // Only Avatar state can make PiP visible; voice state may arrive first.
+      const isAvatarState =
+        message.type === "snapshot" || message.type === "incremental";
+      if (isAvatarState && this.pipRendererReady) {
         if (!this.pipRuntimeStateReady) {
           writeLog("info", "PiP initial runtime state received");
         }
@@ -725,6 +786,12 @@ export class PipWindowManager {
     this.sendStateChanged();
   }
 
+  /**
+   * Resize the window for a new size scale and remember it. A grip resize
+   * keeps the top-left corner, so no `move` event follows, and a programmatic
+   * `setSize` is not reliably reported as `resize`; the placement is saved
+   * here rather than left to window events.
+   */
   private setPipWindowSizeScale(
     window: BrowserWindow,
     sizeScale: number,
@@ -733,27 +800,84 @@ export class PipWindowManager {
     const nextSize = resolveWindowSizeForScale(sizeScale);
     if (!preserveCenter) {
       window.setSize(nextSize.width, nextSize.height);
-      return;
+    } else {
+      const bounds = window.getBounds();
+      window.setBounds({
+        x: Math.round(bounds.x + (bounds.width - nextSize.width) / 2),
+        y: Math.round(bounds.y + (bounds.height - nextSize.height) / 2),
+        width: nextSize.width,
+        height: nextSize.height,
+      });
     }
-
-    const bounds = window.getBounds();
-    window.setBounds({
-      x: Math.round(bounds.x + (bounds.width - nextSize.width) / 2),
-      y: Math.round(bounds.y + (bounds.height - nextSize.height) / 2),
-      width: nextSize.width,
-      height: nextSize.height,
-    });
+    this.schedulePlacementSave(window);
   }
 
-  private setPipWindowDefaultBounds(
-    window: BrowserWindow,
+  /**
+   * The saved position when its display is still connected, else the
+   * bottom-right corner of the owner window's display.
+   */
+  private resolveOpenBounds(
     ownerContents: WebContents,
+    placement: PipPlacement | null,
     sizeScale: number,
-  ): void {
-    const nextSize = resolveWindowSizeForScale(sizeScale);
-    window.setBounds(
-      resolveDefaultPipBounds(ownerContents, nextSize.width, nextSize.height),
+  ): Bounds {
+    const size = resolveWindowSizeForScale(sizeScale);
+    const saved = placement
+      ? resolveSavedPipBounds(placement, screen.getAllDisplays(), size)
+      : null;
+    return saved ?? resolveDefaultPipBounds(ownerContents, size);
+  }
+
+  private savedPlacement(): PipPlacement | null {
+    if (this.placement === undefined) {
+      this.placement = readPipPlacement(this.placementFile);
+    }
+    return this.placement;
+  }
+
+  /**
+   * Remember the window's position and size scale now, and write them once
+   * moves settle. The placement is read here, while the window is live, so a
+   * pending write still lands after the window is destroyed.
+   */
+  private schedulePlacementSave(window: BrowserWindow): void {
+    if (window.isDestroyed()) return;
+    const bounds = window.getBounds();
+    this.placement = {
+      displayId: screen.getDisplayMatching(bounds).id,
+      x: bounds.x,
+      y: bounds.y,
+      sizeScale: this.state.sizeScale,
+    };
+    if (this.placementSaveTimer !== null) {
+      clearTimeout(this.placementSaveTimer);
+    }
+    this.placementSaveTimer = setTimeout(
+      () => this.flushPlacementSave(),
+      PIP_PLACEMENT_SAVE_DELAY_MS,
     );
+  }
+
+  /**
+   * Write a pending placement. A failed write is logged; it only costs the
+   * next launch its placement.
+   */
+  private flushPlacementSave(): void {
+    if (this.placementSaveTimer === null) return;
+    clearTimeout(this.placementSaveTimer);
+    this.placementSaveTimer = null;
+    const placement = this.placement;
+    if (!placement) return;
+    try {
+      writePipPlacement(this.placementFile, placement);
+    } catch (error) {
+      writeLog(
+        "error",
+        `Could not save the PiP window placement: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    }
   }
 
   private setPipMouseEventsIgnored(
@@ -798,8 +922,12 @@ export class PipWindowManager {
       const bounds = window.getBounds();
       const mouseZone = classifyPipMouseZone(cursor, bounds);
       this.sendCursorSnapshot(window, cursor, bounds);
-      this.setHovered(mouseZone !== "outside");
-      this.setPipMouseEventsIgnored(window, mouseZone === "pass-through");
+      const resizing = this.gripResizeTimer !== null;
+      this.setHovered(resizing || mouseZone !== "outside");
+      this.setPipMouseEventsIgnored(
+        window,
+        !resizing && mouseZone === "pass-through",
+      );
     }, PIP_MOUSE_POLL_INTERVAL_MS);
   }
 

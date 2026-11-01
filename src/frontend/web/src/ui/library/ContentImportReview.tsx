@@ -1,5 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { useFormatters } from "@animama/product-ui/i18n";
+import type { ImportItemNotice } from "@animama/runtime-contracts/api-types";
 import type { LibrarySharingFlow } from "@/lib/content-sharing/types";
 import { FileArchive } from "lucide-react";
 import { Button } from "@/ui/components/button";
@@ -25,6 +26,14 @@ export function ContentImportReview({ flow }: { flow: LibrarySharingFlow }) {
     originalName: item.original_name,
   }));
   const renamed = items.some((item) => item.name !== item.originalName);
+  const namesWith = (notice: ImportItemNotice) =>
+    review.items
+      .filter((item) => item.notices?.includes(notice))
+      .map((item) => item.name);
+  // Avatars whose packaged wind or material setting this app cannot keep.
+  const settingsNotStored = namesWith("avatar_setting_not_stored");
+  // Avatars this runtime cannot decode yet (Draco); they still import.
+  const notLoadable = namesWith("avatar_extension_unsupported");
   return (
     <>
       <ol
@@ -97,6 +106,21 @@ export function ContentImportReview({ flow }: { flow: LibrarySharingFlow }) {
         )}
         <SharingRequiredItems items={items.filter((item) => !item.selected)} />
         <SharingNonPortableItems items={review.non_portable ?? []} />
+        {settingsNotStored.length > 0 ? (
+          <p className="border-warning/30 bg-warning/10 rounded-xl border p-4 text-sm">
+            {t("sharing.import.avatarSettingsNotStored", {
+              names: formatters.list(settingsNotStored),
+            })}
+          </p>
+        ) : null}
+        {notLoadable.length > 0 ? (
+          <p className="border-warning/30 bg-warning/10 rounded-xl border p-4 text-sm">
+            {t("sharing.import.avatarsNotLoadable", {
+              count: notLoadable.length,
+              names: formatters.list(notLoadable),
+            })}
+          </p>
+        ) : null}
       </section>
       <p className="text-muted-foreground border-t pt-4 text-sm">
         {renamed

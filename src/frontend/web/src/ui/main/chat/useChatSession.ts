@@ -25,8 +25,7 @@ import {
   toElevenLabsTtsModelId,
   toGeminiTtsModelId,
 } from "@/lib/settings/preferences";
-import { buildElevenLabsChatTtsDispatchOptions } from "@/lib/chat/elevenlabs-chat-tts-dispatch";
-import { buildGeminiChatTtsDispatchOptions } from "@/lib/chat/gemini-chat-tts-dispatch";
+import { chatTtsDispatchOptions } from "@/lib/chat/chat-tts-dispatch";
 import type { PocketAnimaVoiceSelectionContext } from "@/lib/speech/pocket/anima-voice-selection";
 export {
   chatSessionCanChat,
@@ -390,20 +389,11 @@ export function useChatSession(args: UseChatSessionArgs) {
     elevenLabsModelId,
     // Only Gemini pushes finalized audio; ElevenLabs speaks in realtime.
     finalizedServerAudio: ttsProvider === "gemini",
-    dispatchOptions:
-      ttsEnabled && ttsProvider === "elevenlabs"
-        ? {
-            tts: buildElevenLabsChatTtsDispatchOptions({
-              modelId: elevenLabsModelId ?? DEFAULT_ELEVENLABS_TTS_MODEL_ID,
-            }),
-          }
-        : ttsEnabled && ttsProvider === "gemini"
-          ? {
-              tts: buildGeminiChatTtsDispatchOptions({
-                modelId: geminiModelId ?? DEFAULT_GEMINI_TTS_MODEL_ID,
-              }),
-            }
-          : undefined,
+    dispatchOptions: chatTtsDispatchOptions({
+      provider: ttsProvider,
+      elevenLabsModelId,
+      geminiModelId,
+    }),
   };
   return useProductChatSession({
     ...args,

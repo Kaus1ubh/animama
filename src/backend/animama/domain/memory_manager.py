@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 
-from .chat import AnimaHistoryTurn, ChatHistoryPosition
+from .chat import ChatHistoryPosition
 
 MEMORY_MANAGER_RUN_KIND_GENERAL = "general"
 MEMORY_MANAGER_RUN_KIND_EPISODE_PROCESSING = "episode_processing"
@@ -44,6 +44,21 @@ MEMORY_MANAGER_RUN_STATUSES = frozenset(
         MEMORY_MANAGER_RUN_STATUS_FAILED,
     }
 )
+
+# Who started a run, kept in ``metadata["origin"]``: absent for the owner, or "automatic" for
+# a backend-started episode-processing run (spec #775, R7). The open-run unique indexes are
+# keyed on it, so one owner run and one automatic run may be open at the same time.
+MEMORY_MANAGER_RUN_ORIGIN_KEY = "origin"
+MEMORY_MANAGER_RUN_ORIGIN_AUTOMATIC = "automatic"
+# The value the owner-run index assumes when the key is absent.
+MEMORY_MANAGER_RUN_ORIGIN_OWNER = "owner"
+
+
+def memory_manager_run_is_automatic(run: MemoryManagerRun) -> bool:
+    """Whether the backend started ``run`` rather than the owner."""
+
+    return dict(run.metadata or {}).get(MEMORY_MANAGER_RUN_ORIGIN_KEY) == MEMORY_MANAGER_RUN_ORIGIN_AUTOMATIC
+
 
 MEMORY_MANAGER_MESSAGE_ROLE_USER = "user"
 MEMORY_MANAGER_MESSAGE_ROLE_ASSISTANT = "assistant"
@@ -430,12 +445,6 @@ def shorten_reflection_turn_text(value: str | None) -> str | None:
     return f"{value[: REFLECTION_TURN_TEXT_MAX_CHARS - 1].rstrip()}…"
 
 
-def reflection_turn_read_chars(turn: AnimaHistoryTurn) -> int:
-    """Count the turn text a Reflection reads: both sides after shortening."""
-
-    return sum(len(shorten_reflection_turn_text(text) or "") for text in (turn.user_text, turn.anima_text))
-
-
 def format_turn_count(count: int) -> str:
     """Return ``"1 turn"`` or ``"<count> turns"`` for Reflection messages and summaries."""
 
@@ -486,6 +495,10 @@ def _task_datetime(value: object, *, field_name: str) -> datetime:
 
 __all__ = [
     "AnimaMemoryReflection",
+    "MEMORY_MANAGER_RUN_ORIGIN_AUTOMATIC",
+    "MEMORY_MANAGER_RUN_ORIGIN_KEY",
+    "MEMORY_MANAGER_RUN_ORIGIN_OWNER",
+    "memory_manager_run_is_automatic",
     "MEMORY_MANAGER_APPROVAL_STATUS_APPROVED",
     "MEMORY_MANAGER_APPROVAL_STATUS_PENDING",
     "MEMORY_MANAGER_APPROVAL_STATUS_REJECTED",
@@ -526,6 +539,5 @@ __all__ = [
     "new_memory_manager_approval_id",
     "new_memory_manager_message_id",
     "new_memory_manager_run_id",
-    "reflection_turn_read_chars",
     "shorten_reflection_turn_text",
 ]

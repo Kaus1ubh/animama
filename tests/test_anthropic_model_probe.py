@@ -81,6 +81,7 @@ def _capabilities(
             "supported": True,
             "types": {
                 "adaptive": _supported(True),
+                "between_tools": _supported(False),
                 "disabled": _supported(thinking_disabled),
                 "enabled": _supported(False),
             },

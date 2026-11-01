@@ -1,6 +1,6 @@
 {
   "name": "@animama/runtime-contracts",
-  "version": "0.15.0",
+  "version": "0.21.0",
   "private": true,
   "type": "module",
   "license": "UNLICENSED",
@@ -39,6 +39,6 @@
     "test": "node --test tests/*.test.mjs"
   },
   "dependencies": {
-    "zod": "4.3.6"
+    "zod": "4.6.7"
   }
 }

@@ -19,6 +19,7 @@ from ....domain.chat import (
     ChatMessage,
     ChatSearchResult,
 )
+from ....domain.search_terms import snippet_terms, substring_pattern
 from ....orm.chat_messages import ORMChatMessage
 from ....orm.chats import ORMChat
 from ...mappers.chat_message_map import chat_message_domain_to_orm, chat_message_orm_to_domain
@@ -32,7 +33,7 @@ def _snippet_for_query(content: str | None, query: str, *, max_chars: int = 220)
     if len(text_value) <= max_chars:
         return text_value
 
-    terms = [term.lower() for term in re.findall(r"[A-Za-z0-9_]{2,}", query)]
+    terms = snippet_terms(query)
     lowered = text_value.lower()
     first_idx = -1
     for term in terms:
@@ -53,9 +54,32 @@ def _snippet_for_query(content: str | None, query: str, *, max_chars: int = 220)
     return f"{prefix}{text_value[window_start:window_end].strip()}{suffix}"
 
 
+# History search uses at most this many prefix terms and this many substring terms.
+_MAX_CHAT_SEARCH_TERMS = 8
+
+
 def _prefix_tsquery_for_query(query: str) -> str:
     terms = [term.lower() for term in re.findall(r"[A-Za-z0-9_]+", query) if len(term) >= 2]
-    return " & ".join(f"{term}:*" for term in terms[:8])
+    return " & ".join(f"{term}:*" for term in terms[:_MAX_CHAT_SEARCH_TERMS])
+
+
+def _chat_search_terms(query: str) -> tuple[str, list[str]]:
+    """Split a history search into a prefix tsquery for its ASCII words and substring patterns for the rest.
+
+    A word containing a non-ASCII letter or digit matches as a substring (see
+    ``animama.domain.search_terms``); other words keep prefix matching. A message
+    must match every term.
+    """
+
+    ascii_words: list[str] = []
+    patterns: list[str] = []
+    for word in query.split():
+        pattern = substring_pattern(word)
+        if pattern is None:
+            ascii_words.append(word)
+        else:
+            patterns.append(pattern)
+    return _prefix_tsquery_for_query(" ".join(ascii_words)), patterns[:_MAX_CHAT_SEARCH_TERMS]
 
 
 def _snippet_source(mapping: Mapping[str, Any]) -> str:
@@ -330,7 +354,24 @@ class SQLAlchemyChatMessageRepository(ChatMessageRepository):
         limit: int,
         offset: int = 0,
     ) -> list[ChatSearchResult]:
-        stmt = text("""
+        prefix_query, substring_patterns = _chat_search_terms(query)
+        if not prefix_query and not substring_patterns:
+            return []
+        # ASCII words use the full-text index; non-ASCII words then filter the candidates' text. Beside
+        # non-ASCII words, ASCII stop words such as "to" leave an empty tsquery that matches nothing, so
+        # it then adds no condition.
+        if not prefix_query:
+            tsquery_filter = ""
+        elif substring_patterns:
+            tsquery_filter = "AND (numnode(search_query.value) = 0 OR m.search_vector @@ search_query.value)"
+        else:
+            tsquery_filter = "AND search_query.value IS NOT NULL AND m.search_vector @@ search_query.value"
+        substring_filter = (
+            "WHERE matching_messages.content ILIKE ALL (CAST(:substring_patterns AS text[]))"
+            if substring_patterns
+            else ""
+        )
+        stmt = text(f"""
             WITH search_query AS (
                 SELECT
                     CASE
@@ -349,20 +390,20 @@ class SQLAlchemyChatMessageRepository(ChatMessageRepository):
                     c.title AS chat_title,
                     COALESCE(
                         NULLIF(
-                            COALESCE(NULLIF(m.message_data #>> '{structured,speech}', ''), '') ||
+                            COALESCE(NULLIF(m.message_data #>> '{{structured,speech}}', ''), '') ||
                             CASE
-                                WHEN NULLIF(m.message_data #>> '{structured,speech}', '') IS NOT NULL
-                                    AND NULLIF(m.message_data #>> '{structured,display}', '') IS NOT NULL
+                                WHEN NULLIF(m.message_data #>> '{{structured,speech}}', '') IS NOT NULL
+                                    AND NULLIF(m.message_data #>> '{{structured,display}}', '') IS NOT NULL
                                 THEN ' '
                                 ELSE ''
                             END ||
-                            COALESCE(NULLIF(m.message_data #>> '{structured,display}', ''), ''),
+                            COALESCE(NULLIF(m.message_data #>> '{{structured,display}}', ''), ''),
                             ''
                         ),
                         m.content
                     ) AS content,
-                    NULLIF(m.message_data #>> '{structured,speech}', '') AS structured_speech,
-                    NULLIF(m.message_data #>> '{structured,display}', '') AS structured_display,
+                    NULLIF(m.message_data #>> '{{structured,speech}}', '') AS structured_speech,
+                    NULLIF(m.message_data #>> '{{structured,display}}', '') AS structured_display,
                     m.turn,
                     m.created_at,
                     ts_rank_cd(m.search_vector, search_query.value) AS score
@@ -374,8 +415,7 @@ class SQLAlchemyChatMessageRepository(ChatMessageRepository):
                     AND m.internal IS FALSE
                     AND m.role IN ('user', 'assistant')
                     AND m.content IS NOT NULL
-                    AND search_query.value IS NOT NULL
-                    AND m.search_vector @@ search_query.value
+                    {tsquery_filter}
             ),
             best_chat_messages AS (
                 SELECT
@@ -388,6 +428,7 @@ class SQLAlchemyChatMessageRepository(ChatMessageRepository):
                             matching_messages.message_id DESC
                     ) AS chat_match_rank
                 FROM matching_messages
+                {substring_filter}
             )
             SELECT
                 message_id,
@@ -411,7 +452,8 @@ class SQLAlchemyChatMessageRepository(ChatMessageRepository):
             stmt,
             {
                 "user_id": user_id,
-                "prefix_query": _prefix_tsquery_for_query(query),
+                "prefix_query": prefix_query,
+                "substring_patterns": substring_patterns,
                 "limit": max(1, int(limit)),
                 "offset": max(0, int(offset)),
             },

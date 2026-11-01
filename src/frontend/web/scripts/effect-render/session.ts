@@ -1,6 +1,7 @@
 import * as THREE from "three";
 
 import { Avatar } from "@/lib/avatar";
+import type { AvatarMaterialMode } from "@/lib/avatar/avatarSettings";
 import { applyCanonicalPose } from "@/lib/avatar/motion-authoring/kinematics";
 import {
   PreviewMediaProvider,
@@ -75,6 +76,8 @@ const SETTLE_SEC = 1;
  * Face view distance in metres: tighter than the chat's Portrait (close)
  * preset (0.8 m) so eye and mouth artwork is legible. Emote hovers far above
  * the head may be cropped here; the front and 3/4 views show them whole.
+ * Like the chat's presets, it and the aim scale by the head's framing scale
+ * (`Avatar.getHeadFramingScale`): a big head's, or a small or large body's.
  */
 const FACE_DISTANCE = 0.55;
 /** The head bone sits at the skull base; aim this far above it, at the face. */
@@ -97,6 +100,14 @@ export function seedRandom(seed: number): void {
     t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
+}
+
+type MaterialWindow = Window & { __animamaMaterialModeOverride?: unknown };
+
+/** The Avatar material setting `--materials` asked for; Automatic otherwise. */
+function reviewMaterialMode(): AvatarMaterialMode {
+  const value = (window as MaterialWindow).__animamaMaterialModeOverride;
+  return value === "liltoon" || value === "simple" ? value : "automatic";
 }
 
 const resolvePose = (id: string) => {
@@ -221,6 +232,7 @@ export class EffectSession {
       await avatar.load({
         filePath: url,
         vrmSha256: await avatarFileSha256(url),
+        materialMode: reviewMaterialMode(),
       });
       avatar.setAutomaticAnimationPlaybackEnabled(false);
       avatar.prepareFirstFrame();
@@ -413,11 +425,12 @@ export function placeCamera(
 ): void {
   camera.fov = framing.fov;
   if (view === "face") {
+    const head = avatar.getHeadFramingScale();
     // Follow the current head so a playing Gesture stays framed.
     const face = (avatar.getHeadPosition() ?? framing.target.clone()).add(
-      new THREE.Vector3(0, FACE_AIM_ABOVE_HEAD_BONE, 0),
+      new THREE.Vector3(0, FACE_AIM_ABOVE_HEAD_BONE * head, 0),
     );
-    camera.position.set(face.x, face.y, face.z + FACE_DISTANCE);
+    camera.position.set(face.x, face.y, face.z + FACE_DISTANCE * head);
     camera.lookAt(face);
   } else {
     const offset = framing.position

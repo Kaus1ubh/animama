@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import json
 import uuid
@@ -166,7 +167,11 @@ async def test_idle_gestures_preserve_distinct_authored_config_for_the_same_soun
             replace(
                 _entry(
                     name,
-                    files=(replace(_file(name, f"{name}.json", "b" * 64, len(clip)), role="sequence"),),
+                    files=(
+                        replace(
+                            _file(name, f"{name}.json", hashlib.sha256(clip).hexdigest(), len(clip)), role="sequence"
+                        ),
+                    ),
                     dependencies=(sound.id,),
                 ),
                 logical_key=f"local:gesture:{name}",
@@ -322,3 +327,152 @@ async def test_closure_admits_more_than_500_entries_within_the_runtime_entry_lim
 
     assert descriptor.diagnostics == ()
     assert len(descriptor.roots) == len(descriptor.admitted_item_revisions) == count
+
+
+def _count_worker_calls(monkeypatch: pytest.MonkeyPatch) -> list[str]:
+    calls: list[str] = []
+    to_thread = asyncio.to_thread
+
+    async def counted(function, /, *args, **kwargs):  # noqa: ANN001, ANN002, ANN003, ANN202
+        calls.append(getattr(function, "__name__", repr(function)))
+        return await to_thread(function, *args, **kwargs)
+
+    monkeypatch.setattr(asyncio, "to_thread", counted)
+    return calls
+
+
+@pytest.mark.asyncio
+async def test_compile_verifies_every_member_in_one_worker_call(monkeypatch: pytest.MonkeyPatch) -> None:
+    gestures = [
+        _entry(f"gesture-{index}", files=(_file(f"gesture-{index}", f"g{index}.bin", "a" * 64),)) for index in range(50)
+    ]
+
+    class Store(_Store):
+        def __init__(self) -> None:
+            super().__init__()
+            self.opened: list[str] = []
+
+        def open_verified_file(self, **facts):  # noqa: ANN003, ANN202
+            self.opened.append(facts["relative_path"])
+            return super().open_verified_file(**facts)
+
+    store = Store()
+    calls = _count_worker_calls(monkeypatch)
+    descriptor = await RuntimeContentClosureCompiler(catalog=_Catalog(gestures), store=store).compile(  # type: ignore[arg-type]
+        user_id="owner",
+        loadout_revision=1,
+        selections=tuple(
+            RuntimeContentRootSelection(f"gesture:{item.display_name}", item.id, item.kind) for item in gestures
+        ),
+    )
+    assert len(descriptor.members) == 50
+    assert len(calls) == 1
+    assert sorted(store.opened) == sorted(item.files[0].relative_path for item in gestures)
+
+
+@pytest.mark.asyncio
+async def test_batched_verification_keeps_diagnostic_order_and_rescan_paths() -> None:
+    """Unavailable and changed roots keep their selection order; each changed root marks its first changed file."""
+
+    first_bad = _file("changed", "first.bin", "a" * 64)
+    second_bad = _file("changed", "second.bin", "b" * 64)
+    changed = _entry("changed", files=(first_bad, second_bad))
+    invalid = _entry("invalid", status=ContentStatus.INVALID)
+    good = _entry("good", files=(_file("good", "good.bin", "c" * 64),))
+    catalog = _Catalog([changed, invalid, good])
+    descriptor = await RuntimeContentClosureCompiler(
+        catalog=catalog,  # type: ignore[arg-type]
+        store=_Store({first_bad.relative_path, second_bad.relative_path}),  # type: ignore[arg-type]
+    ).compile(
+        user_id="owner",
+        loadout_revision=1,
+        selections=(
+            RuntimeContentRootSelection("gesture:changed", changed.id, changed.kind),
+            RuntimeContentRootSelection("gesture:invalid", invalid.id, invalid.kind),
+            RuntimeContentRootSelection("gesture:good", good.id, good.kind),
+        ),
+    )
+    assert [root.slot_key for root in descriptor.roots] == ["gesture:good"]
+    assert [(item.slot_key, item.code) for item in descriptor.diagnostics] == [
+        ("gesture:changed", "runtime_source_changed"),
+        ("gesture:invalid", "catalog_root_invalid"),
+    ]
+    assert catalog.invalidations == [(ContentSource.LOCAL, (first_bad.relative_path,))]
+
+
+@pytest.mark.asyncio
+async def test_idle_roots_reuse_cached_facts_for_bytes_the_compile_verified(monkeypatch: pytest.MonkeyPatch) -> None:
+    clip = json.dumps(anima_clip(clip_id=f"breathe-{uuid.uuid4().hex}", name="Breathe", duration=3)).encode()
+    motion = replace(_file("breathe", "breathe.json", hashlib.sha256(clip).hexdigest(), len(clip)), role="sequence")
+    breathe = replace(
+        _entry("breathe", files=(motion,)),
+        logical_key="local:gesture:breathe",
+        metadata={
+            "schema_version": 1,
+            "content_type": "gesture",
+            "name": "Breathe",
+            "semantic_key": "breathe",
+            "implementation": {"kind": "anima_clip", "file_role": "sequence"},
+            "config": {},
+        },
+    )
+
+    class Store(_Store):
+        def open_verified_file(self, **facts):  # noqa: ANN003, ANN202
+            return VerifiedContentFile(BytesIO(clip), len(clip), facts["expected_sha256"], facts["media_type"])
+
+    async def compile_idle():  # noqa: ANN202
+        return await RuntimeContentClosureCompiler(catalog=_Catalog([breathe]), store=Store()).compile(  # type: ignore[arg-type]
+            user_id="owner",
+            loadout_revision=1,
+            selections=(
+                RuntimeContentRootSelection(
+                    f"idle:{breathe.id}", breathe.id, ContentKind.GESTURE, context={"idle_cells": ["default"]}
+                ),
+            ),
+        )
+
+    first = await compile_idle()
+    calls = _count_worker_calls(monkeypatch)
+    again = await compile_idle()
+    assert again == first
+    assert first.roots[0].idle_playback[breathe.id]["duration_seconds"] == 3
+    # Only the batched member verification: the Idle facts come from the cache.
+    assert len(calls) == 1
+
+
+@pytest.mark.asyncio
+async def test_cached_idle_facts_never_admit_motion_that_failed_verification() -> None:
+    clip = json.dumps(anima_clip(clip_id=f"sway-{uuid.uuid4().hex}", name="Sway", duration=2)).encode()
+    motion = replace(_file("sway", "sway.json", hashlib.sha256(clip).hexdigest(), len(clip)), role="sequence")
+    sway = replace(
+        _entry("sway", files=(motion,)),
+        metadata={
+            "schema_version": 1,
+            "content_type": "gesture",
+            "name": "Sway",
+            "semantic_key": "sway",
+            "implementation": {"kind": "anima_clip", "file_role": "sequence"},
+            "config": {},
+        },
+    )
+    selection = RuntimeContentRootSelection(
+        f"idle:{sway.id}", sway.id, ContentKind.GESTURE, context={"idle_cells": ["default"]}
+    )
+
+    class Store(_Store):
+        def open_verified_file(self, **facts):  # noqa: ANN003, ANN202
+            if facts["relative_path"] in self.changed_paths:
+                raise ContentIntegrityError("changed")
+            return VerifiedContentFile(BytesIO(clip), len(clip), facts["expected_sha256"], facts["media_type"])
+
+    async def compile_with(store: _Store):  # noqa: ANN202
+        return await RuntimeContentClosureCompiler(catalog=_Catalog([sway]), store=store).compile(  # type: ignore[arg-type]
+            user_id="owner", loadout_revision=1, selections=(selection,)
+        )
+
+    assert len((await compile_with(Store())).roots) == 1
+    # The facts are cached now, yet changed motion bytes still drop the root for Rescan.
+    changed = await compile_with(Store({motion.relative_path}))
+    assert changed.roots == ()
+    assert [item.code for item in changed.diagnostics] == ["runtime_source_changed"]

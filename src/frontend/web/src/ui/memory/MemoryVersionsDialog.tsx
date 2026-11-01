@@ -27,7 +27,7 @@ import {
 } from "@/lib/memory-entries/revert-workflow";
 import {
   flattenMemoryEntryVersionPages,
-  memoryVersionOperationLabel,
+  memoryVersionChangeLabel,
   memoryVersionSubtitle,
   memoryVersionTitle,
 } from "@/lib/memory-entries/version-history";
@@ -272,9 +272,7 @@ export function MemoryVersionsDialog({
                             </div>
                             <p className="text-muted-foreground mt-1 text-xs">
                               {t("versions.operationLine", {
-                                operation: memoryVersionOperationLabel(
-                                  version.operation,
-                                ),
+                                operation: memoryVersionChangeLabel(version),
                                 time: formatVersionTime(version.created_at),
                               })}
                             </p>

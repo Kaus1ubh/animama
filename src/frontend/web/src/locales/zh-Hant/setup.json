@@ -8,9 +8,11 @@
     "skip": "暫時略過"
   },
   "ageConfirmation": {
+    "agreement": "繼續即表示你同意<terms>服務條款</terms>，並確認已閱讀<privacy>隱私權聲明</privacy>。",
     "backToSetup": "返回設定",
     "betaNotice": "Animama 網頁版目前為測試版。桌面應用程式可提供最佳體驗。",
     "confirm": "我已年滿 18 歲",
+    "confirmAndAgree": "我已年滿 18 歲並同意",
     "decline": "我未滿 18 歲",
     "declined": "Animama 僅供 18 歲以上的成年人使用。你無法繼續聊天。",
     "errors": {
@@ -100,6 +102,7 @@
       "download": "下載",
       "downloaded": "已下載",
       "downloading": "正在下載 {{percent}}",
+      "finishWhileDownloading": "下載期間也可以完成設定，下載會在背景繼續進行。",
       "gpu": {
         "description": "速度更快，說話時可即時預覽。需要 CPU 版本和支援 WebGPU 的 GPU。",
         "label": "{{model}}（GPU）",
@@ -121,11 +124,11 @@
       },
       "engines": {
         "parakeet": "<link>NVIDIA 的 Parakeet TDT 0.6B v2</link> 會在此裝置上轉錄英語語音，你的聲音不會離開此裝置。",
-        "sensevoice": "<link>阿里巴巴的 SenseVoice-Small</link> 會在此裝置上轉錄日語、韓語和中文語音，你的聲音不會離開此裝置。"
+        "sensevoice": "<link>阿里巴巴的 SenseVoice-Small</link> 會在此裝置上轉錄日語、韓語、中文和英語語音，你的聲音不會離開此裝置。"
       },
-      "otherLanguage": {
-        "parakeet": "應用程式語言為英語時使用此模型。",
-        "sensevoice": "應用程式語言為日語、韓語或中文時使用此模型。"
+      "recognizes": {
+        "parakeet": "僅辨識英語。",
+        "sensevoice": "可辨識日語、韓語、中文和英語。它依應用程式語言辨識；應用程式語言為英語時，會自動偵測你說的語言。"
       }
     },
     "tts": {

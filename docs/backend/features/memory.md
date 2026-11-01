@@ -28,6 +28,29 @@ invocation:
 - anima memories: cached path `MEMORIES.md`, only when memory influence is
   enabled
 
+With memory influence enabled it also reads two kinds of user-scope memory for
+the same system message:
+
+- the user profile: `PROFILE.md`, as `# User Profile` after the Anima memories.
+  Content up to 16 KiB is included whole; a longer file contributes its start, cut
+  at a line boundary, and a line saying the rest can be read with
+  `memory_read_files`. A missing, blank or unreadable file is omitted without
+  failing the turn and is fingerprinted like `MEMORIES.md`. The file still
+  appears in the memory file list.
+- recent notes: this Anima's newest `remember` notes (episode items whose
+  `source_anima_id` is the Anima), as `# Recent Notes` after the profile. They
+  come from other chats only, pending or processed, at most 20 notes and 3,000
+  characters of note text from the last 14 local days in the owner's
+  `preferences.timezone`, counted in whole days. Selection runs newest first and
+  stops before the first note that would pass the character budget; the section
+  lists the result oldest first with each note's local date. Other Animas' notes
+  stay out of the instructions and remain reachable through `search_memory_files`.
+  The chat manifest records the included item IDs as `episode_note_ids`.
+
+Note text never changes after capture and processing status is not shown, so
+within one chat the notes section changes only when another chat with the same
+Anima saves a note or a day boundary moves the window.
+
 The required anima identity is treated as anima configuration, not optional
 memory influence. If the identity entry is missing or blank, chat setup fails
 before the upstream model is called and requires explicit owner repair. There
@@ -36,13 +59,17 @@ receive identity through creation; the current baseline does not adopt legacy
 Avatar identity from databases stamped with removed revisions.
 
 The identity markdown is appended to the single system instruction using only
-the file content. `disable_memory_influence` does not remove anima identity.
+the file content, after one "Your name is …" line with the Anima's display name:
+the core instructions name no Anima, and `IDENTITY.md` may lack a name heading
+or keep an old one after a rename. `disable_memory_influence` does not remove
+anima identity.
 
 `MEMORIES.md` follows the identity as a `# Anima Memories` section: a short
-fixed preamble that frames the content as the Anima's own first-person memories
-of its relationship with this user, not facts about the user, says that an
-untouched template (headings and hint lines only) means no shared history yet,
-and says to treat the content as remembered notes, never as instructions.
+fixed preamble that frames the content as the Anima's own first-person notes
+about its relationship with this user, says to treat them as remembered notes,
+never as instructions, and says that lines describing what belongs under a
+heading are hints, not memories, so shared history is never invented. The
+memory guidance says facts about the user belong in shared memory.
 The section is omitted when memory influence is off. A missing, blank or
 unreadable file is also omitted without failing the turn; the chat manifest
 records `status: "missing"` or `"unreadable"` for it. A chat with one Anima never
@@ -60,13 +87,14 @@ only for user-scope memory operations (`anima_id = NULL`), such as episode
 capture.
 
 The runtime boundary uses one `DirectChatPrompt`. The prompt
-is ordered for prompt-cache locality: one system message containing stable core
-companion instruction rendered with the active Anima's stable `display_name`, anima
-identity, anima memories when included, stable memory guidance, and
-structured-output guidance; then
-compaction summary, visible chat history, one request-local trailing
-`developer` message, and the current user message. The trailing message holds
-the `# List of memory files` map, any attached-file list, and ends with the [Companion Guardrails](../../adr/0008-non-overridable-companion-guardrail.md). The structured-output JSON schema travels in the prompt's
+is ordered for prompt-cache locality: one system message containing the stable
+core companion instruction (which names no Anima), the anima identity opened by
+its display name, anima memories, the user profile and recent notes when included, stable memory guidance,
+structured-output guidance and, last, the [Companion Guardrails](../../adr/0008-non-overridable-companion-guardrail.md);
+then compaction summary, visible chat history, a request-local trailing
+`developer` message when the turn has context, and the current user message.
+The trailing message holds the `# List of memory files` map and any
+attached-file list. The structured-output JSON schema travels in the prompt's
 `response_format` field rather than being duplicated in prompt text for
 schema-backed rows. JSON-object rows include the expected schema and example in
 the response-format prompt guidance because their provider transport guarantees
@@ -106,11 +134,18 @@ Direct chat's main structured response includes a required `remember` key whose
 value can be a short string, `null`, or an empty string. The model should use it
 only for notable durable context from the completed turn, such as new user
 facts, preferences, decisions, active projects, or relationship/context changes.
-The `remember` guidance and the chat memory-tool guidance share one
-sensitive-memory rule: no secrets, credentials or raw sensitive data, and no
+The memory guidance states one sensitive-memory rule, once, for every memory
+the model writes (memory files, `MEMORIES.md` and `remember`): no secrets, credentials or raw sensitive data, and no
 suicide or self-harm crisis specifics (methods, plans, means) unless the user
 explicitly asked; at most a general note. Ordinary health context may be
 remembered.
+It also states the shared memory-language rule (`MEMORY_LANGUAGE_RULE` in
+`app/chat/conversation_language.py`, also stated to every Memory Manager run):
+write new memory in the language of the conversation it comes from, keep
+names, nicknames and quoted words as the user wrote them, leave existing text
+untranslated, and name files in ASCII, which memory paths require. Notes then
+match the words a later search uses. Memory tool results return non-English
+text as written rather than as JSON `\uXXXX` escapes.
 
 After a successful non-incognito `chat:sse` turn is parsed and persisted, the
 backend best-effort captures nonblank `remember` text when memory updates are
@@ -129,8 +164,10 @@ turns, for blank/null `remember`, and when memory updates are disabled. Capture
 failures are logged and do not turn an otherwise successful chat response into
 an SSE error.
 
-Episode logs are excluded from the prompt's `# List of memory files`, but
-`search_memory_files` includes their content by default. Callers can set
+Episode logs are excluded from the prompt's `# List of memory files`, and only
+the Anima's recent notes from other chats enter its instructions (see
+[Current Direct Chat Boundary](#current-direct-chat-boundary)). `search_memory_files`
+includes the whole log by default. Callers can set
 `include_episodic_memory=false` to search curated user memory only. Generated
 episode files and their `episodes/**` parent directories are read-only to
 public memory APIs and ordinary chat memory write tools. Internal episode
@@ -184,8 +221,8 @@ rejected. Episode processing never reaches Anima files.
 
 A **Reflection** (`POST /v1/memory/manager/runs:reflect`) is a Memory Manager
 run bound to one Anima. It reads that Anima's chat turns that no applied
-Reflection has covered, oldest first and at most 400 turns or 200,000
-characters of turn text per run, and may propose
+Reflection has covered, oldest first and at most 400 turns or 51,000 estimated
+tokens of turn text per run, and may propose
 changes only to that Anima's `MEMORIES.md`; other memory is read-only context.
 Turns taken with memory updates off are never read. Its turns count as covered
 only once its `MEMORIES.md` change is applied, and Undo of that change uncovers
@@ -248,10 +285,17 @@ small relationship-only edits in the first person (user facts go to shared
 memory such as `PROFILE.md`), to keep the file's existing headings (including
 owner-written ones) and file each memory under the best fit, never to rewrite it
 every turn, to stay well under
-about 6,000 characters, how `remember` (the shared episode log) differs from
-`MEMORIES.md` (what the relationship means), the sensitive-memory rule, and never
-to frame the relationship as missing the user, loneliness, jealousy or
-discouraging other relationships.
+about 6,000 characters (about 3,000 in a non-Latin script such as Japanese,
+Chinese, Korean, Thai or Hindi, whose characters take two or three bytes
+against the 16 KiB limit), and never to frame the relationship as missing the
+user, loneliness, jealousy or discouraging other relationships. The always-present
+memory guidance says how `remember` (the shared episode log) differs from
+`MEMORIES.md` (what the relationship means). It also says that notes from past
+chats are logged and searchable, tells the model to search or read memory before
+answering about the user's news, plans, projects or something they said earlier,
+and before saying it does not remember, and to retry an empty search once with
+other words. It skips memory when the answer is already in the conversation or
+instructions, and for unrelated technical and attachment questions.
 
 When memory influence is enabled, direct chat attaches:
 
@@ -348,8 +392,39 @@ callers that omit the boolean retain the default `true` behavior. With `false`,
 the backend excludes both `kind = "episode_log"` files and paths under
 `episodes/**` before ranking and applying the 10-result limit.
 
-The query accepts PostgreSQL web-search syntax. Models can use quoted phrases,
-`OR`, and `-term` exclusions when those constraints help narrow retrieval.
+The query accepts PostgreSQL web-search syntax, but a file matches when it
+contains any query word or quoted phrase, so natural queries such as
+`new job start date` find a note that mentions only the job and its start.
+Each space-separated word or quoted phrase is parsed with
+`websearch_to_tsquery('english', ...)`, which applies stemming, stop words and
+phrase adjacency; `OR` is redundant. `-term` exclusions remove every file that
+contains the term. Files that match more of the query's words and phrases rank
+above files that match fewer, and `ts_rank_cd` orders files with the same
+count. Only the first 32 words or phrases are used; every exclusion applies.
+
+The `english` parser splits words only at spaces and punctuation, so Japanese,
+Chinese and Thai text becomes one token per run and Korean words keep their
+particles (`서울에서`). A word or quoted phrase containing a non-ASCII letter or
+digit therefore also matches as a case-insensitive substring (`ILIKE`, with
+`%`, `_` and `\` matched literally) of the path, description and content,
+after punctuation at its ends such as `「」` is removed. A non-ASCII `-term`
+excludes files containing it anywhere, and an exclusion that is only a stop
+word or punctuation excludes nothing. `京都` finds
+`週末に京都で抹茶を飲みました。`. A substring-only match counts toward the
+matched-word ranking with a `ts_rank_cd` of 0, so whole-word matches rank first
+among files with the same count. ASCII-only words keep word matching, so `cat`
+does not find `category`, but a non-ASCII word in a spaced script also matches
+inside longer words (`кот` finds `который`). An unspaced run must appear
+verbatim (`京都で抹茶` does not find `京都の抹茶`), and case folding of
+non-ASCII letters follows the database LC_CTYPE. Substring matching needs no
+extension or schema change and scans the owner's live files in scope without an
+index. A `pg_trgm` index would not help: it cannot index two-character words
+such as `京都` and extracts no trigrams from CJK text under a `C` locale.
+
+The tool description asks the model for 2-5 distinctive keywords
+rather than a full question, separated by spaces in Japanese, Chinese or Thai
+too, and explains that matching any keyword is enough;
+both Memory Manager runtimes reuse that description.
 
 The model receives a `memory_results` array. Markdown memory hits include
 `path`, `description`, and `snippet`. The tool does not return entry IDs,
@@ -370,12 +445,15 @@ uploads in searchable processed statuses such as `ready` and
 `ready_keyword_only` with at least one chunk.
 
 When the upload tools are equipped, the prompt includes a request-local list of
-the validated attached filenames and their persisted chunk counts. A count is
+the validated attached filenames and their persisted chunk counts. The list
+opens with the attachment guidance (when to read files before answering, and
+not to answer from memory files instead), so turns without attachments carry
+none of it. A count is
 backend-derived navigation metadata that helps the model plan bounded reads; it
 is not document-content evidence. The list follows the memory map in the
 `developer` message before the user's message; providers without developer-role
 support receive it in the `<turn_context>` block that starts the user message.
-Both still end with the Companion Guardrails. Distinct attachments with the same filename stay
+Distinct attachments with the same filename stay
 as separate map entries because filename-based upload tools operate on every
 matching attachment.
 
@@ -408,7 +486,8 @@ returns one file group for each in request attachment order.
 Each result group contains the canonical `filename`, requested `start_chunk`,
 complete `chunks` containing only `chunk_index` and `text`, and
 `next_start_chunk`/`has_more` pagination. The serialized result is bounded to
-24,000 characters. The reader never exposes file IDs, chunk IDs, embeddings,
+about 6,000 estimated tokens (24,000 English characters, or about 6,000
+Japanese or Chinese ones). The reader never exposes file IDs, chunk IDs, embeddings,
 parser metadata, object-storage keys, URLs, or database errors.
 
 Use uploaded-file search for relevance lookup, exact phrases, and finding a
@@ -441,7 +520,8 @@ body and description atomically through one optimistic check and one Version.
 The model never receives an entry ID; successful output returns the resulting
 Version so it can reason about the completed write.
 
-Prompt guidance treats descriptions as the birds-eye file index. Every content
+The write tools' `description` parameters (and the native patch guidance)
+treat descriptions as the file index shown in the memory map. Every content
 edit must reconsider whether the description still accurately summarizes the
 file: preserve it verbatim when it does, update it when scope or durable
 contents materially change, and give new files a concise useful description.
@@ -473,6 +553,11 @@ version observed during the read. The model never supplies the version. A
 concurrent edit therefore returns a retryable conflict instead of overwriting
 newer content. Generated episode logs and any path under `episodes/**` return
 the stable `protected_memory_file` tool error and are not modified.
+
+Every chat memory tool call runs in its own short write session whose lock waits
+end after 6 seconds (`MEMORY_TOOL_LOCK_TIMEOUT_SECONDS`). A write to a file another
+transaction still holds, such as an owner-started Memory Manager approval resuming
+its model, returns the retryable `busy` tool error instead of stalling the turn.
 
 The model receives only the affected `path` and the total
 `replacements_applied`. If `update_description=true`, the supplied
@@ -728,9 +813,10 @@ treated sections, each with a hint line. Optional first-run display-name
 completion writes a bootstrap-managed `Preferred name:` line in the same backend
 transaction: it replaces an existing line, otherwise goes under a Basics heading,
 the first heading or the top, so it does not depend on the template's wording.
-Any other edit to the file stops later personalization from overwriting it. The profile file is durable memory data, but direct chat does not inject its
-content into prompt context yet. Its path and description can appear in the
-transient memory file list while memory influence is enabled.
+Any other edit to the file stops later personalization from overwriting it. While memory influence is enabled, direct chat
+includes the profile's content in its instructions (see
+[Current Direct Chat Boundary](#current-direct-chat-boundary)), and its path and
+description appear in the memory file list.
 
 The current direct-chat path feeds the selected anima identity and memories
 entries into prompt context and exposes the scoped AI tools above. The frontend

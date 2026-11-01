@@ -15,7 +15,13 @@ import { useProductTranslation } from "../i18n/product-translation";
 import { Button } from "./button";
 import { Textarea } from "./textarea";
 import { ShineBorder } from "./shine-border";
-import { Tooltip, TooltipContent, TooltipTrigger } from "./tooltip";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipDetails,
+  TooltipLabel,
+  TooltipTrigger,
+} from "./tooltip";
 import {
   resolveChatInputSubmitState,
   type ChatInputSubmitMode,
@@ -77,12 +83,23 @@ function measureTextareaHeight(
   };
 }
 
+/** A shortcut's keycap text, for example "⌃⌥D" or "Ctrl+Alt+D", per mic action. */
+export type ChatInputMicShortcuts = {
+  dictation?: string | null;
+  voiceMode?: string | null;
+  voiceMute?: string | null;
+};
+
 interface ChatInputContextValue {
   value?: string;
   onChange?: React.ChangeEventHandler<HTMLTextAreaElement>;
   onSubmit?: () => void;
   onVoice?: () => void;
   voiceAvailable?: boolean;
+  /** Lines under the Voice Mode tooltip, e.g. its speech engines. */
+  voiceModeDetails?: readonly string[] | null;
+  /** Display text of the host's microphone shortcuts, shown in tooltips. */
+  micShortcuts?: ChatInputMicShortcuts | null;
   loading?: boolean;
   onStop?: () => void;
   activeMicMode?: ChatInputMicMode | null;
@@ -127,6 +144,8 @@ function ChatInput({
   onSubmit,
   onVoice,
   voiceAvailable = true,
+  voiceModeDetails,
+  micShortcuts,
   loading,
   onStop,
   activeMicMode,
@@ -216,6 +235,8 @@ function ChatInput({
     onSubmit,
     onVoice,
     voiceAvailable,
+    voiceModeDetails,
+    micShortcuts,
     loading,
     onStop,
     activeMicMode,
@@ -524,6 +545,7 @@ function ChatInputSubmit({
       isVoiceModeActive,
       disabled: Boolean(disabled),
       voiceAvailable: context.voiceAvailable,
+      voiceModeShortcut: context.micShortcuts?.voiceMode,
     },
     t,
   );
@@ -592,7 +614,21 @@ function ChatInputSubmit({
   return (
     <Tooltip>
       <TooltipTrigger asChild>{button}</TooltipTrigger>
-      <TooltipContent side="bottom">{submitState.tooltip}</TooltipContent>
+      <TooltipContent side="bottom">
+        <TooltipDetails
+          title={
+            <TooltipLabel
+              label={submitState.tooltip}
+              shortcut={submitState.tooltipShortcut}
+            />
+          }
+          lines={
+            submitState.action === "start-voice" && !submitState.disabled
+              ? context.voiceModeDetails
+              : null
+          }
+        />
+      </TooltipContent>
     </Tooltip>
   );
 }

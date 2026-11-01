@@ -99,6 +99,17 @@ export class CursorLookAtProceduralAnimationLayer implements ProceduralAnimation
   private _hasTargetPosition: boolean = false;
   private _hasPointerListener: boolean = false;
   private _hasPointerPosition: boolean = false;
+  /**
+   * The viewport element's client rect, read once and dropped when the element
+   * resizes or the window resizes or scrolls. Reading it every frame forced a
+   * style recalculation each frame.
+   */
+  private _viewportRect: DOMRect | null = null;
+  private _viewportObserver: ResizeObserver | null = null;
+
+  private _invalidateViewportRect = () => {
+    this._viewportRect = null;
+  };
 
   private _handlePointerMove = (event: PointerEvent) => {
     this._pointerClient.set(event.clientX, event.clientY);
@@ -333,6 +344,7 @@ export class CursorLookAtProceduralAnimationLayer implements ProceduralAnimation
     this.clearOffsets();
     this._clearLookAtTarget();
     this._detachPointerListener();
+    this._stopObservingViewport();
     this._vrm = null;
     this._camera = null;
     this._inputProvider = null;
@@ -680,7 +692,11 @@ export class CursorLookAtProceduralAnimationLayer implements ProceduralAnimation
   private _getViewportRect(): DOMRect | null {
     const element = this._viewportElement;
     if (element) {
-      return element.getBoundingClientRect();
+      if (this._viewportRect) return this._viewportRect;
+      const rect = element.getBoundingClientRect();
+      // Without ResizeObserver nothing would drop a stale rect, so read it fresh.
+      if (this._observeViewport(element)) this._viewportRect = rect;
+      return rect;
     }
 
     if (typeof window === "undefined") return null;
@@ -735,6 +751,36 @@ export class CursorLookAtProceduralAnimationLayer implements ProceduralAnimation
     if (!this._hasPointerListener || typeof window === "undefined") return;
     window.removeEventListener("pointermove", this._handlePointerMove);
     this._hasPointerListener = false;
+  }
+
+  /** Watch the viewport for changes to its rect. Returns whether it can. */
+  private _observeViewport(element: HTMLElement): boolean {
+    if (this._viewportObserver) return true;
+    if (
+      typeof ResizeObserver === "undefined" ||
+      typeof window === "undefined"
+    ) {
+      return false;
+    }
+    this._viewportObserver = new ResizeObserver(this._invalidateViewportRect);
+    this._viewportObserver.observe(element);
+    window.addEventListener("resize", this._invalidateViewportRect);
+    window.addEventListener("scroll", this._invalidateViewportRect, {
+      capture: true,
+      passive: true,
+    });
+    return true;
+  }
+
+  private _stopObservingViewport(): void {
+    if (!this._viewportObserver) return;
+    this._viewportObserver.disconnect();
+    this._viewportObserver = null;
+    this._viewportRect = null;
+    window.removeEventListener("resize", this._invalidateViewportRect);
+    window.removeEventListener("scroll", this._invalidateViewportRect, {
+      capture: true,
+    });
   }
 }
 

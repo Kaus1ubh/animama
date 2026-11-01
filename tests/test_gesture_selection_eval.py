@@ -31,7 +31,7 @@ from animama.app.chat.direct_turn.response_format import (
     turn_response_schema_name,
 )
 from animama.app.chat.options import DirectChatOptions
-from animama.app.chat.speech_tags import speech_tags_instruction
+from animama.app.chat.speech_tags import speech_instruction
 from animama.app.main_structured_response import build_main_structured_response_model
 from animama.app.model_catalog import STRUCTURED_OUTPUT_TRANSPORT_JSON_SCHEMA
 from animama.app.model_clients import (
@@ -209,10 +209,10 @@ async def test_prompt_and_schema_match_the_chat_assembly_for_the_loadout() -> No
             main_structured_response_guidance(provider, output_type), LOADOUT.gestures
         ),
         # The eval speaks no reply, so its turns get the no-tags rule, as chat does.
-        speech_tags_guidance=speech_tags_instruction(None),
+        speech_guidance=speech_instruction(None),
     )
     assert request.prompt.messages == expected.messages
-    assert "- wave: Wave — Greet or say goodbye.\n- think: Think — Consider a hard question." in str(
+    assert "- wave: Greet or say goodbye.\n- think: Consider a hard question." in str(
         request.prompt.messages[0]["content"]
     )
     assert request.prompt.response_format == main_structured_response_format_for_model(
@@ -446,14 +446,14 @@ async def test_scripted_chat_carries_its_visible_history_turn_by_turn() -> None:
     # Incognito turns: the provider stores nothing and no Responses cursor replaces the replayed history.
     assert all(request.provider_options.store is False for request in client.requests)
     assert all(request.continuation is None for request in client.requests)
-    assert [message["role"] for message in solo_request.prompt.messages] == ["system", "developer", "user"]
-    assert [message["role"] for message in first.prompt.messages] == ["system", "developer", "user"]
+    # Incognito turns have no memory map, so no turn context precedes the user message.
+    assert [message["role"] for message in solo_request.prompt.messages] == ["system", "user"]
+    assert [message["role"] for message in first.prompt.messages] == ["system", "user"]
     first_reply = _reply(gesture="wave", speech="Reply to Hi!")
     second_reply = _reply(gesture="think", speech="Reply to Tell me a riddle.")
     assert [(message["role"], message["content"]) for message in second.prompt.messages[1:]] == [
         ("user", "Hi!"),
         ("assistant", first_reply),
-        ("developer", first.prompt.messages[1]["content"]),
         ("user", "Tell me a riddle."),
     ]
     assert [(message["role"], message["content"]) for message in third.prompt.messages[1:5]] == [

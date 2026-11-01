@@ -8,9 +8,11 @@
     "skip": "Skip for now"
   },
   "ageConfirmation": {
+    "agreement": "By continuing, you agree to the <terms>Terms of Service</terms> and confirm that you have read the <privacy>Privacy Notice</privacy>.",
     "backToSetup": "Back to setup",
     "betaNotice": "Animama on the web is in beta. The desktop app gives the best experience.",
     "confirm": "I am 18 or older",
+    "confirmAndAgree": "I am 18 or older and agree",
     "decline": "I'm under 18",
     "declined": "Animama is only for adults 18 and older. You can't continue to chat.",
     "errors": {
@@ -102,8 +104,9 @@
       "downloading": "Downloading {{percent}}",
       "engines": {
         "parakeet": "<link>NVIDIA's Parakeet TDT 0.6B v2</link> transcribes English speech on this device, so your voice never leaves it.",
-        "sensevoice": "<link>Alibaba's SenseVoice-Small</link> transcribes Japanese, Korean and Chinese speech on this device, so your voice never leaves it."
+        "sensevoice": "<link>Alibaba's SenseVoice-Small</link> transcribes Japanese, Korean, Chinese and English speech on this device, so your voice never leaves it."
       },
+      "finishWhileDownloading": "You can finish setup while this downloads. It keeps going in the background.",
       "gpu": {
         "description": "Faster, with live previews as you speak. Needs the CPU version and a WebGPU-capable GPU.",
         "label": "{{model}} (GPU)",
@@ -113,11 +116,11 @@
       "listUnavailable": "Speech downloads are unavailable right now. You can add them later in App Settings.",
       "lowSpace": "Not enough free space: downloads need {{size}} free.",
       "notDownloaded": "Not downloaded",
-      "otherLanguage": {
-        "parakeet": "Animama uses this model while the app language is English.",
-        "sensevoice": "Animama uses this model while the app language is Japanese, Korean or Chinese."
-      },
       "progressLabel": "{{label}} download progress",
+      "recognizes": {
+        "parakeet": "Recognizes English only.",
+        "sensevoice": "Recognizes Japanese, Korean, Chinese and English. It listens for the app language; with the app in English, it detects which language you speak."
+      },
       "retryDownload": "Retry download",
       "turnedOff": "Speech recognition is turned off on this server.",
       "unavailableInBuild": "Unavailable in this build.",

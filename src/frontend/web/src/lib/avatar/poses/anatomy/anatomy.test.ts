@@ -25,7 +25,7 @@ const avatars: Record<string, VRM> = {};
 
 beforeAll(async () => {
   avatars.vrm0 = await loadVrm0Fixture();
-  avatars.vrm1 = await loadTestAvatar("AvatarSample_A_1_New");
+  avatars.vrm1 = await loadTestAvatar("Annie");
 });
 
 /** Pose one joint and report how a downstream bone moved in world space. */

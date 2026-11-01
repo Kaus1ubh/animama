@@ -14,7 +14,11 @@ import {
   runtimeContentDownloadUrl,
   type RuntimeContentUrlLease,
 } from "@/lib/runtime-content/runtimeContentDelivery";
-import { runtimeAvatarModelSha256 } from "@/lib/runtime-content/runtimeAvatarFaceParts";
+import {
+  resolveRuntimeAvatarFaceParts,
+  runtimeAvatarItemId,
+} from "@/lib/runtime-content/runtimeAvatarFaceParts";
+import { useAvatarLoadSettings } from "@/query/hooks/useAvatarSettings";
 import type { RuntimeCatalogEntry } from "@/lib/runtime-content/types";
 import {
   apiErrorLine,
@@ -78,11 +82,26 @@ export function PoseCreatorAvatarActor({
   const setLoadStatus = usePoseCreatorStore((state) => state.setLoadStatus);
   const setLoadProgress = usePoseCreatorStore((state) => state.setLoadProgress);
 
+  const {
+    springMode,
+    springModeRef,
+    windStrength,
+    windStrengthRef,
+    materialMode,
+  } = useAvatarLoadSettings(runtimeAvatarItemId(entry));
+
   useEffect(() => {
     basePoseRef.current = basePose;
   }, [basePose]);
 
   useEffect(() => {
+    avatarRef.current?.setSpringMode(springMode);
+    avatarRef.current?.setWindStrength(windStrength);
+  }, [sceneObject, springMode, windStrength]);
+
+  useEffect(() => {
+    // Materials are built at load; wait for the Avatar's setting.
+    if (!materialMode) return;
     let isCancelled = false;
     const controller = new AbortController();
     const avatar = new Avatar(camera, viewportElement, {
@@ -116,7 +135,11 @@ export function PoseCreatorAvatarActor({
             filePath: download.url,
             sourceUrl: logicalUrl,
             sourceKey: entry.content_revision,
-            vrmSha256: runtimeAvatarModelSha256(entry),
+            // The saved face part correction, so parts match the chat's.
+            ...resolveRuntimeAvatarFaceParts(entry),
+            springMode: springModeRef.current,
+            windStrength: windStrengthRef.current,
+            materialMode,
           },
           (progress) => {
             if (!isCancelled) {
@@ -176,9 +199,12 @@ export function PoseCreatorAvatarActor({
     catalog,
     entry,
     logger,
+    materialMode,
     onAvatarInstanceChange,
     setLoadProgress,
     setLoadStatus,
+    springModeRef,
+    windStrengthRef,
     viewportElement,
   ]);
 

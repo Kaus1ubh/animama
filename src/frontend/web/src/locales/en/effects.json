@@ -375,7 +375,6 @@
     },
     "previewAvatarFailed": "Unable to load the preview Avatar.",
     "previewNoun": "preview",
-    "previewWarning": "The preview Avatar reported a problem with this effect.",
     "recoveredDraft": "Recovered local draft",
     "recovery": {
       "unavailable": "Browser crash recovery is unavailable. Keep this tab open until Save completes."
@@ -443,7 +442,9 @@
       "changed": "Changed, not saved",
       "corrected": "Corrected",
       "detected": "Detected · {{confidence, number(style: percent)}}",
+      "estimated": "Position estimated",
       "foundByName": "Found by name · {{confidence, number(style: percent)}}, check it",
+      "insideShared": "Found inside another mesh part",
       "missing": "Missing",
       "uncertain": "Detected · {{confidence, number(style: percent)}}, check it"
     },

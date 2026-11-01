@@ -139,8 +139,8 @@ Renderer access to Electron goes through `window.animamaDesktop`, exposed by the
 sandboxed preload at `desktop/src/preload.cts`.
 
 API version 2 identifies the platform and window role and groups runtime,
-credential, feature-pack, update, fullscreen, PiP, Quick Chat, shortcut and
-locale methods.
+credential, feature-pack, update, login item, fullscreen, title bar, PiP, Quick
+Chat, shortcut and locale methods.
 See `desktop/src/preload.cts` for the complete surface.
 
 The preload source uses `.cts` and is bundled to `dist/preload.cjs` after
@@ -158,6 +158,7 @@ accept only the three fixed catalog IDs, never renderer-supplied URLs, paths,
 versions, hashes, or commands. Progress subscriptions return cleanup functions;
 destroyed windows stop receiving events. Update controls also require the main
 window and accept zero arguments; recovery can open only the fixed backup folder.
+The login item accepts only a boolean from the main window.
 
 ## Provider Settings And Local State
 
@@ -212,6 +213,7 @@ On macOS the user-data root is `~/Library/Application Support/Animama`:
 | `packs/<id>/versions`    | Immutable optional pack versions and retained prior bytes                     |
 | `packs/active.json`      | Atomic active pointers, reverified before use                                 |
 | `ui-locale.json`         | Last UI Locale the app applied, for the shell's own text                      |
+| `pip-placement.json`     | Where the PiP window was last left on this machine's displays                 |
 | `downloads`              | Bounded partial archives and strong-ETag resume metadata                      |
 
 Packaged `resources/runtime/content/included-core` is immutable and separate
@@ -311,6 +313,20 @@ app; a timeout keeps services stopped for safe recovery. A replacement verifies
 its own runtime manifest before database work. No hosted account or GitHub token
 is stored in the app. See [Releases](releases.md) for policy and acceptance gates.
 
+## Launch At Login
+
+Settings → General → **Launch at login** reads and changes the OS login item
+through `desktop/src/main-process/login-item/login-item.ts`; the OS keeps the
+setting, and the app stores nothing. macOS registers the app with
+`SMAppService` and may need the user to allow it in System Settings → General →
+Login Items & Extensions. Windows writes the per-user Run entry, named after
+the app ID, which the user can still turn off in Settings → Apps → Startup; the
+uninstaller (`build/installer.nsh`) removes it, except when an install runs it
+with `--updated`. In both cases the setting says where to allow it, and while
+Settings is open it reads the state again when the window regains focus.
+The setting is hidden in the browser, unpackaged runs (which would register the
+bare Electron binary) and on Linux, which would need an XDG autostart file.
+
 ## Runtime Platform Provider
 
 The web app reads the preload bridge once through
@@ -352,6 +368,36 @@ The main process emits fullscreen state changes on native
 process so the React button state stays aligned with the native window state.
 
 Browser web still falls back to DOM fullscreen.
+
+## Title Bar
+
+On macOS and Windows the main window has no native title bar
+([`title-bar.ts`](../../../src/frontend/desktop/src/main-process/window/title-bar.ts)).
+Its window buttons sit in a strip across the top of the page: the macOS
+traffic lights, or the Windows minimize, maximize and close buttons at 32px,
+which Windows draws on a box in the app background color. On an Anima chat the
+Scene fills the strip; other pages show the app background there. Linux keeps
+the native frame.
+
+Electron reports the strip to the page as the window-controls overlay, so the
+web app reads its height from `env(titlebar-area-height)` into
+`--app-titlebar-height`; it is 0px in fullscreen, in PiP and Quick Chat, on
+Linux and in the browser. The `.app-titlebar` element in `web/index.html` moves
+the window by it, and buttons, links and form controls opt out of dragging.
+
+Layouts reserve the strip themselves. Never pad the body for it: Radix's modal
+scroll lock replaces the body's padding, which would shift the app up while a
+dialog is open. The app shell spans the window and pads its pages below the
+strip; the Anima scene shell extends into that padding while its header and
+chat stay below it. Screens outside the app shell, such as setup, start below
+the strip with a top margin. Layouts below the strip use the `h-app` and
+`min-h-app` utilities instead of the viewport height, and fixed panels such as
+the sidebar start below the strip.
+
+Windows draws its buttons in fixed colors, so the main window samples the body
+background and text colors on theme and Appearance changes and sends them as
+`#rrggbb` through `window.animamaDesktop.titleBar.setColors(...)`. The
+desktop-shell load-error page has its own drag strip.
 
 ## Desktop Picture-In-Picture
 
@@ -421,6 +467,9 @@ Main-process logs are written to:
 ```text
 ~/Library/Application Support/Animama/runtime/logs/main.log
 ```
+
+At 10 MiB the file rotates; `main.log.1` (newest) through `main.log.3` keep
+older lines.
 
 Useful checks from `src/frontend`:
 

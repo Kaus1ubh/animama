@@ -54,9 +54,13 @@ import {
   runtimeContentDownloadUrl,
   type RuntimeContentUrlLease,
 } from "@/lib/runtime-content/runtimeContentDelivery";
-import { runtimeAvatarModelSha256 } from "@/lib/runtime-content/runtimeAvatarFaceParts";
+import {
+  resolveRuntimeAvatarFaceParts,
+  runtimeAvatarItemId,
+} from "@/lib/runtime-content/runtimeAvatarFaceParts";
 import type { SceneVFXRuntimeEntry } from "@/lib/scene-vfx/types";
 import { cn } from "@/lib/utils";
+import { useAvatarLoadSettings } from "@/query/hooks/useAvatarSettings";
 import { AvatarPreviewSurface } from "@/ui/avatar-preview/AvatarPreviewSurface";
 import { PlaybackObservationOutput } from "@/ui/avatar-preview/PlaybackObservationOutput";
 import { Button } from "@/ui/components/button";
@@ -65,6 +69,7 @@ import {
   DEFAULT_SCENE_ORBIT_TARGET,
   type SceneCameraSettings,
 } from "@/ui/main/canvas/sceneCameraPresets";
+import { useSceneFrameDemand } from "@/ui/main/canvas/sceneFramePacing";
 
 type StageStatus = "idle" | "loading" | "ready" | "error";
 
@@ -152,6 +157,19 @@ function StageAvatarActor({
   });
   const { camera, gl } = useThree();
   const avatarRef = useRef<Avatar | null>(null);
+  const {
+    springMode,
+    springModeRef,
+    windStrength,
+    windStrengthRef,
+    materialMode,
+  } = useAvatarLoadSettings(
+    source.kind === "url"
+      ? runtimeAvatarItemId(source.runtimeContentEntry)
+      : null,
+  );
+  // An idle Avatar with no preview playing lets the stage render at 30 fps.
+  const frameDemand = useSceneFrameDemand();
   const catalogSession = useMemo(() => new PreviewRuntimeCatalogSession(), []);
   const applySoundPlayer = useMemo(
     () => new ContentPreviewApplySoundPlayer(),
@@ -196,6 +214,16 @@ function StageAvatarActor({
   }, [avatarReady, clipEventBridge]);
 
   useEffect(() => {
+    avatarRef.current?.setSpringMode(springMode);
+    avatarRef.current?.setWindStrength(windStrength);
+  }, [springMode, windStrength]);
+
+  useEffect(() => {
+    // Materials are built at load; wait for the Avatar's setting.
+    if (!materialMode) {
+      setStatus("loading");
+      return;
+    }
     let cancelled = false;
     const controller = new AbortController();
     const releaseAvatar = acquireContentPreviewResource("management", "avatar");
@@ -230,10 +258,13 @@ function StageAvatarActor({
         await avatar.load({
           filePath: resolvedLoadPath,
           sourceUrl: loadPath,
-          vrmSha256:
-            source.kind === "url"
-              ? runtimeAvatarModelSha256(source.runtimeContentEntry)
-              : null,
+          // The saved face part correction, so parts match the chat's.
+          ...(source.kind === "url"
+            ? resolveRuntimeAvatarFaceParts(source.runtimeContentEntry ?? null)
+            : { vrmSha256: null }),
+          springMode: springModeRef.current,
+          windStrength: windStrengthRef.current,
+          materialMode,
         });
         if (cancelled || avatar.isDisposed || !avatar.scene) return;
         setSceneObject(avatar.scene);
@@ -287,12 +318,15 @@ function StageAvatarActor({
     catalogSession,
     gl,
     logger,
+    materialMode,
     onContentPreviewStatusChange,
     onAvatarChange,
     onSceneVFXChange,
     setErrorMessage,
     setStatus,
     source,
+    springModeRef,
+    windStrengthRef,
     temporaryPreviewModel,
   ]);
 
@@ -420,6 +454,11 @@ function StageAvatarActor({
     const avatar = avatarRef.current;
     avatar?.update(delta);
     const watch = completionWatchRef.current;
+    if (frameDemand) {
+      frameDemand.avatarIdle = Boolean(
+        avatar?.isReady && !watch && !avatar.isMotionActive(),
+      );
+    }
     if (!avatar || !watch) return;
     const active =
       watch.type === "reaction_clip"

@@ -1,0 +1,245 @@
+import * as THREE from "three";
+import { describe, expect, it } from "vitest";
+
+import type { Avatar } from "@/lib/avatar";
+import { measureAvatarProportions } from "@/lib/avatar/avatarProportions";
+import { loadWholeBodyAvatar } from "@/lib/avatar/testing/wholeBodyVrm";
+
+import {
+  buildSceneCameraPreset,
+  DEFAULT_PIP_SCENE_CAMERA_PRESET,
+  isSceneCameraPreset,
+  readSavedSceneCameraPreset,
+  savedSceneCameraPresetPatch,
+  type SceneCameraSettings,
+} from "./sceneCameraPresets";
+
+describe("scene camera presets", () => {
+  it("frames PiP close on the face by default", () => {
+    expect(DEFAULT_PIP_SCENE_CAMERA_PRESET).toBe("portrait-close");
+  });
+
+  it("accepts only chat presets from untrusted input", () => {
+    expect(isSceneCameraPreset("portrait")).toBe(true);
+    expect(isSceneCameraPreset("portrait-three-quarter")).toBe(false);
+    expect(isSceneCameraPreset({ preset: "portrait" })).toBe(false);
+  });
+
+  it("reads each window's saved preset from user preferences", () => {
+    const preferences = {
+      presentation: {
+        camera_preset: "full-body",
+        pip_camera_preset: "portrait",
+      },
+    };
+    expect(readSavedSceneCameraPreset(preferences, "main")).toBe("full-body");
+    expect(readSavedSceneCameraPreset(preferences, "pip")).toBe("portrait");
+  });
+
+  it("ignores missing and unknown saved presets", () => {
+    expect(readSavedSceneCameraPreset(null, "main")).toBeNull();
+    expect(readSavedSceneCameraPreset({}, "pip")).toBeNull();
+    expect(
+      readSavedSceneCameraPreset(
+        { presentation: { camera_preset: "retired-preset" } },
+        "main",
+      ),
+    ).toBeNull();
+  });
+
+  it("builds a patch that saves only the named window's preset", () => {
+    expect(savedSceneCameraPresetPatch("main", "portrait-close")).toEqual({
+      presentation: { camera_preset: "portrait-close" },
+    });
+    expect(savedSceneCameraPresetPatch("pip", "full-body")).toEqual({
+      presentation: { pip_camera_preset: "full-body" },
+    });
+  });
+});
+
+describe.each(["portrait", "portrait-close"] as const)(
+  "the %s preset",
+  (preset) => {
+    it("keeps its fixed offsets from the head bone on adult proportions", async () => {
+      const avatar = await loadWholeBodyAvatar();
+      const headY = avatar.getCameraAnchorY("head")!;
+      const { settings, bindings } = buildSceneCameraPreset(preset, {
+        avatar,
+      });
+      const close = preset === "portrait-close";
+      expect(settings.position).toEqual({
+        x: 0,
+        y: headY,
+        z: close ? 0.8 : 1.6,
+      });
+      expect(settings.orbitTarget.y).toBe(close ? headY : headY - 0.1);
+      expect(bindings.orbitTargetYOffset).toBe(close ? 0 : -0.1);
+    });
+
+    it("frames a big head's whole face", async () => {
+      // The head scaled twice about the head bone, as on chibi Avatars.
+      const avatar = await loadWholeBodyAvatar({ headScale: 2 });
+      const { settings } = buildSceneCameraPreset(preset, { avatar });
+      const camera = new THREE.PerspectiveCamera(settings.fov, 16 / 9);
+      camera.position.set(
+        settings.position.x,
+        settings.position.y,
+        settings.position.z,
+      );
+      camera.lookAt(
+        settings.orbitTarget.x,
+        settings.orbitTarget.y,
+        settings.orbitTarget.z,
+      );
+      camera.updateMatrixWorld(true);
+
+      // The head box's front face and the eyes, in the world.
+      avatar.scene!.updateMatrixWorld(true);
+      const head = avatar.vrm!.humanoid.getNormalizedBoneNode("head")!;
+      const box = measureAvatarProportions(avatar.vrm).headBox!;
+      const eyes = avatar.getFaceLandmarksSnapshot()!.eyes;
+      const points = [
+        new THREE.Vector3(box.min.x, box.min.y, box.max.z),
+        new THREE.Vector3(box.max.x, box.min.y, box.max.z),
+        new THREE.Vector3(box.min.x, box.max.y, box.max.z),
+        new THREE.Vector3(box.max.x, box.max.y, box.max.z),
+        new THREE.Vector3().copy(eyes.left!.centerLocal),
+        new THREE.Vector3().copy(eyes.right!.centerLocal),
+      ].map((point) => head.localToWorld(point).project(camera));
+      for (const point of points) {
+        expect(Math.abs(point.x)).toBeLessThan(1);
+        expect(Math.abs(point.y)).toBeLessThan(1);
+      }
+      // The eyes sit in the frame's upper half, as on the Included Avatars,
+      // rather than at its edge.
+      expect(points[4]!.y).toBeGreaterThan(-0.2);
+      expect(points[4]!.y).toBeLessThan(0.8);
+    });
+  },
+);
+
+describe.each(["full-body", "full-body-close"] as const)(
+  "the %s preset",
+  (preset) => {
+    const framed = (settings: SceneCameraSettings) => {
+      const camera = new THREE.PerspectiveCamera(settings.fov, 16 / 9);
+      camera.position.set(
+        settings.position.x,
+        settings.position.y,
+        settings.position.z,
+      );
+      camera.lookAt(
+        settings.orbitTarget.x,
+        settings.orbitTarget.y,
+        settings.orbitTarget.z,
+      );
+      camera.updateMatrixWorld(true);
+      return camera;
+    };
+
+    it("keeps its fixed position on adult proportions", async () => {
+      const avatar = await loadWholeBodyAvatar();
+      const { settings } = buildSceneCameraPreset(preset, { avatar });
+      expect(settings.position).toEqual({
+        x: 0,
+        y: 1.2,
+        z: preset === "full-body" ? 3.2 : 2.2,
+      });
+      expect(settings.orbitTarget).toEqual({ x: 0, y: 1.0, z: 0 });
+    });
+
+    it("frames a short chibi Avatar as it frames an adult", async () => {
+      const adult = await loadWholeBodyAvatar();
+      const chibi = await loadWholeBodyAvatar({ headScale: 2, bodyScale: 0.4 });
+      // Feet and the top of the head (box), projected into each frame.
+      const span = (avatar: Avatar) => {
+        const camera = framed(
+          buildSceneCameraPreset(preset, { avatar }).settings,
+        );
+        avatar.scene!.updateMatrixWorld(true);
+        const head = avatar.vrm!.humanoid.getNormalizedBoneNode("head")!;
+        const top = new THREE.Box3().setFromObject(avatar.scene!).max.y;
+        const foot = avatar
+          .vrm!.humanoid.getNormalizedBoneNode("leftFoot")!
+          .getWorldPosition(new THREE.Vector3());
+        const headAt = head.getWorldPosition(new THREE.Vector3());
+        return {
+          top: new THREE.Vector3(headAt.x, top, headAt.z).project(camera).y,
+          feet: foot.project(camera).y,
+        };
+      };
+      const adultSpan = span(adult);
+      const chibiSpan = span(chibi);
+      // Full body shows both whole; the close view crops the adult's head,
+      // and the chibi's no more than that.
+      if (preset === "full-body") {
+        for (const { top, feet } of [adultSpan, chibiSpan]) {
+          expect(top).toBeLessThan(1);
+          expect(feet).toBeGreaterThan(-1);
+        }
+      }
+      expect(chibiSpan.top).toBeLessThan(adultSpan.top + 0.05);
+      expect(chibiSpan.feet).toBeGreaterThan(adultSpan.feet - 0.05);
+      // Today the chibi would fill well under half the adult's height.
+      expect(chibiSpan.top - chibiSpan.feet).toBeGreaterThan(
+        0.8 * (adultSpan.top - adultSpan.feet),
+      );
+    });
+  },
+);
+
+describe("camera presets on a short chibi Avatar", () => {
+  const distance = (settings: SceneCameraSettings) =>
+    new THREE.Vector3(
+      settings.position.x - settings.orbitTarget.x,
+      settings.position.y - settings.orbitTarget.y,
+      settings.position.z - settings.orbitTarget.z,
+    ).length();
+
+  it("orders the presets from widest to closest", async () => {
+    // A twice-sized head on a body 0.4 times the adult's: framing by the
+    // face alone would put Portrait wider than Full body.
+    const avatar = await loadWholeBodyAvatar({ headScale: 2, bodyScale: 0.4 });
+    const [fullBody, fullBodyClose, portrait, portraitClose] = (
+      ["full-body", "full-body-close", "portrait", "portrait-close"] as const
+    ).map((preset) =>
+      distance(buildSceneCameraPreset(preset, { avatar }).settings),
+    );
+    expect(fullBodyClose).toBeLessThan(fullBody!);
+    expect(portrait).toBeLessThanOrEqual(fullBodyClose! + 1e-9);
+    expect(portraitClose).toBeLessThan(portrait!);
+  });
+
+  it.each(["portrait", "portrait-close"] as const)(
+    "keeps the whole head in the %s preset",
+    async (preset) => {
+      const avatar = await loadWholeBodyAvatar({
+        headScale: 2,
+        bodyScale: 0.4,
+      });
+      const { settings } = buildSceneCameraPreset(preset, { avatar });
+      const camera = new THREE.PerspectiveCamera(settings.fov, 3 / 4);
+      camera.position.set(
+        settings.position.x,
+        settings.position.y,
+        settings.position.z,
+      );
+      camera.lookAt(
+        settings.orbitTarget.x,
+        settings.orbitTarget.y,
+        settings.orbitTarget.z,
+      );
+      camera.updateMatrixWorld(true);
+      avatar.scene!.updateMatrixWorld(true);
+      const head = avatar.vrm!.humanoid.getNormalizedBoneNode("head")!;
+      const box = measureAvatarProportions(avatar.vrm).headBox!;
+      // The head box's top and bottom, front face, in the tall PiP frame.
+      for (const y of [box.min.y, box.max.y]) {
+        const point = head
+          .localToWorld(new THREE.Vector3(0, y, box.max.z))
+          .project(camera);
+        expect(Math.abs(point.y)).toBeLessThan(1);
+      }
+    },
+  );
+});

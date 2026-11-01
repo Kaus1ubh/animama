@@ -20,6 +20,7 @@ from animama.server.deps import get_async_session, get_current_principal
 from animama.server.routers import router as shared_router, web_search as web_search_routes
 from tests.local_http_client import local_client
 from tests.product_http_support import install_local_ports
+from tests.route_support import served_routes
 
 
 def _app(session, tmp_path, *, local: bool = True) -> FastAPI:  # noqa: ANN001
@@ -59,11 +60,11 @@ def test_only_the_local_composition_mounts_web_search_routes(tmp_path):
     from animama.server.app import create_local_app
 
     search_paths = {route.path for route in web_search_routes.router.routes if isinstance(route, APIRoute)}
-    shared_paths = {route.path for route in shared_router.routes if isinstance(route, APIRoute)}
+    shared_paths = {route.path for route in served_routes(shared_router) if isinstance(route, APIRoute)}
     local_app = create_local_app(
         runtime_settings=Settings(animama_content_root=tmp_path / "content", animama_data_root=tmp_path / "data")
     )
-    local_paths = {route.path for route in local_app.routes if isinstance(route, APIRoute)}
+    local_paths = {route.path for route in served_routes(local_app) if isinstance(route, APIRoute)}
 
     assert "/v1/web-search/settings" in search_paths
     assert not search_paths & shared_paths

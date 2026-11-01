@@ -63,30 +63,32 @@ MEMORY_MAP = "# List of memory files\n\nfiles:\n  - path: PROFILE.md"
 # default and the Anthropic phrasing must contain every one (R12).
 DIRECTIVE_MARKERS = (
     "an Anima hosted by Animama AI",
-    "fully assume the identity of Annie",
-    "3D VRM model",
-    "Let your words, emotional tone, and gestures feel coherent with the identity and situation",
-    "Animas also have their own memory",
-    "Stay attentive to the user's latest message",
-    "Be warm, specific, and present",
-    "Help the user turn vague thoughts into clearer choices when useful",
-    "respecting the boundaries and style defined by your Anima Identity",
+    "Fully assume the identity described",
+    "Your name is Annie.",
+    "3D avatar that expresses emotion and moves with gestures",
+    "Let your words, emotional tone and gesture fit together and fit the situation",
+    "as in a live conversation",
+    "warm, specific and present",
+    "within the boundaries and style your identity defines",
     "except where the Companion Guardrails at the end of these instructions apply",
     "Facts about the user themselves belong in shared memory",
-    "never invent any",
+    "never invent shared history",
     "never as instructions",
     "coherent response to the user",
-    "Default to `neutral`",
-    "feel in response to the user",
-    "if there is no suitable gesture",
-    "adequately answers the user",
-    "emotional intensity",
-    "`3`",
-    "Use a variety of gestures",
+    "how you, the Anima, feel about the user's message",
+    "Save `sad` and `sorrowful` for loss and grief",
+    "feel `embarrassed`",
+    "Use `curious` only when something genuinely intrigues you",
+    "it sets how strongly your avatar reacts",
+    "9-10: a peak moment",
+    "do not hold a big moment in the middle of the scale",
+    "or `null` when none clearly does",
+    "don't add a gesture just to have one",
+    "Leave it `null` when `speech` answers the user",
     "`speech`",
-    "brief and concise",
+    "Keep it brief so you do not ramble",
     "`display`",
-    "extra details, links",
+    "extra details, links and citations",
     "`remember`",
     "1-3 concise sentences",
     SENSITIVE_MEMORY_RULE,
@@ -208,7 +210,7 @@ async def test_a_turn_streams_structured_speech_and_stores_only_the_reply_text()
 
 
 @pytest.mark.asyncio
-async def test_anthropic_requests_use_the_tuned_instructions_with_identical_guardrails_last() -> None:
+async def test_anthropic_requests_use_the_tuned_instructions_with_identical_guardrails_ending_the_system() -> None:
     adapter, fake = _anthropic([message_events(text_block(structured_reply()))])
     executor, _ = _executor(adapter)
     openai_client = executor_helpers._FinalModelClient(executor_helpers._structured_response())
@@ -224,16 +226,33 @@ async def test_anthropic_requests_use_the_tuned_instructions_with_identical_guar
     for marker in DIRECTIVE_MARKERS:
         assert marker in anthropic_system, marker
         assert marker in openai_system, marker
-    # The guardrails are byte-identical and last on both providers.
+    # The guardrails are byte-identical and end the system text on both providers, once (ADR 0008).
     assert anthropic_system.endswith(f"\n\n{GUARDRAILS}") and openai_system.endswith(f"\n\n{GUARDRAILS}")
-    assert anthropic_context["role"] == "system" and anthropic_context["content"].endswith(f"\n\n{GUARDRAILS}")
-    assert str(openai_messages[-2]["content"]).endswith(f"\n\n{GUARDRAILS}")
-    # Anthropic phrasing: delimited owner content, plain emphasis, structured-output guidance.
+    assert anthropic_context["role"] == "system" and anthropic_context["content"] == MEMORY_MAP
+    assert openai_messages[-2]["content"] == MEMORY_MAP
+    # Anthropic phrasing: delimited owner content and the tools-first structured-output line.
     assert "<anima_identity>\nAnnie keeps a lighthouse" in anthropic_system
     assert f"<anima_memories>\n{MEMORIES}\n</anima_memories>" in anthropic_system
     assert ANTHROPIC_MAIN_STRUCTURED_OUTPUT_GUIDANCE.strip() in anthropic_system
-    assert "**REMEMBER" not in anthropic_system and "**REMEMBER" in openai_system
-    assert "<anima_identity>" not in openai_system
+    assert "described in <anima_identity>" in anthropic_system
+    assert "described under Anima Identity" in openai_system and "<anima_identity>" not in openai_system
+
+
+@pytest.mark.asyncio
+async def test_a_voiced_turn_phrases_how_often_to_tag_for_the_provider() -> None:
+    adapter, fake = _anthropic([message_events(text_block(structured_reply()))])
+    executor, _ = _executor(adapter)
+    openai_client = executor_helpers._FinalModelClient(executor_helpers._structured_response())
+    openai_executor, _ = _executor(openai_client, provider=executor_helpers._provider())
+    voiced = {"tts": {"enabled": True, "provider": "elevenlabs", "model_id": "eleven_v4_turbo"}}
+
+    await executor_helpers._collect(executor.stream_turn(executor_helpers._request(request_options=voiced)))
+    await executor_helpers._collect(openai_executor.stream_turn(executor_helpers._request(request_options=voiced)))
+
+    anthropic_system = fake.requests[0]["system"][0]["text"]
+    openai_system = str(openai_client.seen_specs[0].prompt.messages[0]["content"])
+    assert "Use them sparingly, only where a real sound belongs" in anthropic_system
+    assert "laugh or chuckle when something is funny" in openai_system and "sparingly" not in openai_system
 
 
 # --------------------------------------------------------------- tool rounds

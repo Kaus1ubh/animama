@@ -395,7 +395,8 @@ Chat Completions-compatible `messages` list plus request fields such as
 `tools`, `tool_choice`, and `parallel_tool_calls`.
 `DirectChatPromptAssembler` builds exactly one system
 message at `messages[0]` with Markdown sections for stable core companion
-guidance, the raw current anima identity markdown, stable memory guidance, and
+guidance (which names no Anima), a "Your name is …" line with the Anima's display
+name followed by the raw current anima identity markdown, stable memory guidance, and
 structured-output guidance selected from the persisted `model_providers`
 capability row. Schema-backed `json_schema` rows receive the shared response
 guidelines because the actual schema travels in
@@ -408,15 +409,16 @@ fingerprint details. Anima profile columns, `metadata.direct_chat`, and pinned
 user profile content are not prompt sources. The system message ends with the
 server-owned
 [Companion Guardrails](../../adr/0008-non-overridable-companion-guardrail.md).
-One request-local `developer` message always sits immediately before the latest
-user message: the user-scope memory file map (when memory influence is
-enabled), the attached-file list and finally the guardrails again, so they are
-the last instruction text before the user's words. An app compaction summary is
+One request-local `developer` message sits immediately before the latest user
+message when the turn has context: the user-scope memory file map (when memory
+influence is enabled) and the attached-file list. An app compaction summary is
 a `developer` message directly after the system message. The Anthropic adapter
 sends that turn-context message as a mid-conversation `system` message after
-the user's message instead, and Anthropic rows receive Anthropic-phrased
-variants of the non-guardrail sections with the same directives
-(`app/chat/anthropic_instructions.py`). The
+the user's message instead, and Anthropic rows delimit the identity and
+`MEMORIES.md` with XML tags, add a tools-first line to the shared response
+guidance and describe that turn-context message
+(`app/chat/anthropic_instructions.py`); their Speech section keeps asking for
+audio tags sparingly (`app/chat/speech_tags.py`). The
 [turn layout](prompt-caching.md#turn-layout) describes each provider path and
 its cache breakpoints.
 
@@ -428,8 +430,7 @@ the defaults: no folding, every field sent and `openai_effort`.
 
 - `fold_developer_role`: send no `developer` messages. The row's
   `supports_developer_role` is then false, so the prompt assembler puts the
-  turn context and the guardrails in a `<turn_context>` block at the start of
-  the user message, which the system message describes, and folds a compaction
+  turn context in a `<turn_context>` block at the start of the user message, which the system message describes, and folds a compaction
   summary into the system message before its closing guardrails. The adapter
   folds within-turn `developer` instructions (forced final, repair) into the
   end of the system message before dispatch. On by default for every
@@ -484,9 +485,9 @@ tool calls stay in every case.
 
 `OpenAIResponsesHTTPAgent` sends only the stable system message as the
 Responses `instructions` parameter, which ends with the guardrails. The turn
-context travels as a `developer` input item before the user item. If the chat
-row has an `openai_previous_response_id`, its `input` contains only that
-developer item and the current user message, or the current turn's
+context, when there is any, travels as a `developer` input item before the user
+item. If the chat row has an `openai_previous_response_id`, its `input` contains
+only that developer item and the current user message, or the current turn's
 function-call outputs, followed by any forced-final or repair instruction as a
 `developer` item. The executor skips fetching local chat history for that
 normal cursor-backed request. Each turn's context item stays in the stored
@@ -555,7 +556,11 @@ message instead of splitting speech and display into separate durable rows.
 
 `OpenAIResponsesHTTPAgent` continues prior Responses turns from the chat row's
 `openai_previous_response_id`. If that chat-row cursor is null, direct chat
-replays local visible history instead of sending `previous_response_id`. Active
+replays local visible history instead of sending `previous_response_id`.
+Replayed history is at most the newest 200 rows after any active compaction,
+counting stored tool calls and results; a window cut by that limit starts at its
+first user message, so a tool result is never replayed without its call
+(`ChatManager.get_chat_context`). Active
 compaction summaries are part of that replayed local context. They are not
 fetched or sent as Responses `input` on cursor-backed turns because the provider
 request carries only the stable instructions, the turn context and user input

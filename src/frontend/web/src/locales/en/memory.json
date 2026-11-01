@@ -351,6 +351,7 @@
   },
   "versions": {
     "afterRevert": "After Revert · Version {{version}}",
+    "automaticUpdate": "Automatic update from episode notes",
     "back": "Back",
     "changesIn": "Changes in Version {{version}}",
     "confirmRevert": "Confirm Revert",

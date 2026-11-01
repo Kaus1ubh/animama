@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   decodeSenseVoiceLogits,
+  isSenseVoiceLanguage,
   loadSenseVoiceModel,
   parseTokenTable,
   wordConfidenceFloor,
@@ -11,19 +12,29 @@ import {
 const session = vi.hoisted(() => ({
   logits: new Float32Array(0),
   vocab: 0,
+  /** The last run's inputs, by name. */
+  feeds: {} as Record<string, { data: unknown }>,
 }));
 vi.mock("onnxruntime-web", () => ({
-  // The model only builds inputs; the mocked session ignores them.
-  Tensor: class {},
+  // The model only builds inputs; the mocked session records and ignores them.
+  Tensor: class {
+    data: unknown;
+    constructor(_type: string, data: unknown) {
+      this.data = data;
+    }
+  },
   InferenceSession: {
     create: async () => ({
-      run: async () => ({
-        logits: {
-          dims: [1, session.logits.length / session.vocab, session.vocab],
-          data: session.logits,
-          dispose: () => {},
-        },
-      }),
+      run: async (feeds: Record<string, { data: unknown }>) => {
+        session.feeds = feeds;
+        return {
+          logits: {
+            dims: [1, session.logits.length / session.vocab, session.vocab],
+            data: session.logits,
+            dispose: () => {},
+          },
+        };
+      },
       release: async () => {},
     }),
   },
@@ -204,5 +215,57 @@ describe("loadSenseVoiceModel", () => {
     expect((await model.transcribe(audio, "ja", "preview")).text).toBe("こん");
     // A final window is the default.
     expect((await model.transcribe(audio, "ja")).text).toBe("");
+  });
+
+  it("detects the language under auto and keeps the model's own script", async () => {
+    const dims = 80 * 7;
+    const metadata = {
+      neg_mean: Array(dims).fill(0).join(","),
+      inv_stddev: Array(dims).fill(1).join(","),
+      lfr_window_size: "7",
+      lfr_window_shift: "6",
+      with_itn: "14",
+      lang_auto: "0",
+      lang_zh: "3",
+    };
+    // A Simplified Chinese word at id 14.
+    const zhTokens = [...tokens, "说"];
+    vi.stubGlobal(
+      "fetch",
+      async (url: string) =>
+        new Response(
+          url.endsWith("metadata.json")
+            ? JSON.stringify(metadata)
+            : zhTokens.map((piece, id) => `${piece} ${id}`).join("\n"),
+        ),
+    );
+    // Whatever the audio, the session answers with a confident Simplified 说.
+    session.vocab = zhTokens.length;
+    session.logits = Float32Array.from(logits([14], zhTokens.length));
+    const model = await loadSenseVoiceModel(
+      {
+        modelUrl: "/model.int8.onnx",
+        tokensUrl: "/tokens.txt",
+        metadataUrl: "/metadata.json",
+      },
+      "wasm",
+    );
+    const audio = Float32Array.from({ length: 16_000 }, (_, i) =>
+      Math.sin(i / 7),
+    );
+
+    expect((await model.transcribe(audio, "auto")).text).toBe("说");
+    expect(session.feeds.language.data).toEqual(Int32Array.of(0));
+    // zh-Hant also detects the language, then writes Traditional script.
+    expect((await model.transcribe(audio, "zh-Hant")).text).toBe("說");
+    expect(session.feeds.language.data).toEqual(Int32Array.of(0));
+  });
+});
+
+describe("isSenseVoiceLanguage", () => {
+  it("accepts the routed languages, including automatic detection", () => {
+    for (const language of ["auto", "en", "ja", "ko", "zh-Hans", "zh-Hant"])
+      expect(isSenseVoiceLanguage(language)).toBe(true);
+    expect(isSenseVoiceLanguage("fr")).toBe(false);
   });
 });

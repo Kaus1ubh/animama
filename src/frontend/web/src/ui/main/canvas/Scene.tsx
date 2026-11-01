@@ -41,6 +41,7 @@ import { CONTINUOUS_CANVAS_RESIZE } from "@/ui/main/canvas/canvasResizeOptions";
 import { useEnhancedRenderingStore } from "@/lib/avatar/enhanced-rendering/enhancedRendering";
 import { chatCanvasFilter } from "@/lib/avatar/enhanced-rendering/backdropGlow";
 import { AvatarSceneLighting } from "./AvatarSceneLighting";
+import { PacedScene } from "./SceneFramePacer";
 import { type Backdrop, useBackdropColor } from "./useBackdropColor";
 import {
   sceneVector3ToArray,
@@ -67,6 +68,11 @@ type SceneProps = {
   onAvatarInstanceChange?: (avatar: Avatar | null) => void;
   onAvatarTransformChange?: (transform: AvatarTransform) => void;
   playRuntimeVfxSounds?: boolean;
+  /**
+   * Time this canvas's lilToon frames when the Materials setting's Automatic
+   * needs a measurement; the main canvas only, not Picture in Picture.
+   */
+  measureLilToonGpu?: boolean;
   sceneEffectsEnabled?: boolean;
   sceneCameraSettings: SceneCameraSettings;
   transparentBackground?: boolean;
@@ -141,6 +147,7 @@ export default function Scene({
   onAvatarInstanceChange,
   onAvatarTransformChange,
   playRuntimeVfxSounds = true,
+  measureLilToonGpu = false,
   sceneEffectsEnabled = true,
   sceneCameraSettings,
   transparentBackground = false,
@@ -288,25 +295,28 @@ export default function Scene({
             : undefined
         }
         dpr={dpr}
+        // PacedScene renders frames at the rate the scene needs.
+        frameloop="demand"
         gl={{ antialias: true, alpha: true }}
         resize={CONTINUOUS_CANVAS_RESIZE}
         onCreated={({ gl }) => {
           gl.setClearColor(0x000000, 0);
         }}
       >
-        <DreiPerspectiveCamera
-          ref={cameraRef}
-          makeDefault
-          position={sceneVector3ToArray(sceneCameraSettings.position)}
-          fov={sceneCameraSettings.fov}
-        />
-        <SceneCameraController
-          cameraRef={cameraRef}
-          orbitControlsRef={orbitControlsRef}
-          settings={sceneCameraSettings}
-        />
-        <AvatarSceneLighting />
-        {/* {isDev ? <axesHelper args={[5]} /> : null}
+        <PacedScene cursorLookAtInputProvider={cursorLookAtInputProvider}>
+          <DreiPerspectiveCamera
+            ref={cameraRef}
+            makeDefault
+            position={sceneVector3ToArray(sceneCameraSettings.position)}
+            fov={sceneCameraSettings.fov}
+          />
+          <SceneCameraController
+            cameraRef={cameraRef}
+            orbitControlsRef={orbitControlsRef}
+            settings={sceneCameraSettings}
+          />
+          <AvatarSceneLighting measureLilToonGpu={measureLilToonGpu} />
+          {/* {isDev ? <axesHelper args={[5]} /> : null}
         {isDev ? (
           <Grid
             position={[0, -0.01, 0]}
@@ -323,51 +333,52 @@ export default function Scene({
             infiniteGrid
           />
         ) : null} */}
-        <group ref={handleAvatarRootRef}>
-          <Suspense fallback={null}>
-            {avatarActor === undefined ? (
-              <AvatarCanvasActor
-                clipVfxEnabled={clipVfxEnabled}
-                cursorLookAtInputProvider={cursorLookAtInputProvider}
-                onAvatarInstanceChange={onAvatarInstanceChange}
-                playRuntimeVfxSounds={playRuntimeVfxSounds}
-              />
-            ) : (
-              avatarActor
-            )}
-          </Suspense>
-        </group>
-        {transformMode && avatarRoot ? (
-          <TransformControls
-            domElement={transformDomElement ?? undefined}
+          <group ref={handleAvatarRootRef}>
+            <Suspense fallback={null}>
+              {avatarActor === undefined ? (
+                <AvatarCanvasActor
+                  clipVfxEnabled={clipVfxEnabled}
+                  cursorLookAtInputProvider={cursorLookAtInputProvider}
+                  onAvatarInstanceChange={onAvatarInstanceChange}
+                  playRuntimeVfxSounds={playRuntimeVfxSounds}
+                />
+              ) : (
+                avatarActor
+              )}
+            </Suspense>
+          </group>
+          {transformMode && avatarRoot ? (
+            <TransformControls
+              domElement={transformDomElement ?? undefined}
+              enabled
+              mode={transformMode}
+              object={avatarRoot}
+              onObjectChange={handleTransformObjectChange}
+              showX
+              showY
+              showZ
+              size={0.85}
+              space={transformMode === "translate" ? "world" : "local"}
+            />
+          ) : null}
+          <OrbitControls
+            ref={orbitControlsRef}
+            makeDefault
+            domElement={orbitDomElement ?? undefined}
             enabled
-            mode={transformMode}
-            object={avatarRoot}
-            onObjectChange={handleTransformObjectChange}
-            showX
-            showY
-            showZ
-            size={0.85}
-            space={transformMode === "translate" ? "world" : "local"}
+            enablePan={orbitInteractionEnabled && !orbitModifierActive}
+            enableRotate={orbitInteractionEnabled}
+            enableZoom={orbitInteractionEnabled}
+            mouseButtons={mouseButtons}
+            target={sceneVector3ToArray(sceneCameraSettings.orbitTarget)}
+            enableDamping
+            dampingFactor={0.08}
+            minDistance={0.1}
+            maxDistance={15}
+            // onChange={invalidate}
           />
-        ) : null}
-        <OrbitControls
-          ref={orbitControlsRef}
-          makeDefault
-          domElement={orbitDomElement ?? undefined}
-          enabled
-          enablePan={orbitInteractionEnabled && !orbitModifierActive}
-          enableRotate={orbitInteractionEnabled}
-          enableZoom={orbitInteractionEnabled}
-          mouseButtons={mouseButtons}
-          target={sceneVector3ToArray(sceneCameraSettings.orbitTarget)}
-          enableDamping
-          dampingFactor={0.08}
-          minDistance={0.1}
-          maxDistance={15}
-          // onChange={invalidate}
-        />
-        {/* {isDev ? <Stats /> : null} */}
+          {/* {isDev ? <Stats /> : null} */}
+        </PacedScene>
       </Canvas>
     </div>
   );

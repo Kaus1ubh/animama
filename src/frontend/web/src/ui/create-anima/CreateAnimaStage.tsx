@@ -24,6 +24,8 @@ import { Avatar } from "@/lib/avatar";
 import { acquireContentPreviewResource } from "@/lib/content-preview/lifecycle";
 import { apiErrorLine } from "@/lib/errors/apiError";
 import { VerifiedByteLoader } from "@/lib/runtime-content/VerifiedByteLoader";
+import { useAvatarFaceParts } from "@/query/hooks/useAvatarFaceParts";
+import { useAvatarLoadSettings } from "@/query/hooks/useAvatarSettings";
 import type { SceneVFXRuntimeEntry } from "@/lib/scene-vfx/types";
 import { AvatarPreviewSurface } from "@/ui/avatar-preview/AvatarPreviewSurface";
 import { Button } from "@/ui/components/button";
@@ -33,6 +35,12 @@ import {
 } from "./CreateAnimaPreviewSession";
 import { CreatorError, creatorErrorText } from "./createAnimaErrors";
 import { useCreationPortraitCapture } from "./createAnimaPortrait";
+
+/** The stage's Avatar for the shown source and whether it loaded. */
+export type CreationStageAvatar = {
+  avatar: Avatar | null;
+  status: "loading" | "ready" | "failed";
+};
 
 export type CreationStageHandle = {
   stop: () => void;
@@ -56,6 +64,8 @@ type Props = {
     blob: Blob,
     signal: AbortSignal,
   ) => Promise<void>;
+  /** The shown source's Avatar and whether it loaded, for upload Diagnostics. */
+  onAvatarStateChange?: (state: CreationStageAvatar) => void;
 };
 
 class StageBoundary extends Component<
@@ -90,6 +100,7 @@ export function CreateAnimaStage({
   onFinished,
   portraitTarget = null,
   savePortrait,
+  onAvatarStateChange,
 }: Props) {
   const { t } = useTranslation("create");
   const reducedMotion = useReducedMotion() === true;
@@ -140,6 +151,17 @@ export function CreateAnimaStage({
   useEffect(() => {
     stop();
   }, [avatar?.item_id, avatar?.revision_sha256, file, stop]);
+
+  // An error without an Avatar is a failed load; once loaded, a later error
+  // belongs to a Gesture or Reaction preview.
+  const avatarState: CreationStageAvatar["status"] = loadedAvatar
+    ? "ready"
+    : status === "error"
+      ? "failed"
+      : "loading";
+  useEffect(() => {
+    onAvatarStateChange?.({ avatar: loadedAvatar, status: avatarState });
+  }, [avatarState, loadedAvatar, onAvatarStateChange]);
 
   useImperativeHandle(
     ref,
@@ -276,7 +298,32 @@ function CreationStageActor({
   const avatarRef = useRef<Avatar | null>(null);
   const reducedMotionRef = useRef(reducedMotion);
   reducedMotionRef.current = reducedMotion;
+  // Parts match the chat's: apply the saved Avatar's face part correction.
+  const savedItemId = file ? null : (source?.item_id ?? null);
+  const faceParts = useAvatarFaceParts(savedItemId);
+  // An unsaved file loads with Automatic settings.
+  const {
+    springMode,
+    springModeRef,
+    windStrength,
+    windStrengthRef,
+    materialMode,
+  } = useAvatarLoadSettings(savedItemId);
   useEffect(() => {
+    avatarRef.current?.setSpringMode(springMode);
+    avatarRef.current?.setWindStrength(windStrength);
+  }, [object, springMode, windStrength]);
+  const savedCorrection = faceParts.data?.face_parts ?? null;
+  useEffect(() => {
+    const avatar = avatarRef.current;
+    if (!object || !avatar || !savedCorrection) return;
+    void avatar
+      .setFacePartCorrections(savedCorrection)
+      .then(() => invalidate());
+  }, [invalidate, object, savedCorrection]);
+  useEffect(() => {
+    // Materials are built at load; wait for the Avatar's setting.
+    if (!materialMode) return;
     const controller = new AbortController();
     const avatar = new Avatar(camera, gl.domElement, {
       motionCatalog: session.catalog,
@@ -293,6 +340,8 @@ function CreationStageActor({
     void (async () => {
       try {
         let blob: Blob;
+        // A saved Avatar's digest matches its saved face part correction.
+        let vrmSha256: string | null = null;
         if (file) blob = file;
         else {
           const preview = await loadAvatar(source!, controller.signal);
@@ -300,12 +349,19 @@ function CreationStageActor({
             (item) => item.role === "model" || item.role === "vrm",
           );
           if (!model) throw new CreatorError(t("stage.noModel"));
+          vrmSha256 = model.sha256 ?? null;
           blob = (await new VerifiedByteLoader().load(model, controller.signal))
             .blob;
         }
         if (controller.signal.aborted) return;
         objectUrl = URL.createObjectURL(blob);
-        await avatar.load({ filePath: objectUrl });
+        await avatar.load({
+          filePath: objectUrl,
+          vrmSha256,
+          springMode: springModeRef.current,
+          windStrength: windStrengthRef.current,
+          materialMode,
+        });
         if (controller.signal.aborted) {
           avatar.dispose();
           return;
@@ -333,6 +389,8 @@ function CreationStageActor({
     return () => {
       controller.abort();
       detach();
+      // A material change reloads in this actor; never draw the disposed scene.
+      setObject(null);
       avatar.dispose();
       release();
       if (objectUrl) URL.revokeObjectURL(objectUrl);
@@ -347,11 +405,14 @@ function CreationStageActor({
     gl,
     invalidate,
     loadAvatar,
+    materialMode,
     onAvatar,
     onContextError,
     report,
     session,
     source,
+    springModeRef,
+    windStrengthRef,
   ]);
   useEffect(() => {
     avatarRef.current?.setSpringBonePhysicsEnabled(!reducedMotion);

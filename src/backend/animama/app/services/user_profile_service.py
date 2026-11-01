@@ -14,7 +14,7 @@ from animama.domain.user_profile import (
 from ..ports.uow_port import UnitOfWork
 from ..ports.user_profile_port import UserProfileRepository, UserProfileRepositoryConflictError
 
-DISPLAY_NAME_MAX_LENGTH = 80
+DISPLAY_NAME_MAX_LENGTH = 30
 
 
 def normalize_display_name(value: str | None) -> str:

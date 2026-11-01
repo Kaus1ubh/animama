@@ -39,6 +39,7 @@ function partMap(
     },
     eyeWhite: [],
     diagnostics: [],
+    issues: [],
   };
 }
 
@@ -73,6 +74,25 @@ describe("face parts panel", () => {
       required: false,
     });
     expect(byRole.hair).toMatchObject({ status: "corrected" });
+  });
+
+  it("shows an eye placed without geometry of its own as estimated", () => {
+    const rows = facePartRows(
+      partMap({
+        eye_left: {
+          bindings: [],
+          source: "estimated",
+          estimate: "blink",
+          confidence: 0.5,
+        },
+      }),
+      primitives,
+    );
+    expect(rows.find((row) => row.role === "eye_left")).toMatchObject({
+      status: "uncertain",
+      statusLabel: "Position estimated",
+      bindings: [],
+    });
   });
 
   it("marks only the parts the user changed as corrected", () => {

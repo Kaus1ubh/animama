@@ -6,6 +6,7 @@ import type {
   ResolvedEmotionGroup,
 } from "@/lib/emotion";
 import type { AvatarInteractionPhase } from "@/lib/types/voice-types";
+import type { AvatarMaterialMode, AvatarSpringMode } from "./avatarSettings";
 import type { AvatarFacePartCorrections } from "./vfx/faceParts";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -27,6 +28,19 @@ export interface AvatarLoadSpec {
    * matches; it also selects a verified eyelid closure profile.
    */
   vrmSha256?: string | null;
+  /** The Avatar's wind setting (Automatic when absent); `setSpringMode` changes it live. */
+  springMode?: AvatarSpringMode;
+  /**
+   * The owner's wind strength as a multiple of the default (default 1): it
+   * scales wind and the updraft, and Automatic weighs it when deciding
+   * whether the Avatar's hair can hold against them.
+   */
+  windStrength?: number;
+  /**
+   * How authored lilToon materials render (Automatic when absent). Materials
+   * are built at load, so changing it means loading again.
+   */
+  materialMode?: AvatarMaterialMode;
 }
 
 export type AvatarLoadPhase = "setup" | "vrm" | "animation";

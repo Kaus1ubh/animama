@@ -5,7 +5,6 @@
     "resetAll": "Reset all",
     "show": "Show"
   },
-  "beta": "Beta",
   "connection": {
     "reconnecting": "Reconnecting to Animama. Requests are paused; saved creator drafts are kept if you reload, unsent chat text is not."
   }

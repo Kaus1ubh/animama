@@ -7,6 +7,11 @@ import {
 } from "@pixiv/three-vrm";
 import type { GLTF } from "three/examples/jsm/loaders/GLTFLoader.js";
 
+import {
+  addAvatarIssue,
+  mergeAvatarIssues,
+  type AvatarIssue,
+} from "../diagnostics/issues";
 import type { AvatarAnimationState, EmotionLabel } from "../types";
 import {
   buildSpringBoneSemanticAssignments,
@@ -104,6 +109,10 @@ export type SpringBonePhysicsSnapshot = {
   ready: boolean;
   disposed: boolean;
   hasManager: boolean;
+  /** False for Avatars whose springs ignore wind and the updraft. */
+  ambientForces: boolean;
+  /** The owner's wind strength, as a multiple of the default (1). */
+  ambientStrength: number;
   jointCount: number;
   colliderCount: number;
   cachedJointCount: number;
@@ -119,6 +128,8 @@ export type SpringBonePhysicsSnapshot = {
   footBonesResolved: string[];
   footBonesMissing: string[];
   warnings: string[];
+  /** This controller's and the classifier's warnings as stable codes. */
+  issues: AvatarIssue[];
   semanticProfileReady: boolean;
   semanticJointCounts: SpringBoneSemanticJointCounts;
   semanticAssignmentCount: number;
@@ -131,7 +142,68 @@ export type SpringBonePhysicsControllerOptions = {
   sourceGltf?: GLTF | null;
   parserJson?: unknown | null;
   associations?: GLTF["parser"]["associations"] | null;
+  /**
+   * Whether wind, the updraft and the zero-gravity baseline apply (default
+   * true). See `springsTunedWithoutAmbientForces`.
+   */
+  ambientForces?: boolean;
+  /** The owner's wind strength, as a multiple of the default (default 1). */
+  ambientStrength?: number;
 };
+
+/**
+ * Share of an Avatar's hair spring joints that the updraft may lift past their
+ * rest before Automatic drops ambient forces ({@link
+ * SpringBonePhysicsController.updraftLiftsHair}): more than half.
+ */
+const HAIR_LIFTED_SHARE = 0.5;
+
+/**
+ * glTF extension Mochiya Avatar Tools writes into every Avatar it converts,
+ * including VRChat Avatars; see docs/frontend/runtime/vrchat-avatar-conversion.md.
+ */
+const MOCHIYA_CONVERSION_EXTENSION = "MOCHIYA_avatar_composition";
+
+/**
+ * Whether an Avatar's springs were tuned without ambient forces, so wind and
+ * the updraft must not be added. VRChat PhysBones hold their shape with low
+ * pull and little gravity, and VRChat adds no ambient forces; converted to VRM
+ * springs, that tuning is far softer than VRM-authored hair, and the updraft
+ * lifts a hanging ponytail straight up. Detected from the extension Mochiya
+ * Avatar Tools adds to every Avatar it converts, so it holds only while a
+ * re-export keeps that extension.
+ */
+export function springsTunedWithoutAmbientForces(parserJson: unknown): boolean {
+  const used = (parserJson as { extensionsUsed?: unknown } | null)
+    ?.extensionsUsed;
+  return Array.isArray(used) && used.includes(MOCHIYA_CONVERSION_EXTENSION);
+}
+
+/** An owner's wind strength multiple: finite and at least 0, else 1. */
+function sanitizeAmbientStrength(strength: number | undefined): number {
+  return typeof strength === "number" && Number.isFinite(strength)
+    ? Math.max(0, strength)
+    : 1;
+}
+
+/**
+ * How much of the updraft reaches a joint at `position` (squared radial
+ * falloff around the fan between the feet, wider higher up) and its
+ * horizontal distance from the fan.
+ */
+function updraftFalloff(
+  position: THREE.Vector3,
+  fanOrigin: THREE.Vector3,
+  updraftRadius: number,
+): { falloff: number; horizontalDistance: number } {
+  const dx = position.x - fanOrigin.x;
+  const dz = position.z - fanOrigin.z;
+  const horizontalDistance = Math.sqrt(dx * dx + dz * dz);
+  const heightAboveFan = Math.max(0, position.y - fanOrigin.y);
+  const effectiveRadius = Math.max(0.05, updraftRadius + heightAboveFan * 0.15);
+  const radiusFalloff = Math.max(0, 1 - horizontalDistance / effectiveRadius);
+  return { falloff: radiusFalloff * radiusFalloff, horizontalDistance };
+}
 
 type OriginalSpringJointSettings = {
   stiffness: number;
@@ -154,6 +226,8 @@ export class SpringBonePhysicsController {
     OriginalSpringJointSettings
   >();
   private _isDisposed: boolean = false;
+  private _ambientForces: boolean;
+  private _ambientStrength: number;
   private _overridingSettings: boolean = false;
   private _elapsedSec: number = 0;
   private _nextGustChangeAtSec: number = 0;
@@ -165,6 +239,7 @@ export class SpringBonePhysicsController {
   private _helperRoot: THREE.Group | null = null;
   private _helpers: SpringBoneHelper[] = [];
   private _warnings: string[] = [];
+  private _issues: AvatarIssue[] = [];
   private _semanticClassification: SpringBoneSemanticClassification;
   private _semanticProfileOverrides: Partial<
     Record<SpringBoneSemantic, SpringBoneSemanticProfileOverride>
@@ -179,6 +254,8 @@ export class SpringBonePhysicsController {
 
   constructor(vrm: VRM, options: SpringBonePhysicsControllerOptions = {}) {
     this._vrm = vrm;
+    this._ambientForces = options.ambientForces ?? true;
+    this._ambientStrength = sanitizeAmbientStrength(options.ambientStrength);
     this._semanticClassification = buildSpringBoneSemanticAssignments({
       vrm,
       sourceGltf: options.sourceGltf,
@@ -223,8 +300,11 @@ export class SpringBonePhysicsController {
       );
       const resolvedParams = this._resolveProfileParams(profile);
       const wind = this._resolveWindAndUpdraft(resolvedParams);
-      const windStrength = wind.windStrength * intensityScale;
-      const updraftStrength = wind.updraftStrength * intensityScale;
+      const ambientScale = this._ambientForces
+        ? intensityScale * this._ambientStrength
+        : 0;
+      const windStrength = wind.windStrength * ambientScale;
+      const updraftStrength = wind.updraftStrength * ambientScale;
       const gravityMultiplier = scaleSpringBoneMultiplier(
         resolvedParams.gravityMultiplier,
         intensityScale,
@@ -242,7 +322,9 @@ export class SpringBonePhysicsController {
           : original.gravityPower;
       const baseGravity = baseGravityPower * gravityMultiplier;
 
-      settings.dragForce = original.dragForce * dragMultiplier;
+      // three-vrm's inertia is 1 − drag; above 1 it turns negative. Included
+      // Avatars stay at or below it; converted PhysBones can author 0.86.
+      settings.dragForce = Math.min(1, original.dragForce * dragMultiplier);
 
       this._originalGravityDir.copy(original.gravityDir);
       if (this._originalGravityDir.lengthSq() < MIN_FORCE_LENGTH) {
@@ -263,29 +345,21 @@ export class SpringBonePhysicsController {
       }
 
       if (fanOrigin && updraftStrength > 0) {
-        joint.bone.updateWorldMatrix(true, false);
-        joint.bone.getWorldPosition(this._jointWorldPosition);
+        // The falloff is soft, so the joint's world matrix from the latest
+        // full update (this frame's look-at pass or the last render) is close
+        // enough. Updating each joint's parent chain here recomputed the
+        // shared hair chains for every joint, twice, every frame.
+        this._jointWorldPosition.setFromMatrixPosition(joint.bone.matrixWorld);
 
-        const dx = this._jointWorldPosition.x - fanOrigin.x;
-        const dz = this._jointWorldPosition.z - fanOrigin.z;
-        const horizontalDistance = Math.sqrt(dx * dx + dz * dz);
-        const heightAboveFan = Math.max(
-          0,
-          this._jointWorldPosition.y - fanOrigin.y,
-        );
-        const effectiveRadius = Math.max(
-          0.05,
-          resolvedParams.updraftRadius + heightAboveFan * 0.15,
-        );
-        const radiusFalloff = Math.max(
-          0,
-          1 - horizontalDistance / effectiveRadius,
+        const { falloff, horizontalDistance } = updraftFalloff(
+          this._jointWorldPosition,
+          fanOrigin,
+          resolvedParams.updraftRadius,
         );
         const verticalFlutter = resolvedParams.gusts
           ? 1 + Math.sin(this._elapsedSec * 2.7 + horizontalDistance * 5) * 0.04
           : 1;
-        this._force.y +=
-          updraftStrength * radiusFalloff * radiusFalloff * verticalFlutter;
+        this._force.y += updraftStrength * falloff * verticalFlutter;
       }
 
       const forceLength = this._force.length();
@@ -333,6 +407,8 @@ export class SpringBonePhysicsController {
       ready: Boolean(this._vrm && !this._isDisposed),
       disposed: this._isDisposed,
       hasManager: Boolean(manager),
+      ambientForces: this._ambientForces,
+      ambientStrength: this._ambientStrength,
       jointCount: manager?.joints.size ?? 0,
       colliderCount: manager?.colliders.length ?? 0,
       cachedJointCount: this._originalSettings.size,
@@ -351,6 +427,10 @@ export class SpringBonePhysicsController {
       footBonesResolved: footBones.resolved,
       footBonesMissing: footBones.missing,
       warnings: [...this._warnings],
+      issues: mergeAvatarIssues(
+        this._issues,
+        semanticProfileReady ? this._semanticClassification.issues : null,
+      ),
       semanticProfileReady,
       semanticJointCounts: semanticProfileReady
         ? { ...this._semanticClassification.counts }
@@ -381,6 +461,81 @@ export class SpringBonePhysicsController {
 
   setEnabled(enabled: boolean): void {
     this.setParams({ enabled });
+  }
+
+  /**
+   * Apply or drop wind and updraft (the Avatar's wind setting). Without them
+   * joints keep their authored gravity and drag.
+   */
+  setAmbientForces(enabled: boolean): void {
+    this._ambientForces = enabled;
+  }
+
+  /**
+   * Scale wind and the updraft (the Avatar's wind strength): 1 is the
+   * default, 0 adds none.
+   */
+  setAmbientStrength(strength: number): void {
+    this._ambientStrength = sanitizeAmbientStrength(strength);
+  }
+
+  /**
+   * Whether the updraft, at `strength` times its default, would lift most of
+   * the Avatar's hair past its rest pose, so Automatic leaves ambient forces
+   * off. Each hair joint (every joint when none is classified as hair) is
+   * read at rest: its net upward pull, the updraft as `update` applies it at
+   * the joint less its authored gravity (or the zero-gravity baseline that
+   * replaces none), beats its stiffness when that pull exceeds it, and a
+   * hanging strand then turns up. VRM-authored hair is stiff enough; springs
+   * tuned for a world without ambient forces, as many chibi and converted
+   * Avatars' are, are not.
+   */
+  updraftLiftsHair(strength = 1): boolean {
+    const manager = this._vrm?.springBoneManager;
+    if (!manager || strength <= 0) return false;
+    this._vrm!.scene.updateMatrixWorld(true);
+    const fanOrigin = this._getFootFanOrigin();
+    if (!fanOrigin) return false;
+    const joints = [...manager.joints];
+    const hair = joints.filter(
+      (joint) =>
+        this._semanticClassification.assignments.get(joint)?.semantic ===
+        "hair",
+    );
+    const considered = hair.length > 0 ? hair : joints;
+    let counted = 0;
+    let lifted = 0;
+    for (const joint of considered) {
+      const original = this._originalSettings.get(joint);
+      if (!original) continue;
+      const profile = this._resolveJointSemanticProfile(joint);
+      const intensityScale = sanitizeIntensityScale(
+        profile.intensityScale,
+        UNPROFILED_SPRING_BONE_INTENSITY_SCALE,
+      );
+      const params = this._resolveProfileParams(profile);
+      this._jointWorldPosition.setFromMatrixPosition(joint.bone.matrixWorld);
+      const updraft =
+        params.updraftStrength *
+        intensityScale *
+        strength *
+        updraftFalloff(
+          this._jointWorldPosition,
+          fanOrigin,
+          params.updraftRadius,
+        ).falloff;
+      const gravityPower =
+        original.gravityPower === 0
+          ? ZERO_GRAVITY_BASELINE * intensityScale
+          : original.gravityPower;
+      const down =
+        original.gravityDir.lengthSq() < MIN_FORCE_LENGTH
+          ? 1
+          : -original.gravityDir.clone().normalize().y;
+      counted += 1;
+      if (updraft - gravityPower * down > original.stiffness) lifted += 1;
+    }
+    return counted > 0 && lifted / counted > HAIR_LIFTED_SHARE;
   }
 
   setParams(params: Partial<SpringBonePhysicsParams>): void {
@@ -573,10 +728,11 @@ export class SpringBonePhysicsController {
     const rightFoot = humanoid?.getNormalizedBoneNode("rightFoot");
     if (!leftFoot || !rightFoot) return null;
 
+    // `getWorldPosition` would update each chain a second time.
     leftFoot.updateWorldMatrix(true, false);
     rightFoot.updateWorldMatrix(true, false);
-    leftFoot.getWorldPosition(this._leftFootPosition);
-    rightFoot.getWorldPosition(this._rightFootPosition);
+    this._leftFootPosition.setFromMatrixPosition(leftFoot.matrixWorld);
+    this._rightFootPosition.setFromMatrixPosition(rightFoot.matrixWorld);
 
     this._fanOrigin
       .copy(this._leftFootPosition)
@@ -732,6 +888,7 @@ export class SpringBonePhysicsController {
       this._helperRoot.add(helper);
     } catch (error) {
       this._pushWarning(
+        { code: "springs_helper_failed" },
         error instanceof Error
           ? error.message
           : "Unable to create spring-bone helper.",
@@ -804,7 +961,8 @@ export class SpringBonePhysicsController {
     this._targetGustDirectionOffsetDeg = 0;
   }
 
-  private _pushWarning(warning: string): void {
+  private _pushWarning(issue: AvatarIssue, warning: string): void {
+    addAvatarIssue(this._issues, issue);
     if (this._warnings.includes(warning)) return;
     this._warnings = [...this._warnings, warning].slice(-MAX_WARNINGS);
   }

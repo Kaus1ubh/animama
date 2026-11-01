@@ -7,6 +7,10 @@ import {
 } from "../locale/shell-locale.js";
 import { writeLog } from "../logging.js";
 import { installWindowGuards } from "../security/guards.js";
+import {
+  floatingWindowType,
+  floatOnAllWorkspaces,
+} from "../window/floating-window.js";
 
 export type DesktopQuickChatOpenOptions = {
   animaId: string;
@@ -442,7 +446,7 @@ export class QuickChatWindowManager {
       skipTaskbar: true,
       fullscreenable: false,
       show: false,
-      type: "toolbar",
+      type: floatingWindowType(),
       title: this.locale.strings.text("windows.quickChat"),
       webPreferences: {
         preload: this.preloadPath,
@@ -462,9 +466,7 @@ export class QuickChatWindowManager {
     keepLocalizedTitle(quickChatWindow, this.locale, "windows.quickChat");
     installWindowGuards(quickChatWindow, this.config.allowedWebOrigin);
     quickChatWindow.setAlwaysOnTop(true, "floating");
-    quickChatWindow.setVisibleOnAllWorkspaces(true, {
-      visibleOnFullScreen: true,
-    });
+    floatOnAllWorkspaces(quickChatWindow);
     this.startMouseTracking(quickChatWindow);
 
     const syncVisibility = () => {

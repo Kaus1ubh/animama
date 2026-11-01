@@ -153,7 +153,10 @@ CREATE TABLE anima_runtime_snapshots (
     created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     admitted_item_revisions jsonb DEFAULT '{}'::jsonb NOT NULL,
-    CONSTRAINT ck_anima_runtime_snapshots_admitted_item_revisions_object CHECK ((jsonb_typeof(admitted_item_revisions) = 'object'::text))
+    bundles jsonb DEFAULT '{}'::jsonb NOT NULL,
+    inputs_digest character varying(64),
+    CONSTRAINT ck_anima_runtime_snapshots_admitted_item_revisions_object CHECK ((jsonb_typeof(admitted_item_revisions) = 'object'::text)),
+    CONSTRAINT ck_anima_runtime_snapshots_bundles_object CHECK ((jsonb_typeof(bundles) = 'object'::text))
 );
 
 -- animama-statement --
@@ -260,6 +263,20 @@ CREATE TABLE avatar_face_part_overrides (
     updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     CONSTRAINT ck_avatar_face_part_overrides_avatar_revision_sha256_format CHECK (((avatar_revision_sha256)::text ~ '^[0-9a-f]{64}$'::text)),
     CONSTRAINT ck_avatar_face_part_overrides_parts_object CHECK ((jsonb_typeof(parts) = 'object'::text))
+);
+
+-- animama-statement --
+
+CREATE TABLE avatar_setting_overrides (
+    owner_user_id character varying NOT NULL,
+    avatar_item_id character varying NOT NULL,
+    spring_mode character varying,
+    material_mode character varying,
+    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    wind_strength integer,
+    CONSTRAINT ck_avatar_setting_overrides_material_mode_values CHECK (((material_mode)::text = ANY ((ARRAY['liltoon'::character varying, 'simple'::character varying])::text[]))),
+    CONSTRAINT ck_avatar_setting_overrides_spring_mode_values CHECK (((spring_mode)::text = ANY ((ARRAY['on'::character varying, 'off'::character varying, 'springs_off'::character varying])::text[]))),
+    CONSTRAINT ck_avatar_setting_overrides_wind_strength_range CHECK (((wind_strength >= 0) AND (wind_strength <= 200)))
 );
 
 -- animama-statement --
@@ -505,6 +522,17 @@ CREATE TABLE content_previews (
     expires_at timestamp with time zone NOT NULL,
     created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     CONSTRAINT ck_content_previews_revision_sha256_format CHECK (((revision_sha256)::text ~ '^[0-9a-f]{64}$'::text))
+);
+
+-- animama-statement --
+
+CREATE TABLE episode_processing_settings (
+    user_id character varying NOT NULL,
+    threshold smallint,
+    reset_at timestamp with time zone,
+    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    CONSTRAINT ck_episode_processing_settings_threshold_valid CHECK (((threshold IS NULL) OR (threshold = 0) OR ((threshold >= 5) AND (threshold <= 50))))
 );
 
 -- animama-statement --
@@ -892,10 +920,10 @@ CREATE TABLE user_file_processing_job (
 
 CREATE TABLE user_profiles (
     user_id character varying NOT NULL,
-    display_name character varying(80),
+    display_name character varying(30),
     created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    CONSTRAINT ck_user_profiles_display_name_length CHECK (((display_name IS NULL) OR ((char_length((display_name)::text) >= 1) AND (char_length((display_name)::text) <= 80))))
+    CONSTRAINT ck_user_profiles_display_name_length CHECK (((display_name IS NULL) OR ((char_length((display_name)::text) >= 1) AND (char_length((display_name)::text) <= 30))))
 );
 
 -- animama-statement --
@@ -1022,6 +1050,11 @@ ALTER TABLE ONLY avatar_face_part_overrides
 
 -- animama-statement --
 
+ALTER TABLE ONLY avatar_setting_overrides
+    ADD CONSTRAINT pk_avatar_setting_overrides PRIMARY KEY (owner_user_id, avatar_item_id);
+
+-- animama-statement --
+
 ALTER TABLE ONLY avatar_upload
     ADD CONSTRAINT pk_avatar_upload PRIMARY KEY (id);
 
@@ -1074,6 +1107,11 @@ ALTER TABLE ONLY content_preview_files
 
 ALTER TABLE ONLY content_previews
     ADD CONSTRAINT pk_content_previews PRIMARY KEY (id);
+
+-- animama-statement --
+
+ALTER TABLE ONLY episode_processing_settings
+    ADD CONSTRAINT pk_episode_processing_settings PRIMARY KEY (user_id);
 
 -- animama-statement --
 
@@ -1568,7 +1606,11 @@ CREATE UNIQUE INDEX uq_memory_episode_items_chat_turn_run ON memory_episode_item
 
 -- animama-statement --
 
-CREATE UNIQUE INDEX uq_memory_manager_runs_user_open ON memory_manager_runs USING btree (user_id) WHERE ((status)::text = ANY ((ARRAY['active'::character varying, 'waiting_approval'::character varying])::text[]));
+CREATE UNIQUE INDEX uq_memory_manager_runs_user_open ON memory_manager_runs USING btree (user_id) WHERE (((status)::text = ANY ((ARRAY['active'::character varying, 'waiting_approval'::character varying])::text[])) AND (COALESCE((metadata ->> 'origin'::text), 'owner'::text) = 'owner'::text));
+
+-- animama-statement --
+
+CREATE UNIQUE INDEX uq_memory_manager_runs_user_open_automatic ON memory_manager_runs USING btree (user_id) WHERE (((status)::text = ANY ((ARRAY['active'::character varying, 'waiting_approval'::character varying])::text[])) AND ((metadata ->> 'origin'::text) = 'automatic'::text));
 
 -- animama-statement --
 
@@ -1649,6 +1691,11 @@ ALTER TABLE ONLY avatar
 
 ALTER TABLE ONLY avatar_face_part_overrides
     ADD CONSTRAINT fk_avatar_face_part_overrides_avatar_item_id FOREIGN KEY (avatar_item_id) REFERENCES content_catalog_items(id) ON DELETE CASCADE;
+
+-- animama-statement --
+
+ALTER TABLE ONLY avatar_setting_overrides
+    ADD CONSTRAINT fk_avatar_setting_overrides_avatar_item_id FOREIGN KEY (avatar_item_id) REFERENCES content_catalog_items(id) ON DELETE CASCADE;
 
 -- animama-statement --
 

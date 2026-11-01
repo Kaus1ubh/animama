@@ -374,11 +374,20 @@ def _build_logging_config() -> dict[str, Any]:
             "propagate": True,
         },
         # Optional: client logs (httpx). Many details are DEBUG-level in httpx/httpcore.
+        # The provider SDKs log through httpx2/httpcore2, configured the same way.
         "httpx": {
             "level": "INFO",
             "propagate": False,
         },
         "httpcore": {
+            "level": "WARNING",
+            "propagate": False,
+        },
+        "httpx2": {
+            "level": "INFO",
+            "propagate": False,
+        },
+        "httpcore2": {
             "level": "WARNING",
             "propagate": False,
         },

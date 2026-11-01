@@ -35,6 +35,41 @@ const SUPPORTED_EXTENSIONS = new Set([
   "KHR_texture_transform",
   "KHR_materials_emissive_strength",
   "EXT_texture_webp",
+  // Mochiya Avatar Tools' conversion record and authored lilToon materials.
+  // They are JSON that points at textures by index, never into the binary,
+  // which `assertSupported` checks, so new buffer storage cannot break them.
+  "MOCHIYA_avatar_composition",
+  "MOCHIYA_materials_liltoon",
+]);
+
+/** Extensions carried only while nothing in them names a buffer view or accessor. */
+const JSON_ONLY_EXTENSIONS = [
+  "MOCHIYA_avatar_composition",
+  "MOCHIYA_materials_liltoon",
+];
+
+/**
+ * lilToon texture properties whose pixels are colours; any other lilToon
+ * texture (masks, normal, smoothness and metallic maps) is data.
+ */
+const LILTOON_COLOUR_SLOTS = new Set([
+  "_MainTex",
+  "_BaseMap",
+  "_BaseColorMap",
+  "_Main2ndTex",
+  "_Main3rdTex",
+  "_ShadowColorTex",
+  "_Shadow2ndColorTex",
+  "_Shadow3rdColorTex",
+  "_EmissionMap",
+  "_Emission2ndMap",
+  "_MatCapTex",
+  "_MatCap2ndTex",
+  "_RimColorTex",
+  "_ReflectionColorTex",
+  "_BacklightColorTex",
+  "_GlitterColorTex",
+  "_OutlineTex",
 ]);
 
 /** MToon texture slots whose pixels are colours; any other texture slot is data. */
@@ -70,6 +105,11 @@ export function imageRoles(json) {
       if (slot.endsWith("Texture"))
         mark(info, MTOON_COLOUR_SLOTS.has(slot) ? "colour" : "data");
     }
+    for (const [slot, info] of Object.entries(
+      material.extensions?.MOCHIYA_materials_liltoon?.textures ?? {},
+    )) {
+      mark(info, LILTOON_COLOUR_SLOTS.has(slot) ? "colour" : "data");
+    }
   }
   return roles;
 }
@@ -87,6 +127,13 @@ function assertSupported(json) {
   if (unknown.length) {
     throw new Error(`Unsupported glTF extensions: ${unknown.join(", ")}.`);
   }
+  for (const name of JSON_ONLY_EXTENSIONS) {
+    if (referencesBinary(extensionValues(json, name))) {
+      throw new Error(
+        `${name} references binary data, which the optimizer would move.`,
+      );
+    }
+  }
   if (
     (json.buffers ?? []).length > 1 ||
     json.buffers?.[0]?.uri ||
@@ -96,6 +143,31 @@ function assertSupported(json) {
       "Only self-contained GLB files with one buffer are supported.",
     );
   }
+}
+
+/** Every value stored under the named extension, wherever it appears. */
+function extensionValues(json, name) {
+  const values = [];
+  const visit = (value) => {
+    if (Array.isArray(value)) value.forEach(visit);
+    else if (value && typeof value === "object") {
+      if (value.extensions?.[name] !== undefined)
+        values.push(value.extensions[name]);
+      Object.values(value).forEach(visit);
+    }
+  };
+  visit(json);
+  return values;
+}
+
+/** Whether a value names a buffer view or accessor at any depth. */
+function referencesBinary(value) {
+  if (Array.isArray(value)) return value.some(referencesBinary);
+  if (!value || typeof value !== "object") return false;
+  return Object.entries(value).some(
+    ([key, child]) =>
+      key === "bufferView" || key === "accessor" || referencesBinary(child),
+  );
 }
 
 /**

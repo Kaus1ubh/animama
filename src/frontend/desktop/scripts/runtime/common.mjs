@@ -20,6 +20,8 @@ import {
   utimesSync,
   writeFileSync,
 } from "node:fs";
+import { createRequire } from "node:module";
+import { homedir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { assertPrivateWindowsDirectory, systemPath } from "./windows-acl.mjs";
@@ -31,6 +33,25 @@ export const sourceRoot = path.join(desktopRoot, "runtime");
 export const cacheRoot = path.join(desktopRoot, ".desktop-runtime");
 // ZIP cannot represent the Unix epoch. Use one fixed, portable date everywhere.
 const normalizedTime = new Date("2000-01-01T00:00:00Z");
+
+/**
+ * Electron's binary distribution for this host. The `electron` package has no
+ * install script since Electron 42: resolving it downloads the binary on first
+ * use and verifies it against the package's pinned checksums.
+ */
+export function electronDist() {
+  // The override makes `electron` skip the download and the checksum check.
+  if (process.env.ELECTRON_OVERRIDE_DIST_PATH)
+    throw new Error(
+      "Unset ELECTRON_OVERRIDE_DIST_PATH: builds use the electron package's own verified binary",
+    );
+  const require = createRequire(path.join(desktopRoot, "package.json"));
+  require("electron");
+  return path.join(
+    path.dirname(require.resolve("electron/package.json")),
+    "dist",
+  );
+}
 
 export function readJson(file) {
   return JSON.parse(readFileSync(file, "utf8"));
@@ -209,6 +230,36 @@ export function pnpmCommand(args, execpath = process.env.npm_execpath) {
     : ["pnpm", args];
 }
 
+/**
+ * Fail before the slow native and backend steps when the frontend install no
+ * longer matches its lockfile, as after pulling a main that changed packages.
+ * pnpm's own read-only status check compares the install with the lockfile,
+ * package manifests and pnpm settings.
+ */
+export function assertFrontendDependenciesCurrent(root = frontendRoot) {
+  const [command, args] = pnpmCommand(["exec", "node", "-e", ""]);
+  const result = spawnSync(command, args, {
+    cwd: root,
+    // pnpm sets this to false for commands its scripts run, and in a workspace
+    // that environment value overrides a command-line option.
+    env: {
+      ...process.env,
+      npm_config_verify_deps_before_run: "error",
+      pnpm_config_verify_deps_before_run: "error",
+    },
+    encoding: "utf8",
+  });
+  if (result.error) throw result.error;
+  if (result.status === 0) return;
+  const output = `${result.stdout ?? ""}${result.stderr ?? ""}`;
+  const reason =
+    output.match(/ERR_PNPM_\w+\s+(.+)/u)?.[1].trim() || output.trim();
+  throw new Error(
+    `Frontend dependencies in ${root} do not match pnpm-lock.yaml (${reason}). ` +
+      "Run `pnpm install --frozen-lockfile` there, then stage again.",
+  );
+}
+
 /** Each native target has its own pinned compiler inputs and minimum OS. */
 export function nativeLockFile(target) {
   return path.join(
@@ -320,11 +371,13 @@ export function assertPrivatePythonInstallDir() {
 
 export function pythonEnvironment() {
   return {
+    // macOS purges files from old entries under /private/tmp, which leaves uv
+    // a cache that fails installs; ~/Library/Caches is persistent and private.
     UV_CACHE_DIR:
       process.env.UV_CACHE_DIR ||
       (process.platform === "win32"
         ? path.join(buildRoot, "uv-cache")
-        : "/private/tmp/animama-uv-cache"),
+        : path.join(homedir(), "Library", "Caches", "Animama", "uv-cache")),
     UV_PYTHON_INSTALL_DIR: PYTHON_INSTALL_DIR,
     UV_PROJECT_ENVIRONMENT: path.join(cacheRoot, "build-venv", hostTarget),
     PYTHONHASHSEED: "0",

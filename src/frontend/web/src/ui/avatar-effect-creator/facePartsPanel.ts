@@ -88,6 +88,16 @@ export function facePartRows(
     } else if (part.source === "corrected") {
       status = "corrected";
       statusLabel = t("faceParts.status.corrected");
+    } else if (part.source === "estimated") {
+      // An eye painted on the face or merged into its mesh: placed from
+      // blinking or its bone, with no mesh part to pick.
+      status = "uncertain";
+      statusLabel = t("faceParts.status.estimated");
+    } else if (!part.bindings.length && part.regions?.length) {
+      // Lashes or lines modelled inside the face or eye mesh: found, but not
+      // a mesh part of their own to pick.
+      status = "detected";
+      statusLabel = t("faceParts.status.insideShared");
     } else if (part.source === "missing" || !part.bindings.length) {
       status = "missing";
       statusLabel = t("faceParts.status.missing");

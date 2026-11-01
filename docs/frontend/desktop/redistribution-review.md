@@ -88,8 +88,9 @@ later changes that the owner must re-review before the next desktop release:
 - the Python license inventory gains the `anthropic` client SDK and its new
   dependencies (`httpx2`, `httpcore2`, `truststore` and `docstring-parser`;
   `idna` moves to 3.20). `httpx2` verifies TLS through the operating system's
-  trust store (`truststore`) rather than certifi, so release acceptance should
-  include an Anthropic request from the frozen runtime on each target;
+  trust store (`truststore`) rather than certifi. `openai` 3 and `openai-agents`
+  0.24 use `httpx2` too, so release acceptance should include an Anthropic and
+  an OpenAI request from the frozen runtime on each target;
 - the `google-genai` stack returns at new versions for
   [Gemini voices](../runtime/gemini-tts.md): `google-genai` 2.29.0
   (Apache-2.0), `google-auth` 2.61.0, `pyasn1` 0.6.4 and `pyasn1-modules`

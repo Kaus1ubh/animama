@@ -3,6 +3,11 @@ import * as THREE from "three";
 import type { Avatar } from "../Avatar";
 import { resolveHumanoidAnchorObject } from "../humanoidAnchors";
 import {
+  headSized,
+  measureAvatarProportions,
+  type AvatarProportions,
+} from "../avatarProportions";
+import {
   deriveAvatarVFXAnimationPreset,
   evaluateAvatarVFXAnimation,
   resolveAvatarVFXAnimationConfig,
@@ -51,6 +56,9 @@ import type {
  * - Stickers are camera-facing quads beside the head or body centre, sized and
  *   offset in fractions of the avatar's height; they ignore depth so the
  *   avatar never hides them.
+ * - On a big-headed Avatar (`avatarProportions.ts`), planes on the head bone
+ *   and stickers around the head size and place by the head instead, so they
+ *   stay beside it.
  * - Silhouette overlays are described in `silhouetteOverlay.ts`.
  *
  * Camera-facing planes are oriented in `onBeforeRender`, so every camera that
@@ -126,6 +134,12 @@ const scratchUp = new THREE.Vector3();
 const scratchHead = new THREE.Vector3();
 
 /**
+ * Name prefix of a body or sticker effect's art plane, followed by its
+ * applied effect ID; the review renders find the art in the scene by it.
+ */
+export const ATTACHMENT_PLANE_NAME_PREFIX = "AvatarAttachmentVFX:";
+
+/**
  * The avatar's standing height in its scene's units, from the meshes' bind
  * pose bounds. Measured once at load; stickers and silhouette tiles scale by
  * it so they keep a readable size on any model.
@@ -152,6 +166,14 @@ export function measureAvatarHeight(scene: THREE.Object3D | null): number {
     ? height
     : FALLBACK_AVATAR_HEIGHT;
 }
+
+/**
+ * The Included Avatars' height (m, 1.57–1.70): a big-headed Avatar's stickers
+ * around its head are measured in this times its head scale (its face's size
+ * over theirs) instead of its own height ({@link headSized}), so they keep
+ * beside the head at the head's size.
+ */
+export const HEAD_STICKER_REFERENCE_HEIGHT = 1.6;
 
 /**
  * Yaw from a normalized bone's frame to the avatar's front frame. Normalized
@@ -213,7 +235,7 @@ function createPlane(args: {
   if (entry.appearance.tint) material.color.set(entry.appearance.tint);
   configureEffectBlend(material, entry.appearance.blend);
   const mesh = new THREE.Mesh(new THREE.PlaneGeometry(width, height), material);
-  mesh.name = `AvatarAttachmentVFX:${entry.id}`;
+  mesh.name = `${ATTACHMENT_PLANE_NAME_PREFIX}${entry.id}`;
   mesh.rotation.z = entry.rotation;
   mesh.renderOrder = args.renderOrder;
   mesh.frustumCulled = false;
@@ -473,7 +495,7 @@ export class AvatarAttachmentEffects {
       placements: [placement],
       offsetSpace: null,
       surface: null,
-      unitLength: this._avatarHeight * scratchScale.y,
+      unitLength: this._stickerUnit(active.entry.around) * scratchScale.y,
     };
   }
 
@@ -538,6 +560,39 @@ export class AvatarAttachmentEffects {
     }
   }
 
+  /**
+   * The scale of a body plane on `bone`: the body's size outside the
+   * Included Avatars' band, and on the head of a big-headed Avatar its head
+   * size ({@link headSized}).
+   */
+  private _bodyPlaneScale(bone: AvatarBodyVFXEntry["bone"]): number {
+    const proportions = this._proportions;
+    return bone === "head"
+      ? headSized(proportions, proportions.bodyScale, proportions.headScale)
+      : proportions.bodyScale;
+  }
+
+  /**
+   * The length (scene units) sticker offsets and sizes are measured in: the
+   * Avatar's height, or around a big head its head scale times
+   * {@link HEAD_STICKER_REFERENCE_HEIGHT}.
+   */
+  private _stickerUnit(around: AvatarStickerVFXEntry["around"]): number {
+    const proportions = this._proportions;
+    return around === "head"
+      ? headSized(
+          proportions,
+          this._avatarHeight,
+          proportions.headScale * HEAD_STICKER_REFERENCE_HEIGHT,
+        )
+      : this._avatarHeight;
+  }
+
+  /** The Avatar's measured proportions, as its face is now registered. */
+  private get _proportions(): AvatarProportions {
+    return measureAvatarProportions(this._avatar.vrm);
+  }
+
   private _build(
     entry: AvatarVFXAttachmentEntry,
     art: CanvasImageSource,
@@ -571,6 +626,9 @@ export class AvatarAttachmentEffects {
     const root = new THREE.Group();
     root.name = `AvatarBodyVFX:${entry.id}`;
     root.rotation.y = frontYaw(this._avatar);
+    // Size and offset alike, outside the Included Avatars' size band; on the
+    // head of a big-headed Avatar, by the head's size about the head bone.
+    root.scale.setScalar(this._bodyPlaneScale(entry.bone));
     const anchor = new THREE.Group();
     anchor.position.set(entry.offset.x, entry.offset.y, entry.offset.z);
     root.add(anchor);
@@ -661,13 +719,14 @@ export class AvatarAttachmentEffects {
     root.name = `AvatarStickerVFX:${entry.id}`;
     root.add(plane.animatedGroup);
     const stickerOffset = { ...entry.offset };
+    const unit = this._stickerUnit(entry.around);
     const worldMatrix = (
       camera: THREE.Camera,
       target: THREE.Matrix4,
       still = false,
     ) => {
       scratchScale.setFromMatrixScale(scene.matrixWorld);
-      const height = this._avatarHeight * scratchScale.y;
+      const height = unit * scratchScale.y;
       camera.getWorldQuaternion(scratchQuaternion);
       scratchRight.set(1, 0, 0).applyQuaternion(scratchQuaternion);
       scratchUp.set(0, 1, 0).applyQuaternion(scratchQuaternion);

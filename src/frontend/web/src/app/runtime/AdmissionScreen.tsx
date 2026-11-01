@@ -77,7 +77,7 @@ export function AdmissionScreen({
     !signOutIncomplete &&
     signIn !== undefined;
   return (
-    <main className="bg-background text-foreground flex min-h-screen items-center justify-center px-6">
+    <main className="bg-background text-foreground min-h-app mt-(--app-titlebar-height) flex items-center justify-center px-6">
       <section
         className="border-border bg-card max-w-md space-y-4 rounded-2xl border p-6 text-center shadow-sm"
         aria-live="polite"

@@ -105,11 +105,12 @@ from .direct_turn.types import (
     PreSendCompactor,
     RuntimeGestureDescriptor as RuntimeGestureDescriptor,
 )
+from .memory_arm import DEFAULT_EPISODIC_MEMORY_ARM, EpisodicMemoryArm
 from .memory_context import DirectChatMemoryContext, DirectChatMemoryContextError, DirectChatMemoryContextService
 from .memory_cue import AnimaMemoriesTurn, memory_cue_payload, turn_memory_message_data
 from .memory_tools import MEMORY_TOOL_SEARCH_UPLOADED_FILES, MEMORY_TOOL_WRITE_NAMES
 from .openai_prompt import DirectChatPromptAssembler, scoped_prompt_cache_key
-from .speech_tags import speech_tags_instruction
+from .speech_tags import speech_instruction
 
 _log = get_logger("app.chat.direct_executor")
 
@@ -358,6 +359,7 @@ class DirectChatTurnExecutor:
         pre_send_compactor: PreSendCompactor | None = None,
         pre_send_compaction_timeout_seconds: float = 90.0,
         web_search_tool: WebSearchToolService | None = None,
+        episodic_memory_arm: EpisodicMemoryArm = DEFAULT_EPISODIC_MEMORY_ARM,
     ) -> None:
         self._registry = registry
         self._profile_service = profile_service
@@ -371,6 +373,8 @@ class DirectChatTurnExecutor:
         self._pre_send_compactor = pre_send_compactor
         self._pre_send_compaction_timeout_seconds = pre_send_compaction_timeout_seconds
         self._web_search_tool = web_search_tool
+        # Only the model benchmark chooses an arm (app/chat/memory_arm.py); production keeps the default.
+        self._episodic_memory_arm = episodic_memory_arm
 
     async def stream(self, model_request: ModelClientRequest) -> AsyncIterator[ModelClientDelta]:
         """Proxy one provider-neutral request to the registered shared model client."""
@@ -451,6 +455,7 @@ class DirectChatTurnExecutor:
             memory_context = await memory_context_service.build_context(
                 user_id=request.user_id,
                 anima_id=request.anima_id,
+                chat_id=request.chat_id,
                 chat_metadata=getattr(chat, "metadata", {}),
                 request_options=request.options,
             )
@@ -514,6 +519,7 @@ class DirectChatTurnExecutor:
         output_type = build_main_structured_response_model(
             agent_id=response_model_agent_id(request.node_id),
             gesture_ids=runtime_gesture_ids,
+            remember=self._episodic_memory_arm.remember,
         )
         response_format = main_structured_response_format_for_model(
             model_provider,
@@ -604,7 +610,10 @@ class DirectChatTurnExecutor:
         anima_memories = (
             None
             if prepared.request.options.disable_memory_influence
-            else AnimaMemoriesTurn(seen_version=getattr(prepared.memory_context, "anima_memories_version", None))
+            else AnimaMemoriesTurn(
+                seen_version=getattr(prepared.memory_context, "anima_memories_version", None),
+                writable=self._episodic_memory_arm.anima_memories_writes,
+            )
         )
 
         async def on_model_round_start(round_index: int) -> None:
@@ -914,7 +923,11 @@ class DirectChatTurnExecutor:
                     internal_tool_messages=internal_tool_messages,
                     memory=memory_data,
                     structured_recovery=recovery,
-                    replay_text=(render_main_structured_json(parsed) if recovery in _SYNTHESIZED_RECOVERIES else None),
+                    replay_text=(
+                        render_main_structured_json(parsed, remember=self._episodic_memory_arm.remember)
+                        if recovery in _SYNTHESIZED_RECOVERIES
+                        else None
+                    ),
                 ),
                 chat_metadata_patch=chat_metadata_patch_from_prompt(prepared.model_request.prompt),
                 last_model_client=api_standard_profile.model_client,
@@ -1197,6 +1210,11 @@ class DirectChatTurnExecutor:
         memory_writes_enabled = native_memory_patch_enabled or any(
             spec.get("function", {}).get("name") in MEMORY_TOOL_WRITE_NAMES for spec in memory_tool_specs
         )
+        instruction_style = (
+            INSTRUCTION_STYLE_ANTHROPIC
+            if model_provider.provider_type == ANTHROPIC_MESSAGES_PROVIDER_TYPE
+            else INSTRUCTION_STYLE_DEFAULT
+        )
         return self._prompt_assembler.assemble(
             user_message=request.user_message,
             anima_identity=memory_context.anima_identity,
@@ -1204,7 +1222,13 @@ class DirectChatTurnExecutor:
             anima_memories=getattr(memory_context, "anima_memories", None),
             # An opened MEMORIES.md version means memory influence is on and the file exists.
             anima_memories_writable=memory_writes_enabled
+            and self._episodic_memory_arm.anima_memories_writes
             and getattr(memory_context, "anima_memories_version", None) is not None,
+            anima_memories_write_guidance=self._episodic_memory_arm.anima_memories_write_guidance,
+            user_profile=getattr(memory_context, "user_profile", None),
+            user_profile_truncated=getattr(memory_context, "user_profile_truncated", False),
+            recent_notes=getattr(memory_context, "recent_notes", ()),
+            remember_field=self._episodic_memory_arm.remember,
             response_format_guidance=response_format_guidance,
             native_memory_patch_enabled=native_memory_patch_enabled,
             memory_map=getattr(memory_context, "memory_map", None),
@@ -1230,13 +1254,9 @@ class DirectChatTurnExecutor:
                 model=model_provider.model,
             ),
             reasoning_effort=turn_reasoning_effort(request.options),
-            instruction_style=(
-                INSTRUCTION_STYLE_ANTHROPIC
-                if model_provider.provider_type == ANTHROPIC_MESSAGES_PROVIDER_TYPE
-                else INSTRUCTION_STYLE_DEFAULT
-            ),
+            instruction_style=instruction_style,
             conversation_language=request.conversation_language,
-            speech_tags_guidance=speech_tags_instruction(request.options.tts),
+            speech_guidance=speech_instruction(request.options.tts, instruction_style=instruction_style),
             metadata={
                 "anima_id": request.anima_id,
                 "chat_id": request.chat_id,

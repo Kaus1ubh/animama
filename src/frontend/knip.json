@@ -130,7 +130,6 @@
         "scripts/runtime/ci-smoke.mjs",
         "scripts/runtime/publish-macos.mjs",
         "scripts/runtime/native-build.mjs",
-        "scripts/runtime/sign-macos.mjs",
         "scripts/runtime/worker-input.mjs"
       ],
       "project": [

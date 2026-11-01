@@ -30,6 +30,11 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/ui/components/button";
 import { CONTINUOUS_CANVAS_RESIZE } from "@/ui/main/canvas/canvasResizeOptions";
 import { AvatarSceneLighting } from "@/ui/main/canvas/AvatarSceneLighting";
+import { PacedScene } from "@/ui/main/canvas/SceneFramePacer";
+import {
+  PREVIEW_CANVAS_DPR,
+  useSceneFrameDemand,
+} from "@/ui/main/canvas/sceneFramePacing";
 import {
   DEFAULT_SCENE_CAMERA,
   DEFAULT_SCENE_ORBIT_TARGET,
@@ -91,6 +96,7 @@ function PreviewAvatarActor({
   const logger = useMemo(() => createLogger("CreateAnimaAvatarPreview"), []);
   const { camera, gl, scene } = useThree();
   const avatarRef = useRef<Avatar | null>(null);
+  const frameDemand = useSceneFrameDemand();
   const [sceneObject, setSceneObject] = useState<Object3D | null>(null);
 
   useEffect(() => {
@@ -120,7 +126,7 @@ function PreviewAvatarActor({
         setStatus("ready");
       } catch (error) {
         logger.error("Preview", "Failed to load local VRM preview", {
-          fileName: file.name,
+          size: file.size,
           error,
         });
         if (cancelled) return;
@@ -153,7 +159,13 @@ function PreviewAvatarActor({
   ]);
 
   useFrame((_, delta) => {
-    avatarRef.current?.update(delta);
+    const avatar = avatarRef.current;
+    avatar?.update(delta);
+    if (frameDemand) {
+      frameDemand.avatarIdle = Boolean(
+        avatar?.isReady && !avatar.isMotionActive(),
+      );
+    }
   });
 
   if (!sceneObject) return null;
@@ -354,32 +366,36 @@ export function CreateAnimaAvatarPreviewScene({ file }: { file: File }) {
       <Canvas
         className="h-full w-full"
         camera={DEFAULT_SCENE_CAMERA}
+        dpr={PREVIEW_CANVAS_DPR}
+        frameloop="demand"
         gl={{ antialias: true, alpha: true }}
         resize={CONTINUOUS_CANVAS_RESIZE}
         onCreated={({ gl }) => {
           gl.setClearColor(0x000000, 0);
         }}
       >
-        <AvatarSceneLighting />
-        <Suspense fallback={null}>
-          <PreviewAvatarActor
-            file={file}
-            setStatus={setStatus}
-            setErrorMessage={setErrorMessage}
-            setAvatarRuntime={setAvatarRuntime}
-            setPortraitCaptureContext={setPortraitCaptureContext}
+        <PacedScene>
+          <AvatarSceneLighting />
+          <Suspense fallback={null}>
+            <PreviewAvatarActor
+              file={file}
+              setStatus={setStatus}
+              setErrorMessage={setErrorMessage}
+              setAvatarRuntime={setAvatarRuntime}
+              setPortraitCaptureContext={setPortraitCaptureContext}
+            />
+          </Suspense>
+          <OrbitControls
+            makeDefault
+            enablePan={false}
+            enableZoom
+            minDistance={1.75}
+            maxDistance={6}
+            target={DEFAULT_SCENE_ORBIT_TARGET}
+            enableDamping
+            dampingFactor={0.08}
           />
-        </Suspense>
-        <OrbitControls
-          makeDefault
-          enablePan={false}
-          enableZoom
-          minDistance={1.75}
-          maxDistance={6}
-          target={DEFAULT_SCENE_ORBIT_TARGET}
-          enableDamping
-          dampingFactor={0.08}
-        />
+        </PacedScene>
       </Canvas>
       <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 via-black/5 to-transparent px-4 py-3">
         <p className="text-sm font-medium text-white">{file.name}</p>

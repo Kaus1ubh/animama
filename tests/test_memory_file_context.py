@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 from dataclasses import replace
+from datetime import UTC, date, datetime
 from typing import Any, cast
 
 import pytest
@@ -12,18 +13,24 @@ from animama.adapters.repositories.sqlalchemy.chat_repo import SQLAlchemyChatRep
 from animama.adapters.repositories.sqlalchemy.uow import SQLAlchemyUnitOfWork
 from animama.app.chat.memory_context import (
     ANIMA_MEMORIES_GUIDANCE,
+    RECENT_EPISODE_NOTE_CHARS,
+    RECENT_EPISODE_NOTE_LIMIT,
     STATUS_CURRENT,
     STATUS_MISSING,
     STATUS_OPENED,
     STATUS_REFRESHED,
+    USER_PROFILE_CONTEXT_MAX_BYTES,
     DirectChatMemoryContextError,
     DirectChatMemoryContextService,
+    RecentEpisodeNote,
     anima_identity_path,
     render_memory_filesystem_map,
 )
 from animama.app.chat.openai_prompt import DirectChatPromptAssembler
 from animama.app.ports.anima_port import AnimaRepository
 from animama.app.ports.memory_entry_port import MemoryEntryRepository
+from animama.app.ports.memory_episode_port import MemoryEpisodeRepository
+from animama.app.ports.settings_port import UserSettingsRepository
 from animama.app.services.chat_manager import ChatManager
 from animama.app.services.memory_entry_service import MemoryEntryService
 from animama.domain.anima import Anima
@@ -37,6 +44,8 @@ from animama.domain.memory_entry import (
     MemoryEntrySearchResult,
     MemoryEntryVersion,
 )
+from animama.domain.memory_episode import MemoryEpisodeItem
+from animama.domain.settings import UserSettings
 from animama.orm import ORMAnima, ORMChat
 
 
@@ -279,11 +288,56 @@ def _memory_entry(
     )
 
 
+class _EpisodeItems:
+    """Returns the owner's recent notes, newest first, and records each query."""
+
+    def __init__(self, items: list[MemoryEpisodeItem] | None = None) -> None:
+        self.items = items or []
+        self.calls: list[dict[str, Any]] = []
+
+    async def list_recent_items_for_anima(self, **kwargs: Any) -> list[MemoryEpisodeItem]:
+        self.calls.append(kwargs)
+        return self.items[: kwargs["limit"]]
+
+
+class _UserSettings:
+    def __init__(self, timezone: str | None = None) -> None:
+        self.timezone = timezone
+
+    async def get(self, user_id: str) -> UserSettings | None:
+        if self.timezone is None:
+            return None
+        return UserSettings(user_id=user_id, preferences={"timezone": self.timezone})
+
+
+def _episode(text: str, *, day: int, item_id: str | None = None) -> MemoryEpisodeItem:
+    return MemoryEpisodeItem(
+        id=item_id or f"mei-{day}-{len(text)}",
+        user_id="user-1",
+        source_anima_id="anima-1",
+        source_chat_id="chat-old",
+        source_run_id="run-1",
+        source_message_id=None,
+        occurred_at=datetime(2026, 10, day, 12, tzinfo=UTC),
+        local_date=date(2026, 10, day),
+        local_timezone="UTC",
+        episode_path=f"episodes/2026/10/2026-10-{day:02d}.md",
+        kind="chat_turn",
+        text=text,
+        status="pending",
+    )
+
+
+_NOW = datetime(2026, 10, 28, 15, 0, tzinfo=UTC)
+
+
 def _service(
     entries: list[MemoryEntry] | None = None,
     *,
     avatar_identity: str = "Avatar fallback identity",
     avatar_name: str = "Avatar",
+    episodes: _EpisodeItems | None = None,
+    timezone: str | None = None,
 ) -> tuple[DirectChatMemoryContextService, _MemoryEntries]:
     repo = _MemoryEntries(entries)
     animas = _Animas(identity=avatar_identity, name=avatar_name)
@@ -294,6 +348,9 @@ def _service(
                 memory_entries=cast(MemoryEntryRepository, repo), uow=_Uow(), animas=cast(AnimaRepository, animas)
             ),
             animas=cast(AnimaRepository, animas),
+            memory_episodes=cast(MemoryEpisodeRepository, episodes or _EpisodeItems()),
+            user_settings=cast(UserSettingsRepository, _UserSettings(timezone)),
+            now=lambda: _NOW,
         ),
         repo,
     )
@@ -356,8 +413,8 @@ async def test_memory_instruction_sections_assemble_into_single_system_message()
     system_content = system_messages[0]["content"]
     assert isinstance(system_content, str)
     assert "# Core Instructions" in system_content
-    assert "You are Avatar, an Anima hosted by Animama AI." in system_content
-    assert "# Anima Identity\n\nIdentity" in system_content
+    assert "You are an Anima hosted by Animama AI:" in system_content
+    assert "# Anima Identity\n\nYour name is Avatar.\n\nIdentity" in system_content
     assert "# Memory Guidance" in system_content
     assert "# Response Guidance" in system_content
 
@@ -381,12 +438,11 @@ async def test_native_patch_prompt_explains_description_aware_synthetic_document
 
     native_instruction = str(native_prompt.messages[0]["content"])
     legacy_instruction = str(legacy_prompt.messages[0]["content"])
-    assert "birds-eye index" in native_instruction
-    assert "review its description too" in native_instruction
-    assert "synthetic patch document" in native_instruction
+    assert "Native Apply Patch edits a patch document" in native_instruction
+    assert "update it when the file's scope or durable contents change materially" in native_instruction
     assert 'description: "Concise overview of the file."' in native_instruction
-    assert "must never be copied into the Markdown body" in native_instruction
-    assert "synthetic patch document" not in legacy_instruction
+    assert "never copy it into the Markdown body" in native_instruction
+    assert "Native Apply Patch" not in legacy_instruction
 
 
 @pytest.mark.asyncio
@@ -409,26 +465,166 @@ async def test_prompt_messages_do_not_include_fingerprint_values() -> None:
 
 
 @pytest.mark.asyncio
-async def test_optional_profile_is_not_injected_into_context_yet() -> None:
+async def test_profile_content_enters_the_instructions_after_the_anima_memories() -> None:
     service, _repo = _service(
         [
             _memory_entry("identity.md", "Identity", anima_id="anima-1", kind="anima_identity"),
+            _memory_entry("MEMORIES.md", "We met by the lake.", anima_id="anima-1", kind="anima_memories"),
             _memory_entry("profile.md", "User likes concise replies.", kind="user_profile"),
+        ]
+    )
+
+    context = await service.build_context(user_id="user-1", anima_id="anima-1", chat_id="chat-now")
+    prompt = DirectChatPromptAssembler().assemble(
+        user_message="hello",
+        anima_identity=context.anima_identity,
+        anima_name=context.anima_name,
+        anima_memories=context.anima_memories,
+        user_profile=context.user_profile,
+        memory_map=context.memory_map,
+    )
+
+    system = str(prompt.messages[0]["content"])
+    assert context.user_profile == "User likes concise replies."
+    assert context.user_profile_truncated is False
+    assert system.index("# Anima Memories") < system.index("# User Profile") < system.index("# Memory Guidance")
+    assert "User likes concise replies." in system
+    assert [opened["path"] for opened in context.manifest["opened_files"]] == [
+        "identity.md",
+        "MEMORIES.md",
+        "profile.md",
+    ]
+    assert context.manifest["opened_files"][2]["anima_id"] is None
+    assert context.manifest["opened_files"][2]["status"] == STATUS_OPENED
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("profile", [None, "", " \n\t"])
+async def test_missing_or_blank_profile_is_left_out_with_its_status(profile: str | None) -> None:
+    entries = [_memory_entry("identity.md", "Identity", anima_id="anima-1", kind="anima_identity")]
+    if profile is not None:
+        entries.append(_memory_entry("PROFILE.md", profile, kind="user_profile"))
+    service, _repo = _service(entries)
+
+    context = await service.build_context(user_id="user-1", anima_id="anima-1")
+
+    assert context.user_profile is None
+    profile_fingerprint = context.manifest["opened_files"][2]
+    assert profile_fingerprint["path"] == "PROFILE.md"
+    assert profile_fingerprint["status"] == (STATUS_MISSING if profile is None else STATUS_OPENED)
+
+
+@pytest.mark.asyncio
+async def test_a_profile_over_the_bound_is_cut_at_a_line_boundary() -> None:
+    line = "- " + "x" * 98 + "\n"
+    content = line * 200
+    service, _repo = _service(
+        [
+            _memory_entry("identity.md", "Identity", anima_id="anima-1", kind="anima_identity"),
+            _memory_entry("PROFILE.md", content, kind="user_profile"),
         ]
     )
 
     context = await service.build_context(user_id="user-1", anima_id="anima-1")
 
-    prompt = DirectChatPromptAssembler().assemble(
-        user_message="hello",
-        anima_identity=context.anima_identity,
-        anima_name=context.anima_name,
-        memory_map=context.memory_map,
-        metadata={"memory_context": context.manifest},
+    assert context.user_profile is not None
+    assert context.user_profile_truncated is True
+    assert len(context.user_profile.encode("utf-8")) <= USER_PROFILE_CONTEXT_MAX_BYTES
+    assert content.startswith(context.user_profile)
+    assert context.user_profile.endswith("x")
+
+
+@pytest.mark.asyncio
+async def test_a_profile_line_ending_exactly_at_the_bound_is_kept() -> None:
+    line = "- " + "x" * 1021 + "\n"
+    last_line = "- " + "y" * 1022 + "\n"
+    content = line * 15 + last_line + "- more\n"
+    assert len((line * 15 + last_line).encode("utf-8")) == USER_PROFILE_CONTEXT_MAX_BYTES + 1
+    service, _repo = _service(
+        [
+            _memory_entry("identity.md", "Identity", anima_id="anima-1", kind="anima_identity"),
+            _memory_entry("PROFILE.md", content, kind="user_profile"),
+        ]
     )
-    instruction_text = "\n\n".join(str(message.get("content", "")) for message in prompt.messages)
-    assert "User likes concise replies." not in instruction_text
-    assert [opened["path"] for opened in context.manifest["opened_files"]] == ["identity.md", "MEMORIES.md"]
+
+    context = await service.build_context(user_id="user-1", anima_id="anima-1")
+
+    assert context.user_profile_truncated is True
+    assert context.user_profile == (line * 15 + last_line).rstrip()
+
+
+@pytest.mark.asyncio
+async def test_recent_notes_come_from_this_anima_and_other_chats_within_the_window() -> None:
+    episodes = _EpisodeItems(
+        [_episode("Newest note.", day=28, item_id="mei-new"), _episode("Older note.", day=16, item_id="mei-old")]
+    )
+    service, _repo = _service(
+        [_memory_entry("identity.md", "Identity", anima_id="anima-1", kind="anima_identity")],
+        episodes=episodes,
+        timezone="Pacific/Auckland",
+    )
+
+    context = await service.build_context(user_id="user-1", anima_id="anima-1", chat_id="chat-now")
+
+    # 15:00 UTC on 28 October is already 29 October in Auckland, so the window starts on the 16th.
+    assert episodes.calls == [
+        {
+            "user_id": "user-1",
+            "source_anima_id": "anima-1",
+            "exclude_chat_id": "chat-now",
+            "since_local_date": date(2026, 10, 16),
+            "limit": RECENT_EPISODE_NOTE_LIMIT,
+        }
+    ]
+    assert context.recent_notes == (
+        RecentEpisodeNote(local_date=date(2026, 10, 16), text="Older note."),
+        RecentEpisodeNote(local_date=date(2026, 10, 28), text="Newest note."),
+    )
+    assert context.manifest["episode_note_ids"] == ["mei-old", "mei-new"]
+
+
+@pytest.mark.asyncio
+async def test_recent_notes_stop_before_the_first_note_over_the_character_budget() -> None:
+    episodes = _EpisodeItems(
+        [
+            _episode("a" * 1_500, day=28, item_id="mei-1"),
+            _episode("b" * 1_400, day=27, item_id="mei-2"),
+            _episode("c" * 200, day=26, item_id="mei-3"),
+            _episode("d" * 10, day=25, item_id="mei-4"),
+        ]
+    )
+    service, _repo = _service(
+        [_memory_entry("identity.md", "Identity", anima_id="anima-1", kind="anima_identity")], episodes=episodes
+    )
+
+    context = await service.build_context(user_id="user-1", anima_id="anima-1", chat_id="chat-now")
+
+    assert sum(len(note.text) for note in context.recent_notes) <= RECENT_EPISODE_NOTE_CHARS
+    assert context.manifest["episode_note_ids"] == ["mei-2", "mei-1"]
+
+
+@pytest.mark.asyncio
+async def test_memory_influence_off_reads_no_notes_and_no_profile() -> None:
+    episodes = _EpisodeItems([_episode("Should stay out.", day=28)])
+    service, _repo = _service(
+        [
+            _memory_entry("identity.md", "Identity", anima_id="anima-1", kind="anima_identity"),
+            _memory_entry("PROFILE.md", "Profile should be omitted.", kind="user_profile"),
+        ],
+        episodes=episodes,
+    )
+
+    context = await service.build_context(
+        user_id="user-1",
+        anima_id="anima-1",
+        chat_id="chat-now",
+        request_options={"disable_memory_influence": True},
+    )
+
+    assert episodes.calls == []
+    assert context.recent_notes == ()
+    assert context.user_profile is None
+    assert "episode_note_ids" not in context.manifest
 
 
 @pytest.mark.asyncio
@@ -813,3 +1009,28 @@ async def test_missing_or_blank_anima_memories_are_omitted_without_failing_the_t
         assert (opened["status"], opened["sha256"]) == (STATUS_OPENED, _sha(memories))
     # Reading context never repairs the file.
     assert repo.create_calls == [] and repo.version_calls == []
+
+
+@pytest.mark.asyncio
+async def test_instructions_stay_identical_when_a_selected_note_becomes_processed() -> None:
+    note = _episode("Sam adopted a cat named Pickle.", day=27, item_id="mei-cat")
+    episodes = _EpisodeItems([note])
+    service, _repo = _service(
+        [_memory_entry("identity.md", "Identity", anima_id="anima-1", kind="anima_identity")], episodes=episodes
+    )
+
+    async def system_text() -> str:
+        context = await service.build_context(user_id="user-1", anima_id="anima-1", chat_id="chat-now")
+        prompt = DirectChatPromptAssembler().assemble(
+            user_message="hello",
+            anima_identity=context.anima_identity,
+            anima_name=context.anima_name,
+            recent_notes=context.recent_notes,
+        )
+        return str(prompt.messages[0]["content"])
+
+    before = await system_text()
+    episodes.items = [replace(note, status="processed", processed_by_run_id="mmr-1")]
+
+    assert await system_text() == before
+    assert "- 2026-10-27: Sam adopted a cat named Pickle." in before

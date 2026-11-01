@@ -72,13 +72,9 @@
       "title": "此虚拟形象名称已被使用"
     },
     "discardUpload": "丢弃未保存的上传",
-    "emptyIncluded": "没有可用的内置虚拟形象。你可以使用“我的内容”或上传 VRM。",
-    "emptyLocal": "“我的内容”中还没有虚拟形象。上传一个 VRM 来添加。",
+    "empty": "还没有可用的虚拟形象。上传一个 VRM 来添加。",
     "fileInput": "选择 VRM 文件",
-    "groupLabel": {
-      "included": "内置虚拟形象",
-      "local": "我的内容中的虚拟形象"
-    },
+    "groupLabel": "虚拟形象",
     "inUse": "此虚拟形象正被运行中的 Anima 使用。请保持其不变，并以新名称保存你的上传。",
     "label": "虚拟形象选择",
     "loadFailed": "无法加载虚拟形象。你的选择已保留。",
@@ -102,7 +98,14 @@
     "search": "搜索虚拟形象",
     "searchPlaceholder": "搜索虚拟形象…",
     "showMore": "显示更多虚拟形象",
-    "upload": "上传 VRM"
+    "upload": "上传 VRM",
+    "diagnostics": {
+      "checking": "正在检查此虚拟形象…",
+      "noProblems": "未发现问题。",
+      "failed": "Animama 无法加载此虚拟形象。",
+      "view": "查看诊断",
+      "problems_other": "发现 {{count}} 个问题。"
+    }
   },
   "completion": {
     "degraded": "部分运行时内容不可用。你的 Anima 已成功创建。",
@@ -404,6 +407,7 @@
     "chooseAnother": "此已保存的语音不可用。请选择其他语音。",
     "cloneUnavailable": "此已保存的语音不可用。请刷新资源库。",
     "elevenLabsId": "ElevenLabs 语音 ID",
+    "elevenLabsLibrary": "在 <link>ElevenLabs 声音库</link>中找到声音，将其添加到“我的声音”，然后在此粘贴它的声音 ID。",
     "elevenLabsPlaceholder": "输入语音 ID",
     "label": "语音配置",
     "loadFailed": "无法加载已保存的语音。",
@@ -414,6 +418,9 @@
       "elevenLabs": "ElevenLabs",
       "pocketTts": "PocketTTS"
     },
+    "reuseVoice": "使用其他 Anima 的声音",
+    "retry": "重新加载虚拟形象",
+    "reuseVoiceOption": "{{names}} · {{id}}",
     "retry": "重新加载已保存的语音",
     "savedVoiceUnavailable": "已保存的语音不可用"
   }

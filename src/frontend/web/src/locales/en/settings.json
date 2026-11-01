@@ -4,7 +4,7 @@
       "copied": "Diagnostics copied.",
       "copy": "Copy summary",
       "copyFailed": "Diagnostics could not be copied to the clipboard.",
-      "description": "Copy version, platform and component status for a bug report. Keys, chats and memories are never included.",
+      "description": "Copy version, platform, component status, recent activity, warnings and errors for a bug report. Keys, chats and memories are never included.",
       "entryLabel": "Copy diagnostics summary",
       "label": "Diagnostics"
     },
@@ -49,6 +49,32 @@
     }
   },
   "animaSettings": {
+    "avatar": {
+      "materials": {
+        "description": "lilToon draws this Avatar as authored; Simple costs less to draw. Automatic keeps lilToon and lowers the frame rate to 45, 30 or 24 fps when this device's GPU needs it; it uses Simple only when even 24 fps is too much. Applies wherever the Avatar is used, and reloads it.",
+        "label": "Materials",
+        "modes": {
+          "automatic": "Automatic",
+          "liltoon": "lilToon",
+          "simple": "Simple"
+        }
+      },
+      "wind": {
+        "description": "How wind and updraft move this Avatar's hair and clothes, wherever the Avatar is used.",
+        "label": "Wind and ambient forces",
+        "modes": {
+          "automatic": "Automatic",
+          "off": "Off",
+          "on": "On",
+          "springs_off": "Springs off"
+        }
+      },
+      "windStrength": {
+        "description": "How strongly wind and updraft blow, from none to twice the default. Automatic leaves them off when this Avatar’s hair is too soft to hold against them at this strength.",
+        "label": "Wind strength",
+        "value": "{{percent}}%"
+      }
+    },
     "choices": {
       "appDefaultOff": "App default (Off)",
       "appDefaultOn": "App default (On)",
@@ -56,10 +82,16 @@
       "on": "On"
     },
     "headings": {
+      "avatar": "Avatar",
       "emotion": "Emotion",
       "memory": "Memory"
     },
     "rows": {
+      "avatar_diagnostics": {
+        "description": "See what Animama found in this Anima's Avatar, and copy a report for support.",
+        "label": "Avatar diagnostics",
+        "open": "Open diagnostics"
+      },
       "emotion_updates": {
         "description": "Update emotional state during chat. When off, new emotion reactions stop; gestures still play.",
         "tooltip": "When off, the existing mood is preserved and gestures still play."
@@ -75,6 +107,7 @@
       }
     },
     "updateFailed": {
+      "avatar": "The Avatar setting could not be saved.",
       "emotion": "Failed to update emotion settings.",
       "memory": "Failed to update memory settings."
     }
@@ -182,6 +215,21 @@
   },
   "behavior": {
     "appDefaultLabel": "{{label}} (app default)",
+    "automaticProcessing": {
+      "dailyLimit": "Daily limit reached. Processing continues tomorrow.",
+      "description": "Fold notes from your chats into your memory files once this many are waiting.",
+      "label": "Process episode notes automatically",
+      "memoryOff": "Turn on Memory and Memory updates to process notes automatically.",
+      "needsModel": "Needs a Memory Manager model that supports tools. Choose one in the Models settings.",
+      "notes_one": "After {{count}} note",
+      "notes_other": "After {{count}} notes",
+      "off": "Off",
+      "paused": "Paused after repeated failures. Change this setting to try again. Last error: {{error}}",
+      "retrying": "Retrying later after a failure. Last error: {{error}}",
+      "running_one": "Crystallizing {{count}} note into memory…",
+      "running_other": "Crystallizing {{count}} notes into memory…",
+      "updateFailed": "Failed to update automatic note processing."
+    },
     "blockedByMemory": "Turn Memory on to allow memory updates.",
     "flags": {
       "emotion_updates": {
@@ -260,11 +308,11 @@
     "microphone": "Microphone",
     "profile": "Profile",
     "speechToText": "Speech-to-Text",
+    "startup": "Startup",
     "textToSpeech": "Text-to-Speech",
     "webSearch": "Web search"
   },
   "language": {
-    "description": "The language of Animama and of your Animas: menus, messages, and what your Animas say and hear. Beta languages are machine-translated.",
     "keywords": [
       "language",
       "locale",
@@ -273,6 +321,15 @@
     "label": "Language",
     "saveFailed": "Failed to change the language.",
     "systemDefaultResolved": "System default ({{language}})"
+  },
+  "launchAtLogin": {
+    "blocked": {
+      "macos": "Animama will not open at login until you allow it in System Settings → General → Login Items & Extensions.",
+      "windows": "Animama will not open at login until you turn it on in Settings → Apps → Startup."
+    },
+    "description": "Open Animama automatically when you log in to your computer.",
+    "label": "Launch at login",
+    "updateFailed": "Could not change Launch at login."
   },
   "modal": {
     "close": "Close App Settings",
@@ -331,7 +388,6 @@
     "advanced": "Advanced",
     "apiKeys": "API Keys",
     "appearance": "Appearance",
-    "data": "Data",
     "general": "General",
     "memoryEmotion": "Memory & Emotion",
     "models": "Models",
@@ -344,6 +400,8 @@
       "press_to_talk": "Press to talk",
       "quick_chat": "Quick Chat",
       "skip_tts": "Skip TTS",
+      "toggle_dictation": "Dictation on/off",
+      "toggle_pip": "Picture-in-picture on/off",
       "toggle_voice_mode": "Voice Mode on/off",
       "toggle_voice_mute": "Toggle mute"
     },

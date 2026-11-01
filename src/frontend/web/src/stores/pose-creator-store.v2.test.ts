@@ -329,7 +329,7 @@ describe("pose creator store with hand keys", () => {
   let vrm: VRM;
   let controller: ReturnType<typeof createHandInteractionController>;
   beforeAll(async () => {
-    vrm = await loadTestAvatar("AvatarSample_A_1_New");
+    vrm = await loadTestAvatar("Annie");
   });
   /** Right-hand keys at each beat (a pinch at "b"); the left hand has none. */
   const handClip = (): AnimaPoseClipV2 => ({
@@ -756,7 +756,7 @@ describe("pose creator store with hand keys", () => {
   });
 });
 
-describe.each(["AvatarSample_A_1_New", "Andrew"] as const)(
+describe.each(["Annie", "Andrew"] as const)(
   "pose creator store with a solved contact on %s",
   (avatarId) => {
     let vrm: VRM;

@@ -2,7 +2,3 @@ packages:
   - "web"
   - "desktop"
   - "packages/*"
-
-# Cached Electron postinstall output expands signed framework symlink aliases.
-# Reuse package downloads while rerunning platform-specific install scripts.
-sideEffectsCache: false

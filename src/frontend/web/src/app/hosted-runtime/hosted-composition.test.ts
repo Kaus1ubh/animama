@@ -137,6 +137,65 @@ describe("hosted admission and transport", () => {
       vi.unstubAllGlobals();
     }
   });
+  it("never lets the browser keep the composition's own session and admission requests", async () => {
+    vi.stubGlobal("window", {
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      localStorage: { length: 0, key: () => null },
+    });
+    vi.stubGlobal(
+      "BroadcastChannel",
+      class {
+        postMessage = vi.fn();
+        close = vi.fn();
+        onmessage = null;
+      },
+    );
+    const { composition, calls, fetch } = fixture();
+    // The age confirmation answers with the runtime context that follows it.
+    const base = fetch.getMockImplementation()!;
+    fetch.mockImplementation(async (input: RequestInfo | URL) => {
+      if (
+        new URL((input as Request).url).pathname !==
+        "/v1/hosted/age-confirmation"
+      )
+        return base(input);
+      calls.push(input as Request);
+      return Response.json(active);
+    });
+    const controller = new RuntimeController(composition);
+    const unsubscribe = composition.subscribe!(vi.fn());
+    try {
+      await controller.refresh();
+      await vi.waitFor(() =>
+        expect(
+          calls.some(
+            (call) => new URL(call.url).pathname === "/v1/hosted/events",
+          ),
+        ).toBe(true),
+      );
+      await composition.confirmAge!();
+      await composition.accountActions!.signOut();
+      const hosted = calls.filter((call) => {
+        const path = new URL(call.url).pathname;
+        return path.startsWith("/v1/hosted/") || path.startsWith("/api/cloud/");
+      });
+      expect(new Set(hosted.map((call) => new URL(call.url).pathname))).toEqual(
+        new Set([
+          "/v1/hosted/runtime-context",
+          "/v1/hosted/events",
+          "/v1/hosted/age-confirmation",
+          "/api/cloud/auth/logout",
+        ]),
+      );
+      expect(hosted.every((call) => call.cache === "no-store")).toBe(true);
+    } finally {
+      unsubscribe();
+      controller.dispose();
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("refreshes an explicitly reauthenticated lifetime even when owner and CSRF are unchanged", async () => {
     const { composition } = fixture();
     const first = await composition.readAdmission();
@@ -515,6 +574,28 @@ describe("hosted admission and transport", () => {
     ).toBe(true);
   });
 
+  it("keeps a product request's own cache mode, so the server's policy decides what is kept", async () => {
+    const { composition, calls } = fixture();
+    await composition.readAdmission();
+    const product = composition.transport.fetch;
+    await product("/v1/content/catalog", { cache: "no-cache" });
+    await product(
+      new Request("https://app.example.test/v1/content/files/f1", {
+        cache: "no-cache",
+      }),
+    );
+    await product("/v1/animas/a1/runtime/revisions/r1/bundles/b1");
+    const modes = Object.fromEntries(
+      calls.map((call) => [new URL(call.url).pathname, call.cache]),
+    );
+    expect(modes).toEqual({
+      "/v1/hosted/runtime-context": "no-store",
+      "/v1/content/catalog": "no-cache",
+      "/v1/content/files/f1": "no-cache",
+      "/v1/animas/a1/runtime/revisions/r1/bundles/b1": "default",
+    });
+  });
+
   it("uses a fresh lifetime when the same owner reauthenticates", async () => {
     const context = { ...active };
     const { composition } = fixture(context);
@@ -561,6 +642,7 @@ describe("hosted admission and transport", () => {
       { ...capabilities, schema_version: 1 },
       undefined,
       { ...capabilities, anima_creation: true },
+      { ...capabilities, automatic_episode_processing: true },
     ]) {
       const { composition } = fixture({
         ...active,
@@ -964,11 +1046,16 @@ function installBrowserPage(href = "https://app.example.test/") {
     removeEventListener: (_type: string, listener: () => void) =>
       focusListeners.delete(listener),
   });
-  vi.stubGlobal("document", {
+  const visibilityListeners = new Set<() => void>();
+  const documentStub = {
     hidden: false,
-    addEventListener: vi.fn(),
-    removeEventListener: vi.fn(),
-  });
+    addEventListener: (type: string, listener: () => void) => {
+      if (type === "visibilitychange") visibilityListeners.add(listener);
+    },
+    removeEventListener: (_type: string, listener: () => void) =>
+      visibilityListeners.delete(listener),
+  };
+  vi.stubGlobal("document", documentStub);
   vi.stubGlobal(
     "BroadcastChannel",
     class {
@@ -985,6 +1072,11 @@ function installBrowserPage(href = "https://app.example.test/") {
     location,
     history,
     focus: () => focusListeners.forEach((listener) => listener()),
+    /** Hides or shows the page, as switching browser tabs does. */
+    setHidden: (hidden: boolean) => {
+      documentStub.hidden = hidden;
+      visibilityListeners.forEach((listener) => listener());
+    },
     /** Another tab's sign-out message. */
     signedOutElsewhere: () =>
       channels.forEach((channel) =>
@@ -1006,6 +1098,14 @@ function hostedService() {
     loginReply: null as null | (() => Promise<Response>),
     /** Fails runtime-context reads, as during a brief outage. */
     contextFails: false,
+    /** Answers an events connection; by default the stream stays open and silent. */
+    events: null as
+      | null
+      | ((connection: number) => Response | Promise<Response>),
+    eventsConnections: 0,
+    contextReads: () =>
+      service.paths().filter((path) => path === "/v1/hosted/runtime-context")
+        .length,
     calls: [] as Request[],
     paths: () => service.calls.map((call) => new URL(call.url).pathname),
     fetch: (async (input) => {
@@ -1043,8 +1143,12 @@ function hostedService() {
           authorization_url: "https://identity.example.test/sign-in",
         });
       }
-      if (path === "/v1/hosted/events")
-        return new Response(new ReadableStream<Uint8Array>());
+      if (path === "/v1/hosted/events") {
+        service.eventsConnections += 1;
+        return service.events
+          ? service.events(service.eventsConnections)
+          : new Response(new ReadableStream<Uint8Array>());
+      }
       return Response.json({ ok: true });
     }) as typeof globalThis.fetch,
   };
@@ -1504,6 +1608,209 @@ describe("hosted sign-in and sign-out", () => {
   });
 });
 
+/**
+ * An events stream that says `ready`, then optionally `revoked`, and is cut after
+ * `cutAfterMs`, as a proxy closing or resetting a long-lived response would.
+ */
+function readyStream({
+  cutAfterMs,
+  cut = "ends",
+  revoked = false,
+}: {
+  cutAfterMs?: number;
+  cut?: "ends" | "fails";
+  revoked?: boolean;
+} = {}) {
+  const encoder = new TextEncoder();
+  return new Response(
+    new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(encoder.encode("event: ready\ndata: {}\n\n"));
+        if (revoked)
+          controller.enqueue(encoder.encode("event: revoked\ndata: {}\n\n"));
+        if (cutAfterMs === undefined) return;
+        setTimeout(() => {
+          try {
+            if (cut === "ends") controller.close();
+            else controller.error(new TypeError("network error"));
+          } catch {
+            /* The composition already closed this connection. */
+          }
+        }, cutAfterMs);
+      },
+    }),
+  );
+}
+
+describe("hosted admission reads", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+  });
+
+  it("reads the runtime context once for a page load", async () => {
+    vi.useFakeTimers();
+    installBrowserPage();
+    const service = hostedService();
+    service.events = () => readyStream();
+    const tab = hostedTab(service);
+    try {
+      await tab.controller.refresh();
+      await vi.advanceTimersByTimeAsync(5 * 60_000);
+      expect(tab.status()).toBe("ready");
+      expect(service.eventsConnections).toBe(1);
+      expect(service.contextReads()).toBe(1);
+    } finally {
+      tab.close();
+    }
+  });
+
+  it.each([
+    ["visible", "ends"],
+    ["visible", "fails"],
+    ["hidden", "ends"],
+    ["hidden", "fails"],
+  ] as const)(
+    "does not poll admission from a %s idle tab whose events stream %s every few seconds",
+    async (visibility, cut) => {
+      vi.useFakeTimers();
+      const page = installBrowserPage();
+      const service = hostedService();
+      service.events = () => readyStream({ cutAfterMs: 3_000, cut });
+      const tab = hostedTab(service);
+      try {
+        await tab.controller.refresh();
+        const original = tab.controller.getSnapshot().scope;
+        if (visibility === "hidden") page.setHidden(true);
+        let suspended = false;
+        const unwatch = tab.controller.subscribe(() => {
+          if (tab.controller.getSnapshot().reconnecting) suspended = true;
+        });
+        await vi.advanceTimersByTimeAsync(2 * 60_000);
+        unwatch();
+        // Each cut reconnects after about a second, and each restored stream
+        // says `ready`, so admission stands without a read or a pause.
+        expect(service.eventsConnections).toBeGreaterThan(20);
+        expect(service.contextReads()).toBe(1);
+        expect(suspended).toBe(false);
+        expect(tab.controller.getSnapshot().scope).toBe(original);
+      } finally {
+        tab.close();
+      }
+    },
+  );
+
+  it.each([
+    ["is revoked", () => readyStream({ revoked: true })],
+    ["answers 401", () => new Response(null, { status: 401 })],
+    ["answers 403", () => new Response(null, { status: 403 })],
+    ["answers 503", () => new Response(null, { status: 503 })],
+    ["cannot connect", () => Promise.reject(new TypeError("Failed to fetch"))],
+    ["ends before ready", () => new Response("")],
+  ] as const)(
+    "re-reads admission when the reconnected events stream %s",
+    async (_label, reconnect) => {
+      vi.useFakeTimers();
+      installBrowserPage();
+      const service = hostedService();
+      service.events = (connection) =>
+        connection === 1 ? readyStream({ cutAfterMs: 1_000 }) : reconnect();
+      const tab = hostedTab(service);
+      try {
+        await tab.controller.refresh();
+        // The cut at 1 s reconnects after at most 1.2 s more.
+        await vi.advanceTimersByTimeAsync(2_300);
+        expect(service.eventsConnections).toBe(2);
+        expect(service.contextReads()).toBe(2);
+      } finally {
+        tab.close();
+      }
+    },
+  );
+
+  it("does not re-read admission on focus while the events stream is open and admission is recent", async () => {
+    vi.useFakeTimers();
+    const page = installBrowserPage();
+    const service = hostedService();
+    service.events = () => readyStream();
+    const tab = hostedTab(service);
+    try {
+      await tab.controller.refresh();
+      await vi.advanceTimersByTimeAsync(10_000);
+      // Switching away and back focuses the window and shows the page.
+      page.setHidden(true);
+      page.setHidden(false);
+      page.focus();
+      await vi.advanceTimersByTimeAsync(0);
+      expect(service.contextReads()).toBe(1);
+      // A minute after the last read, returning reads again, once for both events.
+      await vi.advanceTimersByTimeAsync(60_000);
+      page.setHidden(true);
+      expect(service.contextReads()).toBe(1);
+      page.setHidden(false);
+      page.focus();
+      await vi.advanceTimersByTimeAsync(0);
+      expect(service.contextReads()).toBe(2);
+      expect(tab.status()).toBe("ready");
+    } finally {
+      tab.close();
+    }
+  });
+
+  it("does not re-read admission on focus while a cut events stream reconnects", async () => {
+    vi.useFakeTimers();
+    const page = installBrowserPage();
+    const service = hostedService();
+    // The stream is cut at 1 s and reconnects 0.8-1.2 s later.
+    service.events = () => readyStream({ cutAfterMs: 1_000 });
+    const tab = hostedTab(service);
+    try {
+      await tab.controller.refresh();
+      await vi.advanceTimersByTimeAsync(1_500);
+      expect(service.eventsConnections).toBe(1);
+      page.focus();
+      await vi.advanceTimersByTimeAsync(0);
+      expect(service.contextReads()).toBe(1);
+      // The focus fell between the cut and the reconnect.
+      await vi.advanceTimersByTimeAsync(700);
+      expect(service.eventsConnections).toBe(2);
+      expect(service.contextReads()).toBe(1);
+    } finally {
+      tab.close();
+    }
+  });
+
+  it.each([
+    ["has not said ready", () => new Response(new ReadableStream())],
+    [
+      "could not be restored",
+      (connection: number) =>
+        connection === 1
+          ? readyStream({ cutAfterMs: 1_000 })
+          : new Response(null, { status: 503 }),
+    ],
+  ] as const)(
+    "re-reads admission on focus while the events stream %s",
+    async (_label, events) => {
+      vi.useFakeTimers();
+      const page = installBrowserPage();
+      const service = hostedService();
+      service.events = events;
+      const tab = hostedTab(service);
+      try {
+        await tab.controller.refresh();
+        await vi.advanceTimersByTimeAsync(2_300);
+        const reads = service.contextReads();
+        page.focus();
+        await vi.advanceTimersByTimeAsync(0);
+        expect(service.contextReads()).toBe(reads + 1);
+      } finally {
+        tab.close();
+      }
+    },
+  );
+});
+
 /** A hosted flow whose context, 18+ relay and product replies the test controls. */
 function confirmationFlow(context: Record<string, unknown>) {
   const state: { context: Record<string, unknown> } = {
@@ -1749,9 +2056,16 @@ describe("hosted setup pending", () => {
       const after = flow.controller.getSnapshot();
       expect(after.setupPending).toBe(false);
       expect(after.scope).toBe(snapshot.scope);
-      expect(invalidate).toHaveBeenCalledWith({
-        queryKey: queryKeys.animas.all("owner"),
-      });
+      if (after.admission.status !== "ready")
+        throw new Error("Admission missing");
+      const { session } = after.admission;
+      // Product queries are keyed by the session's cache key, never the owner.
+      expect(session.key).not.toBe(session.owner.id);
+      for (const queryKey of [
+        queryKeys.animas.all(session.key),
+        queryKeys.settings.all(session.key),
+      ])
+        expect(invalidate).toHaveBeenCalledWith({ queryKey });
       const reads = flow.contextReads();
       await vi.advanceTimersByTimeAsync(60_000);
       expect(flow.contextReads()).toBe(reads);

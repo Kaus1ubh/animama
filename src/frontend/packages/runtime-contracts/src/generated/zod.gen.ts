@@ -454,6 +454,59 @@ export const zAvatarFacePartsUpdate = z.object({
     ])
 });
 
+export const zAvatarMaterialMode = z.enum([
+    'automatic',
+    'liltoon',
+    'simple'
+]);
+
+export const zAvatarSettingSource = z.enum(['stored', 'default']);
+
+export const zAvatarSpringMode = z.enum([
+    'automatic',
+    'on',
+    'off',
+    'springs_off'
+]);
+
+/**
+ * AvatarSettingsState
+ *
+ * The effective settings for one Avatar and whether each was stored or defaulted.
+ */
+export const zAvatarSettingsState = z.object({
+    item_id: z.string(),
+    material_mode: zAvatarMaterialMode,
+    material_mode_source: zAvatarSettingSource,
+    spring_mode: zAvatarSpringMode,
+    spring_mode_source: zAvatarSettingSource,
+    wind_strength: z.int(),
+    wind_strength_source: zAvatarSettingSource
+});
+
+/**
+ * AvatarSettingsUpdate
+ *
+ * Change some of the owner's settings for one Avatar.
+ *
+ * An omitted field keeps its stored value; ``automatic`` or ``null`` clears
+ * it, as does the default wind strength (100).
+ */
+export const zAvatarSettingsUpdate = z.object({
+    material_mode: z.optional(z.union([
+        zAvatarMaterialMode,
+        z.null()
+    ])),
+    spring_mode: z.optional(z.union([
+        zAvatarSpringMode,
+        z.null()
+    ])),
+    wind_strength: z.optional(z.union([
+        z.int().gte(0).lte(200),
+        z.null()
+    ]))
+});
+
 /**
  * BodyAttachment
  *
@@ -1128,6 +1181,8 @@ export const zImagePresentation = z.object({
     focal_y: z.number().gte(0).lte(1),
     zoom: z.number().gte(1).lte(4)
 });
+
+export const zImportItemNotice = z.enum(['avatar_setting_not_stored', 'avatar_extension_unsupported']);
 
 /**
  * ImportedPackageItem
@@ -2001,6 +2056,56 @@ export const zPyArchivePassageUpdate = z.object({
 });
 
 /**
+ * PyAutomaticEpisodeProcessingStatus
+ *
+ * The setting and what automatic processing will do next.
+ *
+ * ``batch_size`` and ``started_at`` are set only while ``state`` is ``running``;
+ * ``next_attempt_at`` while ``backing_off``; ``last_error`` after a failed run,
+ * except during the daily-limit wait, which reports none.
+ */
+export const zPyAutomaticEpisodeProcessingStatus = z.object({
+    batch_size: z.optional(z.union([
+        z.int(),
+        z.null()
+    ])),
+    last_error: z.optional(z.union([
+        z.string(),
+        z.null()
+    ])),
+    next_attempt_at: z.optional(z.union([
+        z.iso.datetime(),
+        z.null()
+    ])),
+    pending_count: z.int(),
+    runs_today: z.int(),
+    started_at: z.optional(z.union([
+        z.iso.datetime(),
+        z.null()
+    ])),
+    state: z.enum([
+        'off',
+        'memory_off',
+        'needs_model',
+        'running',
+        'paused',
+        'backing_off',
+        'waiting',
+        'ready'
+    ]),
+    threshold: z.int()
+});
+
+/**
+ * PyAutomaticEpisodeProcessingUpdate
+ *
+ * ``threshold`` is 0 for Off, or the number of pending notes (5–50) that starts a run.
+ */
+export const zPyAutomaticEpisodeProcessingUpdate = z.object({
+    threshold: z.int().gte(0).lte(50)
+});
+
+/**
  * PyAvailableModels
  */
 export const zPyAvailableModels = z.object({
@@ -2466,7 +2571,8 @@ export const zPyContentFile = z.object({
     relative_path: z.string(),
     role: z.string(),
     sha256: z.string(),
-    size_bytes: z.int()
+    size_bytes: z.int(),
+    url: z.string()
 });
 
 /**
@@ -4407,7 +4513,7 @@ export const zPyOnboardingCompleteRequest = z.object({
         z.string().min(1).max(512),
         z.null()
     ])),
-    display_name: z.string().min(1).max(80)
+    display_name: z.string().min(1).max(30)
 });
 
 /**
@@ -5207,7 +5313,8 @@ export const zPyTypedContentFile = z.object({
     ordinal: z.int().gte(1),
     role: z.string(),
     sha256: z.string().regex(/^[0-9a-f]{64}$/),
-    size_bytes: z.int().gt(0)
+    size_bytes: z.int().gt(0),
+    url: z.string()
 });
 
 /**
@@ -5963,7 +6070,7 @@ export const zPyUserProfile = z.object({
  * PyUserProfileUpdate
  */
 export const zPyUserProfileUpdate = z.object({
-    display_name: z.string().min(1).max(80)
+    display_name: z.string().min(1).max(30)
 });
 
 /**
@@ -6149,6 +6256,7 @@ export const zReviewedImportItem = z.object({
         'voice'
     ]),
     name: z.string(),
+    notices: z.optional(z.array(zImportItemNotice)).default([]),
     original_name: z.string(),
     selected: z.boolean()
 });
@@ -6727,6 +6835,8 @@ export const zUserFileProcessingCapability = z.object({
  * ValidationError
  */
 export const zValidationError = z.object({
+    ctx: z.optional(z.record(z.string(), z.unknown())),
+    input: z.optional(z.unknown()),
     loc: z.array(z.union([z.string(), z.int()])),
     msg: z.string(),
     type: z.string()
@@ -6764,6 +6874,7 @@ export const zWebSearchCapability = z.object({
  */
 export const zRuntimeCapabilities = z.object({
     anima_creation: z.boolean(),
+    automatic_episode_processing: z.optional(z.boolean()).default(false),
     browser_telemetry: z.optional(z.union([
         zBrowserTelemetryCapability,
         z.null()
@@ -6775,6 +6886,7 @@ export const zRuntimeCapabilities = z.object({
         zGeminiTtsCapability,
         z.null()
     ])),
+    library_previews: z.optional(z.boolean()).default(true),
     local_filesystem_administration: z.boolean(),
     model_configuration: z.optional(z.boolean()).default(false),
     model_role_selection: z.boolean(),
@@ -7501,6 +7613,32 @@ export const zSaveAvatarPortraitData = z.object({
  */
 export const zSaveAvatarPortraitResponse = zPyAppearance;
 
+export const zGetAvatarSettingsData = z.object({
+    body: z.optional(z.never()),
+    path: z.object({
+        item_id: z.string()
+    }),
+    query: z.optional(z.never())
+});
+
+/**
+ * Successful Response
+ */
+export const zGetAvatarSettingsResponse = zAvatarSettingsState;
+
+export const zSaveAvatarSettingsData = z.object({
+    body: zAvatarSettingsUpdate,
+    path: z.object({
+        item_id: z.string()
+    }),
+    query: z.optional(z.never())
+});
+
+/**
+ * Successful Response
+ */
+export const zSaveAvatarSettingsResponse = zAvatarSettingsState;
+
 export const zPreviewAvatarContentData = z.object({
     body: z.optional(z.never()),
     path: z.object({
@@ -7755,6 +7893,26 @@ export const zStreamContentFileV1ContentFilesFileRefGetData = z.object({
     body: z.optional(z.never()),
     path: z.object({
         file_ref: z.string()
+    }),
+    query: z.optional(z.object({
+        variant: z.optional(z.union([
+            z.literal('thumbnail'),
+            z.null()
+        ]))
+    })),
+    headers: z.optional(z.object({
+        'If-None-Match': z.optional(z.union([
+            z.string(),
+            z.null()
+        ]))
+    }))
+});
+
+export const zStreamIncludedContentFileV1ContentFilesFileRefSha256Sha256GetData = z.object({
+    body: z.optional(z.never()),
+    path: z.object({
+        file_ref: z.string(),
+        sha256: z.string().regex(/^[0-9a-f]{64}$/)
     }),
     query: z.optional(z.object({
         variant: z.optional(z.union([
@@ -8274,6 +8432,28 @@ export const zRepairAnimaMemoriesV1MemoryAnimaMemoriesAnimaIdRepairPostData = z.
  * Successful Response
  */
 export const zRepairAnimaMemoriesV1MemoryAnimaMemoriesAnimaIdRepairPostResponse = zPyMemoryEntryHeader;
+
+export const zGetAutomaticEpisodeProcessingV1MemoryAutomaticProcessingGetData = z.object({
+    body: z.optional(z.never()),
+    path: z.optional(z.never()),
+    query: z.optional(z.never())
+});
+
+/**
+ * Successful Response
+ */
+export const zGetAutomaticEpisodeProcessingV1MemoryAutomaticProcessingGetResponse = zPyAutomaticEpisodeProcessingStatus;
+
+export const zUpdateAutomaticEpisodeProcessingV1MemoryAutomaticProcessingPutData = z.object({
+    body: zPyAutomaticEpisodeProcessingUpdate,
+    path: z.optional(z.never()),
+    query: z.optional(z.never())
+});
+
+/**
+ * Successful Response
+ */
+export const zUpdateAutomaticEpisodeProcessingV1MemoryAutomaticProcessingPutResponse = zPyAutomaticEpisodeProcessingStatus;
 
 export const zDebugSearchMemoryFilesV1MemoryDebugSearchMemoryFilesPostData = z.object({
     body: zPySearchMemoryFilesDebugRequest,

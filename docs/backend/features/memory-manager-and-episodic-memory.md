@@ -124,6 +124,12 @@ Run statuses:
   `:complete` (the frontend's New action) or by a newer run superseding it; it
   no longer accepts messages.
 
+Every run also has an origin in `metadata.origin`: absent for a run the owner
+started, or `automatic` for one the backend started (see
+[Automatic Episode Processing](#automatic-episode-processing)). The owner's paths
+(current run, creation, supersession) see only owner runs, and one owner run and
+one automatic run may be open at the same time.
+
 ### Approval
 
 An approval is a persisted user decision point for one proposed file operation.
@@ -182,7 +188,10 @@ data, and keeps suicide and self-harm crisis specifics (methods, plans, means,
 crisis details) out of memory unless the user explicitly asked; at most a
 general note, such as that the user had a hard week, is kept. Ordinary health
 context the user shares, such as allergies or conditions, is remembered like
-other personal facts.
+other personal facts. Every Memory Manager run also states the memory-language
+rule (`MEMORY_LANGUAGE_RULE`, see [memory guidance](memory.md)): new memory
+text follows the language of the notes or turns it comes from, and the
+pending episode batch carries note text as written, not as `\uXXXX` escapes.
 
 ### 2. Successful Chat Captures An Episode Item
 
@@ -355,10 +364,11 @@ message position and the Reflection run that set it. Creation locks the owner's
 open runs, refuses a pending approval (`409`), requires the Anima's
 `MEMORIES.md` to exist (`409` asking for repair), and selects the oldest
 uncovered turns after the coverage, plus the total uncovered count. The batch
-stops at 400 turns or 200,000 characters of turn text, whichever comes first,
+stops at 400 turns or 51,000 estimated tokens of turn text, whichever comes first,
 and always holds at least one turn. Text is counted as the model reads it, each
-side shortened past 2,000 characters, so a page of 50 maximal turns still fits
-and a history of long replies cannot fail every Reflection on the same oldest
+side shortened past 2,000 characters and estimated at four ASCII characters or
+one other character per token, so a page of 50 maximal English turns still
+fits (Japanese or Chinese turns fit about a quarter as many) and a history of long replies cannot fail every Reflection on the same oldest
 batch. Turns beyond the batch are reported as remaining. No uncovered turn
 returns `409` without creating or superseding a run. Otherwise it stores private task state (Anima ID and name, the starting
 coverage position and run, the batch's last message position, batch and total
@@ -379,6 +389,84 @@ same turns are read next time. Undo restores the file and, when no other
 applied change from the run remains and coverage is still at this run's
 boundary, restores the coverage the run started from. General runs may edit
 `MEMORIES.md` when the owner asks but never move coverage.
+
+## Benchmark memory arms
+
+`EpisodicMemoryArm` (`app/chat/memory_arm.py`) lets the [model
+benchmark](../../benchmarks/README.md#memory-arms) compare how episodic memory
+is saved: with the `remember` field only (`MEMORIES.md` read-only), with
+`MEMORIES.md` writes only (no `remember` in the schema or guidance, and the
+benchmark's candidate write guidance), or both. It exists for benchmarking
+only: it is passed to `DirectChatTurnExecutor`'s constructor, production
+wiring never passes it, and no request option can set it. The default arm
+leaves chat's prompts, reply schema and tools unchanged.
+
+## Automatic Episode Processing
+
+`MemoryManagerService.run_automatic_episode_processing(user_id=...)` processes the
+oldest pending notes without the owner. It skips, returning a reason, when no notes
+are pending (`no_pending_episodes`), an automatic run is already open
+(`automatic_run_open`), or an owner-started episode-processing batch is still
+`processing` (`owner_processing_in_progress`). Otherwise it creates an
+`episode_processing` run with `metadata.origin = "automatic"` and the usual fixed
+batch, without completing, superseding or locking any owner run, and sends the usual
+server-owned message. Owner-started and automatic processing both take a per-owner
+transaction lock (`MemoryEpisodeService.lock_batch_selection`) before they look for
+each other's open runs, so the two never select the same notes.
+
+Each proposal is then approved automatically, up to the same eight-approval bound,
+but in two transactions: the first commits the patch and records the decision, the
+second resumes the runtime and persists its result, and refuses to resume a run closed in between. No file row stays locked while a
+model request runs, so chat memory writes to the same file do not wait for it. The
+versions it writes carry `change_metadata.trigger = "automatic_episode_processing"`,
+which version history uses to label them.
+
+An automatic run always closes:
+
+- `completed` with `completion_reason = "automatic_processed"` once its batch is
+  processed;
+- otherwise `failed` with `completion_reason = "automatic_closed"` and the runtime or
+  stop error, including any unexpected error (recorded by its exception type) and the
+  eight-approval limit. Any proposal still pending (the ceiling, a version conflict, an invalid
+  target) is recorded `rejected` with `operation_metadata.closed_reason =
+  "automatic_closed"`, without resuming the runtime. Changes already approved stay;
+  the batch's notes stay pending for a later run.
+
+`fail_interrupted_automatic_runs(user_id=...)` closes automatic runs that an earlier
+process left open, for example after a crash between an approval's two
+transactions, as `failed` with `completion_reason = "automatic_interrupted"`.
+
+### When automatic runs start (local composition)
+
+Only the local composition starts automatic runs. `server/episode_processing.py`
+runs one lifespan task for the installation owner. At startup it closes
+interrupted runs, then checks; the local chat-turn lease
+(`LocalChatTurnLease.settle`) wakes it after every turn, once the turn's note is
+saved, and settings changes wake it too. Otherwise it rests until its next backoff
+ends, at most five minutes. Nothing on the chat path waits for it.
+
+A run starts when all of these hold, evaluated in order (the first that fails is the
+reported state):
+
+| State | Condition |
+| --- | --- |
+| `running` | An automatic run is open; its batch size and start time are reported. A run in flight finishes and stays visible even after processing is turned off. |
+| `off` | The threshold is Off (0). |
+| `memory_off` | App Settings memory or memory updates are off (`preferences.memory.disable_influence` or `disable_updates`). |
+| `needs_model` | The Memory Manager role has no tool-capable model, or its connection's key is missing. The deterministic runtime (`ANIMAMA_LLM_SKIP`) needs neither. |
+| `paused` | The last three automatic runs failed, counting back to the last completed automatic run, a processed owner-started batch or the last threshold change. Interrupted runs are skipped. |
+| `backing_off` | After a failure, until 1 hour (doubling per further failure, at most 24 hours) after it; or after 10 automatic runs today, until the owner's local midnight, with no `last_error`. |
+| `waiting` | Fewer notes are pending than the threshold. |
+| `ready` | A run starts. After a completed run the task checks again at once, so a backlog continues within the daily limit. While an owner-started batch is still processing, for example waiting for an approval, the pass skips and the state stays `ready` until that batch ends. |
+
+The threshold is stored per owner in the local `episode_processing_settings` table
+(`threshold`: NULL or no row means the default of 10, 0 means Off, otherwise 5–50),
+not in user preferences, which a settings save replaces wholesale. A database created
+before the table reads as the default and keeps running. Changing the threshold
+records `reset_at`, which lifts a pause. Timestamps in the status are UTC. Read and change it through
+[`/v1/memory/automatic-processing`](../architecture/http-api.md#automatic-episode-processing).
+Each automatic run spends the owner's Memory Manager model within the per-step request
+budget and the eight-approval bound above.
 
 ## Runtime Implementations
 
@@ -461,8 +549,8 @@ The live runtime tools are:
   10 user-scope markdown paths with partial success. Its `content` value is the
   native synthetic description-plus-body patch document in this runtime.
 - `search_memory_files(query, include_episodic_memory)`: searches user-scope
-  markdown files. The boolean defaults to true for existing callers; false
-  excludes generated episode kinds and the `episodes/**` namespace before the
+  markdown files. The schema requires the boolean; false excludes generated
+  episode kinds and the `episodes/**` namespace before the
   result limit.
 - `read_reflection_turns(page)`: Reflection runs only. Returns 50 turns per
   page, oldest first, each with a run-local number, chat title, local time in
@@ -494,8 +582,8 @@ The mandate keeps the file to the relationship in the Anima's first person,
 keeps the file's own headings and their order (including headings the owner
 wrote) and files each memory under the best fit, uses the template's headings
 only when the file has none, condenses repetition, integrates dated history and
-open threads, drops resolved threads, aims well under 6,000 characters (16 KiB
-hard limit), leaves user facts to shared memory, applies the sensitive-memory
+open threads, drops resolved threads, aims well under 6,000 characters, or about 3,000 in a non-Latin script such
+as Japanese, Chinese, Korean, Thai or Hindi (16 KiB hard limit), leaves user facts to shared memory, applies the sensitive-memory
 rule and the companion guardrail's framing limits, treats turn text as
 untrusted data, and proposes nothing when nothing is worth adding. Each step's
 turn budget grows by one model turn per page of its batch.
@@ -788,8 +876,9 @@ Body:
 The request cannot select item IDs, batch size, text, aliases, owner, or a
 custom prompt. The backend owns the fixed oldest-first batch and returns `201`
 with the normal run snapshot. Zero pending rows returns
-`409 No pending episodes are available to process`. A safe processing summary
-looks like:
+`409 No pending episodes are available to process`, and an open automatic run returns
+`409 Automatic memory processing is in progress; try again shortly`. A safe
+processing summary looks like:
 
 ```json
 {
@@ -824,7 +913,7 @@ Body:
 ```
 
 The backend owns the batch: the Anima's oldest uncovered turns, at most 400
-turns or 200,000 characters of turn text (see [Reflection](#reflection)).
+turns or 51,000 estimated tokens of turn text (see [Reflection](#reflection)).
 It returns `201` with the normal run snapshot. The run has `kind = "reflection"`,
 `task = null` and a safe summary:
 
@@ -964,6 +1053,10 @@ service; locally its runtime is selected per request in
 
 Environment and settings:
 
+- Automatic episode processing (local composition only) has no environment
+  switch: the owner sets it through `/v1/memory/automatic-processing`, and it needs
+  the same Memory Manager model as manual runs. See
+  [When automatic runs start](#when-automatic-runs-start-local-composition).
 - `ANIMAMA_LLM_SKIP=1`: use the deterministic runtime instead of the live runtimes.
 - Memory Manager model role: `models.memory_manager_model_provider_id` in App
   Settings, else `ANIMAMA_DEFAULT_MEMORY_MANAGER_MODEL_PROVIDER_ID`, else the
@@ -999,7 +1092,14 @@ Backend-owned tables:
 All user-visible operations filter by the current request principal. The API
 does not accept client-provided owner IDs.
 
-`memory_manager_runs.kind` distinguishes ordinary and specialized runs.
+`memory_manager_runs.kind` distinguishes ordinary and specialized runs. The partial
+unique indexes `uq_memory_manager_runs_user_open` (owner runs) and
+`uq_memory_manager_runs_user_open_automatic` (`metadata.origin = 'automatic'`) allow
+one open run of each origin per user. A database created before the second index
+keeps one open run per user of either origin: it refuses an automatic run while an
+owner run is open (automatic processing treats that as a skip) and an owner run while
+an automatic run is open. `metadata.origin` is backend-owned: run creation drops it
+from caller metadata and runtime results never overwrite it.
 `task_state` is private versioned JSON containing the fixed alias-to-ID map and
 task lifecycle, or a Reflection's Anima, coverage boundaries and counts. `memory_manager_approvals` stores normalized rejection feedback,
 the exact applied Version, and any later Undo timestamp/Version. Public run
@@ -1046,12 +1146,18 @@ Important recovery cases:
   a conflict.
 - **Auto approve ceiling:** after eight sequential patch approvals, the next
   approval remains pending and the whole fixed batch remains pending.
+- **Automatic runs** never wait for the owner: a leftover proposal is closed
+  unapplied and the run fails, leaving the batch pending; an interrupted run is
+  closed at the next startup (see
+  [Automatic Episode Processing](#automatic-episode-processing)).
 
 ## Prompt And Search Boundaries
 
 Generated episode logs are intentionally omitted from the canonical
 `# List of memory files` used by both direct chat and the Memory Manager. This
-prevents prompt navigation from growing with every captured episode.
+prevents prompt navigation from growing with every captured episode. Direct chat
+instead includes a bounded set of the Anima's recent notes from other chats in its
+instructions (see [Memory](memory.md#current-direct-chat-boundary)).
 
 Episode logs remain searchable through default `search_memory_files` calls, and
 the Memory Manager can use search or an exact `memory_read_files` path to inspect
@@ -1090,6 +1196,7 @@ uv run python -m pytest -q \
   tests/test_anthropic_memory_manager.py \
   tests/test_anthropic_memory_tool.py \
   tests/test_memory_episodes.py \
+  tests/test_automatic_episode_processing.py \
   tests/test_memory_file_tools.py \
   tests/test_memory_files.py
 ```

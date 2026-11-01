@@ -7,6 +7,7 @@ from pathlib import Path
 
 from animama.app.ports.anima_aggregate_port import AnimaAggregateUnitOfWork
 from animama.app.ports.avatar_face_parts import AvatarFacePartOverrideRepository
+from animama.app.ports.avatar_settings import AvatarSettingOverrideRepository
 from animama.app.ports.content_package_staging import PackageInspector, PackageStages
 from animama.app.ports.user_profile_port import UserProfileRepository
 from animama.app.services.anima_package_source_service import AnimaPackageSourceService
@@ -38,7 +39,12 @@ class ImportedContentPackage:
 
 
 class ContentPackageService:
-    """Compose reviewed services around the same catalog mutation boundary."""
+    """Compose reviewed services around the same catalog mutation boundary.
+
+    Without ``avatar_setting_overrides`` (a composition that stores no Avatar
+    settings) exports carry none, and imports drop a packaged value with the
+    review notice ``avatar_setting_not_stored``.
+    """
 
     def __init__(
         self,
@@ -55,6 +61,7 @@ class ContentPackageService:
         default_model_provider_id: str | None = None,
         max_identity_bytes: int = ANIMA_IDENTITY_MAX_BYTES,
         face_part_overrides: AvatarFacePartOverrideRepository | None = None,
+        avatar_setting_overrides: AvatarSettingOverrideRepository | None = None,
     ) -> None:
         if stages is None and exports_root is None:
             raise ValueError("package stages or a local export root are required")
@@ -74,6 +81,7 @@ class ContentPackageService:
             inspector=inspector,
             profiles=profiles,
             face_part_overrides=face_part_overrides,
+            avatar_setting_overrides=avatar_setting_overrides,
         )
         self.imports = ContentPackageImportService(
             content=content,
@@ -84,6 +92,7 @@ class ContentPackageService:
             uow=uow,
             default_model_provider_id=default_model_provider_id,
             max_identity_bytes=max_identity_bytes,
+            avatar_setting_overrides=avatar_setting_overrides,
         )
 
     async def summarize(

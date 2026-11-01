@@ -561,6 +561,234 @@ export default interface Resources {
       },
       "zoom": "Zoom {{zoom}}×"
     },
+    "avatarDiagnostics": {
+      "close": "Close",
+      "copied": "Report copied.",
+      "copyFailed": "Could not copy to the clipboard.",
+      "copyReport": "Copy report",
+      "description": "What Animama found in this Avatar's file and how it plays it.",
+      "expressions": {
+        "arkit": "ARKit face shapes",
+        "arkitValue": "{{resolved}} of {{total}}",
+        "customNames_one": "{{count}} custom name",
+        "customNames_other": "{{count}} custom names",
+        "fromArkit": "{{name}} (ARKit)",
+        "fromBlinkSides": "{{name}} (left and right blinks)",
+        "fromMmd": "{{name}} (MMD)",
+        "fromVrchat": "{{name}} (VRChat)",
+        "missing": "Missing expressions",
+        "moodValue": "Brows {{brow}} · eyes {{eye}} · mouth {{mouth}}",
+        "moods": "Mood faces",
+        "playsFaces": "Moods play through ARKit shapes",
+        "present": "Standard expressions",
+        "regionSources": {
+          "arkit": "ARKit",
+          "mmd": "MMD",
+          "none": "none",
+          "preset": "preset",
+          "vroid": "own parts"
+        },
+        "unresolved": "Requested but not on this Avatar"
+      },
+      "face": {
+        "confidence": "Confidence",
+        "foundBy": "Found by",
+        "landmarks": "Face landmarks",
+        "meshParts": "Mesh parts",
+        "part": "Part",
+        "ready": "Ready",
+        "sharedRegions_one": "{{count}} inside a shared part",
+        "sharedRegions_other": "{{count}} inside shared parts",
+        "sources": {
+          "corrected": "Your correction",
+          "estimatedBlink": "Estimated from blinking",
+          "estimatedEyeBone": "Estimated from the eye bone",
+          "headRegion": "Head of a whole-body mesh part",
+          "missing": "Not found",
+          "names": "Material names",
+          "signals": "Model data"
+        },
+        "textureAnchors": "Face texture anchors",
+        "unavailable": "Unavailable"
+      },
+      "file": {
+        "extensionsRequired": "Required extensions",
+        "extensionsUsed": "Extensions used",
+        "format": "Format",
+        "formatNotVrm": "{{container}} · not a VRM",
+        "formatVrm": "{{container}} · VRM {{version}}",
+        "imageExternal": "Outside the file",
+        "imageFormat": "Format",
+        "imagePixels": "Pixels",
+        "imageSize": "Size",
+        "imagesCaption": "Embedded images",
+        "materialKind": "{{kind}} {{number}}",
+        "materials": "Materials",
+        "meshes": "Meshes",
+        "meshesValue": "{{meshes}} meshes, {{primitives}} mesh parts ({{morphed}} with shape keys)",
+        "size": "File size",
+        "textures": "Images",
+        "texturesValue_one": "{{count}} image · {{size}}",
+        "texturesValue_other": "{{count}} images · {{size}}",
+        "unreadable": "The file could not be read as a glTF or VRM file."
+      },
+      "identity": {
+        "included": "Included Avatar",
+        "local": "Local Avatar",
+        "unknown": "Avatar",
+        "upload": "Unsaved upload"
+      },
+      "issues": {
+        "anEffect": "An effect",
+        "anchors_face_skin_missing": "No face skin was found, so painted face effects cannot be placed.",
+        "anchors_landmarks_unavailable": "Face landmarks are unavailable, so painted face effects cannot be placed.",
+        "anchors_mouth_missing": "No mouth position was found on the face texture.",
+        "anchors_projection_failed": "The face texture could not be mapped, so painted face effects cannot be placed.",
+        "avatar_extension_unsupported": "The file requires {{extension}}, a glTF extension this app cannot load yet, so the Avatar cannot be shown.",
+        "avatar_load_failed": "The Avatar could not be loaded. Check its required extensions under File.",
+        "effect_anchor_covered": "{{effect}} was skipped: where it is painted on the face lies under other parts of this Avatar, such as eyes or a nose modelled over the skin, so it would not show.",
+        "effect_attachment_limit": "{{effect}} was removed: at most {{limit}} body, sticker or silhouette effects can show at once.",
+        "effect_face_part_missing": "{{effect}} was skipped: this Avatar has no detected {{part, lowercase}}.",
+        "effect_face_skin_required": "{{effect}} needs the face skin, which was not found.",
+        "effect_face_texture_hidden": "{{effect}} was skipped: the face skin's material shows no base color texture through its first UV set, so art painted on it would not show.",
+        "effect_iris_mesh_missing": "{{effect}} was skipped: this Avatar's {{part, lowercase}} was estimated on the face and has no iris mesh part to paint on.",
+        "effect_load_failed": "{{effect}} could not load its images.",
+        "effect_overlay_required": "{{effect}} needs overlay mode on this face.",
+        "effect_placement_failed": "{{effect}} could not be placed on this Avatar.",
+        "effect_skin_color_unavailable": "{{effect}} could not sample the face skin color for its backdrop.",
+        "effect_surface_too_dark": "{{effect}} was skipped: it darkens the face where it is painted, and the face there is too dark for the change to show.",
+        "effect_target_incompatible": "{{effect}} does not fit the part it was placed on.",
+        "effect_target_unknown": "{{effect}} names a model part that does not exist.",
+        "effect_target_unresolved": "{{effect}} found no compatible part on this Avatar.",
+        "effect_unknown": "An effect is not available in this installation.",
+        "effect_wrong_kind": "{{effect}} cannot be shown this way.",
+        "eye_detail_not_hidden": "{{effect}} plays, but the {{part, lowercase}} inside a shared mesh part could not be hidden.",
+        "face_expressions_none": "This Avatar has no face shapes for moods (no VRoid parts, MMD morphs, ARKit shapes or mood presets), so its face stays neutral; moods show through motion and effects.",
+        "face_parts_correction_digest_unknown": "The saved face part correction was ignored because this file's digest is unknown.",
+        "face_parts_correction_invalid": "The saved face part correction could not be read and was ignored.",
+        "face_parts_correction_other_file": "The saved face part correction was made for a different file and was ignored.",
+        "face_parts_correction_schema_unsupported": "The saved face part correction uses an unsupported format and was ignored.",
+        "face_parts_correction_unknown_bindings_one": "The saved correction for {{part, lowercase}} names {{count}} mesh part this model does not have.",
+        "face_parts_correction_unknown_bindings_other": "The saved correction for {{part, lowercase}} names {{count}} mesh parts this model does not have.",
+        "face_parts_detection_failed": "Face parts could not be detected, so effects are placed by material names.",
+        "face_parts_expressions_missing": "The model’s blink or “aa” expression moves no mesh (it is missing, or only switches materials), and no MMD, ARKit or VRChat shapes stand in for it, so its face skin and eye details cannot be found from them.",
+        "face_parts_whole_body_head_missing": "One mesh part holds the whole body, but no forward-facing part of it skinned to the head bone moves when the model blinks or opens its mouth, so its face cannot be found and Avatar Effects on the face are skipped.",
+        "file_unavailable": "The Avatar file could not be downloaded.",
+        "file_unreadable": "The Avatar file is not a readable glTF or VRM file.",
+        "iris_hide_unavailable": "Content asked to hide the irises (Fcl_EYE_Iris_Hide), but no iris mesh part of this Avatar can be hidden: none was found, or it shares a mesh part with the face skin.",
+        "landmarks_anchor_missing": "No head was found to anchor face landmarks.",
+        "landmarks_eyes_missing": "No eyes were found on the face, so eye effects are unavailable.",
+        "landmarks_face_bounds_failed": "The face skin could not be measured.",
+        "landmarks_face_skin_missing": "No face skin was found, so face landmarks are unavailable.",
+        "morph_target_names_mismatched_one": "{{count}} mesh stores shape key names that disagree with each other or with its shape keys, so those shape keys stay unnamed and any MMD morphs or ARKit shapes among them cannot be used.",
+        "morph_target_names_mismatched_other": "{{count}} meshes store shape key names that disagree with each other or with their shape keys, so those shape keys stay unnamed and any MMD morphs or ARKit shapes among them cannot be used.",
+        "scene_bindings_unavailable": "The loaded model's mesh parts could not be listed.",
+        "springs_helper_failed": "A spring bone guide could not be drawn.",
+        "springs_metadata_missing": "The file has no spring bone settings, so springs move at half strength.",
+        "springs_source_unavailable": "The file's spring bone data could not be read, so springs use default settings.",
+        "springs_unmapped_joints_one": "{{count}} spring joint could not be matched to the file's spring data.",
+        "springs_unmapped_joints_other": "{{count}} spring joints could not be matched to the file's spring data."
+      },
+      "json": {
+        "collapseAll": "Collapse all",
+        "copied": "JSON copied.",
+        "copy": "Copy JSON",
+        "description": "The same report as data, for sharing with support.",
+        "expandAll": "Expand all"
+      },
+      "loading": "Reading the Avatar…",
+      "materialKinds": {
+        "liltoon": "lilToon",
+        "mtoon": "MToon",
+        "pbr": "Standard",
+        "unlit": "Unlit"
+      },
+      "materials": {
+        "label": "lilToon materials",
+        "milliseconds": "{{value}} ms",
+        "nextLoad": "Next load: {{state}} · {{why}} (measured since this load)",
+        "rendered": "Rendered with lilToon",
+        "renderedAt": "Rendered with lilToon at {{fps}} fps",
+        "simple": "Simple materials",
+        "value": "{{state}} · {{why}}",
+        "why": {
+          "automatic": "chosen by Automatic",
+          "automaticNotMeasured": "chosen by Automatic: this GPU's lilToon frame time is not measured yet",
+          "automaticRemeasuring": "chosen by Automatic: this GPU drew a lilToon frame in {{measured}}, over the {{budget}} budget for {{fps}} fps; measuring again before choosing Simple",
+          "automaticSlow": "chosen by Automatic: this GPU drew a lilToon frame in {{measured}}, over the {{budget}} budget for {{fps}} fps",
+          "automaticUnsupported": "chosen by Automatic: this browser cannot time the GPU",
+          "automaticWithin": "chosen by Automatic: this GPU drew a lilToon frame in {{measured}}, within the {{budget}} budget for {{fps}} fps",
+          "chosen": "set to {{mode}}",
+          "failed": "lilToon could not load"
+        }
+      },
+      "motion": {
+        "arms": {
+          "normalized": "arms rest {{degrees}}° from a T-pose, normalized",
+          "tPose": "T-pose"
+        },
+        "hands": {
+          "normalized": "hands normalized to VRoid's ({{degrees}}°)",
+          "vroid": "hands like VRoid's"
+        },
+        "humanoidBones": "Humanoid bones",
+        "missingBones": "Missing required bones",
+        "missingOptionalBones": "Missing optional bones",
+        "notChecked": "Not checked yet",
+        "optionalCovers": {
+          "contacts": "Contacts use the next finger bone toward the hand",
+          "motionAndContacts": "Gestures, poses and contacts use the bone below",
+          "nothing": "Not moved by Gestures"
+        },
+        "restPose": "Rest pose",
+        "restPoseValue": "{{arms}} · {{hands}}",
+        "springs": "Spring bones",
+        "springsValue": "{{joints}} joints · {{colliders}} colliders",
+        "standIn": "{{bone}} → {{standIn}}",
+        "wind": "Wind and ambient forces",
+        "windEffect": {
+          "held": "springs held at rest",
+          "off": "no wind or updraft",
+          "on": "wind and updraft on at {{percent}}",
+          "softHair": "no wind or updraft: its hair is too soft to hold against them",
+          "tunedWithout": "no wind or updraft: its springs were tuned without them"
+        },
+        "windValue": "{{mode}} · {{effect}}"
+      },
+      "navigationLabel": "Diagnostics sections",
+      "no": "No",
+      "none": "None",
+      "notLoaded": "The Avatar could not be loaded, so only its file facts are available.",
+      "privacy": "Reports hold counts, standard names and codes: no file paths or names.",
+      "sections": {
+        "expressions": "Expressions",
+        "face": "Face",
+        "file": "File",
+        "json": "Raw JSON",
+        "motion": "Motion",
+        "warnings": "Warnings",
+        "warningsCount_one": "Warnings ({{count}})",
+        "warningsCount_other": "Warnings ({{count}})"
+      },
+      "settingSource": {
+        "default": "Default setting",
+        "stored": "Saved for this Avatar"
+      },
+      "source": {
+        "dock": "in the preview",
+        "live": "on the chat stage",
+        "notLoaded": "not loaded",
+        "offscreen": "loaded for this view",
+        "uploadStage": "on the preview stage"
+      },
+      "title": "Avatar diagnostics",
+      "unavailable": "This Anima has no Avatar to check.",
+      "unknown": "Unknown",
+      "warnings": {
+        "none": "No problems found."
+      },
+      "yes": "Yes"
+    },
     "badges": {
       "starter": "Starter",
       "starterShort": "S"
@@ -1109,8 +1337,13 @@ export default interface Resources {
     },
     "pip": {
       "close": "Close picture-in-picture",
+      "controls": "Picture-in-picture controls",
       "resize": "Resize picture-in-picture",
-      "unavailable": "Picture-in-picture is unavailable. Keep using the companion in this window."
+      "sceneBackground": "Scene background",
+      "stopVoiceMode": "Stop voice mode",
+      "switchCamera": "Switch camera (now {{preset}})",
+      "unavailable": "Picture-in-picture is unavailable. Keep using the companion in this window.",
+      "voiceMode": "Voice mode"
     },
     "quickChat": {
       "incompatibleModel": "That model keeps conversations differently. Open the main chat to continue in a new chat.",
@@ -1222,6 +1455,7 @@ export default interface Resources {
         "orbitTarget": "Orbit Target",
         "orbitTargetYSource": "Orbit Target Y Source",
         "orbitTargetYSourceLabel": "Orbit target Y source",
+        "pipTitle": "PiP camera",
         "position": "Camera Position",
         "positionYSource": "Camera Y Source",
         "positionYSourceLabel": "Camera Y source",
@@ -1352,6 +1586,12 @@ export default interface Resources {
         "unavailable": "Model unavailable. Select another model.",
         "unavailableShort": "Model unavailable",
         "webSearch": "Web search"
+      },
+      "speechEngines": {
+        "offline": "{{engine}} {{variant}}",
+        "stt": "STT: {{stt}}",
+        "tts": "TTS: {{tts}}",
+        "ttsOff": "Off"
       }
     },
     "header": {
@@ -1374,6 +1614,8 @@ export default interface Resources {
       "contentProgress": "Loading animations and effects ({{completed}}/{{total}})",
       "download": "Downloading {{item}} ({{size}})",
       "downloadProgress": "Downloading {{item}}: {{percent}} of {{size}}",
+      "episodeProcessing_one": "Crystallizing {{count}} note into memory…",
+      "episodeProcessing_other": "Crystallizing {{count}} notes into memory…",
       "speechToText": "Loading Speech-to-Text (Parakeet)",
       "textToSpeech": "Loading Text-to-Speech (PocketTTS)",
       "textToSpeechStep": "Loading Text-to-Speech (PocketTTS), step {{step}} of {{total}}"
@@ -1434,9 +1676,7 @@ export default interface Resources {
       }
     },
     "speech": {
-      "install": "Install offline speech recognition to use dictation and Voice Mode",
-      "installFromMainWindow": "Open App Settings → Voice in the main Animama window to download it.",
-      "unavailableHere": "Offline speech recognition for dictation and Voice Mode is not available here"
+      "skip": "Skip speech"
     },
     "suggestions": {
       "joke": "Tell me a joke",
@@ -1455,7 +1695,6 @@ export default interface Resources {
       "resetAll": "Reset all",
       "show": "Show"
     },
-    "beta": "Beta",
     "connection": {
       "reconnecting": "Reconnecting to Animama. Requests are paused; saved creator drafts are kept if you reload, unsent chat text is not."
     }
@@ -1615,14 +1854,18 @@ export default interface Resources {
         "replace": "Replace this Avatar",
         "title": "This Avatar name is already used"
       },
-      "discardUpload": "Discard unsaved upload",
-      "emptyIncluded": "No Included Avatars are available. You can use My Content or upload a VRM.",
-      "emptyLocal": "No Avatars in My Content yet. Upload a VRM to add one.",
-      "fileInput": "Choose a VRM file",
-      "groupLabel": {
-        "included": "Included Avatars",
-        "local": "My Content Avatars"
+      "diagnostics": {
+        "checking": "Checking this Avatar…",
+        "failed": "Animama could not load this Avatar.",
+        "noProblems": "No problems found.",
+        "problems_one": "{{count}} problem found.",
+        "problems_other": "{{count}} problems found.",
+        "view": "View diagnostics"
       },
+      "discardUpload": "Discard unsaved upload",
+      "empty": "No Avatars are available yet. Upload a VRM to add one.",
+      "fileInput": "Choose a VRM file",
+      "groupLabel": "Avatars",
       "inUse": "This Avatar is used by a live Anima. Keep it intact and save your upload under a new name.",
       "label": "Avatar selection",
       "loadFailed": "Avatars could not be loaded. Your selection is preserved.",
@@ -1950,6 +2193,7 @@ export default interface Resources {
       "chooseAnother": "This saved voice is unavailable. Choose another voice.",
       "cloneUnavailable": "This saved voice is unavailable. Refresh the library.",
       "elevenLabsId": "ElevenLabs voice ID",
+      "elevenLabsLibrary": "Find a voice in the <link>ElevenLabs Voice Library</link>, add it to My Voices, then paste its voice ID here.",
       "elevenLabsPlaceholder": "Enter voice ID",
       "label": "Voice configuration",
       "loadFailed": "Saved voices could not be loaded.",
@@ -1961,6 +2205,8 @@ export default interface Resources {
         "pocketTts": "PocketTTS"
       },
       "retry": "Retry saved voices",
+      "reuseVoice": "Use another Anima's voice",
+      "reuseVoiceOption": "{{names}} · {{id}}",
       "savedVoiceUnavailable": "Saved voice unavailable"
     }
   },
@@ -2509,7 +2755,6 @@ export default interface Resources {
       },
       "previewAvatarFailed": "Unable to load the preview Avatar.",
       "previewNoun": "preview",
-      "previewWarning": "The preview Avatar reported a problem with this effect.",
       "recoveredDraft": "Recovered local draft",
       "recovery": {
         "unavailable": "Browser crash recovery is unavailable. Keep this tab open until Save completes."
@@ -2577,7 +2822,9 @@ export default interface Resources {
         "changed": "Changed, not saved",
         "corrected": "Corrected",
         "detected": "Detected · {{confidence, number(style: percent)}}",
+        "estimated": "Position estimated",
         "foundByName": "Found by name · {{confidence, number(style: percent)}}, check it",
+        "insideShared": "Found inside another mesh part",
         "missing": "Missing",
         "uncertain": "Detected · {{confidence, number(style: percent)}}, check it"
       },
@@ -3548,6 +3795,8 @@ export default interface Resources {
     },
     "inventory": {
       "actions": {
+        "avatarSettings": "Avatar settings",
+        "avatarSettingsShort": "Settings",
         "createAnima": "Create Anima",
         "draft": "Draft",
         "edit": "Edit",
@@ -3560,6 +3809,12 @@ export default interface Resources {
         "stop": "Stop",
         "useInGesture": "Use in Gesture",
         "useInReaction": "Use in Reaction"
+      },
+      "avatarSettings": {
+        "description": "Settings for {{name}}. They apply wherever this Avatar is used.",
+        "diagnostics": "See what Animama found in this Avatar, and copy a report for support.",
+        "diagnosticsOnly": "See what Animama found in {{name}}.",
+        "title": "Avatar settings"
       },
       "groups": {
         "avatarEffects": "Avatar Effects",
@@ -3700,6 +3955,9 @@ export default interface Resources {
         "alreadyReviewed": "This file already has a review. Discard it before choosing a replacement file.",
         "animaNote": "Creates a fresh companion with the reviewed content and configuration.",
         "animaUnavailable": "Importing an Anima package is unavailable here. Import content or export an existing Anima instead.",
+        "avatarSettingsNotStored": "This app does not keep Avatar wind and material settings, so {{names}} will use Automatic.",
+        "avatarsNotLoadable_one": "{{names}} will be imported, but this version of Animama cannot show it yet: its model uses mesh compression the app cannot decode. Avatar Diagnostics names what it needs.",
+        "avatarsNotLoadable_other": "{{names}} will be imported, but this version of Animama cannot show them yet: their models use mesh compression the app cannot decode. Avatar Diagnostics names what they need.",
         "beingProcessed": "This import is being processed. Check its result before continuing.",
         "button": "Import",
         "changeFile": "Change file",
@@ -4241,6 +4499,7 @@ export default interface Resources {
     },
     "versions": {
       "afterRevert": "After Revert · Version {{version}}",
+      "automaticUpdate": "Automatic update from episode notes",
       "back": "Back",
       "changesIn": "Changes in Version {{version}}",
       "confirmRevert": "Confirm Revert",
@@ -4405,7 +4664,7 @@ export default interface Resources {
     "credentials": {
       "allFailed": "The changes could not finish. Check runtime recovery, then retry. Saved keys are never shown here.",
       "connectionKey": "Model connection key",
-      "description": "Add an OpenAI or Anthropic key for cloud chat or an ElevenLabs or Gemini key for voices. Keys for other model servers are entered on each connection in App Settings → Models. Keys are encrypted with this computer’s secure storage and never shown again. Changes apply as soon as you save. You can change them later in App Settings → API Keys.",
+      "description": "Keys are encrypted with this computer’s secure storage and never shown again. Changes apply as soon as you save.",
       "failure": {
         "full": "This computer already stores the most model connection keys it allows ({{max, number}}). Remove the key from a connection you no longer use, then retry.",
         "line": "{{name}}: {{message}}",
@@ -5797,7 +6056,7 @@ export default interface Resources {
         "copied": "Diagnostics copied.",
         "copy": "Copy summary",
         "copyFailed": "Diagnostics could not be copied to the clipboard.",
-        "description": "Copy version, platform and component status for a bug report. Keys, chats and memories are never included.",
+        "description": "Copy version, platform, component status, recent activity, warnings and errors for a bug report. Keys, chats and memories are never included.",
         "entryLabel": "Copy diagnostics summary",
         "label": "Diagnostics"
       },
@@ -5837,6 +6096,32 @@ export default interface Resources {
       }
     },
     "animaSettings": {
+      "avatar": {
+        "materials": {
+          "description": "lilToon draws this Avatar as authored; Simple costs less to draw. Automatic keeps lilToon and lowers the frame rate to 45, 30 or 24 fps when this device's GPU needs it; it uses Simple only when even 24 fps is too much. Applies wherever the Avatar is used, and reloads it.",
+          "label": "Materials",
+          "modes": {
+            "automatic": "Automatic",
+            "liltoon": "lilToon",
+            "simple": "Simple"
+          }
+        },
+        "wind": {
+          "description": "How wind and updraft move this Avatar's hair and clothes, wherever the Avatar is used.",
+          "label": "Wind and ambient forces",
+          "modes": {
+            "automatic": "Automatic",
+            "off": "Off",
+            "on": "On",
+            "springs_off": "Springs off"
+          }
+        },
+        "windStrength": {
+          "description": "How strongly wind and updraft blow, from none to twice the default. Automatic leaves them off when this Avatar’s hair is too soft to hold against them at this strength.",
+          "label": "Wind strength",
+          "value": "{{percent}}%"
+        }
+      },
       "choices": {
         "appDefaultOff": "App default (Off)",
         "appDefaultOn": "App default (On)",
@@ -5844,10 +6129,16 @@ export default interface Resources {
         "on": "On"
       },
       "headings": {
+        "avatar": "Avatar",
         "emotion": "Emotion",
         "memory": "Memory"
       },
       "rows": {
+        "avatar_diagnostics": {
+          "description": "See what Animama found in this Anima's Avatar, and copy a report for support.",
+          "label": "Avatar diagnostics",
+          "open": "Open diagnostics"
+        },
         "emotion_updates": {
           "description": "Update emotional state during chat. When off, new emotion reactions stop; gestures still play.",
           "tooltip": "When off, the existing mood is preserved and gestures still play."
@@ -5863,6 +6154,7 @@ export default interface Resources {
         }
       },
       "updateFailed": {
+        "avatar": "The Avatar setting could not be saved.",
         "emotion": "Failed to update emotion settings.",
         "memory": "Failed to update memory settings."
       }
@@ -5952,6 +6244,21 @@ export default interface Resources {
     },
     "behavior": {
       "appDefaultLabel": "{{label}} (app default)",
+      "automaticProcessing": {
+        "dailyLimit": "Daily limit reached. Processing continues tomorrow.",
+        "description": "Fold notes from your chats into your memory files once this many are waiting.",
+        "label": "Process episode notes automatically",
+        "memoryOff": "Turn on Memory and Memory updates to process notes automatically.",
+        "needsModel": "Needs a Memory Manager model that supports tools. Choose one in the Models settings.",
+        "notes_one": "After {{count}} note",
+        "notes_other": "After {{count}} notes",
+        "off": "Off",
+        "paused": "Paused after repeated failures. Change this setting to try again. Last error: {{error}}",
+        "retrying": "Retrying later after a failure. Last error: {{error}}",
+        "running_one": "Crystallizing {{count}} note into memory…",
+        "running_other": "Crystallizing {{count}} notes into memory…",
+        "updateFailed": "Failed to update automatic note processing."
+      },
       "blockedByMemory": "Turn Memory on to allow memory updates.",
       "flags": {
         "emotion_updates": {
@@ -6030,15 +6337,24 @@ export default interface Resources {
       "microphone": "Microphone",
       "profile": "Profile",
       "speechToText": "Speech-to-Text",
+      "startup": "Startup",
       "textToSpeech": "Text-to-Speech",
       "webSearch": "Web search"
     },
     "language": {
-      "description": "The language of Animama and of your Animas: menus, messages, and what your Animas say and hear. Beta languages are machine-translated.",
       "keywords": ["language", "locale", "translation"],
       "label": "Language",
       "saveFailed": "Failed to change the language.",
       "systemDefaultResolved": "System default ({{language}})"
+    },
+    "launchAtLogin": {
+      "blocked": {
+        "macos": "Animama will not open at login until you allow it in System Settings → General → Login Items & Extensions.",
+        "windows": "Animama will not open at login until you turn it on in Settings → Apps → Startup."
+      },
+      "description": "Open Animama automatically when you log in to your computer.",
+      "label": "Launch at login",
+      "updateFailed": "Could not change Launch at login."
     },
     "modal": {
       "close": "Close App Settings",
@@ -6097,7 +6413,6 @@ export default interface Resources {
       "advanced": "Advanced",
       "apiKeys": "API Keys",
       "appearance": "Appearance",
-      "data": "Data",
       "general": "General",
       "memoryEmotion": "Memory & Emotion",
       "models": "Models",
@@ -6110,6 +6425,8 @@ export default interface Resources {
         "press_to_talk": "Press to talk",
         "quick_chat": "Quick Chat",
         "skip_tts": "Skip TTS",
+        "toggle_dictation": "Dictation on/off",
+        "toggle_pip": "Picture-in-picture on/off",
         "toggle_voice_mode": "Voice Mode on/off",
         "toggle_voice_mute": "Toggle mute"
       },
@@ -6220,9 +6537,11 @@ export default interface Resources {
       "skip": "Skip for now"
     },
     "ageConfirmation": {
+      "agreement": "By continuing, you agree to the <terms>Terms of Service</terms> and confirm that you have read the <privacy>Privacy Notice</privacy>.",
       "backToSetup": "Back to setup",
       "betaNotice": "Animama on the web is in beta. The desktop app gives the best experience.",
       "confirm": "I am 18 or older",
+      "confirmAndAgree": "I am 18 or older and agree",
       "decline": "I'm under 18",
       "declined": "Animama is only for adults 18 and older. You can't continue to chat.",
       "errors": {
@@ -6314,8 +6633,9 @@ export default interface Resources {
         "downloading": "Downloading {{percent}}",
         "engines": {
           "parakeet": "<link>NVIDIA's Parakeet TDT 0.6B v2</link> transcribes English speech on this device, so your voice never leaves it.",
-          "sensevoice": "<link>Alibaba's SenseVoice-Small</link> transcribes Japanese, Korean and Chinese speech on this device, so your voice never leaves it."
+          "sensevoice": "<link>Alibaba's SenseVoice-Small</link> transcribes Japanese, Korean, Chinese and English speech on this device, so your voice never leaves it."
         },
+        "finishWhileDownloading": "You can finish setup while this downloads. It keeps going in the background.",
         "gpu": {
           "description": "Faster, with live previews as you speak. Needs the CPU version and a WebGPU-capable GPU.",
           "label": "{{model}} (GPU)",
@@ -6325,11 +6645,11 @@ export default interface Resources {
         "listUnavailable": "Speech downloads are unavailable right now. You can add them later in App Settings.",
         "lowSpace": "Not enough free space: downloads need {{size}} free.",
         "notDownloaded": "Not downloaded",
-        "otherLanguage": {
-          "parakeet": "Animama uses this model while the app language is English.",
-          "sensevoice": "Animama uses this model while the app language is Japanese, Korean or Chinese."
-        },
         "progressLabel": "{{label}} download progress",
+        "recognizes": {
+          "parakeet": "Recognizes English only.",
+          "sensevoice": "Recognizes Japanese, Korean, Chinese and English. It listens for the app language; with the app in English, it detects which language you speak."
+        },
         "retryDownload": "Retry download",
         "turnedOff": "Speech recognition is turned off on this server.",
         "unavailableInBuild": "Unavailable in this build.",
@@ -6493,20 +6813,13 @@ export default interface Resources {
         "notReady": "The installation is not ready. Reopen and retry.",
         "statusUnavailable": "Download status is unavailable. Reopen and retry."
       },
-      "installed": "Installed",
-      "installedWithNote": "Installed · {{note}}",
-      "lowSpace": "Not enough free space: downloads need {{size}} free.",
       "notAvailable": "Not available",
-      "progressLabel": "{{label}} download progress",
       "remove": "Remove",
-      "retry": "Retry download",
       "sections": {
-        "speechToText": "Speech-to-Text",
         "voiceClone": "Voice Clone"
       },
       "size": "{{size}} download",
-      "sizeRetry": "{{size}} download · Retry available",
-      "verifying": "Verifying download…"
+      "sizeRetry": "{{size}} download · Retry available"
     },
     "gemini": {
       "descriptors": {
@@ -6536,6 +6849,9 @@ export default interface Resources {
     },
     "languageNotice": {
       "speechToText": "To use offline speech recognition in {{language}}, download its model.",
+      "speechToTextEnglishOnly": "Parakeet recognizes English only. To speak to your Animas in {{language}}, choose SenseVoice.",
+      "speechToTextModel": "To use SenseVoice, download its model.",
+      "speechToTextModelUnavailable": "SenseVoice is not available on this server.",
       "speechToTextUnavailable": "Offline speech recognition in {{language}} is not available on this server.",
       "textToSpeech": "Pocket TTS speaks English only. To hear your Animas in {{language}}, choose ElevenLabs or Gemini."
     },
@@ -6585,22 +6901,13 @@ export default interface Resources {
       }
     },
     "offlineSpeech": {
-      "checking": "Checking offline speech recognition…",
-      "cpu": {
-        "download": "Download CPU model",
-        "label": "CPU model",
-        "remove": "Remove CPU model"
-      },
-      "description": "Dictation and Voice Mode transcribe on this device, so audio never leaves it.",
       "developmentAcquire": "This development stack serves speech models from the host: run {{cpuCommand}} (and {{gpuCommand}} for GPU acceleration), then rerun {{resetCommand}}.",
       "engines": {
         "parakeet": {
-          "attribution": "Model attribution (CC BY 4.0)",
           "languages": "English",
           "model": "Parakeet TDT 0.6B v2 by NVIDIA"
         },
         "sensevoice": {
-          "attribution": "Model attribution (FunASR Model License)",
           "languages": "Japanese, Korean and Chinese",
           "model": "SenseVoice-Small by Alibaba"
         }
@@ -6616,27 +6923,16 @@ export default interface Resources {
       },
       "gpu": {
         "blocked": {
-          "checking": "Checking WebGPU support…",
-          "missing": "GPU acceleration is unavailable in this build.",
-          "needsCpu": "Download the CPU model first.",
-          "noWebgpu": "WebGPU is not available in this browser or on this device."
+          "needsCpu": "Download the CPU model first."
         },
-        "description": "Faster recognition with live previews. Requires the CPU model and a WebGPU-capable device.",
-        "download": "Download GPU acceleration",
         "fellBack": "WebGPU failed to load last time, so speech recognition used the CPU.",
-        "label": "GPU acceleration",
-        "remove": "Remove GPU acceleration",
-        "removeFirst": "Remove GPU acceleration first.",
-        "unavailableNow": "GPU acceleration is unavailable right now."
+        "removeFirst": "Remove GPU acceleration first."
       },
-      "listUnavailable": "Speech downloads are unavailable. Reopen Settings to retry.",
       "refusals": {
         "busy": "This model is still changing. Retry in a moment.",
         "changeFailed": "The change could not finish. Retry in a moment.",
         "inUse": "Speech recognition is in use. Close dictation and Voice Mode to remove it."
-      },
-      "title": "Offline speech recognition",
-      "turnedOff": "Offline speech recognition is turned off on this server."
+      }
     },
     "pocket": {
       "accents": {

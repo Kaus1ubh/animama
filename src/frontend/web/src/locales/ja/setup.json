@@ -8,9 +8,11 @@
     "skip": "今はスキップ"
   },
   "ageConfirmation": {
+    "agreement": "続行すると、<terms>利用規約</terms>に同意し、<privacy>プライバシー通知</privacy>を読んだことを確認したものとみなされます。",
     "backToSetup": "セットアップに戻る",
     "betaNotice": "Web 版 Animama はベータ版です。最適な体験にはデスクトップアプリをご利用ください。",
     "confirm": "18 歳以上です",
+    "confirmAndAgree": "18 歳以上で、同意します",
     "decline": "18 歳未満です",
     "declined": "Animama は 18 歳以上の成人専用です。チャットを続けることはできません。",
     "errors": {
@@ -100,6 +102,7 @@
       "download": "ダウンロード",
       "downloaded": "ダウンロード済み",
       "downloading": "ダウンロード中 {{percent}}",
+      "finishWhileDownloading": "ダウンロード中でもセットアップを完了できます。ダウンロードはバックグラウンドで続きます。",
       "gpu": {
         "description": "高速で、話しながらライブプレビューを表示します。CPU 版と WebGPU 対応の GPU が必要です。",
         "label": "{{model}} (GPU)",
@@ -121,11 +124,11 @@
       },
       "engines": {
         "parakeet": "<link>NVIDIA の Parakeet TDT 0.6B v2</link> が英語の音声をこのデバイス上で文字起こしするため、音声が外部に送られることはありません。",
-        "sensevoice": "<link>Alibaba の SenseVoice-Small</link> が日本語・韓国語・中国語の音声をこのデバイス上で文字起こしするため、音声が外部に送られることはありません。"
+        "sensevoice": "<link>Alibaba の SenseVoice-Small</link> が日本語・韓国語・中国語・英語の音声をこのデバイス上で文字起こしするため、音声が外部に送られることはありません。"
       },
-      "otherLanguage": {
-        "parakeet": "アプリの言語が英語のときに使われるモデルです。",
-        "sensevoice": "アプリの言語が日本語・韓国語・中国語のときに使われるモデルです。"
+      "recognizes": {
+        "parakeet": "英語のみ認識します。",
+        "sensevoice": "日本語・韓国語・中国語・英語を認識します。アプリの言語で聞き取り、アプリが英語のときは話している言語を自動で判別します。"
       }
     },
     "tts": {

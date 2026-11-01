@@ -797,6 +797,50 @@ export type AvatarFacePartsUpdate = {
     face_parts: AvatarFacePartCorrection | null;
 };
 
+export type AvatarMaterialMode = 'automatic' | 'liltoon' | 'simple';
+
+export type AvatarSettingSource = 'stored' | 'default';
+
+/**
+ * AvatarSettingsState
+ *
+ * The effective settings for one Avatar and whether each was stored or defaulted.
+ */
+export type AvatarSettingsState = {
+    /**
+     * Item Id
+     */
+    item_id: string;
+    material_mode: AvatarMaterialMode;
+    material_mode_source: AvatarSettingSource;
+    spring_mode: AvatarSpringMode;
+    spring_mode_source: AvatarSettingSource;
+    /**
+     * Wind Strength
+     */
+    wind_strength: number;
+    wind_strength_source: AvatarSettingSource;
+};
+
+/**
+ * AvatarSettingsUpdate
+ *
+ * Change some of the owner's settings for one Avatar.
+ *
+ * An omitted field keeps its stored value; ``automatic`` or ``null`` clears
+ * it, as does the default wind strength (100).
+ */
+export type AvatarSettingsUpdate = {
+    material_mode?: AvatarMaterialMode | null;
+    spring_mode?: AvatarSpringMode | null;
+    /**
+     * Wind Strength
+     */
+    wind_strength?: number | null;
+};
+
+export type AvatarSpringMode = 'automatic' | 'on' | 'off' | 'springs_off';
+
 /**
  * BodyAttachment
  *
@@ -1815,6 +1859,8 @@ export type ImagePresentation = {
      */
     zoom: number;
 };
+
+export type ImportItemNotice = 'avatar_setting_not_stored' | 'avatar_extension_unsupported';
 
 /**
  * ImportedPackageItem
@@ -3596,6 +3642,62 @@ export type PyArchivePassageUpdate = {
 };
 
 /**
+ * PyAutomaticEpisodeProcessingStatus
+ *
+ * The setting and what automatic processing will do next.
+ *
+ * ``batch_size`` and ``started_at`` are set only while ``state`` is ``running``;
+ * ``next_attempt_at`` while ``backing_off``; ``last_error`` after a failed run,
+ * except during the daily-limit wait, which reports none.
+ */
+export type PyAutomaticEpisodeProcessingStatus = {
+    /**
+     * Batch Size
+     */
+    batch_size?: number | null;
+    /**
+     * Last Error
+     */
+    last_error?: string | null;
+    /**
+     * Next Attempt At
+     */
+    next_attempt_at?: string | null;
+    /**
+     * Pending Count
+     */
+    pending_count: number;
+    /**
+     * Runs Today
+     */
+    runs_today: number;
+    /**
+     * Started At
+     */
+    started_at?: string | null;
+    /**
+     * State
+     */
+    state: 'off' | 'memory_off' | 'needs_model' | 'running' | 'paused' | 'backing_off' | 'waiting' | 'ready';
+    /**
+     * Threshold
+     */
+    threshold: number;
+};
+
+/**
+ * PyAutomaticEpisodeProcessingUpdate
+ *
+ * ``threshold`` is 0 for Off, or the number of pending notes (5–50) that starts a run.
+ */
+export type PyAutomaticEpisodeProcessingUpdate = {
+    /**
+     * Threshold
+     */
+    threshold: number;
+};
+
+/**
  * PyAvailableModels
  */
 export type PyAvailableModels = {
@@ -4585,6 +4687,10 @@ export type PyContentFile = {
      * Size Bytes
      */
     size_bytes: number;
+    /**
+     * Url
+     */
+    url: string;
 };
 
 /**
@@ -8791,6 +8897,10 @@ export type PyTypedContentFile = {
      * Size Bytes
      */
     size_bytes: number;
+    /**
+     * Url
+     */
+    url: string;
 };
 
 /**
@@ -9584,6 +9694,10 @@ export type ReviewedImportItem = {
      */
     name: string;
     /**
+     * Notices
+     */
+    notices?: Array<ImportItemNotice>;
+    /**
      * Original Name
      */
     original_name: string;
@@ -9679,6 +9793,10 @@ export type RuntimeCapabilities = {
      * Anima Creation
      */
     anima_creation: boolean;
+    /**
+     * Automatic Episode Processing
+     */
+    automatic_episode_processing?: boolean;
     browser_telemetry?: BrowserTelemetryCapability | null;
     /**
      * Chat
@@ -9690,6 +9808,10 @@ export type RuntimeCapabilities = {
     chat_file_uploads: boolean;
     companion_safety: CompanionSafetyCapability;
     gemini_tts?: GeminiTtsCapability | null;
+    /**
+     * Library Previews
+     */
+    library_previews?: boolean;
     /**
      * Local Filesystem Administration
      */
@@ -9865,6 +9987,16 @@ export type UserFileProcessingCapability = {
  * ValidationError
  */
 export type ValidationError = {
+    /**
+     * Context
+     */
+    ctx?: {
+        [key: string]: unknown;
+    };
+    /**
+     * Input
+     */
+    input?: unknown;
     /**
      * Location
      */
@@ -11575,6 +11707,66 @@ export type SaveAvatarPortraitResponses = {
 
 export type SaveAvatarPortraitResponse = SaveAvatarPortraitResponses[keyof SaveAvatarPortraitResponses];
 
+export type GetAvatarSettingsData = {
+    body?: never;
+    path: {
+        /**
+         * Item Id
+         */
+        item_id: string;
+    };
+    query?: never;
+    url: '/v1/avatar-content/{item_id}/settings';
+};
+
+export type GetAvatarSettingsErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetAvatarSettingsError = GetAvatarSettingsErrors[keyof GetAvatarSettingsErrors];
+
+export type GetAvatarSettingsResponses = {
+    /**
+     * Successful Response
+     */
+    200: AvatarSettingsState;
+};
+
+export type GetAvatarSettingsResponse = GetAvatarSettingsResponses[keyof GetAvatarSettingsResponses];
+
+export type SaveAvatarSettingsData = {
+    body: AvatarSettingsUpdate;
+    path: {
+        /**
+         * Item Id
+         */
+        item_id: string;
+    };
+    query?: never;
+    url: '/v1/avatar-content/{item_id}/settings';
+};
+
+export type SaveAvatarSettingsErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type SaveAvatarSettingsError = SaveAvatarSettingsErrors[keyof SaveAvatarSettingsErrors];
+
+export type SaveAvatarSettingsResponses = {
+    /**
+     * Successful Response
+     */
+    200: AvatarSettingsState;
+};
+
+export type SaveAvatarSettingsResponse = SaveAvatarSettingsResponses[keyof SaveAvatarSettingsResponses];
+
 export type PreviewAvatarContentData = {
     body?: never;
     path: {
@@ -12166,6 +12358,49 @@ export type StreamContentFileV1ContentFilesFileRefGetErrors = {
 export type StreamContentFileV1ContentFilesFileRefGetError = StreamContentFileV1ContentFilesFileRefGetErrors[keyof StreamContentFileV1ContentFilesFileRefGetErrors];
 
 export type StreamContentFileV1ContentFilesFileRefGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type StreamIncludedContentFileV1ContentFilesFileRefSha256Sha256GetData = {
+    body?: never;
+    headers?: {
+        /**
+         * If-None-Match
+         */
+        'If-None-Match'?: string | null;
+    };
+    path: {
+        /**
+         * File Ref
+         */
+        file_ref: string;
+        /**
+         * Sha256
+         */
+        sha256: string;
+    };
+    query?: {
+        /**
+         * Variant
+         */
+        variant?: 'thumbnail' | null;
+    };
+    url: '/v1/content/files/{file_ref}/sha256/{sha256}';
+};
+
+export type StreamIncludedContentFileV1ContentFilesFileRefSha256Sha256GetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type StreamIncludedContentFileV1ContentFilesFileRefSha256Sha256GetError = StreamIncludedContentFileV1ContentFilesFileRefSha256Sha256GetErrors[keyof StreamIncludedContentFileV1ContentFilesFileRefSha256Sha256GetErrors];
+
+export type StreamIncludedContentFileV1ContentFilesFileRefSha256Sha256GetResponses = {
     /**
      * Successful Response
      */
@@ -13233,6 +13468,47 @@ export type RepairAnimaMemoriesV1MemoryAnimaMemoriesAnimaIdRepairPostResponses =
 };
 
 export type RepairAnimaMemoriesV1MemoryAnimaMemoriesAnimaIdRepairPostResponse = RepairAnimaMemoriesV1MemoryAnimaMemoriesAnimaIdRepairPostResponses[keyof RepairAnimaMemoriesV1MemoryAnimaMemoriesAnimaIdRepairPostResponses];
+
+export type GetAutomaticEpisodeProcessingV1MemoryAutomaticProcessingGetData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/v1/memory/automatic-processing';
+};
+
+export type GetAutomaticEpisodeProcessingV1MemoryAutomaticProcessingGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: PyAutomaticEpisodeProcessingStatus;
+};
+
+export type GetAutomaticEpisodeProcessingV1MemoryAutomaticProcessingGetResponse = GetAutomaticEpisodeProcessingV1MemoryAutomaticProcessingGetResponses[keyof GetAutomaticEpisodeProcessingV1MemoryAutomaticProcessingGetResponses];
+
+export type UpdateAutomaticEpisodeProcessingV1MemoryAutomaticProcessingPutData = {
+    body: PyAutomaticEpisodeProcessingUpdate;
+    path?: never;
+    query?: never;
+    url: '/v1/memory/automatic-processing';
+};
+
+export type UpdateAutomaticEpisodeProcessingV1MemoryAutomaticProcessingPutErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type UpdateAutomaticEpisodeProcessingV1MemoryAutomaticProcessingPutError = UpdateAutomaticEpisodeProcessingV1MemoryAutomaticProcessingPutErrors[keyof UpdateAutomaticEpisodeProcessingV1MemoryAutomaticProcessingPutErrors];
+
+export type UpdateAutomaticEpisodeProcessingV1MemoryAutomaticProcessingPutResponses = {
+    /**
+     * Successful Response
+     */
+    200: PyAutomaticEpisodeProcessingStatus;
+};
+
+export type UpdateAutomaticEpisodeProcessingV1MemoryAutomaticProcessingPutResponse = UpdateAutomaticEpisodeProcessingV1MemoryAutomaticProcessingPutResponses[keyof UpdateAutomaticEpisodeProcessingV1MemoryAutomaticProcessingPutResponses];
 
 export type DebugSearchMemoryFilesV1MemoryDebugSearchMemoryFilesPostData = {
     body: PySearchMemoryFilesDebugRequest;

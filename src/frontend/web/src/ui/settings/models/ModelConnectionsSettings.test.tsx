@@ -17,6 +17,7 @@ import { ModelConnectionsSettings } from "./ModelConnectionsSettings";
 const state = vi.hoisted(() => ({
   desktop: true,
   localModels: true,
+  deepseekHuggingface: true,
   capabilities: {} as Record<string, unknown> | undefined,
   connections: [] as unknown[],
   presets: [] as unknown[],
@@ -41,6 +42,9 @@ vi.mock("@/platform/env", async (importOriginal) => {
       ...actual.env,
       get enableLocalModels() {
         return state.localModels;
+      },
+      get enableDeepseekHuggingface() {
+        return state.deepseekHuggingface;
       },
     },
   };
@@ -237,6 +241,7 @@ function expectInOrder(html: string, parts: string[]) {
 beforeEach(() => {
   state.desktop = true;
   state.localModels = true;
+  state.deepseekHuggingface = true;
   state.capabilities = {
     model_configuration: true,
     web_search: { configuration: true, configured: true, backend: "searxng" },
@@ -324,6 +329,20 @@ describe("Models connections by where models run", () => {
     const kept = render(<ModelConnectionsSettings disabled={false} />);
     expect(kept).toContain('aria-label="Where models run"');
     expect(panel(kept, "local")).toContain("Workstation vLLM");
+  });
+
+  it("hides DeepSeek and Hugging Face behind their flag unless connected", () => {
+    state.deepseekHuggingface = false;
+    state.connections = [openrouter, anthropic, builtin];
+    const html = render(<ModelConnectionsSettings disabled={false} />);
+    expectInOrder(panel(html, "cloud"), [
+      "OpenAI",
+      "Anthropic",
+      "OpenRouter",
+      "Custom",
+    ]);
+    expect(html).not.toContain("DeepSeek");
+    expect(html).not.toContain("Hugging Face");
   });
 
   it("opens on the first connected provider and marks connected tabs", () => {
@@ -441,8 +460,12 @@ describe("Models connections by where models run", () => {
   it("shows the built-in Anthropic connection with its logo, key state and Haiku 5.5", () => {
     const html = render(<ModelConnectionsSettings disabled={false} />);
     const claude = panel(html, "anthropic");
-    expectInOrder(claude, ["Anthropic", "Key missing", "Claude Haiku 5.5"]);
-    expect(claude).not.toContain("Recommended");
+    expectInOrder(claude, [
+      "Anthropic",
+      "Recommended",
+      "Key missing",
+      "Claude Haiku 5.5",
+    ]);
     expect(claude).toContain('aria-label="Add model to Anthropic"');
     // Built-in: neither editable nor removable.
     expect(claude).not.toContain('aria-label="Remove Anthropic"');

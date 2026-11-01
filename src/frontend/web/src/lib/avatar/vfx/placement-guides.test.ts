@@ -137,6 +137,7 @@ describe("read-only placement guides", () => {
     landmarks = {
       status: "ready",
       warnings: [],
+      issues: [],
       anchorName: "head",
       anchorType: "bone",
       faceBindingKey: "face",
@@ -153,18 +154,27 @@ describe("read-only placement guides", () => {
         bindingKey: "iris",
         materialName: "Iris",
         vertexCount: 4,
-        boundsLocal: bounds,
+        // An iris the size of the Included Avatars', so eye planes keep
+        // their authored height.
+        boundsLocal: {
+          min: vec(point.x - 0.0125, point.y - 0.015, point.z - 0.005),
+          max: vec(point.x + 0.0125, point.y + 0.015, point.z + 0.005),
+          size: vec(0.025, 0.03, 0.01),
+          center: point,
+        },
         centerLocal: point,
         centerWorld: null,
         projectedFrontLocal: { ...point, z: 0.05 },
         projectedFrontWorld: null,
         normalizedBoxCoord: { u: 0.5, v: 0.5, w: 0.5 },
         projectedBoxCoord: { u: 0.5, v: 0.5, w: 1 },
+        textureRect: null,
       };
     }
     anchors = {
       status: "ready",
       warnings: [],
+      issues: [],
       faceBindingKey: "face",
       faceMaterialName: "Face Skin",
       anchors: {

@@ -210,11 +210,14 @@ context's `locale`) is not the UI Locale; the context's `ui_locale` is.
 
 The language an Anima replies, speaks and listens in. It is always the active
 **Locale**: a non-English locale instructs the model and sets the speech
-language code; English leaves both to their defaults. It also chooses the
-offline speech recognizer when dictation or Voice Mode starts: Parakeet for
-English, SenseVoice-Small for Japanese, Korean and Chinese
-([ADR 0029](docs/adr/0029-sensevoice-offline-speech-recognition.md)). Pocket
-TTS speaks only English and shows a warning under other locales.
+language code; English leaves both to their defaults. Unless the owner chose
+an offline speech recognizer, it also chooses one when dictation or Voice Mode
+starts: Parakeet for English, SenseVoice-Small for Japanese, Korean and Chinese
+([ADR 0029](docs/adr/0029-sensevoice-offline-speech-recognition.md),
+[ADR 0031](docs/adr/0031-offline-speech-engine-is-the-owners-choice.md)).
+Parakeet and Pocket TTS work only in English and show a warning under other
+locales. New memory text is written in the language of the conversation or
+notes it comes from ([ADR 0024](docs/adr/0024-ui-locale-is-the-conversation-language.md)).
 
 ## Audio tag
 
@@ -246,6 +249,16 @@ An owner-started Memory Manager conversation that reads one Anima's turns not ye
 covered by an applied Reflection and proposes a curated edit of its Anima
 memories. It never runs automatically. Turns count as covered only once its change
 is applied.
+
+## Automatic episode processing
+
+In the local composition, Memory Manager episode processing that the backend
+starts by itself once the owner's pending episode notes (saved by chat's
+`remember` field) reach the App Settings threshold. It approves its own proposals,
+writes only shared user memory such as `PROFILE.md`, and labels each change in
+version history as an automatic update from episode notes. Distinct from
+**Reflection**, which stays owner-started; hosted has no automatic processing. See
+[ADR 0034](docs/adr/0034-automatic-episode-processing-and-profile-context.md).
 
 ## Model connection
 
@@ -288,7 +301,7 @@ own search. The per-model Web search control turns either on.
 ## Companion guardrail
 
 The fixed, server-owned **Companion Guardrails** instruction section that ends
-every chat turn's provider instructions: honesty about being an AI, no
+every chat turn's system instructions: honesty about being an AI, no
 therapist claims, no manipulative retention and a caring crisis response. No
 identity, memory, setting or safety switch removes it; see
 [ADR 0008](docs/adr/0008-non-overridable-companion-guardrail.md).
@@ -305,6 +318,20 @@ assistant text and is never spoken or saved in the chat.
 A run of turns with the same installation owner, across Animas, where each turn
 starts less than 30 minutes after the previous one. AI-notice reminders are
 measured from its start or the last notice, whichever is later.
+
+## Benchmark run
+
+One approved execution of the [model benchmark](docs/benchmarks/README.md)
+over a fixed set of configurations (a catalog chat row at a reasoning effort)
+and one prompt-set version. It produces raw results, judge scores and one
+report; quality compares across runs of the same prompt-set version and judge
+series, latency only within a run.
+
+## Benchmark area
+
+A group of related benchmark measures: core turns, long chats, in-chat memory
+with the episodic-memory arms, or the Memory Manager. The word avoids
+"domain", which names domain documentation and the backend `domain` layer.
 
 ## Using these terms
 

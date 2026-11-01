@@ -20,9 +20,9 @@ def _service(session: AsyncSession) -> UserProfileService:
 
 def test_display_name_is_required_private_personalization() -> None:
     assert normalize_display_name("  Ada   Lovelace ") == "Ada Lovelace"
-    assert normalize_display_name("x" * 80) == "x" * 80
+    assert normalize_display_name("x" * 30) == "x" * 30
     with pytest.raises(UserProfileInvalidError, match="length"):
-        normalize_display_name("x" * 81)
+        normalize_display_name("x" * 31)
 
 
 @pytest.mark.parametrize("value", [None, "", "   ", "\t\n", "\u00a0"])

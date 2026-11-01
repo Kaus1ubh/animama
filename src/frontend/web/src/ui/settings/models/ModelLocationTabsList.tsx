@@ -10,17 +10,14 @@ import {
 /**
  * The Cloud | Local tab strip shared by setup's AI step and App Settings →
  * Models: centered tabs of equal width, from `visibleModelLocations`. A single
- * location needs no strip, so it renders nothing. `recommended` marks one
- * location with a tag (setup recommends Cloud).
+ * location needs no strip, so it renders nothing.
  */
 export function ModelLocationTabsList({
   locations,
   active,
-  recommended,
 }: {
   locations: readonly ModelLocation[];
   active: string;
-  recommended?: string;
 }) {
   const { t } = useTranslation("models");
   if (locations.length < 2) return null;
@@ -29,11 +26,9 @@ export function ModelLocationTabsList({
       tabs={locations.map((id) => ({
         id,
         label: modelLocationLabel(id),
-        recommended: id === recommended,
       }))}
       active={active}
       label={t("locations.tabsLabel")}
-      recommendedLabel={t("providers.recommended")}
     />
   );
 }

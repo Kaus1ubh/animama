@@ -106,6 +106,7 @@ describe("authored facial behavior", () => {
     landmarks = {
       status: "ready",
       warnings: [],
+      issues: [],
       anchorName: "head",
       anchorType: "bone",
       faceBindingKey: "face",
@@ -129,11 +130,13 @@ describe("authored facial behavior", () => {
         projectedFrontWorld: null,
         normalizedBoxCoord: { u: 0.5, v: 0.5, w: 0.5 },
         projectedBoxCoord: { u: 0.5, v: 0.5, w: 1 },
+        textureRect: null,
       };
     }
     anchors = {
       status: "ready",
       warnings: [],
+      issues: [],
       faceBindingKey: "face",
       faceMaterialName: "Face Skin",
       anchors: {
@@ -319,6 +322,57 @@ describe("authored facial behavior", () => {
     expect(meshes.eyelash.visible).toBe(true);
   });
 
+  it("hides the irises while Fcl_EYE_Iris_Hide is held, counted with effects", async () => {
+    controller.setIrisHidden(true);
+    expect(meshes.iris.visible).toBe(false);
+    expect(meshes.face.visible).toBe(true);
+    // An effect hiding the irises too keeps them hidden until both release.
+    await controller.applyTextureVFX({
+      effectId: "texture",
+      effectEntry: {
+        ...base(),
+        id: "texture",
+        kind: "texture",
+        targetRole: "face_skin",
+        applyMode: "overlay",
+        assetShape: "full_face",
+        disableTargetRoles: ["eye_iris"],
+      },
+    });
+    controller.setIrisHidden(false);
+    expect(meshes.iris.visible).toBe(false);
+    controller.clearAllEffects();
+    expect(meshes.iris.visible).toBe(true);
+
+    controller.setIrisHidden(true);
+    await controller.refreshFaceParts();
+    expect(meshes.iris.visible, "hidden again on the rebuilt bindings").toBe(
+      false,
+    );
+    controller.setIrisHidden(false);
+    expect(meshes.iris.visible).toBe(true);
+  });
+
+  it("reports irises it cannot hide for Fcl_EYE_Iris_Hide", () => {
+    const current = vi
+      .mocked(buildRuntimePrimitiveBindings)
+      .mock.results.at(-1)!.value as ReturnType<
+      typeof buildRuntimePrimitiveBindings
+    >;
+    vi.mocked(buildRuntimePrimitiveBindings).mockReturnValue({
+      ...current,
+      entries: current.entries.filter(
+        (entry) => !entry.bindingKey.includes("iris"),
+      ),
+    });
+    const withoutIrises = new AvatarVFXController(avatar);
+    controllers.push(withoutIrises);
+    withoutIrises.setIrisHidden(true);
+    expect(withoutIrises.getSnapshot().issues).toContainEqual({
+      code: "iris_hide_unavailable",
+    });
+  });
+
   it("skips an untextured iris when automatically selecting a texture replacement target", async () => {
     const untexturedMaterial = meshes.untextured_iris.material;
     const texturedMaterial = meshes.iris.material;
@@ -369,6 +423,73 @@ describe("authored facial behavior", () => {
     expect(controller.getSnapshot().flatten.autoEyes).toBe(false);
     expect(avatar.clearExpressionOverride).toHaveBeenCalledWith("blink");
     expect(meshes.face.material).toBe(originalFaceMaterial);
+  });
+
+  /** The skin cards behind an applied effect's eye art. */
+  const backdropMaterials = () => {
+    const materials: THREE.Material[] = [];
+    anchor.traverse((object) => {
+      if (object instanceof THREE.Mesh && object.name.endsWith(":backdrop")) {
+        materials.push(object.material as THREE.Material);
+      }
+    });
+    return materials;
+  };
+
+  /** Replace the face material and rebuild the controller around it. */
+  const useFaceMaterial = (material: THREE.Material) => {
+    material.name = "Face Skin";
+    meshes.face.material = material;
+    controller = new AvatarVFXController(avatar);
+    controllers.push(controller);
+  };
+
+  const faceTexture = () =>
+    new THREE.Texture(originalTexture as unknown as HTMLCanvasElement);
+
+  it("backs a custom-shader face's eye art with a plain skin card", async () => {
+    // Like three-liltoon's material: a raw shader that skins and blends its
+    // own way, so a clone on the unskinned card renders as an opaque dark box.
+    // The guard keys on "a shader other than MToon", not on this flag.
+    class FakeLilToonMaterial extends THREE.RawShaderMaterial {
+      readonly isLilToonMaterial = true;
+      map: THREE.Texture | null = faceTexture();
+    }
+    useFaceMaterial(new FakeLilToonMaterial());
+
+    await apply({ ...eyeEffect(), skinBackdrop: true });
+
+    const materials = backdropMaterials();
+    expect(materials.length).toBeGreaterThan(0);
+    for (const material of materials) {
+      expect(material).toBeInstanceOf(THREE.MeshBasicMaterial);
+      expect(material.name).toBe("");
+      expect(material.transparent).toBe(true);
+      expect(material.depthWrite).toBe(false);
+      // The mirrored eye's card is scaled by -1 in x.
+      expect(material.side).toBe(THREE.DoubleSide);
+      expect((material as THREE.MeshBasicMaterial).map).toBeInstanceOf(
+        THREE.CanvasTexture,
+      );
+    }
+  });
+
+  it("lights an MToon face's skin card like the face", async () => {
+    class FakeMToonMaterial extends THREE.ShaderMaterial {
+      readonly isMToonMaterial = true;
+      map: THREE.Texture | null = faceTexture();
+    }
+    useFaceMaterial(new FakeMToonMaterial());
+
+    await apply({ ...eyeEffect(), skinBackdrop: true });
+
+    const materials = backdropMaterials();
+    expect(materials.length).toBeGreaterThan(0);
+    for (const material of materials) {
+      // A clone of the face's material, carrying its name.
+      expect(material).toBeInstanceOf(FakeMToonMaterial);
+      expect(material.name).toBe("Face Skin");
+    }
   });
 
   it("fades the face changes with the event envelope", async () => {
@@ -471,6 +592,100 @@ describe("authored facial behavior", () => {
     expect(controller.getSnapshot().flatten.autoMouth).toBe(false);
   });
 
+  it("hides lashes drawn inside the face mesh while an eye effect plays", async () => {
+    const part = (role: AvatarFacePartRole, bindings: string[]) => ({
+      role,
+      bindings,
+      source: bindings.length ? ("signals" as const) : ("missing" as const),
+      confidence: bindings.length ? 0.9 : 0,
+    });
+    // The face plane's second triangle stands for a lash strand inside it.
+    const map: AvatarFacePartMap = {
+      parts: {
+        face_skin: part("face_skin", ["face"]),
+        eye_left: part("eye_left", ["iris"]),
+        eye_right: part("eye_right", ["iris"]),
+        eye_highlight: part("eye_highlight", ["eye_highlight"]),
+        eyeline: part("eyeline", ["eyeline"]),
+        eyelash: {
+          ...part("eyelash", []),
+          source: "signals",
+          regions: [{ bindingKey: "face", triangles: [1] }],
+        },
+        hair: part("hair", []),
+      },
+      eyeWhite: [],
+      diagnostics: [],
+      issues: [],
+    };
+    const partController = new AvatarVFXController({
+      ...avatar,
+      facePartMap: map,
+    } as Avatar);
+    controllers.push(partController);
+    const index = meshes.face.geometry.getIndex()!;
+    const corners = (triangle: number) =>
+      [0, 1, 2].map((corner) => index.getX(triangle * 3 + corner));
+    const lash = corners(1);
+
+    await partController.applyEffect({
+      bindingKey: "iris",
+      effectId: "preview",
+      effectEntry: eyeEffect(),
+    });
+    // The lash triangle draws nothing; the face's other triangle is intact.
+    expect(new Set(corners(1)).size).toBe(1);
+    expect(new Set(corners(0)).size).toBe(3);
+    expect(meshes.face.visible).toBe(true);
+
+    partController.removeEffect("preview");
+    expect(corners(1)).toEqual(lash);
+  });
+
+  it("reports a lash region it cannot hide, and still plays", async () => {
+    const part = (role: AvatarFacePartRole, bindings: string[]) => ({
+      role,
+      bindings,
+      source: bindings.length ? ("signals" as const) : ("missing" as const),
+      confidence: bindings.length ? 0.9 : 0,
+    });
+    meshes.face.geometry = meshes.face.geometry.toNonIndexed();
+    const map: AvatarFacePartMap = {
+      parts: {
+        face_skin: part("face_skin", ["face"]),
+        eye_left: part("eye_left", ["iris"]),
+        eye_right: part("eye_right", ["iris"]),
+        eye_highlight: part("eye_highlight", ["eye_highlight"]),
+        eyeline: part("eyeline", ["eyeline"]),
+        eyelash: {
+          ...part("eyelash", []),
+          source: "signals",
+          regions: [{ bindingKey: "face", triangles: [1] }],
+        },
+        hair: part("hair", []),
+      },
+      eyeWhite: [],
+      diagnostics: [],
+      issues: [],
+    };
+    const partController = new AvatarVFXController({
+      ...avatar,
+      facePartMap: map,
+    } as Avatar);
+    controllers.push(partController);
+
+    await partController.applyEffect({
+      bindingKey: "iris",
+      effectId: "preview",
+      effectEntry: eyeEffect(),
+    });
+    expect(partController.getSnapshot().activeEffects).toHaveLength(1);
+    expect(partController.getSnapshot().issues).toContainEqual({
+      code: "eye_detail_not_hidden",
+      params: { effectId: "preview", part: "eyelash" },
+    });
+  });
+
   it("paints a corrected part on a mesh that also holds a detected part", async () => {
     // Annie's lashes are drawn in her eye-line mesh: the user corrects
     // Eyelashes to that mesh while detection keeps it as the eye line.
@@ -500,6 +715,7 @@ describe("authored facial behavior", () => {
       },
       eyeWhite: [],
       diagnostics: [],
+      issues: [],
     };
     const partController = new AvatarVFXController({
       ...avatar,

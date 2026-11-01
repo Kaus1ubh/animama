@@ -7,12 +7,13 @@ import type {
   GLTFParser,
 } from "three/examples/jsm/loaders/GLTFLoader.js";
 
+import { configureAvatarGltfLoader } from "../configureAvatarGltfLoader";
 import { canonicalizeCustomPresetExpressions } from "../vrmExpressionPresets";
 
 /** Included Avatars used for motion authoring checks: Andrew and Annie. */
 export const INCLUDED_AVATAR_FILES = {
   Andrew: "Andrew.vrm",
-  AvatarSample_A_1_New: "AvatarSample_A_1_New.vrm",
+  Annie: "Annie.vrm",
 } as const;
 
 export type IncludedAvatarId = keyof typeof INCLUDED_AVATAR_FILES;
@@ -21,7 +22,7 @@ export type IncludedAvatarId = keyof typeof INCLUDED_AVATAR_FILES;
  * Textures are irrelevant to kinematics and cannot decode outside a browser,
  * so every texture resolves to an empty placeholder.
  */
-class PlaceholderTexturePlugin implements GLTFLoaderPlugin {
+export class PlaceholderTexturePlugin implements GLTFLoaderPlugin {
   readonly name = "ANIMAMA_placeholder_textures";
 
   private readonly parser: GLTFParser;
@@ -72,7 +73,7 @@ export async function loadHeadlessVrmWithGltf(
   bytes: ArrayBuffer,
   options: { removeUnnecessaryVertices?: boolean } = {},
 ): Promise<{ vrm: VRM; gltf: GLTF }> {
-  const loader = new GLTFLoader();
+  const loader = configureAvatarGltfLoader(new GLTFLoader());
   loader.register((parser) => new PlaceholderTexturePlugin(parser));
   loader.register((parser) => new VRMLoaderPlugin(parser));
   const gltf = await loader.parseAsync(bytes, "");

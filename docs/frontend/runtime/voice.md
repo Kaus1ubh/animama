@@ -1,8 +1,8 @@
 # Voice Guide (`src/frontend/web`)
 
 Voice input uses browser recognition or offline recognition (Parakeet for
-English, SenseVoice-Small for Japanese, Korean and Chinese) with acoustic and
-semantic VAD. Output uses browser speech, PocketTTS, ElevenLabs or Gemini. See
+English, SenseVoice-Small for Japanese, Korean, Chinese and English) with
+acoustic and semantic VAD. Output uses browser speech, PocketTTS, ElevenLabs or Gemini. See
 [Avatar lip-sync](avatar-lipsync.md) for synchronization and
 [Pocket catalogs](../features/emotional-voice-catalog.md) for voice embeddings.
 
@@ -30,45 +30,56 @@ as unavailable even if Chromium exposes `SpeechRecognition` or
 with a `network` error, so desktop dictation and voice mode use offline
 recognition only when the routed engine's runtime capability is available.
 
-### Offline engine by conversation language
+### Offline engine choice
 
 The stored `parakeet` provider means offline recognition, whichever engine
-runs. When dictation or Voice Mode starts with it, `routeOfflineSpeech()`
-(`lib/speech/offline-stt/routing.ts`) chooses the engine from the conversation
+runs. The owner may choose the engine (`speech.stt_offline_engine`,
+`"parakeet"` or `"sensevoice"`); without a choice it follows the conversation
 language, which is the UI Locale
 ([ADR 0024](../../adr/0024-ui-locale-is-the-conversation-language.md),
-[ADR 0029](../../adr/0029-sensevoice-offline-speech-recognition.md)):
+[ADR 0029](../../adr/0029-sensevoice-offline-speech-recognition.md),
+[ADR 0031](../../adr/0031-offline-speech-engine-is-the-owners-choice.md)).
+When dictation or Voice Mode starts, `routeOfflineSpeech(locale, engine)`
+(`lib/speech/offline-stt/routing.ts`) returns the engine and its prompt:
 
-| UI Locale                  | Engine               | Language prompt and output                                                                 |
-| -------------------------- | -------------------- | ------------------------------------------------------------------------------------------ |
-| `en`, unset or unsupported | Parakeet TDT 0.6B v2 | none (English only)                                                                        |
-| `ja`, `ko`, `zh-Hans`      | SenseVoice-Small     | `lang_ja`, `lang_ko`, `lang_zh` (Simplified)                                               |
-| `zh-Hant`                  | SenseVoice-Small     | `lang_auto`, so Mandarin and Cantonese both work; converted to Taiwan-standard Traditional |
+| Engine (chosen, or the UI Locale's default)                 | UI Locale                  | Language prompt and output                                                                 |
+| ----------------------------------------------------------- | -------------------------- | ------------------------------------------------------------------------------------------ |
+| Parakeet TDT 0.6B v2 (default for `en`, unset, unsupported) | any                        | none (English only)                                                                        |
+| SenseVoice-Small (default for `ja`, `ko`, `zh-Hans`)        | `ja`, `ko`, `zh-Hans`      | `lang_ja`, `lang_ko`, `lang_zh` (Simplified)                                               |
+| SenseVoice-Small (default for `zh-Hant`)                    | `zh-Hant`                  | `lang_auto`, so Mandarin and Cantonese both work; converted to Taiwan-standard Traditional |
+| SenseVoice-Small (chosen)                                   | `en`, unset or unsupported | `lang_auto` (route language `auto`): detects the spoken language; no conversion            |
 
 - The route is read once per start, and unmuting Voice Mode keeps it, so a
-  locale change applies from the next start.
-- `speech.stt_parakeet_webgpu` is the GPU preference for both engines; neither
+  locale or engine change applies from the next start.
+- `offlineSttEnginePreference()` (`lib/settings/preferences.ts`) reads the
+  engine; any other stored value follows the UI Locale.
+  `speech.stt_parakeet_webgpu` is the GPU preference for both engines; no
   stored value is renamed.
 - `resolveRoutedSttProvider` (`lib/speech/stt-provider.ts`) resolves the
   provider for dictation and for Settings. A saved offline choice whose
-  SenseVoice set is missing stops with "Install offline speech recognition for
-  this language" (`languageSpeechMissing`) instead of falling back to a browser
-  recognizer, which may send audio to a cloud service. Under English, a missing
-  Parakeet set falls back to an available browser recognizer
-  (`resolvePreferredSttProvider`).
+  engine's set is missing stops (`languageMissing`) instead of falling back
+  to a browser recognizer, which may send audio to a cloud service: with
+  "Install offline speech recognition for this language"
+  (`languageSpeechMissing`) for SenseVoice under a non-English locale, or
+  `offlineSpeechMissing` for a chosen Parakeet under another locale and for
+  SenseVoice chosen under English. Only Parakeet under English falls back
+  to an available browser recognizer (`route.browserFallback`,
+  `resolvePreferredSttProvider`).
 - Segments name their engine (`SttSegmentSource` is `"parakeet"` or
   `"sensevoice"`), while the active provider stays `"parakeet"`, so Smart
-  Turn, mute and stored preferences treat both engines alike.
+  Turn, mute and stored preferences treat both engines alike. Smart Turn's
+  forced short replies are one table for every language, so `auto` needs no
+  entries of its own.
 
 ### Optional offline speech models
 
 The embedded core does not contain offline speech weights. On packaged desktop
 and built self-host, each offline engine has two downloadable sets:
 
-| Engine           | Languages                 | CPU model        | GPU acceleration add-on |
-| ---------------- | ------------------------- | ---------------- | ----------------------- |
-| Parakeet         | English                   | `parakeet-stt`   | `parakeet-stt-webgpu`   |
-| SenseVoice-Small | Japanese, Korean, Chinese | `sensevoice-stt` | `sensevoice-stt-webgpu` |
+| Engine           | Languages                          | CPU model        | GPU acceleration add-on |
+| ---------------- | ---------------------------------- | ---------------- | ----------------------- |
+| Parakeet         | English                            | `parakeet-stt`   | `parakeet-stt-webgpu`   |
+| SenseVoice-Small | Japanese, Korean, Chinese, English | `sensevoice-stt` | `sensevoice-stt-webgpu` |
 
 Each set installs in place through the backend
 [model assets](../../backend/architecture/http-api.md#model-assets) with size,
@@ -86,21 +97,24 @@ engine its **CPU | GPU** versions. The web recommends and defaults to the
 browser's recognizer (one Browser choice, saved as `browser_external`; a saved
 `browser_local` shows as Browser); desktop, which has no browser recognizer,
 recommends the UI Locale's offline engine on the CPU. Either offline engine's
-choice stores the offline provider and the GPU preference, so the UI Locale
-still picks the model, and the other engine's tab says which app language uses
-it. Selecting a tab selects the choice: App Settings saves it at once (an
-offline choice even before its set is installed), and Setup saves it at Finish,
-even untouched (`sttChoicePatch`). In Setup an offline version carries its
+choice stores the offline provider, the GPU preference and its engine
+(`sttChoicePatch`), which then runs under any UI Locale; the Browser choice
+keeps the saved GPU preference and engine. Each version says which languages
+its engine recognizes. Selecting a tab selects the choice: App Settings saves
+it at once (an offline choice even before its set is installed), and Setup
+saves it at Finish, even untouched, but saves the engine only when the owner
+picked it, so an untouched default keeps following the UI Locale. In Setup an offline version carries its
 set's download as "CPU (size)" or "GPU (size)" (`SetupSpeechChoice`), the GPU
 version a WebGPU ✓/✗ check; asking for the GPU set first says to download the
 CPU version. App Settings shows the same per-version panels
 (`OfflineSetPanel`, shared with Setup) and adds removal (the CPU set only once
 the GPU add-on is gone), the WebGPU fallback note and operator-provided sets
-without actions. The engine in use carries a "Selected" tag, and Browser is
+without actions. The engine that runs carries a "Selected" tag, and Browser is
 labelled "Browser (built-in)", described as the Web Speech API with a link to
 its documentation. Model attribution is in the packaged notices and each
-installed set's `ATTRIBUTION.md`, not in the UI. The composer's install hint
-(`OfflineSpeechDownloads routedOnly`) offers only the UI Locale's engine.
+installed set's `ATTRIBUTION.md`, not in the UI. The composer offers no
+downloads: without a usable engine its dictation and Voice Mode controls are
+disabled and Settings is the place to install one.
 Every download can be skipped. Downloads
 continue in the backend after leaving Setup or Settings: the chat status lines
 show their size and progress, and `ModelDownloadToasts` (mounted in the app
@@ -126,16 +140,18 @@ cannot start. Text chat, avatar animation, microphone permission, and PocketTTS
 are independent. The main chat/settings surface offers installation; companion
 windows direct the user to main-window Settings. Browser Web Speech fallback
 remains available only where the ordinary web platform supports it; a saved
-offline choice never falls back to it for a language whose SenseVoice set is
-missing.
+offline choice whose set is missing falls back to it only for Parakeet under
+English.
 
-`SpeechLanguageNotice` sits beside the speech provider choices. With the
-offline choice under a non-English locale and no available SenseVoice set, it
-asks for the language's download; where the operator manages models, or the
-runtime reports an installed SenseVoice version that is turned off, it says
-the server does not provide offline recognition in that language. It shows
-nothing under English or once the set is available. Pocket TTS keeps its
-English-only notice.
+`SpeechLanguageNotice` sits beside the speech provider choices and takes the
+saved engine. With an offline choice that runs SenseVoice and no available
+SenseVoice set, it asks for the download (for the language, or for SenseVoice
+under English); where the operator manages models, or the runtime reports an
+installed SenseVoice version that is turned off, it says the server does not
+provide it. With Parakeet running under a non-English locale it warns that
+Parakeet recognizes English only. It shows nothing for Parakeet under English
+or once SenseVoice's set is available. Pocket TTS keeps its English-only
+notice.
 
 Installed model requests stay on the protected local origin at
 `/onnx/models/<model-id>/` and `/onnx/models/<model-id>-webgpu/`
@@ -239,16 +255,16 @@ Entrypoint:
 Rules:
 
 - both modes read fresh runtime capabilities, route the offline engine
-  (`routeOfflineSpeech()`) and resolve the provider with
+  (`routeOfflineSpeech()` with the saved engine) and resolve the provider with
   `resolveRoutedSttProvider(...)`:
   - offline recognition is used when available and selected, or as an
     available fallback when browser STT is unavailable
   - browser STT remains the normal web default when available
   - when offline recognition is resolved but the routed set is unavailable
     (for example on desktop, which has no browser fallback), the start stops
-    with `offlineSpeechMissing` (Parakeet) or `languageSpeechMissing`
-    (SenseVoice); a saved offline choice whose SenseVoice set is missing always
-    stops with `languageSpeechMissing`
+    with `offlineSpeechMissing` (Parakeet, or SenseVoice under English) or
+    `languageSpeechMissing` (SenseVoice under another locale); a saved offline choice whose set is missing always stops,
+    except Parakeet under English
   - offline startup/transcription errors surface instead of silently switching
     providers
 - desktop shell detection disables Web Speech availability; without the routed
@@ -340,10 +356,19 @@ previews show interim text while a window is open; see
   engine worker, smart-turn worker, turn id, and text/audio buffers.
 - `unmuteVoiceMic()` resumes capture for the same voice turn and reuses the
   smart-turn worker when possible.
-- `stopDictation()` fully tears down the active voice session.
+- `stopDictation()` fully tears down the active voice session and discards an
+  unfinished voice turn. Stopping dictation instead keeps the phrase being
+  spoken: it flushes the open MicVAD window and, for offline engines, waits up
+  to `OFFLINE_STOP_TRANSCRIPTION_WAIT_MS` (5 s) for windows still being
+  transcribed; for browser recognition it calls `stop()` rather than `abort()`,
+  accepts that phrase's final result until recognition ends (up to 1.5 s), and
+  keeps any words that never finalized. A switch between dictation and Voice
+  Mode, and unmount, stop without this flush: the input already holds the
+  visible words.
 - The silence reset timer is provider-agnostic: if stale transcript or
   smart-turn audio remains after the timeout, it rotates to a new `turnId` and
-  clears the visible chat input.
+  removes that spoken turn from the chat input. Text typed before Voice Mode or
+  held from an unsent turn stays.
 
 ### Offline STT details
 
@@ -419,12 +444,11 @@ When WebGPU is selected, the client probes (`getWebgpuStatus`,
 | `unsupported`   | `wasm`                                                                          | WebGPU not available           |
 | `model_missing` | `wasm`                                                                          | GPU speech model not installed |
 
-The GPU add-on in `OfflineSpeechDownloads` installs `parakeet-stt-webgpu` or
+The GPU add-on in `OfflineSetPanel` installs `parakeet-stt-webgpu` or
 `sensevoice-stt-webgpu` independently of provider selection; it never chains a
 CPU download or changes the selected provider. No reload is needed: the probe
 refreshes when the set settles, and the next dictation or Voice Mode start loads
-the GPU graph. Each engine's attribution is bundled and shown below its
-section in the composer's install hint.
+the GPU graph.
 
 Loading behavior:
 
@@ -629,7 +653,7 @@ Voice-mode silence reset behavior:
 - Reset is deferred while a smart-turn inference job is active, then retried after a short delay.
 - Reset is also deferred while an end-turn auto-submit is pending.
 - The timeout is cancelled on resumed speech (`onSpeechStart` / `onSpeechRealStart`) and does not continually churn during long idle periods.
-- `ChatInterface` clears visible input text when this timeout reset fires, keeping UI text aligned with internal buffer resets.
+- `ChatInterface` removes the reset turn's dictated text from the input when this timeout reset fires, keeping UI text aligned with internal buffer resets.
 
 ### Acoustic VAD gating
 
@@ -754,6 +778,15 @@ Inference result:
   - `> 0.2` => `end_turn`
   - else => `continue`
 
+Failures: the worker client fails every pending request when the worker
+reports `error` or `messageerror`, and bounds each request
+(`SMART_TURN_LOAD_TIMEOUT_MS`, 30 s, which also replaces the worker;
+`SMART_TURN_PREDICT_TIMEOUT_MS`, 4 s; `SMART_TURN_DISPOSE_TIMEOUT_MS`, 2 s,
+after which the worker is terminated). A failed load fails Voice Mode start. A
+failed or timed-out prediction ends the turn on the acoustic end of speech
+(`source: "acoustic_fallback"`, submitted as `silence_timeout`) so the words are
+sent rather than left for the silence reset.
+
 ### Rolling audio and supersession behavior
 
 In `use-dictation.ts`:
@@ -780,16 +813,28 @@ When semantic result is `end_turn`:
 
 1. Queue a pending end-turn submit request (`queuePendingVoiceEndTurn`).
 2. Immediately try to submit using committed transcript (`submitPendingVoiceEndTurn("smart_turn_decision")`).
-3. If committed transcript is not ready yet, keep pending and wait for
-   transcript updates (`submitPendingVoiceEndTurn("transcript_update")`).
-4. If still pending at timeout (`SMART_TURN_END_TURN_WAIT_MS`, currently `1000ms`):
-   - first fallback to buffered `finalText`
-   - then fallback to buffered `interimText`
+3. Hold the submit while the turn is not over or its text is incomplete:
+   - real speech in a new window means the owner kept talking: the pending
+     submit is dropped, and the next speech end checks the whole turn again
+   - a window not yet confirmed as speech holds the submit until MicVAD
+     confirms or discards it (`"speech_window_update"`)
+   - Web Speech interim text for the turn means the latest phrase's final has
+     not arrived; the submit waits for it (`"transcript_update"`, checked after
+     each recognition result is stored)
+4. If still held at timeout (`SMART_TURN_END_TURN_WAIT_MS`, currently `1000ms`),
+   submit the committed transcript (or buffered `finalText` when nothing was
+   committed) followed by any unfinalized interim text.
 5. If transcript and callback are present, invoke `onVoiceAutoSubmit(...)`.
-6. `ChatInterface` forwards to `handleSubmitText(...)` with:
+6. `ChatInterface` sends the input's typed or held text followed by the spoken
+   text through `handleSubmitText(...)` with:
    - `inputMode: "voice"`
-   - `submitReason: "semantic_end_turn"`
+   - `submitReason: "semantic_end_turn"`, or `"silence_timeout"` for an
+     acoustic fallback
    - `turnId`, `smartTurnJobId`, `smartTurnScore`, `smartTurnLatencyMs`
+
+   `handleSubmitText` resolves `false` when the message is not accepted (a
+   reply is still streaming, or the chat cannot send yet); the text then stays
+   in the input and joins the next voice turn or a manual send.
 7. rotate to a new `turnId` and reset per-turn smart-turn state
 
 If no transcript/callback exists:
@@ -800,8 +845,7 @@ If no transcript/callback exists:
 Provider timing:
 
 - Browser STT may run smart-turn before final browser text has arrived, so the
-  pending submit path often waits for transcript updates or uses timeout
-  fallback buffers.
+  pending submit usually waits for the final or uses the timeout fallback.
 - Offline STT commits final text before running smart-turn for the accepted
   window, so `smart_turn_decision` usually submits immediately when the
   semantic decision is `end_turn`.
@@ -1361,6 +1405,7 @@ verify the complete engine inventory and required small TTS runtime files.
 - TTS orchestrator: `src/frontend/web/src/hooks/use-tts-playback.ts`
 - ElevenLabs runtime hook: `src/frontend/web/src/hooks/use-elevenlabs-tts-runtime.ts`
 - Finalized server-audio runtime (Gemini): `src/frontend/web/src/hooks/use-finalized-tts-runtime.ts`
+- Chat TTS options for every voice: `src/frontend/web/src/lib/chat/chat-tts-dispatch.ts`
 - Gemini dispatch options: `src/frontend/web/src/lib/chat/gemini-chat-tts-dispatch.ts`
 - Pocket runtime hook: `src/frontend/web/src/hooks/use-pocket-tts-runtime.ts`
 - TTS provider helpers: `src/frontend/web/src/lib/speech/tts-provider.ts`

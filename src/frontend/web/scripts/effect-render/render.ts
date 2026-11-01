@@ -23,6 +23,12 @@ import {
   type EffectSource,
   type Framing,
 } from "./stage";
+import {
+  measureHeadBox,
+  measureTileLayout,
+  type HeadBox,
+  type TileLayout,
+} from "./tileLayout";
 
 /**
  * Headless effect review page (driven by `scripts/effect-render.mjs` and
@@ -46,6 +52,11 @@ import {
  *
  * `Math.random` is seeded when a stage opens, so Particle Effects emit the
  * same particles on every run.
+ *
+ * Each frame also reports where the Avatar is in the tile (`tileLayout.ts`):
+ * its head, measured once when the stage opens, before effects apply, and
+ * its body anchors in view. The review renders check where an effect's art
+ * lands against them.
  */
 
 type StageRequest = {
@@ -82,18 +93,22 @@ let open: {
   renderer: THREE.WebGLRenderer;
   scene: THREE.Scene;
   camera: THREE.PerspectiveCamera;
+  disposeRenderer: () => void;
   session: EffectSession;
   framing: Framing;
+  /** The head's bounds in head-bone space, or null when it has none. */
+  head: HeadBox | null;
+  tile: { width: number; height: number };
 } | null = null;
 
 /** Close the open stage, if any. */
 function closeReviewStage(): void {
   if (!open) return;
-  const { stage, renderer, scene, session } = open;
+  const { stage, disposeRenderer, scene, session } = open;
   open = null;
   if (session.avatar.scene) scene.remove(session.avatar.scene);
   session.dispose();
-  renderer.dispose();
+  disposeRenderer();
   stage.dispose();
 }
 
@@ -120,7 +135,10 @@ async function openReviewStage(
   seedRandom(0x5eed);
   const { width, height } = request.tile;
   const stage = new ReviewStage(width, height);
-  const { renderer, scene, camera } = createStage(width, height);
+  const { renderer, scene, camera, disposeRenderer } = createStage(
+    width,
+    height,
+  );
   let session: EffectSession | null = null;
   try {
     session = await EffectSession.open(
@@ -133,33 +151,56 @@ async function openReviewStage(
     stage.attachCanvas(renderer.domElement, session.avatar);
     scene.add(session.avatar.scene!);
     const framing = chatPortraitFraming(session.avatar);
+    const head = measureHeadBox(session.avatar);
     await session.apply(request);
-    open = { stage, renderer, scene, camera, session, framing };
+    open = {
+      stage,
+      renderer,
+      scene,
+      camera,
+      disposeRenderer,
+      session,
+      framing,
+      head,
+      tile: request.tile,
+    };
     return {
       parseError: null,
       avatar: session.diagnostics(request.avatar.id),
     };
   } catch (error) {
     session?.dispose();
-    renderer.dispose();
+    disposeRenderer();
     stage.dispose();
     throw error;
   }
 }
 
-/** Draw the open stage at `time` seconds after applying, from `view`. */
+/**
+ * Draw the open stage at `time` seconds after applying, from `view`. Returns
+ * the Avatar's diagnostics and where it is in the tile.
+ */
 async function showReviewFrame(
   time: number,
   view: ViewName,
-): Promise<AvatarDiagnostics> {
+): Promise<AvatarDiagnostics & { layout: TileLayout }> {
   if (!open) throw new Error("No review stage is open.");
-  const { session, renderer, scene, camera, framing } = open;
+  const { session, renderer, scene, camera, framing, head, tile } = open;
   await session.advanceTo(time);
   placeCamera(camera, view, session.avatar, framing);
   renderer.render(scene, camera);
   // After the camera moves, so layers aimed at the Avatar follow this view.
   await open.stage.seek(session.time);
-  return session.diagnostics("frame");
+  return {
+    ...session.diagnostics("frame"),
+    layout: measureTileLayout(
+      session.avatar,
+      head,
+      camera,
+      tile.width,
+      tile.height,
+    ),
+  };
 }
 
 function blobToDataUrl(blob: Blob): Promise<string> {
@@ -175,7 +216,10 @@ function blobToDataUrl(blob: Blob): Promise<string> {
 async function renderThumbnail(
   request: ThumbnailRequest,
 ): Promise<{ dataUrl: string; avatars: AvatarDiagnostics[] }> {
-  const { renderer, scene, camera } = createStage(request.size, request.size);
+  const { renderer, scene, camera, disposeRenderer } = createStage(
+    request.size,
+    request.size,
+  );
   let session: EffectSession | null = null;
   try {
     session = await EffectSession.open(
@@ -209,7 +253,7 @@ async function renderThumbnail(
     const avatar = session?.avatar;
     if (avatar?.scene) scene.remove(avatar.scene);
     session?.dispose();
-    renderer.dispose();
+    disposeRenderer();
   }
 }
 
