@@ -4,9 +4,8 @@ from __future__ import annotations
 
 from typing import Any
 
-import httpx
 import pytest
-from openai import APIConnectionError
+from openai import OpenAIError
 from openai.types import ModerationCreateResponse
 
 from animama.adapters.model_clients.openai_moderation import OpenAIModerationCrisisModerator
@@ -88,12 +87,13 @@ async def test_an_unflagged_result_does_not_signal_crisis() -> None:
 
 @pytest.mark.asyncio
 async def test_api_failures_return_an_error_result_without_the_text(caplog: pytest.LogCaptureFixture) -> None:
-    failure = APIConnectionError(request=httpx.Request("POST", "https://api.openai.com/v1/moderations"))
-
-    result = await OpenAIModerationCrisisModerator(client=_Client(failure)).moderate("I want to die")
+    result = await OpenAIModerationCrisisModerator(client=_Client(OpenAIError("connection failed"))).moderate(
+        "I want to die"
+    )
 
     assert result == ModelClientModeration(status="error")
-    assert "I want to die" not in caplog.text
+    assert caplog.records
+    assert "I want to die" not in "\n".join(str(vars(record)) for record in caplog.records)
 
 
 @pytest.mark.asyncio

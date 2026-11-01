@@ -31,6 +31,7 @@ from animama.domain.request_principal import RequestPrincipal
 from animama.domain.usage import Usage
 from animama.orm.companion_safety import ORMCompanionSafetyState
 from animama.product_http.chat.safety import TurnSafety, ai_notice_frame
+from animama.product_http.ports import ChatTurnPolicy
 from animama.server.config import Settings
 from tests import test_anima_chat_sse as route
 from tests.product_http_support import local_turn_sessions
@@ -267,12 +268,13 @@ async def test_operator_moderation_shows_the_card_on_anthropic_turns(monkeypatch
     provider.connection_id = BUILTIN_ANTHROPIC_CONNECTION_ID
     route._install_route_mocks(monkeypatch, model_client=client, model_provider=provider)
     moderator = _RecordingModerator()
-    local_policy = route._RouteTestPorts.chat_policy.fget
-    monkeypatch.setattr(
-        route._RouteTestPorts,
-        "chat_policy",
-        property(lambda ports: replace(local_policy(ports), crisis_moderator=moderator)),
-    )
+
+    class _ModeratedPorts(route._RouteTestPorts):
+        @property
+        def chat_policy(self) -> ChatTurnPolicy:
+            return replace(super().chat_policy, crisis_moderator=moderator)
+
+    monkeypatch.setattr(route, "_RouteTestPorts", _ModeratedPorts)
 
     chunks = await _run(CRISIS_MESSAGE)
 

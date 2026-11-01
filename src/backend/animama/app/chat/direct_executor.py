@@ -43,7 +43,12 @@ from animama.app.model_clients.context_budget import (
 from animama.app.model_clients.prompt import ChatCompletionResponseFormat, copy_direct_chat_prompt
 from animama.app.ports import ModelProviderRepository
 from animama.app.primary_emotion_update import build_primary_emotion_update_event
-from animama.app.safety.moderation import CrisisModerator, moderation_indicates_crisis, settle_operator_moderation
+from animama.app.safety.moderation import (
+    CrisisModerator,
+    discard_operator_moderation,
+    moderation_indicates_crisis,
+    settle_operator_moderation,
+)
 from animama.app.services import AnimaChatProfileService, ChatManager
 from animama.app.web_search import WebSearchToolService, web_search_tool_spec
 from animama.domain import ModelProvider
@@ -740,10 +745,8 @@ class DirectChatTurnExecutor:
                 with suppress(asyncio.CancelledError):
                     await collector_task
             # An operator check still running when the turn ends shows no card.
-            if operator_moderation_task is not None and not operator_moderation_task.done():
-                operator_moderation_task.cancel()
-                with suppress(asyncio.CancelledError):
-                    await operator_moderation_task
+            if operator_moderation_task is not None:
+                await discard_operator_moderation(operator_moderation_task)
         inline_moderation = prepared.model_request.provider_options.moderation_model is not None
         if final is not None and (inline_moderation or operator_moderation_task is not None):
             # Moderation arrives after the reply text, inline with the completed

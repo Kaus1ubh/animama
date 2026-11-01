@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Mapping
+from contextlib import suppress
 from typing import Protocol
 
 from animama.app.model_clients import ModelClientModeration
@@ -72,11 +73,28 @@ async def settle_operator_moderation(
     done, _pending = await asyncio.wait({task}, timeout=timeout)
     if not done:
         return None
+    if task.cancelled():
+        return ModelClientModeration(status="error")
     try:
         return task.result()
     except Exception as exc:
         _log.warning("Operator crisis moderation failed", error_type=type(exc).__name__)
         return ModelClientModeration(status="error")
+
+
+async def discard_operator_moderation(task: asyncio.Task[ModelClientModeration]) -> None:
+    """Cancel an operator check that is still running when the turn ends.
+
+    A check that already failed has its exception retrieved, so asyncio never
+    logs its traceback.
+    """
+
+    if not task.done():
+        task.cancel()
+        with suppress(asyncio.CancelledError):
+            await task
+    elif not task.cancelled():
+        task.exception()
 
 
 __all__ = [
@@ -85,6 +103,7 @@ __all__ = [
     "SELF_HARM_FLAG_CATEGORIES",
     "SELF_HARM_SCORE_THRESHOLD",
     "CrisisModerator",
+    "discard_operator_moderation",
     "moderation_indicates_crisis",
     "moderation_result",
     "settle_operator_moderation",
