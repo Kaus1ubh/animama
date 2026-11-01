@@ -584,6 +584,11 @@ export const SITE = {
       href: "https://www.youtube.com/@rayplusplus",
       icon: "youtube",
     },
+    {
+      label: "X",
+      href: "https://x.com/rayplusplus_",
+      icon: "x",
+    },
   ] satisfies { label: string; href: string; icon: SocialIconName }[],
 };
 

@@ -50,7 +50,7 @@ with `build.pack_site` to check it before relying on the package set.
   launch to restore the rest.
 - `SITE`: the canonical address, docs link, title, share image, copyright
   line, the 3D scene's description for screen readers, the contact address,
-  the social links (Discord and YouTube icons, `social-icons.tsx`; also the
+  the social links (Discord, YouTube and X icons, `social-icons.tsx`; also the
   schema.org `sameAs`), and the
   About, Privacy and Terms pages that Animama Cloud publishes on the same
   host. The header's About and the footer under the last stop
