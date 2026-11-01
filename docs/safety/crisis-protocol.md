@@ -54,12 +54,14 @@ number.
 ## Your data
 
 - Except on Animama Cloud, the safety features send nothing beyond your normal
-  request to the model provider you chose. Animama has no telemetry and reports
-  crisis cards to no one.
+  request to the model provider you chose.
 - On Animama Cloud, I also send the text of each of your messages to OpenAI's
   moderation service for the check.
   [OpenAI says](https://developers.openai.com/api/docs/guides/your-data) it
   doesn't train on or keep these requests.
+- Animama reports crisis cards to no one. The desktop app has no telemetry;
+  Animama Cloud's telemetry and conversation traces are described in its
+  [Privacy Notice](https://animama.ai/privacy/).
 - Chats are saved as usual. Animas are instructed not to save details of a
   suicide or self-harm crisis to memory unless you ask them to.
 - For safety, Animama stores only when the AI notice was last shown, your age

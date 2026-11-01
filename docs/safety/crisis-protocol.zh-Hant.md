@@ -39,8 +39,9 @@ Animama 供 18 歲以上的成年人使用；AI 夥伴可能不適合部分未�
 
 ## 你的資料
 
-- 除 Animama Cloud 外，安全功能只會向你所選的模型供應商傳送一般請求，不會傳送任何其他內容。Animama 沒有遙測功能，也不會向任何人回報危機支援卡片。
+- 除 Animama Cloud 外，安全功能只會向你所選的模型供應商傳送一般請求，不會傳送任何其他內容。
 - 在 Animama Cloud 中，我還會把你每則訊息的文字傳送給 OpenAI 的內容審核服務以進行檢查。[OpenAI 表示](https://developers.openai.com/api/docs/guides/your-data)不會用這些請求進行訓練，也不會保留它們。
+- Animama 不會向任何人回報危機支援卡片。桌面應用程式沒有遙測功能；Animama Cloud 的遙測和對話追蹤記錄請見其[隱私權聲明](https://animama.ai/privacy/)。
 - 聊天會照常儲存。Anima 被要求不要將自殺或自我傷害危機的細節儲存到記憶中，除非你要求它這麼做。
 - 基於安全考量，Animama 只會儲存 AI 提示上次顯示的時間、你的年齡確認以及你的安全設定。它絕不會記錄或儲存危機檢查的結果。
 
