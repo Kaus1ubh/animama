@@ -1,4 +1,4 @@
-import { readdirSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -375,6 +375,37 @@ export function pagePlugin(getPage) {
         .replace("<!--landing:content-->", () => content);
     },
   };
+}
+
+/** The file Animama Cloud reads to publish the crisis protocol at `/safety/`. */
+export const CRISIS_PROTOCOL_FILE = "crisis-protocol.json";
+
+/**
+ * The safety and crisis protocol (`docs/safety/crisis-protocol.md`, the
+ * document the app's Safety dialog shows), rendered once to HTML for Animama
+ * Cloud's `/safety/` page, as `crisis-protocol.json`. English is authoritative;
+ * the app's machine translations stay in the app.
+ */
+export async function renderCrisisProtocol() {
+  const [
+    { createElement },
+    { renderToStaticMarkup },
+    { default: Markdown },
+    { default: remarkGfm },
+  ] = await Promise.all([
+    import("react"),
+    import("react-dom/server"),
+    import("react-markdown"),
+    import("remark-gfm"),
+  ]);
+  const source = readFileSync(
+    path.join(repoRoot, "docs/safety/crisis-protocol.md"),
+    "utf8",
+  );
+  const html = renderToStaticMarkup(
+    createElement(Markdown, { remarkPlugins: [remarkGfm] }, source),
+  );
+  return `${JSON.stringify({ schema_version: 1, html }, null, 2)}\n`;
 }
 
 /** The file Animama Cloud reads to put the site header on its pages. */

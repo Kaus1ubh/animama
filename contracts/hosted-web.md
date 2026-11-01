@@ -549,6 +549,12 @@ prerendered for every page and for the About and Download pages
 no script and no inline `style` attribute. Every file it names is in the site's
 `files`.
 
+It also publishes the safety and crisis protocol for Cloud's `/safety/` page as
+`crisis-protocol.json` (likewise required only by Cloud's build): JSON with
+exactly `schema_version` (`1`) and `html`, `docs/safety/crisis-protocol.md`
+rendered to HTML, starting with its `<h1>`, with no script and no inline
+`style` attribute.
+
 A verifier rejects source maps (any path ending in `.map`), links and special
 members, unsafe paths, and any difference between the archive and `files`. It
 scans every text file (`_headers` and the suffixes `.html`, `.js`, `.mjs`,

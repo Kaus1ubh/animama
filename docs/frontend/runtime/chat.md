@@ -532,7 +532,8 @@ the chat panel. It renders:
 
 `SafetyProtocolDialog` opens `docs/safety/crisis-protocol.md`, bundled with
 Vite's `?raw` import, in place so reading it never interrupts the turn. The
-same document is the `/safety` route, reachable before first run. Under a beta
+same document is the `/safety` route, reachable before first run, and the
+landing build publishes it at animama.ai/safety/ ([landing page](../landing-page.md)). Under a beta
 UI Locale, `useCrisisProtocol` loads `crisis-protocol.<locale>.md` (a machine
 translation; English is authoritative) and shows English until it loads. Vite's
 `server.fs.allow`, the production `Dockerfile`, and the development Compose

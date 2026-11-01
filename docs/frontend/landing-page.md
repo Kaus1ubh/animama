@@ -52,8 +52,8 @@ with `build.pack_site` to check it before relying on the package set.
   line, the 3D scene's description for screen readers, the contact address,
   the social links (Discord, YouTube and X icons, `social-icons.tsx`; also the
   schema.org `sameAs`), and the
-  About, Privacy and Terms pages that Animama Cloud publishes on the same
-  host. The header's About and the footer under the last stop
+  About, Privacy, Terms and Safety pages that Animama Cloud publishes on the
+  same host. The header's About and the footer under the last stop
   (`FOOTER_LINKS`) link them; the development server does not serve the
   Cloud pages.
 
@@ -112,8 +112,8 @@ with code or fonts in the bundle.
 Every page on animama.ai shows the same header: `site-header.tsx`. The
 overlay renders it over the tour (`tour`: fixed, Home and Download scroll the
 stops, the Avatar choice shows), and the build also makes it for the pages
-Animama Cloud publishes on the same host (About, Download, Privacy, Terms and
-404), where it sits at the top of the page and Home and Download are links:
+Animama Cloud publishes on the same host (About, Download, Privacy, Terms,
+Safety and 404), where it sits at the top of the page and Home and Download are links:
 
 - `site-chrome.tsx` is a separate Vite build, so it carries only the header's
   code (about 100 kB of compressed JavaScript, mostly React and the menus)
@@ -132,6 +132,11 @@ Animama Cloud publishes on the same host (About, Download, Privacy, Terms and
   `Button` classes (`solidButton`).
 - The saved theme is one key (`landing-stage-theme`) for the whole site;
   Cloud's pages load `theme.js` before paint as `index.html` does.
+
+Cloud's `/safety/` page publishes `docs/safety/crisis-protocol.md`, the same
+document the app's Safety dialog shows: the build renders it to HTML in
+`crisis-protocol.json` (`renderCrisisProtocol`), so a protocol change reaches
+the site through the next package set and Cloud repin. The page is English only.
 
 Changing the header's links or buttons (Request Beta Access, Log in, Sign up)
 changes every page, through the next package set and Cloud repin. Cloud's own

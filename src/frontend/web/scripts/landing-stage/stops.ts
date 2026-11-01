@@ -566,6 +566,7 @@ export const SITE = {
   download: "/download",
   privacy: "/privacy/",
   terms: "/terms/",
+  safety: "/safety/",
   /** The public contact address, forwarded by the domain's email routing. */
   contactEmail: "ray@animama.ai",
   /**
@@ -600,6 +601,7 @@ export const FOOTER_LINKS = [
   { label: "About", href: SITE.about },
   { label: "Privacy", href: SITE.privacy },
   { label: "Terms", href: SITE.terms },
+  { label: "Safety", href: SITE.safety },
   { label: "Contact", href: `mailto:${SITE.contactEmail}` },
   { label: "Third-party notices", href: SITE.notices },
 ];

@@ -15,9 +15,11 @@ import { build, createServer } from "vite";
 
 import { javascriptLicenses } from "../../desktop/scripts/runtime/licenses.mjs";
 import {
+  CRISIS_PROTOCOL_FILE,
   MEDIA_ROUTE,
   pagePlugin,
   programPlugin,
+  renderCrisisProtocol,
   renderPageHtml,
   renderSiteHeaders,
   resolveStageProgram,
@@ -40,7 +42,8 @@ import {
  * brand marks; the page's `static/` files (including the `_headers` the host
  * applies); icons, `robots.txt`, `sitemap.xml` and `notices.txt`; and the
  * site header for Animama Cloud's pages (`site-chrome.json`, its script and
- * styles). Nothing in
+ * styles) and the crisis protocol for its `/safety/` page
+ * (`crisis-protocol.json`). Nothing in
  * it calls the stage server. The build fails if a source does not resolve or
  * the output holds a local path or a source map.
  */
@@ -189,6 +192,7 @@ export async function buildLanding({
       "",
     ].join("\n"),
   );
+  write(CRISIS_PROTOCOL_FILE, await renderCrisisProtocol());
   write(
     site.SITE.notices.replace(/^\//, ""),
     noticesText({ site, moduleIds, published: [...copies.values()] }),
