@@ -59,18 +59,15 @@ test("an optimized conversion keeps the raw export beside it; --no-optimize writ
 });
 
 test("the pinned exporter release installs its own Unity package; a checkout installs its own", () => {
-  assert.match(
-    EXPORTER_RELEASE,
-    /^github:raymond-van\/animama-avatar-export#v\d+\.\d+\.\d+$/,
-  );
+  assert.match(EXPORTER_RELEASE, /^animama-avatar-converter@\d+\.\d+\.\d+$/);
   assert.deepEqual(exporterSource(undefined), {
     spec: EXPORTER_RELEASE,
     packageSpec: null,
   });
-  const checkout = path.resolve("/src/animama-avatar-export");
-  assert.deepEqual(exporterSource("/src/animama-avatar-export"), {
+  const checkout = path.resolve("/src/animama-avatar-converter");
+  assert.deepEqual(exporterSource("/src/animama-avatar-converter"), {
     spec: checkout,
-    packageSpec: `file:${path.join(checkout, "Packages", "com.animama.avatar-export")}`,
+    packageSpec: `file:${path.join(checkout, "Packages", "com.animama.avatar-converter")}`,
   });
 });
 
@@ -137,7 +134,7 @@ test("pnpm dlx runs the exporter through Node, with pnpm's default reporter", ()
         "--reporter=default",
         "dlx",
         `--package=${EXPORTER_RELEASE}`,
-        "animama-avatar-export",
+        "animama-avatar-converter",
         "--project",
         "/p",
       ],

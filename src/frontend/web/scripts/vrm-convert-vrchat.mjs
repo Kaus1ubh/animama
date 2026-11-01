@@ -11,23 +11,25 @@ import { fileURLToPath } from "node:url";
  *     [--author <author>] [--copyright <credit>] [--keep-pose] [--no-optimize] \
  *     [--validate] [--unity <editor>]
  *
- * It runs the Animama Avatar Export command (the public
- * raymond-van/animama-avatar-export repository) at its pinned release through
- * `pnpm dlx`. That command adds its Unity package and dependencies to the
+ * It runs the Animama Avatar Converter command (npm package
+ * `animama-avatar-converter`, from the raymond-van/animama-avatar-converter
+ * repository) at its pinned version through `pnpm dlx`. That command adds its Unity package and dependencies to the
  * project's Packages/manifest.json and runs the Unity batch export (T-pose
  * unless --keep-pose), writing Unity's log to `<Avatar>.export.log`. This
  * command then runs `vrm:optimize`, keeping the raw export beside the result as
  * `<Avatar>.raw.vrm`, and `vrm:inspect`. --no-optimize writes the raw export to
  * --out; --validate only runs Mochiya's validation.
  *
- * ANIMAMA_AVATAR_EXPORT runs a local checkout of the exporter instead, with
+ * ANIMAMA_AVATAR_CONVERTER runs a local checkout of the exporter instead, with
  * that checkout's Unity package, to test unreleased changes.
  * See docs/frontend/runtime/vrchat-avatar-conversion.md.
  */
 
-/** The exporter release this command runs; its tag also selects the Unity package. */
-export const EXPORTER_RELEASE =
-  "github:raymond-van/animama-avatar-export#v0.1.0";
+/**
+ * The exporter release this command runs (npm versions are immutable); its
+ * version also selects the Unity package it installs.
+ */
+export const EXPORTER_RELEASE = "animama-avatar-converter@0.1.0";
 
 const webRoot = fileURLToPath(new URL("..", import.meta.url));
 const USAGE = [
@@ -108,7 +110,7 @@ export function exporterSource(checkout) {
   const folder = path.resolve(checkout);
   return {
     spec: folder,
-    packageSpec: `file:${path.join(folder, "Packages", "com.animama.avatar-export")}`,
+    packageSpec: `file:${path.join(folder, "Packages", "com.animama.avatar-converter")}`,
   };
 }
 
@@ -146,7 +148,7 @@ export function exporterCommand(npmExecPath, nodePath, spec, args) {
     "--reporter=default",
     "dlx",
     `--package=${spec}`,
-    "animama-avatar-export",
+    "animama-avatar-converter",
     ...args,
   ];
   return /\.[cm]?js$/.test(npmExecPath)
@@ -196,7 +198,7 @@ async function main(argv) {
     }
   }
 
-  const source = exporterSource(process.env.ANIMAMA_AVATAR_EXPORT);
+  const source = exporterSource(process.env.ANIMAMA_AVATAR_CONVERTER);
   const exporter = exporterCommand(
     process.env.npm_execpath,
     process.execPath,
@@ -212,7 +214,7 @@ async function main(argv) {
   const exported = await run(exporter.command, exporter.args);
   if (exported > 2)
     console.error(
-      `The exporter ${source.spec} did not run (exit ${exported}); check the network, Git and ANIMAMA_AVATAR_EXPORT.`,
+      `The exporter ${source.spec} did not run (exit ${exported}); check the network, Git and ANIMAMA_AVATAR_CONVERTER.`,
     );
   if (exported !== 0) return conversionExitCode(exported);
   if (flags.validate) return 0;
