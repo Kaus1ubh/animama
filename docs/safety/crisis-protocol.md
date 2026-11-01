@@ -26,12 +26,15 @@ minors. Setup asks you to confirm your age. Animama does not verify it.
 
 - Animas are instructed to respond with care, encourage you to reach out to
   someone you trust or a crisis line, and never give methods or encouragement.
-- With OpenAI Responses models, the same request asks OpenAI to check your
-  message. If it flags possible suicide or self-harm, the app shows a crisis
-  card after the reply with crisis lines for your region. The Anima cannot hide
-  or change the card. Other model providers don't show the card, and the check
-  can miss or misread messages.
-- Chat is never blocked because of the check.
+- A moderation check also reads your message. If it flags possible suicide or
+  self-harm, the app shows a crisis card after the reply with crisis lines for
+  your region. The Anima cannot hide or change the card.
+  - On the Animama web demo, OpenAI's moderation service checks every message,
+    whichever model the Anima uses.
+  - Elsewhere, including the desktop app, only OpenAI Responses models check
+    messages, as part of the same request. Other model providers don't show the
+    card.
+- The check can miss or misread messages. Chat is never blocked because of it.
 
 ## Crisis lines
 
@@ -50,9 +53,12 @@ number.
 
 ## Your data
 
-- The safety features send nothing beyond your normal request to the model
-  provider you chose. Animama has no telemetry and reports crisis cards to no
-  one.
+- In the desktop app, the safety features send nothing beyond your normal
+  request to the model provider you chose.
+- On the web demo, I also send the text of each of your messages to OpenAI's
+  moderation service for the check. [OpenAI says](https://developers.openai.com/api/docs/guides/your-data) it doesn't train on or
+  keep these requests.
+- Animama has no telemetry and reports crisis cards to no one.
 - Chats are saved as usual. Animas are instructed not to save details of a
   suicide or self-harm crisis to memory unless you ask them to.
 - For safety, Animama stores only when the AI notice was last shown, your age

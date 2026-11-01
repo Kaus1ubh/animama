@@ -284,10 +284,15 @@ user-facing contract is the [safety and crisis protocol](../../safety/crisis-pro
   minutes apart continue an interaction. If the state cannot be read or
   written, the notice is shown anyway.
 - **Crisis detection.** For OpenAI Responses rows, round 0 requests
-  [inline moderation](model-client-providers.md#provider-behavior); a
-  self-harm result emits one `safety.crisis_support` card after the reply text
-  and before `run.completed`. Other providers get no crisis card; the
-  guardrail's crisis rule still applies. Crisis resources resolve from the
+  [inline moderation](model-client-providers.md#provider-behavior). For
+  Anthropic Messages rows, a composition may set `ChatTurnPolicy.crisis_moderator`
+  (such as `OpenAIModerationCrisisModerator`, OpenAI's moderation endpoint with
+  an operator key; the local composition sets none). It checks only the user's
+  message text, alongside the reply; the turn waits at most 2 seconds after the
+  reply, then cancels a pending check. A self-harm result from either emits one
+  `safety.crisis_support` card after the reply text and before `run.completed`;
+  a failed, errored or late check adds no card. Other turns get no crisis card;
+  the guardrail's crisis rule still applies. Crisis resources resolve from the
   owner's region, then the `client_context` locale, then the fallback entry.
 
 Crisis turns stream, persist and update memory like any other turn. Safety

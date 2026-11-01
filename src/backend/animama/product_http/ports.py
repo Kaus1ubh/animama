@@ -53,6 +53,7 @@ from animama.app.ports.user_profile_port import UserProfileRepository
 from animama.app.ports.voice_catalog_upload_port import VoiceCatalogUploadRepository
 from animama.app.safety.config import OperatorSafetyConfig
 from animama.app.safety.crisis_resources import CrisisResourceTable
+from animama.app.safety.moderation import CrisisModerator
 from animama.app.services.anima_loadout_service import AnimaLoadoutService
 from animama.app.services.anima_runtime_service import AnimaRuntimeService
 from animama.app.services.avatar_face_parts_service import AvatarFacePartsService
@@ -353,6 +354,10 @@ class ChatTurnPolicy:
     ``error`` frames, and their codes outside a short lowercase pattern become
     ``turn_failed``, so model-provider detail never reaches a browser. Speech error
     frames carry the speech port's own messages. The local composition keeps both.
+
+    ``crisis_moderator``, when set, checks the user's message on Anthropic
+    Messages turns, which have no inline moderation, so they can show the crisis
+    card too. The local composition sets none.
     """
 
     compaction: ChatCompactionSettings
@@ -360,6 +365,7 @@ class ChatTurnPolicy:
     title_generation: ChatTitleGenerationSettings
     companion_safety: OperatorSafetyConfig
     public_error_text: str | None = None
+    crisis_moderator: CrisisModerator | None = None
 
 
 @dataclass(frozen=True)

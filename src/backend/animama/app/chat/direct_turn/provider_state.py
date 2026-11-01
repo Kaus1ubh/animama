@@ -15,7 +15,7 @@ from animama.app.model_provider_native_tools import (
     normalized_native_tool_support,
     requestable_native_tool_support,
 )
-from animama.app.safety.moderation import RESPONSES_MODERATION_MODEL
+from animama.app.safety.moderation import OPENAI_MODERATION_MODEL
 from animama.app.util.json_values import json_safe_copy
 from animama.domain import ModelProvider
 from animama.domain.chat import Chat
@@ -225,7 +225,7 @@ def build_model_client_provider_options(
     """
 
     return ModelClientProviderOptions(
-        moderation_model=RESPONSES_MODERATION_MODEL
+        moderation_model=OPENAI_MODERATION_MODEL
         if provider_moderation and model_provider.provider_type == OPENAI_RESPONSES_PROVIDER
         else None,
         native_tools=hosted_native_tools(model_provider, request_options),
