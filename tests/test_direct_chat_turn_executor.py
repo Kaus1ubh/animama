@@ -3044,7 +3044,8 @@ async def test_a_failed_anthropic_reply_cancels_the_operator_check_without_a_car
 @pytest.mark.asyncio
 async def test_closing_the_stream_mid_reply_cancels_the_operator_check() -> None:
     model_client = _ChunkedModelClient(chunks=[_structured_response()], final_text="", wait_before_final=True)
-    executor = _anthropic_reply_executor(_StubModerator(_FLAGGED, block=True), model_client)
+    moderator = _StubModerator(_FLAGGED, block=True)
+    executor = _anthropic_reply_executor(moderator, model_client)
     prepared = await executor.prepare_turn(_request(provider_moderation=True))
 
     async with aclosing(executor.stream_prepared_turn(prepared)) as stream:
@@ -3052,6 +3053,7 @@ async def test_closing_the_stream_mid_reply_cancels_the_operator_check() -> None
             assert event.type != EventType.CRISIS_SUPPORT
             break
 
+    assert moderator.seen == ["Hi"]
     assert _operator_moderation_tasks() == []
 
 
