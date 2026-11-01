@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import asyncio
+import functools
 import json
+import logging
 from collections.abc import AsyncGenerator, AsyncIterator, Mapping, Sequence
 from types import SimpleNamespace
 from typing import Any, cast
@@ -17,8 +19,10 @@ from animama.app.chat import (
     DirectChatTurnRequest,
     DirectChatTurnSetupError,
     RuntimeGestureDescriptor,
+    direct_executor as direct_executor_module,
 )
 from animama.app.chat.api_standard import (
+    ANTHROPIC_MESSAGES_PROVIDER_TYPE,
     CHAT_API_STANDARD_CHAT_COMPLETIONS,
     CHAT_API_STANDARD_RESPONSES,
     MODEL_CLIENT_OPENAI_CHAT_COMPLETIONS,
@@ -64,11 +68,12 @@ from animama.app.model_clients import (
 )
 from animama.app.model_clients.event_types import MCResponseStartedEvent
 from animama.app.model_clients.prompt import prompt_instruction_text
-from animama.app.safety.moderation import RESPONSES_MODERATION_MODEL
+from animama.app.safety.moderation import OPENAI_MODERATION_MODEL, settle_operator_moderation
 from animama.app.safety.prompts import COMPANION_GUARDRAILS
 from animama.domain import AnimaChatProfile, ModelConnection, ModelProvider, ModelProviderCapabilities
 from animama.domain.chat import ChatMessage, MessageRole
 from animama.domain.events import EventType
+from animama.domain.model_connection import BUILTIN_ANTHROPIC_CONNECTION_ID
 from animama.domain.usage import Usage
 from animama.domain.user_file_processing import UserFileOutlineItem
 from animama.product_http.chat.sse_events import SseTextState, format_user_response_event
@@ -564,6 +569,7 @@ def _executor(
     anima_memories_version: int | None = None,
     pre_send_compactor: Any | None = None,
     episodic_memory_arm: EpisodicMemoryArm = DEFAULT_EPISODIC_MEMORY_ARM,
+    crisis_moderator: Any | None = None,
 ) -> tuple[DirectChatTurnExecutor, _FakeChatManager]:
     resolved_provider = _provider() if provider is _DEFAULT else provider
     resolved_profile: AnimaChatProfile | None
@@ -598,6 +604,7 @@ def _executor(
             memory_episode_recorder=memory_episode_recorder,
             pre_send_compactor=pre_send_compactor,
             episodic_memory_arm=episodic_memory_arm,
+            crisis_moderator=crisis_moderator,
         ),
         chats,
     )
@@ -2858,7 +2865,7 @@ async def test_moderation_survives_the_stream_event_summary_and_emits_crisis_sup
 
     crisis = [event for event in events if event.type == EventType.CRISIS_SUPPORT]
     assert len(crisis) == 1 and crisis[0].payload.source == "moderation"
-    assert model_client.seen_specs[0].provider_options.moderation_model == RESPONSES_MODERATION_MODEL
+    assert model_client.seen_specs[0].provider_options.moderation_model == OPENAI_MODERATION_MODEL
 
 
 @pytest.mark.asyncio
@@ -2884,7 +2891,7 @@ async def test_moderation_uses_round_zero_and_is_requested_only_there() -> None:
     events = await _collect(executor.stream_turn(_request(provider_moderation=True)))
 
     assert [event.type for event in events].count(EventType.CRISIS_SUPPORT) == 1
-    assert model_client.seen_specs[0].provider_options.moderation_model == RESPONSES_MODERATION_MODEL
+    assert model_client.seen_specs[0].provider_options.moderation_model == OPENAI_MODERATION_MODEL
     assert model_client.seen_specs[1].provider_options.moderation_model is None
 
 
@@ -2899,6 +2906,143 @@ async def test_moderation_is_ignored_when_not_requested() -> None:
 
     assert EventType.CRISIS_SUPPORT not in [event.type for event in events]
     assert model_client.seen_specs[0].provider_options.moderation_model is None
+
+
+class _StubModerator:
+    """An operator crisis moderator that records the text it was given."""
+
+    def __init__(self, result: ModelClientModeration | Exception = _FLAGGED, *, block: bool = False) -> None:
+        self.result = result
+        self.block = block
+        self.seen: list[str] = []
+
+    async def moderate(self, text: str) -> ModelClientModeration:
+        self.seen.append(text)
+        if self.block:
+            await asyncio.Event().wait()
+        if isinstance(self.result, Exception):
+            raise self.result
+        return self.result
+
+
+def _operator_moderation_tasks() -> list[asyncio.Task[Any]]:
+    return [task for task in asyncio.all_tasks() if task.get_name().startswith("direct-chat-crisis-moderation-")]
+
+
+def _provider_on_its_connection(provider_type: str) -> ModelProvider:
+    provider = _provider(provider_type=provider_type)
+    if provider_type == ANTHROPIC_MESSAGES_PROVIDER_TYPE:
+        provider.connection_id = BUILTIN_ANTHROPIC_CONNECTION_ID
+    return provider
+
+
+def _anthropic_reply_executor(moderator: _StubModerator, client: Any | None = None) -> DirectChatTurnExecutor:
+    executor, _chats = _executor(
+        client=client or _ScriptedModelClient([ModelClientFinal(text=_structured_response(), usage=Usage())]),
+        provider=_provider_on_its_connection(ANTHROPIC_MESSAGES_PROVIDER_TYPE),
+        crisis_moderator=moderator,
+    )
+    return executor
+
+
+@pytest.mark.asyncio
+async def test_operator_moderation_adds_the_crisis_card_after_an_anthropic_reply() -> None:
+    moderator = _StubModerator(_FLAGGED)
+    model_client = _ScriptedModelClient([ModelClientFinal(text=_structured_response(), usage=Usage())])
+    executor = _anthropic_reply_executor(moderator, model_client)
+
+    events = await _collect(executor.stream_turn(_request(user_message="I want to die", provider_moderation=True)))
+
+    types = [event.type for event in events]
+    assert types.count(EventType.CRISIS_SUPPORT) == 1
+    assert types.index(EventType.USER_RESPONSE) < types.index(EventType.CRISIS_SUPPORT)
+    assert events[types.index(EventType.CRISIS_SUPPORT)].payload.source == "moderation"
+    # Only the user's message is checked, and the chat request asks for no inline moderation.
+    assert moderator.seen == ["I want to die"]
+    assert model_client.seen_specs[0].provider_options.moderation_model is None
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("provider_type", "provider_moderation"),
+    [
+        ("OpenAIResponsesHTTPAgent", True),
+        ("OpenAIHTTPAgent", True),
+        (ANTHROPIC_MESSAGES_PROVIDER_TYPE, False),
+    ],
+)
+async def test_operator_moderation_runs_only_on_anthropic_turns_with_detection_on(
+    provider_type: str, provider_moderation: bool
+) -> None:
+    moderator = _StubModerator(_FLAGGED)
+    executor, _chats = _executor(
+        client=_ScriptedModelClient([ModelClientFinal(text=_structured_response(), usage=Usage())]),
+        provider=_provider_on_its_connection(provider_type),
+        crisis_moderator=moderator,
+    )
+
+    events = await _collect(executor.stream_turn(_request(provider_moderation=provider_moderation)))
+
+    assert moderator.seen == []
+    assert EventType.CRISIS_SUPPORT not in [event.type for event in events]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "result",
+    [ModelClientModeration(status="result"), ModelClientModeration(status="error"), RuntimeError("down")],
+)
+async def test_unflagged_or_failed_operator_checks_leave_the_reply_unchanged(
+    result: ModelClientModeration | Exception, caplog: pytest.LogCaptureFixture
+) -> None:
+    caplog.set_level(logging.WARNING)
+    executor = _anthropic_reply_executor(_StubModerator(result))
+
+    events = await _collect(executor.stream_turn(_request(user_message="I want to die", provider_moderation=True)))
+
+    types = [event.type for event in events]
+    assert EventType.CRISIS_SUPPORT not in types
+    assert EventType.ERROR not in types
+    assert EventType.USER_RESPONSE in types
+    assert "I want to die" not in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_an_operator_check_still_pending_after_the_grace_period_is_cancelled(monkeypatch) -> None:
+    monkeypatch.setattr(
+        direct_executor_module,
+        "settle_operator_moderation",
+        functools.partial(settle_operator_moderation, timeout=0.01),
+    )
+    executor = _anthropic_reply_executor(_StubModerator(_FLAGGED, block=True))
+
+    events = await _collect(executor.stream_turn(_request(provider_moderation=True)))
+
+    types = [event.type for event in events]
+    assert EventType.CRISIS_SUPPORT not in types
+    assert EventType.USER_RESPONSE in types
+    assert _operator_moderation_tasks() == []
+
+
+@pytest.mark.asyncio
+async def test_a_failed_anthropic_reply_cancels_the_operator_check_without_a_card() -> None:
+    executor = _anthropic_reply_executor(_StubModerator(_FLAGGED, block=True), _FailingModelClient())
+
+    events = await _collect(executor.stream_turn(_request(provider_moderation=True)))
+
+    assert [event.type for event in events] == [EventType.ERROR]
+    assert _operator_moderation_tasks() == []
+
+
+@pytest.mark.asyncio
+async def test_settling_an_operator_check_waits_only_for_its_grace_period() -> None:
+    pending = asyncio.create_task(asyncio.Event().wait())
+    try:
+        assert await settle_operator_moderation(pending, timeout=0.01) is None  # type: ignore[arg-type]
+    finally:
+        pending.cancel()
+    finished = asyncio.create_task(_StubModerator(_FLAGGED).moderate("text"))
+    assert await settle_operator_moderation(finished) == _FLAGGED
 
 
 def _tool_names(spec: ModelClientRequest) -> list[str]:

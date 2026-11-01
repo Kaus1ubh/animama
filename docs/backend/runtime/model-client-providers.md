@@ -580,10 +580,11 @@ content-free `ModelClientFinal.input_moderation` (`status` `result` or `error`,
 flagged categories and scores). Moderation is report-only: it never blocks or
 alters the reply, and the executor only uses a self-harm signal to add a
 [crisis card](chat.md#sse-events). Chat Completions and Anthropic Messages
-rows do not support moderation and never receive the option. Anthropic offers
-no moderation endpoint, so Anthropic turns rely on the Companion Guardrails
-alone and never show a crisis card; that gap is accepted
-([ADR 0023](../../adr/0023-native-anthropic-messages-provider.md)).
+rows never receive the option. Anthropic offers no moderation endpoint, so a
+composition may check Anthropic turns with an operator
+[crisis moderator](chat.md#companion-safety). Without one, as in the local
+composition, Anthropic and Chat Completions turns rely on the Companion
+Guardrails alone ([ADR 0023](../../adr/0023-native-anthropic-messages-provider.md)).
 
 The Anthropic adapter classifies SDK errors and stream `error` events by
 Anthropic's `error.type`, then the HTTP status, into `anthropic_authentication_error`,

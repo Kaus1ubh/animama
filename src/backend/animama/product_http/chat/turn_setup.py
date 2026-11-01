@@ -252,6 +252,7 @@ async def prepare_direct_chat_turn(
         ),
         pre_send_compaction_timeout_seconds=policy.presend_compaction_timeout_seconds,
         web_search_tool=await services.web_search_tool(session),
+        crisis_moderator=policy.crisis_moderator,
     )
     direct_request = DirectChatTurnRequest(
         anima_id=anima_id,
