@@ -601,7 +601,6 @@ export const FOOTER_LINKS = [
   { label: "Privacy", href: SITE.privacy },
   { label: "Terms", href: SITE.terms },
   { label: "Contact", href: `mailto:${SITE.contactEmail}` },
-  { label: "Docs", href: SITE.docsUrl },
   { label: "Third-party notices", href: SITE.notices },
 ];
 
