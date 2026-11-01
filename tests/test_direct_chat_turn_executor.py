@@ -5,6 +5,7 @@ import functools
 import json
 import logging
 from collections.abc import AsyncGenerator, AsyncIterator, Mapping, Sequence
+from contextlib import aclosing
 from types import SimpleNamespace
 from typing import Any, cast
 
@@ -2925,6 +2926,12 @@ class _StubModerator:
         return self.result
 
 
+def _logged(caplog: pytest.LogCaptureFixture) -> str:
+    """Every captured record with its structured fields, which `caplog.text` leaves out."""
+
+    return "\n".join(str(vars(record)) for record in caplog.records)
+
+
 def _operator_moderation_tasks() -> list[asyncio.Task[Any]]:
     return [task for task in asyncio.all_tasks() if task.get_name().startswith("direct-chat-crisis-moderation-")]
 
@@ -3004,7 +3011,7 @@ async def test_unflagged_or_failed_operator_checks_leave_the_reply_unchanged(
     assert EventType.CRISIS_SUPPORT not in types
     assert EventType.ERROR not in types
     assert EventType.USER_RESPONSE in types
-    assert "I want to die" not in caplog.text
+    assert "I want to die" not in _logged(caplog)
 
 
 @pytest.mark.asyncio
@@ -3035,6 +3042,24 @@ async def test_a_failed_anthropic_reply_cancels_the_operator_check_without_a_car
 
 
 @pytest.mark.asyncio
+async def test_closing_the_stream_mid_reply_cancels_the_operator_check() -> None:
+    model_client = _ChunkedModelClient(chunks=[_structured_response()], final_text="", wait_before_final=True)
+    executor = _anthropic_reply_executor(_StubModerator(_FLAGGED, block=True), model_client)
+    prepared = await executor.prepare_turn(_request(provider_moderation=True))
+
+    async with aclosing(executor.stream_prepared_turn(prepared)) as stream:
+        async for event in stream:
+            assert event.type != EventType.CRISIS_SUPPORT
+            break
+
+    assert _operator_moderation_tasks() == []
+
+
+async def _cancels_itself() -> ModelClientModeration:
+    raise asyncio.CancelledError
+
+
+@pytest.mark.asyncio
 async def test_settling_an_operator_check_waits_only_for_its_grace_period() -> None:
     pending = asyncio.create_task(asyncio.Event().wait())
     try:
@@ -3043,6 +3068,9 @@ async def test_settling_an_operator_check_waits_only_for_its_grace_period() -> N
         pending.cancel()
     finished = asyncio.create_task(_StubModerator(_FLAGGED).moderate("text"))
     assert await settle_operator_moderation(finished) == _FLAGGED
+    # A check that cancelled itself is a failed check, never an aborted turn.
+    self_cancelled = asyncio.create_task(_cancels_itself())
+    assert await settle_operator_moderation(self_cancelled) == ModelClientModeration(status="error")
 
 
 def _tool_names(spec: ModelClientRequest) -> list[str]:

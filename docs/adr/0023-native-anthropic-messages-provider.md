@@ -121,8 +121,8 @@ Consequences:
 - **Moderation gap.** Anthropic offers no moderation endpoint, so Anthropic
   turns show no crisis card and rely on the Companion Guardrails alone, as
   Chat Completions turns do. The owner accepted this. Since 2026-11-01 a
-  composition may supply an operator moderation check for Anthropic turns; the
-  hosted demo uses OpenAI's moderation endpoint, and the local composition
+  composition may supply an operator moderation check for Anthropic turns
+  (Animama Cloud chose OpenAI's moderation endpoint); the local composition
   supplies none.
 - **Fence and refusals.** Moving a chat between Anthropic and OpenAI models
   needs a new chat. A refusal ends the turn with `model_refused`; no other
