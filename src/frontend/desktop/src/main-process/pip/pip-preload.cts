@@ -47,6 +47,7 @@ type DesktopPipRuntimeMessage = {
     | "snapshot"
     | "incremental"
     | "camera-preset"
+    | "planner-events-consumed"
     | "voice"
     | "voice-command";
   sequence: number;
@@ -98,6 +99,7 @@ function normalizeRuntimeMessage(
     message.type !== "snapshot" &&
     message.type !== "incremental" &&
     message.type !== "camera-preset" &&
+    message.type !== "planner-events-consumed" &&
     message.type !== "voice" &&
     message.type !== "voice-command"
   ) {
