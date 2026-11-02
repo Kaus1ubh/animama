@@ -565,6 +565,23 @@ File suffixes are compared case-insensitively here, for MIME, text selection
 and source maps. Required files are `index.html`, `_headers`, `notices.txt` and
 `robots.txt`.
 
+The site also publishes its header for the pages Cloud adds on the same host,
+as `site-chrome.json` (not required by the verifier; Cloud's build requires
+it). It is JSON with exactly these keys: `schema_version` (`1`); `script`, the
+root-relative path of the header's entry module under `/assets/`; `styles`, the
+root-relative paths of its stylesheets under `/assets/`, in load order; and
+`headers`, with `default`, `about` and `download`, the header element
+prerendered for every page and for the About and Download pages
+(`aria-current` on their links). The markup has
+no script and no inline `style` attribute. Every file it names is in the site's
+`files`.
+
+It also publishes the safety and crisis protocol for Cloud's `/safety/` page as
+`crisis-protocol.json` (likewise required only by Cloud's build): JSON with
+exactly `schema_version` (`1`) and `html`, `docs/safety/crisis-protocol.md`
+rendered to HTML, starting with its `<h1>`, with no script and no inline
+`style` attribute.
+
 A verifier rejects source maps (any path ending in `.map`), links and special
 members, unsafe paths, and any difference between the archive and `files`. It
 scans every text file (`_headers` and the suffixes `.html`, `.js`, `.mjs`,

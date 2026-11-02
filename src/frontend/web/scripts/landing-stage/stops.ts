@@ -1,6 +1,7 @@
 import type { TrackedEmotion } from "@/lib/emotion";
 
 import type { AmbientMood } from "./ambient";
+import type { SocialIconName } from "./social-icons";
 
 /*
  * The landing page's camera stops. Each stop frames the Avatar for
@@ -531,8 +532,12 @@ const gesture = (stem: string, label: string): StageClip => ({
  * launch.
  */
 export const CLOSED_BETA = true;
-/** The closed beta's request form (a Google Form). */
-export const BETA_ACCESS_URL = "https://forms.gle/REPLACE-WITH-BETA-FORM";
+/**
+ * The closed beta's request form: the Google Form's plain responder link,
+ * never a pre-filled one (its `entry.…` values would be published).
+ */
+export const BETA_ACCESS_URL =
+  "https://docs.google.com/forms/d/e/1FAIpQLSeM2X7m2QsKbthbqLziO7B8r9vL0C6_zfMk4a_r_ws3hQWCYg/viewform";
 
 /**
  * The public site: its address, and what search results and link previews
@@ -546,13 +551,60 @@ export const SITE = {
   shareImage: "og-image.jpg",
   shareImageAlt:
     "Annie, an Animama companion, under the words Meet your Anima.",
-  copyright: "© 2026 Animama. All rights reserved.",
+  /** Matches the repository's LICENSE and the desktop app's copyright. */
+  copyright: "© 2026 Raymond Van. All rights reserved.",
   /** What the 3D stage shows, for screen readers (it is hidden from them). */
   sceneDescription:
     "{name}, an animated 3D Anima, walks in and waves, then shows {possessive} gestures, emotions and memories as you scroll.",
   /** Third-party notices, written by the production build. */
   notices: "/notices.txt",
+  /**
+   * Pages Animama Cloud publishes beside this page on the same host (its
+   * `apps/landing-web`); the development server does not serve them.
+   */
+  about: "/about/",
+  download: "/download",
+  privacy: "/privacy/",
+  terms: "/terms/",
+  safety: "/safety/",
+  /** The public contact address, forwarded by the domain's email routing. */
+  contactEmail: "ray@animama.ai",
+  /**
+   * Animama's places on other sites: the footer shows them as icons (by
+   * `icon`, see `social-icons.tsx`), and the page's schema.org data lists
+   * them as the organization's profiles (`sameAs`).
+   */
+  social: [
+    {
+      label: "Discord",
+      href: "https://discord.gg/pUHHRrZ2xg",
+      icon: "discord",
+    },
+    {
+      label: "YouTube",
+      href: "https://www.youtube.com/@raymond-van",
+      icon: "youtube",
+    },
+    {
+      label: "X",
+      href: "https://x.com/raymondvan_",
+      icon: "x",
+    },
+  ] satisfies { label: string; href: string; icon: SocialIconName }[],
 };
+
+/**
+ * The footer's text links, shared by the overlay and the prerendered page
+ * text; the social links follow them as icons.
+ */
+export const FOOTER_LINKS = [
+  { label: "About", href: SITE.about },
+  { label: "Privacy", href: SITE.privacy },
+  { label: "Terms", href: SITE.terms },
+  { label: "Safety", href: SITE.safety },
+  { label: "Contact", href: `mailto:${SITE.contactEmail}` },
+  { label: "Third-party notices", href: SITE.notices },
+];
 
 /** Stops with their `beta` copy applied while `CLOSED_BETA` is on. */
 function withBetaCopy(stops: StageStop[]): StageStop[] {
@@ -568,11 +620,11 @@ export const STAGE_STOPS: StageStop[] = withBetaCopy([
     label: "Intro",
     followCursor: true,
     title: "Meet your Anima",
-    body: "AI companions that feel alive with their own behaviors, emotions and memories.",
+    body: "AI companions that move, feel and remember.",
     links: [
-      { word: "behaviors", stop: "gestures" },
-      { word: "emotions", stop: "emotion" },
-      { word: "memories", stop: "memory" },
+      { word: "move", stop: "gestures" },
+      { word: "feel", stop: "emotion" },
+      { word: "remember", stop: "memory" },
     ],
     camera: {
       yaw: 0,
@@ -599,7 +651,7 @@ export const STAGE_STOPS: StageStop[] = withBetaCopy([
     accent: "#2f9fd0",
     label: "Behaviors",
     title: "Body Language",
-    body: "From laughing at your jokes to romantic gestures: **over 300 unique gestures and reactions**, picked as {subject} talks.",
+    body: "From goofy antics to romantic gestures: **over 300 unique gestures and reactions**, picked as {subject} talks.",
     camera: {
       yaw: 16,
       distance: 1.25,
