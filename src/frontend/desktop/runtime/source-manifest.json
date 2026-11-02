@@ -2,7 +2,7 @@
   "schema": "animama-runtime-sources/1",
   "python": "3.12.13",
   "pyinstaller": "6.22.2",
-  "electron": "45.0.0",
+  "electron": "45.2.1",
   "esbuild": "0.27.7",
   "local_http_schema_version": 1,
   "targets": {
