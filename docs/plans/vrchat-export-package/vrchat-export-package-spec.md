@@ -2,12 +2,14 @@
 
 Status: Agreed
 Snapshot of https://github.com/raymond-van/animama/issues/795 (published
-2026-10-29T16:48:47Z; updated and captured 2026-10-29T17:06:25Z); the issue is
-authoritative.
+2026-10-29T16:48:47Z; updated 2026-10-29T17:06:25Z and 2026-11-02T19:12:40Z;
+captured 2026-11-02T19:12:40Z); the issue is authoritative.
 Owner decision: 2026-10-29: offer both a Unity editor window and a standalone
 command line; accept the proposed answers to Q1–Q8. Later the same day:
 support and verify macOS and Windows together, replacing "macOS first, Windows
-later".
+later". 2026-11-01: rename the tool to `animama-avatar-converter` and publish
+the command to npm, replacing Q5's names and Q8's `npx github:` form.
+2026-11-02: release v0.1.0 before the Windows checks, which stay open.
 
 ## Problem and intended users
 
@@ -129,7 +131,8 @@ Non-goals:
   repository at build or run time. This repository's developer command may
   fetch the published package by revision.
 - **Publication.** Creating the public repository, publishing the VPM listing
-  and contacting upstream projects each need the owner's approval.
+  or the npm package and contacting upstream projects each need the owner's
+  approval.
 
 ## Acceptance criteria
 
@@ -208,7 +211,10 @@ Non-goals:
 - **Q5 Names and hosting.** Decided 2026-10-29: repository
   `raymond-van/animama-avatar-export`, package `com.animama.avatar-export`,
   listing served from that repository's GitHub Pages (or the R2 release
-  bucket).
+  bucket). Renamed 2026-11-01 (owner): repository
+  `raymond-van/animama-avatar-converter`, Unity package
+  `com.animama.avatar-converter` ("Animama Avatar Converter"), listing on that
+  repository's GitHub Pages.
 - **Q6 Modular Avatar.** Decided 2026-10-29: out of scope for the first
   release; detected and explained, and documented as unsupported.
 - **Q7 Vertex colours.** The missing vertex colours that lilToon's hair outline
@@ -223,6 +229,10 @@ Non-goals:
   conversion logic lives in one place; (b) a shell script for macOS and a
   PowerShell script for Windows: no runtime to install, but two
   implementations and hand-rolled JSON editing. Decided 2026-10-29: (a).
+  Amended: Node 22 or later (Node 20 reached end of life); 2026-11-01 (owner):
+  published to npm as `animama-avatar-converter` and run in the project's
+  folder as `npx animama-avatar-converter [<prefab>]`, replacing
+  `npx github:` and "no npm publication".
   Creating a new
   project from the Avatar's `.unitypackage` files needs VRChat's `vpm` tool and
   per-Avatar choices, so the command starts from an existing project; project
@@ -236,9 +246,14 @@ https://github.com/raymond-van/animama/issues/795
 
 Required: the work spans a new repository, a distribution channel, two user
 interfaces, the developer command and verification on two platforms.
-Drafted in `docs/plans/vrchat-export-package/vrchat-export-package-execplan.md`
-on `feat/vrchat-export-package`; linked here once pushed.
+[`docs/plans/vrchat-export-package/vrchat-export-package-execplan.md`](vrchat-export-package-execplan.md)
+on `feat/vrchat-export-package`.
 
 ## Delivery links
 
-None yet.
+- Converter repository: https://github.com/raymond-van/animama-avatar-converter
+  (release [v0.1.0](https://github.com/raymond-van/animama-avatar-converter/releases/tag/v0.1.0),
+  2026-11-02)
+- VPM listing: https://raymond-van.github.io/animama-avatar-converter/index.json
+- npm: https://www.npmjs.com/package/animama-avatar-converter
+- Animama: https://github.com/raymond-van/animama/pull/813 (developer command, docs and records)

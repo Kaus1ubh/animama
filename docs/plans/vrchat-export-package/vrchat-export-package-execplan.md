@@ -2,7 +2,8 @@
 
 Source agreement: https://github.com/raymond-van/animama/issues/795, published
 2026-10-29T16:48:47Z with the owner's decisions on Q1–Q8 of the same day, and
-updated 2026-10-29T17:06:25Z for macOS and Windows together (snapshot:
+updated 2026-10-29T17:06:25Z for macOS and Windows together and
+2026-11-02T19:12:40Z for the rename, npm and the release (snapshot:
 [vrchat-export-package-spec.md](vrchat-export-package-spec.md)).
 Authorized scope: Phases 1–5, each verified on macOS and Windows (owner,
 2026-10-29: Phase 1 with "Start Phase 1", then the remaining phases by asking to
@@ -124,11 +125,10 @@ Remaining steps before merge (owner unless noted):
 2. Agent: install from the listing in a fresh VRChat Avatars project on macOS
    (`vpm add repo`, add the package, run the installer, menu compiles).
 3. G4: upload a window export through Create Anima on a task stack.
-4. Update issue #795 to the 2026-11-01 names and the npm publication (owner
-   approval to post).
 
 Done: Node 22 confirmed (2026-10-29); G1 (2026-10-29); GM, G2, release prep,
-G3 and the developer command against the npm release (2026-11-02).
+G3, the developer command against the npm release and the #795 update
+(2026-11-02).
 
 ## Surprises & Discoveries
 
@@ -192,8 +192,8 @@ G3 and the developer command against the npm release (2026-11-02).
   command. Publishing the command to npm is the owner's decision: the agent
   proposed it as the way to simplify the command, the owner asked for exactly
   that simplification, and the publish itself stays owner-run at G3. It
-  supersedes spec Q8's "no npm publication" and Q5's names; the issue (#795)
-  still states the old ones until it is updated. Delivered (agent, within that
+  supersedes spec Q8's "no npm publication" and Q5's names (issue #795
+  updated 2026-11-02 with the owner's approval). Delivered (agent, within that
   direction): the command runs in the
   project's folder by default, takes the prefab as an optional positional name
   or path (with no prefab it uses the project's only Avatar prefab, found from
