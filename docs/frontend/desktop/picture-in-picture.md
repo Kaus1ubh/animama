@@ -167,13 +167,16 @@ The main renderer publishes:
 The PiP renderer applies snapshots to its own stores and scene props. Its own
 Avatar consumes the mirrored planner events, so Gestures and Reactions play in
 PiP, and their Avatar, particle and scene effects apply to the PiP renderer's
-own Avatar and scene VFX store. The suspended main scene consumes none, so PiP
-reports each consumed event to its owner as a `planner-events-consumed` runtime
-message and the owner removes it from its queue. Until that report arrives,
-PiP drops the event from incoming snapshots. Otherwise each snapshot sent while
-a Gesture plays queues it again, and closing PiP replays it in the main window. Scene effect state is therefore not mirrored:
+own Avatar and scene VFX store. Scene effect state is therefore not mirrored:
 the main scene is suspended during PiP, and replacing PiP's store with its
 empty one cleared a Reaction's scene background about 100 ms after it began.
+
+The suspended main scene consumes no planner events either, so PiP reports
+each event its Avatar consumes to its owner as a `planner-events-consumed`
+runtime message, and the owner removes it from its queue. Until that report
+arrives, PiP drops the event from incoming snapshots. Otherwise each snapshot
+sent while a Gesture plays queues it again, and closing PiP replays it in the
+main window.
 
 PiP has its own camera preset, Portrait (close) by default and saved as the
 user preference `presentation.pip_camera_preset`, separately from the main

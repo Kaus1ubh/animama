@@ -76,7 +76,7 @@ describe("PiP planner event consumption", () => {
     useAvatarRuntimeStore.setState({ plannerEvents: [] });
   });
 
-  it("reports the events PiP's Avatar consumes, not those a snapshot replaces", () => {
+  it("reports the events PiP's Avatar consumes", () => {
     const gesture = gestureEvent("motion-gesture-report");
     const snapshot = snapshotWith([gesture]);
     useAvatarRuntimeStore.setState({ plannerEvents: [] });
@@ -88,6 +88,20 @@ describe("PiP planner event consumption", () => {
 
     useAvatarRuntimeStore.getState().consumePlannerEvents([gesture.eventId]);
     expect(onConsumed).toHaveBeenCalledExactlyOnceWith([gesture.eventId]);
+  });
+
+  it("does not report events a snapshot removes", () => {
+    const gesture = gestureEvent("motion-gesture-replaced");
+    const emptySnapshot = snapshotWith([]);
+    useAvatarRuntimeStore.setState({ plannerEvents: [gesture] });
+    const onConsumed = vi.fn();
+    stopWatching.push(watchDesktopPipPlannerEventConsumption(onConsumed));
+
+    // The owner already dropped the event, for example when its run finished.
+    applyDesktopPipVisualState(emptySnapshot);
+
+    expect(plannerEventIds()).toEqual([]);
+    expect(onConsumed).not.toHaveBeenCalled();
   });
 
   it("does not replay a Gesture the owner sends again before it hears of the consumption", () => {

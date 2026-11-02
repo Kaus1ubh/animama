@@ -185,7 +185,7 @@ export function isDesktopPipVisualState(
   );
 }
 
-export function isDesktopPipPlannerEventsConsumed(
+function isDesktopPipPlannerEventsConsumed(
   value: unknown,
 ): value is DesktopPipPlannerEventsConsumed {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
