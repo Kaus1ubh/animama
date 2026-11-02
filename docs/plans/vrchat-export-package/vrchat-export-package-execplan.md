@@ -103,44 +103,32 @@ in a valid scene; `Export` converts in that scene. `MochiyaTargetKind` is
   review passed after one repair round; package commit `26601ed`); Windows
   checks open until GW
 - [ ] Phase 2: editor window, checks, installer, licence notice — done on macOS
-  (checks pass; review passed after one repair round); owner GUI walkthrough GM
-  and Windows checks open
+  (checks pass; review passed after one repair round); GM walked through
+  2026-11-02 with its fixes in the release; Windows checks open (GW)
 - [ ] Phase 3: standalone command — done on macOS (checks pass; review passed
   after one repair round); Windows checks open (GW)
-- [ ] Phase 4: listing, release and package CI — local checks pass; review
-  passed after one repair round; owner gates G1–G3 (and the live release checks)
-  open
+- [ ] Phase 4: listing, release and package CI — G1–G3 done and v0.1.0
+  released 2026-11-02 (see [Release record](#release-record-2026-11-02));
+  installing from the listing in a fresh project and Windows (GW) open
 - [ ] Phase 5: developer command and docs — done against a local exporter
-  checkout (checks pass; high-risk review passed after two repair rounds);
-  needs the v0.1.0 release and npm publication (G3) and G4
+  checkout (checks pass; high-risk review passed after two repair rounds) and
+  against the published `animama-avatar-converter@0.1.0`; G4 open
 - [x] Final integration review — passed after one repair round (a record-only
   blocker); full pre-push suite on the final candidate recorded there
 
-Remaining steps before release and merge (owner unless noted):
+Remaining steps before merge (owner unless noted):
 
-1. Done 2026-10-29: Node 22 confirmed.
-2. GW (later, by the owner's choice): give access to a Windows machine; the agent then runs every phase's
-   Windows checks (the README makes no platform claim to update).
-3. GM: walk through the Unity window on macOS (installer prompt, licence
-   notice, export, open scene untouched).
-4. Done 2026-10-29 (G1): `raymond-van/animama-avatar-export` created as a
-   private repository with Actions disabled; `main` pushed at `f489a14`; no
-   workflow ran.
-5. G2: make the repository public (the Unity package and the listing install
-   from it), then enable Actions, Pages from GitHub Actions, the
-   `github-pages` environment allowing `v*` tags, and a tag ruleset for `v*`.
-6. Release prep (agent, after GW): mark the CHANGELOG's 0.1.0 heading released
-   so `check.mjs --tag v0.1.0` passes.
-7. G3: approve and push `v0.1.0` (it must contain the `--log` option, exporter
-   commit `f689925` or later), and run `npm publish` from the tagged commit
-   (owner); then install from the listing on macOS and
-   Windows and compare the zip's hash with the listing.
-8. Agent: run the developer command against the published
-   `animama-avatar-converter@0.1.0` (already pinned; npm versions cannot
-   change, so no SHA pin is needed).
-9. G4: upload a window export through Create Anima on a task stack.
-10. Push this branch and open the PR only after step 7: until the tag exists,
-    the default `vrm:convert-vrchat` cannot fetch its exporter.
+1. GW (later, by the owner's choice): give access to a Windows machine; the
+   agent then runs every phase's Windows checks, a 0.1.x fix release if they
+   find a defect.
+2. Agent: install from the listing in a fresh VRChat Avatars project on macOS
+   (`vpm add repo`, add the package, run the installer, menu compiles).
+3. G4: upload a window export through Create Anima on a task stack.
+4. Update issue #795 to the 2026-11-01 names and the npm publication (owner
+   approval to post).
+
+Done: Node 22 confirmed (2026-10-29); G1 (2026-10-29); GM, G2, release prep,
+G3 and the developer command against the npm release (2026-11-02).
 
 ## Surprises & Discoveries
 
@@ -170,9 +158,33 @@ Remaining steps before release and merge (owner unless noted):
   (`pnpm --dir src/frontend packages:build`); the `vrm:*` scripts do not build
   them. Phase 5's developer doc should say so.
 
+- 2026-11-02 (release): npm now publishes a new package as a staged release:
+  `npm publish` first required two-factor authentication on the account, then
+  created a public placeholder `0.0.0-stage` and held 0.1.0 until the owner
+  approved it. Approving needs npm 11.15 or later (`npm stage list`, `npm stage
+  approve <id>`) or the npmjs.com Staged Packages tab; `npx` on a machine that
+  had looked up the placeholder needed `--prefer-online` once.
+- 2026-11-02 (developer command): a project that pins an older Mochiya commit
+  is refused with the entry to change (by design); after changing it, the
+  developer command converts through the npm release.
+
 ## Decision Log
 
 - 2026-10-29, owner: accept the spec's answers to Q1–Q8 (issue #795).
+- 2026-11-02, owner: release v0.1.0 before the Windows checks (GW), which
+  stay open; a defect they find ships as a 0.1.x patch. This supersedes the
+  plan's rule that GW blocks G3. The owner also asked for the release steps to
+  be run for them: the agent marked the CHANGELOG released and, after the owner
+  made the repository public, configured Actions, Pages, the environment and
+  the tag ruleset and pushed the tag; the owner ran `npm publish` and approved
+  the staged version.
+- 2026-11-02, owner: before going public, remove the converted test Avatar's
+  name, which a command test used as a prefab name, from the package
+  repository's history. History was rewritten (only that test changed; commits
+  before `c99c733`, which this plan cites, kept their SHAs) and, because a
+  force-push cannot change GitHub's pull request refs, the repository was
+  deleted by the owner and recreated from the rewritten history. Commit emails
+  stay as they are, matching this repository's.
 - 2026-11-01, owner: rename the tool to `animama-avatar-converter` (GitHub
   repository, npm package and command, Unity package
   `com.animama.avatar-converter`, display name "Animama Avatar Converter");
@@ -1129,6 +1141,24 @@ P5-R3-F1 and P5-R3-F2 recorded (notes and Dependencies); the guide says
 "Whenever Unity runs" (wording only). P5-R3-F3 left: the developer command
 always passes `.export.log`. The final integration review covers these.
 
+## Release record (2026-11-02)
+
+Package repository `raymond-van/animama-avatar-converter`, public, `v0.1.0` at
+`0785ee4` (CHANGELOG `## 0.1.0 (2026-11-02)`, commit `8194960`; includes the
+GM window fixes `2a95c5f`, merged `1aef931`).
+
+| Check | Result |
+| --- | --- |
+| G2 settings | Actions enabled; Pages source GitHub Actions; `github-pages` deploys from tags `v*` only; ruleset "Protect version tags" blocks updating and deleting `refs/tags/v*` |
+| Leak scan before going public | Gitleaks 8.30.1 over every commit: none; no private names, paths or binary files in any revision |
+| Release workflow run 41504895306 | ci (repository checks; command tests on Ubuntu and Windows), build, release, pages: all success |
+| GitHub release `v0.1.0` | `com.animama.avatar-converter-0.1.0.zip`, 49,240 bytes |
+| VPM listing `https://raymond-van.github.io/animama-avatar-converter/index.json` | id `com.animama.vpm`; version 0.1.0; `zipSHA256` equals the downloaded release zip's (`19e5f33f…`) |
+| npm `animama-avatar-converter@0.1.0` (`latest`) | contents identical to `npm pack` of the tag (8 files); `npx animama-avatar-converter --help` runs |
+| Developer command (`vrm:convert-vrchat`, pinned `@0.1.0`, macOS) on a copy of the test project | exit 0 in 25 s; Unity installed the package from the tag's Git URL; raw export byte-identical to the local-checkout export; 8.44 MB optimized |
+| Install from the listing in a fresh project | not run |
+| Windows (GW) | not run beyond the release run's command tests |
+
 ## Final integration review
 
 Covers combined acceptance for #795 across both repositories at their final
@@ -1234,18 +1264,18 @@ is updated with the owner's approval.
 The spec's acceptance criteria, mapped to evidence. Every manual or Unity
 check runs on macOS and Windows unless the row says otherwise:
 
-| Criterion | Evidence | Phase | Status (2026-10-29) |
+| Criterion | Evidence | Phase | Status (2026-11-02) |
 | --- | --- | --- | --- |
-| Install from the listing in a fresh project; menu, no compile errors | walkthrough on macOS and Windows after G3 | 4 | open: G1–G3, GW (locally: the package alone compiles in a fresh project; the installer harness installs and compiles) |
-| Window export matches the developer export; prefab and scene unchanged | `vrm:inspect` counts; clean project status | 1–2 | shared export code met (byte-identical, prefabs unchanged); the window itself open: GM, GW |
+| Install from the listing in a fresh project; menu, no compile errors | walkthrough on macOS and Windows after G3 | 4 | listing live with the released zip's hash; fresh-project install from it open (macOS), GW (locally: the package alone compiles in a fresh project; the installer harness installs and compiles) |
+| Window export matches the developer export; prefab and scene unchanged | `vrm:inspect` counts; clean project status | 1–2 | shared export code met (byte-identical, prefabs unchanged); window met on macOS (GM); GW |
 | `EditorOnly` garment stripped | editor test plus the converted test Avatar's variant | 1 | met on macOS; GW |
-| Unsupported lilToon or missing dependency blocks export | editor tests plus one manual check | 2 | met locally (tests, batch exit 3); window display: GM; GW |
+| Unsupported lilToon or missing dependency blocks export | editor tests plus one manual check | 2 | met locally (tests, batch exit 3) and in the window (GM); GW |
 | Validation error blocks export, no file | editor test plus manual | 1–2 | met on macOS; GW |
-| Licence notice once per project | editor test plus walkthrough | 2 | logic met; GM; GW |
-| No network or upload code | CI source search plus review | 1, 4 | met locally; live CI after G1–G2 |
-| Standalone command converts in a project without the package; refuses while open; non-zero on failure | runs on macOS and Windows | 3 | met on macOS from the local clone, including the simple form (`npx animama-avatar-converter [name]` in the project's folder); `npx` from npm after G3; GW |
-| Upload behaves like the developer export | G4 owner check | 5 | open: G4 (after GM) |
-| Developer command works through the package | command runs | 5 | met through a local checkout; the pinned npm release after G3; Windows once (GW) |
+| Licence notice once per project | editor test plus walkthrough | 2 | met on macOS (logic and GM); GW |
+| No network or upload code | CI source search plus review | 1, 4 | met locally and in the release run's CI |
+| Standalone command converts in a project without the package; refuses while open; non-zero on failure | runs on macOS and Windows | 3 | met on macOS from the local clone, including the simple form (`npx animama-avatar-converter [name]` in the project's folder); `npx animama-avatar-converter --help` from npm; GW |
+| Upload behaves like the developer export | G4 owner check | 5 | open: G4 |
+| Developer command works through the package | command runs | 5 | met through a local checkout and the pinned npm release (byte-identical raw export); Windows once (GW) |
 | Docs describe shipped behavior | review | 5 | met (README rewritten 2026-11-01) |
 
 Hosted validation for this repository's PR follows the owner's standing policy:
