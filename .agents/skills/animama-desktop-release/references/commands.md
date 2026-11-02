@@ -1,8 +1,8 @@
 # Desktop release commands
 
 `<primary>` is the primary checkout and `<release>` the release worktree. Run
-commands from `<release>/src/frontend` unless a step says otherwise, and start
-each shell with the nonsecret release environment:
+commands from `<release>/src/frontend` unless a step says otherwise. On macOS,
+start each shell with the nonsecret release environment:
 
 ```bash
 cd <release>/src/frontend && . ../../.animama-drafts/desktop-release/release.env
@@ -17,17 +17,22 @@ when the two differ, the docs win. Report the difference.
 curl -fsS https://downloads.animama.ai/desktop/latest-mac.yml | head -3
 curl -fsS https://downloads.animama.ai/desktop/latest.yml | head -3
 curl -s -o /dev/null -w '%{http_code}\n' -I "https://downloads.animama.ai/desktop/v<version>/Animama-<version>-arm64.dmg"
+curl -s -o /dev/null -w '%{http_code}\n' -I "https://downloads.animama.ai/desktop/v<version>/Animama-<version>-x64-setup.exe"
 ```
 
-A `404` or a connection failure means nothing is published there. A preview
-publishes no feed, so also probe the proposed version's installer. Any `200`
-under `v<version>/` means that version is taken.
+Read the results:
+
+- **`404`:** nothing is published at that URL.
+- **Connection failure:** inconclusive. Retry, or ask the owner; never treat it as
+  unpublished.
+- **`200` for an installer:** that version is taken. A preview publishes no feed
+  or artifact index, so probe the installers for every version you consider.
 
 ## Release workspace
 
 ```bash
 git -C <primary> fetch origin
-git -C <primary> worktree add -b chore/desktop-release-<version> <worktrees>/desktop-release-<version> origin/main
+git -C <primary> worktree add -b build/desktop-release-<version> <worktrees>/desktop-release-<version> origin/main
 cd <worktrees>/desktop-release-<version>
 git lfs pull
 pnpm -C src/frontend install --frozen-lockfile
@@ -36,7 +41,7 @@ pnpm -C src/frontend install --frozen-lockfile
 Edit `"version"` in `src/frontend/desktop/package.json`, then commit:
 
 ```bash
-git commit -am "chore(desktop): set the desktop version to <version>"
+git commit -am "build(desktop): set the desktop version to <version>"
 ```
 
 Create `.animama-drafts/desktop-release/release.env` in the worktree. The
@@ -69,8 +74,9 @@ Check each result:
 - The identity list includes the Developer ID identity named in
   `desktop/runtime/feature-pack-releases.json`.
 - Gitleaks reports the version pinned in `scripts/repository-boundary/scanner-pins.json`.
-- The disk has room for a stage, a signed build and the model candidates. Stop
-  below 30 GB free.
+- The disk has room for a stage, a signed build and the model candidates. The
+  build itself refuses to run below 8 GiB. As a rule of thumb, ask before
+  continuing with less than 30 GB free.
 
 If the notary profile is missing, the owner restores it with
 `xcrun notarytool store-credentials <profile>`. If the Gitleaks copy is missing,
@@ -90,22 +96,10 @@ new hashes to make it pass.
 
 ## Dependency audit
 
-From `<release>`:
-
-```bash
-uv export --frozen --no-default-groups --group desktop-build --all-extras --no-hashes --no-emit-project --format requirements-txt -o src/frontend/desktop/release/dependency-audit/runtime-requirements.txt
-uvx pip-audit@2.10.1 --no-deps --disable-pip -r src/frontend/desktop/release/dependency-audit/runtime-requirements.txt -o src/frontend/desktop/release/dependency-audit/pip-audit.txt
-pnpm -C src/frontend audit --prod > src/frontend/desktop/release/dependency-audit/pnpm-audit-prod.txt
-pnpm -C src/frontend audit > src/frontend/desktop/release/dependency-audit/pnpm-audit.txt
-```
-
-Each tool exits non-zero when it reports an advisory. Read the reports:
-
-- **Blocking:** `--prod` entries, and full-audit entries whose path starts with
-  `desktop>electron`.
-- **Review only:** other full-audit entries.
-
-Check Electron:
+Run the four audit commands in
+[Commands and inputs](../../../../docs/frontend/desktop/release-process.md#commands-and-inputs)
+from `<release>`. Each tool exits non-zero when it reports an advisory. That
+section says which entries block and which are review-only. Then check Electron:
 
 ```bash
 node -p "require('./desktop/node_modules/electron/package.json').version"
@@ -122,6 +116,7 @@ of the latest three stable majors.
 (set -a; . ~/.config/animama/mixamo-read.env; set +a; pnpm desktop:mixamo-motion fetch && pnpm desktop:private-pack --pack wow-comedy-sfx fetch)
 ANIMAMA_REQUIRE_MIXAMO_MOTION=1 ANIMAMA_REQUIRE_WOW_COMEDY_SFX=1 python3 ../../scripts/heavy-slot.py -- pnpm desktop:runtime:stage -- --platform darwin --arch arm64 > ../../.animama-drafts/desktop-release/stage.log 2>&1
 pnpm desktop:runtime:audit -- --platform darwin --arch arm64
+git -C ../.. rev-parse HEAD > ../../.animama-drafts/desktop-release/staged-commit
 ```
 
 Both packs use the Mixamo read-token file. Fix the following failures and stage
@@ -141,29 +136,50 @@ target=darwin-arm64
 staged=desktop/.desktop-runtime/$target/runtime/licenses/inventory.json
 shasum -a 256 "$staged"
 node -p "require('./desktop/runtime/release-policy.json').redistribution_reviews['$target'].inventory_sha256"
-python3 -I ../../.agents/skills/animama-desktop-release/scripts/inventory_diff.py <baseline> "$staged"
 ```
 
-The baseline is
-`<primary>/.animama-drafts/desktop-release/reviewed-inventories/<target>-<receipt sha256>.json`.
-If no copy with the receipt's hash exists, as on the first run:
+The baseline is the last reviewed inventory, whose SHA-256 must equal the
+receipt. Find it in one of these places:
 
-- Diff against the newest other staged inventory you can find, for example
-  `<primary>/src/frontend/desktop/.desktop-runtime/<target>/runtime/licenses/inventory.json`.
-- Tell the owner that this baseline was never reviewed.
-- List the pending items in the
-  [redistribution review](../../../../docs/frontend/desktop/redistribution-review.md).
+- **The last published version**, preview or stable. Fetch
+  `v<version>/redistribution-inventory.json` (Windows:
+  `redistribution-inventory-win32-x64.json`) anonymously into
+  `<primary>/.animama-drafts/desktop-release/reviewed-inventories/` and check its
+  hash.
+- **A saved copy** in that folder named `<target>-<sha256>.json`.
+
+If neither matches the receipt, use the newest other inventory you can find, and
+tell the owner that this baseline was never reviewed. Write the diff to a file
+and present its summary sections:
+
+```bash
+python3 -I ../../.agents/skills/animama-desktop-release/scripts/inventory_diff.py <baseline> "$staged" > ../../.animama-drafts/desktop-release/inventory-diff-$target.md
+```
 
 After the owner approves the exact hash:
 
 1. Set the target's `inventory_sha256`, `reviewed_by` (`gh api user -q .login`)
-   and `reviewed_on` (`date +%F`) in `desktop/runtime/release-policy.json`.
+   and `reviewed_on` (`date -u +%F`; the validator compares UTC dates) in
+   `desktop/runtime/release-policy.json`.
 2. Copy `$staged` to the baseline folder as `<target>-<sha256>.json`.
 3. Commit:
 
 ```bash
-git commit -am "chore(desktop): record the <target> redistribution review"
+git commit -am "build(desktop): record the <target> redistribution review"
 ```
+
+## Merge the reviewed inputs
+
+After the owner approves and the PR merges, switch the worktree to the merged
+commit and compare it with the staged one:
+
+```bash
+git -C ../.. fetch origin && git -C ../.. switch --detach origin/main
+git -C ../.. diff --stat "$(cat ../../.animama-drafts/desktop-release/staged-commit)" HEAD -- . ':(exclude)src/frontend/desktop/runtime/release-policy.json' ':(exclude)docs'
+```
+
+An empty diff means the stage still matches. Any other change requires another
+stage and audit.
 
 ## Signed build
 
@@ -191,7 +207,7 @@ The output must show:
 
 - `ready: true`, the expected version and the selected distribution.
 - Every checksum `OK`.
-- A clean tree. Record the commit.
+- A clean tree at the merged `main` commit. Record that commit.
 
 The build enforces the size limits. Report the sizes from
 `desktop/release/publish/size-report.json`.
@@ -213,7 +229,11 @@ Before any rebuild in the same worktree:
 
 ```bash
 dest=<primary>/.animama-drafts/desktop-release/<version>/<target>-$(git -C ../.. rev-parse --short HEAD)
-mkdir -p "$dest" && mv desktop/release/publish desktop/release/smoke-name "$dest"/ 2>/dev/null; ls "$dest"
+mkdir -p "$dest"
+mv desktop/release/publish "$dest"/
+if [ -d desktop/release/smoke-name ]; then mv desktop/release/smoke-name "$dest"/; fi
+cp -R desktop/release/dependency-audit "$dest"/
+ls "$dest"
 ```
 
 ## Fresh-account smoke
@@ -223,30 +243,36 @@ Prepare a shared handoff folder from `<release>`:
 
 ```bash
 handoff=/Users/Shared/animama-smoke-<version>
-mkdir -p "$handoff" && cp src/frontend/desktop/release/publish/Animama-<version>-arm64.dmg "$handoff"/
-git bundle create "$handoff/source.bundle" chore/desktop-release-<version>
-chmod -R a+rX "$handoff"
+mkdir -p "$handoff" && mkdir -m 0777 "$handoff/reports"
+cp src/frontend/desktop/release/publish/Animama-<version>-arm64.dmg "$handoff"/
+git bundle create "$handoff/source.bundle" HEAD
+chmod a+rX "$handoff" "$handoff"/*.dmg "$handoff/source.bundle"
 ```
 
 Give the owner these steps for the test account:
 
-1. Clone the bundle, check out the release branch and install dependencies with
-   `pnpm -C src/frontend install --frozen-lockfile`.
-2. Set `ANIMAMA_SMOKE_OPENAI_KEY` for that shell only.
-3. From `src/frontend`, run:
+1. Clone the bundle: `git clone /Users/Shared/animama-smoke-<version>/source.bundle animama-smoke`.
+2. Install dependencies with `pnpm -C src/frontend install --frozen-lockfile`.
+3. Set `ANIMAMA_SMOKE_OPENAI_KEY` for that shell only.
+4. From `src/frontend`, run:
 
    ```bash
    pnpm desktop:smoke:mac -- --artifact /Users/Shared/animama-smoke-<version>/Animama-<version>-arm64.dmg --setup name
    ```
 
-4. Copy `desktop/release/smoke-name` back into the handoff folder.
+5. Copy the reports back and make them removable:
+
+   ```bash
+   cp -R desktop/release/smoke-name /Users/Shared/animama-smoke-<version>/reports/ && chmod -R a+rwX /Users/Shared/animama-smoke-<version>/reports
+   ```
 
 Then, back in the build account:
 
-1. Copy `smoke-name` into `<release>/src/frontend/desktop/release/`.
+1. Copy `reports/smoke-name` into `<release>/src/frontend/desktop/release/`.
 2. Check that its reports' `dmg_sha256` matches the DMG in `SHA256SUMS.txt`.
 3. Check that `runtime_build_id` matches the signing report.
-4. If a report asks for manual cleanup of the test credential, relay it to the
+4. Delete `$handoff`: it holds the private source bundle in a shared location.
+5. If a report asks for manual cleanup of the test credential, relay it to the
    owner.
 
 ## Publication
@@ -257,7 +283,10 @@ Only on an explicit owner request naming the version and stage, run:
 (set -a; . ~/.config/animama/r2-publish.env; set +a; node desktop/scripts/runtime/publish-macos.mjs --confirm-preview-publication)
 ```
 
-For stable, the owner supplies their completed acceptance file:
+For stable:
+
+1. Rerun the [dependency audit](#dependency-audit) and present the results.
+2. With the owner's completed acceptance file, run:
 
 ```bash
 (set -a; . ~/.config/animama/r2-publish.env; set +a; ANIMAMA_MACOS_ACCEPTANCE="$(cat <owner's acceptance json>)" node desktop/scripts/runtime/publish-macos.mjs --confirm-publication)
@@ -280,16 +309,16 @@ replace it.
 pnpm desktop:dist:mac -- --signing-rehearsal > ../../.animama-drafts/desktop-release/rehearsal-mac.log 2>&1
 ```
 
-On Windows, run `pnpm desktop:dist:windows -- --signing-rehearsal`, after the
-owner confirms the signature spend.
+On Windows, run `pnpm desktop:dist:windows -- --signing-rehearsal`.
 
 ## Windows
 
-Run these on the Windows 11 x64 build host. Prepare the host as described in
+Run these on the Windows 11 x64 build host, preparing it as in
 [runtime staging](../../../../docs/frontend/desktop/runtime-staging.md#native-windows-build)
-and [the signed Windows build](../../../../docs/frontend/desktop/releases.md#build-a-signed-windows-candidate).
+and the [signed Windows build](../../../../docs/frontend/desktop/releases.md#build-a-signed-windows-candidate).
+The macOS sections above apply, with these differences.
 
-Preflight:
+**Preflight:**
 
 ```powershell
 git config --get core.autocrlf
@@ -297,34 +326,42 @@ az account show --query user.name -o tsv
 Get-PSDrive C
 ```
 
-`core.autocrlf` must print `false`. Ask the owner where this host keeps its
-owner-only pack read-token file, and load it for the fetch commands only.
+`core.autocrlf` must print `false`.
 
-From `src/frontend`, with the same `ANIMAMA_RELEASE_DISTRIBUTION`:
+**Environment:**
+
+- Set `ANIMAMA_RELEASE_DISTRIBUTION` and `ANIMAMA_MODEL_ROOT` in each shell:
+  `$env:NAME = "value"` in PowerShell, or `export` in Git Bash.
+- Keep the model root outside `%LOCALAPPDATA%\Animama` and `C:\animama-build`,
+  for example `$env:USERPROFILE\animama-models`.
+- Ask the owner where this host keeps its owner-only pack read-token file, and
+  load it for the fetch commands only.
+
+**Commands:**
+
+- **Model inputs:** run `py -3 scripts/models/release_inputs.py` with that root.
+- **Packs, stage, audit and build:** use the sequence in
+  [Windows candidates](../../../../docs/frontend/desktop/release-process.md#windows-candidates).
+- **Unsigned installers:** build them with `pnpm desktop:win:installer` while
+  iterating.
+
+**Receipt:**
+
+- Hash the staged inventory with `Get-FileHash -Algorithm SHA256`.
+- The receipt target is `win32-x64`.
+
+**Smoke:** the owner runs it in a separate standard account that has never run
+Animama. That account needs read and write access to this checkout, and its
+reports land in this checkout:
 
 ```powershell
-pnpm desktop:mixamo-motion fetch
-pnpm desktop:private-pack --pack wow-comedy-sfx fetch
-$env:ANIMAMA_REQUIRE_MIXAMO_MOTION = "1"; $env:ANIMAMA_REQUIRE_WOW_COMEDY_SFX = "1"
-pnpm desktop:runtime:stage -- --platform win32 --arch x64
-pnpm desktop:runtime:audit -- --platform win32 --arch x64
-pnpm desktop:dist:windows
+pnpm desktop:smoke:windows -- --artifact desktop/release/publish/Animama-<version>-x64-setup.exe --setup name
 ```
 
-The rest of the Windows flow:
+**Scan:** use the pinned `windows_x64` Gitleaks build.
 
-- **Unsigned installers:** build them with `pnpm desktop:win:installer` while
-  iterating. Sign once, at the end.
-- **Redistribution review:** the receipt target is `win32-x64`.
-- **Smoke:** the owner runs it in a separate standard account that has never run
-  Animama, from this same checkout:
+**Publication:** `publish-windows.mjs` takes the same options; stable needs
+`ANIMAMA_WINDOWS_ACCEPTANCE`.
 
-  ```powershell
-  pnpm desktop:smoke:windows -- --artifact desktop/release/publish/Animama-<version>-x64-setup.exe --setup name
-  ```
-
-- **Release scan:** use the pinned `windows_x64` Gitleaks build.
-- **Publication:** `publish-windows.mjs` takes the same options, and stable needs
-  `ANIMAMA_WINDOWS_ACCEPTANCE`.
-- **Evidence names:** Windows files carry a `-win32-x64` suffix, for example
-  `SHA256SUMS-win32-x64.txt`.
+**Evidence names:** Windows files carry a `-win32-x64` suffix, for example
+`SHA256SUMS-win32-x64.txt`.
