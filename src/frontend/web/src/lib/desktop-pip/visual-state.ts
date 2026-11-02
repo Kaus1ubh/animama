@@ -74,9 +74,28 @@ export type DesktopPipVisualState = {
   lipSync: DesktopPipLipSyncSnapshot;
 };
 
+/**
+ * PiP's report of the planner events its Avatar consumed. The owner's scene is
+ * suspended during PiP, so PiP's Avatar is their only consumer; the owner
+ * removes them from its queue so its snapshots stop delivering them again.
+ */
+export type DesktopPipPlannerEventsConsumed = {
+  kind: "planner-events-consumed";
+  eventIds: string[];
+};
+
 type FakeAudioContext = {
   readonly currentTime: number;
 };
+
+/**
+ * Events PiP's Avatar consumed while the owner's queue may still hold them:
+ * a snapshot sent before the owner hears of the consumption still carries
+ * them, and applying it would play a Gesture again.
+ */
+const consumedPlannerEventIds = new Set<string>();
+/** Whether the store change being observed is a snapshot, not PiP's Avatar. */
+let isApplyingVisualState = false;
 
 function cloneJsonLike<T>(value: T): T {
   return structuredClone(value);
@@ -166,19 +185,86 @@ export function isDesktopPipVisualState(
   );
 }
 
-export function applyDesktopPipVisualState(state: DesktopPipVisualState): void {
-  useAvatarRuntimeStore.setState({
-    animaId: state.avatarRuntime.animaId,
-    activeRunId: state.avatarRuntime.activeRunId,
-    activeSpeechRunId: state.avatarRuntime.activeSpeechRunId,
-    interactionPhase: state.avatarRuntime.interactionPhase,
-    activeVoiceTurn: state.avatarRuntime.activeVoiceTurn,
-    pendingNonTtsResponseCompletionRunId:
-      state.avatarRuntime.pendingNonTtsResponseCompletionRunId ?? null,
-    plannerEvents: state.avatarRuntime.plannerEvents ?? [],
-    emotionalState: state.avatarRuntime.emotionalState,
-    lastEmotionEventId: state.avatarRuntime.lastEmotionEventId,
+export function isDesktopPipPlannerEventsConsumed(
+  value: unknown,
+): value is DesktopPipPlannerEventsConsumed {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return false;
+  }
+  const report = value as { kind?: unknown; eventIds?: unknown };
+  return (
+    report.kind === "planner-events-consumed" &&
+    Array.isArray(report.eventIds) &&
+    report.eventIds.every((eventId) => typeof eventId === "string")
+  );
+}
+
+/** Owner side: drop the planner events PiP reports consumed. */
+export function applyDesktopPipPlannerEventsConsumed(payload: unknown): void {
+  if (!isDesktopPipPlannerEventsConsumed(payload)) return;
+  useAvatarRuntimeStore.getState().consumePlannerEvents(payload.eventIds);
+}
+
+/**
+ * PiP side: report each planner event PiP's own Avatar consumes. Events a
+ * snapshot replaces are not reported. Returns the unsubscribe function.
+ */
+export function watchDesktopPipPlannerEventConsumption(
+  onConsumed: (eventIds: string[]) => void,
+): () => void {
+  return useAvatarRuntimeStore.subscribe((state, previous) => {
+    if (
+      isApplyingVisualState ||
+      state.plannerEvents === previous.plannerEvents
+    ) {
+      return;
+    }
+    const remainingIds = new Set(
+      state.plannerEvents.map((event) => event.eventId),
+    );
+    const eventIds = previous.plannerEvents
+      .map((event) => event.eventId)
+      .filter((eventId) => !remainingIds.has(eventId));
+    if (eventIds.length === 0) return;
+    for (const eventId of eventIds) consumedPlannerEventIds.add(eventId);
+    onConsumed(eventIds);
   });
+}
+
+/** The owner's planner events, without those PiP's Avatar already consumed. */
+function selectUnconsumedPlannerEvents(
+  ownerEvents: readonly AvatarPlannerEvent[],
+): AvatarPlannerEvent[] {
+  // Event ids are unique, so one the owner no longer holds never returns.
+  const ownerEventIds = new Set(ownerEvents.map((event) => event.eventId));
+  for (const eventId of consumedPlannerEventIds) {
+    if (!ownerEventIds.has(eventId)) consumedPlannerEventIds.delete(eventId);
+  }
+  return ownerEvents.filter(
+    (event) => !consumedPlannerEventIds.has(event.eventId),
+  );
+}
+
+export function applyDesktopPipVisualState(state: DesktopPipVisualState): void {
+  isApplyingVisualState = true;
+  try {
+    useAvatarRuntimeStore.setState({
+      animaId: state.avatarRuntime.animaId,
+      activeRunId: state.avatarRuntime.activeRunId,
+      activeSpeechRunId: state.avatarRuntime.activeSpeechRunId,
+      interactionPhase: state.avatarRuntime.interactionPhase,
+      activeVoiceTurn: state.avatarRuntime.activeVoiceTurn,
+      pendingNonTtsResponseCompletionRunId:
+        state.avatarRuntime.pendingNonTtsResponseCompletionRunId ?? null,
+      plannerEvents: selectUnconsumedPlannerEvents(
+        state.avatarRuntime.plannerEvents ?? [],
+      ),
+      emotionalState: state.avatarRuntime.emotionalState,
+      lastEmotionEventId: state.avatarRuntime.lastEmotionEventId,
+    });
+  } finally {
+    isApplyingVisualState = false;
+  }
 
   const currentLipSyncState = useAvatarLipSyncBridgeStore.getState();
   const hasLipSyncState =

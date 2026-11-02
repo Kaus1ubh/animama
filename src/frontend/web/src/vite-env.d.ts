@@ -172,6 +172,7 @@ type DesktopPipRuntimeMessage = {
     | "snapshot"
     | "incremental"
     | "camera-preset"
+    | "planner-events-consumed"
     | "voice"
     | "voice-command";
   sequence: number;
