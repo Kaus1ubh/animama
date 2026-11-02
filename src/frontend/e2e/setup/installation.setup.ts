@@ -53,7 +53,7 @@ test("complete accountless first-run setup on the isolated installation", async 
       contentType: "image/png",
     });
     await page
-      .getByRole("button", { name: "I am 18 or older", exact: true })
+      .getByRole("button", { name: "I am 18 or older and agree", exact: true })
       .click();
     // The Anima URL is entered before confirmation; only a closed modal
     // proves the pending onboarding mutation has finished successfully.
