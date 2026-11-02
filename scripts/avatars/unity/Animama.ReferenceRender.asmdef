@@ -1,0 +1,13 @@
+{
+  "name": "Animama.ReferenceRender",
+  "references": [
+    "UniGLTF",
+    "UniGLTF.Editor"
+  ],
+  "includePlatforms": [
+    "Editor"
+  ],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "autoReferenced": false
+}

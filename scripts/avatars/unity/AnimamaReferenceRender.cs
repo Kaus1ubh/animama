@@ -1,7 +1,8 @@
 // Batch entry point that renders a VRChat avatar prefab in Unity for comparing
-// its lilToon materials with Animama's (three-liltoon). Copy this file beside
-// AnimamaBatchExport.cs in the Unity project's Assets/AnimamaExport/Editor/;
-// see docs/frontend/runtime/vrchat-avatar-conversion.md.
+// its lilToon materials with Animama's (three-liltoon). Copy this file and
+// Animama.ReferenceRender.asmdef into the Unity project's
+// Assets/AnimamaReferenceRender/Editor/ (the project needs UniGLTF, which the
+// export package installs); see docs/frontend/runtime/vrchat-avatar-conversion.md.
 //
 //   Unity -batchmode -quit -projectPath <project> \   (no -nographics: the
 //                                                        renders need the GPU)
