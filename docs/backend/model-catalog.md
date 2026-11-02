@@ -362,8 +362,9 @@ Anthropic connection, for chat, Utility and the Memory Manager (never
 Embeddings, because Anthropic offers no embedding model). Claude Haiku 5.5 is
 the built-in row; the owner adds other Claude model IDs on the same
 connection. Their chats use the `anthropic_messages` API standard, so the chat
-fence keeps them apart from OpenAI chats in both directions. Crisis moderation
-is unavailable on these rows.
+fence keeps them apart from OpenAI chats in both directions. These rows have no
+inline crisis moderation; only a composition's operator check can add the
+[crisis card](runtime/chat.md#companion-safety).
 
 DeepSeek, Hugging Face router and OpenRouter models have no built-in rows. The
 owner adds a connection from the `deepseek`, `huggingface` or `openrouter`

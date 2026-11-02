@@ -222,6 +222,7 @@ last used by `last_model_provider_id`, falling back to the model name for older
 chats. A chat keeps the API standard of its first turn (`responses`,
 `chat_completions` or `anthropic_messages`); choosing a model of another
 standard offers a new chat ([chat runtime](../runtime/chat.md)). Attaching files to a model without tool calling shows that it cannot
-search them. Only OpenAI Responses models check messages for the crisis card;
-Anthropic and other models rely on the Companion Guardrails alone (see the
+search them. Only OpenAI Responses models check messages for the crisis card,
+unless the composition adds an operator check for Anthropic turns, as Animama
+Cloud does; other models rely on the Companion Guardrails alone (see the
 [safety and crisis protocol](../../safety/crisis-protocol.md)).

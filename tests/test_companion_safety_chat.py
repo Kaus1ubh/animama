@@ -1,8 +1,9 @@
-"""Companion safety in chat turns: notice, crisis card, inline moderation (spec R2–R5)."""
+"""Companion safety in chat turns: notice, crisis card, inline and operator moderation (spec R2–R5)."""
 
 from __future__ import annotations
 
 import json
+from dataclasses import replace
 from types import SimpleNamespace
 from typing import Any
 from uuid import uuid4
@@ -23,12 +24,14 @@ from animama.app.model_clients import (
 from animama.app.model_clients.prompt import prompt_instruction_text
 from animama.app.safety.config import OperatorSafetyConfig, SafetyPreferences, resolve_companion_safety
 from animama.app.safety.crisis_resources import crisis_resource_table
-from animama.app.safety.moderation import RESPONSES_MODERATION_MODEL, moderation_indicates_crisis
+from animama.app.safety.moderation import OPENAI_MODERATION_MODEL, moderation_indicates_crisis
 from animama.app.safety.prompts import COMPANION_GUARDRAILS
+from animama.domain.model_connection import BUILTIN_ANTHROPIC_CONNECTION_ID
 from animama.domain.request_principal import RequestPrincipal
 from animama.domain.usage import Usage
 from animama.orm.companion_safety import ORMCompanionSafetyState
 from animama.product_http.chat.safety import TurnSafety, ai_notice_frame
+from animama.product_http.ports import ChatTurnPolicy
 from animama.server.config import Settings
 from tests import test_anima_chat_sse as route
 from tests.product_http_support import local_turn_sessions
@@ -82,7 +85,7 @@ def test_moderation_crisis_interpretation(moderation: ModelClientModeration | No
 @pytest.mark.parametrize(
     ("provider_type", "provider_moderation", "expected"),
     [
-        ("OpenAIResponsesHTTPAgent", True, RESPONSES_MODERATION_MODEL),
+        ("OpenAIResponsesHTTPAgent", True, OPENAI_MODERATION_MODEL),
         ("OpenAIResponsesHTTPAgent", False, None),
         ("OpenAIHTTPAgent", True, None),
     ],
@@ -105,11 +108,11 @@ def test_responses_request_carries_moderation_field_only_when_requested() -> Non
     with_moderation = ModelClientRequest(
         model_provider=provider,
         prompt=prompt,
-        provider_options=ModelClientProviderOptions(moderation_model=RESPONSES_MODERATION_MODEL),
+        provider_options=ModelClientProviderOptions(moderation_model=OPENAI_MODERATION_MODEL),
     )
     without = ModelClientRequest(model_provider=provider, prompt=prompt)
     assert create_response_kwargs(with_moderation, None, timeout=None)["moderation"] == {
-        "model": RESPONSES_MODERATION_MODEL
+        "model": OPENAI_MODERATION_MODEL
     }
     assert "moderation" not in create_response_kwargs(without, None, timeout=None)
 
@@ -224,7 +227,7 @@ async def test_moderation_flag_shows_card_after_reply_before_completion(monkeypa
     chunks = await _run("everything feels pointless and heavy")
 
     names = _names(chunks)
-    assert client.seen_specs[0].provider_options.moderation_model == RESPONSES_MODERATION_MODEL
+    assert client.seen_specs[0].provider_options.moderation_model == OPENAI_MODERATION_MODEL
     assert names.count("safety.crisis_support") == 1
     assert names.index("user.response") < names.index("safety.crisis_support") < names.index("run.completed")
 
@@ -245,6 +248,42 @@ async def test_missing_or_errored_moderation_does_not_affect_the_turn(monkeypatc
     assert "safety.crisis_support" not in names
     assert "error" not in names
     assert names[-1] == "run.completed"
+
+
+class _RecordingModerator:
+    def __init__(self) -> None:
+        self.seen: list[str] = []
+
+    async def moderate(self, text: str) -> ModelClientModeration:
+        self.seen.append(text)
+        return ModelClientModeration(status="result", flagged_categories=("self-harm/intent",))
+
+
+@pytest.mark.asyncio
+async def test_operator_moderation_shows_the_card_on_anthropic_turns(monkeypatch) -> None:
+    client = route._RouteModelClient()
+    provider = route._model_provider(
+        model_provider_id="AnthropicMessagesHTTPAgent:claude-test", provider_type="AnthropicMessagesHTTPAgent"
+    )
+    provider.connection_id = BUILTIN_ANTHROPIC_CONNECTION_ID
+    route._install_route_mocks(monkeypatch, model_client=client, model_provider=provider)
+    moderator = _RecordingModerator()
+
+    class _ModeratedPorts(route._RouteTestPorts):
+        @property
+        def chat_policy(self) -> ChatTurnPolicy:
+            return replace(super().chat_policy, crisis_moderator=moderator)
+
+    monkeypatch.setattr(route, "_RouteTestPorts", _ModeratedPorts)
+
+    chunks = await _run(CRISIS_MESSAGE)
+
+    names = _names(chunks)
+    assert moderator.seen == [CRISIS_MESSAGE]
+    assert client.seen_specs[0].provider_options.moderation_model is None
+    assert names.count("safety.crisis_support") == 1
+    assert names.index("user.response") < names.index("safety.crisis_support") < names.index("run.completed")
+    assert route._event_data(chunks, "safety.crisis_support")["source"] == "moderation"
 
 
 @pytest.mark.asyncio

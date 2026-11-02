@@ -1,4 +1,4 @@
-import { readdirSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -245,7 +245,7 @@ function icoFrom(png, size) {
  * The page's `<head>` additions and its text for `#overlay`, from `stops.ts`:
  * title, description, canonical URL, sharing tags, icons, theme colours and
  * schema.org data; then the header links, each stop's heading, line and
- * links, the scene's description and the copyright line. The overlay
+ * links, the scene's description and the footer's links and copyright line. The overlay
  * replaces the text when it mounts; until then (and without JavaScript)
  * search engines, link previews and readers have it.
  */
@@ -254,6 +254,7 @@ export async function renderPageHtml(server) {
     STAGE_STOPS,
     STAGE_AVATARS,
     SITE,
+    FOOTER_LINKS,
     CLOSED_BETA,
     BETA_ACCESS_URL,
     voice,
@@ -281,6 +282,8 @@ export async function renderPageHtml(server) {
         name: "Animama",
         url: SITE.url,
         logo,
+        email: SITE.contactEmail,
+        sameAs: SITE.social.map(({ href }) => href),
       },
       {
         "@type": "SoftwareApplication",
@@ -343,7 +346,7 @@ export async function renderPageHtml(server) {
     `<div class="prerender">`,
     `<header><p><a href="/">Animama</a></p><nav aria-label="Site">${[
       { label: "Home", href: `#stop-${hero.id}` },
-      { label: "About", href: `#stop-${stops[0].id}` },
+      { label: "About", href: SITE.about },
       { label: "Docs", href: SITE.docsUrl },
       action,
     ]
@@ -352,7 +355,9 @@ export async function renderPageHtml(server) {
     `<main><section id="stop-${hero.id}"><h1>${text(hero.title)}</h1><p>${heroLine}</p><p class="scene">${text(SITE.sceneDescription)}</p></section>`,
     ...sections,
     `</main>`,
-    `<footer><p>${escapeHtml(SITE.copyright)} ${link({ label: "Third-party notices", href: SITE.notices })}</p></footer>`,
+    `<footer><nav aria-label="Footer">${[...FOOTER_LINKS, ...SITE.social]
+      .map(link)
+      .join(" ")}</nav><p>${escapeHtml(SITE.copyright)}</p></footer>`,
     `</div>`,
   ].join("");
   return { head, content };
@@ -368,6 +373,113 @@ export function pagePlugin(getPage) {
       return html
         .replace("<!--landing:head-->", () => head)
         .replace("<!--landing:content-->", () => content);
+    },
+  };
+}
+
+/** The file Animama Cloud reads to publish the crisis protocol at `/safety/`. */
+export const CRISIS_PROTOCOL_FILE = "crisis-protocol.json";
+
+/**
+ * The safety and crisis protocol (`docs/safety/crisis-protocol.md`, the
+ * document the app's Safety dialog shows), rendered once to HTML for Animama
+ * Cloud's `/safety/` page, as `crisis-protocol.json`. English is authoritative;
+ * the app's machine translations stay in the app.
+ */
+export async function renderCrisisProtocol() {
+  const [
+    { createElement },
+    { renderToStaticMarkup },
+    { default: Markdown },
+    { default: remarkGfm },
+  ] = await Promise.all([
+    import("react"),
+    import("react-dom/server"),
+    import("react-markdown"),
+    import("remark-gfm"),
+  ]);
+  const source = readFileSync(
+    path.join(repoRoot, "docs/safety/crisis-protocol.md"),
+    "utf8",
+  );
+  const html = renderToStaticMarkup(
+    createElement(Markdown, { remarkPlugins: [remarkGfm] }, source),
+  );
+  return `${JSON.stringify({ schema_version: 1, html }, null, 2)}\n`;
+}
+
+/** The file Animama Cloud reads to put the site header on its pages. */
+const SITE_CHROME_FILE = "site-chrome.json";
+
+/**
+ * The site header (`site-header.tsx`) prerendered for Animama Cloud's pages:
+ * one copy each marking About and Download as the current page, and one for
+ * every other page.
+ * `site-chrome.tsx` renders the same component over it once it loads.
+ */
+export async function renderSiteHeaders(server) {
+  // Node loads React (CommonJS, which the module runner cannot evaluate);
+  // the header's own React imports resolve to the same copy.
+  const [{ createElement }, { renderToStaticMarkup }, { SiteHeader }] =
+    await Promise.all([
+      import("react"),
+      import("react-dom/server"),
+      server.ssrLoadModule("/scripts/landing-stage/site-header.tsx"),
+    ]);
+  // React hoists a preload link for the logo ahead of the header; the page
+  // loads it from the header itself.
+  const render = (current) =>
+    renderToStaticMarkup(createElement(SiteHeader, { current })).replace(
+      /^(?:<link [^>]*>)+/,
+      "",
+    );
+  return {
+    default: render(undefined),
+    about: render("about"),
+    download: render("download"),
+  };
+}
+
+/**
+ * Writes `site-chrome.json` beside the build: the header's entry script, every
+ * stylesheet it loads, and its prerendered markup (`renderSiteHeaders`).
+ * Animama Cloud wraps each of its pages' `#site-header` around that markup and
+ * links the styles and script (see the hosted contract's landing site archive).
+ */
+export function siteChromePlugin(getHeaders) {
+  return {
+    name: "animama-site-chrome",
+    generateBundle(_, bundle) {
+      const entry = Object.values(bundle).find(
+        (file) =>
+          file.type === "chunk" && file.isEntry && file.name === "site-chrome",
+      );
+      if (!entry) this.error("The site header entry was not built.");
+      // Its own stylesheets and those of every chunk it imports.
+      const styles = new Set();
+      const seen = new Set();
+      const visit = (chunk) => {
+        if (seen.has(chunk.fileName)) return;
+        seen.add(chunk.fileName);
+        for (const css of chunk.viteMetadata?.importedCss ?? [])
+          styles.add(`/${css}`);
+        for (const name of chunk.imports) visit(bundle[name]);
+      };
+      visit(entry);
+      this.emitFile({
+        type: "asset",
+        fileName: SITE_CHROME_FILE,
+        source: `${JSON.stringify(
+          {
+            schema_version: 1,
+            script: `/${entry.fileName}`,
+            styles: [...styles],
+            headers: getHeaders(),
+          },
+          null,
+          2,
+        )}\n`,
+      });
     },
   };
 }

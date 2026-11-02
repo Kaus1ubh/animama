@@ -307,7 +307,7 @@ export async function runSmokeJourney({ report, provider, platform }) {
       (await request(page, "/v1/runtime-context")).first_run_complete === false,
     );
     await page
-      .getByRole("button", { name: "I am 18 or older", exact: true })
+      .getByRole("button", { name: "I am 18 or older and agree", exact: true })
       .click();
     await page
       .getByRole("dialog", { name: "Before you start" })

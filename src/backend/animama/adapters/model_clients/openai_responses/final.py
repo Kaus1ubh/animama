@@ -15,6 +15,7 @@ from openai.types.responses import (
 )
 
 from animama.app.model_clients import ModelClientModeration, ModelClientToolCall
+from animama.app.safety.moderation import moderation_result
 from animama.domain.usage import Usage, UsageInputDetails, UsageOutputDetails
 
 from .._common import get_value, jsonable
@@ -124,13 +125,7 @@ def input_moderation_from_response(response: Response) -> ModelClientModeration 
         return None
     if getattr(result, "type", None) != "moderation_result":
         return ModelClientModeration(status="error")
-    categories = getattr(result, "categories", None) or {}
-    scores = getattr(result, "category_scores", None) or {}
-    return ModelClientModeration(
-        status="result",
-        flagged_categories=tuple(sorted(str(name) for name, flagged in categories.items() if flagged is True)),
-        category_scores={str(name): float(score) for name, score in scores.items() if isinstance(score, int | float)},
-    )
+    return moderation_result(getattr(result, "categories", None) or {}, getattr(result, "category_scores", None) or {})
 
 
 def extract_response_parts(response: Response) -> ExtractedResponseParts:
