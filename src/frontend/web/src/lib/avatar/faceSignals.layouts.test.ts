@@ -17,7 +17,7 @@ import { AVATAR_FACE_PART_ROLES } from "./vfx/faceParts";
  * no third-party data). Face parts and Diagnostics must come out as on the
  * unmodified Avatar, with each signal's source shown.
  */
-const AVATAR = "AvatarSample_A_1_New";
+const AVATAR = "Annie";
 const DIGEST = "c".repeat(64);
 
 type Layout = {
@@ -29,6 +29,14 @@ type Layout = {
 };
 
 const LAYOUTS: Record<string, Layout> = {
+  // A mouth swapped between separate meshes by materials, or never authored:
+  // the visemes morph nothing, and the face is found from blink alone.
+  "visemes that move no mesh": {
+    rename: {},
+    empty: ["aa", "ih", "ou", "ee", "oh"],
+    present: { blink: "model", blinkLeft: "model" },
+    missing: ["aa", "ih", "ou", "ee", "oh"],
+  },
   "left and right blinks only": {
     rename: {},
     empty: ["blink"],

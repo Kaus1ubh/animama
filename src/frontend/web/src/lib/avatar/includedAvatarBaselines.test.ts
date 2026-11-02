@@ -15,7 +15,7 @@ import { loadedTestAvatar } from "./testing/loadedTestAvatar";
  */
 const BASELINE_AVATARS: readonly TestAvatarId[] = [
   "Andrew",
-  "AvatarSample_A_1_New",
+  "Annie",
   VRM0_FIXTURE_ID,
 ];
 

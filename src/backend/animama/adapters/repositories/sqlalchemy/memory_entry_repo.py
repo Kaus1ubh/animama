@@ -3,13 +3,26 @@
 from __future__ import annotations
 
 import operator
-import re
+from dataclasses import dataclass
 from datetime import datetime
 from functools import reduce
 from typing import Any
 
-from sqlalchemy import Integer, RowMapping, SQLColumnExpression, cast, func, insert, or_, select, update
-from sqlalchemy.dialects.postgresql import TSQUERY
+from sqlalchemy import (
+    Integer,
+    RowMapping,
+    SQLColumnExpression,
+    Text,
+    all_,
+    cast,
+    func,
+    insert,
+    literal,
+    or_,
+    select,
+    update,
+)
+from sqlalchemy.dialects.postgresql import ARRAY, TSQUERY
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql.elements import ColumnElement
@@ -27,6 +40,7 @@ from animama.domain.memory_entry import (
     MemoryEntryVersion,
 )
 from animama.domain.memory_episode import MEMORY_EPISODE_LOG_ENTRY_KIND
+from animama.domain.search_terms import WEB_SEARCH_CLAUSE_PATTERN, snippet_terms, substring_pattern
 from animama.orm.anima import ORMAnima
 from animama.orm.memory_entry import ORMMemoryEntry, ORMMemoryEntryVersion
 
@@ -68,7 +82,7 @@ def _snippet_for_query(entry: MemoryEntry, query: str, *, max_chars: int) -> str
     if len(text_value) <= max_chars:
         return text_value
 
-    terms = [term.lower() for term in re.findall(r"[A-Za-z0-9_]{2,}", query)]
+    terms = snippet_terms(query)
     lowered = text_value.lower()
     first_idx = -1
     for term in terms:
@@ -89,8 +103,6 @@ def _snippet_for_query(entry: MemoryEntry, query: str, *, max_chars: int) -> str
     return f"{prefix}{text_value[window_start:window_end].strip()}{suffix}"
 
 
-# One web-search clause: a quoted phrase or a whitespace-separated word, either optionally negated with "-".
-_SEARCH_CLAUSE_PATTERN = re.compile(r'-?"[^"]*"?|\S+')
 # Each positive clause nests the statement one level deeper, and SQLAlchemy compiles it recursively,
 # so a pasted passage would exceed Python's recursion limit without this bound.
 _MAX_POSITIVE_SEARCH_CLAUSES = 32
@@ -100,25 +112,45 @@ def _websearch_clause(clause: str) -> ColumnElement[Any]:
     return func.websearch_to_tsquery("english", clause, type_=TSQUERY)
 
 
-def _search_clauses(query: str) -> tuple[list[ColumnElement[Any]], ColumnElement[Any] | None]:
-    """Split a web-search query into positive tsquery clauses and one exclusion tsquery.
+@dataclass(frozen=True, slots=True)
+class _PositiveSearchClause:
+    tsquery: ColumnElement[Any]
+    substring_pattern: str | None
+
+
+@dataclass(frozen=True, slots=True)
+class _ParsedSearchQuery:
+    positives: list[_PositiveSearchClause]
+    exclusion: ColumnElement[Any] | None
+    excluded_substring_patterns: list[str]
+
+
+def _search_clauses(query: str) -> _ParsedSearchQuery:
+    """Split a web-search query into positive clauses and the exclusions every match must avoid.
 
     Each clause is parsed by ``websearch_to_tsquery``, so stemming, stop words,
     quoted phrases and ``-term`` negation follow PostgreSQL's rules. A standalone
     ``or`` is dropped because positive clauses are already alternatives. Only the
     first ``_MAX_POSITIVE_SEARCH_CLAUSES`` positive clauses are kept; every
-    exclusion is kept, parsed together as ``!a & !b ...``.
+    exclusion is kept, parsed together as ``!a & !b ...``. Non-ASCII clauses also
+    carry a substring pattern (see ``animama.domain.search_terms``).
     """
 
     positives: list[str] = []
     exclusions: list[str] = []
-    for clause in _SEARCH_CLAUSE_PATTERN.findall(query):
+    for clause in WEB_SEARCH_CLAUSE_PATTERN.findall(query):
         if clause.lower() == "or":
             continue
         (exclusions if clause.startswith("-") else positives).append(clause)
-    return (
-        [_websearch_clause(clause) for clause in positives[:_MAX_POSITIVE_SEARCH_CLAUSES]],
-        _websearch_clause(" ".join(exclusions)) if exclusions else None,
+    return _ParsedSearchQuery(
+        positives=[
+            _PositiveSearchClause(_websearch_clause(clause), substring_pattern(clause))
+            for clause in positives[:_MAX_POSITIVE_SEARCH_CLAUSES]
+        ],
+        exclusion=_websearch_clause(" ".join(exclusions)) if exclusions else None,
+        excluded_substring_patterns=[
+            pattern for clause in exclusions if (pattern := substring_pattern(clause)) is not None
+        ],
     )
 
 
@@ -646,19 +678,58 @@ class SQLAlchemyMemoryEntryRepository(MemoryEntryRepository):
     ) -> list[MemoryEntrySearchResult]:
         # A file matches when it contains any positive word or phrase and no excluded one. Files matching
         # more clauses rank first, so every-word matches stay above partial ones; ts_rank_cd orders the rest.
-        positives, exclusion = _search_clauses(query)
+        # Substring-only matches of non-ASCII clauses score 0, so word matches rank first within a count.
+        search = _search_clauses(query)
+        # The same fields search_vector indexes, for the substring patterns of non-ASCII clauses.
+        search_text = func.concat_ws(
+            " ", ORMMemoryEntry.path, ORMMemoryEntry.description, ORMMemoryEntry.content, type_=Text
+        )
+
+        def clause_matches(clause: _PositiveSearchClause) -> ColumnElement[bool]:
+            word_match = ORMMemoryEntry.search_vector.op("@@")(clause.tsquery)
+            if clause.substring_pattern is None:
+                return word_match
+            return or_(word_match, search_text.ilike(clause.substring_pattern))
+
         ranking: list[ColumnElement[Any]] = []
-        if positives:
-            any_positive = reduce(lambda left, right: left.op("||", return_type=TSQUERY)(right), positives)
-            search_query = any_positive if exclusion is None else any_positive.op("&&", return_type=TSQUERY)(exclusion)
+        match_filters: list[ColumnElement[bool]] = []
+        if search.positives:
+            any_positive = reduce(
+                lambda left, right: left.op("||", return_type=TSQUERY)(right),
+                (clause.tsquery for clause in search.positives),
+            )
+            match_filters.append(
+                or_(
+                    ORMMemoryEntry.search_vector.op("@@")(any_positive),
+                    *(
+                        search_text.ilike(clause.substring_pattern)
+                        for clause in search.positives
+                        if clause.substring_pattern is not None
+                    ),
+                )
+            )
+            if search.exclusion is not None:
+                # An exclusion of only stop words or punctuation, such as "-the" or "-", parses to an empty
+                # tsquery, which matches nothing; ignore it, as the tsquery && operator does.
+                match_filters.append(
+                    or_(
+                        func.numnode(search.exclusion) == 0,
+                        ORMMemoryEntry.search_vector.op("@@")(search.exclusion),
+                    )
+                )
             matched_clauses = reduce(
                 operator.add,
-                (cast(ORMMemoryEntry.search_vector.op("@@")(clause), Integer) for clause in positives),
+                (cast(clause_matches(clause), Integer) for clause in search.positives),
             )
             ranking.append(matched_clauses.desc())
         else:
             # Only exclusions, such as "-pickle": keep PostgreSQL's own interpretation of the whole query.
-            any_positive = search_query = _websearch_clause(query)
+            any_positive = _websearch_clause(query)
+            match_filters.append(ORMMemoryEntry.search_vector.op("@@")(any_positive))
+        if search.excluded_substring_patterns:
+            # NOT ILIKE ALL: the file text matches none of the patterns, bound as one array parameter
+            # so any number of exclusions compiles at a constant depth.
+            match_filters.append(search_text.not_ilike(all_(literal(search.excluded_substring_patterns, ARRAY(Text)))))
         score = func.ts_rank_cd(ORMMemoryEntry.search_vector, any_positive).label("score")
         stmt = (
             select(ORMMemoryEntry, score)
@@ -666,7 +737,7 @@ class SQLAlchemyMemoryEntryRepository(MemoryEntryRepository):
                 *_scope_filter(ORMMemoryEntry, user_id=user_id, anima_id=anima_id),
                 ORMMemoryEntry.type == MEMORY_ENTRY_TYPE_FILE,
                 ORMMemoryEntry.deleted_at.is_(None),
-                ORMMemoryEntry.search_vector.op("@@")(search_query),
+                *match_filters,
             )
             .order_by(
                 *ranking,

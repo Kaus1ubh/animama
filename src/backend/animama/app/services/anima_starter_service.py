@@ -31,12 +31,17 @@ class StarterAnimaSpec:
     legacy_profile_url: str | None
     pocket_voice: str
     elevenlabs_voice: str
+    # A portrait's logical key is its catalog identity, which Animas bind. It
+    # follows the model's file name unless the model was renamed after the
+    # portrait shipped, which keeps the original key.
+    portrait_key_stem: str | None = None
 
     @property
     def portrait_logical_key(self) -> str:
         """Shared optional-presentation contract for bootstrap and packaging."""
 
-        return f"builtin:avatar-portrait:{PurePosixPath(self.avatar_locator).stem}"
+        stem = self.portrait_key_stem or PurePosixPath(self.avatar_locator).stem
+        return f"builtin:avatar-portrait:{stem}"
 
 
 # Version 1 retained the LF-normalized SQL seed text; later versions follow the
@@ -101,10 +106,12 @@ encourages you to lean on other people and professionals when something is
 bigger than a chat.
 """,
         "avt_sample_a1n",
-        "avatars/AvatarSample_A_1_New.vrm",
+        "avatars/Annie.vrm",
         "/marine-pfp.png",
         "eve",
         "gJx1vCzNCD1EQHT212Ls",
+        # Annie.vrm was AvatarSample_A_1_New.vrm when her portrait shipped.
+        portrait_key_stem="AvatarSample_A_1_New",
     ),
     StarterAnimaSpec(
         "starter:andrew",

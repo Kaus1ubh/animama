@@ -20,7 +20,7 @@ import { resolveAvatarFile } from "./avatar-file.mjs";
 const webRoot = fileURLToPath(new URL("..", import.meta.url));
 const repoRoot = path.resolve(webRoot, "../../..");
 const avatarDir = path.join(repoRoot, "content/included/avatars");
-const AVATARS = ["Andrew", "AvatarSample_A_1_New"];
+const AVATARS = ["Andrew", "Annie"];
 
 export async function renderGestureSheet({
   clip,

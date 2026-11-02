@@ -29,6 +29,26 @@ export const AVATAR_SPRING_MODES: readonly AvatarSpringMode[] = [
   "springs_off",
 ];
 
+/**
+ * The wind strength range an owner can choose, in percent of the default
+ * (100, stored as no value). It scales wind and the updraft.
+ */
+export const WIND_STRENGTH_PERCENT = {
+  min: 0,
+  max: 200,
+  step: 10,
+  default: 100,
+} as const;
+
+/** A stored wind strength (percent, or none) as a multiple of the default. */
+export function windStrengthMultiple(
+  percent: number | null | undefined,
+): number {
+  return typeof percent === "number" && Number.isFinite(percent)
+    ? Math.max(0, percent) / 100
+    : 1;
+}
+
 export const AVATAR_MATERIAL_MODES: readonly AvatarMaterialMode[] = [
   "automatic",
   "liltoon",

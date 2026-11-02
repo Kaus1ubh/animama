@@ -671,7 +671,7 @@ export default interface Resources {
         "face_parts_correction_unknown_bindings_one": "The saved correction for {{part, lowercase}} names {{count}} mesh part this model does not have.",
         "face_parts_correction_unknown_bindings_other": "The saved correction for {{part, lowercase}} names {{count}} mesh parts this model does not have.",
         "face_parts_detection_failed": "Face parts could not be detected, so effects are placed by material names.",
-        "face_parts_expressions_missing": "The model has no blink or “aa” expression, nor MMD, ARKit or VRChat shapes that stand in for them, so its face skin and eye details cannot be found from them.",
+        "face_parts_expressions_missing": "The model’s blink or “aa” expression moves no mesh (it is missing, or only switches materials), and no MMD, ARKit or VRChat shapes stand in for it, so its face skin and eye details cannot be found from them.",
         "face_parts_whole_body_head_missing": "One mesh part holds the whole body, but no forward-facing part of it skinned to the head bone moves when the model blinks or opens its mouth, so its face cannot be found and Avatar Effects on the face are skipped.",
         "file_unavailable": "The Avatar file could not be downloaded.",
         "file_unreadable": "The Avatar file is not a readable glTF or VRM file.",
@@ -749,7 +749,8 @@ export default interface Resources {
         "windEffect": {
           "held": "springs held at rest",
           "off": "no wind or updraft",
-          "on": "wind and updraft on",
+          "on": "wind and updraft on at {{percent}}",
+          "softHair": "no wind or updraft: its hair is too soft to hold against them",
           "tunedWithout": "no wind or updraft: its springs were tuned without them"
         },
         "windValue": "{{mode}} · {{effect}}"
@@ -1862,13 +1863,9 @@ export default interface Resources {
         "view": "View diagnostics"
       },
       "discardUpload": "Discard unsaved upload",
-      "emptyIncluded": "No Included Avatars are available. You can use My Content or upload a VRM.",
-      "emptyLocal": "No Avatars in My Content yet. Upload a VRM to add one.",
+      "empty": "No Avatars are available yet. Upload a VRM to add one.",
       "fileInput": "Choose a VRM file",
-      "groupLabel": {
-        "included": "Included Avatars",
-        "local": "My Content Avatars"
-      },
+      "groupLabel": "Avatars",
       "inUse": "This Avatar is used by a live Anima. Keep it intact and save your upload under a new name.",
       "label": "Avatar selection",
       "loadFailed": "Avatars could not be loaded. Your selection is preserved.",
@@ -2196,6 +2193,7 @@ export default interface Resources {
       "chooseAnother": "This saved voice is unavailable. Choose another voice.",
       "cloneUnavailable": "This saved voice is unavailable. Refresh the library.",
       "elevenLabsId": "ElevenLabs voice ID",
+      "elevenLabsLibrary": "Find a voice in the <link>ElevenLabs Voice Library</link>, add it to My Voices, then paste its voice ID here.",
       "elevenLabsPlaceholder": "Enter voice ID",
       "label": "Voice configuration",
       "loadFailed": "Saved voices could not be loaded.",
@@ -2207,6 +2205,8 @@ export default interface Resources {
         "pocketTts": "PocketTTS"
       },
       "retry": "Retry saved voices",
+      "reuseVoice": "Use another Anima's voice",
+      "reuseVoiceOption": "{{names}} · {{id}}",
       "savedVoiceUnavailable": "Saved voice unavailable"
     }
   },
@@ -6056,7 +6056,7 @@ export default interface Resources {
         "copied": "Diagnostics copied.",
         "copy": "Copy summary",
         "copyFailed": "Diagnostics could not be copied to the clipboard.",
-        "description": "Copy version, platform and component status for a bug report. Keys, chats and memories are never included.",
+        "description": "Copy version, platform, component status, recent activity, warnings and errors for a bug report. Keys, chats and memories are never included.",
         "entryLabel": "Copy diagnostics summary",
         "label": "Diagnostics"
       },
@@ -6115,6 +6115,11 @@ export default interface Resources {
             "on": "On",
             "springs_off": "Springs off"
           }
+        },
+        "windStrength": {
+          "description": "How strongly wind and updraft blow, from none to twice the default. Automatic leaves them off when this Avatar’s hair is too soft to hold against them at this strength.",
+          "label": "Wind strength",
+          "value": "{{percent}}%"
         }
       },
       "choices": {
@@ -6630,6 +6635,7 @@ export default interface Resources {
           "parakeet": "<link>NVIDIA's Parakeet TDT 0.6B v2</link> transcribes English speech on this device, so your voice never leaves it.",
           "sensevoice": "<link>Alibaba's SenseVoice-Small</link> transcribes Japanese, Korean, Chinese and English speech on this device, so your voice never leaves it."
         },
+        "finishWhileDownloading": "You can finish setup while this downloads. It keeps going in the background.",
         "gpu": {
           "description": "Faster, with live previews as you speak. Needs the CPU version and a WebGPU-capable GPU.",
           "label": "{{model}} (GPU)",

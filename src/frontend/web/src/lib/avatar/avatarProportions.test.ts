@@ -3,13 +3,16 @@ import { describe, expect, it } from "vitest";
 
 import {
   BIG_HEAD_SHARE,
+  bodyHeightFromReference,
   headSized,
   measureAvatarProportions,
   measureHeadBounds,
   NEUTRAL_AVATAR_PROPORTIONS,
   REFERENCE_FACE_SIZE,
+  REFERENCE_AVATAR_BODY,
   REFERENCE_HEAD_SIZE,
   setAvatarFaceSize,
+  torsoSizeScale,
 } from "./avatarProportions";
 import {
   VRM0_FIXTURE_ID,
@@ -24,11 +27,7 @@ import { loadWholeBodyAvatar } from "./testing/wholeBodyVrm";
  * accessories the head mesh carries do not count.
  */
 
-const INCLUDED: readonly TestAvatarId[] = [
-  "Andrew",
-  "AvatarSample_A_1_New",
-  VRM0_FIXTURE_ID,
-];
+const INCLUDED: readonly TestAvatarId[] = ["Andrew", "Annie", VRM0_FIXTURE_ID];
 
 describe("Avatar proportions", () => {
   it.each(INCLUDED)("keeps body-sized placement on %s exactly", async (id) => {
@@ -41,8 +40,11 @@ describe("Avatar proportions", () => {
     expect(proportions.bigHead).toBe(0);
     expect(headSized(proportions, 0.123, 9)).toBe(0.123);
     expect(avatar.getHeadFramingScale()).toBe(1);
-    // Nothing reads the head box on adult proportions, so load skips it.
+    expect(avatar.getBodyFramingScale()).toBe(1);
+    // Nothing reads the head box or body landmarks on adult proportions, so
+    // load skips them.
     expect(proportions.headBox).toBeNull();
+    expect(proportions.body).toBeNull();
   });
 
   it("keeps body-sized placement on an adult-proportioned synthetic Avatar", async () => {
@@ -125,6 +127,75 @@ describe("Avatar proportions", () => {
     await avatar.setFacePartCorrections(null);
     expect(measureAvatarProportions(avatar.vrm)).not.toBe(first);
     expect(measureAvatarProportions(avatar.vrm)).toEqual(first);
+  });
+
+  it("frames a small adult-proportioned Avatar by its size", async () => {
+    // Head and body at half size: `avatarScale` 0.58, under the band.
+    const avatar = await loadWholeBodyAvatar({
+      headScale: 0.5,
+      bodyScale: 0.5,
+    });
+    const proportions = measureAvatarProportions(avatar.vrm);
+    expect(proportions.bigHead).toBe(0);
+    expect(proportions.bodyScale).toBeLessThan(0.7);
+    expect(avatar.getHeadFramingScale()).toBe(proportions.bodyScale);
+    expect(avatar.getBodyFramingScale()).toBe(proportions.bodyScale);
+  });
+
+  it("measures a chibi body's landmarks and limbs", async () => {
+    // A twice-sized head on a body 0.4 times the adult's.
+    const avatar = await loadWholeBodyAvatar({ headScale: 2, bodyScale: 0.4 });
+    const proportions = measureAvatarProportions(avatar.vrm);
+    expect(proportions.bigHead).toBe(1);
+    const body = proportions.body!;
+    // Synthetic bones (m below the head bone at full size), times 0.4.
+    expect(body.heights.neck).toBeCloseTo(-0.1 * 0.4);
+    expect(body.heights.shoulders).toBeCloseTo(-0.15 * 0.4);
+    expect(body.heights.chest).toBeCloseTo(-0.35 * 0.4);
+    expect(body.heights.spine).toBeCloseTo(-0.5 * 0.4);
+    expect(body.heights.hips).toBeCloseTo(-0.6 * 0.4);
+    expect(body.heights.feet).toBeCloseTo(-1.45 * 0.4);
+    expect(body.heights.ground).toBeCloseTo(-1.5 * 0.4);
+    // No upper chest bone.
+    expect(body.heights.upperChest).toBeUndefined();
+    expect(body.torsoWidth).toBeCloseTo((0.18 + 0.1) * 0.4);
+    expect(body.armLength).toBeCloseTo(0.5 * 0.4);
+    // Hips to neck 0.5 m and torso width 0.28 m at full size, times 0.4.
+    expect(torsoSizeScale(body)).toBeCloseTo(
+      Math.sqrt(((0.5 * 0.4) / 0.4) * ((0.28 * 0.4) / 0.178)),
+    );
+    expect(body.legLength).toBeCloseTo(0.8 * 0.4);
+    // The whole body framed: the top of the head, over the Included
+    // Avatars' share of it above the head bone.
+    const headY = proportions.avatarScale * 1.25;
+    const top = headY + proportions.headBox!.max.y;
+    expect(avatar.getBodyFramingScale()).toBeCloseTo(top / 1.15 / 1.25);
+  });
+
+  it("places a height authored on the Included Avatars among a chibi's landmarks", async () => {
+    const avatar = await loadWholeBodyAvatar({ headScale: 2, bodyScale: 0.4 });
+    const proportions = measureAvatarProportions(avatar.vrm);
+    const { heights } = REFERENCE_AVATAR_BODY;
+    const body = proportions.body!.heights;
+    // Landmark to landmark.
+    expect(bodyHeightFromReference(proportions, heights.chest)).toBeCloseTo(
+      body.chest!,
+    );
+    expect(bodyHeightFromReference(proportions, heights.ground)).toBeCloseTo(
+      body.ground!,
+    );
+    // Between two, the same share of the way.
+    const between = (heights.shoulders + heights.chest) / 2;
+    expect(bodyHeightFromReference(proportions, between)).toBeCloseTo(
+      (body.shoulders! + body.chest!) / 2,
+    );
+    // Above the head bone by the head's size; under the ground by the body's.
+    expect(bodyHeightFromReference(proportions, 0.2)).toBeCloseTo(
+      0.2 * proportions.headScale,
+    );
+    expect(
+      bodyHeightFromReference(proportions, heights.ground - 0.1),
+    ).toBeCloseTo(body.ground! - 0.1 * proportions.bodyScale);
   });
 
   it("blends between adult and big-headed proportions on the ramp", () => {

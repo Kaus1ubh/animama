@@ -8,6 +8,13 @@ import {
 import { writeLog } from "../logging.js";
 import { installWindowGuards } from "../security/guards.js";
 import {
+  readPipPlacement,
+  resolveCornerPipBounds,
+  resolveSavedPipBounds,
+  writePipPlacement,
+  type PipPlacement,
+} from "./pip-placement.js";
+import {
   floatingWindowType,
   floatOnAllWorkspaces,
 } from "../window/floating-window.js";
@@ -63,6 +70,8 @@ type PipWindowManagerOptions = {
   /** Supplies the localized window title. */
   locale: ShellLocale;
   cursorSnapshotChannel: string;
+  /** Where this machine remembers the PiP window's position and size. */
+  placementFile: string;
   preloadPath: string;
   runtimeMessageChannel: string;
   stateChangedChannel: string;
@@ -92,9 +101,9 @@ const MAX_PIP_HEIGHT = 1200;
 const DEFAULT_BACKGROUND_MODE: DesktopPipBackgroundMode = "transparent";
 const DEFAULT_PIP_SIZE_SCALE = 0.5;
 const MAX_PIP_SIZE_SCALE = 1.6;
-const PIP_DEFAULT_RIGHT_MARGIN = 24;
-const PIP_DEFAULT_BOTTOM_MARGIN = 32;
 const PIP_MOUSE_POLL_INTERVAL_MS = 50;
+/** Moves and resizes arrive continuously; save once the window settles. */
+const PIP_PLACEMENT_SAVE_DELAY_MS = 500;
 /** The route's hover toolbar spans the top of the window, about 33px tall. */
 const PIP_TOOLBAR_HIT_ZONE_HEIGHT = 40;
 /** The route's resize grip sits in the bottom-right corner. */
@@ -212,34 +221,17 @@ function isPipRouteUrl(value: string, allowedWebOrigin: string): boolean {
   }
 }
 
+/** Flush with the bottom-right corner of the owner window's display. */
 function resolveDefaultPipBounds(
   ownerContents: WebContents,
-  width: number,
-  height: number,
+  size: { width: number; height: number },
 ): Bounds {
   const ownerWindow = BrowserWindow.fromWebContents(ownerContents);
   const display =
     ownerWindow && !ownerWindow.isDestroyed()
       ? screen.getDisplayMatching(ownerWindow.getBounds())
       : screen.getPrimaryDisplay();
-  const { workArea } = display;
-
-  return {
-    x: Math.max(
-      workArea.x,
-      Math.round(
-        workArea.x + workArea.width - width - PIP_DEFAULT_RIGHT_MARGIN,
-      ),
-    ),
-    y: Math.max(
-      workArea.y,
-      Math.round(
-        workArea.y + workArea.height - height - PIP_DEFAULT_BOTTOM_MARGIN,
-      ),
-    ),
-    width,
-    height,
-  };
+  return resolveCornerPipBounds(display.workArea, size);
 }
 
 function syncPipWindowVisibility(
@@ -387,6 +379,10 @@ export class PipWindowManager {
   private readonly config: DesktopConfig;
   private readonly locale: ShellLocale;
   private readonly cursorSnapshotChannel: string;
+  private readonly placementFile: string;
+  /** The saved placement; undefined until the file is first read. */
+  private placement: PipPlacement | null | undefined;
+  private placementSaveTimer: ReturnType<typeof setTimeout> | null = null;
   private readonly preloadPath: string;
   private readonly runtimeMessageChannel: string;
   private readonly stateChangedChannel: string;
@@ -414,6 +410,7 @@ export class PipWindowManager {
     this.config = options.config;
     this.locale = options.locale;
     this.cursorSnapshotChannel = options.cursorSnapshotChannel;
+    this.placementFile = options.placementFile;
     this.preloadPath = options.preloadPath;
     this.runtimeMessageChannel = options.runtimeMessageChannel;
     this.stateChangedChannel = options.stateChangedChannel;
@@ -431,25 +428,30 @@ export class PipWindowManager {
     this.ownerContents = ownerContents;
     this.closePipWhenOwnerDestroyed(ownerContents);
 
+    // PiP reopens where the owner last left it on this machine.
+    const placement = this.savedPlacement();
     this.state = {
       isOpen: true,
       animaId: options.animaId,
       chatId: options.chatId,
       backgroundMode: options.backgroundMode,
       isHovered: false,
-      sizeScale: resolveSizeScaleForWindowSize(options.width, options.height),
+      sizeScale: placement
+        ? clampPipSizeScale(placement.sizeScale)
+        : resolveSizeScaleForWindowSize(options.width, options.height),
     };
+    const initialBounds = this.resolveOpenBounds(
+      ownerContents,
+      placement,
+      this.state.sizeScale,
+    );
 
     if (this.pipWindow?.isDestroyed() === false) {
       this.startMouseTracking(this.pipWindow);
       this.resetPipReadiness();
       this.setPipMouseEventsIgnored(this.pipWindow, false);
       this.pipWindow.hide();
-      this.setPipWindowDefaultBounds(
-        this.pipWindow,
-        ownerContents,
-        this.state.sizeScale,
-      );
+      this.pipWindow.setBounds(initialBounds);
       await this.loadPipRoute(this.pipWindow, options.animaId, options.chatId);
       this.syncPipWindowVisibility(this.pipWindow);
       if (this.pipWindow.isVisible()) {
@@ -459,17 +461,8 @@ export class PipWindowManager {
       return this.getState();
     }
 
-    const initialBounds = resolveDefaultPipBounds(
-      ownerContents,
-      options.width,
-      options.height,
-    );
-
     const pipWindow = new BrowserWindow({
-      x: initialBounds.x,
-      y: initialBounds.y,
-      width: options.width,
-      height: options.height,
+      ...initialBounds,
       minWidth: MIN_PIP_WIDTH,
       minHeight: MIN_PIP_HEIGHT,
       frame: false,
@@ -539,10 +532,17 @@ export class PipWindowManager {
       this.sendStateChanged();
     };
 
+    pipWindow.on("move", () => this.schedulePlacementSave(pipWindow));
+    pipWindow.on("resize", () => this.schedulePlacementSave(pipWindow));
     pipWindow.on("close", () => {
       this.setPipMouseEventsIgnored(pipWindow, false);
     });
-    pipWindow.on("closed", handleClosed);
+    pipWindow.on("closed", () => {
+      // Keep a move made just before closing; quitting destroys the window
+      // without a `close` event, but `closed` follows both.
+      this.flushPlacementSave();
+      handleClosed();
+    });
     pipWindow.on("hide", () => {
       this.stopGripResize();
       this.setPipMouseEventsIgnored(pipWindow, false);
@@ -786,6 +786,12 @@ export class PipWindowManager {
     this.sendStateChanged();
   }
 
+  /**
+   * Resize the window for a new size scale and remember it. A grip resize
+   * keeps the top-left corner, so no `move` event follows, and a programmatic
+   * `setSize` is not reliably reported as `resize`; the placement is saved
+   * here rather than left to window events.
+   */
   private setPipWindowSizeScale(
     window: BrowserWindow,
     sizeScale: number,
@@ -794,27 +800,84 @@ export class PipWindowManager {
     const nextSize = resolveWindowSizeForScale(sizeScale);
     if (!preserveCenter) {
       window.setSize(nextSize.width, nextSize.height);
-      return;
+    } else {
+      const bounds = window.getBounds();
+      window.setBounds({
+        x: Math.round(bounds.x + (bounds.width - nextSize.width) / 2),
+        y: Math.round(bounds.y + (bounds.height - nextSize.height) / 2),
+        width: nextSize.width,
+        height: nextSize.height,
+      });
     }
-
-    const bounds = window.getBounds();
-    window.setBounds({
-      x: Math.round(bounds.x + (bounds.width - nextSize.width) / 2),
-      y: Math.round(bounds.y + (bounds.height - nextSize.height) / 2),
-      width: nextSize.width,
-      height: nextSize.height,
-    });
+    this.schedulePlacementSave(window);
   }
 
-  private setPipWindowDefaultBounds(
-    window: BrowserWindow,
+  /**
+   * The saved position when its display is still connected, else the
+   * bottom-right corner of the owner window's display.
+   */
+  private resolveOpenBounds(
     ownerContents: WebContents,
+    placement: PipPlacement | null,
     sizeScale: number,
-  ): void {
-    const nextSize = resolveWindowSizeForScale(sizeScale);
-    window.setBounds(
-      resolveDefaultPipBounds(ownerContents, nextSize.width, nextSize.height),
+  ): Bounds {
+    const size = resolveWindowSizeForScale(sizeScale);
+    const saved = placement
+      ? resolveSavedPipBounds(placement, screen.getAllDisplays(), size)
+      : null;
+    return saved ?? resolveDefaultPipBounds(ownerContents, size);
+  }
+
+  private savedPlacement(): PipPlacement | null {
+    if (this.placement === undefined) {
+      this.placement = readPipPlacement(this.placementFile);
+    }
+    return this.placement;
+  }
+
+  /**
+   * Remember the window's position and size scale now, and write them once
+   * moves settle. The placement is read here, while the window is live, so a
+   * pending write still lands after the window is destroyed.
+   */
+  private schedulePlacementSave(window: BrowserWindow): void {
+    if (window.isDestroyed()) return;
+    const bounds = window.getBounds();
+    this.placement = {
+      displayId: screen.getDisplayMatching(bounds).id,
+      x: bounds.x,
+      y: bounds.y,
+      sizeScale: this.state.sizeScale,
+    };
+    if (this.placementSaveTimer !== null) {
+      clearTimeout(this.placementSaveTimer);
+    }
+    this.placementSaveTimer = setTimeout(
+      () => this.flushPlacementSave(),
+      PIP_PLACEMENT_SAVE_DELAY_MS,
     );
+  }
+
+  /**
+   * Write a pending placement. A failed write is logged; it only costs the
+   * next launch its placement.
+   */
+  private flushPlacementSave(): void {
+    if (this.placementSaveTimer === null) return;
+    clearTimeout(this.placementSaveTimer);
+    this.placementSaveTimer = null;
+    const placement = this.placement;
+    if (!placement) return;
+    try {
+      writePipPlacement(this.placementFile, placement);
+    } catch (error) {
+      writeLog(
+        "error",
+        `Could not save the PiP window placement: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    }
   }
 
   private setPipMouseEventsIgnored(

@@ -76,8 +76,8 @@ const SETTLE_SEC = 1;
  * Face view distance in metres: tighter than the chat's Portrait (close)
  * preset (0.8 m) so eye and mouth artwork is legible. Emote hovers far above
  * the head may be cropped here; the front and 3/4 views show them whole.
- * Like the chat's presets, it and the aim scale with a big head
- * (`Avatar.getHeadFramingScale`).
+ * Like the chat's presets, it and the aim scale by the head's framing scale
+ * (`Avatar.getHeadFramingScale`): a big head's, or a small or large body's.
  */
 const FACE_DISTANCE = 0.55;
 /** The head bone sits at the skull base; aim this far above it, at the face. */

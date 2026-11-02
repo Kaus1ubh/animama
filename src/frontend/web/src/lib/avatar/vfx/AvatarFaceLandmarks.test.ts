@@ -6,7 +6,7 @@ import { appendTriangle } from "../testing/appendTriangle";
 import { loadedTestAvatar } from "../testing/loadedTestAvatar";
 import { buildRuntimePrimitiveBindings } from "../vrmEditorInspection";
 
-const loadedAnnie = () => loadedTestAvatar("AvatarSample_A_1_New");
+const loadedAnnie = () => loadedTestAvatar("Annie");
 
 /**
  * Annie with a triangle added to the left eye's iris primitive, centred on

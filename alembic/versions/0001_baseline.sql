@@ -273,8 +273,10 @@ CREATE TABLE avatar_setting_overrides (
     spring_mode character varying,
     material_mode character varying,
     updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    wind_strength integer,
     CONSTRAINT ck_avatar_setting_overrides_material_mode_values CHECK (((material_mode)::text = ANY ((ARRAY['liltoon'::character varying, 'simple'::character varying])::text[]))),
-    CONSTRAINT ck_avatar_setting_overrides_spring_mode_values CHECK (((spring_mode)::text = ANY ((ARRAY['on'::character varying, 'off'::character varying, 'springs_off'::character varying])::text[])))
+    CONSTRAINT ck_avatar_setting_overrides_spring_mode_values CHECK (((spring_mode)::text = ANY ((ARRAY['on'::character varying, 'off'::character varying, 'springs_off'::character varying])::text[]))),
+    CONSTRAINT ck_avatar_setting_overrides_wind_strength_range CHECK (((wind_strength >= 0) AND (wind_strength <= 200)))
 );
 
 -- animama-statement --

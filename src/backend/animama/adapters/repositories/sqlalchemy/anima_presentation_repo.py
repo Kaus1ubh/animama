@@ -53,6 +53,11 @@ class SQLAlchemyAnimaPresentationRepository(AnimaPresentationRepository):
         profile_item = aliased(ORMContentCatalogItem, name="profile_item")
         portrait_item = aliased(ORMContentCatalogItem, name="portrait_item")
         portrait_file = aliased(ORMContentCatalogFile, name="portrait_file")
+        # The Avatar's catalog item names its current model file; the legacy
+        # file path keeps the name it was registered with (a renamed Included
+        # model keeps its catalog identity under a new file name).
+        avatar_item = aliased(ORMContentCatalogItem, name="avatar_item")
+        avatar_model_path = func.coalesce(avatar_item.relative_locator, ORMAvatar.file_path)
         ranked_files = (
             select(
                 ORMContentCatalogFile.item_id.label("item_id"),
@@ -133,6 +138,7 @@ class SQLAlchemyAnimaPresentationRepository(AnimaPresentationRepository):
             )
             .select_from(ORMAnima)
             .outerjoin(ORMAvatar, ORMAvatar.id == ORMAnima.avatar_id)
+            .outerjoin(avatar_item, avatar_item.id == ORMAvatar.catalog_item_id)
             .outerjoin(
                 ORMAnimaLoadout,
                 and_(
@@ -175,7 +181,7 @@ class SQLAlchemyAnimaPresentationRepository(AnimaPresentationRepository):
                     portrait_item.status == "valid",
                     portrait_item.content_metadata["avatar_model"].astext
                     == func.regexp_replace(
-                        func.regexp_replace(ORMAvatar.file_path, r"^.*/", ""),
+                        func.regexp_replace(avatar_model_path, r"^.*/", ""),
                         r"\.[^.]+$",
                         "",
                     ),

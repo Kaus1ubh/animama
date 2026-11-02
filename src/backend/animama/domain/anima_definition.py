@@ -29,6 +29,14 @@ What helps, what lands and what to avoid in how I am with them.
 ## Open threads
 Things to follow up on: plans, promises and upcoming events, with dates.
 """
+# The MEMORIES.md size the guidance aims for. The limit is in bytes: Japanese, Chinese, Korean, Thai and
+# Indic characters take three bytes in UTF-8, and Cyrillic, Greek, Arabic and Hebrew take two. 3,000 such
+# characters, at most about 9,000 bytes, stay well under 16 KiB in every script. They hold about as much
+# as 6,000 English characters only in Japanese, Chinese and Korean; other scripts get less, conservatively.
+ANIMA_MEMORIES_SIZE_TARGET = (
+    "well under about 6,000 characters, or about 3,000 in a non-Latin script such as Japanese, Chinese, Korean, "
+    "Thai or Hindi"
+)
 ANIMA_DISPLAY_NAME_MAX_CHARACTERS = 40
 DEFAULT_ANIMA_VOICE_ID = "gJx1vCzNCD1EQHT212Ls"
 

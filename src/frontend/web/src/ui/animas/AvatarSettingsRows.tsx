@@ -1,11 +1,13 @@
 "use client";
 
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
 import {
   AVATAR_MATERIAL_MODES,
   AVATAR_SPRING_MODES,
+  WIND_STRENGTH_PERCENT,
   useAvatarFileUsesLilToon,
   type AvatarMaterialMode,
   type AvatarSpringMode,
@@ -23,6 +25,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/ui/components/select";
+import { Slider } from "@/ui/components/slider";
 import { materialModeLabel, springModeLabel } from "./avatarSettingLabels";
 
 type AvatarSettingRowProps<Mode extends string> = {
@@ -76,6 +79,64 @@ function AvatarSettingRow<Mode extends string>({
   );
 }
 
+type WindStrengthRowProps = {
+  /** The stored strength in percent of the default. */
+  percent: number;
+  disabled: boolean;
+  onCommit: (percent: number) => void;
+};
+
+/**
+ * The Avatar's wind strength, from none to twice the default. Dragging
+ * previews the value; it is saved when released.
+ */
+function WindStrengthRow({
+  percent,
+  disabled,
+  onCommit,
+}: WindStrengthRowProps) {
+  const { t } = useTranslation("settings");
+  const [draft, setDraft] = useState<number | null>(null);
+  const shown = draft ?? percent;
+  const label = t("animaSettings.avatar.windStrength.label");
+  const valueText = t("animaSettings.avatar.windStrength.value", {
+    percent: shown,
+  });
+  return (
+    <div
+      className={cn(
+        "border-border/60 bg-background flex flex-col gap-3 rounded-lg border px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4",
+        disabled && "opacity-70",
+      )}
+    >
+      <div className="min-w-0">
+        <p className="text-foreground text-sm font-medium">{label}</p>
+        <p className="text-muted-foreground text-xs">
+          {t("animaSettings.avatar.windStrength.description")}
+        </p>
+      </div>
+      <div className="flex w-full shrink-0 items-center gap-3 sm:w-48">
+        <Slider
+          min={WIND_STRENGTH_PERCENT.min}
+          max={WIND_STRENGTH_PERCENT.max}
+          step={WIND_STRENGTH_PERCENT.step}
+          value={[shown]}
+          disabled={disabled}
+          thumbProps={{ "aria-label": label, "aria-valuetext": valueText }}
+          onValueChange={([value]) => setDraft(value ?? percent)}
+          onValueCommit={([value]) => {
+            setDraft(null);
+            if (value !== undefined && value !== percent) onCommit(value);
+          }}
+        />
+        <span className="text-muted-foreground w-12 shrink-0 text-right text-xs tabular-nums">
+          {valueText}
+        </span>
+      </div>
+    </div>
+  );
+}
+
 type AvatarSettingsRowsProps = {
   /** The Avatar catalog item the settings are kept for. */
   itemId: string | null;
@@ -125,6 +186,24 @@ export function AvatarSettingsRows({
           )
         }
       />
+      {springMode === "automatic" || springMode === "on" ? (
+        <WindStrengthRow
+          percent={
+            settings.data?.wind_strength ?? WIND_STRENGTH_PERCENT.default
+          }
+          disabled={busy}
+          onCommit={(percent) =>
+            save.mutate(
+              // The default strength is stored as no value.
+              {
+                wind_strength:
+                  percent === WIND_STRENGTH_PERCENT.default ? null : percent,
+              },
+              { onError: saveFailed },
+            )
+          }
+        />
+      ) : null}
       {showMaterials ? (
         <AvatarSettingRow<AvatarMaterialMode>
           label={t("animaSettings.avatar.materials.label")}

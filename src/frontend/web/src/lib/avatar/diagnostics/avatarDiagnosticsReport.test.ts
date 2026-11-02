@@ -35,7 +35,7 @@ function namesInFile(bytes: ArrayBuffer): string[] {
   return names.filter((name) => name.length >= 8);
 }
 
-async function includedReport(id: "Andrew" | "AvatarSample_A_1_New") {
+async function includedReport(id: "Andrew" | "Annie") {
   vi.spyOn(console, "info").mockImplementation(() => {});
   const bytes = await readTestAvatarBytes(id);
   const avatar = await loadedTestAvatar(id);
@@ -51,7 +51,7 @@ async function includedReport(id: "Andrew" | "AvatarSample_A_1_New") {
 }
 
 describe("Avatar diagnostics reports", () => {
-  it.each(["Andrew", "AvatarSample_A_1_New"] as const)(
+  it.each(["Andrew", "Annie"] as const)(
     "hold no paths, URLs or names from %s's file",
     async (id) => {
       const { bytes, report } = await includedReport(id);

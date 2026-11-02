@@ -27,7 +27,7 @@ const EXPECTED: Record<
   TestAvatarId,
   Record<(typeof AVATAR_FACE_PART_ROLES)[number], string[]>
 > = {
-  AvatarSample_A_1_New: {
+  Annie: {
     face_skin: ["91:0:3"],
     eye_left: ["91:0:1"],
     eye_right: ["91:0:1"],

@@ -125,8 +125,10 @@ not participate in the active stream. See [Data layer](../architecture/data-laye
 ### Canvas controls
 
 The main scene settings popover controls display mode, camera, and TTS/SFX volume.
-Camera presets and Fine-tune camera are session-only; numeric edits select Custom,
-and choosing a preset or Reset restores a named preset. These controls are
+The chosen camera preset is saved as the user preference
+`presentation.camera_preset` and restored when settings load. Fine-tune camera
+edits are session-only: numeric edits select Custom, and choosing a preset or
+Reset restores (and saves) a named preset. These controls are
 available outside PiP while the main scene is visible.
 
 ### Layout modes

@@ -25,6 +25,8 @@ export const fakeSettings = {
   current: {
     springMode: "automatic",
     springModeRef: { current: "automatic" },
+    windStrength: 1,
+    windStrengthRef: { current: 1 },
     materialMode: "automatic" as string | null,
   },
 };
@@ -44,7 +46,12 @@ export function setFakeSettings(
 ): void {
   const springModeRef = fakeSettings.current.springModeRef;
   springModeRef.current = springMode;
-  fakeSettings.current = { springMode, springModeRef, materialMode };
+  fakeSettings.current = {
+    ...fakeSettings.current,
+    springMode,
+    springModeRef,
+    materialMode,
+  };
 }
 
 export function resetFakeSettingsAvatars(): void {
@@ -53,6 +60,8 @@ export function resetFakeSettingsAvatars(): void {
   fakeSettings.current = {
     springMode: "automatic",
     springModeRef: { current: "automatic" },
+    windStrength: 1,
+    windStrengthRef: { current: 1 },
     materialMode: "automatic",
   };
 }

@@ -32,7 +32,6 @@ export function useUserSettings(opts?: UseUserSettingsOptions) {
         responseValidator: undefined,
         throwOnError: true,
       });
-      logger.info("Fetch", "User settings fetched", { user_settings: data });
       return data;
     },
   });

@@ -57,13 +57,18 @@ export function useContentCreatorAvatar({
   // reloading the Avatar.
   const entryRef = useRef(entry);
   entryRef.current = entry;
-  const { springMode, springModeRef, materialMode } = useAvatarLoadSettings(
-    runtimeAvatarItemId(entry),
-  );
+  const {
+    springMode,
+    springModeRef,
+    windStrength,
+    windStrengthRef,
+    materialMode,
+  } = useAvatarLoadSettings(runtimeAvatarItemId(entry));
 
   useEffect(() => {
     avatarRef.current?.setSpringMode(springMode);
-  }, [sceneObject, springMode]);
+    avatarRef.current?.setWindStrength(windStrength);
+  }, [sceneObject, springMode, windStrength]);
 
   useEffect(() => {
     // Materials are built at load; wait for the Avatar's setting.
@@ -107,6 +112,7 @@ export function useContentCreatorAvatar({
             // A saved face part correction applies in creator previews too.
             ...resolveRuntimeAvatarFaceParts(entry),
             springMode: springModeRef.current,
+            windStrength: windStrengthRef.current,
             materialMode,
           },
           (progress) => {
@@ -173,6 +179,7 @@ export function useContentCreatorAvatar({
     onAvatarChange,
     onStatusChange,
     springModeRef,
+    windStrengthRef,
     viewportElement,
   ]);
 

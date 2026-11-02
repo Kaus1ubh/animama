@@ -340,7 +340,7 @@ describe("registerFaceSignals", () => {
     ).toHaveLength(FACE_SIGNAL_PRESETS.length);
   });
 
-  it.each<TestAvatarId>(["Andrew", "AvatarSample_A_1_New", VRM0_FIXTURE_ID])(
+  it.each<TestAvatarId>(["Andrew", "Annie", VRM0_FIXTURE_ID])(
     "leaves %s's own presets in place",
     async (id) => {
       const vrm = await loadTestAvatar(id);

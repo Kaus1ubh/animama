@@ -16,7 +16,7 @@ pnpm -s effects:thumbnails eye_vv star3 # only the named templates
 ```
 
 The command uses the `effects:render --thumbnail` renderer: headless Chromium
-with SwiftShader, Annie (`content/included/avatars/AvatarSample_A_1_New.vrm`)
+with SwiftShader, Annie (`content/included/avatars/Annie.vrm`)
 with the portrait capture's head framing and lighting, the effect applied from
 its Included descriptor and held for 1 s, at 320×320 px. A template marked
 `thumbnail: { framing: "wide" }` (art on the chest or beside the head) is

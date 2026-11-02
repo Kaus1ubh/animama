@@ -371,6 +371,22 @@ async def test_starter_without_legacy_history_never_looks_for_legacy_rows(async_
         assert looked_up == [spec.legacy_avatar_id for spec in LEGACY_STARTER_SPECS]
 
 
+def test_annies_portrait_keeps_its_catalog_identity_after_the_model_rename():
+    """Existing Animas bind the shipped portrait by the key it had before Annie.vrm was renamed."""
+
+    annie = STARTER_ANIMA_SPECS[0]
+    assert annie.avatar_locator == "avatars/Annie.vrm"
+    assert annie.portrait_logical_key == "builtin:avatar-portrait:AvatarSample_A_1_New"
+    shipped = json.loads(
+        (
+            Path(__file__).resolve().parents[1]
+            / "content/included/appearances/avatar-portraits/app-avatar-model-annie-v1.meta.json"
+        ).read_text()
+    )
+    assert shipped["content_id"] == annie.portrait_logical_key
+    assert shipped["avatar_model"] == "Annie"
+
+
 def test_andrew_replaces_caitlyn_in_the_starter_set():
     assert [spec.id for spec in STARTER_ANIMA_SPECS] == ["starter:annie", "starter:andrew"]
     andrew = STARTER_ANIMA_SPECS[1]

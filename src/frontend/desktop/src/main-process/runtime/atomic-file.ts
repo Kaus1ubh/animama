@@ -1,9 +1,12 @@
 import {
   closeSync,
+  constants,
+  fstatSync,
   fsyncSync,
   lstatSync,
   mkdirSync,
   openSync,
+  readFileSync,
   renameSync,
   rmSync,
   type Stats,
@@ -91,6 +94,25 @@ export function syncDirectory(directory: string): void {
     fsyncSync(folder);
   } finally {
     closeSync(folder);
+  }
+}
+
+/**
+ * Parse a small JSON state file, or `null` when it is missing, larger than
+ * `maxBytes`, not a regular file or not JSON. Links are never followed, so a
+ * link planted in place of the file is ignored.
+ */
+export function readSmallJsonFile(file: string, maxBytes: number): unknown {
+  let descriptor: number | undefined;
+  try {
+    descriptor = openSync(file, constants.O_RDONLY | constants.O_NOFOLLOW);
+    const stat = fstatSync(descriptor);
+    if (!stat.isFile() || stat.size > maxBytes) return null;
+    return JSON.parse(readFileSync(descriptor, "utf8")) as unknown;
+  } catch {
+    return null;
+  } finally {
+    if (descriptor !== undefined) closeSync(descriptor);
   }
 }
 

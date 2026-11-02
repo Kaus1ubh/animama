@@ -435,7 +435,7 @@ describe("additional hand presets", () => {
 const base = getResolvedAvatarPose(RELAXED_REST_POSE_ID).humanoid ?? {};
 const SIDES = ["left", "right"] as const;
 /** The VRM 0 test fixture and both Included Avatars. */
-const AVATAR_IDS = [VRM0_FIXTURE_ID, "AvatarSample_A_1_New", "Andrew"] as const;
+const AVATAR_IDS = [VRM0_FIXTURE_ID, "Annie", "Andrew"] as const;
 type AvatarLabel = "none" | (typeof AVATAR_IDS)[number];
 
 /** Rotations of a hand shape with the base pose's thumb metacarpal. */
@@ -486,7 +486,7 @@ describe("hand shapes on the Included Avatars and the VRM 0 fixture", () => {
       peace: "8aff13e1c7fe05a5",
       "thumbs-up": "11f1d7cd1914577c",
     },
-    AvatarSample_A_1_New: {
+    Annie: {
       fist: "8cc64460c8b066bb",
       "open-spread": "c96cd3f3c49c9296",
       "open-together": "bfbecb03c2e57f0e",
@@ -708,7 +708,7 @@ describe("hand shapes on the Included Avatars and the VRM 0 fixture", () => {
   );
 
   it("falls back to the listed pinch without thumb bones or an Avatar", () => {
-    const vrm = avatars.AvatarSample_A_1_New!;
+    const vrm = avatars.Annie!;
     const withoutThumbs = {
       meta: vrm.meta,
       humanoid: {

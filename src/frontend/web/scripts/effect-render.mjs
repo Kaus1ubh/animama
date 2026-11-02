@@ -61,13 +61,13 @@ export const AVATAR_RENDERINGS = ["enhanced", "classic"];
 /** Avatar material settings `--materials` accepts (`src/lib/avatar/avatarSettings.ts`). */
 export const AVATAR_MATERIAL_MODES = ["automatic", "liltoon", "simple"];
 /** The Included Avatars every sheet and benchmark covers. */
-export const AVATARS = ["Andrew", "AvatarSample_A_1_New"];
+export const AVATARS = ["Andrew", "Annie"];
 
 /** The page URL of an Included Avatar's VRM. */
 export const avatarFileUrl = (fsUrl, id) =>
   fsUrl(path.join(avatarDir, `${id}.vrm`));
 /** Annie, the Library thumbnail Avatar. */
-const THUMBNAIL_AVATAR = "AvatarSample_A_1_New";
+const THUMBNAIL_AVATAR = "Annie";
 
 export const DEFAULT_TIMES = [0.1, 0.5, 1, 2];
 export const DEFAULT_TILE = { width: 256, height: 320 };

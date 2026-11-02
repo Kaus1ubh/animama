@@ -141,16 +141,61 @@ describe("Avatar handoff and admission", () => {
         onWorking={vi.fn()}
       />,
     );
-    expect(html.match(/role="tab"/g)).toHaveLength(2);
-    expect(html).toContain("Included");
-    expect(html).toContain("My Content");
-    expect(html).toContain("Upload VRM");
+    // One list for every source: search and Upload share a row, no tabs.
+    expect(html).not.toContain('role="tab"');
+    expect(html).toMatch(
+      /aria-label="Search Avatars"[^>]*>\s*<button[^>]*aria-label="Upload VRM"/u,
+    );
+    expect(html).toContain("No Avatars are available yet.");
     expect(html).toContain('aria-label="Choose a VRM file"');
     expect(html).toMatch(/class="[^"]*\bhidden\b/);
     expect(html).toContain('aria-hidden="true"');
     expect(html).not.toContain("Choose a VRM file</button>");
     expect(html).not.toContain("VRM 0.0 or 1.0");
     expect(html).not.toContain("Selected: selected-avatar");
+  });
+
+  it("lists every source together, with portraits where available", () => {
+    const included = {
+      ...avatar("included-avatar", "included", "Annie.vrm"),
+      name: "Annie",
+      portrait: { url: "/portraits/annie.webp" },
+    } as PyAvatarContent;
+    const local = {
+      ...avatar("local-avatar", "local", "Mine.vrm"),
+      name: "Mine",
+    } as PyAvatarContent;
+    const html = renderToStaticMarkup(
+      <CreateAnimaAvatarStep
+        draft={newCreateAnimaDraft()}
+        sources={
+          {
+            avatars: {
+              data: [included, local],
+              isLoading: false,
+              isError: false,
+              refetch: vi.fn(),
+            },
+          } as unknown as AnimaCreationSources
+        }
+        operations={
+          {
+            saveAvatar: { mutateAsync: vi.fn() },
+          } as unknown as AnimaCreationOperations
+        }
+        file={null}
+        fileInputRef={createRef<HTMLInputElement>()}
+        onFile={vi.fn()}
+        onSelect={vi.fn(async () => undefined)}
+        onWorking={vi.fn()}
+      />,
+    );
+    expect(html.match(/type="radio"/g)).toHaveLength(2);
+    expect(html).toContain('aria-label="Annie Included"');
+    expect(html).toContain('aria-label="Mine My Content"');
+    // Only the Avatar with a portrait shows an image; the other a placeholder.
+    expect(html.match(/<img /g)).toHaveLength(1);
+    expect(html).toContain('src="/portraits/annie.webp"');
   });
 
   it("shows the chosen file's Diagnostics status under its preview", () => {

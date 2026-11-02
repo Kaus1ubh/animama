@@ -38,7 +38,7 @@ from animama.app.contracts.content_package import (
 )
 from animama.app.contracts.portable_anima import PortableAnima
 from animama.app.ports.avatar_face_parts import AvatarFacePartOverrideRepository
-from animama.app.ports.avatar_settings import AvatarSettingField, AvatarSettingOverrideRepository
+from animama.app.ports.avatar_settings import AvatarSettingField, AvatarSettingOverrideRepository, AvatarSettingValue
 from animama.app.ports.content_package_staging import PackageInspector, PackageStageLease, PackageStages
 from animama.app.ports.user_profile_port import UserProfileRepository
 from animama.app.services.anima_package_source_service import AnimaPackageSnapshot, AnimaPackageSourceService
@@ -306,8 +306,8 @@ class _Selection:
     # Effective face-part corrections by Avatar item id, written into each portable sidecar.
     face_parts: dict[str, dict[str, Any]] = field(default_factory=dict)
     # The exporter's stored non-Automatic Avatar settings by Avatar item id,
-    # written into each portable sidecar as ``spring_mode``/``material_mode``.
-    avatar_settings: dict[str, dict[AvatarSettingField, str]] = field(default_factory=dict)
+    # written into each portable sidecar as ``spring_mode``/``wind_strength``/``material_mode``.
+    avatar_settings: dict[str, dict[AvatarSettingField, AvatarSettingValue]] = field(default_factory=dict)
 
 
 def _portraits(
@@ -548,7 +548,7 @@ class ContentPackageExportService:
 
     async def _avatar_settings(
         self, *, user_id: str, entries: tuple[TypedCatalogItem, ...]
-    ) -> dict[str, dict[AvatarSettingField, str]]:
+    ) -> dict[str, dict[AvatarSettingField, AvatarSettingValue]]:
         """Read the exporter's stored settings for each exported Avatar, Local or Included.
 
         Values in a source document are never exported: the owner's table is the
@@ -559,7 +559,7 @@ class ContentPackageExportService:
         if self._avatar_setting_overrides is None or not avatars:
             return {}
         overrides = await self._avatar_setting_overrides.list_for_items(owner_user_id=user_id, avatar_item_ids=avatars)
-        result: dict[str, dict[AvatarSettingField, str]] = {}
+        result: dict[str, dict[AvatarSettingField, AvatarSettingValue]] = {}
         for item_id in avatars:
             values = override_settings(overrides.get(item_id))
             if values:

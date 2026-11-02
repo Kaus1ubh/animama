@@ -305,6 +305,7 @@ else {
         installPipIpc({
           config: desktopConfig,
           locale: shellLocale,
+          placementFile: paths.pipPlacement,
           preloadPath,
         });
         installQuickChatIpc({

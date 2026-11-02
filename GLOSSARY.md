@@ -216,7 +216,8 @@ starts: Parakeet for English, SenseVoice-Small for Japanese, Korean and Chinese
 ([ADR 0029](docs/adr/0029-sensevoice-offline-speech-recognition.md),
 [ADR 0031](docs/adr/0031-offline-speech-engine-is-the-owners-choice.md)).
 Parakeet and Pocket TTS work only in English and show a warning under other
-locales.
+locales. New memory text is written in the language of the conversation or
+notes it comes from ([ADR 0024](docs/adr/0024-ui-locale-is-the-conversation-language.md)).
 
 ## Audio tag
 

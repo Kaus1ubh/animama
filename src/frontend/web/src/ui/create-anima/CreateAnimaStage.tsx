@@ -302,11 +302,17 @@ function CreationStageActor({
   const savedItemId = file ? null : (source?.item_id ?? null);
   const faceParts = useAvatarFaceParts(savedItemId);
   // An unsaved file loads with Automatic settings.
-  const { springMode, springModeRef, materialMode } =
-    useAvatarLoadSettings(savedItemId);
+  const {
+    springMode,
+    springModeRef,
+    windStrength,
+    windStrengthRef,
+    materialMode,
+  } = useAvatarLoadSettings(savedItemId);
   useEffect(() => {
     avatarRef.current?.setSpringMode(springMode);
-  }, [object, springMode]);
+    avatarRef.current?.setWindStrength(windStrength);
+  }, [object, springMode, windStrength]);
   const savedCorrection = faceParts.data?.face_parts ?? null;
   useEffect(() => {
     const avatar = avatarRef.current;
@@ -353,6 +359,7 @@ function CreationStageActor({
           filePath: objectUrl,
           vrmSha256,
           springMode: springModeRef.current,
+          windStrength: windStrengthRef.current,
           materialMode,
         });
         if (controller.signal.aborted) {
@@ -405,6 +412,7 @@ function CreationStageActor({
     session,
     source,
     springModeRef,
+    windStrengthRef,
   ]);
   useEffect(() => {
     avatarRef.current?.setSpringBonePhysicsEnabled(!reducedMotion);

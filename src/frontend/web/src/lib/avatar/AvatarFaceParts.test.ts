@@ -22,7 +22,7 @@ const DIGEST = "c".repeat(64);
 
 /** An Avatar holding a real Included VRM, as `Avatar.load` leaves it. */
 function loadedAnnie(): Promise<Avatar> {
-  return loadedTestAvatar("AvatarSample_A_1_New", DIGEST);
+  return loadedTestAvatar("Annie", DIGEST);
 }
 
 describe("Avatar.setFacePartCorrections", () => {

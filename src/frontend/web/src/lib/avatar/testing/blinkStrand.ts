@@ -15,21 +15,29 @@ export function blinkTargets(avatar: Avatar, mesh: THREE.Object3D): number[] {
 
 /**
  * Add a strand `above` an eye (its centre in head space) to a test Avatar's
- * face primitive, which blink lowers as far as the lid, as a lash or eye line
- * kept inside a converted Avatar's face mesh: `width` across, a thin sliver
- * tall, mapped to `uv`.
+ * face primitive, which blink lowers by `drop` (by default as far as the lid),
+ * as a lash or eye line kept inside a converted Avatar's face mesh: `width`
+ * across, a thin sliver tall, mapped to `uv`. A negative `above` places it
+ * below the eye centre.
  */
 export function addBlinkStrand(
   avatar: Avatar,
   face: RuntimePrimitiveBindingEntry,
   eye: THREE.Vector3,
   width: number,
-  above = 0.012,
-  uv: readonly [[number, number], [number, number], [number, number]] = [
-    [0.1, 0.1],
-    [0.12, 0.1],
-    [0.11, 0.12],
-  ],
+  {
+    above = 0.012,
+    uv = [
+      [0.1, 0.1],
+      [0.12, 0.1],
+      [0.11, 0.12],
+    ],
+    drop = 0.02,
+  }: {
+    above?: number;
+    uv?: readonly [[number, number], [number, number], [number, number]];
+    drop?: number;
+  } = {},
 ): void {
   const y = eye.y + above;
   const z = eye.z + 0.004;
@@ -45,7 +53,7 @@ export function addBlinkStrand(
     uv,
     morph: {
       targets: blinkTargets(avatar, face.object),
-      offset: new THREE.Vector3(0, -0.02, 0),
+      offset: new THREE.Vector3(0, -drop, 0),
     },
   });
 }

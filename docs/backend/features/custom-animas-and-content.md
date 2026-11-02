@@ -265,8 +265,8 @@ every member until the owner's commit. A composition whose shared catalog rows
 concurrent owners' loadout writes never wait on a shared row; `lock_items` and
 reconciliation still lock the rows they name.
 
-Newly provisioned starters use Annie version 3 (`AvatarSample_A_1_New`, Eve Pocket
-voice, ElevenLabs `gJx1vCzNCD1EQHT212Ls`) and Andrew version 1 (`Andrew`, a university student; Michael
+Newly provisioned starters use Annie version 3 (`Annie.vrm`, Eve Pocket
+voice, ElevenLabs `gJx1vCzNCD1EQHT212Ls`) and Andrew version 1 (`Andrew.vrm`, a university student; Michael
 Pocket voice, ElevenLabs `4e32WqNVWRquDa1OcRYZ`), with matching
 Included portraits when available.
 Their identities write out every section of the `IDENTITY.md` template.
@@ -332,12 +332,13 @@ override, so the imported Local copy keeps it.
 
 ### Avatar settings
 
-Each owner may choose two settings per Avatar, wherever it is used:
+Each owner may choose three settings per Avatar, wherever it is used:
 `spring_mode` (wind and ambient forces on spring bones: `automatic`, `on`,
-`off` or `springs_off`) and `material_mode` (`automatic`, `liltoon` or
-`simple`). Local and Included Avatars alike store them as one owner-scoped row
+`off` or `springs_off`), `wind_strength` (a whole percent of the default
+wind and updraft, 0–200; 100 is the default) and `material_mode`
+(`automatic`, `liltoon` or `simple`). Local and Included Avatars alike store them as one owner-scoped row
 in `avatar_setting_overrides`, keyed by Avatar item only; a missing value is
-`automatic`. Saving writes no Avatar files, mints no Avatar revision and does
+`automatic` (for `wind_strength`, 100). Saving writes no Avatar files, mints no Avatar revision and does
 not change any runtime snapshot; clients read the settings separately and apply
 them to the loaded Avatar. An Avatar updated in place keeps the owner's
 choice; a Local Avatar file that is moved, renamed or re-added becomes a new
@@ -347,7 +348,7 @@ local composition serves these routes (see the
 [HTTP contract](../architecture/http-api.md#avatars-and-uploads)).
 
 The settings table is their only authority. A Local Save strips any
-`spring_mode` or `material_mode` key from an Avatar sidecar, and a value
+`spring_mode`, `wind_strength` or `material_mode` key from an Avatar sidecar, and a value
 hand-written into a Local sidecar is admitted (an invalid one makes the Avatar
 invalid with `avatar_setting_invalid`) but never applied. A package is the one
 document that carries them: export writes the exporter's stored non-Automatic

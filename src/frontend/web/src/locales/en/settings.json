@@ -4,7 +4,7 @@
       "copied": "Diagnostics copied.",
       "copy": "Copy summary",
       "copyFailed": "Diagnostics could not be copied to the clipboard.",
-      "description": "Copy version, platform and component status for a bug report. Keys, chats and memories are never included.",
+      "description": "Copy version, platform, component status, recent activity, warnings and errors for a bug report. Keys, chats and memories are never included.",
       "entryLabel": "Copy diagnostics summary",
       "label": "Diagnostics"
     },
@@ -68,6 +68,11 @@
           "on": "On",
           "springs_off": "Springs off"
         }
+      },
+      "windStrength": {
+        "description": "How strongly wind and updraft blow, from none to twice the default. Automatic leaves them off when this Avatar’s hair is too soft to hold against them at this strength.",
+        "label": "Wind strength",
+        "value": "{{percent}}%"
       }
     },
     "choices": {

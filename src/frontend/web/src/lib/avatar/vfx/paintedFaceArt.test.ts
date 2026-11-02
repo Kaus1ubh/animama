@@ -471,7 +471,7 @@ describe("eye lines and lashes over the cheeks", () => {
   );
 
   it("never lets an eye-line or lash mesh part cover cheek art", async () => {
-    const avatar = await loadedTestAvatar("AvatarSample_A_1_New");
+    const avatar = await loadedTestAvatar("Annie");
     const before =
       avatar.getFaceTextureAnchorsSnapshot()!.anchors.undereye.left!;
     const lineKey = avatar.facePartMap!.parts.eyeline.bindings[0]!;

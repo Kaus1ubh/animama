@@ -106,6 +106,7 @@
         "parakeet": "<link>NVIDIA's Parakeet TDT 0.6B v2</link> transcribes English speech on this device, so your voice never leaves it.",
         "sensevoice": "<link>Alibaba's SenseVoice-Small</link> transcribes Japanese, Korean, Chinese and English speech on this device, so your voice never leaves it."
       },
+      "finishWhileDownloading": "You can finish setup while this downloads. It keeps going in the background.",
       "gpu": {
         "description": "Faster, with live previews as you speak. Needs the CPU version and a WebGPU-capable GPU.",
         "label": "{{model}} (GPU)",

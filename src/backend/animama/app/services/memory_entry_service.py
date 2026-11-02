@@ -152,7 +152,9 @@ def normalize_memory_entry_name(name: str) -> tuple[str, str]:
     if _CONTROL_CHAR_RE.search(normalized):
         raise MemoryEntryValidationError("Memory entry names cannot contain control characters")
     if not _ENTRY_NAME_RE.fullmatch(normalized):
-        raise MemoryEntryValidationError("Memory entry names may only use stable identifier characters")
+        raise MemoryEntryValidationError(
+            "Memory entry names may only use ASCII letters, digits, '.', '_', '-', '{' and '}'"
+        )
     return normalized, normalized.casefold()
 
 

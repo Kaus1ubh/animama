@@ -1311,7 +1311,6 @@ export function useDictation(options: UseDictationOptions = {}) {
           modelDecision: result.decision,
           shortUtteranceOverrideMatched,
           shortUtteranceOverrideSource,
-          shortUtteranceOverridePhrase: shortUtteranceOverridePhrase || null,
           audioDurationMs,
           probability: result.probability,
           threshold: result.threshold,
@@ -1333,7 +1332,6 @@ export function useDictation(options: UseDictationOptions = {}) {
               turnId: args.turnId,
               jobId,
               source: shortUtteranceOverrideSource,
-              phrase: shortUtteranceOverridePhrase,
               audioDurationMs,
               maxDurationMs: SMART_TURN_SHORT_UTTERANCE_MAX_MS,
               modelDecision: result.decision,
@@ -1415,11 +1413,15 @@ export function useDictation(options: UseDictationOptions = {}) {
       // Voice Mode discards an unfinished turn instead.
       const finishSpokenText =
         options?.finishSpokenText !== false && modeRef.current === "dictation";
-      logger.info("State", "Stopping dictation", {
-        runId: runIdRef.current,
-        provider,
-        finishSpokenText,
-      });
+      logger.milestone(
+        "State",
+        `Stopping voice input (${provider ?? "none"})`,
+        {
+          runId: runIdRef.current,
+          provider,
+          finishSpokenText,
+        },
+      );
       clearVoiceSilenceResetTimer();
       lastAcceptedSpeechAtRef.current = null;
 
@@ -3062,6 +3064,10 @@ export function useDictation(options: UseDictationOptions = {}) {
           );
         }
         if (resolved.provider === "parakeet") offlineRouteRef.current = route;
+        logger.milestone(
+          "State",
+          `Starting ${mode === "voice" ? "voice mode" : "dictation"} (${resolved.provider})`,
+        );
         if (mode === "voice") {
           if (resolved.provider === "parakeet") {
             logger.info("SmartTurnMode", "Starting offline voice mode", {

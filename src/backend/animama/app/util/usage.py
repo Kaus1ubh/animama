@@ -35,7 +35,7 @@ def normalize_usage(payload: UsagePayload | None) -> Usage | None:
     # If it's already a Usage instance, return as-is
     if isinstance(payload, Usage):
         return payload
-    log.info("Normalizing usage payload", payload=payload)
+    log.debug("Normalizing usage payload", payload=payload)
     if isinstance(payload, Mapping):
         # Detect Chat Completions style
         if "prompt_tokens" in payload or "completion_tokens" in payload:

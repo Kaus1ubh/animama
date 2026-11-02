@@ -1,7 +1,8 @@
 import { useProductApiClient } from "@animama/product-ui";
+import { useFormatters } from "@animama/product-ui/i18n";
 import type { PyVoiceContent } from "@animama/runtime-contracts/api-types";
 import { useEffect, useState } from "react";
-import { useTranslation } from "react-i18next";
+import { Trans, useTranslation } from "react-i18next";
 
 import { usePocketVoiceDownloads } from "@/hooks/use-pocket-voice-downloads";
 import {
@@ -10,12 +11,17 @@ import {
 } from "@/lib/speech/pocket/voice-catalog";
 import { voiceCloneSampleSource } from "@/lib/speech/pocket/voice-clones";
 import { resolvePocketVoicePreference } from "@/lib/speech/pocket/voice-preferences";
+import {
+  useAllAnimaSettings,
+  type AnimaWithSettings,
+} from "@/query/hooks/useAnimaSettings";
 import { useVoiceClones } from "@/query/hooks/useVoiceClones";
 import { PocketVoicePicker } from "@/ui/animas/PocketVoicePicker";
 import { VoiceCloneLibrary } from "@/ui/animas/VoiceCloneLibrary";
 import { elevenLabsVoiceId } from "@/ui/animas/VoiceLoadoutSection";
 import { Button } from "@/ui/components/button";
 import { Input } from "@/ui/components/input";
+import { ModelLink } from "@/ui/components/model-link";
 import {
   Select,
   SelectContent,
@@ -27,6 +33,32 @@ import { useSettings } from "@/ui/settings/SettingsProvider";
 import { SpeechLanguageNotice } from "@/ui/settings/SpeechLanguageNotice";
 import type { CreateAnimaDraft, DraftEdit } from "./createAnimaDraft";
 import { WordedError } from "@/lib/errors/apiError";
+
+/** ElevenLabs' public voice library, where owners find voices to add. */
+export const ELEVENLABS_VOICE_LIBRARY =
+  "https://elevenlabs.io/app/voice-library";
+
+/** A saved ElevenLabs voice ID and the Animas that use it. */
+export type ReusableElevenLabsVoice = { voiceId: string; names: string[] };
+
+/**
+ * The distinct ElevenLabs voice IDs saved on existing Animas, in Anima list
+ * order, so a new Anima can reuse one without copying it by hand.
+ */
+export function reusableElevenLabsVoices(
+  animas: readonly AnimaWithSettings[],
+): ReusableElevenLabsVoice[] {
+  const voices = new Map<string, string[]>();
+  for (const anima of animas) {
+    const preferences = anima.settings.preferences as
+      | { speech?: { [key: string]: unknown } }
+      | undefined;
+    const voiceId = elevenLabsVoiceId(preferences?.speech);
+    if (!voiceId) continue;
+    voices.set(voiceId, [...(voices.get(voiceId) ?? []), anima.displayName]);
+  }
+  return [...voices].map(([voiceId, names]) => ({ voiceId, names }));
+}
 
 /** Shared library writes are explicit; provider/voice selection only edits this draft. */
 export function CreateAnimaVoiceStep({
@@ -51,6 +83,11 @@ export function CreateAnimaVoiceStep({
   });
   const [cloning, setCloning] = useState(false);
   const [deleting, setDeleting] = useState<PyVoiceContent | null>(null);
+  const formatters = useFormatters();
+  // Other Animas' settings load only once ElevenLabs is chosen.
+  const reusable = reusableElevenLabsVoices(
+    useAllAnimaSettings({ enabled: voice?.provider === "elevenlabs" }),
+  );
   useEffect(() => {
     if (voice || isLoading || disabled) return;
     const speech = effectivePreferences.speech;
@@ -238,6 +275,48 @@ export function CreateAnimaVoiceStep({
               })
             }
           />
+          <p className="text-muted-foreground text-xs">
+            <Trans
+              t={t}
+              i18nKey="voiceStep.elevenLabsLibrary"
+              components={{
+                link: <ModelLink href={ELEVENLABS_VOICE_LIBRARY} />,
+              }}
+            />
+          </p>
+          {reusable.length ? (
+            <Select
+              // Shows the Animas whose voice is entered, else the prompt.
+              value={
+                reusable.some(
+                  (item) => item.voiceId === voice.elevenlabs_voice_id,
+                )
+                  ? (voice.elevenlabs_voice_id ?? "")
+                  : ""
+              }
+              disabled={disabled}
+              onValueChange={(voiceId) =>
+                onChange({ voice: { ...voice, elevenlabs_voice_id: voiceId } })
+              }
+            >
+              <SelectTrigger
+                aria-label={t("voiceStep.reuseVoice")}
+                className="w-full min-w-0"
+              >
+                <SelectValue placeholder={t("voiceStep.reuseVoice")} />
+              </SelectTrigger>
+              <SelectContent>
+                {reusable.map((item) => (
+                  <SelectItem key={item.voiceId} value={item.voiceId}>
+                    {t("voiceStep.reuseVoiceOption", {
+                      names: formatters.list(item.names),
+                      id: item.voiceId,
+                    })}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : null}
         </div>
       )}
     </section>

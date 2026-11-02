@@ -164,11 +164,11 @@ test("fails art that draws nothing visible or mostly outside the head", async ()
     for (const [result, pattern] of [
       [
         unseen,
-        /^(Andrew|AvatarSample_A_1_New): unseen_blush draws nothing visible on the head: no pixel changed there, 12 needed in a tile; 0 px changed in all tiles$/,
+        /^(Andrew|Annie): unseen_blush draws nothing visible on the head: no pixel changed there, 12 needed in a tile; 0 px changed in all tiles$/,
       ],
       [
         sunk,
-        /^(Andrew|AvatarSample_A_1_New): sunk_mouth draws mostly outside the head: \d+\.\d% of the \d+ px it changes in the front views are on or around the head \(50% needed\)$/,
+        /^(Andrew|Annie): sunk_mouth draws mostly outside the head: \d+\.\d% of the \d+ px it changes in the front views are on or around the head \(50% needed\)$/,
       ],
     ]) {
       assert.equal(result.failures.length, 2, result.failures.join("\n"));
@@ -193,7 +193,7 @@ test("fails art that draws nothing visible or mostly outside the head", async ()
     assert.equal(pair.stem, "heart_eyes+unseen_blush");
     assert.equal(pair.failures.length, 2, pair.failures.join("\n"));
     for (const failure of pair.failures)
-      assert.match(failure, /^(Andrew|AvatarSample_A_1_New): unseen_blush /);
+      assert.match(failure, /^(Andrew|Annie): unseen_blush /);
     for (const avatar of pair.avatars)
       assert.deepEqual(
         avatar.art.map((art) => art.effect),

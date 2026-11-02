@@ -69,9 +69,7 @@ function removeBlink(avatar: Avatar): void {
  * highlights, whites) taken out, so her eyes have no geometry of their own;
  * returns her original eye landmarks.
  */
-async function annieWithoutEyeMeshes(
-  id: TestAvatarId = "AvatarSample_A_1_New",
-): Promise<{
+async function annieWithoutEyeMeshes(id: TestAvatarId = "Annie"): Promise<{
   avatar: Avatar;
   eyes: {
     left: AvatarFaceEyeLandmarkSnapshot;
@@ -502,9 +500,7 @@ describe("painted eyes with eye bones and no blink", () => {
    * Annie without eye meshes or a blink, her eye bones moved behind where her
    * irises were (at the eyeball centres, as VRChat rigs place them).
    */
-  async function annieWithPaintedEyes(
-    id: TestAvatarId = "AvatarSample_A_1_New",
-  ) {
+  async function annieWithPaintedEyes(id: TestAvatarId = "Annie") {
     const { avatar, eyes } = await annieWithoutEyeMeshes(id);
     removeBlink(avatar);
     moveEyeBones(avatar, eyes, behindIris(id === VRM0_FIXTURE_ID ? -1 : 1));

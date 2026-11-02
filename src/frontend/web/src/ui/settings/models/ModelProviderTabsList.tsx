@@ -21,16 +21,20 @@ import {
  * inside a `Tabs` whose values are the provider entry ids. Tabs are padded
  * more tightly than Library tabs so every Cloud provider fits the settings
  * dialog at desktop widths; narrower windows scroll the strip.
+ * `showRecommended` tags the recommended providers (setup shows it; the
+ * settings dialog marks them on their cards instead).
  */
 export function ModelProviderTabsList({
   groups,
   active,
   label,
+  showRecommended = false,
 }: {
   groups: readonly ModelProviderGroup<ProviderConnectionState>[];
   active: string;
   /** Accessible name of the strip, e.g. "Cloud providers". */
   label: string;
+  showRecommended?: boolean;
 }) {
   const { t } = useTranslation("models");
   return (
@@ -50,6 +54,11 @@ export function ModelProviderTabsList({
           >
             <span className="inline-flex items-center gap-1.5">
               {modelProviderLabel(group.entry)}
+              {showRecommended && group.entry.recommended ? (
+                <span className="bg-primary/10 text-primary text-2xs rounded-sm px-1.5 py-0.5 font-medium">
+                  {t("providers.recommended")}
+                </span>
+              ) : null}
               {providerConnected(group) ? (
                 <>
                   <span

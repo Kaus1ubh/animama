@@ -57,13 +57,16 @@ Profile and Background images, framing and Avatar portrait fallback.
 
 Anima settings (the Settings tab, and Settings in the chat profile modal) end
 with an **Avatar** section. On the local runtimes (desktop and self-hosted web)
-it holds two settings of the Anima's Avatar item, stored per owner and Avatar
+it holds the settings of the Anima's Avatar item, stored per owner and Avatar
 through `GET`/`PUT /v1/avatar-content/{item_id}/settings`, so they apply
 wherever that Avatar is used:
 
 - **Wind and ambient forces**: Automatic, On, Off or Springs off (see
   [`SpringBonePhysicsController`](../runtime/avatar-animation.md#springbonephysicscontroller)).
   A change applies live on every surface showing the Avatar.
+- **Wind strength**: 0–200% of the default wind and updraft, shown under
+  Automatic and On. It applies live, and Automatic weighs it when deciding
+  whether the Avatar's hair can hold against them.
 - **Materials**: Automatic, lilToon or Simple, shown only for a file with
   authored lilToon materials (see
   [Authored lilToon materials](../runtime/avatar-animation.md#authored-liltoon-materials)),

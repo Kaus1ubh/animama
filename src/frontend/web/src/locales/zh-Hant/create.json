@@ -72,13 +72,9 @@
       "title": "此虛擬形象名稱已被使用"
     },
     "discardUpload": "捨棄未儲存的上傳",
-    "emptyIncluded": "沒有可用的內建虛擬形象。你可以使用「我的內容」或上傳 VRM。",
-    "emptyLocal": "「我的內容」中還沒有虛擬形象。上傳一個 VRM 來新增。",
+    "empty": "還沒有可用的虛擬形象。上傳一個 VRM 來新增。",
     "fileInput": "選擇 VRM 檔案",
-    "groupLabel": {
-      "included": "內建虛擬形象",
-      "local": "我的內容中的虛擬形象"
-    },
+    "groupLabel": "虛擬形象",
     "inUse": "此虛擬形象正被執行中的 Anima 使用。請保持不變，並以新名稱儲存你的上傳。",
     "label": "虛擬形象選擇",
     "loadFailed": "無法載入虛擬形象。你的選擇已保留。",
@@ -411,6 +407,7 @@
     "chooseAnother": "此已儲存的語音無法使用。請選擇其他語音。",
     "cloneUnavailable": "此已儲存的語音無法使用。請重新整理資源庫。",
     "elevenLabsId": "ElevenLabs 語音 ID",
+    "elevenLabsLibrary": "在 <link>ElevenLabs 聲音庫</link>中找到聲音，將其加入「我的聲音」，然後在此貼上它的聲音 ID。",
     "elevenLabsPlaceholder": "輸入語音 ID",
     "label": "語音設定",
     "loadFailed": "無法載入已儲存的語音。",
@@ -421,6 +418,9 @@
       "elevenLabs": "ElevenLabs",
       "pocketTts": "PocketTTS"
     },
+    "reuseVoice": "使用其他 Anima 的聲音",
+    "retry": "重新載入虛擬形象",
+    "reuseVoiceOption": "{{names}} · {{id}}",
     "retry": "重新載入已儲存的語音",
     "savedVoiceUnavailable": "已儲存的語音無法使用"
   }

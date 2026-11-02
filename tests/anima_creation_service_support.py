@@ -25,6 +25,7 @@ from animama.adapters.repositories.sqlalchemy.content_catalog_repo import SQLAlc
 from animama.app.anima_creation_contract import CreateAnimaRequest
 from animama.app.services.anima_creation_service import AnimaCreationService
 from animama.app.services.anima_creation_sources import AnimaCreationSources, item_ref
+from animama.app.services.anima_starter_service import STARTER_ANIMA_SPECS
 from animama.app.services.content_catalog_service import ContentCatalogService
 from animama.app.services.content_gltf import REQUIRED_VRM_HUMANOID_BONES
 from animama.app.services.starter_loadout_policy import starter_loadout_policy, starter_pack_identity
@@ -225,7 +226,7 @@ async def anima_creation_fixture(
         Settings(animama_content_root=tmp_path / "content", animama_data_root=tmp_path / "data")
     )
     write_json(paths.included_root / "licenses/inventory.json", {"rules": [{"glob": "**/*", "license_id": "test"}]})
-    for name in ("AvatarSample_A_1_New", "Andrew"):
+    for name in ("Annie", "Andrew"):
         write_file(paths.included_root / f"avatars/{name}.vrm", vrm(name))
     write_file(paths.local_root / "avatars/local-avatar.vrm", vrm(owner))
     write_file(paths.local_root / "appearances/picture.png", image_bytes())
@@ -309,7 +310,7 @@ async def anima_creation_fixture(
     by_path = {item.relative_locator: item for item in result.items}
     fixture.items = {
         "local-avatar": by_path["avatars/local-avatar.vrm"],
-        "included-avatar": by_path["avatars/AvatarSample_A_1_New.vrm"],
+        "included-avatar": by_path["avatars/Annie.vrm"],
         "idle": by_path["gestures/chat-glance"],
         "gesture": by_path["gestures/wave"],
         "reaction": by_path["reactions/joy-2"],
@@ -584,14 +585,18 @@ def write_supplied_starter_fixture(root: Path) -> Path:
             ]
         },
     )
-    for name in ("AvatarSample_A_1_New", "Andrew"):
+    for name in ("Annie", "Andrew"):
         write_file(root / f"avatars/{name}.vrm", vrm(name))
         portrait = root / f"appearances/avatar-portraits/{name}"
         write_file(portrait.with_suffix(".webp"), image_bytes(portrait=True, format="WEBP", portrait_size=512))
         write_json(
             portrait.with_suffix(".meta.json"),
             {
-                "content_id": f"builtin:avatar-portrait:{name}",
+                "content_id": next(
+                    spec.portrait_logical_key
+                    for spec in STARTER_ANIMA_SPECS
+                    if spec.avatar_locator == f"avatars/{name}.vrm"
+                ),
                 "name": f"{name} test portrait",
                 "avatar_model": name,
                 "width": 512,

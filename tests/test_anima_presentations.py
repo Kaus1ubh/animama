@@ -125,6 +125,87 @@ async def test_builtin_avatar_presentation_resolves_on_the_clean_typed_schema(
 
 
 @pytest.mark.asyncio
+async def test_included_portrait_follows_a_renamed_model_file(async_session) -> None:
+    """A registered Avatar whose Included model was renamed finds the new file's portrait."""
+
+    suffix = uuid4().hex
+    user_id = f"user-{suffix}"
+    avatar_id = f"avatar-{suffix}"
+    anima_id = f"anima-{suffix}"
+    model_item_id = f"model-{suffix}"
+    portrait_item_id = f"portrait-{suffix}"
+    model = f"Renamed{suffix}"
+    try:
+        async_session.add(
+            ORMContentCatalogItem(
+                id=model_item_id,
+                source="included",
+                scope="included",
+                kind="avatar",
+                relative_locator=f"avatars/{model}.vrm",
+                display_name=model,
+                status="valid",
+                revision_sha256="c" * 64,
+            )
+        )
+        async_session.add(
+            ORMContentCatalogItem(
+                id=portrait_item_id,
+                source="included",
+                scope="included",
+                kind="appearance",
+                relative_locator=f"appearances/avatar-portraits/{suffix}.webp",
+                logical_key=f"builtin:avatar-portrait:{model}",
+                display_name=f"{model} Portrait",
+                status="valid",
+                revision_sha256="a" * 64,
+                content_metadata={"avatar_model": model, "width": 256, "height": 256},
+            )
+        )
+        await async_session.flush()
+        async_session.add(
+            ORMContentCatalogFile(
+                file_ref=f"portrait-file-{suffix}",
+                item_id=portrait_item_id,
+                relative_path=f"appearances/avatar-portraits/{suffix}.webp",
+                role="image",
+                media_type="image/webp",
+                size_bytes=8192,
+                sha256="b" * 64,
+                ordinal=1,
+            )
+        )
+        # The legacy row still names the file it was registered with.
+        async_session.add(
+            ORMAvatar(
+                id=avatar_id,
+                name=f"Avatar {suffix}",
+                file_path=f"/shared/avatars/Old{suffix}.vrm",
+                identity="A renamed-model test Avatar.",
+                private=False,
+                catalog_item_id=model_item_id,
+            )
+        )
+        await async_session.flush()
+        async_session.add(ORMAnima(id=anima_id, display_name="Renamed", user_id=user_id, avatar_id=avatar_id))
+        await async_session.commit()
+
+        records = await SQLAlchemyAnimaPresentationRepository(async_session).list_owned_presentation_records(
+            user_id=user_id, anima_ids=(anima_id,)
+        )
+
+        assert _required(records[anima_id].avatar_portrait).catalog_item_id == portrait_item_id
+    finally:
+        await async_session.rollback()
+        await async_session.execute(delete(ORMAnima).where(ORMAnima.id == anima_id))
+        await async_session.execute(delete(ORMAvatar).where(ORMAvatar.id == avatar_id))
+        await async_session.execute(
+            delete(ORMContentCatalogItem).where(ORMContentCatalogItem.id.in_((portrait_item_id, model_item_id)))
+        )
+        await async_session.commit()
+
+
+@pytest.mark.asyncio
 async def test_included_avatar_portrait_uses_registered_catalog_delivery() -> None:
     record = AnimaPresentationRecord(
         anima_id="anima-builtin",

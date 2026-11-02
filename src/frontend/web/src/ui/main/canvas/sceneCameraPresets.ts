@@ -1,6 +1,10 @@
 "use client";
 
 import type { Avatar } from "@/lib/avatar";
+import type {
+  PresentationPreferences,
+  SettingsPreferences,
+} from "@/lib/settings/preferences";
 
 export type SceneVector3 = {
   x: number;
@@ -47,6 +51,38 @@ export function isSceneCameraPreset(
 /** The PiP window's preset until the owner picks another. */
 export const DEFAULT_PIP_SCENE_CAMERA_PRESET: SceneCameraPreset =
   "portrait-close";
+
+/** The window whose camera preset is saved: the chat canvas or desktop PiP. */
+export type SceneCameraPresetWindow = "main" | "pip";
+
+/** Where each window's preset is saved under user `presentation` preferences. */
+const SAVED_SCENE_CAMERA_PRESET_KEYS = {
+  main: "camera_preset",
+  pip: "pip_camera_preset",
+} as const satisfies Record<
+  SceneCameraPresetWindow,
+  keyof PresentationPreferences
+>;
+
+/** The window's saved preset, or null when none is saved or it is unknown. */
+export function readSavedSceneCameraPreset(
+  preferences: SettingsPreferences | null,
+  target: SceneCameraPresetWindow,
+): SceneCameraPreset | null {
+  const saved =
+    preferences?.presentation?.[SAVED_SCENE_CAMERA_PRESET_KEYS[target]];
+  return isSceneCameraPreset(saved) ? saved : null;
+}
+
+/** A user preferences patch that saves the window's preset. */
+export function savedSceneCameraPresetPatch(
+  target: SceneCameraPresetWindow,
+  preset: SceneCameraPreset,
+): SettingsPreferences {
+  return {
+    presentation: { [SAVED_SCENE_CAMERA_PRESET_KEYS[target]]: preset },
+  };
+}
 
 export type SceneCameraPresetState = {
   bindings: SceneCameraBindings;
@@ -105,6 +141,18 @@ export function avatarSceneLights(enhanced: boolean): AvatarSceneLights {
   return enhanced ? ENHANCED_SCENE_LIGHTS : DEFAULT_SCENE_LIGHTS;
 }
 
+/**
+ * The widest Portrait framing, against the body's framing scale: Full body
+ * (close)'s distance (2.2 m) over Portrait's (1.6 m), so it shows no more.
+ */
+const PORTRAIT_WIDEST = 2.2 / 1.6;
+
+/**
+ * The widest Portrait (close) framing, against Portrait's scale: 1.5 times
+ * its 0.8 m is three quarters of Portrait's 1.6 m.
+ */
+const PORTRAIT_CLOSE_WIDEST = 1.5;
+
 export function buildSceneCameraPreset(
   preset: SceneCameraPreset,
   options?: {
@@ -117,10 +165,24 @@ export function buildSceneCameraPreset(
     options?.avatar?.getCameraAnchorY("head") ??
     fallbackSettings?.position.y ??
     1.2;
-  // Portrait presets are framed for the Included Avatars' heads; a big head
-  // (chibi, mascot, robot) scales their offsets from the head bone and their
-  // distance by its face's size, so the camera shows the face, not the chin.
-  const head = options?.avatar?.getHeadFramingScale() ?? 1;
+  // Presets are framed for the Included Avatars. Portrait presets scale their
+  // offsets from the head bone and their distance by the head's framing
+  // scale, so a big head (chibi, mascot, robot) shows its face, not its chin.
+  // Full-body presets scale their camera and aim about the floor by the
+  // body's, so a short chibi fills the frame and its head stays in view.
+  // Both are 1 on the Included Avatars (`avatarProportions.ts`).
+  const avatar = options?.avatar;
+  const head = avatar?.getHeadFramingScale() ?? 1;
+  const body = avatar?.getBodyFramingScale() ?? 1;
+  // A chibi's face is half its height, so framing by the face alone would
+  // show more than Full body: Portrait shows no more than Full body (close),
+  // and Portrait (close) no more than three quarters of Portrait. On adult
+  // proportions the head and body scales match and neither limit applies.
+  const portrait = Math.min(head, PORTRAIT_WIDEST * body);
+  const portraitClose = Math.min(head, PORTRAIT_CLOSE_WIDEST * portrait);
+  // Aim at a big head's centre (hat included) rather than its head bone at
+  // the skull's base, so the top of the head stays in view; 0 for adults.
+  const aim = avatar?.getHeadFramingCenter() ?? 0;
 
   switch (preset) {
     case "full-body":
@@ -132,9 +194,9 @@ export function buildSceneCameraPreset(
           orbitTargetYOffset: 0,
         },
         settings: {
-          position: { x: 0, y: 1.2, z: 3.2 },
+          position: { x: 0, y: 1.2 * body, z: 3.2 * body },
           fov: 35,
-          orbitTarget: { x: 0, y: 1.0, z: 0 },
+          orbitTarget: { x: 0, y: 1.0 * body, z: 0 },
         },
       };
     case "full-body-close":
@@ -146,39 +208,39 @@ export function buildSceneCameraPreset(
           orbitTargetYOffset: 0,
         },
         settings: {
-          position: { x: 0, y: 1.2, z: 2.2 },
+          position: { x: 0, y: 1.2 * body, z: 2.2 * body },
           fov: 35,
-          orbitTarget: { x: 0, y: 1.0, z: 0 },
+          orbitTarget: { x: 0, y: 1.0 * body, z: 0 },
         },
       };
     case "portrait":
       return {
         bindings: {
           positionYBone: "head",
-          positionYOffset: 0,
+          positionYOffset: aim,
           orbitTargetYBone: "head",
-          orbitTargetYOffset: -0.1 * head,
+          orbitTargetYOffset: aim - 0.1 * portrait,
         },
         settings: {
           // Leave enough headroom for Reaction VFX while retaining a facial
           // expression-focused composition.
-          position: { x: 0, y: headY, z: 1.6 * head },
+          position: { x: 0, y: headY + aim, z: 1.6 * portrait },
           fov: 35,
-          orbitTarget: { x: 0, y: headY - 0.1 * head, z: 0 },
+          orbitTarget: { x: 0, y: headY + aim - 0.1 * portrait, z: 0 },
         },
       };
     case "portrait-close":
       return {
         bindings: {
           positionYBone: "head",
-          positionYOffset: 0,
+          positionYOffset: aim,
           orbitTargetYBone: "head",
-          orbitTargetYOffset: 0,
+          orbitTargetYOffset: aim,
         },
         settings: {
-          position: { x: 0, y: headY, z: 0.8 * head },
+          position: { x: 0, y: headY + aim, z: 0.8 * portraitClose },
           fov: 35,
-          orbitTarget: { x: 0, y: headY, z: 0 },
+          orbitTarget: { x: 0, y: headY + aim, z: 0 },
         },
       };
   }

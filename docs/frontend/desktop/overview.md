@@ -213,6 +213,7 @@ On macOS the user-data root is `~/Library/Application Support/Animama`:
 | `packs/<id>/versions`    | Immutable optional pack versions and retained prior bytes                     |
 | `packs/active.json`      | Atomic active pointers, reverified before use                                 |
 | `ui-locale.json`         | Last UI Locale the app applied, for the shell's own text                      |
+| `pip-placement.json`     | Where the PiP window was last left on this machine's displays                 |
 | `downloads`              | Bounded partial archives and strong-ETag resume metadata                      |
 
 Packaged `resources/runtime/content/included-core` is immutable and separate
@@ -466,6 +467,9 @@ Main-process logs are written to:
 ```text
 ~/Library/Application Support/Animama/runtime/logs/main.log
 ```
+
+At 10 MiB the file rotates; `main.log.1` (newest) through `main.log.3` keep
+older lines.
 
 Useful checks from `src/frontend`:
 

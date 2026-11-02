@@ -12,7 +12,7 @@ def test_anima_update_request_to_domain_clears_avatar_when_explicitly_null() -> 
         avatar=Avatar(
             id="avt_sample_a1n",
             name="Annie",
-            file_path="/shared/avatars/AvatarSample_A_1_New.vrm",
+            file_path="/shared/avatars/Annie.vrm",
         ),
     )
     req = PyAnimaUpdateRequest(anima=PyAnimaUpdate(avatar_id=None))

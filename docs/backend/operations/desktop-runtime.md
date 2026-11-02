@@ -59,11 +59,12 @@ All paths below are relative to `~/Library/Application Support/Animama`:
 | `secrets/vault.bin`      | OS-encrypted database password, provider keys and model-connection keys; requires matching secure storage. |
 | `runtime/state.json`     | Stable application port, stored as `{version:1,gatewayPort}`; `gatewayPort` is the application port.          |
 | `runtime/processes.json` | Owned-process evidence, never authority to kill a discovered process.                          |
-| `runtime/logs`           | Redacted main and child diagnostics; review before sharing.                                    |
+| `runtime/logs`           | Redacted main and child diagnostics in `main.log`, rotated at 10 MiB with three older files; review before sharing. |
 | `content/local`          | Writable typed library.                                                                        |
 | `data`                   | Private uploads, downloaded model assets (`internal/model-assets`), staging and other non-portable application data. |
 | `packs`, `downloads`     | Verified optional pack versions and bounded resumable pack downloads.                          |
 | `ui-locale.json`         | Last UI Locale the app applied, so the startup page and menu follow it before the backend runs. |
+| `pip-placement.json`     | Where the PiP window was last left on this machine's displays, and its size scale.             |
 | `backups/pre-migration`  | Verified database snapshots and migration journals, not full backups.                          |
 
 Core Included content is mounted read-only from the application's runtime
