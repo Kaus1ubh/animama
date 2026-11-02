@@ -563,12 +563,46 @@ describe("ReactionClipPlayer", () => {
       expect(cleared).toEqual(["vein"]);
     });
 
+    it("keeps a replaying Reaction's effect when an earlier copy of it fades out", () => {
+      const log: string[] = [];
+      const player = new ReactionClipPlayer(
+        {
+          setExpressionOverlay: () => true,
+          clearExpressionOverlay: () => true,
+        },
+        {
+          eventSink: {
+            applyAvatarVFX: (event) => {
+              log.push(`apply ${event.id}`);
+            },
+            clearAvatarVFX: (event) => {
+              log.push(`clear ${event.id}`);
+            },
+            setAvatarVFXIntensity: () => undefined,
+          },
+        },
+      );
+      const clip = reaction("anger", "angry", { fadeIn: 0.2 }, [vein]);
+      play(player, clip);
+      play(player, clip);
+      player.update(0.3);
+      expect(log).toEqual(["apply vein", "clear vein", "apply vein"]);
+    });
+
     it("cuts to the new Reaction when it has no fade-in", () => {
       const { player, faces, cleared } = recordingPlayer();
       play(player, reaction("anger", "angry", {}, [vein]));
       play(player, reaction("worry", "surprised", { fadeIn: 0 }));
       expect(cleared).toEqual(["vein"]);
       expect(faces.at(-1)).toEqual({ surprised: 1 });
+    });
+
+    it("ends an earlier crossfade's effects when a Reaction cuts in", () => {
+      const { player, cleared } = recordingPlayer();
+      play(player, reaction("anger", "angry", {}, [vein]));
+      play(player, reaction("worry", "surprised", { fadeIn: 0.2 }));
+      play(player, reaction("calm", "relaxed", { fadeIn: 0 }));
+      expect(cleared).toEqual(["vein"]);
     });
   });
 });

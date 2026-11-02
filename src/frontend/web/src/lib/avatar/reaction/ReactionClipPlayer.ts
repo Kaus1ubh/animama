@@ -273,6 +273,8 @@ export class ReactionClipPlayer {
 
     const canFade =
       durationSec > 0 && Boolean(this._eventSink?.setAvatarVFXIntensity);
+    // A cut ends everything at once, including any earlier crossfade.
+    if (!canFade) this._finishAllRetiringEffects();
     for (const activeEffect of Array.from(state.activeEventEffects.values())) {
       const { event, context } = activeEffect;
       if (!canFade || event.kind !== "avatar_vfx") {
