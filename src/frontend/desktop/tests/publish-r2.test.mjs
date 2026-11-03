@@ -161,9 +161,10 @@ describe("R2 publication", () => {
   });
 
   it("stops before any upload when an existing object differs", async () => {
+    // The missing file comes first, so order alone cannot avoid its upload.
     const { directory, files } = candidate({
-      "Animama-0.2.0-arm64.zip": "zip bytes",
       "latest-mac.yml": "version: 0.2.0\n",
+      "Animama-0.2.0-arm64.zip": "zip bytes",
     });
     const r2 = fakeR2({
       "desktop/v0.2.0/Animama-0.2.0-arm64.zip": "other bytes",
