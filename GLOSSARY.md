@@ -27,9 +27,10 @@ or the temporary credential used to admit a desktop renderer.
 ## Owner
 
 Raymond Van, who directs the project: product intent, specifications, plans,
-consequential choices, merges, releases and publication. Documents say **the
-owner** for the role and **Raymond** where the person matters. Not the
-**installation owner**, the local runtime's single generated principal.
+consequential choices, merges, releases and publication. Process documents
+(the lifecycle documents, plans and skills) say **the owner** for the role and
+**Raymond** where the person matters. Not the **installation owner**, the local
+runtime's single generated principal, which product documents call the owner.
 
 ## Cloud (hosted composition)
 

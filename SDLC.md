@@ -79,7 +79,7 @@ publication.
 When the parent issue itself contains the spec, write “This issue.” The ExecPlan
 section links the tracked plan at its reviewed revision, or says “Not required”
 with the reason for routine or incidental work. For an existing private plan,
-state “Private plan retained by maintainers” without a private URL or path. Keep
+state “Private plan retained by the maintainer” without a private URL or path. Keep
 the public record independently actionable with its scope, approach and evidence.
 
 New plans belong in the repository that owns their implementation. A change across

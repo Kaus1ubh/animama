@@ -35,7 +35,7 @@ Prepare a Markdown body file from the appropriate template's fields; a YAML issu
 form is not an issue body. Parent issues and PRs have distinct **Spec** and
 **ExecPlan** sections. Link the authoritative spec, or say “This issue” when the
 parent owns it. Identify a linked file snapshot with its captured revision. Link
-an ExecPlan only when access and privacy permit; otherwise state “Private plan retained by maintainers”
+an ExecPlan only when access and privacy permit; otherwise state “Private plan retained by the maintainer”
 or “Not required” and keep the public record independently understandable.
 
 ## Inspect and create issues

@@ -93,7 +93,7 @@ visibility is the owner's own action.
 - [x] G0: owner approval of this plan, including D8 and D10 (2026-11-03), with
   the lifecycle documents kept at the root.
 - [x] Phase 1: licence records cover the exact tree, and the licence changes
-  (review passed 2026-11-03; PR pending owner merge approval).
+  (review passed 2026-11-03; merged as #836).
 - [x] Phase 2: README, process page and community files (review passed
   2026-11-03; in the single Phases 2–5 PR).
 - [x] Phase 3: process documents and skills are current and public-safe
@@ -333,11 +333,10 @@ assessments are kept out of this record; it holds only the choices.
   further than Tier A's 33 entries where possible. On approving the plan the
   owner kept `SDLC.md`, `PLANS.md`, `SPECS.md` and `GLOSSARY.md` at the root,
   so moving `SECURITY.md` into `.github/` brings it to 32 (Phase 3 and A1).
-- **D12 Checks per phase.** 2026-11-03, owner: do not run the full pre-push
-  suite after each phase. Each phase and its PR run the checks their changes
-  affect and record the unrun suite; this replaces D8's per-phase suite runs
-  and the high-risk tier's suite-before-review step for this plan. Independent
-  review still runs at each phase's tier.
+- **D10 Smaller defaults.** 2026-11-03, owner, with the plan: the
+  Contributor Covenant 2.1 as the code of conduct, with the project contact
+  address; repository description, homepage, topics and social preview drafted
+  in Phase 2 and applied by the owner.
 - **D11 Phase 1 confirmations.** 2026-11-03, owner, answering the Phase 1
   gate: clear all four Included content classes as classified (owner- and
   agent-authored items, CC0-derived particle textures, Annie and Andrew under
@@ -345,10 +344,11 @@ assessments are kept out of this record; it holds only the choices.
   mark were AI-generated under the owner's direction; credit the code adapted
   from other open-source projects and delete the dead derived parts; credit
   the tweakcn palette that inspired the theme without claiming its licence.
-- **D10 Smaller defaults.** 2026-11-03, owner, with the plan: the
-  Contributor Covenant 2.1 as the code of conduct, with the project contact
-  address; repository description, homepage, topics and social preview drafted
-  in Phase 2 and applied by the owner.
+- **D12 Checks per phase.** 2026-11-03, owner: do not run the full pre-push
+  suite after each phase. Each phase and its PR run the checks their changes
+  affect and record the unrun suite; this replaces D8's per-phase suite runs
+  and the high-risk tier's suite-before-review step for this plan. Independent
+  review still runs at each phase's tier.
 
 ## Phased implementation
 
@@ -695,9 +695,13 @@ forms; `check_source.py` with the new files' entries.
 
 #### Phase 2 record
 
-Branch `chore/open-source-polish`, from `main` at `56cd8c51` (after #836), the
-single PR for Phases 2–5 (D8). That PR must merge after #835, whose desktop
-changes the README's data section describes.
+Branch `chore/open-source-polish`, the single PR for Phases 2–5 (D8). The
+Phase 2 commit sits on `main` at `dacf928c`, which includes #835, whose desktop
+changes the README's data section describes, and #836. The branch later merged
+`main` again for #842, which changed the landing page's Download (see the final
+integration review below). The link, YAML and coverage rows below ran on tree
+`64718ec0`, the same Phase 2 changes on `56cd8c51`; the final integration
+review found every link still resolving at the PR's head.
 
 - The README is rewritten: what Animama is, a picture (the landing page's
   share image), features checked against the code (152 Gestures and 168
@@ -747,7 +751,7 @@ other rows cite code and documentation read at those trees.
 | Remote access | `reset.sh` accepts only localhost public origins (`is_loopback_host`: "remote access requires an operator-owned proxy"), so the README sends remote access through the operator's own TLS and authentication. |
 | Speech setup per mode | Built self-host ignores host speech recognition sets and installs them in the app from `downloads.animama.ai` (`docs/backend/operations/model-assets.md`, built self-host; `domain/model_assets.py` host allowlist); it uses the host's `browser_speech.py` set after a `reset.sh` run. Development reads all three sets from the host (`reset.sh` model resolution). `parakeet.py` and `sensevoice.py` accept `--source upstream`; `browser_speech.py` already uses Hugging Face. The 35 downloadable voices install only through `/v1/model-assets`. |
 | `make help` | Lists the backend targets. |
-| Features | 152 Gesture and 168 Reaction folders under `content/included/`; 24 tracked emotions in `domain/emotions.py`; platforms in `docs/frontend/desktop/installation.md`; closed beta from the landing page's `CLOSED_BETA`. |
+| Features | 152 Gesture and 168 Reaction folders under `content/included/`; 24 tracked emotions in `domain/emotions.py`; platforms in `docs/frontend/desktop/installation.md`; the desktop builds are in closed beta with a Request Beta Access link on the live download page (`https://animama.ai/download`, read 2026-11-03), where every Download on the landing page goes since #842. |
 | Keys | Desktop vault (`docs/frontend/desktop/installation.md`); self-hosted keys from the server environment (`docs/frontend/features/model-settings.md`). |
 | Data section | The desktop list is #819's verified wording for the state after #835; self-hosted Memory Manager tracing from `adapters/memory_manager/openai_agents_runtime.py` (`tracing_disabled=not connection.is_builtin_openai`) and `development.md#memory-manager-tracing`. |
 | Relative-link and anchor check over the changed Markdown (scratch script) | All resolve. |
@@ -871,9 +875,7 @@ On branch `chore/open-source-polish`, after the Phase 2 commit `db3488a0`.
 - `.claude/hooks/session-start.sh` no longer hard-codes a personal address: a
   cloud session sets its commit identity only from `ANIMAMA_GIT_USER_NAME` and
   `ANIMAMA_GIT_USER_EMAIL` when its environment supplies both, so the owner adds
-  those to the cloud environment to keep committing under that name. (Claude
-  Code's auto-mode classifier refused the first, shell-based edit of this hook
-  as self-modification; the edit tool's change went through.)
+  those to the cloud environment to keep committing under that name.
 - `AGENTS.md`: the naming rules now point to `SDLC.md#names-and-labels` instead
   of repeating them; the "my approval" sentence about `reset.sh` is neutral and
   limited to an agent's own stack; the undefined "skill pilot" gate became a
@@ -902,11 +904,20 @@ On branch `chore/open-source-polish`, after the Phase 2 commit `db3488a0`.
 - The compose profile list in `AGENTS.md` changes with Phase 4's A2, which
   removes the broken `voice` service.
 
-Check record (repository root, staged Phase 3 tree):
+- `docs/plans/` at this phase holds no personal addresses, home-directory
+  paths or attribution lines (`git grep`; the final integration review's scan
+  agrees), so no plan wording needed correcting; the plans' history is
+  published as it is (D2).
+- Duplicated rules left on purpose: the stack commands in `AGENTS.md` and the
+  Context7 note in both scoped guides stay, because each guide is read on its
+  own and those agents need them there.
+
+Check record (repository root, the staged Phase 3 tree, committed as tree
+`006a5795`):
 
 | Command | Result |
 | --- | --- |
-| Relative-link and anchor check over the 15 changed Markdown files | All resolve. |
+| Relative-link and anchor check over the 12 changed Markdown files | All resolve. |
 | `yaml.safe_load` of the issue forms; `bash -n .claude/hooks/session-start.sh` | Pass. |
 | `git grep` for the personal address | No match. |
 | `.venv/bin/python scripts/public-release/check_source.py` | Passes. |
@@ -1111,7 +1122,10 @@ Consequences outside this PR:
   `sanitizeFiniteNumber`, the desktop `isRecord` copies).
 
 Check record (repository root unless noted). The coordinator's runs used the
-staged tree `748fa41e`; only this record changed afterwards. The agents' runs
+staged tree `748fa41e`. Afterwards the review repairs changed only the hook
+comment, `SDLC.md`, `docs/backend/operations/development.md`,
+`src/frontend/AGENTS.md` and this record; the independent checks below ran on
+those trees. The agents' runs
 used temporary-index trees of their working state: `0a7cd094` (backend) and
 `f2b73f2b` (frontend); the coordinator's later changes are covered by its own
 rows.
@@ -1325,38 +1339,44 @@ On branch `chore/open-source-polish`, after the Phase 4 commit `226f2a13`.
 - Tracker text: #819's export of every issue and PR body, comment, earlier
   title and edit-history revision was scanned for personal data, private paths
   and wording the owner may want to change. #819 found no secrets and no
-  attachments. Four edit-history revisions (in #823 and PR #44) and one passage
-  of #235 are on a list the owner received privately, with how to delete a
-  revision in the web interface; current bodies hold no home-directory path or
-  personal address.
+  attachments. Edit-history revisions in #823 and PR #44, one passage of #235,
+  and the Claude Code attribution footers and session links that some earlier
+  PR bodies and comments carry are on a list the owner received privately, with
+  how to delete a revision in the web interface; current bodies hold no
+  home-directory path or personal address.
 - Branches: 251 remote branches besides `main`. 235 are merged into `main`;
-  the 16 unmerged ones (10 with open PRs) and the two that carry
-  `Co-Authored-By` lines are on the owner's list, with each one's PR and last
-  commit. One tag, `repo-split/initial-2026-09-08`. `main` has no attribution
+  the 16 unmerged ones and the two that carry `Co-Authored-By` lines are on
+  the owner's list, with each one's PR state and last commit. One tag, `repo-split/initial-2026-09-08`. `main` has no attribution
   trailers.
 - LFS: 298 LFS objects are reachable only from history; most are earlier
   versions of owner content or permissively licensed models. The few that the
   2026-09-15 cleanup removed for licensing reasons are listed privately, with a
   drafted GitHub Support request to purge them before the visibility change
   (GitHub offers no self-service purge short of deleting the repository).
-- `config.yml`'s security link now says "Report privately through GitHub or
-  security@animama.ai; please don't open a public issue.", the wording #838's
-  `SECURITY.md` uses. The private-reporting link itself waits for publication
-  day, when reporting is enabled (step 3).
+- `config.yml`'s security link keeps its neutral wording ("as the security
+  policy describes"), which stays true before and after #838 names the
+  reporting routes in `SECURITY.md`; #838's suggested text can follow with it.
+  Whichever of #838 and this PR merges second moves #838's `SECURITY.md`
+  content to `.github/SECURITY.md` and makes its relative links start with
+  `../`. The private-reporting link waits for publication day, when reporting
+  is enabled (step 3).
 - Two optional wording fixes from Phase 4's final review land here: the B1
   record now credits web's JavaScript to the hook comment (P4-F13), and the
   hook comment names the frontend root's `.ts` and `.mjs` configs (P4-F14).
 - `check_source.py` on the final tree: every tracked file is covered exactly
   once.
-- #235, read again immediately before the edit: the licence, publication
-  route, content clearance and trademark risk items are ticked, because they
-  are done on `main` or accepted by the owner (D1, D2, D11, D4). The items
-  this PR delivers (the licence-record gap left by #833, README, community
-  files, trademark note, issue forms, internal material and the README's
-  distribution-end paragraph) carry the PR's number and are ticked when it
-  merges. The repository metadata is deferred to publication day (D10).
+- #235 gets one edit, made right after this PR opens so that it can name the
+  PR, and only after reading the body again: tick the licence, publication
+  route, content clearance and trademark risk items, which are done on `main`
+  or accepted by the owner (D1, D2, D11, D4), adding no assessment detail;
+  mark the items this PR delivers (the licence-record gap left by #833, README,
+  community files, trademark note, issue forms, internal material and the
+  README's distribution-end paragraph) with the PR's number, to tick when it
+  merges; and mark the repository metadata as deferred to publication day
+  (D10).
 
-Check record (repository root, Phase 5 tree):
+Check record (repository root, the staged Phase 5 tree, committed as tree
+`4eac6904`):
 
 | Command | Result |
 | --- | --- |
@@ -1365,6 +1385,87 @@ Check record (repository root, Phase 5 tree):
 | `git diff --cached --check` | Clean. |
 
 Review tier light: covered by the final integration review.
+
+### Final integration review
+
+#### Final Integration Review #1 Findings
+
+Reviewed source: `6174dbc0` (tree `4eac6904`), baseline `dacf928c`, one
+independent reviewer; Phases 3 and 5 reviewed explicitly; no checks run (D12).
+
+- F-INT-1 (required): #842 merged to `main` after the baseline. It turned the
+  landing page's closed-beta header off and sent every Download to
+  `/download`, so the README's "request access at animama.ai" and the Phase 2
+  record's evidence for it were out of date.
+- F-INT-2 (required): the Phase 5 record said #235 had been ticked and given
+  the PR's number; neither had happened, and the PR did not exist yet.
+- F-INT-3 (optional): Progress still called #836 pending; some ticks came
+  before the review and the PR they depend on; #823's approach still named a
+  PR per phase.
+- F-INT-4 (optional): `config.yml` named reporting routes that this branch's
+  `.github/SECURITY.md` does not offer until #838 merges.
+- F-INT-5 (optional): the Phase 3 and Phase 5 check records named no tree, the
+  Phase 3 link check counted 15 Markdown files instead of 12, and the plans
+  wording review and two duplicated rules had no recorded outcome.
+- F-INT-6 (optional): a Phase 3 parenthetical about a refused shell edit read
+  as working around a safety refusal.
+- F-INT-7 (optional): the retrospective left out the cloud commit-identity
+  variables and the `.claude/settings.json` permission.
+- F-INT-8 (optional): the idempotence note, the Phase 2 starting revision, the
+  Phase 4 "only this record changed" sentence and the open-PR count were
+  inaccurate.
+- F-INT-9 (optional): "Private plan retained by maintainers" implies several
+  maintainers.
+- F-INT-10 (optional): the glossary told all documents to say "the owner" for
+  Raymond, though product documents use it for the installation owner.
+
+Verified with no finding: Phase 3's edits, hook, ADR guide, skills and
+glossary; Phase 5's records and hook comment; no stale references to removed
+profiles, files, modules or variables; recorded counts; boundaries (no
+workflow, `local/http`, desktop, generated-output or `LICENSE` change, no
+Markdown reflow); public safety; and licence-record coverage (5,803 entries
+for 5,803 files).
+
+#### Final Integration Review #1 Revisions
+
+- F-INT-1 accepted: the branch merged `main` (`2644f464`, no conflicts; both
+  sides changed only `landing-stage-content.mjs`, ours by dropping the `@web`
+  alias). The live download page still lists both builds as in closed beta,
+  with Request Beta Access, so the README now sends desktop users to the
+  download page, and the Phase 2 record cites it. The checks below cover the
+  merged landing files.
+- F-INT-2 accepted: the Phase 5 bullet now describes the single #235 edit that
+  follows the PR's creation.
+- F-INT-3 accepted: Progress says #836 merged; #823's body is updated when the
+  PR opens.
+- F-INT-4 accepted: `config.yml` keeps its neutral wording, and the Phase 5
+  record names the `.github/SECURITY.md` move as the dependency with #838.
+- F-INT-5 accepted: the records name their trees and the 12 files, and Phase 3
+  records the plans review and why the stack commands and Context7 note stay
+  where each guide's readers need them.
+- F-INT-6 accepted: the parenthetical is gone; the change was in Phase 3's
+  approved scope.
+- F-INT-7, F-INT-8 accepted: the retrospective lists both owner steps, and the
+  four inaccurate statements are corrected.
+- F-INT-9 accepted: the phrase is "Private plan retained by the maintainer" in
+  `SDLC.md`, `SPECS.md`, the PR template, the parent form and the
+  `git-workflow` skill.
+- F-INT-10 accepted: the glossary limits the rule to process documents.
+- Also: the Decision Log now reads in order (D9 to D12).
+
+Check record for the repair (repository root unless noted; staged tree
+`bba296ef` on the merge commit `2644f464`; only this record changed
+afterwards):
+
+| Command | Result |
+| --- | --- |
+| `.venv/bin/python scripts/public-release/check_source.py` | Every tracked file covered exactly once. |
+| `yaml.safe_load` of `config.yml` and `parent.yml` | Pass. |
+| Relative-link and anchor check over the nine changed Markdown files | All resolve. |
+| `pytest scripts/package-sets/test_landing_site.py` | 17 passed. |
+| `pnpm -s check`, `pnpm -s web:lint`, `pnpm -s prettier:check` (`src/frontend`) | Pass. |
+| `vitest run tests/landingResolution.test.ts`; `pnpm --filter animama-web landing:build` | 6 passed; 297 files built (warnings only from third-party `"use client"` directives). |
+| `git diff --cached --check` | Clean. |
 
 ## Validation and acceptance
 
@@ -1395,8 +1496,9 @@ repository setting changes; the visibility change is the owner's own action
 after #819's gates. Changing `LICENSE` in the private repository grants nothing
 to anyone until it is published, and a revert restores the old notice. Licence
 records are data: a wrong classification is corrected by a follow-up commit,
-and the owner's approvals are recorded with their dates. Layout moves are pure
-renames in their own commits, so `git revert` restores the old layout.
+and the owner's approvals are recorded with their dates. Each phase is one
+commit, layout moves included, so reverting a phase commit restores its
+layout.
 
 ## Outcomes & Retrospective
 
@@ -1412,8 +1514,11 @@ purge request, private vulnerability reporting and the repository metadata.
 Left for the owner or others: the visibility change after #819's gates; the
 final desktop release and the download cut-off (#837); a fresh desktop
 redistribution review before the next release, since the lockfiles changed;
-Cloud's inventory update at its next repin; the order-dependent benchmark
-runner test; and the optional Tier C moves.
+Cloud's inventory update at its next repin; setting `ANIMAMA_GIT_USER_NAME`
+and `ANIMAMA_GIT_USER_EMAIL` in the cloud environment, so cloud sessions keep
+committing under the owner's name; the owner's call on `.claude/settings.json`
+pre-approving a bare `make check-test`; the order-dependent benchmark runner
+test; and the optional Tier C moves.
 
 Lessons: splitting a large cleanup between two agents in one worktree worked
 when each owned a half and left the index alone, but the coordinator still had

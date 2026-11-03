@@ -53,7 +53,7 @@ body:
     id: execplan
     attributes:
       label: ExecPlan
-      description: Link the tracked ExecPlan at its reviewed revision. For an existing private plan, state "Private plan retained by maintainers" without a private URL or path. If no ExecPlan is needed, write "Not required" and explain why.
+      description: Link the tracked ExecPlan at its reviewed revision. For an existing private plan, state "Private plan retained by the maintainer" without a private URL or path. If no ExecPlan is needed, write "Not required" and explain why.
   - type: textarea
     id: delivery
     attributes:
