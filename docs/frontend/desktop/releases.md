@@ -442,11 +442,12 @@ tracked changes, an existing `desktop/release/smoke-name` and leftover
 
 The helper deletes the clone when it exits, including after an interrupt, so no
 profile, vault or key survives a run. A host crash or `kill -9` can leave a
-clone behind; `tart list` shows it, and `tart delete <name>` removes it.
+clone behind, which `tart list` shows and `tart delete <name>` removes, and a
+`$TMPDIR/animama-vm-smoke.*` folder holding the DMG copy and source bundle.
 `--keep` leaves a stopped clone for debugging, which may still hold the key, and
-the next run refuses until it is deleted. A failed step's underlying error stays
-in the guest unless `ANIMAMA_SMOKE_DEBUG=1` is set for the helper, which passes
-it to the guest's smoke. `ANIMAMA_SMOKE_VM_GOLDEN` and `ANIMAMA_SMOKE_KEY_FILE`
+the next run refuses until it is deleted. A failed step's underlying error is not
+shown unless `ANIMAMA_SMOKE_DEBUG=1` is set for the helper, which passes it to
+the guest's smoke. `ANIMAMA_SMOKE_VM_GOLDEN` and `ANIMAMA_SMOKE_KEY_FILE`
 override the golden VM name and key file. Do not run the helper while a stage or
 `desktop:mac` pack is running: a clone uses four cores and 8 GB of memory.
 

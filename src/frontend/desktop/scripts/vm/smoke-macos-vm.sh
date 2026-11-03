@@ -51,7 +51,8 @@ command -v tart >/dev/null || die "Tart is not installed"
 state=$(tart get "$golden" --format json 2>/dev/null | plutil -extract State raw -o - - 2>/dev/null) ||
   die "No golden VM named $golden"
 [ "$state" = stopped ] || die "$golden must be stopped; smoke runs only in clones"
-stale=$(tart list --source local --quiet | grep '^animama-smoke-run-' || true)
+vms=$(tart list --source local --quiet) || die "tart list failed"
+stale=$(printf '%s\n' "$vms" | grep '^animama-smoke-run-' || true)
 [ -z "$stale" ] ||
   die "Delete the leftover smoke clones first; they can hold the test key: tart delete" $stale
 [ -f "$key_file" ] && [ "$(stat -f %Su:%Lp "$key_file")" = "$(id -un):600" ] ||
@@ -110,8 +111,9 @@ cp -c "$artifact" "$work/inputs/" 2>/dev/null || cp "$artifact" "$work/inputs/"
 git -C "$frontend_root" bundle create -q "$work/inputs/source.bundle" HEAD
 cp "$desktop_root/scripts/vm/guest-smoke.sh" "$work/inputs/"
 
-tart clone "$golden" "$vm"
+# Set first, so an interrupt during the clone still deletes it.
 created=1
+tart clone "$golden" "$vm"
 tart run --no-graphics --no-audio "$vm" >"$work/tart-run.log" 2>&1 &
 run_pid=$!
 echo "Booting ${vm}..."
@@ -162,7 +164,7 @@ elif [ "$(field passed "$report")" != true ]; then
 elif [ "$(field dmg_sha256 "$report")" != "$(shasum -a 256 "$artifact" | awk '{print $1}')" ]; then
   failure="The smoke report does not bind this DMG's SHA-256"
 elif [ -z "$build_id" ] || { [ -f "$index" ] && [ "$build_id" != "$(field runtime_build_id "$index")" ]; }; then
-  failure="The smoke report's runtime build ID is missing or differs from $index"
+  failure="The smoke report's runtime build ID is missing or differs from the candidate's"
 fi
 # Only reports that pass every check go where the publisher reads them.
 [ -z "$failure" ] || output="$desktop_root/release/smoke-name-failed-$(date +%Y%m%d-%H%M%S)"
