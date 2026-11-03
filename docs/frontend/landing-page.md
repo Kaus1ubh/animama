@@ -183,11 +183,11 @@ top of the page and Home is a link:
 - The header speaks the visitor's language on Cloud's pages too, marking its
   own `lang`. Cloud prerenders its pages in English and holds their
   translations as inert `<template data-localizes="<id>" lang="<locale>">`
-  blocks; for the header's locale, `localizePage` swaps each into the
-  element with that `id` (marked `data-localized`), and `main`'s sets
-  `<html lang>` and the title (`data-title`). A switch in the picker swaps
-  them live, and English restores the prerender. Text without a template
-  stays English, as Privacy and Terms do.
+  blocks; for the header's locale, `pageLocalizer` (`localize-page.ts`)
+  swaps each into the element with that `id` (marked `data-localized`). A
+  template's `data-title` sets the title, and `main`'s sets `<html lang>`. A
+  switch in the picker swaps them live, and English restores the prerender.
+  Text without a template stays English, as the Privacy and Terms bodies do.
 - For a visitor in another language `theme.js` sets `data-locale-pending`,
   and `site-header.css` hides a header with the language picker and the
   page's `data-localized` parts until `site-chrome.tsx` has reworded them,
