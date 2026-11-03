@@ -336,7 +336,9 @@ and no publisher accepts it.
 
 ## Installed-artifact smoke and manual acceptance
 
-Use a dedicated fresh macOS account or a fresh CI runner for the setup smoke.
+Use a dedicated fresh macOS account, a disposable
+[local VM clone](#fresh-account-smoke-in-a-local-vm) or a fresh CI runner for
+the setup smoke.
 Log in normally and verify that the test account has no app/profile data; do not
 impersonate its session or change HOME. A privately transferred DMG is sufficient
 for the core smoke. No public GitHub visibility or signing credential is needed
@@ -368,6 +370,97 @@ rejection, core capabilities, both starter chats, exact typed bytes, private
 upload, restart persistence, temporary-key removal, and owned shutdown. It leaves the profile and app
 intact for inspection. A missing provider or failed journey is a failure, not a
 skipped success.
+
+### Fresh-account smoke in a local VM
+
+The macOS smoke can run in a disposable clone of a golden macOS VM on the
+build Mac, using [Tart](https://tart.run) on Apple's Virtualization framework.
+The clone's user logs in automatically at the VM's console, so the smoke runs in
+a normal GUI session with its own HOME and unlocked login keychain. Nothing is
+faked, and no one logs in to another account on the host. Apple's macOS licence
+allows up to two additional macOS VMs on the same Mac for development and testing.
+
+The golden VM `animama-smoke-golden` is built once, from Apple's restore image,
+and never runs Animama. Steps marked *owner* involve passwords or system
+settings, so an agent hands them to the owner:
+
+1. Install Tart (`brew tap openai/tools`, trust only its `tart` and `softnet`
+   formulae with `brew trust --formula`, then `brew install openai/tools/tart`).
+   Create the VM with `tart create --from-ipsw=latest animama-smoke-golden`
+   (about 20 GB from Apple's CDN), then
+   `tart set animama-smoke-golden --memory 8192 --display 1920x1200`.
+2. Open it with the provisioning scripts shared read-only:
+   `tart run animama-smoke-golden --dir=provision:<checkout>/src/frontend/desktop/scripts/vm:ro`.
+3. *Owner:* in Setup Assistant, set up as new (transferring data would copy a
+   real profile and credentials into every clone), skip Apple ID, leave FileVault
+   off and decline automatic update installs, then create the account. In System
+   Settings, turn on automatic login for it and set the screen saver and
+   display-off timers to Never. Clones without automatic login stop at the login
+   window, where the guest agent never starts.
+4. *Owner:* in the VM's Terminal, run
+   `bash "/Volumes/My Shared Files/provision/provision-golden.sh"` and answer its
+   sudo prompts. It installs Apple's Command Line Tools through
+   `softwareupdate`, the checksum-pinned Node.js `.pkg` with corepack, and the
+   checksum-pinned Tart guest agent after checking its Developer ID team, then
+   disables sleep. Each clone's first `pnpm install` fetches the pinned pnpm
+   version through corepack. The guest agent runs only its
+   `tart exec` component, as a LaunchAgent in the login session; clipboard
+   sharing stays off. Then shut the VM down.
+5. Create the owner-only key file `~/.config/animama/smoke-openai.env` (mode
+   600) holding the line `ANIMAMA_SMOKE_OPENAI_KEY=sk-...`. The helper reads
+   only that line, never runs the file, and checks it before booting a clone.
+   A dedicated, low-budget OpenAI project key limits exposure.
+
+To update the golden VM's tools, for example after the Node pin changes,
+repeat steps 2 and 4; the script is idempotent. Never run a smoke in the golden
+VM itself: the first app launch would make every later clone stale.
+
+Each run, from the candidate's `src/frontend` with the golden VM stopped, as a
+heavy job:
+
+```sh
+python3 ../../scripts/heavy-slot.py -- pnpm desktop:smoke:mac:vm -- --artifact desktop/release/publish/Animama-<version>-arm64.dmg
+```
+
+The helper (`desktop/scripts/vm/smoke-macos-vm.sh`) refuses uncommitted
+tracked changes, an existing `desktop/release/smoke-name` and leftover
+`animama-smoke-run-*` clones. It then:
+
+- clones the golden VM and boots the clone without a window;
+- copies in the DMG, a git bundle of `HEAD` and the guest script over
+  `tart exec` (no host folder is shared with the clone);
+- pipes the key into the guest script's stdin, so it never appears in arguments
+  or on disk outside the app's own vault;
+- clones the bundle and runs `pnpm install --frozen-lockfile`, then
+  `pnpm desktop:smoke:mac -- --artifact <dmg> --setup name` in the guest;
+- checks that the reports pass and bind the DMG's SHA-256 and the
+  `runtime_build_id` in the adjacent `release-artifacts.json`, then copies them
+  into `desktop/release/smoke-name`. Reports that fail any check go to
+  `smoke-name-failed-<time>` instead, so the publisher never reads them. Without
+  an adjacent `release-artifacts.json`, the helper only reminds you to check the
+  build ID by hand.
+
+The helper deletes the clone when it exits, including after an interrupt, so no
+profile, vault or key survives a run. A host crash or `kill -9` can leave a
+clone behind, which `tart list` shows and `tart delete <name>` removes, and a
+`$TMPDIR/animama-vm-smoke.*` folder holding the DMG copy and source bundle.
+`--keep` leaves a stopped clone for debugging, which may still hold the key, and
+the next run refuses until it is deleted. A failed step's underlying error is not
+shown unless `ANIMAMA_SMOKE_DEBUG=1` is set for the helper, which passes it to
+the guest's smoke. `ANIMAMA_SMOKE_VM_GOLDEN` and `ANIMAMA_SMOKE_KEY_FILE`
+override the golden VM name and key file. Do not run the helper while a stage or
+`desktop:mac` pack is running: a clone uses four cores and 8 GB of memory.
+
+This satisfies the fresh-account smoke gate. It proves the same as a host test
+account: the exact signed, notarized DMG verifies, installs and completes the
+required-name journey in a never-used macOS account. The clone is also a
+never-used system, apart from the golden VM's Command Line Tools, Node.js and
+guest agent; the app runs with a system-only PATH. The smoke proves nothing about real
+GPU behavior (the guest has a paravirtualized GPU), audio or microphone, physical
+displays, the quarantine/Gatekeeper first-launch path, a signed upgrade or any
+macOS version other than the golden VM's. Those remain manual acceptance on a
+real Mac. A golden VM with a macOS 15 restore image would cover the declared
+minimum OS.
 
 On Windows, use a separate standard (non-administrator) Windows account that
 has never run Animama: no `%LOCALAPPDATA%\Animama`, no
