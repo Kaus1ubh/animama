@@ -35,3 +35,8 @@ regexes = ['''^-----BEGIN [A-Z ]*PRIVATE KEY-----(?:[^A-Za-z0-9+/]|[A-Za-z0-9+/]
 description = "Content identifiers in included-content inventories and metadata"
 regexTarget = "match"
 regexes = ['''^(?:logical|semantic)_key"\s*:\s*"[a-z0-9]+(?:[-_][a-z0-9]+)*"$''']
+
+[[allowlists]]
+description = "Minified first-party web code in which a session key argument precedes the `this.composition.kind===` comparison"
+regexTarget = "secret"
+regexes = ['''^this\.composition\.kind===$''']
