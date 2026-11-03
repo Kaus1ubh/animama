@@ -111,12 +111,12 @@ with code or fonts in the bundle.
 
 ## The site header on Cloud's pages
 
-Every page on animama.ai shows the same header: `site-header.tsx`. The
-overlay renders it over the tour (`tour`: fixed, Home scrolls to the first
-stop, the Avatar choice shows), and the build also makes it for the pages
-Animama Cloud publishes on the same host (About, Download, Privacy, Terms,
-Safety and 404), where it sits at the top of the page and Home is a link.
-Download always goes to the download page:
+Every page on animama.ai shows the same header, `site-header.tsx`, and its
+Download always goes to the download page. The overlay renders it over the
+tour (`tour`: fixed, Home scrolls to the first stop, the Avatar choice shows),
+and the build also makes it for the pages Animama Cloud publishes on the same
+host (About, Download, Privacy, Terms, Safety and 404), where it sits at the
+top of the page and Home is a link:
 
 - `site-chrome.tsx` is a separate Vite build, so it carries only the header's
   code (about 100 kB of compressed JavaScript, mostly React and the menus)
