@@ -9,7 +9,8 @@ Query hooks.
 `/memories` provides an installation-wide file explorer, Manual editor,
 Memory Manager and Markdown preview covering user memory and every owned
 Anima's identity and memories. Upload management and retrieval diagnostics
-live in [Library Chat Uploads](user-file-uploads.md).
+live in [Library Chat Uploads](user-file-uploads.md). Markdown previews of
+memory and identity files show images as their alt text and load none.
 
 The workspace loads content-free user entry headers recursively and the
 `GET /v1/memory/anima-identities` listing. Its left explorer starts with a

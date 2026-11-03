@@ -112,7 +112,7 @@ a 1–40 Unicode-code-point name limit read from creation options. Existing
 41–120-character live names remain readable until explicitly renamed. The
 stage summary is a
 bounded derived excerpt, not another persisted field or a model response.
-Creator Markdown preview does not load remote images.
+Creator Markdown preview shows images as their alt text and loads none.
 
 ### Draft, retry, and first-chat boundaries
 
