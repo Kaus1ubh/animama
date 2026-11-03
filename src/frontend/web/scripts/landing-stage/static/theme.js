@@ -1,9 +1,9 @@
 // Before first paint (`index.html`, and Animama Cloud's pages): the visitor's
 // saved theme, and whether the header waits for its words. Cloud's pages
-// hold the header prerendered in English; for a visitor whose language is
-// another, `site-chrome.tsx` rewords it, and `site-header.css` hides it
-// until then (unless the header has no language picker, as in the closed
-// beta). The language is chosen as `initialLocale` (`i18n.ts`) does: the
+// hold the header and their own text prerendered in English; for a visitor
+// whose language is another, `site-chrome.tsx` rewords them, and
+// `site-header.css` hides them until then (unless the header has no
+// language picker, as in the closed beta). The language is chosen as `initialLocale` (`i18n.ts`) does: the
 // saved choice, else the browser's first language that is a UI Locale
 // (`SUPPORTED_LOCALES` in `@animama/runtime-contracts/locale`).
 // A block, so its names stay out of the page's global scope.

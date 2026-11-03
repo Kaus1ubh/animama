@@ -576,11 +576,24 @@ prerendered for every page and for the About and Download pages
 no script and no inline `style` attribute. Every file it names is in the site's
 `files`.
 
+The header's script also translates Cloud's pages. A page may hold, outside
+the elements they translate, inert `<template data-localizes="<id>"
+lang="<locale>">` blocks, `<locale>` a UI Locale tag. The element with that
+`id` carries `data-localized`. For the header's locale, the script replaces
+each such element's content with a copy of its template and sets the element's
+`lang`; a template for `main` also sets `<html lang>` and, from its optional
+`data-title`, the document title. An element without a template in that locale
+keeps or restores its prerendered content. Before first paint, for a visitor
+whose language is not English, the site's CSS hides `data-localized` elements
+for up to two seconds while the script loads.
+
 It also publishes the safety and crisis protocol for Cloud's `/safety/` page as
 `crisis-protocol.json` (likewise required only by Cloud's build): JSON with
-exactly `schema_version` (`1`) and `html`, `docs/safety/crisis-protocol.md`
-rendered to HTML, starting with its `<h1>`, with no script and no inline
-`style` attribute.
+exactly `schema_version` (`2`), `html` and `translations`. `html` is
+`docs/safety/crisis-protocol.md` rendered to HTML; `translations` maps each
+translated UI Locale tag to its `crisis-protocol.<locale>.md`, a machine
+translation that says so, rendered the same way. Each starts with its `<h1>`
+and has no script and no inline `style` attribute. Schema 1 had only `html`.
 
 A verifier rejects source maps (any path ending in `.map`), links and special
 members, unsafe paths, and any difference between the archive and `files`. It
