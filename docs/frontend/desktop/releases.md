@@ -570,12 +570,15 @@ coverage, then uploads a fixed artifact list:
   release's files: not its description, nor which release is Latest. The feed
   is uploaded last. A run never makes the other target's draft or preview
   public or stable; two previews may share one prerelease.
-- **R2:** uploads each file create-only (`If-None-Match: *`) to
-  `<base>/v<version>/<name>`, signed with its SHA-256 so R2 rejects altered
-  bytes, with `Cache-Control: public, max-age=31536000, immutable`. It then
-  downloads every object through the public domain and compares SHA-256. A
-  preview stops there. Stable promotion rechecks the feed and writes the
-  target's own feed, `<base>/latest-mac.yml` or `<base>/latest.yml`, last
+- **R2:** asks the bucket through a signed `HEAD` whether each file already
+  exists at `<base>/v<version>/<name>`. An existing object is never sent again,
+  since the lock rule rejects any write to it. Other files are uploaded
+  create-only (`If-None-Match: *`), signed with their SHA-256 so R2 rejects
+  altered bytes, with `Cache-Control: public, max-age=31536000, immutable`. It
+  then downloads every object, new or existing, from its exact public URL and
+  compares SHA-256, retrying a `404` for up to 5 minutes. A preview stops
+  there. Stable promotion rechecks the feed and writes the target's own feed,
+  `<base>/latest-mac.yml` or `<base>/latest.yml`, last
   (`Cache-Control: no-cache`), then reads it back.
 
 Stable publication adds the feed, checksum index and acceptance reports without
@@ -602,6 +605,9 @@ new version for corrections.
   an object from the bucket does not remove cached copies; purge the exact URLs
   (Caching → Configuration → Custom Purge) as well. The feed is served
   `no-cache`; do not add a cache rule that caches `desktop/latest-mac.yml`.
+- The edge also caches a `404` for 3 minutes. Before uploading, the publisher
+  reads the feed and shared files only with a one-off `noCache` query, so keep
+  the query string in the cache key (the default).
 
 ### Model objects
 

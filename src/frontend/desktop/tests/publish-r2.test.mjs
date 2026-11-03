@@ -38,8 +38,12 @@ function candidate(files) {
 }
 
 /**
- * An in-memory R2: the S3 endpoint enforces If-None-Match and the signed
- * payload hash; the public domain serves stored bytes anonymously.
+ * An in-memory R2 behind Cloudflare. The S3 endpoint answers signed HEADs,
+ * enforces If-None-Match and the signed payload hash, rejects any write to an
+ * existing object under the locked `desktop/v` prefix (409), and records every
+ * PUT attempt. The public domain serves stored bytes anonymously; like the
+ * edge, once it answers 404 for a full URL (query included), it keeps serving
+ * that 404 for longer than one run.
  */
 function fakeR2(seed = {}, { publicResponses = {}, putStatus } = {}) {
   const objects = new Map(
@@ -48,7 +52,9 @@ function fakeR2(seed = {}, { publicResponses = {}, putStatus } = {}) {
       { body: Buffer.from(body) },
     ]),
   );
+  const puts = [];
   const writes = [];
+  const cachedMisses = new Set();
   const fetch = async (url, init = {}) => {
     const target = new URL(url);
     const method = init.method ?? "GET";
@@ -65,16 +71,22 @@ function fakeR2(seed = {}, { publicResponses = {}, putStatus } = {}) {
       expect(signed).toContain("x-amz-content-sha256");
       if (headers.has("if-none-match"))
         expect(signed).toContain("if-none-match");
-      if (putStatus) return new Response(null, { status: putStatus });
       expect(target.pathname.startsWith("/fixture-bucket/")).toBe(true);
       const key = decodeURIComponent(
         target.pathname.slice("/fixture-bucket/".length),
       );
+      if (method === "HEAD")
+        return new Response(null, { status: objects.has(key) ? 200 : 404 });
+      expect(method).toBe("PUT");
+      puts.push(key);
+      if (putStatus) return new Response(null, { status: putStatus });
       const chunks = [];
       for await (const chunk of init.body) chunks.push(Buffer.from(chunk));
       const body = Buffer.concat(chunks);
       if (sha(body) !== headers.get("x-amz-content-sha256"))
         return new Response(null, { status: 400 });
+      if (key.startsWith("desktop/v") && objects.has(key))
+        return new Response(null, { status: 409 });
       if (headers.get("if-none-match") === "*" && objects.has(key))
         return new Response(null, { status: 412 });
       objects.set(key, { body, cacheControl: headers.get("cache-control") });
@@ -90,13 +102,14 @@ function fakeR2(seed = {}, { publicResponses = {}, putStatus } = {}) {
       const scripted = publicResponses[key]?.shift();
       if (scripted) return scripted();
       const object = objects.get(key);
-      return object
-        ? new Response(object.body, { status: 200 })
-        : new Response(null, { status: 404 });
+      if (object && !cachedMisses.has(target.href))
+        return new Response(object.body, { status: 200 });
+      cachedMisses.add(target.href);
+      return new Response(null, { status: 404 });
     }
     throw new Error(`unexpected request ${method} ${target.origin}`);
   };
-  return { fetch, objects, writes };
+  return { fetch, objects, puts, writes };
 }
 
 const publish = (r2, options) =>
@@ -158,7 +171,33 @@ describe("R2 publication", () => {
     await expect(
       publish(r2, { directory, files, preview: false }),
     ).rejects.toThrow("differs");
+    expect(r2.puts).not.toContain("desktop/v0.2.0/Animama-0.2.0-arm64.zip");
     expect(r2.objects.has("desktop/latest-mac.yml")).toBe(false);
+  });
+
+  it("resumes into the locked version folder without sending existing objects again", async () => {
+    const { directory, files } = candidate({
+      "Animama-0.2.0-arm64.dmg": "dmg bytes",
+      "backend-model-assets.json": "{}\n",
+      "THIRD_PARTY_NOTICES.txt": "notices",
+    });
+    // An interrupted run left these; the lock rule answers 409 to any write.
+    const r2 = fakeR2({
+      "desktop/v0.2.0/Animama-0.2.0-arm64.dmg": "dmg bytes",
+      "desktop/v0.2.0/backend-model-assets.json": "{}\n",
+    });
+    const rerun = () =>
+      publish(r2, {
+        directory,
+        files,
+        preview: true,
+        shared: ["backend-model-assets.json"],
+      });
+    await rerun();
+    expect(r2.puts).toEqual(["desktop/v0.2.0/THIRD_PARTY_NOTICES.txt"]);
+    r2.puts.length = 0;
+    await rerun();
+    expect(r2.puts).toEqual([]);
   });
 
   it.each([
@@ -179,20 +218,48 @@ describe("R2 publication", () => {
     },
   );
 
-  it("retries an object that has not reached the public domain yet", async () => {
+  it("never caches a miss on an object's exact URL before uploading it", async () => {
+    const { directory, files } = candidate({
+      "Animama-0.2.0-arm64.dmg": "dmg bytes",
+      "backend-model-assets.json": "{}\n",
+    });
+    // The shared name is checked in an empty version folder, as in a first preview.
+    const r2 = fakeR2();
+    await publish(r2, {
+      directory,
+      files,
+      preview: true,
+      shared: ["backend-model-assets.json"],
+    });
+    expect(r2.writes).toContain("desktop/v0.2.0/backend-model-assets.json");
+  });
+
+  it("waits out a 404 the edge cached before the upload, but not indefinitely", async () => {
     const { directory, files } = candidate({ "notes.txt": "notes" });
+    // The edge serves a cached 404 for 3 minutes: 36 reads 5 s apart.
+    const cachedMiss = () =>
+      Array.from(
+        { length: 36 },
+        () => () => new Response(null, { status: 404 }),
+      );
     const r2 = fakeR2(
       {},
-      {
-        publicResponses: {
-          "desktop/v0.2.0/notes.txt": [
-            () => new Response(null, { status: 404 }),
-          ],
-        },
-      },
+      { publicResponses: { "desktop/v0.2.0/notes.txt": cachedMiss() } },
     );
     await publish(r2, { directory, files, preview: true });
     expect(r2.writes).toEqual(["desktop/v0.2.0/notes.txt"]);
+
+    const neverServed = [...cachedMiss(), ...cachedMiss()];
+    await expect(
+      publish(
+        fakeR2(
+          {},
+          { publicResponses: { "desktop/v0.2.0/notes.txt": neverServed } },
+        ),
+        { directory, files, preview: true },
+      ),
+    ).rejects.toThrow("could not be read anonymously");
+    expect(neverServed.length).toBeGreaterThan(0);
   });
 
   it("stops with a bounded message when R2 rejects an upload", async () => {
@@ -358,7 +425,8 @@ describe("R2 publication", () => {
 
   it("reports upload failures with bounded messages", async () => {
     const { directory, files } = candidate({ "notes.txt": "notes" });
-    const failing = async () => {
+    const failing = async (_url, init = {}) => {
+      if (init.method === "HEAD") return new Response(null, { status: 404 });
       throw new Error(`socket closed ${credentials.secretAccessKey}`);
     };
     const error = await publish(
