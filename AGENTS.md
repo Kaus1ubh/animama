@@ -5,6 +5,9 @@ This is the repository-level entrypoint for AI coding agents. Read this first, t
 - Backend/FastAPI: `src/backend/AGENTS.md`
 - Frontend and Electron shell: `src/frontend/AGENTS.md`
 
+[How Animama is built](docs/agents/README.md) gives human readers an overview
+of the lifecycle these guides implement.
+
 The nested guides are authoritative for their areas. Keep this file focused on
 repo-wide workflow, ownership boundaries, and local development conventions.
 

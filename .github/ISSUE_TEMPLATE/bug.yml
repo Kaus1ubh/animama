@@ -1,9 +1,9 @@
-name: Shared or local product bug
-description: A bug reproducible without hosted service internals
+name: Bug report
+description: Something in Animama does not work as it should.
 body:
   - type: markdown
     attributes:
-      value: "Follow SDLC.md. Use a private maintainer channel for vulnerabilities, credentials, customer data or hosted internals. Read SECURITY.md before reporting sensitive details. A report is not a claim that the failure has been independently reproduced."
+      value: "Thanks for reporting. Report security problems privately, as the [security policy](https://github.com/raymond-van/animama/security/policy) describes, never here. Leave out API keys, chats, memories and other personal content."
   - type: input
     id: version
     attributes:
@@ -32,7 +32,7 @@ body:
   - type: textarea
     id: assignment
     attributes:
-      label: Scope, approach and acceptance
+      label: Scope, approach and acceptance (maintainer)
       description: Maintainer or agent follow-up after triage. Record the bounded fix, brief approach, regression checks, review disposition and any explicit owner verification gate. Reporters may leave this blank.
   - type: textarea
     id: links

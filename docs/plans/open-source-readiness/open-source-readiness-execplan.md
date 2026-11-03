@@ -94,7 +94,8 @@ visibility is the owner's own action.
   the lifecycle documents kept at the root.
 - [x] Phase 1: licence records cover the exact tree, and the licence changes
   (review passed 2026-11-03; PR pending owner merge approval).
-- [ ] Phase 2: README, process page and community files.
+- [x] Phase 2: README, process page and community files (review passed
+  2026-11-03; in the single Phases 2–5 PR).
 - [ ] Phase 3: process documents and skills are current and public-safe.
 - [ ] Phase 4: agreed cleanups.
 - [ ] Phase 5: publication readiness and the #235 checklist.
@@ -301,7 +302,8 @@ assessments are kept out of this record; it holds only the choices.
   sources; the final feed stays up for a short transition, then the download
   domain is disconnected. Older builds then fail their update check silently
   and show download errors. That code touches the update and model-download
-  paths #819 owns, so it is a separate issue; this plan writes the README text.
+  paths #819 owns, so it is a separate issue (#837); this plan writes the
+  README text.
   #819's notes for that issue: the switch that stops update checks is built
   into the final release, not read from the feed, and `animama.ai` and the
   download host stay registered and under the owner's control after
@@ -321,6 +323,9 @@ assessments are kept out of this record; it holds only the choices.
   an exception to the one-PR-per-plan default so each area is reviewed on its
   own; each PR says `Refs #823` and the last says `Closes #823`.
   Every PR runs targeted checks and records the unrun full suite (D12).
+  2026-11-03, owner, after Phase 1's PR: merge what is ready (#836, merged as
+  `56cd8c51`), then deliver Phases 2–5 in a single PR, on branch
+  `chore/open-source-polish` from `main`.
 - **D9 Cleanup scope.** 2026-11-03, owner: Tiers A and B, and reduce the root
   further than Tier A's 33 entries where possible. On approving the plan the
   owner kept `SDLC.md`, `PLANS.md`, `SPECS.md` and `GLOSSARY.md` at the root,
@@ -684,6 +689,154 @@ trademark note and public issue templates; D1, D3, D5 and D10.
 Checks: a relative-link check over the changed Markdown; YAML parse of the
 forms; `check_source.py` with the new files' entries.
 
+#### Phase 2 record
+
+Branch `chore/open-source-polish`, from `main` at `56cd8c51` (after #836), the
+single PR for Phases 2–5 (D8). That PR must merge after #835, whose desktop
+changes the README's data section describes.
+
+- The README is rewritten: what Animama is, a picture (the landing page's
+  share image), features checked against the code (152 Gestures and 168
+  Reactions; 24 tracked emotions; the voice and provider options), the ways
+  to run it, what happens after distribution ends (D5), self-host and
+  from-source commands, keys and data, the operator note, documentation,
+  licence, name and credits. The D5 paragraph says that after the cut-off,
+  installed apps and built self-hosted servers can no longer install offline
+  speech recognition, the 35 downloadable voices or the voice-cloning encoder,
+  while a development stack can still acquire the speech recognition models
+  from their pinned Hugging Face sources with `--source upstream`.
+- The data section uses the wording #819 verified in code for the state after
+  #835, for the desktop app and browser use, and links the safety protocol's
+  "Your data" section as the full list. A separate sentence says what a
+  self-hosted server sends, including Memory Manager traces to OpenAI on the
+  built-in OpenAI connection.
+- Speech setup follows the modes: built self-host takes Pocket TTS and Smart
+  Turn from `browser_speech.py` on the host and installs offline speech
+  recognition and the downloadable voices in the app; a development stack
+  reads all speech models from the host, where `--source upstream` reaches the
+  original publishers.
+- `docs/agents/README.md` explains the lifecycle; `.github/CONTRIBUTING.md`
+  (D1's no-outside-PR policy), `.github/CODE_OF_CONDUCT.md` (the Contributor
+  Covenant 2.1 adopted by link, not copied) and `docs/trademarks.md` (D3) are
+  new. The issue forms gain public `bug.yml` (renamed from `local-bug.yml`,
+  with `SDLC.md` and `SPECS.md` updated) and `feature.yml`, a `config.yml`
+  that turns off blank issues and links the security policy and Discord, and
+  "Maintainer:" labels on the two maintainer forms.
+- Proposed repository metadata (D10), for the owner to apply: description
+  "AI companions that move, feel and remember: a 3D avatar desktop companion
+  you run yourself, with your own AI provider keys."; website
+  https://animama.ai; topics `ai-companion`, `avatar`, `vrm`, `desktop-app`,
+  `electron`, `fastapi`, `react`, `threejs`, `text-to-speech`,
+  `speech-recognition`, `self-hosted`, `ai-agents`; social preview the same
+  share image.
+
+Check record (repository root). The stack run used the staged Phase 2 tree
+`3ac84f02`; the README commands it exercised are unchanged since. The
+link, YAML and coverage rows ran on the final Phase 2 tree `64718ec0`. The
+other rows cite code and documentation read at those trees.
+
+| Command or claim | Evidence and result |
+| --- | --- |
+| `ANIMAMA_WEB_BUILD_MODE=production ./reset.sh --name osr --base-port 8950` (clean environment, no secrets) | "Local stack ready" at `http://animama-osr.localhost:8950`. `/` and `/setup` return the app with a browser's fetch-metadata headers; plain requests get 404 from the local request admission, as designed. Stopped with `docker compose -p animama-osr --profile "*" down --remove-orphans`; its one task-only volume is kept for cleanup. |
+| `git clone …/animama.git`, `git lfs pull` | The repository URL is this repository's; `git lfs pull` hydrated this worktree's 533 LFS files. |
+| Default port 8000 | `reset.sh` defaults `WEB_SERVER_PORT` to 8000. |
+| Remote access | `reset.sh` accepts only localhost public origins (`is_loopback_host`: "remote access requires an operator-owned proxy"), so the README sends remote access through the operator's own TLS and authentication. |
+| Speech setup per mode | Built self-host ignores host speech recognition sets and installs them in the app from `downloads.animama.ai` (`docs/backend/operations/model-assets.md`, built self-host; `domain/model_assets.py` host allowlist); it uses the host's `browser_speech.py` set after a `reset.sh` run. Development reads all three sets from the host (`reset.sh` model resolution). `parakeet.py` and `sensevoice.py` accept `--source upstream`; `browser_speech.py` already uses Hugging Face. The 35 downloadable voices install only through `/v1/model-assets`. |
+| `make help` | Lists the backend targets. |
+| Features | 152 Gesture and 168 Reaction folders under `content/included/`; 24 tracked emotions in `domain/emotions.py`; platforms in `docs/frontend/desktop/installation.md`; closed beta from the landing page's `CLOSED_BETA`. |
+| Keys | Desktop vault (`docs/frontend/desktop/installation.md`); self-hosted keys from the server environment (`docs/frontend/features/model-settings.md`). |
+| Data section | The desktop list is #819's verified wording for the state after #835; self-hosted Memory Manager tracing from `adapters/memory_manager/openai_agents_runtime.py` (`tracing_disabled=not connection.is_builtin_openai`) and `development.md#memory-manager-tracing`. |
+| Relative-link and anchor check over the changed Markdown (scratch script) | All resolve. |
+| YAML parse of the five issue forms (`yaml.safe_load`) | Pass. |
+| `.venv/bin/python scripts/public-release/check_source.py` | Passes with the new files' entries. |
+
+#### Code Review #1 Findings (Phase 2)
+
+Reviewed source: staged tree `3ac84f02`, light tier, one independent reviewer.
+
+- P2-F1 (required): the README described speech in built self-host wrongly:
+  built mode ignores host speech recognition sets, `browser_speech.py` has no
+  `--source`, all 35 downloadable voices install only in the app, and the
+  acquisition block came after `reset.sh`.
+- P2-F2 (required): "No analytics, crash reports or usage telemetry" was not
+  limited to the desktop app; a self-hosted server sends Memory Manager traces
+  to OpenAI on the built-in OpenAI connection.
+- P2-F3 (required): `AGENTS.md` and `SDLC.md` did not link the process page.
+- P2-F4 (required): the check record had no Git trees and did not list each
+  verified command and claim.
+- P2-F5 (required): the process page said AI involvement is recorded file by
+  file for code; only artwork and content are. Optional on the same lines: two
+  pushed branches carry `Co-Authored-By` lines, which D2 publishes.
+- P2-F6 (optional): the process page omitted the final integration review and
+  the session-start hook, said every skill has `agents/openai.yaml`, and
+  called hosted CI minutes metered, which stops being true at publication.
+- P2-F7 (optional): the security reporting route: `SECURITY.md` still says no
+  route exists, `config.yml` lacks the private-reporting link, and `bug.yml`
+  named the policy without a link and used maintainer language.
+- P2-F8 (optional): `CONTRIBUTING.md` asked every distributed or hosted fork to
+  rename, unlike the trademark note, which asks it of modified builds.
+- P2-F9 (optional): reaching the app remotely also needs `--host`; "any
+  computer with Docker" overlooks that `reset.sh` needs WSL on Windows; the
+  D5 release had no issue.
+
+#### Code Review #1 Revisions (Phase 2)
+
+- P2-F1 accepted: self-host now runs `browser_speech.py acquire` before
+  `reset.sh` and installs speech recognition and voices in the app; the
+  Parakeet and SenseVoice commands moved to "Run from source" with
+  `--source upstream`; the D5 paragraph says what installed apps and
+  self-hosted servers can no longer install.
+- P2-F2 accepted: the telemetry sentence is about the desktop app, and a new
+  paragraph says what a self-hosted server sends.
+- P2-F3 accepted: both files link the page.
+- P2-F4 accepted: the record above names its trees and evidence for each
+  command and claim.
+- P2-F5 accepted: the page names the owner attestation for the work as a whole
+  and per-file records for artwork and content, and says `main`'s commits carry
+  no attribution. The two branches join Phase 5's branch review.
+- P2-F6 accepted: all four points corrected.
+- P2-F7 accepted in part: `bug.yml` links the policy and drops the maintainer
+  sentence. The private-reporting link only works once reporting is enabled on
+  publication day, so adding it to `config.yml` is a Phase 5 gate; #819 owns
+  the `SECURITY.md` wording.
+- P2-F8 accepted: `CONTRIBUTING.md` follows the trademark note.
+- P2-F9 accepted: the README names `--host` and macOS, Linux or WSL, and #837
+  tracks the final release.
+
+Repair round 1 of 2 used; a targeted recheck follows.
+
+#### Code Review #2 Findings (Phase 2)
+
+Reviewed source: staged tree `b83a01c0`, a targeted recheck by an independent
+reviewer, with the link, YAML and coverage checks rerun (all passed). P2-F1,
+F2, F3, F5, F6, F7 (partial), F8 and F9's WSL and #837 parts are resolved.
+
+- P2-R2-F1 (required): the README's `--host` advice was wrong. `reset.sh`
+  accepts only localhost public origins, and admission compares the Origin
+  exactly, so P2-F9's premise was mistaken.
+- P2-F4 (required, not resolved): the record named no tree for the
+  post-review rows and still described the old README text.
+- P2-R2-F2 (optional): the voice-cloning encoder also downloads from
+  `downloads.animama.ai`.
+- P2-R2-F3 (optional): `--source upstream` sat above `browser_speech.py`,
+  which rejects it; the upstreams are pinned Hugging Face exports; a paragraph
+  followed a code fence without a blank line.
+
+#### Code Review #2 Revisions (Phase 2)
+
+- P2-R2-F1 accepted: P2-F9's `--host` part is withdrawn; the README says
+  Animama listens only on the user's computer and that remote access goes
+  through the operator's own TLS and authentication.
+- P2-F4 accepted: the record names its trees and describes the current text.
+- P2-R2-F2 accepted: the README and #837 name the cloning encoder.
+- P2-R2-F3 accepted: `--source upstream` applies to the Parakeet and SenseVoice
+  commands, the upstreams are called pinned Hugging Face sources, and the fence
+  is followed by a blank line.
+
+These are wording repairs on the light tier, verified by the implementer: the
+relative-link check, YAML parse and `check_source.py` pass on tree
+`64718ec0`. Phase 2 review is complete; repair rounds used: 2 of 2.
+
 ### Phase 3: Process documents and skills are current and public-safe
 
 Review tier: light.
@@ -778,11 +931,14 @@ visibility:
    path appears only in two earlier revisions of PR #44's body. Those and
    #823's first revision are listed for the owner to delete.
 2. List the 242 remote branches as merged or unmerged; the owner decides which
-   to delete. List the two tags.
-3. Draft, for the owner to send if wanted, a GitHub Support request to purge
+   to delete. List the two tags. `origin/claude/project-thread-nwnmxj` and
+   `origin/chore/cloud-session-start-hook` carry `Co-Authored-By` lines.
+3. On publication day, once private vulnerability reporting is enabled, add its
+   link (`/security/advisories/new`) to `.github/ISSUE_TEMPLATE/config.yml`.
+4. Draft, for the owner to send if wanted, a GitHub Support request to purge
    orphaned LFS objects without rewriting history.
-4. Run `coverage` on current `main`, record the result, tick the #235 items
-   that are done, and list the rest as accepted or deferred by the owner.
+5. Run `check_source.py` on the final tree, record the result, tick the #235
+   items that are done, and list the rest as accepted or deferred by the owner.
 
 ## Validation and acceptance
 

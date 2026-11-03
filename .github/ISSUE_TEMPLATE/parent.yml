@@ -1,4 +1,4 @@
-name: Parent proposal or specification
+name: "Maintainer: parent proposal or specification"
 description: Define a substantial outcome before dividing it into implementation tasks.
 body:
   - type: markdown

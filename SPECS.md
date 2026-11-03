@@ -25,7 +25,7 @@ and refresh it from the issue before resuming. Do not edit the snapshot as a
 competing source of requirements.
 
 For routine work, the [task form](.github/ISSUE_TEMPLATE/task.yml) or
-[bug form](.github/ISSUE_TEMPLATE/local-bug.yml) may contain the whole spec and
+[bug form](.github/ISSUE_TEMPLATE/bug.yml) may contain the whole spec and
 brief approach. Reuse an existing agreed issue when the outcome still fits it;
 no extra draft or discovery interview is required.
 
