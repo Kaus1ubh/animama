@@ -751,7 +751,7 @@ other rows cite code and documentation read at those trees.
 | Remote access | `reset.sh` accepts only localhost public origins (`is_loopback_host`: "remote access requires an operator-owned proxy"), so the README sends remote access through the operator's own TLS and authentication. |
 | Speech setup per mode | Built self-host ignores host speech recognition sets and installs them in the app from `downloads.animama.ai` (`docs/backend/operations/model-assets.md`, built self-host; `domain/model_assets.py` host allowlist); it uses the host's `browser_speech.py` set after a `reset.sh` run. Development reads all three sets from the host (`reset.sh` model resolution). `parakeet.py` and `sensevoice.py` accept `--source upstream`; `browser_speech.py` already uses Hugging Face. The 35 downloadable voices install only through `/v1/model-assets`. |
 | `make help` | Lists the backend targets. |
-| Features | 152 Gesture and 168 Reaction folders under `content/included/`; 24 tracked emotions in `domain/emotions.py`; platforms in `docs/frontend/desktop/installation.md`; the desktop builds are in closed beta with a Request Beta Access link on the live download page (`https://animama.ai/download`, read 2026-11-03), where every Download on the landing page goes since #842. |
+| Features | 152 Gesture and 168 Reaction folders under `content/included/`; 24 tracked emotions in `domain/emotions.py`; platforms in `docs/frontend/desktop/installation.md`; the live download page (`https://animama.ai/download`, read 2026-11-03), where every Download on the landing page goes since #842, lists both desktop builds as in closed beta. |
 | Keys | Desktop vault (`docs/frontend/desktop/installation.md`); self-hosted keys from the server environment (`docs/frontend/features/model-settings.md`). |
 | Data section | The desktop list is #819's verified wording for the state after #835; self-hosted Memory Manager tracing from `adapters/memory_manager/openai_agents_runtime.py` (`tracing_disabled=not connection.is_builtin_openai`) and `development.md#memory-manager-tracing`. |
 | Relative-link and anchor check over the changed Markdown (scratch script) | All resolve. |
@@ -1461,11 +1461,41 @@ afterwards):
 | --- | --- |
 | `.venv/bin/python scripts/public-release/check_source.py` | Every tracked file covered exactly once. |
 | `yaml.safe_load` of `config.yml` and `parent.yml` | Pass. |
-| Relative-link and anchor check over the nine changed Markdown files | All resolve. |
+| Relative-link and anchor check over the Markdown files changed since `6174dbc0` (eight, including #842's `docs/frontend/landing-page.md`) | All resolve. |
 | `pytest scripts/package-sets/test_landing_site.py` | 17 passed. |
 | `pnpm -s check`, `pnpm -s web:lint`, `pnpm -s prettier:check` (`src/frontend`) | Pass. |
 | `vitest run tests/landingResolution.test.ts`; `pnpm --filter animama-web landing:build` | 6 passed; 297 files built (warnings only from third-party `"use client"` directives). |
 | `git diff --cached --check` | Clean. |
+
+#### Final Integration Review #2 Findings
+
+Reviewed source: `e519882a`, a targeted recheck of repair round 1 by the same
+reviewer. Result: the repairs pass; F-INT-1 to F-INT-10 are fixed, the merge
+changes only #842's files (with Phase 4's alias removal kept), and the new
+text is public-safe.
+
+- F-INT-11 (optional): the README's "request access on the download page" goes
+  stale once Cloud repins a package set with #842's header, because the
+  request-access link sits in that header.
+- F-INT-12 (optional): the repair's link-check row counted nine Markdown files;
+  the Markdown files changed since `6174dbc0` are eight.
+- F-INT-13 (optional): the recovery note said each phase reverts on its own,
+  but the repair commits edit lines from Phases 2, 3 and 5.
+- F-INT-14 (optional): "The agreed PRs are open" was ticked before the PR
+  existed.
+
+#### Final Integration Review #2 Revisions
+
+- F-INT-11 accepted: the row reads "Closed beta; see the download page", which
+  holds whichever header the page has; the Phase 2 record matches.
+- F-INT-12 accepted: the row names the eight files.
+- F-INT-13 accepted: the recovery note says to revert the repairs with a phase.
+- F-INT-14 accepted: the tick stands because the PR opens from this candidate,
+  and #235 and #823 are edited right after it opens.
+
+These are wording repairs, verified by the coordinator: the link check over
+`README.md` and this plan, and `check_source.py`, pass on the repair's staged
+tree. Repair rounds used for the final review: 2 of 2.
 
 ## Validation and acceptance
 
@@ -1490,8 +1520,10 @@ each `gh pr create` and push, because a re-enabled workflow starts billed runs.
 
 ## Idempotence and recovery
 
-Phase 1 merged as #836; Phases 2–5 are one commit each in a single PR, so a
-phase can be reverted on its own. Nothing is published and no
+Phase 1 merged as #836. Phases 2–5 are one commit each in a single PR, which
+ends with a merge of `main` (#842) and repair commits that touch lines from
+Phases 2, 3 and 5; reverting one of those phases means reverting the repairs
+with it. Nothing is published and no
 repository setting changes; the visibility change is the owner's own action
 after #819's gates. Changing `LICENSE` in the private repository grants nothing
 to anyone until it is published, and a revert restores the old notice. Licence
