@@ -10,6 +10,7 @@ from typing import Any
 import httpx2
 from openai import OpenAIError
 
+from animama.adapters.model_clients.openai_errors import classify_openai_exception
 from animama.app.model_clients import ModelClientError, ModelClientProviderError, ModelClientTimeoutError
 from animama.app.model_clients.call_boundary import DEADLINE_CODE, INPUT_LIMIT_CODE
 from animama.app.model_clients.credentials import ModelCredentialResolver
@@ -18,7 +19,6 @@ from animama.app.ports.text_embedder import EmbeddingLimits, EmbeddingResult
 from animama.domain import ModelProvider
 from animama.domain.usage import Usage
 
-from ..openai_errors import classify_openai_exception
 from .connection_sdk import (
     connection_base_url,
     connection_for_request,

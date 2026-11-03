@@ -5,10 +5,10 @@ import {
   type UseMutationOptions,
 } from "@tanstack/react-query";
 import { describeChatFailure } from "@animama/product-ui/chat";
+import { useCreateChat } from "@animama/product-ui/query";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { withRuntime } from "@/test/runtime-markup";
-import { useCreateChat } from "./useCreateChat";
 
 const mocks = vi.hoisted(() => ({
   create: vi.fn(),

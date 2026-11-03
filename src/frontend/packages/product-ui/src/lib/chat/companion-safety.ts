@@ -72,7 +72,11 @@ export function preferredClientLocale(): string | null {
   const locales = [...(navigator.languages ?? []), navigator.language].filter(
     (value): value is string => typeof value === "string" && value.length > 0,
   );
-  return locales.find((value) => /[-_][a-z]{2}\b/iu.test(value)) ?? locales[0] ?? null;
+  return (
+    locales.find((value) => /[-_][a-z]{2}\b/iu.test(value)) ??
+    locales[0] ??
+    null
+  );
 }
 
 /**

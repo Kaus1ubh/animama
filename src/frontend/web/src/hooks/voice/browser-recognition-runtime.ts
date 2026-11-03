@@ -1,5 +1,3 @@
-"use client";
-
 import type { Logger } from "@/lib/logger";
 import type {
   BrowserSpeechRecognition,

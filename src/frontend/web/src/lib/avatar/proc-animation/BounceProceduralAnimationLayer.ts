@@ -14,6 +14,12 @@ import {
   retargetVrm1AuthoredPositionOffsetToVrm0,
   retargetVrm1AuthoredQuaternionOffsetToVrm0,
 } from "../poses/poseRetargeting";
+import {
+  randomRange,
+  sanitizeActivationWeight,
+  sanitizeLag,
+  sanitizeNonNegativeNumber,
+} from "./layerParams";
 
 const DEG_TO_RAD = Math.PI / 180;
 const TAU = Math.PI * 2;
@@ -396,29 +402,6 @@ export class BounceProceduralAnimationLayer implements ProceduralAnimationLayer<
   }
 }
 
-function sanitizeNonNegativeNumber(
-  value: number | undefined,
-  fallback: number,
-): number {
-  if (typeof value !== "number" || !Number.isFinite(value)) return fallback;
-  return Math.max(0, value);
-}
-
-function sanitizeLag(value: number | undefined, fallback: number): number {
-  if (typeof value !== "number" || !Number.isFinite(value)) return fallback;
-  return THREE.MathUtils.clamp(value, 0, 1);
-}
-
-function randomRange(min: number, max: number): number {
-  if (max <= min) return min;
-  return min + Math.random() * (max - min);
-}
-
 function sortedPair(a: number, b: number): [number, number] {
   return a <= b ? [a, b] : [b, a];
-}
-
-function sanitizeActivationWeight(value: number | undefined): number {
-  if (typeof value !== "number" || !Number.isFinite(value)) return 1;
-  return THREE.MathUtils.clamp(value, 0, 1);
 }

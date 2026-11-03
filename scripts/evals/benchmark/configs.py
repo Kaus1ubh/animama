@@ -14,8 +14,7 @@ from dataclasses import dataclass
 from animama.app.model_catalog import MAIN_STRUCTURED_RESPONSE_KIND, serialize_model_provider_catalog
 from animama.domain import ModelProvider
 from animama.domain.model_connection import MODEL_KIND_CHAT, MODEL_SOURCE_BUILTIN
-
-from ..core.inputs import EvalInputError
+from scripts.evals.core.inputs import EvalInputError
 
 __all__ = [
     "STANDARD_EFFORTS",

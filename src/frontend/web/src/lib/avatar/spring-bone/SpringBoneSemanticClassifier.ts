@@ -12,6 +12,7 @@ import {
   UNPROFILED_SPRING_BONE_INTENSITY_SCALE,
   type SpringBoneSemantic,
 } from "./SpringBoneSemanticProfile";
+import { isRecord } from "@/lib/records";
 
 const MAX_SEMANTIC_WARNINGS = 5;
 const LOW_CONFIDENCE_ASSIGNMENT_THRESHOLD = 0.5;
@@ -766,10 +767,6 @@ function toNodeIndex(value: unknown): number | null {
 
 function readArray(value: unknown): unknown[] {
   return Array.isArray(value) ? value : [];
-}
-
-function isRecord(value: unknown): value is JsonRecord {
-  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
 function asRecord(value: unknown): JsonRecord | null {

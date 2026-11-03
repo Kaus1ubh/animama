@@ -18,7 +18,6 @@ COPY LICENSE /LICENSE
 COPY content/included /content/included
 COPY docs/safety /docs/safety
 ENV NODE_ENV=production \
-    VITE_APP_ENV=production \
     VITE_DISABLE_WEBUI_TELEMETRY=true \
     ANIMAMA_BROWSER_MODEL_DIR=/opt/animama/browser-models
 # Explicit verified input, never a download during build. Only dist enters runtime.
@@ -33,7 +32,7 @@ WORKDIR /app
 ENV UV_PROJECT_ENVIRONMENT=/opt/venv \
     UV_LINK_MODE=copy \
     PATH="/opt/venv/bin:/root/.local/bin:$PATH" \
-    PYTHONPATH=/app/src:/app/src/agents/src
+    PYTHONPATH=/app/src
 RUN apt-get update -y \
     && apt-get install -y --no-install-recommends curl build-essential \
     && rm -rf /var/lib/apt/lists/*

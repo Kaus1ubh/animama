@@ -1,5 +1,3 @@
-"use client";
-
 import { Loader2, Mic, MicOff, Phone } from "lucide-react";
 import type { ComponentType } from "react";
 import { useTranslation } from "react-i18next";

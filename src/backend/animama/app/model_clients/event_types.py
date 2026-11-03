@@ -1,3 +1,7 @@
+"""Provider-neutral ``MC*`` observation events emitted by model-client streams. They carry
+lifecycle, tool and usage facts, never assistant text.
+"""
+
 from __future__ import annotations
 
 from collections.abc import Mapping
@@ -7,24 +11,7 @@ from typing import Any, Literal
 
 from animama.domain.usage import Usage
 
-
-def _freeze_value(value: Any) -> Any:
-    if isinstance(value, Mapping):
-        return MappingProxyType({str(key): _freeze_value(item) for key, item in value.items()})
-    if isinstance(value, list | tuple):
-        return tuple(_freeze_value(item) for item in value)
-    if isinstance(value, set | frozenset):
-        return frozenset(_freeze_value(item) for item in value)
-    return value
-
-
-def _frozen_mapping(value: Mapping[str, Any] | None) -> Mapping[str, Any]:
-    if value is None:
-        return MappingProxyType({})
-    frozen = _freeze_value(value)
-    if not isinstance(frozen, Mapping):
-        return MappingProxyType({})
-    return frozen
+from .frozen import frozen_mapping
 
 
 @dataclass(frozen=True, slots=True)
@@ -91,7 +78,7 @@ class MCEventBase:
         if hasattr(self, field_name):
             value = getattr(self, field_name)
             object.__setattr__(self, field_name, value if isinstance(value, bool) else None)
-        object.__setattr__(self, "details", _frozen_mapping(self.details))
+        object.__setattr__(self, "details", frozen_mapping(self.details))
 
 
 @dataclass(frozen=True, slots=True)

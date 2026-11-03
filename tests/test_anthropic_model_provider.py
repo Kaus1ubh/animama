@@ -304,7 +304,7 @@ def test_each_built_in_connection_resolves_only_its_own_key() -> None:
 
 
 @pytest.mark.asyncio
-async def test_openai_clients_never_send_the_anthropic_key(monkeypatch) -> None:  # noqa: ANN001
+async def test_openai_clients_never_send_the_anthropic_key(monkeypatch) -> None:
     from openai import AsyncOpenAI
 
     from animama.adapters.model_clients import OpenAIChatCompletionsModelClient
@@ -314,7 +314,7 @@ async def test_openai_clients_never_send_the_anthropic_key(monkeypatch) -> None:
     built: list[dict[str, Any]] = []
     original_init = AsyncOpenAI.__init__
 
-    def _record(self, *args, **kwargs):  # noqa: ANN001, ANN002, ANN003
+    def _record(self, *args, **kwargs):
         built.append(kwargs)
         original_init(self, *args, **kwargs)
 
@@ -398,7 +398,7 @@ def test_anthropic_chat_rows_suit_chat_utility_and_memory_manager_but_never_embe
 # --------------------------------------------------------------------- registry
 
 
-def test_llm_skip_serves_anthropic_rows_with_the_mock_client(monkeypatch) -> None:  # noqa: ANN001
+def test_llm_skip_serves_anthropic_rows_with_the_mock_client(monkeypatch) -> None:
     from animama.adapters.model_clients import MockModelClient
 
     monkeypatch.setenv("ANIMAMA_LLM_SKIP", "1")
@@ -522,11 +522,11 @@ class _FakeAnthropicProbe:
     def __init__(self) -> None:
         self.calls: list[tuple[str, str, str]] = []
 
-    async def list_models(self, connection):  # noqa: ANN001
+    async def list_models(self, connection):
         self.calls.append(("list", connection.id, ""))
         return ["claude-haiku-5-5", "claude-sonnet-5-5"]
 
-    async def probe_chat_model(self, connection, *, model):  # noqa: ANN001
+    async def probe_chat_model(self, connection, *, model):
         self.calls.append(("chat", connection.id, model))
         return ModelProbeReport(
             model=model,
@@ -541,14 +541,14 @@ class _FakeAnthropicProbe:
             native_tool_support=("web_search",),
         )
 
-    async def probe_responses_model(self, connection, *, model):  # noqa: ANN001
+    async def probe_responses_model(self, connection, *, model):
         raise AssertionError("Responses is never probed on the Anthropic connection")
 
-    async def probe_embedding_model(self, connection, *, model):  # noqa: ANN001
+    async def probe_embedding_model(self, connection, *, model):
         raise AssertionError("Embeddings are never probed on the Anthropic connection")
 
 
-def _anthropic_app(async_session, tmp_path, owner_id: str, probe: _FakeAnthropicProbe | None = None) -> FastAPI:  # noqa: ANN001
+def _anthropic_app(async_session, tmp_path, owner_id: str, probe: _FakeAnthropicProbe | None = None) -> FastAPI:
     app = _app(async_session, tmp_path, owner_id)
     app.state.model_catalog_policy = ModelCatalogPolicy.local()
     app.dependency_overrides[get_anthropic_connection_probe] = lambda: probe or _FakeAnthropicProbe()
@@ -785,7 +785,7 @@ async def test_compact_early_can_be_changed_only_on_rows_with_a_long_context_pri
 # --------------------------------------------------------------- chat turns
 
 
-async def _seed_anthropic_turn(async_session, anima_id: str) -> None:  # noqa: ANN001
+async def _seed_anthropic_turn(async_session, anima_id: str) -> None:
     await _seed_builtins(async_session)
     async_session.add(ORMAnima(id=anima_id, user_id="user-1"))
     await async_session.commit()

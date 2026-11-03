@@ -26,7 +26,7 @@ vi.mock("@tanstack/react-router", async (original) => ({
     return null;
   },
 }));
-vi.mock("@web/app/runtime/RuntimeAdmissionProvider", () => ({
+vi.mock("@/app/runtime/RuntimeAdmissionProvider", () => ({
   useRuntimeAdmission: () => ({
     admission: fixture.ready
       ? {
@@ -40,7 +40,7 @@ vi.mock("@web/app/runtime/RuntimeAdmissionProvider", () => ({
       : { status: "loading" },
   }),
 }));
-vi.mock("@web/app/local-runtime/LocalRuntimeProvider", () => ({
+vi.mock("@/app/local-runtime/LocalRuntimeProvider", () => ({
   useLocalRuntime: () => ({
     state: { status: "ready", principalId: "entry-test-owner" },
   }),

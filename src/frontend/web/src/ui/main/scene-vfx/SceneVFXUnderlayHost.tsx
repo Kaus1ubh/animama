@@ -1,5 +1,3 @@
-"use client";
-
 import { useSceneVFXStore } from "@/stores/scene-vfx-store";
 import { SceneVFXUnderlayLayers } from "./SceneVFXLayers";
 

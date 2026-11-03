@@ -67,11 +67,11 @@ from animama.domain.usage import Usage, UsageInputDetails, UsageOutputDetails
 from animama.product_http.chat.setup_helpers import chat_manager
 from animama.server.config import Settings
 from animama.server.model_clients import build_model_credential_resolver, openai_base_url
+from scripts.evals.core.catalog import llm_skip
+from scripts.evals.core.chat import SelectedModelProvider
+from scripts.evals.core.model_calls import CallBudget, CallPrice, CallRecord, Clock, call_latency, seconds
+from scripts.evals.core.pricing import usage_json
 
-from ..core.catalog import llm_skip
-from ..core.chat import SelectedModelProvider
-from ..core.model_calls import CallBudget, CallPrice, CallRecord, Clock, call_latency, seconds
-from ..core.pricing import usage_json
 from .configs import Configuration, first_per_row
 from .memory_runner import BenchmarkSessions, Store, seed_store, snapshot_store, store_for
 from .prompt_set import ManagerRun, PromptSet
@@ -451,7 +451,7 @@ async def run_memory_manager(
                 service = _service(session, store, configuration, calls, runtime_settings)
                 try:
                     result = _snapshot_json(await _start(service, store, run))
-                except Exception as exc:  # noqa: BLE001 - a failed run is recorded and measured, not fatal
+                except Exception as exc:  # A failed run is recorded and measured, not fatal
                     error = exc.__class__.__name__
             if error is None and result is not None and result["status"] == MEMORY_MANAGER_RUN_STATUS_FAILED:
                 # The runtime recorded its failure instead of raising it: name the last call's error, if any,

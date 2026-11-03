@@ -48,7 +48,7 @@ def _gestures(monkeypatch: pytest.MonkeyPatch, gestures: list[ORMContentCatalogI
 
 
 async def _pools(
-    session,  # noqa: ANN001
+    session,
     fixture: LoadoutFixture,
     size: int,
 ) -> tuple[list[str], list[ORMContentCatalogItem], list[ResolvedIdleMember]]:
@@ -68,7 +68,7 @@ async def _pools(
     return reactions, gestures, idle
 
 
-async def _fixture(session) -> LoadoutFixture:  # noqa: ANN001
+async def _fixture(session) -> LoadoutFixture:
     fixture = await create_loadout_fixture(session)
     await session.execute(delete(ORMAnimaLoadout).where(ORMAnimaLoadout.anima_id == fixture.anima_id))
     await session.commit()
@@ -76,7 +76,7 @@ async def _fixture(session) -> LoadoutFixture:  # noqa: ANN001
 
 
 async def _cleanup(
-    factory,  # noqa: ANN001
+    factory,
     fixture: LoadoutFixture,
     reactions: list[str],
     gestures: list[ORMContentCatalogItem],
@@ -88,7 +88,7 @@ async def _cleanup(
         await cleanup.commit()
 
 
-async def _edit_blocked(factory, item_id: str) -> bool:  # noqa: ANN001
+async def _edit_blocked(factory, item_id: str) -> bool:
     """Whether another transaction's edit of ``item_id`` waits on a row lock."""
 
     async with factory() as editor:
@@ -107,7 +107,7 @@ async def _edit_blocked(factory, item_id: str) -> bool:  # noqa: ANN001
 
 @pytest.mark.asyncio
 async def test_starting_a_loadout_locks_every_pool_member_until_commit(
-    async_session_factory,  # noqa: ANN001
+    async_session_factory,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     async with async_session_factory() as setup:
@@ -131,7 +131,7 @@ async def test_starting_a_loadout_locks_every_pool_member_until_commit(
 
 @pytest.mark.asyncio
 async def test_a_composition_with_immutable_shared_rows_locks_only_owner_rows(
-    async_session_factory,  # noqa: ANN001
+    async_session_factory,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     async with async_session_factory() as setup:
@@ -167,7 +167,7 @@ async def test_a_composition_with_immutable_shared_rows_locks_only_owner_rows(
 
 @pytest.mark.asyncio
 async def test_the_first_failing_idle_member_decides_the_error(
-    async_session_factory,  # noqa: ANN001
+    async_session_factory,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     async with async_session_factory() as setup:
@@ -194,7 +194,7 @@ async def test_the_first_failing_idle_member_decides_the_error(
 
 @pytest.mark.asyncio
 async def test_the_statement_count_does_not_grow_with_the_pools(
-    async_session_factory,  # noqa: ANN001
+    async_session_factory,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     counts = []

@@ -267,7 +267,7 @@ _OPEN_STATUSES = frozenset({MEMORY_MANAGER_RUN_STATUS_ACTIVE, MEMORY_MANAGER_RUN
 
 
 def _utc(moment: datetime | None) -> datetime | None:
-    """Return ``moment`` in UTC, treating naive timestamps (written with ``datetime.utcnow()``) as UTC."""
+    """Return ``moment`` in UTC, treating naive timestamps (written by ``naive_utc_now()``) as UTC."""
 
     if moment is None:
         return None

@@ -1,5 +1,3 @@
-"use client";
-
 import { Loader2, Save, Trash2 } from "lucide-react";
 import {
   lazy,

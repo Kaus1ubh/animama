@@ -39,12 +39,9 @@ from animama.domain.user_file_processing import (
 from animama.orm.user_file import ORMUserFile
 from animama.orm.user_file_chunk import ORMUserFileChunk
 from animama.orm.user_file_processing_job import ORMUserFileProcessingJob
+from animama.utils.clock import utc_now
 
 SEARCHABLE_FILE_STATUSES = (STATUS_READY, STATUS_READY_KEYWORD_ONLY)
-
-
-def _utcnow() -> datetime:
-    return datetime.now(UTC)
 
 
 def _as_aware_utc(value: datetime | None) -> datetime | None:
@@ -246,7 +243,7 @@ class SQLAlchemyUserFileProcessingRepository(UserFileProcessingRepository):
             status=job.status,
             attempts=job.attempts,
             max_attempts=job.max_attempts,
-            run_after=job.run_after or _utcnow(),
+            run_after=job.run_after or utc_now(),
             locked_by=job.locked_by,
             locked_at=job.locked_at,
             started_at=job.started_at,

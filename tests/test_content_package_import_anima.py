@@ -33,7 +33,7 @@ from tests.content_package_helpers import anima_clip, reviewed_import
 
 
 @asynccontextmanager
-async def complete_package(session, tmp_path: Path):  # noqa: ANN001, ANN201
+async def complete_package(session, tmp_path: Path):
     """Export a configured Anima with full Reaction cells, shared image roles and portrait."""
     receiver_model = f"receiver:{uuid4().hex}"
     try:
@@ -132,7 +132,7 @@ async def complete_package(session, tmp_path: Path):  # noqa: ANN001, ANN201
 
 async def test_complete_anima_import_round_trips_config_empty_cells_images_and_receiver_defaults(
     async_session, tmp_path: Path
-) -> None:  # noqa: ANN001
+) -> None:
     async with complete_package(async_session, tmp_path) as (
         fixture,
         catalog,
@@ -184,7 +184,7 @@ async def test_complete_anima_import_round_trips_config_empty_cells_images_and_r
 @pytest.mark.parametrize("failure", ["children", "before_commit", "after_commit", "model_retired"])
 async def test_anima_children_and_files_rollback_together_and_unknown_commit_replays(
     async_session, tmp_path: Path, monkeypatch, failure: str
-) -> None:  # noqa: ANN001
+) -> None:
     async with complete_package(async_session, tmp_path) as (
         fixture,
         catalog,
@@ -254,7 +254,7 @@ async def test_anima_children_and_files_rollback_together_and_unknown_commit_rep
 @pytest.mark.parametrize("attempt", ["fresh-review", "cached-review", "commit", "stale-committing", "stale-recovery"])
 async def test_composition_denial_removes_staging_and_keeps_catalog_unchanged(
     async_session, tmp_path: Path, attempt: str
-) -> None:  # noqa: ANN001
+) -> None:
     from animama.app.services.content_package_import import ContentPackageImportService
 
     async with complete_package(async_session, tmp_path) as (
@@ -326,7 +326,7 @@ async def test_composition_denial_removes_staging_and_keeps_catalog_unchanged(
 @pytest.mark.parametrize("attempt", ["review", "commit"])
 async def test_denial_retains_a_real_unresolved_publication_journal(
     async_session, tmp_path: Path, attempt: str
-) -> None:  # noqa: ANN001
+) -> None:
     from animama.app.services.content_package_import import ContentPackageImportService, import_request_digest
 
     async with complete_package(async_session, tmp_path) as (
@@ -368,7 +368,7 @@ async def test_denial_retains_a_real_unresolved_publication_journal(
             store.finalize_mutation(journal_id=journal_id, commit=False, expected_request_digest=request_digest)
 
 
-async def test_completed_anima_import_replays_before_policy_and_missing_stage(async_session, tmp_path: Path) -> None:  # noqa: ANN001
+async def test_completed_anima_import_replays_before_policy_and_missing_stage(async_session, tmp_path: Path) -> None:
     from animama.app.services.content_package_import import ContentPackageImportService
 
     async with complete_package(async_session, tmp_path) as (

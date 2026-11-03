@@ -7,6 +7,9 @@ from datetime import UTC, datetime
 from typing import Any, Literal, NoReturn
 
 from animama.app.model_clients.context_budget import estimate_text_tokens
+from animama.app.ports.anima_memory_reflection_port import AnimaMemoryReflectionRepository
+from animama.app.ports.chat_message_port import ChatMessageRepository
+from animama.app.ports.memory_manager_port import MemoryManagerRepository, MemoryManagerRepositoryConflictError
 from animama.app.ports.memory_manager_runtime import (
     MEMORY_MANAGER_RUNTIME_OUTCOME_BLOCKED,
     MEMORY_MANAGER_RUNTIME_OUTCOME_COMPLETED,
@@ -19,6 +22,7 @@ from animama.app.ports.memory_manager_runtime import (
     MemoryManagerRuntimeError,
     MemoryManagerRuntimeResult,
 )
+from animama.app.ports.uow_port import UnitOfWork
 from animama.domain.chat import AnimaHistoryTurn
 from animama.domain.memory_entry import MEMORY_ENTRY_TYPE_FILE, MemoryEntry
 from animama.domain.memory_manager import (
@@ -58,11 +62,8 @@ from animama.domain.memory_manager import (
     shorten_reflection_turn_text,
 )
 from animama.logging import get_logger
+from animama.utils.clock import naive_utc_now
 
-from ..ports.anima_memory_reflection_port import AnimaMemoryReflectionRepository
-from ..ports.chat_message_port import ChatMessageRepository
-from ..ports.memory_manager_port import MemoryManagerRepository, MemoryManagerRepositoryConflictError
-from ..ports.uow_port import UnitOfWork
 from .anima_identity_memory import AnimaManagerPath, manager_file_access_for_run, parse_anima_manager_path
 from .memory_entry_service import (
     MemoryEntryConflictError,
@@ -575,7 +576,7 @@ class MemoryManagerService:
                     replace(
                         run,
                         status=MEMORY_MANAGER_RUN_STATUS_COMPLETED,
-                        completed_at=datetime.utcnow(),
+                        completed_at=naive_utc_now(),
                         metadata={**dict(run.metadata or {}), "completion_reason": AUTOMATIC_COMPLETION_PROCESSED},
                     )
                 )
@@ -620,7 +621,7 @@ class MemoryManagerService:
     async def _fail_automatic_run(self, run: MemoryManagerRun, *, error: str, completion_reason: str) -> None:
         """Close an automatic run as failed and its pending proposals as rejected, without resuming the runtime."""
 
-        decided_at = datetime.utcnow()
+        decided_at = naive_utc_now()
         approvals = await self._memory_manager.list_approvals_for_update(user_id=run.user_id, run_id=run.id)
         for approval in approvals:
             if approval.status != MEMORY_MANAGER_APPROVAL_STATUS_PENDING:
@@ -649,7 +650,7 @@ class MemoryManagerService:
     async def _supersede_open_runs(self, open_runs: list[MemoryManagerRun]) -> None:
         """Close locked open runs that a new run replaces; callers refuse pending approvals first."""
 
-        superseded_at = datetime.utcnow()
+        superseded_at = naive_utc_now()
         for open_run in open_runs:
             await self._memory_manager.update_run(
                 replace(
@@ -720,7 +721,7 @@ class MemoryManagerService:
                 replace(
                     run,
                     status=MEMORY_MANAGER_RUN_STATUS_COMPLETED,
-                    completed_at=datetime.utcnow(),
+                    completed_at=naive_utc_now(),
                 )
             )
             await self._commit_if_enabled()
@@ -874,7 +875,7 @@ class MemoryManagerService:
             target_entry_id=committed_entry_id,
             applied_version=applied_version,
             decision_feedback=feedback,
-            decided_at=datetime.utcnow(),
+            decided_at=naive_utc_now(),
         )
         stored = await self._memory_manager.update_approval(decided)
         return stored, run, runtime
@@ -994,7 +995,7 @@ class MemoryManagerService:
             stored = await self._memory_manager.update_approval(
                 replace(
                     approval,
-                    undone_at=datetime.utcnow(),
+                    undone_at=naive_utc_now(),
                     undo_version=entry.version,
                     can_undo=False,
                 )
@@ -1212,7 +1213,7 @@ class MemoryManagerService:
                     "runtime": self._runtime.name,
                     **result_metadata,
                 },
-                completed_at=datetime.utcnow() if failed else None,
+                completed_at=naive_utc_now() if failed else None,
             )
         )
         if outcome == MEMORY_MANAGER_RUNTIME_OUTCOME_COMPLETED and not has_pending:

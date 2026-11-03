@@ -10,7 +10,6 @@ JOB_STATUS_QUEUED = "queued"
 JOB_STATUS_RUNNING = "running"
 JOB_STATUS_SUCCEEDED = "succeeded"
 JOB_STATUS_FAILED = "failed"
-JOB_STATUS_CANCELED = "canceled"
 
 ACTIVE_PROCESSING_JOB_STATUSES = {
     JOB_STATUS_QUEUED,
@@ -41,23 +40,6 @@ class UserFileOverview:
     outline: tuple[UserFileOutlineItem, ...]
     method: UserFileOverviewMethod
     outline_truncated: bool
-
-
-@dataclass(slots=True)
-class UserFileChunk:
-    """Searchable text segment extracted from a user-owned upload."""
-
-    id: str
-    file_id: str
-    user_id: str
-    chunk_index: int
-    text: str
-    embedding: list[float] | None = None
-    char_count: int = 0
-    token_estimate: int = 0
-    metadata: dict[str, Any] | None = None
-    created_at: datetime | None = None
-    updated_at: datetime | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -171,7 +153,6 @@ class UserFileSearchResult:
 __all__ = [
     "ACTIVE_PROCESSING_JOB_STATUSES",
     "ClaimedUserFileProcessingJob",
-    "JOB_STATUS_CANCELED",
     "JOB_STATUS_FAILED",
     "JOB_STATUS_QUEUED",
     "JOB_STATUS_RUNNING",
@@ -182,7 +163,6 @@ __all__ = [
     "SEARCH_MODE_KEYWORD",
     "SEARCH_MODE_SEMANTIC",
     "SearchMode",
-    "UserFileChunk",
     "UserFileChunkDraft",
     "UserFileOutlineItem",
     "UserFileOverview",

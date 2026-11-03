@@ -1,5 +1,3 @@
-"use client";
-
 import type { ReactNode } from "react";
 import { ChevronDown, ListFilter } from "lucide-react";
 

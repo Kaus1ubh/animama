@@ -496,7 +496,7 @@ After the worker is ready, the offline path starts MicVAD with:
 - pre-speech padding `200ms`
 - minimum speech `180ms`
 
-Those thresholds live in `use-dictation.ts`. They apply to the MicVAD speech
+Those thresholds live in `useDictation.ts`. They apply to the MicVAD speech
 window, not to decoding.
 
 #### MicVAD window lifecycle for offline STT
@@ -678,7 +678,7 @@ Important browser commit rule:
 Late-final transcript grace:
 
 - Web Speech final transcript delivery can lag behind VAD `speech_end`.
-- To avoid dropping valid trailing text as `no_active_window`, dictation keeps the most recent accepted real-speech window alive for a short grace period (`LATE_FINAL_TRANSCRIPT_GRACE_MS`, currently `1000ms` in `use-dictation.ts`).
+- To avoid dropping valid trailing text as `no_active_window`, dictation keeps the most recent accepted real-speech window alive for a short grace period (`LATE_FINAL_TRANSCRIPT_GRACE_MS`, currently `1000ms` in `useDictation.ts`).
 - During this grace window, final transcript segments are committed against the just-closed window instead of being ignored.
 
 Window lifecycle:
@@ -749,8 +749,8 @@ Main files:
 - `src/frontend/web/src/lib/voice/smart-turn-worker-client.ts`
 - `src/frontend/web/src/lib/voice/smart-turn-worker-protocol.ts`
 - `src/frontend/web/src/workers/smart-turn-worker.ts`
-- `src/frontend/web/src/hooks/use-dictation.ts` (job orchestration + decision handling)
-- `src/frontend/web/src/hooks/voice/use-voice-end-turn-coordinator.ts` (pending submit + timeout)
+- `src/frontend/web/src/hooks/useDictation.ts` (job orchestration + decision handling)
+- `src/frontend/web/src/hooks/voice/useVoiceEndTurnCoordinator.ts` (pending submit + timeout)
 - `src/frontend/web/src/lib/voice/smart-turn-short-utterance-overrides.ts` (short utterance forced `end_turn` phrases)
 
 ### Model/runtime contract
@@ -789,7 +789,7 @@ sent rather than left for the silence reset.
 
 ### Rolling audio and supersession behavior
 
-In `use-dictation.ts`:
+In `useDictation.ts`:
 
 - accepted VAD speech segments append to `smartTurnAudioRef` (rolling turn audio buffer)
 - browser STT appends accepted audio immediately at speech end
@@ -1002,11 +1002,11 @@ Common categories you will see:
 
 Primary orchestration:
 
-- `src/frontend/web/src/hooks/use-tts-playback.ts`
+- `src/frontend/web/src/hooks/useTtsPlayback.ts`
 
 Pocket runtime bridge:
 
-- `src/frontend/web/src/hooks/use-pocket-tts-runtime.ts`
+- `src/frontend/web/src/hooks/usePocketTtsRuntime.ts`
 
 Pocket core:
 
@@ -1118,7 +1118,7 @@ Core initialization loads:
 Generation path:
 
 - `generateAndWait(text, { preservePlayback, endStream, voice, animaId, animaVoiceKey, signal })`
-- queued sequentially in `use-tts-playback` with abort support
+- queued sequentially in `useTtsPlayback` with abort support
 - the text Pocket speaks is `pocketSpeechText(text)`
   (`src/lib/speech/pocket-speech-text.ts`): English numbers, symbols and
   abbreviations spelled out ("$5.99" as "five dollars ninety-nine cents"), and
@@ -1298,7 +1298,7 @@ verify the complete engine inventory and required small TTS runtime files.
 
 - Ensure worker receives absolute URLs for model and ORT base.
 - This is handled in:
-  - `src/frontend/web/src/hooks/use-dictation.ts` (voice start path)
+  - `src/frontend/web/src/hooks/useDictation.ts` (voice start path)
   - `src/frontend/web/src/lib/voice/smart-turn-worker-client.ts` (normalization + trailing slash)
 
 2. STT starts but VAD fails immediately:
@@ -1364,7 +1364,7 @@ verify the complete engine inventory and required small TTS runtime files.
 ### STT + voice mode
 
 - Provider helpers: `src/frontend/web/src/lib/speech/stt-provider.ts`
-- Dictation/voice orchestrator: `src/frontend/web/src/hooks/use-dictation.ts`
+- Dictation/voice orchestrator: `src/frontend/web/src/hooks/useDictation.ts`
 - Browser STT runtime helpers: `src/frontend/web/src/hooks/voice/browser-recognition-runtime.ts`
 - MicVAD runtime helpers: `src/frontend/web/src/hooks/voice/mic-vad-runtime.ts`
 - Offline engine routing: `src/frontend/web/src/lib/speech/offline-stt/routing.ts`
@@ -1383,7 +1383,7 @@ verify the complete engine inventory and required small TTS runtime files.
   `src/frontend/web/src/ui/settings/OfflineSpeechDownloads.tsx`,
   `src/frontend/web/src/app/local-runtime/setup/SetupSpeechDownloads.tsx`,
   `src/frontend/web/src/ui/settings/SpeechLanguageNotice.tsx`
-- Voice end-turn coordinator: `src/frontend/web/src/hooks/voice/use-voice-end-turn-coordinator.ts`
+- Voice end-turn coordinator: `src/frontend/web/src/hooks/voice/useVoiceEndTurnCoordinator.ts`
 - Acoustic gate state machine: `src/frontend/web/src/lib/voice/acoustic-vad-gate.ts`
 - Smart-turn protocol/client: `src/frontend/web/src/lib/voice/smart-turn-worker-protocol.ts`, `src/frontend/web/src/lib/voice/smart-turn-worker-client.ts`
 - Smart-turn worker: `src/frontend/web/src/workers/smart-turn-worker.ts`
@@ -1402,12 +1402,12 @@ verify the complete engine inventory and required small TTS runtime files.
 
 ### TTS
 
-- TTS orchestrator: `src/frontend/web/src/hooks/use-tts-playback.ts`
-- ElevenLabs runtime hook: `src/frontend/web/src/hooks/use-elevenlabs-tts-runtime.ts`
-- Finalized server-audio runtime (Gemini): `src/frontend/web/src/hooks/use-finalized-tts-runtime.ts`
+- TTS orchestrator: `src/frontend/web/src/hooks/useTtsPlayback.ts`
+- ElevenLabs runtime hook: `src/frontend/web/src/hooks/useElevenLabsTtsRuntime.ts`
+- Finalized server-audio runtime (Gemini): `src/frontend/web/src/hooks/useFinalizedTtsRuntime.ts`
 - Chat TTS options for every voice: `src/frontend/web/src/lib/chat/chat-tts-dispatch.ts`
 - Gemini dispatch options: `src/frontend/web/src/lib/chat/gemini-chat-tts-dispatch.ts`
-- Pocket runtime hook: `src/frontend/web/src/hooks/use-pocket-tts-runtime.ts`
+- Pocket runtime hook: `src/frontend/web/src/hooks/usePocketTtsRuntime.ts`
 - TTS provider helpers: `src/frontend/web/src/lib/speech/tts-provider.ts`
 - Shared speech PCM player: `src/frontend/web/src/lib/speech/audio/PCMPlayerWorklet.js`
 - Pocket core factory: `src/frontend/web/src/lib/speech/pocket/createPocketTTS.ts`

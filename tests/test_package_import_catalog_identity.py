@@ -11,7 +11,7 @@ from animama.orm.content_catalog import ORMContentCatalogItem
 from tests.content_package_helpers import package_services, save_wave
 
 
-async def test_planned_import_identity_never_resurrects_missing_equal_bytes(async_session, tmp_path: Path) -> None:  # noqa: ANN001
+async def test_planned_import_identity_never_resurrects_missing_equal_bytes(async_session, tmp_path: Path) -> None:
     paths, catalog, content, saves, _packages = package_services(async_session, tmp_path)
     try:
         original = (await save_wave(saves)).item

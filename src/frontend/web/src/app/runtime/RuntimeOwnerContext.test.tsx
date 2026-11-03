@@ -5,7 +5,7 @@ import {
   RuntimeOwnerProvider,
   useRuntimeCacheKey,
   useRuntimeOwnerId,
-} from "@web/app/runtime/RuntimeOwnerContext";
+} from "@/app/runtime/RuntimeOwnerContext";
 import { queryKeys } from "@/query/keys";
 import { creationStorageKey } from "@/ui/create-anima/createAnimaDraftStorage";
 

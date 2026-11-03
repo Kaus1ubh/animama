@@ -1,5 +1,3 @@
-"use client";
-
 import { Maximize, Minimize, PictureInPicture2, Settings } from "lucide-react";
 import { useId, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";

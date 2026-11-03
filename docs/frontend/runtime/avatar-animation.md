@@ -92,7 +92,7 @@ The avatar runtime is split into four layers:
 4. **Chat/SSE integration layer**  
    Files:
    - `src/frontend/web/src/ui/main/chat/useChatSession.ts`
-   - `src/frontend/web/src/query/mutations/useChatSse.ts`
+   - `src/frontend/packages/product-ui/src/query/mutations/useChatSse.ts`
    - `src/frontend/web/src/ui/main/chat/ChatInterface.tsx`  
      Converts chat lifecycle + SSE events into avatar store updates.
 

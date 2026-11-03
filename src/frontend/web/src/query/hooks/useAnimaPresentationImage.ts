@@ -1,1 +1,1 @@
-export * from "@animama/product-ui/query";
+export { useAnimaPresentationImage } from "@animama/product-ui/query";

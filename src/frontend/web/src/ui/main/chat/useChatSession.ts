@@ -1,4 +1,3 @@
-"use client";
 import { useCallback, useMemo } from "react";
 import {
   useProductChatSession,
@@ -13,7 +12,7 @@ import { useRuntimePlatform } from "@/platform/RuntimePlatformProvider";
 import { useMountedAnimaRuntimeContent } from "@/ui/app/AnimaRouteProviders";
 import { useAvatarRuntimeStore } from "@/stores/avatar-runtime-store";
 import { useAvatarLipSyncBridgeStore } from "@/stores/avatar-lipsync-bridge-store";
-import { useTtsPlayback } from "@/hooks/use-tts-playback";
+import { useTtsPlayback } from "@/hooks/useTtsPlayback";
 import { createLogger } from "@/lib/logger";
 import {
   resolvePreferredTtsProvider,

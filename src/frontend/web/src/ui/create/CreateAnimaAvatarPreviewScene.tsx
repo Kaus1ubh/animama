@@ -1,5 +1,3 @@
-"use client";
-
 import { Camera, ChevronDown, ChevronRight, Shuffle, X } from "lucide-react";
 import { OrbitControls } from "@react-three/drei";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";

@@ -92,7 +92,7 @@ def test_a_merged_definition_that_breaks_a_cross_field_rule_names_the_field() ->
         ({"soundAlias": ""}, "override.soundAlias"),
     ],
 )
-def test_invalid_override_shapes_are_refused_naming_the_field(override: Any, field: str) -> None:  # noqa: ANN401
+def test_invalid_override_shapes_are_refused_naming_the_field(override: Any, field: str) -> None:
     with pytest.raises(ContentDocumentError) as error:
         parse_avatar_effect_override(override, code=CODE, field="override")
     assert error.value.code == CODE

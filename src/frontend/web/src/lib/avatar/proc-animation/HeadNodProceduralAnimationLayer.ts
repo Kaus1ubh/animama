@@ -11,6 +11,11 @@ import {
   type ProceduralAnimationTransitionState,
 } from "./types";
 import { retargetVrm1AuthoredQuaternionOffsetToVrm0 } from "../poses/poseRetargeting";
+import {
+  randomRange,
+  sanitizeActivationWeight,
+  sanitizeNonNegativeNumber,
+} from "./layerParams";
 
 const DEG_TO_RAD = Math.PI / 180;
 const DEFAULT_LAYER_WEIGHT = 1;
@@ -581,11 +586,6 @@ function smoothstep(t: number): number {
   return clamped * clamped * (3 - 2 * clamped);
 }
 
-function randomRange(min: number, max: number): number {
-  if (max <= min) return min;
-  return min + Math.random() * (max - min);
-}
-
 function randomInt(min: number, max: number): number {
   const lower = Math.ceil(min);
   const upper = Math.floor(max);
@@ -599,14 +599,6 @@ function randomSigned(): number {
 
 function sortedPair(a: number, b: number): [number, number] {
   return a <= b ? [a, b] : [b, a];
-}
-
-function sanitizeNonNegativeNumber(
-  value: number | undefined,
-  fallback: number,
-): number {
-  if (typeof value !== "number" || !Number.isFinite(value)) return fallback;
-  return Math.max(0, value);
 }
 
 function sanitizePositiveNumber(
@@ -630,10 +622,5 @@ function sanitizeUnitInterval(
   fallback: number,
 ): number {
   if (typeof value !== "number" || !Number.isFinite(value)) return fallback;
-  return THREE.MathUtils.clamp(value, 0, 1);
-}
-
-function sanitizeActivationWeight(value: number | undefined): number {
-  if (typeof value !== "number" || !Number.isFinite(value)) return 1;
   return THREE.MathUtils.clamp(value, 0, 1);
 }

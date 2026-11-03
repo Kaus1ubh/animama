@@ -18,7 +18,7 @@ import { PackageImportSession } from "@/lib/content-sharing/importSession";
 import { VerifiedByteLoader } from "@/lib/runtime-content/VerifiedByteLoader";
 import { PreviewByteSession } from "@/lib/runtime-content/PreviewByteSession";
 import { useRescanContent } from "@/query/hooks/useContentCatalog";
-import { useElevenLabsTtsRuntime } from "@/hooks/use-elevenlabs-tts-runtime";
+import { useElevenLabsTtsRuntime } from "@/hooks/useElevenLabsTtsRuntime";
 import { useAnimaLoadoutMutations } from "@/query/mutations/useAnimaLoadoutMutations";
 import { useVoiceSelection } from "@/query/mutations/useVoiceSelection";
 import { useVoiceCloneActions } from "@/query/mutations/useVoiceCloneActions";

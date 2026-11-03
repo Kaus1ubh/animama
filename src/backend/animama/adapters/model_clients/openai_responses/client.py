@@ -1,3 +1,5 @@
+"""Model client backed by OpenAI Responses streaming, emitting provider-neutral deltas and finals."""
+
 from __future__ import annotations
 
 import asyncio
@@ -18,6 +20,16 @@ from openai.types.responses import (
     ResponseTextDeltaEvent,
 )
 
+from animama.adapters.model_clients._common import close_maybe_async
+from animama.adapters.model_clients.openai_chat_completions.connection_sdk import KEY_FREE_PLACEHOLDER
+from animama.adapters.model_clients.openai_chat_completions.support import resolve_openai_base_url
+from animama.adapters.model_clients.openai_errors import (
+    classify_openai_exception,
+    classify_openai_response_event,
+    model_client_error_from_openai_info,
+    should_retry_openai_error,
+    sleep_before_openai_retry,
+)
 from animama.app.model_clients import (
     MCTerminalIncompleteEvent,
     ModelClientDelta,
@@ -38,16 +50,6 @@ from animama.app.model_clients.credentials import (
 from animama.domain.model_connection import BUILTIN_OPENAI_CONNECTION_ID
 from animama.logging import get_logger
 
-from .._common import close_maybe_async
-from ..openai_chat_completions.connection_sdk import KEY_FREE_PLACEHOLDER
-from ..openai_chat_completions.support import resolve_openai_base_url
-from ..openai_errors import (
-    classify_openai_exception,
-    classify_openai_response_event,
-    model_client_error_from_openai_info,
-    should_retry_openai_error,
-    sleep_before_openai_retry,
-)
 from .events import (
     event_metadata,
     events_from_response_stream_event,

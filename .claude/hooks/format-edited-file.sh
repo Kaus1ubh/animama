@@ -22,9 +22,16 @@ case "$file_path" in
       exit 2
     }
     ;;
-  # Only web/ and desktop/ sources are covered by `pnpm prettier:check`.
+  # TypeScript in web/ and desktop/, and the TypeScript and JavaScript that
+  # `prettier:workspace` checks in packages, e2e tests, scripts and shared code.
+  # `pnpm prettier:check` also checks files left alone here, such as JSON, CSS,
+  # web's JavaScript and the frontend root's config files.
   "$frontend_root"/web/*.ts | "$frontend_root"/web/*.tsx | "$frontend_root"/web/*.mts | "$frontend_root"/web/*.cts | \
-  "$frontend_root"/desktop/*.ts | "$frontend_root"/desktop/*.tsx | "$frontend_root"/desktop/*.mts | "$frontend_root"/desktop/*.cts)
+  "$frontend_root"/desktop/*.ts | "$frontend_root"/desktop/*.tsx | "$frontend_root"/desktop/*.mts | "$frontend_root"/desktop/*.cts | \
+  "$frontend_root"/packages/*.ts | "$frontend_root"/packages/*.tsx | "$frontend_root"/packages/*.js | "$frontend_root"/packages/*.mjs | \
+  "$frontend_root"/e2e/*.ts | "$frontend_root"/e2e/*.mjs | \
+  "$frontend_root"/scripts/*.ts | "$frontend_root"/scripts/*.js | "$frontend_root"/scripts/*.mjs | \
+  "$frontend_root"/shared/*.ts)
     # Each package resolves prettier and its Tailwind plugin from its own deps.
     case "$file_path" in
       "$frontend_root"/desktop/*) package_root="$frontend_root/desktop" ;;

@@ -11,7 +11,10 @@ import json
 import sys
 from importlib.resources import files
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from alembic.config import Config
 
 RESOURCE_INPUTS = {
     "alembic": "alembic",
@@ -35,7 +38,7 @@ def runtime_resource(name: str) -> Path:
     return Path(__file__).resolve().parents[4] / RESOURCE_INPUTS[name]
 
 
-def alembic_config():  # noqa: ANN201
+def alembic_config() -> Config:
     """Use packaged migration scripts without invoking an external executable."""
 
     from alembic.config import Config

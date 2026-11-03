@@ -65,7 +65,7 @@ def _gesture(root: Path, name: str, payload: bytes) -> None:
 
 async def test_content_packages_refuse_non_portable_items_and_carry_no_references(
     async_session, tmp_path: Path
-) -> None:  # noqa: ANN001
+) -> None:
     paths, _catalog, content, _saves, packages = package_services(async_session, tmp_path)
     write_json(
         paths.included_licenses_root / "inventory.json",
@@ -126,7 +126,7 @@ async def test_content_packages_refuse_non_portable_items_and_carry_no_reference
 
 async def test_restricted_bytes_are_refused_on_save_and_import(
     async_session, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:  # noqa: ANN001
+) -> None:
     paths, _catalog, content, saves, packages = package_services(async_session, tmp_path)
     owner = "package-owner"
     restricted = vrma("restricted")
@@ -175,7 +175,7 @@ async def test_restricted_bytes_are_refused_on_save_and_import(
 @pytest.mark.parametrize("receiver_has_items", [True, False])
 async def test_anima_export_omits_explicit_non_portable_gestures_and_import_rebinds_them(
     async_session, tmp_path: Path, receiver_has_items: bool
-) -> None:  # noqa: ANN001
+) -> None:
     async with anima_creation_fixture(async_session, tmp_path, full_starter=True) as fixture:
         write_json(
             fixture.paths.included_root / "licenses/inventory.json",
@@ -255,7 +255,7 @@ async def test_anima_export_omits_explicit_non_portable_gestures_and_import_rebi
             assert not bound
 
 
-async def test_prepare_rechecks_portability_after_the_summary(async_session, tmp_path: Path) -> None:  # noqa: ANN001
+async def test_prepare_rechecks_portability_after_the_summary(async_session, tmp_path: Path) -> None:
     paths, _catalog, content, _saves, packages = package_services(async_session, tmp_path)
     inventory = paths.included_licenses_root / "inventory.json"
     write_json(inventory, {"schema_version": 1, "rules": [{"glob": "**", **_RULE}]})
@@ -280,7 +280,7 @@ async def test_prepare_rechecks_portability_after_the_summary(async_session, tmp
         await async_session.commit()
 
 
-def _packages(fixture, async_session, catalog, content):  # noqa: ANN001, ANN202
+def _packages(fixture, async_session, catalog, content):
     sources = AnimaPackageSourceService(catalog=catalog, sources=SQLAlchemyAnimaPackageSourceRepository(async_session))
     return ContentPackageService(
         content=content,
@@ -295,7 +295,7 @@ def _packages(fixture, async_session, catalog, content):  # noqa: ANN001, ANN202
 @pytest.mark.parametrize("receiver_has_items", [True, False])
 async def test_anima_export_omits_non_portable_idle_members_and_import_rebinds_them(
     async_session, tmp_path: Path, receiver_has_items: bool
-) -> None:  # noqa: ANN001
+) -> None:
     async with anima_creation_fixture(async_session, tmp_path, full_starter=True) as fixture:
         included = fixture.paths.included_root
         write_json(
@@ -358,7 +358,7 @@ async def test_anima_export_omits_non_portable_idle_members_and_import_rebinds_t
         assert slots == ([f"idle:default:{seeded.id}", f"idle:joy-2:{seeded.id}"] if receiver_has_items else [])
 
 
-async def test_anima_export_refuses_other_non_portable_bindings(async_session, tmp_path: Path) -> None:  # noqa: ANN001
+async def test_anima_export_refuses_other_non_portable_bindings(async_session, tmp_path: Path) -> None:
     async with anima_creation_fixture(async_session, tmp_path, full_starter=True) as fixture:
         write_json(
             fixture.paths.included_root / "licenses/inventory.json",

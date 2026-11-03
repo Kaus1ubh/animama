@@ -98,7 +98,8 @@ visibility is the owner's own action.
   2026-11-03; in the single Phases 2–5 PR).
 - [x] Phase 3: process documents and skills are current and public-safe
   (light; covered by the final integration review).
-- [ ] Phase 4: agreed cleanups.
+- [x] Phase 4: agreed cleanups (high risk; review passed 2026-11-03 after two
+  repair rounds, with an independent checks rerun).
 - [ ] Phase 5: publication readiness and the #235 checklist.
 
 ## Surprises & Discoveries
@@ -272,8 +273,8 @@ assessments are kept out of this record; it holds only the choices.
   publish the repository as is, since the current tree does not contain those
   files. Consequences for this plan:
   - Publication exposes all 2,041 commits (2,040 authored with a personal email
-    address), 242 branches, 2 tags, every issue and PR with its comments and
-    edit history, and every LFS object ever pushed.
+    address), the 242 branches counted at the audit, one tag, every issue and
+    PR with its comments and edit history, and every LFS object ever pushed.
   - `LICENSE` and the package licence metadata change in this repository, not
     in a candidate copy; the snapshot tool no longer selects what is published.
   - Links to this repository's issues and PRs (407 in 135 files) resolve once it
@@ -350,8 +351,9 @@ assessments are kept out of this record; it holds only the choices.
 
 ## Phased implementation
 
-Every phase starts from current `main` on its own task branch (D8), reads the
-#235 body again before ticking an item, and stays out of #819's files.
+Phase 1 was its own PR (#836); Phases 2–5 are one commit each on
+`chore/open-source-polish` in a single PR (D8). Each phase reads the #235 body
+again before ticking an item and stays out of #819's files.
 
 ### Phase 1: Licence records cover the exact tree, and the licence changes
 
@@ -914,13 +916,14 @@ covers Phase 3 explicitly.
 
 ### Phase 4: Agreed cleanups
 
-Review tier: standard; a move that touches CI, build or packaging inputs is
-high risk and is left to the owner first.
+Review tier: high risk, because the phase changes dependencies and build and
+CI inputs (moved up from standard by Code Review #1, P4-F1); a move that
+touches CI, build or packaging inputs is left to the owner first. D12 still
+replaces the full suite before review.
 
 Requirements: D9. Refactors keep behaviour and keep or add tests; the before
-and after are measured with `scripts/repository-cleanup/`. Two PRs, one for the
-repository root and backend and one for the frontend. Each item names its main
-risk.
+and after are measured with `scripts/repository-cleanup/`. The phase is one
+commit in the Phases 2–5 PR (D8). Each item names its main risk.
 
 Tier A, recommended: low risk and visible to any reader.
 
@@ -966,6 +969,327 @@ workflow and the CI selection rules), move-only splits of oversized modules
 and of test files' inline fakes, the `scripts/` regroup and moving the
 lifecycle documents into `docs/`.
 
+#### Phase 4 record
+
+On branch `chore/open-source-polish`, after the Phase 3 commit `ee0954ad`. Two
+agents did the backend and frontend halves in the same worktree; the
+coordinator reviewed both, integrated them and changed what is noted below.
+
+Measured with Git, because the pinned `scc` binary that
+`scripts/repository-cleanup/measure.py` needs is not installed and downloading
+it was not part of this plan. From `main` (`dacf928c`) to this phase: 37 to 32
+root entries; 310 to 0 `"use client"` directives; authored Python under `src`
+109,967 to 108,526 lines (584 to 577 files), TypeScript 330,495 to 329,850
+(1,479 to 1,469) and TSX 139,263 to 138,485 (573 to 569).
+
+Tier A:
+
+- A1. `pytest.ini` moved into `[tool.pytest.ini_options]` (collection is the
+  same 5,292 test IDs, with `configfile: pyproject.toml`). `pyproject.toml`
+  loses the ruff and mypy excludes, per-file ignores and overrides that named
+  removed trees, the unused pydocstyle convention and `[tool.inline-snapshot]`;
+  the `Makefile` mypy excludes go too. The root `.prettierrc`, `package.json`,
+  `.vscode/` and `src/.prettierrc` are deleted (`.vscode/` is now ignored as
+  personal editor settings); `.gitignore` and `.dockerignore` drop rules for
+  trees that no longer exist, and the `Dockerfile` drops `PYTHONPATH` entries
+  for them. The root has 32 entries. Only `scripts/content/merge_avatar_effects.py`
+  read the root `.prettierrc`: its Prettier run on Included JSON picked up the
+  four-space indent although those files use two, and it now gets Prettier's
+  defaults (P4-F5).
+- A2. `docker-compose.yml` loses the broken `voice`-profile `parakeet`
+  service, the commented Kokoro and gesture blocks and dead comments, and 16
+  environment variables nothing reads (the legacy voice providers, LiveKit,
+  Deepgram, Cartesia and the motion URL); the rendered configurations differ
+  only by those. The commented `animama-file-worker` block stays because the
+  operations guide tells operators to restore it. `AGENTS.md`, the local-stacks
+  skill, the compose boundary test and the backend docs now name only the
+  `dev-tools` profile.
+- A3. All 310 `"use client"` directives are gone (the audit's 311th file,
+  `radio-group.tsx`, was deleted in Phase 1).
+- A4. Frontend: 5 unimported files, a commented 54-line array, a dead
+  `Header` branch, unused environment fields (`isDev`, `baseUrl`, `appEnv`)
+  and the dependencies `react-hook-form`, `@hookform/resolvers` and
+  `@radix-ui/react-radio-group`. `VITE_APP_ENV`, which nothing reads now, leaves
+  the `Dockerfile`, the development override, the web launcher and its test.
+  15 English message keys of the deleted dialogs and their 60 translations are
+  removed. Backend: the legacy voice start-up path, `voice_providers` and its
+  three adapters and test, six vestigial modules (`prompts/constants.py`,
+  `prompts/structured_output.py`, `app/structured_output_config.py`,
+  `domain/enums.py`, `domain/runtime_content_slot.py`,
+  `utils/model_utils.py`), dead re-exports and helpers, and the definitions
+  the audit listed, each checked against Cloud's imports.
+  Kept on purpose: hatch's build hook, the documented voice-catalog port and the
+  domain vocabularies that mirror database constraints.
+- A5. 533 no-op `# noqa` comments removed (14 kept their reasons as plain
+  comments); 184 parent-relative imports in 82 files are absolute, with
+  `TID252` selected as `ban-relative-imports = "parents"`; 12
+  `datetime.utcnow()` calls use `animama.utils.clock.naive_utc_now()`.
+- A6. Of the web app's 33 re-export shims, 11 are deleted: 4 nothing
+  imported and 7 only tests used, whose tests now import the packages
+  directly, as other tests already did. 19 wildcard shims re-export only the
+  names the app uses, 3 named ones stay as they are, and the documentation
+  points at the package files.
+
+Tier B:
+
+- B1. TypeScript: the web app has no errors under `strict` (TypeScript 6
+  already defaults to it), so `strict: true` is now explicit in the app and
+  node configs. ESLint is not extended: its plugins are installed only in web
+  and desktop, and covering packages, e2e and scripts needs root dependencies
+  and separate browser and Node configs, for about four real findings
+  (measured: packages 0 errors and 4 `exhaustive-deps` warnings). Prettier
+  now also checks web's tests, Vite plugins and scripts, and, through a new
+  `prettier:workspace` script, the packages, e2e tests, frontend scripts and
+  shared code; 13 files needed formatting. Claude Code's format hook now also
+  formats the TypeScript and JavaScript of the packages, e2e tests, frontend
+  scripts and shared code; `SDLC.md` says that the check also covers files the
+  hook leaves alone, such as JSON, CSS and web's JavaScript.
+  Python: a strict mypy override for
+  `animama.*` found 27 errors in 8 files, all fixed; tests keep the relaxed
+  rules.
+- B2. One `proc-animation/layerParams.ts` replaces 22 copies of four
+  sanitizers; web's `lib/records.ts` provides `isRecord` (arrays rejected) and
+  `isNonNullObject` (arrays accepted) for 27 copies, each keeping its array
+  behaviour. `product-ui` keeps its three local guards, so its emitted
+  declarations stay identical to `main` (66 files compared) and it needs no
+  version bump. Backend: `app/model_clients/frozen.py` replaces three freeze
+  helpers, `app/services/canonical_digest.py` three identical digest helpers
+  (same bytes), and `utils/clock.py` four aware `_utcnow` copies. The seven
+  environment-flag parsers are not unified, because their accepted values
+  differ (owner's call).
+- B3. Six silently swallowed exceptions now log a warning with the traceback,
+  without changing control flow (start-up logging, the model-client registry,
+  telemetry instrumentation, owner bootstrap steps and upload reads); the rest
+  are deliberate or reported elsewhere.
+- B4. The 11 `use-x.ts` hook files (and their tests) take their exported
+  names; `@web/` gives way to `@/` everywhere and the alias is removed; the 20
+  largest undocumented backend modules gain docstrings.
+- B5. Removed unused Python dependencies `typing-extensions`, `jinja2`,
+  `aiofiles`, `graphviz` (the `viz` extra stays, empty, so existing commands
+  resolve), `rich`, `aiosqlite` and the `examples` group; `debugpy` and the
+  test-only `pypdf` move to dev; `tiktoken` is declared. `uv.lock` loses 15
+  packages and no version changes. `llama-index-core` stays (D9).
+
+Production code used only by tests is listed, not deleted, for the owner:
+frontend `lib/avatar/portrait/eligibility.ts`,
+`lib/content/avatarCatalogPresentation.ts`, `lib/content/soundEffectDocument.ts`,
+`lib/lipsync/eval/join.ts`, `ui/action-manage/actionManageCoordinator.ts`,
+`ui/action-manage/actionManageReview.ts`,
+`ui/content-preview/ContentPreviewSession.ts`,
+`ui/main/header/PocketVoiceDownloadIcon.tsx`, `query/mutations/useUpdateAnima.ts`
+and `env.enableDebugPanel`; backend `serialize_model_catalog`,
+`serialize_builtin_model_connections`, `prompt_instruction_text`,
+`BoundedSpeechService`, `decode_content_catalog_cursor`,
+`content_catalog_page`, `starter_idle_keys`, `normalize_usage`,
+`apply_sparse_updates`, `ordered_emotion_group_summaries`,
+`validate_avatar_access`, `normalize_voice_profile` and
+`validate_elevenlabs_voice_profile`.
+
+Consequences outside this PR:
+
+- The lockfile changes alter the desktop runtime's licence inventory, so the
+  redistribution reviews in `src/frontend/desktop/runtime/release-policy.json`
+  no longer match; the next desktop release needs a fresh per-target review,
+  as every dependency change does. The runtime's build environment, and with
+  it the distribution metadata the bundle copies, loses `aiofiles`, `debugpy`
+  and `pypdf`; the `--all-extras` audit export also loses `graphviz`. Nothing
+  bundled imports any of them; the PyInstaller specs name only `debugpy`, as
+  an exclusion.
+- Cloud's next repin must drop the deleted modules from its tenant and package
+  admission inventories and add the three new ones; no Cloud code imports a
+  removed name.
+- Passed to #819, whose files they are: the matching mypy excludes in
+  `validate-public.yml`, 11 no-op `# noqa` comments in model-download code,
+  and a write failure in `private_file_store.py` that returns `False` without
+  logging (logging it could put host paths in the logs).
+- Follow-up candidates: the order-dependent benchmark runner test in the
+  check record below, which should not depend on rows other tests leave in
+  the shared worker database; the unused `docling-cache` volume; other duplicate
+  helpers outside the agreed list (`sortedPair`, `smoothstep`,
+  `sanitizeFiniteNumber`, the desktop `isRecord` copies).
+
+Check record (repository root unless noted). The coordinator's runs used the
+staged tree `748fa41e`; only this record changed afterwards. The agents' runs
+used temporary-index trees of their working state: `0a7cd094` (backend) and
+`f2b73f2b` (frontend); the coordinator's later changes are covered by its own
+rows.
+
+| Command | Tree | Result |
+| --- | --- | --- |
+| `.venv/bin/ruff check`; `.venv/bin/ruff format --check` | `748fa41e` | Pass; 1,006 files formatted. |
+| `make mypy` (with the strict `animama.*` override) | `748fa41e` | No issues in 887 files. |
+| `uv lock --locked` | `748fa41e` | Pass. |
+| `docker compose -f docker-compose.yml config --quiet`, and with `docker-compose.development.yml` | `748fa41e` | Pass. |
+| `.venv/bin/python scripts/public-release/check_source.py`; `pytest scripts/public-release` | `748fa41e` | Every tracked file covered once; 12 passed. |
+| `python -m unittest discover -s scripts/ci -p 'test_*.py'` | `748fa41e` | 143 tests OK. |
+| `pytest tests/test_compose_network_boundaries.py tests/test_included_content_integrity.py tests/test_included_content_catalog.py` | `748fa41e` | 157 passed. |
+| `pnpm -s check`; `pnpm -s packages:check`; `pnpm -s web:lint`; `pnpm -s prettier:check` (widened); `pnpm -s i18n:check` (`src/frontend`) | `748fa41e` | All pass. |
+| `scripts/heavy-slot.py -- pnpm -s web:test` (`src/frontend`) | `748fa41e` | Vitest 656 files, 6,285 tests passed (2 skipped); 233 node tests, 0 failures. |
+| `product-ui` declarations: sorted SHA-256 of `dist/types/**/*.d.ts` after `pnpm -s build`, against the same build of `main`'s sources | `748fa41e` | Identical (66 files). |
+| Format hook on a package file and on a new e2e file | `748fa41e` | Leaves the formatted file unchanged; formats the new one. |
+| Targeted pytest, 78 files touched by the backend changes, `-n 4` through the heavy slot | `0a7cd094` | 1,994 passed. |
+| The same 78 files, `-n 4` through the heavy slot | `73face79` | 1,993 passed, 1 failed: `test_the_run_composition_reads_the_catalog_and_runs_chats_mock_client` found two extra `OpenAIHTTPAgent:gpt-6-luna` configurations in the catalog. Alone, its file passes (56 passed). The failure is order-dependent and predates this phase: the test reads the whole catalog, and the worker's database keeps the unhidden `OpenAIHTTPAgent:gpt-6-luna` rows that earlier tests commit, such as `tests/test_anima_chat_sse.py` and `tests/test_model_provider_catalog.py`. Run after either in one process it fails the same way, and the reviewer reproduced it on an extracted `HEAD` tree (P4-F4). |
+| `pnpm --filter animama-web bundle:source` (`src/frontend`) | `73face79` | Pass (usual chunk-size warning). |
+| Test collection before and after the `pytest.ini` move | `0a7cd094` | Same IDs (5,292 before the deletions; 5,287 after). |
+| OpenAPI export against `HEAD`; fresh-interpreter import of every backend module; repository boundary check | `0a7cd094` | Byte-identical; all import; 0 forbidden edges. |
+| `pnpm --filter animama-web bundle:source`; discover-client, runtime-contracts and product-ui node tests | `f2b73f2b` | Pass (usual chunk-size warning); 1/1, 10/10, 10/10. |
+
+Not run (D12): the full pre-push suite (`make check-test`, `pnpm verify`,
+`pnpm web:test:browser`), e2e journeys, `desktop:test` and desktop ESLint
+(no desktop file changed), a wheel build and desktop packaging.
+
+#### Code Review #1 Findings (Phase 4)
+
+Reviewed source: staged tree `945fa3b5` (the code under review is the same in
+`af9470cd`, which changed only this record), baseline `ee0954ad`, one
+independent reviewer, initial full review.
+
+- P4-F1 (required): the phase changes dependencies (`pyproject.toml`,
+  `uv.lock`, web's `package.json`, `pnpm-lock.yaml`) and build and CI inputs
+  (`Dockerfile`, `.dockerignore`, the pytest settings, the strict mypy
+  override, `TID252`, the wider Prettier check), which `SDLC.md` makes high
+  risk; it was reviewed at standard. The desktop runtime's frozen export
+  (`--group desktop-build`) loses `aiofiles`, `debugpy`, `graphviz` and
+  `pypdf` and gains nothing; nothing imports them and no PyInstaller spec names
+  them. Required: the high-risk tier, with an independent checks rerun.
+- P4-F2 (required): the hook comment, `SDLC.md` and this record said the format
+  hook formats everything `pnpm prettier:check` covers, but the hook formats
+  only TypeScript and JavaScript in some areas, not, for example, web's `.mjs`
+  scripts or JSON and CSS.
+- P4-F3 (required): `development.md` still suggested `COMPOSE_PROFILES=voice`
+  and `COMPOSE_PROFILES=memory` (the second predates this phase); `reset.sh`
+  accepts any well-formed name, so either example silently starts nothing.
+- P4-F4 (optional): the benchmark test's leaked rows also come from
+  `tests/test_model_provider_catalog.py`; the failure reproduces on an
+  extracted `HEAD` tree.
+- P4-F5 (optional): the root `.prettierrc` was read by
+  `scripts/content/merge_avatar_effects.py`, with a four-space indent that the
+  Included JSON does not use; its deletion removes that risk.
+- P4-F6 (optional): the renamed `usePocketVoiceDownloads.ts` (unchanged
+  content) and the formatting of `vite-plugins/local-parakeet-models.ts` sit
+  next to #819's model-download paths; tell #819.
+- P4-F7 (optional): the `@web` alias left 12 Vite configs under `web/scripts`,
+  which the frontend guide's browser tests cover; they were not run.
+- P4-F8 (optional, predates the phase): `src/frontend/AGENTS.md` said to format
+  generated output with `pnpm prettier`, which never covered the generated SDK.
+
+Checked with no finding: every converted import resolves to the same module;
+the only no-op `# noqa` left are the 11 passed to #819; the clock, freeze,
+digest, sanitizer and record helpers are identical at every call site; no
+deleted name is referenced here or in Cloud's code; the logging additions keep
+control flow; the lockfiles match their manifests without version changes; the
+licence records cover every added, deleted and renamed file; `product-ui`'s
+source changes are formatting only; no #819 file, generated output or
+Markdown reflow is involved.
+
+#### Code Review #1 Revisions (Phase 4)
+
+- P4-F1 accepted: the phase is high risk. An independent checks subagent
+  reruns the affected checks, including a production and a development
+  `reset.sh` stack and the browser tests (P4-F7), and every repair gets a
+  reviewer recheck. D12 still replaces the full suite. No desktop staging run:
+  the approved plan required a bundle check only for `llama-index-core`, which
+  stays; nothing bundled imports the packages that leave the runtime (Code
+  Review #2 corrects which ones); and the next desktop release must stage the
+  runtime and renew the redistribution review anyway, because the inventory
+  changed.
+- P4-F2 accepted: the hook comment and `SDLC.md` now say the hook formats
+  frontend TypeScript and JavaScript in the listed paths and that
+  `pnpm prettier:check` also covers files the hook leaves alone; the record
+  says the same.
+- P4-F3 accepted: the paragraph now says to remove only `dev-tools` when the
+  selection names other profiles, and the stack example uses
+  `--profile dev-tools`.
+- P4-F4 accepted: the check record names both seeding tests and the
+  reproduction on `HEAD`; the follow-up makes the benchmark test independent of
+  leftover rows.
+- P4-F5 accepted: A1 records it.
+- P4-F6 accepted: noted for #819 in the sessions' shared notes.
+- P4-F7 accepted: the browser tests join the independent checks rerun.
+- P4-F8 accepted: the guide's step now matches how the generated client is
+  checked (corrected in Code Review #2, P4-F10).
+
+#### Code Review #2 Findings (Phase 4)
+
+Reviewed source: staged tree `2ab8f8de`, a targeted recheck of repair round 1
+by the same independent reviewer.
+
+- P4-F9 (required): the record still said the hook formats "the TypeScript and
+  JavaScript in those areas", which included web's scripts; in `web/` the hook
+  formats only TypeScript and leaves its 82 `.js` and `.mjs` scripts alone.
+- P4-F10 (required, introduced by the P4-F8 repair): "The generator formats its
+  own output" is false. The generator writes unformatted files; only
+  `openapi-ts:check` formats both sides in memory, as
+  `docs/frontend/architecture/data-layer.md` says.
+- P4-F11 (optional): the P4-F1 reasoning had details wrong. The specs name
+  `debugpy`, as an exclusion; `graphviz` was never in the built runtime, only
+  in the `--all-extras` audit export; the bundle copies every distribution's
+  metadata, so it loses `aiofiles`, `debugpy` and `pypdf`. Nothing bundled
+  imports any of them, so the conclusion holds.
+- P4-F12 (optional): `prettier:workspace` also checks the frontend root's
+  `*.ts` and `*.mjs` configs, which the hook leaves alone.
+
+Verified with no finding: the hook comment and `SDLC.md` match the patterns
+and the hook change is comment-only; the profile paragraph and example are
+correct and nothing outside the plans names a `voice` or `memory` profile; the
+benchmark test's cause reproduces with either seeding test; no Prettier config
+or `.editorconfig` now applies to Included JSON, none of which uses four
+spaces; the tier change and the staging reasoning are recorded.
+
+#### Code Review #2 Revisions (Phase 4)
+
+- P4-F9 accepted: the record names the packages, e2e tests, frontend scripts
+  and shared code, and says the check also covers web's JavaScript.
+- P4-F10 accepted: the guide now says to leave the generated output
+  unformatted (`.prettierignore` excludes it) and that `pnpm openapi-ts:check`
+  compares it with a fresh generation through formatted copies.
+- P4-F11 accepted: the Consequences bullet states which packages leave the
+  build environment and the audit export, and that the specs name only
+  `debugpy`, as an exclusion.
+- P4-F12 accepted: the hook comment adds web's JavaScript and the frontend
+  root's config files to what only the check covers.
+
+#### Code Review #3 Findings (Phase 4)
+
+Reviewed source: staged tree `7cd51faf`, the final targeted recheck of repair
+round 2. Result: pass; P4-F9 to P4-F12 are fixed. The reviewer's `uv export`
+comparison confirms P4-F11: the core build set goes from 159 to 156 packages
+(`aiofiles`, `debugpy`, `pypdf`), the `--all-extras` export from 220 to 216
+(also `graphviz`) and the document-worker set from 219 to 216; nothing bundled
+imports any of them.
+
+- P4-F13 (optional): the B1 record credits "web's JavaScript" to `SDLC.md`,
+  which says only "such as JSON and CSS"; the hook comment is where it is said.
+- P4-F14 (optional): the hook comment's "the frontend root's config files"
+  overstates the check, which covers only the root's `.ts` and `.mjs` configs.
+
+#### Code Review #3 Revisions (Phase 4)
+
+- P4-F13 and P4-F14 accepted as optional wording; the review budget is spent,
+  so they are applied in Phase 5, which the final integration review covers.
+
+#### Independent checks (Phase 4, high-risk tier)
+
+A separate checks subagent reran the affected checks on staged tree
+`2ab8f8de` (steps 1 to 11) and `7cd51faf` (steps 12 to 15; the trees differ
+only by review wording in the hook comment, this plan and
+`src/frontend/AGENTS.md`). All passed, without reruns:
+
+| Check | Result |
+| --- | --- |
+| `ruff check`; `ruff format --check`; `make mypy`; `uv lock --locked` | Pass; 1,006 files formatted; no issues in 887 files; 258 packages resolved. |
+| `uv export --frozen --no-default-groups --group desktop-build --all-extras`, `HEAD` against the index | 220 to 216 packages: `aiofiles`, `debugpy`, `graphviz` and `pypdf` removed; nothing added; no version changes. |
+| Compose `config --quiet`, base and development | Pass. |
+| `check_source.py`; `pytest scripts/public-release`; `unittest discover -s scripts/ci` | Pass; 12 passed; 143 OK. |
+| Targeted pytest, the 78 backend files plus the content integrity test, `-n 4` | 2,007 passed, 0 failed. |
+| `pnpm -s check`, `packages:check`, `web:lint`, `prettier:check`, `i18n:check` | Pass. |
+| `pnpm -s web:test` | Vitest 656 files, 6,285 tests passed (2 skipped); 233 node tests passed. |
+| `pnpm --filter animama-web bundle:source` | Pass; 5,320 modules. |
+| `pnpm web:test:browser` (P4-F7) | 137 passed, 0 failed. |
+| `ANIMAMA_WEB_BUILD_MODE=production ./reset.sh --name osr --base-port 8950` in a clean environment | Image built; "Local stack ready" at `http://animama-osr.localhost:8950`; `/` and `/setup` return the app with browser fetch-metadata headers and 404 without; no server errors. |
+| `./reset.sh --name osr --base-port 8950` (development) | Ready; Vite 8.3.5 serves `/` and `/setup`; no errors in the web or server logs. |
+| `docker compose -p animama-osr --profile "*" down --remove-orphans` | Stack removed; its task-only volumes and image stay for cleanup at merge. |
+
 ### Phase 5: Publication readiness and the #235 checklist
 
 Review tier: light.
@@ -982,8 +1306,8 @@ visibility:
    the tracker, run logs or artifacts and no attachments; a home-directory
    path appears only in two earlier revisions of PR #44's body. Those and
    #823's first revision are listed for the owner to delete.
-2. List the 242 remote branches as merged or unmerged; the owner decides which
-   to delete. List the two tags. `origin/claude/project-thread-nwnmxj` and
+2. List the remote branches as merged or unmerged; the owner decides which
+   to delete. List the tag. `origin/claude/project-thread-nwnmxj` and
    `origin/chore/cloud-session-start-hook` carry `Co-Authored-By` lines.
 3. On publication day, once private vulnerability reporting is enabled, add its
    link (`/security/advisories/new`) to `.github/ISSUE_TEMPLATE/config.yml`.
@@ -997,7 +1321,7 @@ visibility:
 From #823:
 
 - [x] The owner has the audit and has made decisions D1–D6 and D9.
-- [ ] The owner has approved this plan.
+- [x] The owner has approved this plan (G0, 2026-11-03).
 - [ ] `scripts/public-release/check_source.py` passes on the final tree, and `LICENSE` and
   the package metadata state AGPL-3.0-only.
 - [ ] Every content inventory rule is cleared for redistribution, or its files
@@ -1014,7 +1338,8 @@ each `gh pr create` and push, because a re-enabled workflow starts billed runs.
 
 ## Idempotence and recovery
 
-Every phase is a reviewable PR on its own branch. Nothing is published and no
+Phase 1 merged as #836; Phases 2–5 are one commit each in a single PR, so a
+phase can be reverted on its own. Nothing is published and no
 repository setting changes; the visibility change is the owner's own action
 after #819's gates. Changing `LICENSE` in the private repository grants nothing
 to anyone until it is published, and a revert restores the old notice. Licence

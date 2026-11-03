@@ -1,5 +1,6 @@
 import { createLogger } from "@/lib/logger";
 import type { SoundControllerSnapshot } from "./types";
+import { isRecord } from "@/lib/records";
 
 const logger = createLogger("AudioPrefs");
 const AUDIO_PREFS_VERSION = 3;
@@ -25,10 +26,6 @@ export const DEFAULT_AUDIO_PREFS: AudioPrefs = {
 function clampVolume(value: unknown, fallback: number): number {
   if (typeof value !== "number" || !Number.isFinite(value)) return fallback;
   return Math.max(0, Math.min(1, value));
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
 /** Keep TTS/SFX preferences across versions; retired Music settings are ignored. */

@@ -8,6 +8,8 @@ from pathlib import PurePosixPath
 from typing import Any
 from uuid import uuid4
 
+from animama.app.ports.uow_port import UnitOfWork
+from animama.app.ports.user_file_port import UserFileRepository
 from animama.domain.user_file import (
     STATUS_ABORTED,
     STATUS_DELETE_PENDING,
@@ -18,9 +20,7 @@ from animama.domain.user_file import (
     UserFile,
 )
 from animama.logging import get_logger
-
-from ..ports.uow_port import UnitOfWork
-from ..ports.user_file_port import UserFileRepository
+from animama.utils.clock import utc_now
 
 ALLOWED_USER_FILE_EXTENSIONS = frozenset(
     {
@@ -180,10 +180,6 @@ def _metadata_content_type(object_metadata: dict[str, Any]) -> str | None:
     return None
 
 
-def _utcnow() -> datetime:
-    return datetime.now(UTC)
-
-
 def _as_aware_utc(value: datetime) -> datetime:
     if value.tzinfo is None:
         return value.replace(tzinfo=UTC)
@@ -276,7 +272,7 @@ class UserFileService:
             await self._mark_failed(user_file, "Upload expiration is missing")
             raise UserFileConflictError("File upload is invalid")
 
-        resolved_now = _as_aware_utc(now or _utcnow())
+        resolved_now = _as_aware_utc(now or utc_now())
         if _as_aware_utc(user_file.upload_expires_at) <= resolved_now:
             await self._mark_failed(user_file, "Upload expired")
             raise UserFileGoneError("File upload expired")

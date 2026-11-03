@@ -1,9 +1,8 @@
-"use client";
-
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "@tanstack/react-router";
 
 import { useRuntimePlatform } from "@/platform/RuntimePlatformProvider";
+import { isRecord } from "@/lib/records";
 
 /** The main window's microphone session, as the PiP toolbar shows it. */
 export type DesktopPipVoiceState = {
@@ -36,10 +35,6 @@ const VOICE_COMMANDS: Record<
   "stop-mic-session": "stopMicSession",
   "toggle-voice-mute": "toggleVoiceMute",
 };
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
-}
 
 /** Exported for tests: PiP shows only a complete, well-typed state. */
 export function isDesktopPipVoiceState(

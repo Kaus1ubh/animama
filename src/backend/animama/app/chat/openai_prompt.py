@@ -1,3 +1,7 @@
+"""Assembles the provider-neutral direct-chat prompt: identity, history, memory and
+tool context, attachments and response guidance, as one OpenAI-compatible message list.
+"""
+
 from __future__ import annotations
 
 import json

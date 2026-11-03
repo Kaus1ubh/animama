@@ -34,7 +34,7 @@ MERGES = {VARIANT: AvatarEffectMerge(ref=FAMILY, override=OVERRIDE, sound_alias=
 
 
 @pytest.fixture(autouse=True)
-async def _cleanup(async_session):  # noqa: ANN001, ANN202
+async def _cleanup(async_session):
     yield
     await async_session.rollback()
     await async_session.execute(
@@ -45,7 +45,7 @@ async def _cleanup(async_session):  # noqa: ANN001, ANN202
     await async_session.commit()
 
 
-async def _setup(async_session, tmp_path: Path):  # noqa: ANN001, ANN202
+async def _setup(async_session, tmp_path: Path):
     paths, catalog, content, _, _ = package_services(async_session, tmp_path)
     inventory = paths.included_root / "licenses/inventory.json"
     inventory.parent.mkdir(parents=True, exist_ok=True)
@@ -73,7 +73,7 @@ async def _setup(async_session, tmp_path: Path):  # noqa: ANN001, ANN202
     return folder, catalog, content
 
 
-async def _reaction(catalog: Any) -> CatalogContentEntry:  # noqa: ANN401
+async def _reaction(catalog: Any) -> CatalogContentEntry:
     items: list[CatalogContentEntry] = [
         entry for entry in await catalog.list_visible(user_id=OWNER) if entry.logical_key == "local:reaction:cheer"
     ]
@@ -82,7 +82,7 @@ async def _reaction(catalog: Any) -> CatalogContentEntry:  # noqa: ANN401
 
 
 async def test_a_local_reaction_names_the_family_with_the_override_and_keeps_its_identity(
-    async_session,  # noqa: ANN001
+    async_session,
     tmp_path: Path,
 ) -> None:
     folder, catalog, content = await _setup(async_session, tmp_path)
@@ -114,7 +114,7 @@ async def test_a_local_reaction_names_the_family_with_the_override_and_keeps_its
 
 
 async def test_a_failed_rewrite_leaves_the_action_as_it_was(
-    async_session,  # noqa: ANN001
+    async_session,
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -135,7 +135,7 @@ async def test_a_failed_rewrite_leaves_the_action_as_it_was(
 
 
 async def test_local_actions_naming_removed_effects_play_their_families_as_before(
-    async_session,  # noqa: ANN001
+    async_session,
     tmp_path: Path,
 ) -> None:
     """A Local Gesture and Reaction that named removed effects, through the real merge map."""

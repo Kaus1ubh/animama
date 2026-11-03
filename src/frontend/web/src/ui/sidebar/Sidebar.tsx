@@ -1,5 +1,3 @@
-"use client";
-
 import { cn } from "@/lib/utils";
 import { useOptionalAppShell } from "@/ui/app/AppShell";
 import {

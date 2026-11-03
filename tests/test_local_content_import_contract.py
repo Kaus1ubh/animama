@@ -38,7 +38,7 @@ def _happy_pose_clip() -> bytes:
     return json.dumps(anima_clip(clip_id="happy", name="Happy", role="reaction", basePose="relaxedRest")).encode()
 
 
-async def test_import_reviews_automatic_suffix_and_installs_an_editable_copy(async_session, tmp_path: Path) -> None:  # noqa: ANN001
+async def test_import_reviews_automatic_suffix_and_installs_an_editable_copy(async_session, tmp_path: Path) -> None:
     paths, catalog, content, saves, packages = package_services(async_session, tmp_path)
     try:
         saved = await save_wave(saves)
@@ -77,7 +77,7 @@ async def test_import_reviews_automatic_suffix_and_installs_an_editable_copy(asy
         await async_session.commit()
 
 
-async def test_import_copy_preserves_action_control_and_payload_names(async_session, tmp_path: Path) -> None:  # noqa: ANN001
+async def test_import_copy_preserves_action_control_and_payload_names(async_session, tmp_path: Path) -> None:
     paths, catalog, _content, saves, packages = package_services(async_session, tmp_path)
     try:
         saved = await saves.save_descriptor(
@@ -136,7 +136,7 @@ async def test_late_import_failure_compensates_files_and_catalog_visibility(
     async_session,
     tmp_path: Path,
     monkeypatch,
-) -> None:  # noqa: ANN001
+) -> None:
     paths, catalog, content, saves, packages = package_services(async_session, tmp_path)
     try:
         saved = await save_wave(saves)
@@ -152,7 +152,7 @@ async def test_late_import_failure_compensates_files_and_catalog_visibility(
             expected_revision=saved.item.revision_sha256,
         )
 
-        async def fail_provenance(**_kwargs):  # noqa: ANN003, ANN202
+        async def fail_provenance(**_kwargs):
             raise RuntimeError("forced late catalog failure")
 
         monkeypatch.setattr(catalog, "record_import_provenance", fail_provenance)

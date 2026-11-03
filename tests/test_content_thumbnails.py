@@ -139,7 +139,7 @@ def test_no_more_than_the_decode_slots_decode_at_once(monkeypatch: pytest.Monkey
     together = threading.Barrier(slots, timeout=10)
     errors: list[BaseException] = []
 
-    def counted(**kwargs):  # noqa: ANN003, ANN202
+    def counted(**kwargs):
         nonlocal active, peak
         with lock:
             active += 1
@@ -155,7 +155,7 @@ def test_no_more_than_the_decode_slots_decode_at_once(monkeypatch: pytest.Monkey
     def run(source: bytes) -> None:
         try:
             thumbnail_file(_verified(source))
-        except BaseException as exc:  # noqa: BLE001
+        except BaseException as exc:
             errors.append(exc)
 
     monkeypatch.setattr("animama.app.services.content_thumbnails.derive_image_thumbnail", counted)
@@ -188,7 +188,7 @@ def test_non_images_and_undecodable_images_are_refused(data: bytes, media_type: 
     assert file.handle.closed
 
 
-async def test_library_thumbnails_and_catalog_polls_are_cheap_over_http(async_session, tmp_path: Path) -> None:  # noqa: ANN001
+async def test_library_thumbnails_and_catalog_polls_are_cheap_over_http(async_session, tmp_path: Path) -> None:
     paths = initialize_local_runtime(
         Settings(animama_content_root=tmp_path / "content", animama_data_root=tmp_path / "data")
     )

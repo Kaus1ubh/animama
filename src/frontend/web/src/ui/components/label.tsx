@@ -1,6 +1,5 @@
 // Adapted from shadcn/ui (MIT): apps/www/registry/new-york/ui/label.tsx.
 // See licenses/third-party/adapted-code.md.
-"use client";
 
 import * as React from "react";
 import * as LabelPrimitive from "@radix-ui/react-label";

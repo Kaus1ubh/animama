@@ -8,10 +8,11 @@ from datetime import datetime
 from sqlalchemy import desc, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ....app.ports.chat_compaction_port import ChatCompactionRepository
-from ....domain.chat_compaction import STATUS_ACTIVE, STATUS_SUPERSEDED, ChatCompaction
-from ....orm.chat_compactions import ORMChatCompaction
-from ...mappers.chat_compaction_map import chat_compaction_domain_to_orm, chat_compaction_orm_to_domain
+from animama.adapters.mappers.chat_compaction_map import chat_compaction_domain_to_orm, chat_compaction_orm_to_domain
+from animama.app.ports.chat_compaction_port import ChatCompactionRepository
+from animama.domain.chat_compaction import STATUS_ACTIVE, STATUS_SUPERSEDED, ChatCompaction
+from animama.orm.chat_compactions import ORMChatCompaction
+from animama.utils.clock import naive_utc_now
 
 
 class SQLAlchemyChatCompactionRepository(ChatCompactionRepository):
@@ -69,7 +70,7 @@ class SQLAlchemyChatCompactionRepository(ChatCompactionRepository):
 
     async def activate_new(self, compaction: ChatCompaction) -> ChatCompaction:
         compaction.status = STATUS_ACTIVE
-        await self.supersede_active(compaction.chat_id, superseded_at=datetime.utcnow())
+        await self.supersede_active(compaction.chat_id, superseded_at=naive_utc_now())
         return await self.create(compaction)
 
 

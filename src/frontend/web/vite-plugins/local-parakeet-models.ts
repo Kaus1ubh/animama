@@ -201,8 +201,7 @@ function matchesEtag(condition: string | undefined, etag: string): boolean {
   return (
     condition
       ?.split(",")
-      .some((value) => [etag, `W/${etag}`, "*"].includes(value.trim())) ??
-    false
+      .some((value) => [etag, `W/${etag}`, "*"].includes(value.trim())) ?? false
   );
 }
 

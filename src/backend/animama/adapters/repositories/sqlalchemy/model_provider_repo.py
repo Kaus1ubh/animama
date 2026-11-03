@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
-from datetime import datetime
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -16,6 +15,7 @@ from animama.app.ports import ModelProviderRepository
 from animama.domain import ModelProvider
 from animama.domain.model_connection import BUILTIN_OPENAI_CONNECTION_ID, MODEL_SOURCE_BUILTIN, MODEL_SOURCE_OWNER
 from animama.orm import ORMModelConnection, ORMModelProvider
+from animama.utils.clock import naive_utc_now
 
 
 class SQLAlchemyModelProviderRepository(ModelProviderRepository):
@@ -146,7 +146,7 @@ class SQLAlchemyModelProviderRepository(ModelProviderRepository):
         if active_id_set:
             stmt = stmt.where(ORMModelProvider.id.notin_(active_id_set))
         res = await self._s.execute(stmt)
-        now = datetime.utcnow()
+        now = naive_utc_now()
         retired = 0
         for orm in res.scalars():
             orm.active = False

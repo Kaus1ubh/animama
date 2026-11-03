@@ -40,21 +40,6 @@ def anima_domain_to_schema(
     )
 
 
-def anima_schema_to_domain(schema: PyAnimaResponse) -> Anima:
-    meta = schema.metadata or {}
-    tags = meta.get("tags")
-    return Anima(
-        id=schema.id,
-        display_name=schema.display_name,
-        aggregate_revision=schema.aggregate_revision,
-        identity_status=schema.identity_status,
-        tags=list(tags) if isinstance(tags, list) else [],
-        metadata=dict(meta),
-        archive_id=schema.archive_id,
-        profile_picture_url=getattr(schema, "profile_picture_url", None),
-    )
-
-
 def anima_domain_to_orm(anima: Anima) -> ORMAnima:
     metadata: dict[str, Any] = dict(anima.metadata or {})
     metadata["tags"] = list(anima.tags)

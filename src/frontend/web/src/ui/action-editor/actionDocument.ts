@@ -6,6 +6,7 @@ import { ANIMA_POSE_CLIP_V2_SCHEMA } from "@/lib/avatar/poses/animaPoseClip/sche
 import { RELAXED_REST_POSE_ID } from "@/lib/avatar/poses/catalog";
 import type { PyContentDependency } from "@/lib/content/catalogTypes";
 import type { EmotionReactionIntensity } from "@/lib/avatar/reactionPools";
+import { isRecord } from "@/lib/records";
 
 export type ActionIntent = "gesture" | "reaction";
 export type ActionImplementation = "anima_clip" | "vrma";
@@ -270,7 +271,3 @@ const REACTION_BODY_FIELDS = [
   "contacts",
   "plantFeet",
 ] as const;
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
-}

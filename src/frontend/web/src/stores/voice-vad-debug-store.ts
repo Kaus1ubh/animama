@@ -1,5 +1,3 @@
-"use client";
-
 import { create } from "zustand";
 
 import type { AcousticVadEvent, RuntimeTurnId } from "@/lib/types/voice-types";

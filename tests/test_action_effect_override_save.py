@@ -24,7 +24,7 @@ EFFECT_FOLDER = "vfx/avatar/kira_star"
 
 
 @pytest.fixture(autouse=True)
-async def _cleanup(async_session):  # noqa: ANN001, ANN202
+async def _cleanup(async_session):
     yield
     await async_session.rollback()
     await async_session.execute(
@@ -52,7 +52,7 @@ def _reaction(override: dict[str, Any]) -> tuple[bytes, dict[str, tuple[BytesIO,
     return json.dumps(descriptor).encode(), {"cheer.json": (BytesIO(body), len(body))}
 
 
-async def _saves(async_session, tmp_path: Path):  # noqa: ANN001, ANN202
+async def _saves(async_session, tmp_path: Path):
     paths, _, content, saves, _ = package_services(async_session, tmp_path)
     inventory = paths.included_root / "licenses/inventory.json"
     inventory.parent.mkdir(parents=True, exist_ok=True)
@@ -62,7 +62,7 @@ async def _saves(async_session, tmp_path: Path):  # noqa: ANN001, ANN202
     return saves
 
 
-async def _save(saves, override: dict[str, Any], operation: str):  # noqa: ANN001, ANN202
+async def _save(saves, override: dict[str, Any], operation: str):
     descriptor, files = _reaction(override)
     return await saves.save_descriptor_streams(
         user_id=OWNER,
@@ -76,13 +76,13 @@ async def _save(saves, override: dict[str, Any], operation: str):  # noqa: ANN00
     )
 
 
-async def test_save_admits_an_override_that_keeps_the_effect_valid(async_session, tmp_path: Path) -> None:  # noqa: ANN001
+async def test_save_admits_an_override_that_keeps_the_effect_valid(async_session, tmp_path: Path) -> None:
     saves = await _saves(async_session, tmp_path)
     saved = await _save(saves, {"attachment": {"kind": "body", "bone": "leftHand", "size": 0.08}}, "save-valid")
     assert saved.item.kind is ContentKind.REACTION
 
 
-async def test_save_refuses_an_override_that_changes_the_attachment_kind(async_session, tmp_path: Path) -> None:  # noqa: ANN001
+async def test_save_refuses_an_override_that_changes_the_attachment_kind(async_session, tmp_path: Path) -> None:
     saves = await _saves(async_session, tmp_path)
     with pytest.raises(ContentDocumentError) as error:
         await _save(saves, {"attachment": {"kind": "sticker"}}, "save-kind")
@@ -90,7 +90,7 @@ async def test_save_refuses_an_override_that_changes_the_attachment_kind(async_s
     assert error.value.field == "event.star.override.attachment.kind"
 
 
-async def test_save_refuses_a_malformed_override(async_session, tmp_path: Path) -> None:  # noqa: ANN001
+async def test_save_refuses_a_malformed_override(async_session, tmp_path: Path) -> None:
     saves = await _saves(async_session, tmp_path)
     with pytest.raises(ContentDocumentError) as error:
         await _save(saves, {"appearance": {"opacity": 2}}, "save-shape")
@@ -98,7 +98,7 @@ async def test_save_refuses_a_malformed_override(async_session, tmp_path: Path) 
 
 
 async def test_save_names_a_missing_effect_rather_than_its_override(
-    async_session,  # noqa: ANN001
+    async_session,
     tmp_path: Path,
 ) -> None:
     # The override can't be checked against an effect that isn't installed;
@@ -111,7 +111,7 @@ async def test_save_names_a_missing_effect_rather_than_its_override(
     assert error.value.field == "dependencies"
 
 
-async def test_save_ignores_a_clip_too_deeply_nested_to_parse(async_session, tmp_path: Path) -> None:  # noqa: ANN001
+async def test_save_ignores_a_clip_too_deeply_nested_to_parse(async_session, tmp_path: Path) -> None:
     saves = await _saves(async_session, tmp_path)
     descriptor, _ = _reaction({"soundAlias": "tehe"})
     document = (
@@ -123,7 +123,7 @@ async def test_save_ignores_a_clip_too_deeply_nested_to_parse(async_session, tmp
     body = b"[" * 200_000
     stream = BytesIO(body)
     # Not JSON this check can read: other admission reports it, and the stream is left as found.
-    await saves._check_effect_overrides(  # noqa: SLF001
+    await saves._check_effect_overrides(
         user_id=OWNER, document=document, companion_files={"cheer.json": (stream, len(body))}
     )
     assert stream.tell() == 0

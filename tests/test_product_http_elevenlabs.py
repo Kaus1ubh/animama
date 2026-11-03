@@ -62,13 +62,13 @@ async def test_uploads_are_bounded_by_the_ports_limit(
 class _NoSpeech(FakeSpeech):
     """A composition without ElevenLabs refuses each operation."""
 
-    async def clone_voice(self, principal, **_values):  # noqa: ANN001, ANN003, ANN201
+    async def clone_voice(self, principal, **_values):
         raise ProductRefusal(503, "speech_unavailable")
 
-    async def synthesize_text(self, principal, request):  # noqa: ANN001, ANN201
+    async def synthesize_text(self, principal, request):
         raise ProductRefusal(503, "speech_unavailable")
 
-    async def generate_sound_effect(self, principal, request):  # noqa: ANN001, ANN201
+    async def generate_sound_effect(self, principal, request):
         raise HTTPException(status_code=503, detail={"code": "speech_unavailable", "provider": "none"})
 
 

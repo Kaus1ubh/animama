@@ -27,7 +27,7 @@ def _voice_catalog() -> bytes:
     )
 
 
-async def test_voice_catalog_upload_publishes_readable_local_file(async_session, tmp_path: Path) -> None:  # noqa: ANN001
+async def test_voice_catalog_upload_publishes_readable_local_file(async_session, tmp_path: Path) -> None:
     payload = _voice_catalog()
     runtime_settings = Settings(animama_content_root=tmp_path / "content", animama_data_root=tmp_path / "data")
 

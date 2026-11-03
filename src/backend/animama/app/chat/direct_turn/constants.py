@@ -1,6 +1,6 @@
 """Shared constants for the direct chat turn runtime."""
 
-from ..api_standard import ANTHROPIC_MESSAGES_PROVIDER_TYPE
+from animama.app.chat.api_standard import ANTHROPIC_MESSAGES_PROVIDER_TYPE
 
 DIRECT_CHAT_NODE_ID = "direct-chat:model-client"
 

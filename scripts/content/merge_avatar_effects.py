@@ -130,7 +130,7 @@ def _read(path: Path) -> tuple[Any, str]:
     return json.loads(raw), raw
 
 
-def _python_format(value: Any, raw: str) -> str:  # noqa: ANN401
+def _python_format(value: Any, raw: str) -> str:
     """Serialize like ``raw``: two-space indent or compact, with its trailing newline."""
     newline = "\n" if raw.endswith("\n") else ""
     if raw.lstrip().startswith("{\n"):
@@ -247,7 +247,7 @@ def _plan() -> tuple[dict[str, dict[str, Any]], dict[str, dict[str, Any]], dict[
     return families, dict(sorted(merges.items())), dict(sorted(variants.items()))
 
 
-def _write_json(path: Path, value: Any, changes: list[str], *, write: bool, raw: str | None = None) -> None:  # noqa: ANN401
+def _write_json(path: Path, value: Any, changes: list[str], *, write: bool, raw: str | None = None) -> None:
     text = _python_format(value, raw) if raw is not None else json.dumps(value, ensure_ascii=False, indent=2) + "\n"
     if path.exists() and path.read_text(encoding="utf-8") == text:
         return

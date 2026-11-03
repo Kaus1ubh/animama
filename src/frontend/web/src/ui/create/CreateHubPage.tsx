@@ -1,5 +1,3 @@
-"use client";
-
 import { Link, useNavigate } from "@tanstack/react-router";
 import { ArrowRight } from "lucide-react";
 import { useRef, useState } from "react";

@@ -1,5 +1,3 @@
-"use client";
-
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { Camera, ImageIcon, Move, MoveDiagonal2, X } from "lucide-react";
 import {

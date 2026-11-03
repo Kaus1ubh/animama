@@ -1,18 +1,4 @@
 {
-  "background": {
-    "apply": "적용",
-    "applying": "적용 중...",
-    "back": "배경 설정으로 돌아가기",
-    "canvasSize": "{{width}} x {{height}}",
-    "description": "선택한 아바타 배경의 자르기와 확대/축소를 조정합니다.",
-    "heading": "미디어 편집",
-    "hint": "드래그해 위치를 조정하고 확대/축소해 실시간 아바타 캔버스에 맞추세요.",
-    "liveCanvas": "실시간 캔버스",
-    "reset": "재설정",
-    "title": "{{name}} 배경 크기 조정",
-    "zoomIn": "배경 확대",
-    "zoomOut": "배경 축소"
-  },
   "canvas": {
     "camera": {
       "axis": "{{label}} {{axis}}",

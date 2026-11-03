@@ -422,7 +422,7 @@ def test_crash_after_intent_before_backup_does_not_require_nonexistent_backup(
     save(store, "wave", "before")
     begin(store)
 
-    def crash(*args, **kwargs):  # noqa: ANN002, ANN003, ANN202
+    def crash(*args, **kwargs):
         raise SystemExit("simulated process death before backup")
 
     monkeypatch.setattr(mutations, "copy_file", crash)
@@ -563,6 +563,6 @@ def test_package_tree_inspection_refuses_a_directory_link(tmp_path: Path) -> Non
     link_directory(entry / "motions", outside)
 
     with pytest.raises(ContentPathError):
-        FilesystemContentStore._mutation_tree_files(entry)  # noqa: SLF001
+        FilesystemContentStore._mutation_tree_files(entry)
     with pytest.raises(ContentPathError):
-        FilesystemContentStore._mutation_tree_files(entry / "motions")  # noqa: SLF001
+        FilesystemContentStore._mutation_tree_files(entry / "motions")

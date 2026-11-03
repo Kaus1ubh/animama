@@ -1,5 +1,3 @@
-"use client";
-
 import { useAnima } from "@/query/hooks/useAnima";
 import { useModelProviders } from "@/query/hooks/useModelProviders";
 import { useRuntimeCapabilities } from "@/query/hooks/useRuntimeCapabilities";

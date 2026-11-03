@@ -1,3 +1,9 @@
+"""The main structured reply of normal chat: speech, emotion, Gesture and ``remember``.
+
+Owns the Pydantic reply models, their strict JSON schema and prompt, final parsing
+and recovery, and the incremental parser that decodes a streamed reply into events.
+"""
+
 from __future__ import annotations
 
 import json
@@ -717,41 +723,6 @@ def build_main_structured_response_model(
     )
 
 
-def is_main_structured_output_schema(schema: Any) -> bool:
-    if not isinstance(schema, Mapping):
-        return False
-    kind = schema.get("kind")
-    response_format = schema.get("response_format")
-    return kind == MAIN_STRUCTURED_RESPONSE_KIND or response_format == MAIN_STRUCTURED_RESPONSE_FORMAT
-
-
-def build_main_response_model_from_schema(
-    *,
-    agent_id: str,
-    schema: Mapping[str, Any],
-    include_helpers: bool = True,
-    gesture_ids: Sequence[str] | None = None,
-) -> type[PyMainAgentResponse]:
-    _ = schema, include_helpers
-    # With ``remember`` (the default) the model is chat's own PyMainAgentResponse.
-    return cast(type[PyMainAgentResponse], build_main_response_model(agent_id=agent_id, gesture_ids=gesture_ids))
-
-
-def build_main_structured_response_model_from_schema(
-    *,
-    agent_id: str,
-    schema: Mapping[str, Any],
-    include_helpers: bool = True,
-    gesture_ids: Sequence[str] | None = None,
-) -> type[PyMainAgentResponse]:
-    return build_main_response_model_from_schema(
-        agent_id=agent_id,
-        schema=schema,
-        include_helpers=include_helpers,
-        gesture_ids=gesture_ids,
-    )
-
-
 def build_main_structured_prompt(
     output_type: type[BaseModel],
     *,
@@ -1040,12 +1011,9 @@ __all__ = [
     "MainStructuredJsonStreamParser",
     "MainStructuredStreamEvent",
     "build_main_response_model",
-    "build_main_response_model_from_schema",
     "build_main_structured_response_model",
-    "build_main_structured_response_model_from_schema",
     "build_main_structured_prompt",
     "build_main_structured_response_json_schema",
-    "is_main_structured_output_schema",
     "main_structured_response_from_data",
     "parse_main_structured_response",
     "plain_text_main_structured_response",

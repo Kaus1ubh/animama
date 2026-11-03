@@ -1,5 +1,3 @@
-"use client";
-
 import { useEffect, useMemo, useRef } from "react";
 import { getI18n } from "react-i18next";
 import { toast } from "sonner";

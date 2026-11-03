@@ -41,7 +41,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from ..core.inputs import EvalInputError
+from scripts.evals.core.inputs import EvalInputError
+
 from .judge_items import JudgeItem, build_items
 from .prompt_set import PromptSet
 from .results import write_json

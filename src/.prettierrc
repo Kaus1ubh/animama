@@ -1,6 +1,0 @@
-{
-    "tailwindStylesheet": "src/web-ui/src/app/globals.css",
-    "plugins": [
-        "prettier-plugin-tailwindcss"
-    ]
-}

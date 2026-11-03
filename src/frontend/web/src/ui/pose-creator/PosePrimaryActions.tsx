@@ -1,5 +1,3 @@
-"use client";
-
 import { SaveIcon, WandSparklesIcon } from "lucide-react";
 import { useIsMutating } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";

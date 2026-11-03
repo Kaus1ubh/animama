@@ -131,7 +131,6 @@ export async function startTuneServer({
     resolve: {
       alias: {
         "@": path.join(webRoot, "src"),
-        "@web": path.join(webRoot, "src"),
       },
     },
     optimizeDeps: {

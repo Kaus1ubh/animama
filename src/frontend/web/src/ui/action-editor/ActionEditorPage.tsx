@@ -1,5 +1,3 @@
-"use client";
-
 import { useBlocker, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getI18n, useTranslation } from "react-i18next";

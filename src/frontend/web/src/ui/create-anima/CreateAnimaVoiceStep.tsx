@@ -4,7 +4,7 @@ import type { PyVoiceContent } from "@animama/runtime-contracts/api-types";
 import { useEffect, useState } from "react";
 import { Trans, useTranslation } from "react-i18next";
 
-import { usePocketVoiceDownloads } from "@/hooks/use-pocket-voice-downloads";
+import { usePocketVoiceDownloads } from "@/hooks/usePocketVoiceDownloads";
 import {
   DEFAULT_POCKET_VOICE,
   POCKET_VOICES,

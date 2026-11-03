@@ -27,8 +27,8 @@ chat history persisted in `chats` and `chat_messages`.
 - `src/frontend`: Vite React web app,
   Electron desktop shell, generated API client, and public
   runtime assets.
-- `docker-compose.yml`: local service graph for Postgres, pgAdmin, backend,
-  web development override, and optional `voice`, `memory`, and `dev-tools` profiles.
+- `docker-compose.yml`: local service graph for Postgres, the backend, the web
+  development override and the optional `dev-tools` profile (pgAdmin and Dozzle).
 - `reset.sh`: preferred local stack reset/start script. Agents may run it to start
   or restart their own task's stack. The main stack is usually already running;
   other tasks' stacks are not theirs to restart.
