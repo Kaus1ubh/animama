@@ -180,9 +180,9 @@ Safety and 404), where it sits at the top of the page and Home and Download are 
 - The header speaks the visitor's language on Cloud's English pages too,
   marking its own `lang` (the page's stays `en`). Its prerender is English,
   so for a visitor in another language `theme.js` sets
-  `data-locale-pending` and `site-header.css` hides the header until
-  `site-chrome.tsx` has reworded it, or for two seconds if the script cannot
-  load.
+  `data-locale-pending` and `site-header.css` hides a header with the
+  language picker until `site-chrome.tsx` has reworded it, or for two
+  seconds if the script cannot load.
 
 Cloud's `/safety/` page publishes `docs/safety/crisis-protocol.md`, the same
 document the app's Safety dialog shows: the build renders it to HTML in

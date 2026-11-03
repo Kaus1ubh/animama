@@ -16,6 +16,9 @@ export function unspaced(locale: string): boolean {
 /** Opening brackets and quotes, which stay with the word after them. */
 const OPENING = /^[\p{Ps}\p{Pi}]+$/u;
 
+/** Closing punctuation, which stays with the word before it. */
+const CLOSING = /^[\p{Pe}\p{Pf}\p{Po}]/u;
+
 /**
  * A Japanese particle or verb ending (`の`, `に`, `おう`), which the
  * segmenter splits from the word before it; kept with that word, a line
@@ -24,13 +27,40 @@ const OPENING = /^[\p{Ps}\p{Pi}]+$/u;
 const ENDING = /^\p{Script=Hiragana}{1,2}$/u;
 
 /**
+ * Whether `text` is a Japanese ending that stays with the word before it
+ * (`previous`), even across a space (`Anima に`), unless that word already
+ * ends a clause with punctuation (`気持ちが、` and `すぐ` may part).
+ */
+function endsPhrase(text: string, previous: string, locale: string): boolean {
+  return (
+    locale.startsWith("ja") && ENDING.test(text) && !/\p{P}$/u.test(previous)
+  );
+}
+
+/**
+ * Whether a word that starts a new run of unspaced text (after a `**` bold
+ * marker) continues the last word of the run before: closing punctuation
+ * with no space between them, or a Japanese ending (`endsPhrase`).
+ */
+export function continuesWord(
+  { text, space }: CaptionWord,
+  previous: string,
+  locale: string,
+): boolean {
+  return (
+    (!space && CLOSING.test(text)) ||
+    endsPhrase(text.replace(/\p{P}+$/u, ""), previous, locale)
+  );
+}
+
+/**
  * `text` as words. In spaced locales a word runs between spaces, keeping
  * its punctuation. In unspaced ones it is a segment from `Intl.Segmenter`
  * (one character where the browser lacks it), with punctuation kept beside
  * its word so no line starts with a comma or ends with an opening bracket,
- * and Japanese endings beside theirs (`ENDING`).
- * A space before the first word counts, so text split into runs keeps the
- * spaces between them.
+ * and Japanese endings beside theirs (`endsPhrase`, keeping any space in the
+ * word). A space before the first word counts, so text split into runs
+ * keeps the spaces between them.
  */
 export function captionWords(text: string, locale: string): CaptionWord[] {
   const words: CaptionWord[] = [];
@@ -65,14 +95,18 @@ export function captionWords(text: string, locale: string): CaptionWord[] {
       space = true;
       continue;
     }
+    // Held for the next word, which keeps the space before it.
+    if (!word && OPENING.test(segment)) {
+      opening += segment;
+      continue;
+    }
     const last = words.at(-1);
-    const joins =
-      !word ||
-      (locale.startsWith("ja") &&
-        ENDING.test(segment) &&
-        !/\p{P}$/u.test(last?.text ?? ""));
-    if (!word && OPENING.test(segment)) opening += segment;
-    else if (joins && last && !space && !opening) last.text += segment;
+    if (
+      last &&
+      !opening &&
+      ((!word && !space) || endsPhrase(segment, last.text, locale))
+    )
+      last.text += (space ? " " : "") + segment;
     else {
       words.push({ text: opening + segment, space });
       opening = "";

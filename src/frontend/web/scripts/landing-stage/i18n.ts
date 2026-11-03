@@ -1,6 +1,6 @@
 import { useContext } from "react";
 import i18next, { type i18n as I18nInstance } from "i18next";
-import { I18nContext, getI18n, useTranslation } from "react-i18next";
+import { I18nContext, useTranslation } from "react-i18next";
 
 import {
   createAnimamaI18n,
@@ -69,7 +69,8 @@ export function createLandingI18n(
  * The locale to open in: the visitor's saved choice, else the first of their
  * browser's languages that is a UI Locale, else English. During the closed
  * beta, which hides the picker, the site is English only. `theme.js` makes
- * the same choice before first paint.
+ * the same choice before first paint (the header's CSS ignores it while the
+ * picker is hidden).
  */
 export function initialLocale(): UiLocale {
   if (CLOSED_BETA) return SOURCE_LOCALE;
@@ -136,15 +137,6 @@ export function englishT(): LandingT {
   ) as unknown as LandingT;
 }
 
-function hasLandingNamespace(
-  i18n: I18nInstance | undefined,
-): i18n is I18nInstance {
-  const namespaces = i18n?.options?.ns;
-  return Array.isArray(namespaces)
-    ? namespaces.includes(LANDING_NAMESPACE)
-    : namespaces === LANDING_NAMESPACE;
-}
-
 /**
  * The landing copy in the provided instance's locale (English when none is
  * provided), the locale itself, and `setLocale`, which switches every
@@ -152,9 +144,8 @@ function hasLandingNamespace(
  */
 export function useLanding() {
   const context = useContext(I18nContext);
-  const candidate = context?.i18n ?? getI18n();
   const { t, i18n } = useTranslation(LANDING_NAMESPACE as never, {
-    i18n: hasLandingNamespace(candidate) ? candidate : englishI18n(),
+    i18n: context?.i18n ?? englishI18n(),
   });
   const locale: UiLocale = isUiLocale(i18n.language)
     ? i18n.language

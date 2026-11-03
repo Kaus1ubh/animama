@@ -3,7 +3,7 @@ import { readFileSync, readdirSync } from "node:fs";
 import { test } from "node:test";
 
 import { STAGE_AVATARS, STAGE_STOPS, stopClips } from "./stops.ts";
-import { captionWords } from "./words.ts";
+import { captionWords, continuesWord } from "./words.ts";
 
 /*
  * The landing catalogs (`locales/<tag>.json`) beside the stops they word.
@@ -89,8 +89,19 @@ test("the stops, chips and Avatars have their words", () => {
       for (const clip of stopClips(stop, avatar.id))
         assert.ok(lookup(english, `clips.${clip.stem}`), clip.stem);
   }
+  // Every Avatar has the same words as the first: pronouns, IDENTITY.md
+  // lines, replies and notebook pages.
+  const avatarKeys = (id: string) =>
+    keys(english.avatars as Catalog, "")
+      .filter((key) => key.startsWith(`${id}.`))
+      .map((key) => key.slice(id.length + 1))
+      .sort();
   for (const avatar of STAGE_AVATARS)
-    assert.ok(lookup(english, `avatars.${avatar.id}.pronouns.subject`));
+    assert.deepEqual(
+      avatarKeys(avatar.id),
+      avatarKeys(STAGE_AVATARS[0].id),
+      avatar.id,
+    );
 });
 
 test("spaced captions split at spaces", () => {
@@ -105,20 +116,26 @@ test("Japanese and Chinese captions split into words, keeping spaces and punctua
   const words = captionWords("あなたの Anima に、「ミソ」。", "ja");
   assert.equal(
     words.map(({ text }) => text).join(""),
-    "あなたのAnimaに、「ミソ」。",
+    "あなたのAnima に、「ミソ」。",
   );
-  const anima = words.findIndex(({ text }) => text === "Anima");
-  assert.equal(words[anima].space, true);
-  assert.equal(words[anima + 1].space, true);
   // Punctuation stays beside its word; an opening bracket joins the next.
   assert.ok(words.every(({ text }) => !/^[、。」]/.test(text)));
   assert.ok(words.some(({ text }) => text.startsWith("「")));
   assert.ok(
     captionWords("会动、会感受", "zh-Hans").every(({ space }) => !space),
   );
-  // Japanese particles and verb endings stay with their word.
+  // The space before an opening bracket stays with the word after it.
+  assert.deepEqual(captionWords("你好 “Anima” 呀", "zh-Hans")[1], {
+    text: "“Anima”",
+    space: true,
+  });
+  // Japanese particles and verb endings stay with their word, across a
+  // space, but not after a clause's punctuation.
   assert.deepEqual(
     captionWords("あなたの Anima に出会おう", "ja").map(({ text }) => text),
-    ["あなたの", "Anima", "に", "出会おう"],
+    ["あなたの", "Anima に", "出会おう"],
   );
+  assert.ok(continuesWord({ text: "を", space: false }, "リアクション", "ja"));
+  assert.ok(!continuesWord({ text: "を", space: false }, "から、", "ja"));
+  assert.ok(!continuesWord({ text: "使い", space: false }, "を", "ja"));
 });

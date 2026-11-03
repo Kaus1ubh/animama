@@ -65,7 +65,7 @@ import {
   stopCopy,
   type MemoryNote,
 } from "./stops";
-import { captionWords, unspaced } from "./words";
+import { captionWords, continuesWord, unspaced } from "./words";
 
 /*
  * The landing page's DOM layer over the 3D stage: header, progress, one
@@ -717,13 +717,10 @@ function FadeLines({
   );
 }
 
-/** Closing punctuation, which stays with the word before it. */
-const CLOSING = /^[\p{Pe}\p{Pf}\p{Po}]/u;
-
 /**
  * A caption's body as words (`captionWords`): `**bold**` runs keep a
  * stronger weight and colour, and punctuation straight after a run stays
- * with its last word.
+ * with its last word, as does a Japanese ending (`continuesWord`).
  */
 function bodyWords(
   text: string,
@@ -731,6 +728,8 @@ function bodyWords(
   locale: string,
 ): LineWord[] {
   const words: LineWord[] = [];
+  // The last word's text, for whether the next run continues it.
+  let previousText = "";
   const runs = text.split("**");
   runs.forEach((run, index) => {
     const bold = index % 2 === 1;
@@ -748,25 +747,28 @@ function bodyWords(
       // A space on either side of the `**` separates a run from the last.
       const space =
         token.space || (position === 0 && /\s$/.test(runs[index - 1] ?? ""));
-      // Runs meeting without one continue the previous word: always where
-      // words are spaced, and for punctuation where they are not.
+      // Runs meeting without one continue the previous word where words
+      // are spaced; where they are not, only punctuation and endings do.
       const previous = words.at(-1);
-      if (
-        position === 0 &&
-        !space &&
-        previous &&
-        (!unspaced(locale) || CLOSING.test(token.text))
-      )
+      const continues = unspaced(locale)
+        ? continuesWord({ text: token.text, space }, previousText, locale)
+        : !space;
+      if (position === 0 && previous && continues) {
         words[words.length - 1] = {
           node: (
             <Fragment key={`${index}-glue`}>
               {previous.node}
+              {space ? " " : null}
               {node}
             </Fragment>
           ),
           space: previous.space,
         };
-      else words.push({ node, space });
+        previousText += token.text;
+      } else {
+        words.push({ node, space });
+        previousText = token.text;
+      }
     });
   });
   return words;

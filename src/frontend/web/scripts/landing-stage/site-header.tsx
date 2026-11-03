@@ -356,6 +356,8 @@ function LanguagePicker({
     <DropdownMenu modal={false}>
       <DropdownMenuTrigger
         data-pill-item=""
+        // Marks a header whose words can change language (`site-header.css`).
+        data-locale-picker=""
         className={cn(
           "relative z-10 flex size-8 cursor-pointer items-center justify-center rounded-full outline-none focus-visible:ring-2",
           focusRing(light),
