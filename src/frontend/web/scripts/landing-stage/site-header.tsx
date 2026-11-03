@@ -3,6 +3,7 @@ import { ArrowRight, ArrowUpRight, Menu, Moon, Sun } from "lucide-react";
 
 import {
   SUPPORTED_LOCALES,
+  isUiLocale,
   localeNativeName,
   type UiLocale,
 } from "@animama/runtime-contracts/locale";
@@ -21,6 +22,7 @@ import {
 } from "@/ui/components/dropdown-menu";
 
 import { LocaleFlag } from "./flags";
+import { useLanding, type LandingT } from "./i18n";
 import { BETA_ACCESS_URL, CLOSED_BETA, SITE } from "./stops";
 
 /*
@@ -88,7 +90,7 @@ export function SiteHeader({
   const pill = useRef<HTMLElement>(null);
   const [glow, setGlow] = useState<{ x: number; w: number } | null>(null);
   const theme = useThemeMode();
-  const [locale, setLocale] = useState<UiLocale>("en");
+  const { t, locale, setLocale } = useLanding();
   /** Move the highlight to the item under the pointer (or keyboard focus). */
   const track = (event: { target: EventTarget }) => {
     const item = (event.target as HTMLElement).closest("[data-pill-item]");
@@ -121,7 +123,7 @@ export function SiteHeader({
     );
     const download = (
       <>
-        Download
+        {t("header.download")}
         <ArrowRight
           aria-hidden="true"
           className="transition-transform group-hover:translate-x-0.5"
@@ -138,8 +140,8 @@ export function SiteHeader({
           className={solid}
         >
           {/* Shorter on phones, so the logo keeps its room. */}
-          <span className="max-sm:hidden">Request Beta Access</span>
-          <span className="sm:hidden">Request access</span>
+          <span className="max-sm:hidden">{t("header.requestBetaAccess")}</span>
+          <span className="sm:hidden">{t("header.requestAccess")}</span>
           <ArrowUpRight
             aria-hidden="true"
             className="transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
@@ -162,7 +164,10 @@ export function SiteHeader({
     );
   };
   return (
+    // The header's language, which differs from the page's on Cloud's
+    // English pages.
     <header
+      lang={locale}
       className={cn(
         "inset-x-0 top-0 z-40 flex items-center justify-between px-5 py-4 md:px-10 md:py-5",
         tour ? "fixed" : "relative",
@@ -173,7 +178,7 @@ export function SiteHeader({
         {tour?.avatarSwitcher}
         <nav
           ref={pill}
-          aria-label="Site"
+          aria-label={t("header.site")}
           data-ink={light ? "light" : "dark"}
           onPointerOver={track}
           onFocus={track}
@@ -198,11 +203,11 @@ export function SiteHeader({
               className={link}
               onClick={() => tour.scrollToStop(0)}
             >
-              Home
+              {t("header.home")}
             </button>
           ) : (
             <a href="/" data-pill-item="" className={link}>
-              Home
+              {t("header.home")}
             </a>
           )}
           <a
@@ -211,7 +216,7 @@ export function SiteHeader({
             aria-current={current === "about" ? "page" : undefined}
             className={link}
           >
-            About
+            {t("header.about")}
           </a>
           {CLOSED_BETA ? (
             <a
@@ -220,7 +225,7 @@ export function SiteHeader({
               aria-current={current === "download" ? "page" : undefined}
               className={link}
             >
-              Download
+              {t("header.download")}
             </a>
           ) : null}
           <a
@@ -230,25 +235,26 @@ export function SiteHeader({
             data-pill-item=""
             className={link}
           >
-            Docs
+            {t("header.docs")}
           </a>
           {divider}
-          <ThemeToggle light={light} theme={theme} />
+          <ThemeToggle light={light} theme={theme} t={t} />
           {CLOSED_BETA ? null : (
             <LanguagePicker
               locale={locale}
               onLocaleChange={setLocale}
               light={light}
+              t={t}
             />
           )}
           {CLOSED_BETA ? null : (
             <>
               {divider}
               <button type="button" data-pill-item="" className={link}>
-                Log in
+                {t("header.logIn")}
               </button>
               <button type="button" data-pill-item="" className={link}>
-                Sign up
+                {t("header.signUp")}
               </button>
             </>
           )}
@@ -264,6 +270,7 @@ export function SiteHeader({
             theme={theme}
             locale={locale}
             onLocaleChange={setLocale}
+            t={t}
           />
         </div>
       </div>
@@ -302,16 +309,18 @@ function useThemeMode(): ThemeMode {
 function ThemeToggle({
   light,
   theme: { dark, toggle },
+  t,
 }: {
   light: boolean;
   theme: ThemeMode;
+  t: LandingT;
 }) {
   const Icon = dark ? Sun : Moon;
   return (
     <button
       type="button"
       onClick={toggle}
-      aria-label={dark ? "Switch to light mode" : "Switch to dark mode"}
+      aria-label={t(dark ? "header.switchToLight" : "header.switchToDark")}
       aria-pressed={dark}
       data-pill-item=""
       className={cn(
@@ -329,8 +338,8 @@ function ThemeToggle({
 
 /**
  * Language menu: the current locale's flag, opening a list of the app's UI
- * Locales by flag and their own names. The landing copy is English-only for
- * now, so a choice is only remembered for the menu.
+ * Locales by flag and their own names. A choice switches the site's words
+ * at once and is remembered in this browser (`useLanding`).
  */
 type LocaleChoice = {
   locale: UiLocale;
@@ -341,7 +350,8 @@ function LanguagePicker({
   locale,
   onLocaleChange,
   light,
-}: LocaleChoice & { light: boolean }) {
+  t,
+}: LocaleChoice & { light: boolean; t: LandingT }) {
   return (
     <DropdownMenu modal={false}>
       <DropdownMenuTrigger
@@ -350,7 +360,9 @@ function LanguagePicker({
           "relative z-10 flex size-8 cursor-pointer items-center justify-center rounded-full outline-none focus-visible:ring-2",
           focusRing(light),
         )}
-        aria-label={`Language: ${localeNativeName(locale)}`}
+        aria-label={t("header.currentLanguage", {
+          language: localeNativeName(locale),
+        })}
       >
         <LocaleFlag locale={locale} className="size-5" />
       </DropdownMenuTrigger>
@@ -366,7 +378,9 @@ function LanguageOptions({ locale, onLocaleChange }: LocaleChoice) {
   return (
     <DropdownMenuRadioGroup
       value={locale}
-      onValueChange={(value) => onLocaleChange(value as UiLocale)}
+      onValueChange={(value) => {
+        if (isUiLocale(value)) onLocaleChange(value);
+      }}
     >
       {SUPPORTED_LOCALES.map((option) => (
         <DropdownMenuRadioItem
@@ -397,15 +411,17 @@ function SiteMenu({
   theme,
   locale,
   onLocaleChange,
+  t,
 }: LocaleChoice & {
   light: boolean;
   tour?: SiteHeaderTour;
   theme: ThemeMode;
+  t: LandingT;
 }) {
   return (
     <DropdownMenu modal={false}>
       <DropdownMenuTrigger
-        aria-label="Menu"
+        aria-label={t("header.menu")}
         data-ink={light ? "light" : "dark"}
         className={cn(
           "liquid-glass flex size-9 cursor-pointer items-center justify-center rounded-full outline-none focus-visible:ring-2",
@@ -422,24 +438,24 @@ function SiteMenu({
       >
         {tour ? (
           <DropdownMenuItem onSelect={() => tour.scrollToStop(0)}>
-            Home
+            {t("header.home")}
           </DropdownMenuItem>
         ) : (
           <DropdownMenuItem asChild>
-            <a href="/">Home</a>
+            <a href="/">{t("header.home")}</a>
           </DropdownMenuItem>
         )}
         <DropdownMenuItem asChild>
-          <a href={SITE.about}>About</a>
+          <a href={SITE.about}>{t("header.about")}</a>
         </DropdownMenuItem>
         {CLOSED_BETA ? (
           <DropdownMenuItem asChild>
-            <a href={SITE.download}>Download</a>
+            <a href={SITE.download}>{t("header.download")}</a>
           </DropdownMenuItem>
         ) : null}
         <DropdownMenuItem asChild>
           <a href={SITE.docsUrl} target="_blank" rel="noreferrer">
-            Docs
+            {t("header.docs")}
           </a>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
@@ -447,7 +463,7 @@ function SiteMenu({
         {tour?.avatarOptions ? (
           <div className="hidden max-sm:block">
             <DropdownMenuLabel className="text-muted-foreground text-xs font-medium">
-              Avatar
+              {t("header.avatar")}
             </DropdownMenuLabel>
             {tour.avatarOptions}
             <DropdownMenuSeparator />
@@ -458,13 +474,13 @@ function SiteMenu({
           onCheckedChange={theme.toggle}
           onSelect={(event) => event.preventDefault()}
         >
-          Dark mode
+          {t("header.darkMode")}
         </DropdownMenuCheckboxItem>
         {CLOSED_BETA ? null : (
           <>
             <DropdownMenuSeparator />
             <DropdownMenuLabel className="text-muted-foreground text-xs font-medium">
-              Language
+              {t("header.language")}
             </DropdownMenuLabel>
             <LanguageOptions locale={locale} onLocaleChange={onLocaleChange} />
           </>
@@ -472,8 +488,8 @@ function SiteMenu({
         {CLOSED_BETA ? null : (
           <>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>Log in</DropdownMenuItem>
-            <DropdownMenuItem>Sign up</DropdownMenuItem>
+            <DropdownMenuItem>{t("header.logIn")}</DropdownMenuItem>
+            <DropdownMenuItem>{t("header.signUp")}</DropdownMenuItem>
           </>
         )}
       </DropdownMenuContent>

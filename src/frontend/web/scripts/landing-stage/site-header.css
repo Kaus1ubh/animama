@@ -67,3 +67,19 @@
 .wordmark-mask {
   mask: url(/brand/animama-wordmark.png) center / contain no-repeat;
 }
+
+/*
+ * On Animama Cloud's pages, a header for a visitor in another language stays
+ * hidden while `site-chrome.tsx` rewords its English prerender (`theme.js`
+ * marks the page); after two seconds it shows regardless, in case the
+ * script cannot load.
+ */
+[data-locale-pending] #site-header {
+  visibility: hidden;
+  animation: site-header-reveal 0s 2s forwards;
+}
+@keyframes site-header-reveal {
+  to {
+    visibility: visible;
+  }
+}

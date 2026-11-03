@@ -41,15 +41,17 @@ with `build.pack_site` to check it before relying on the package set.
 
 ## What the page shows
 
-`stops.ts` holds the copy, camera stops, clips and site settings:
+`stops.ts` holds the camera stops, clips and site settings; the words are in
+the catalogs (below):
 
-- `STAGE_STOPS`: each stop's title, line, camera, backdrop and clips.
+- `STAGE_STOPS`: each stop's camera, backdrop and clips, and the stops its
+  line links to.
 - `CLOSED_BETA`: while on, the header offers one **Request Beta Access**
   button (the form at `BETA_ACCESS_URL`) instead of Download, Log in, Sign up
   and the language picker, and stops show their `beta` copy. Turn it off at
   launch to restore the rest.
-- `SITE`: the canonical address, docs link, title, share image, copyright
-  line, the 3D scene's description for screen readers, the contact address,
+- `SITE`: the canonical address, docs link, share image, copyright
+  line (English in every locale), the contact address,
   the social links (Discord, YouTube and X icons, `social-icons.tsx`; also the
   schema.org `sameAs`), and the
   About, Privacy, Terms and Safety pages that Animama Cloud publishes on the
@@ -58,10 +60,53 @@ with `build.pack_site` to check it before relying on the package set.
   Cloud pages.
 
 The page's text, title, description, sharing tags, icons and schema.org data
-are generated from these settings into `index.html`
+are generated from these settings and the English catalog into `index.html`
 (`landing-stage-content.mjs`). The text sits visually hidden in `#overlay`
 for search engines, link previews and readers without JavaScript; the React
-overlay replaces it when it mounts.
+overlay replaces it, in the visitor's language, when it mounts. The page has
+one URL: what is prerendered, indexed and shared is English.
+
+## Languages
+
+The page and the site header speak the app's UI Locales (English, 日本語,
+한국어, 简体中文, 繁體中文), through the app's i18next setup
+(`createAnimamaI18n` in `i18n.ts`). A visitor sees their saved choice, else
+the first of their browser's languages that is a UI Locale, else English;
+the header's language picker switches the page live, sets `<html lang>` and
+the tab's title, and saves the choice as `landing-stage-locale` for every
+page on the site (blocked storage only loses the memory). During the closed
+beta, which hides the picker, the page is English.
+
+The words live in `scripts/landing-stage/locales/<tag>.json`, one `landing`
+namespace per locale: the header, each stop's `label`, `title`, `body` and
+hero `links` (by stop id), the gesture chips (`clips`, by Included item),
+the memory demo and each Avatar's pronouns, IDENTITY.md lines, replies and
+notebook pages (`avatars`, by Avatar id), and the footer. Reaction names come
+from the app's own `emotion` catalog. English is bundled; another locale's
+catalog loads when it is chosen.
+
+To change or add copy:
+
+1. Edit `locales/en.json` and every other locale's file; keys are typed from
+   English, so the stage's type check finds a missing English key.
+2. Keep `{{placeholders}}` as they are. Single-brace tokens (`{name}`,
+   `{subject}`, `{object}`, `{possessive}`, capitalised for a capital) are
+   `voice()`'s: each locale uses the ones that read naturally, so Japanese
+   and Korean name the Anima where English and Chinese use a pronoun.
+   Starter names stay in Latin script, as in the app. `**bold**` marks the
+   bold run in a line.
+3. Each `links` word must appear once in its locale's `body`.
+4. Follow `src/frontend/i18n/terms.json` for product terms, and the app's
+   spacing: a space around Latin words in Japanese and Chinese.
+5. Check the stop at phone width: a translation that runs longer than the
+   English pushes the memory stop's caption under the header.
+
+`copy.test.ts` (in `pnpm web:test`) fails when a locale lacks a key,
+a link word is missing from its line, or a token is not `voice()`'s;
+`pnpm i18n:check` compares placeholders and stale keys. Japanese and Chinese
+have no spaces, so `words.ts` splits their captions with `Intl.Segmenter`
+(keeping punctuation, and Japanese particles and endings, with their word)
+and titles wrap only between those words.
 
 `static/og-image.jpg` is the 1200×630 share image: a capture of the hero at
 that size with `?nointro`, the header links and progress thread hidden.
@@ -116,8 +161,8 @@ Animama Cloud publishes on the same host (About, Download, Privacy, Terms,
 Safety and 404), where it sits at the top of the page and Home and Download are links:
 
 - `site-chrome.tsx` is a separate Vite build, so it carries only the header's
-  code (about 100 kB of compressed JavaScript, mostly React and the menus)
-  rather than chunks shared with the stage. `site-chrome.css` holds the app's
+  code (about 130 kB of compressed JavaScript, mostly React, the menus and
+  i18next) rather than chunks shared with the stage. `site-chrome.css` holds the app's
   Tailwind setup and theme, light and dark, with the header's glass
   (`site-header.css`, which `stage.css` also imports).
 - `site-chrome.json` names the entry script and its stylesheets and holds the
@@ -132,6 +177,12 @@ Safety and 404), where it sits at the top of the page and Home and Download are 
   `Button` classes (`solidButton`).
 - The saved theme is one key (`landing-stage-theme`) for the whole site;
   Cloud's pages load `theme.js` before paint as `index.html` does.
+- The header speaks the visitor's language on Cloud's English pages too,
+  marking its own `lang` (the page's stays `en`). Its prerender is English,
+  so for a visitor in another language `theme.js` sets
+  `data-locale-pending` and `site-header.css` hides the header until
+  `site-chrome.tsx` has reworded it, or for two seconds if the script cannot
+  load.
 
 Cloud's `/safety/` page publishes `docs/safety/crisis-protocol.md`, the same
 document the app's Safety dialog shows: the build renders it to HTML in

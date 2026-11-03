@@ -1,0 +1,180 @@
+{
+  "site": {
+    "title": "Animama — AI companions that feel alive",
+    "sceneDescription": "{name}, an animated 3D Anima, walks in and waves, then shows {possessive} gestures, emotions and memories as you scroll."
+  },
+  "header": {
+    "site": "Site",
+    "home": "Home",
+    "about": "About",
+    "download": "Download",
+    "docs": "Docs",
+    "logIn": "Log in",
+    "signUp": "Sign up",
+    "requestBetaAccess": "Request Beta Access",
+    "requestAccess": "Request access",
+    "menu": "Menu",
+    "avatar": "Avatar",
+    "darkMode": "Dark mode",
+    "language": "Language",
+    "currentLanguage": "Language: {{language}}",
+    "switchToLight": "Switch to light mode",
+    "switchToDark": "Switch to dark mode"
+  },
+  "page": {
+    "skipToContent": "Skip to content",
+    "avatars": "Avatars",
+    "loadingAvatar": "Loading {{name}}…",
+    "features": "Features",
+    "previousReaction": "Previous reaction",
+    "nextReaction": "Next reaction",
+    "readDocs": "Read the docs"
+  },
+  "stops": {
+    "hero": {
+      "label": "Intro",
+      "title": "Meet your Anima",
+      "body": "AI companions that move, feel and remember.",
+      "links": {
+        "gestures": "move",
+        "emotion": "feel",
+        "memory": "remember"
+      }
+    },
+    "gestures": {
+      "label": "Behaviors",
+      "title": "Body Language",
+      "body": "From goofy antics to romantic gestures: **over 300 unique gestures and reactions**, picked as {subject} talks."
+    },
+    "emotion": {
+      "label": "Emotions",
+      "title": "{Possessive} heart on {possessive} sleeve",
+      "body": "24 emotions that shift and evolve during your time together."
+    },
+    "memory": {
+      "label": "Memories",
+      "title": "{Subject} remembers the little things",
+      "body": "Your cat's name, Friday's recital: {subject} follows up so you don't have to."
+    },
+    "download": {
+      "label": "Download",
+      "title": "Meet {object} on your desktop",
+      "body": "Coming soon to macOS and Windows.",
+      "beta": {
+        "label": "Beta",
+        "body": "Now in closed beta for macOS and Windows."
+      }
+    }
+  },
+  "clips": {
+    "lean-in-coy": "Coy",
+    "soul-leaves-body": "Soulless",
+    "flustered-fan": "Flustered fan",
+    "innocent-whistle": "Innocent whistle",
+    "finger-heart-pose": "Finger heart",
+    "double-peace-pop": "Double peace",
+    "dramatic-swoon": "Dramatic swoon",
+    "snicker-laugh": "Snicker",
+    "offer-a-rose": "Rose",
+    "air-guitar": "Air guitar",
+    "beckon": "Beckon",
+    "brush-off-shoulders": "Brush shoulders",
+    "ohohoho-noble-laugh": "Noble laugh",
+    "nervous-head-scratch": "Head scratch"
+  },
+  "memory": {
+    "updated": "Memory updated",
+    "hint": "Pick a ribbon to turn the page. Every page is a file you can read, edit and roll back.",
+    "openFile": "Open {{file}}",
+    "ribbon": "{{page}}, {{file}}",
+    "pages": {
+      "profile": "About you",
+      "identity": "Who I am",
+      "memories": "Our story"
+    },
+    "user": {
+      "profile": "We adopted a kitten today! Her name is Miso.",
+      "identity": "Everything is due this week and I don't know where to start.",
+      "memories": "I'll tell you how the recital goes on Friday!"
+    },
+    "profile": {
+      "basics": "Basics",
+      "basicsLine": "Sam. Toronto, Eastern time.",
+      "people": "People",
+      "peopleLine": "My sister Ana, who is getting married in June.",
+      "peopleNew": "Miso, our new kitten."
+    },
+    "memories": {
+      "story": "Our story",
+      "storyLine": "We met in exam season, both running on tea.",
+      "threads": "Open threads",
+      "threadsLine": "Ana's wedding in June: help with the toast.",
+      "threadsNew": "Sam's recital is Friday. I promised to ask how it went."
+    }
+  },
+  "avatars": {
+    "Annie": {
+      "pronouns": {
+        "subject": "she",
+        "object": "her",
+        "possessive": "her"
+      },
+      "identity": {
+        "essence": {
+          "heading": "Essence",
+          "line": "A warm, curious companion who helps you think out loud and turn vague ideas into clear next steps."
+        },
+        "speakingStyle": {
+          "heading": "Speaking style",
+          "line": "Short, natural sentences. She reflects back what she heard before offering ideas, with gentle humor."
+        }
+      },
+      "replies": {
+        "profile": "Miso! Welcome to the family, little one. Tell me everything about her first week.",
+        "identity": "So it all landed at once. Let's make it smaller. What's due first?",
+        "memories": "Deal. Friday, full report. I'll be the first to ask."
+      },
+      "notebook": {
+        "profile": "Things you've told me about you. Every Anima shares this page, and you can edit it too.",
+        "identity": "Who I am and how I talk. You can rewrite this page any time. I never change it myself.",
+        "memories": "Our moments: promises, in-jokes, little milestones. I write this page as we chat."
+      }
+    },
+    "Andrew": {
+      "pronouns": {
+        "subject": "he",
+        "object": "him",
+        "possessive": "his"
+      },
+      "identity": {
+        "essence": {
+          "heading": "Essence",
+          "line": "A friendly, easygoing university student who likes figuring things out together."
+        },
+        "speakingStyle": {
+          "heading": "Speaking style",
+          "line": "Casual and clear, thinks out loud, asks good follow-ups, with a quick self-deprecating joke."
+        }
+      },
+      "replies": {
+        "profile": "No way, Miso! Great name. Okay, I need everything. What does she look like?",
+        "identity": "Ugh, I know that feeling. Let's list it all out, then pick the smallest thing first?",
+        "memories": "You'd better! Friday, full story. I'll be rooting for you."
+      },
+      "notebook": {
+        "profile": "Stuff you've told me about you. Every Anima shares this page, and you can edit it too.",
+        "identity": "Who I am and how I talk. You can rewrite this page any time; I won't.",
+        "memories": "Our story so far: plans, inside jokes, big days. I jot it down as we talk."
+      }
+    }
+  },
+  "footer": {
+    "label": "Footer",
+    "about": "About",
+    "privacy": "Privacy",
+    "terms": "Terms",
+    "safety": "Safety",
+    "contact": "Contact",
+    "notices": "Third-party notices"
+  }
+}
