@@ -45,6 +45,7 @@
     "models:publish": "node scripts/runtime/publish-models-r2.mjs publish",
     "release:windows": "node scripts/runtime/release-gate.mjs windows",
     "smoke:mac": "node scripts/runtime/release-gate.mjs smoke-mac",
+    "smoke:mac:vm": "bash scripts/vm/smoke-macos-vm.sh",
     "smoke:windows": "node scripts/runtime/release-gate.mjs smoke-windows",
     "reset:mac": "node scripts/reset-macos-profile.mjs",
     "reset:mac:build": "pnpm build:mac && pnpm reset:mac"
