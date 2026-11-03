@@ -42,9 +42,12 @@ Avatar Effect plays without its sound.
 
 `licenses/inventory.json` supplies the current provenance and redistribution
 review state. Rules are ordered, with the first matching rule applied to each
-file. The fallback project-owner assumption is historical development metadata,
-not clearance. Excluded downloaded media stay private; each admitted asset
-still needs the applicable terms and notices reviewed before public redistribution.
+file. Every rule for shipped content records the owner's dated clearance
+(`cleared-YYYY-MM-DD`); a rule for excluded material says `excluded`, and none
+may stay `pending`, because everything merged is published. The final `**/*`
+rule is only a fallback: every shipped file has a narrower rule, and new
+third-party material needs its own rule, with its terms and notices reviewed,
+before it ships. Excluded downloaded media stay private.
 
 On 2026-09-02 the owner confirmed Annie's model is a VRoid free preset with no
 external assets. On 2026-10-16 its grey hair-underside texture was recoloured to

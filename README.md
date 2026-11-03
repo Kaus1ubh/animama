@@ -67,15 +67,9 @@ Cloud checkout or hosted account.
 
 ## Copyright and licensing
 
-Copyright (c) 2026 Raymond Van. All rights reserved.
+Copyright (c) 2026 Raymond Van.
 
-The working repository is proprietary. Its original source, documentation and
-project-authored assets are not currently offered under an open-source license.
-See [LICENSE](LICENSE) for third-party and prior-license exceptions. Source
-publication is being prepared separately; that preparation grants no additional
-rights to the current checkout.
-
-The [source licensing review](licenses/README.md) records third-party exceptions
-and remaining publication gates. The [clean snapshot tools](scripts/public-release/README.md)
-prepare a separate review copy without exporting development history or changing
-this checkout's license.
+Animama's original source, documentation and project-made assets are licensed
+AGPL-3.0-only; see [LICENSE](LICENSE). Third-party code, models and assets keep
+their own terms, recorded file by file in the
+[source licensing review](licenses/README.md).

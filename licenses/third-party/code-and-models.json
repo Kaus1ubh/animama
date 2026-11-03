@@ -18,7 +18,7 @@
         },
         {
           "path": "src/frontend/web/public/tts/workers/inference-worker.js",
-          "sha256": "8cbe51e53ead557d45ae88dd5ec6dbf1759ad2ea97820b42375b2d8f13c45fe6"
+          "sha256": "c85edf66aa7d0dd16986bbb0cf9991ec12f3f32e3d99c7b0f3e5c885af5aac27"
         },
         {
           "path": "src/frontend/web/public/tts/workers/ort-debug-reporter.js",
@@ -26,7 +26,7 @@
         },
         {
           "path": "src/frontend/web/public/tts/workers/pocket-runtime.js",
-          "sha256": "2d0b6c71e11bdfd45eed7d92be4541d696a3783c5c30085fa4acf88de306758f"
+          "sha256": "d02566e3528cf88eb818d0f99eca417f0fbcc4fc6f24351fbf6d57b55e7eca86"
         },
         {
           "path": "src/frontend/web/src/lib/speech/pocket/audio/PCMPlayerWorklet.js",
@@ -42,7 +42,7 @@
         },
         {
           "path": "src/frontend/web/src/lib/speech/pocket/core/PocketTTSCore.js",
-          "sha256": "d49931582b162db29a55a17548a750e4d00bd3e8eb0c700f4f2cf18e6b300251"
+          "sha256": "fec3a6f97b4db3862ed219905835e6c5e998d0900dc4bd42cfe49ff2c66d926e"
         },
         {
           "path": "src/frontend/web/src/lib/speech/pocket/core/PocketTTSDebugSupport.js",
@@ -58,11 +58,11 @@
         },
         {
           "path": "src/frontend/web/src/lib/speech/audio/PCMPlayerWorklet.js",
-          "sha256": "bb5a9822879bb7956d7b518c851fb70eade83c0dd07a930f36c5a3fe4b43bf80"
+          "sha256": "23019d51342da2cdfedf7202210b691b34dcc33247ac3976f62694d2c2574ff6"
         },
         {
           "path": "scripts/voices/pocket_onnx.py",
-          "sha256": "83b061b7d94394f51617f88db4807d4548ad25503d2d716cae693104627f93bc"
+          "sha256": "03d5df6c237af1d45a96d4ca56480b2c612d3ba8ba36508a56285733a878f4d2"
         }
       ],
       "notice_files": [
@@ -76,7 +76,7 @@
         "src/frontend/desktop/runtime/notices/sentencepiece-esaxx-license.txt",
         "src/frontend/desktop/runtime/notices/sentencepiece-protobuf-lite-license.txt"
       ],
-      "modifications": "Adapted worker/controller/event/audio integration and shared PCM playback; the PCM worklet also reports the samples it has played and where playback resumes after an underrun, for lip-sync; added project debug/integration modules. pocket-runtime.js ports the state, voice-state and generation-limit rules of the Apache-2.0 reference runtime pocket_tts_onnx.py from https://huggingface.co/KevinAHM/pocket-tts-onnx revision 58a6d00cf13d239b6748cb0769f35c580a8f606c into dependency-free JavaScript. SentencePiece copied exactly at intake, then removed unused embedded example tokenizer models; its processor and compiled WASM retained.",
+      "modifications": "Adapted worker/controller/event/audio integration and shared PCM playback; the PCM worklet also reports the samples it has played and where playback resumes after an underrun, for lip-sync; added project debug/integration modules. pocket-runtime.js ports the state, voice-state and generation-limit rules of the Apache-2.0 reference runtime pocket_tts_onnx.py from https://huggingface.co/KevinAHM/pocket-tts-onnx revision 58a6d00cf13d239b6748cb0769f35c580a8f606c into dependency-free JavaScript. SentencePiece copied exactly at intake, then removed unused embedded example tokenizer models; its processor and compiled WASM retained. On 2026-11-03 (#823) the recorded hashes of inference-worker.js, pocket-runtime.js, PocketTTSCore.js, PCMPlayerWorklet.js and pocket_onnx.py were refreshed for later local changes; their upstream portions keep their terms.",
       "status": "evidence-and-notices-prepared",
       "remaining_conditions": [
         "Exact original Emscripten compiler version is unrecorded; reviewed npm 1.3.3 compiled WASM bytes match. Preserve dependency notices. Final speech runtime acceptance remains separate."

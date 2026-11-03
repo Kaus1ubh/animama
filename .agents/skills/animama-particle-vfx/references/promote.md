@@ -78,9 +78,9 @@ writing.
    `tests/test_starter_content_closure.py`; that test fails while any valid
    Included item is left out of core.
 3. Run `uv run pytest -q tests/test_included_content_integrity.py
-   tests/test_included_content_catalog.py tests/test_starter_content_closure.py
-   scripts/public-release/test_prepare_source.py`, then from `src/frontend`
-   `pnpm verify` and `pnpm web:test:browser`.
+   tests/test_included_content_catalog.py tests/test_starter_content_closure.py`
+   and `python3 scripts/public-release/check_source.py`, then from
+   `src/frontend` `pnpm verify` and `pnpm web:test:browser`.
 4. Do not change the starter loadout or equip anything unless asked.
 
 A Local Reaction or Gesture that still names a deleted Included effect keeps

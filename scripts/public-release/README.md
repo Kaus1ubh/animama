@@ -1,74 +1,32 @@
-# Prepare a clean source review candidate
+# Check the source licence review
 
-The working repository remains proprietary. These tools prepare a separate,
-unpublished copy with the proposed AGPL-3.0-only license for project-owned code.
-They preserve third-party terms and never publish, create a remote, initialize
-Git history, upload an LFS object, or change the working source license.
-Using this review tool does not select the final repository or Git-history
-publication approach; that decision belongs to final source review.
+This repository is published as it is, with its history. Every tracked file
+needs exactly one entry in [`licenses/source-review.json`](../../licenses/source-review.json),
+which records the file's licence, its basis and, for third-party material, its
+source and notices. See [Source licensing review](../../licenses/README.md) for
+what the entries mean.
 
-Use Python 3.11 or newer from the repository root. First review the tracked paths
-reported by `git ls-files`, hydrate required LFS files, and update
-`licenses/source-review.json`. The source review must cover every tracked input;
-its prepared dispositions are not publication approval. Missing assets, stale
-hashes or unexplained source changes must be resolved rather than bypassed.
-
-Choose new paths outside the checkout for each run:
+Check the review from the repository root with Python 3.11 or newer:
 
 ```bash
-python3 scripts/public-release/prepare_source.py inventory \
-  --source "$PWD" --out /private/tmp/animama-source-inputs.json
-python3 scripts/public-release/prepare_source.py prepare \
-  --source "$PWD" --inventory /private/tmp/animama-source-inputs.json \
-  --out /private/tmp/animama-source-candidate \
-  --receipt /private/tmp/animama-source-receipt.json
-python3 scripts/public-release/prepare_source.py verify \
-  --candidate /private/tmp/animama-source-candidate \
-  --receipt /private/tmp/animama-source-receipt.json
+python3 scripts/public-release/check_source.py
 ```
 
-Inspect the frozen input manifest before preparing. The manifest binds current
-tracked working bytes, executable modes and the base Git revision; it can
-represent reviewed uncommitted work. Stage new files intended for the candidate
-before freezing the inventory. Adding or removing tracked paths, or changing
-their working bytes, invalidates the frozen inventory. It does not include untracked
-files, ignored animation/skill copies, dependencies, personal state or private
-planning. Reviewed repository-owned specs and ExecPlans are included when
-tracked and covered by the per-file source review; their directory
-name does not establish privacy or publication approval. Historical private plans
-are not migrated by this tool. Tracked private state is rejected by the path
-checks; tracking a file does not establish that its contents are safe to publish.
-Missing, duplicate or stale license-review entries block candidate preparation.
-Changed source requires a new inventory. Destination and receipt paths
-must be absent, disjoint and outside the source checkout. Retrying never replaces
-an existing candidate or receipt.
+It reads `git ls-files`, so stage new files first. It fails, listing each path,
+when a tracked file has no entry, an entry lacks its path, licence, basis,
+copyright or review, an entry names a file that is no longer tracked, a path
+has two entries, a licence is still marked pending, or a tracked path is
+private installation state or tooling output: `data/`, `cache/`, `backups/`,
+`.animama/`, `.animama-stacks/`, `node_modules/`, `.venv/`, `.codex/`, `.env`
+files other than `.env.example`, or Local content. When you add, move
+or delete files, update their entries in the same change: a new original file
+takes the original-work attestation entry its neighbours use, and third-party
+material records its upstream licence, source and notice.
 
-Candidate-only transformations replace the root license with the complete SPDX
-AGPL-3.0-only text, update original package/license metadata and add contribution
-and readiness documents. Existing third-party licenses remain intact. The
-per-file source review records exceptions including the CC BY 4.0 PocketTTS
-assets; the project code license does not turn those assets into AGPL content. The external receipt records
-every output hash/mode and the transformed paths. Verification rejects extra or
-changed files and any Git metadata; run independent builds in a separate copy.
+A passing check is not publication approval. Recording a licence does not grant
+redistribution permission that the upstream terms do not give.
 
-The canonical AGPL text template was retrieved from
-[SPDX license-list-data](https://github.com/spdx/license-list-data/blob/main/text/AGPL-3.0-only.txt).
-It is a license document, not a license change to the working repository.
-
-## Remaining release gates
-
-The result is explicitly `preparation-only-not-release-approved`. Further
-codebase refinement, owner review of terms and the exact final source, the
-private Mixamo-motion pack and its terms review (desktop and hosted builds only), a monitored private security-reporting route, independent
-builds, secret/license scans and native acceptance remain required. A fresh
-candidate currently lacks user-supplied animations; see
-[manual acquisition](../../docs/frontend/runtime/mixamo-acquisition.md).
-A source change invalidates an existing candidate for release purposes. Final
-review must bind verification to the exact selected source and, if retained
-publicly, its Git history and LFS objects. Publication and signed binary distribution require
-separate approval.
-
-Tool tests use disposable fixtures without starting Animama or acquiring assets:
+Tests use disposable Git fixtures:
 
 ```bash
 python3 -m unittest discover -s scripts/public-release -p 'test_*.py'

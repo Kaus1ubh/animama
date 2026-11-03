@@ -1,3 +1,5 @@
+// Adapted from shadcn/ui (MIT): apps/www/registry/new-york/ui/card.tsx.
+// See licenses/third-party/adapted-code.md.
 import * as React from "react";
 
 import { cn } from "@/lib/utils";

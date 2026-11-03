@@ -23,8 +23,8 @@
     {
       "id": "animama",
       "name": "Animama application source and build resources",
-      "license": "Proprietary",
-      "source": "Repository source; initial distribution remains closed source",
+      "license": "AGPL-3.0-only",
+      "source": "Original Animama source; see the root LICENSE. Third-party exceptions retain their own terms.",
       "review": "pending"
     },
     {

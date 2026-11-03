@@ -36,7 +36,7 @@ from .model_connection import ORMModelConnection
 from .model_provider import ORMModelProvider
 from .runtime_worker import ORMRuntimeWorkerHeartbeat
 from .settings import ORMAnimaSettings, ORMUserSettings
-from .sqlalchemy_base import SqlalchemyBase, handle_db_timeout
+from .sqlalchemy_base import SqlalchemyBase
 from .tag import ORMPassageTag, ORMTag
 from .user_file import ORMUserFile
 from .user_file_chunk import ORMUserFileChunk
@@ -114,7 +114,6 @@ __all__ = [
     "ORMUserProfile",
     "ORMRuntimeWorkerHeartbeat",
     "SqlalchemyBase",
-    "handle_db_timeout",
     # Back-compat names
     "Archive",
     "ArchivePassage",

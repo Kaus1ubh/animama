@@ -1,3 +1,5 @@
+// Adapted from ElevenLabs UI and Vercel AI Elements (MIT AND Apache-2.0): apps/www/registry/elevenlabs-ui/ui/response.tsx; modified for Animama.
+// See licenses/third-party/adapted-code.md.
 import { memo, type ComponentProps } from "react";
 import {
   defaultComponents,

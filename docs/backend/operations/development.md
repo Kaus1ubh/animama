@@ -692,9 +692,9 @@ is not owner acceptance of the coverage or budget tradeoff.
 The selector owns the exact allowlists. Backend production eligibility initially
 contains only `src/backend/animama/app/services/memory_entry_diff.py`; ordinary
 root-level `tests/test_*.py` files exclude shared guards and fixture/helper code.
-Web eligibility is confined to eight existing presentation controls under
-`web/src/ui/components`: `button`, `card`, `checkbox`, `input`, `label`, `textarea`,
-`radio-group` and `switch` (all `.tsx`). Other UI paths contain runtime, settings,
+Web eligibility is confined to seven existing presentation controls under
+`web/src/ui/components`: `button`, `card`, `checkbox`, `input`, `label`, `textarea`
+and `switch` (all `.tsx`). Other UI paths contain runtime, settings,
 persistence and avatar logic and remain full scope. Directory location alone is
 not permission to reduce checks. Changed imports or unsupported dependency syntax
 automatically select full validation. This does not prove functional purity;
