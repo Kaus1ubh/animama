@@ -102,7 +102,8 @@ hardening, not how a weakness could be used.
   `fix/pre-publication-hardening` from `dacf928c4`, plan and spec snapshot
   committed.
 - [x] Phase 1: security policy (light; review folded into the final review).
-- [ ] Phase 2: Content Security Policy and sandboxed stored bytes.
+- [x] Phase 2: Content Security Policy and sandboxed stored bytes (review #2
+  passed; one repair round).
 - [ ] Phase 3: keys bound to their provider and address.
 - [ ] Phase 4: Electron fuses, debugging guard, DevTools and the smoke copy.
 - [ ] Phase 5: update-download checks.
@@ -128,6 +129,18 @@ hardening, not how a weakness could be used.
 - `@electron/fuses` 1.8.0 reads Electron 45's ninth fuse
   (`WasmTrapHandlers`) without a name; the expected wire includes it at
   Electron's default.
+- Phase 2 sweep: the only violation was Zod 4's start-up probe for string
+  evaluation (`try { new Function("") } catch {}`), which Chromium reports as a
+  violation on every page although the probe is caught. Zod reads its
+  `jitless` setting when each object schema is created, so the app sets it in
+  a module that both entries import first (`web/src/lib/zod-runtime.ts`).
+  Under the policy Zod already parsed without generated code; the setting only
+  stops the probe.
+- Chromium logs refused loads and connections on the console, but a refused
+  evaluation only as an Issue and a `securitypolicyviolation` page event, so the
+  journey check also repeats page events on the console.
+- Chrome's fake microphone cannot read its sample file while the audio-service
+  sandbox is on; the sweep's throwaway test browser disabled only that sandbox.
 
 ## Decision Log
 
@@ -155,6 +168,14 @@ hardening, not how a weakness could be used.
   the committed adapter tests cover the same decisions.
 - Agent: the update artifact checks reuse the existing
   `update_download_invalid` code, so no new update text is needed.
+- 2026-11-03, owner: G1 approved as planned (built-stack sweep: at most 20
+  short OpenAI chat turns and three ElevenLabs replies; VM: at most three
+  smoke-journey runs).
+- 2026-11-03, owner: allow `data:` connections (R2.1 amended in #838): the
+  Library's Pose preview and unsaved-Action previews fetch inline clips, and
+  model files may embed data; such data never leaves the device.
+- Agent: Zod runs with `jitless` everywhere, development included, so built and
+  development parsing behave the same.
 - Agent: R4 adds no API field; `credential_state` stays `missing` for a key
   that cannot be used at the connection's address, and the connection form
   explains what to do. New save refusals get stable codes and translated
@@ -269,7 +290,7 @@ Steps:
    ```text
    default-src 'none'; script-src 'self' 'wasm-unsafe-eval';
    style-src 'self' 'unsafe-inline'; img-src 'self' blob: data:;
-   font-src 'self'; connect-src 'self' blob: https://huggingface.co
+   font-src 'self'; connect-src 'self' blob: data: https://huggingface.co
    https://*.hf.co wss://api.elevenlabs.io; media-src 'self' blob:;
    worker-src 'self' blob:; frame-src 'none'; frame-ancestors 'none';
    object-src 'none'; base-uri 'none'; form-action 'self'
@@ -318,7 +339,117 @@ Completion: tests pass, the sweep shows no violation (or every remaining one
 is recorded with its owner decision), docs match; commit
 `fix(web-security)[p2]: serve the app with a content security policy`.
 
-Check record: _to be filled._
+Check record (2026-11-03, working tree `1cdfc700d` before the licence entries
+and this record; base `6d3ab0dda`):
+
+- Root: `uv run --no-sync pytest -q -p no:randomly tests/test_local_http_assets.py
+  tests/test_product_http_ports.py tests/test_local_content_delivery.py
+  tests/test_anima_runtime_delivery.py`: 155 passed (the new policy tests failed
+  first: 11 failures against the baseline source, all a missing
+  `content-security-policy` header).
+- Root: `uv run --no-sync ruff check` and `ruff format --check` on the six
+  touched Python files: passed.
+- `src/frontend`: `pnpm e2e:check` (tsc) passed; `pnpm e2e:test:unit`: 25 passed.
+- `src/frontend/web`: `pnpm exec vitest run src/lib/zod-runtime.test.ts`: 1
+  passed; without the import the same test fails (two `Function` calls);
+  `pnpm exec eslint` on the four touched files and `pnpm -s check:source`
+  (poses check and `tsc -b`) passed; Prettier check on the touched TypeScript
+  passed.
+- `python3 scripts/public-release/check_source.py`: covers every tracked file.
+- Live sweep: disposable built stack `animama-pph` (base port 9100) from this
+  tree, Chrome for Testing 1208 driven over DevTools with a throwaway profile
+  and a fake microphone. Policy headers read back on `/` and the Pocket worker.
+  Exercised: first-run setup, a streamed markdown chat reply with an emotion,
+  both starter Avatars, Pocket TTS speech and voice cloning (encoder download,
+  clone, sample playback), a voice-sample preview through the Hugging Face CDN
+  redirect, Parakeet and SenseVoice dictation (both transcribed the sample),
+  Gesture and Reaction previews, Particle, Avatar and Scene Effect previews, the
+  Particle, Avatar and Scene Effect creators, the Safety page, and the ElevenLabs
+  realtime socket (opened and closed normally). Before the fix every page
+  reported the Zod probe; after rebuilding, the chat page and the Scene Effect
+  creator reported no violation. Paid usage: four OpenAI chat turns and two
+  ElevenLabs replies. The stack was torn down afterwards.
+- Not run in this phase: the full pre-push suite (final validation) and the
+  browser journeys (final validation).
+
+#### Code Review #1 Findings
+
+Reviewed source: working tree `d86e8cd53` on `6d3ab0dda`; high-risk tier, full
+initial review by an analysis reviewer and a checks reviewer.
+
+- **P2-R1-F1 (blocking):** the Library's Pose preview, and unsaved-Action
+  previews, fetch their clip from a `data:` URL, which `connect-src` refused, so
+  the Pose did not play. Reproduced live on the built stack.
+- **P2-R1-F2 (blocking):** the journey check missed violations inside workers:
+  Playwright forwards only a worker's own console calls, and init scripts run
+  only in frames.
+- **P2-R1-F3 (blocking, wording):** the docs and a code comment said worklets
+  take their policy from their own response and may load from `blob:`;
+  worklets follow their document's policy, which has no `blob:` scripts.
+- **P2-R1-C1 (blocking, checks):** `web/src/app/entrypoints.test.ts` allowlists
+  the entries' static imports and failed on the new `zod-runtime` import.
+- Non-blocking: N1 the Zod ordering holds because of chunking (no schema in the
+  entry's shared chunks); N2 model files with embedded `data:` buffers would be
+  refused (same cause as F1); N3 the policy test checked some directives
+  loosely; N4 two more stored-bytes routes lacked a route-level assertion; N5
+  the journey guide did not list the new failure; N6 cached fingerprinted
+  workers keep their old headers; the record miscounted the red-first failures
+  (11, not 9). Open question: whether WebGPU dictation reaches ONNX Runtime's
+  string-evaluating embind method caller.
+
+#### Code Review #1 Revisions
+
+- F1 and N2: accepted. The owner chose to allow `data:` connections (Decision
+  Log); `assets.py`, the test, `auth-server.md`, the spec snapshot and #838
+  updated. Verified live after a rebuild: the "Arms Crossed" Pose preview plays
+  with no violation.
+- F2: accepted. The fixture now also runs the repeating listener inside each
+  worker once it starts (`page.on("worker")`); the fixture comment and the
+  journey guide say a refusal during a worker's start shows only in DevTools,
+  and `auth-server.md` says the check covers the page and running workers.
+- F3: accepted. Wording fixed in `assets.py`, `auth-server.md` and
+  `content-and-workers.md`.
+- C1: accepted. The test allows both `zod-runtime` specifiers and asserts that
+  it is the first import in the entries' source; the built bundle's chunk order
+  (N1) is guarded only by the journeys' violation check on a built stack.
+- N3, N4, N5, N6 and the count: accepted (exact directive assertions; sandbox
+  assertions on the package export and Included digest routes; journey guide
+  and cache note; record corrected).
+- Open question resolved by a live re-sweep: SenseVoice GPU (WebGPU) dictation
+  transcribed the sample with live previews, and voice mode (Smart Turn, GPU
+  dictation, one chat reply, Pocket speech) completed, with no violation; the
+  CPU engines and Parakeet were covered before. Parakeet GPU was not
+  downloaded.
+- Checks after the revisions (tree `3dc8f2662`): the four test files above
+  plus `tests/test_content_package_http.py` and
+  `tests/test_included_content_digest_urls.py`: 163 passed, then
+  `tests/test_local_http_assets.py` 122 passed after the `data:` change; ruff
+  check and format check passed; `pnpm e2e:check:source` passed;
+  `node --test scripts/e2e/*.test.mjs` 61 passed; web
+  `vitest run src/app/entrypoints.test.ts src/lib/zod-runtime.test.ts` 3 passed;
+  Prettier check passed. Paid usage in the re-sweep: one chat turn.
+- Repair budget: one of two rounds used; review #2 (targeted recheck) follows.
+
+#### Code Review #2 Findings
+
+Reviewed source: working tree `ff7679e69` (differs from `3dc8f2662` only in this
+plan); targeted recheck at the high-risk tier with every affected check rerun,
+including the full web unit suite (6,286 passed) and a throwaway Playwright
+probe of the worker listener on the journeys' Chromium 145 headless shell. No
+blocking findings. Notes: the record overstated where the worker-start gap is
+documented, said "six backend files" for four test files, and implied the C1
+test guards the built chunk order; and the hosted entry policy in
+`contracts/hosted-web.md` and its boundary fixture still allow only
+`'self' blob:` connections, so a hosted consumer would refuse the same shared
+preview fetches.
+
+#### Code Review #2 Revisions
+
+The three record notes are corrected above; the journey guide now names the
+worker-start gap; `content-and-workers.md` says local builds serve their own
+policy, which also allows `data:` connections. The hosted contract stays out of
+scope (Cloud is a non-goal) and is listed as a follow-up under Outcomes &
+Retrospective. Phase 2 passes; one repair round of two was used.
 
 ### Phase 3: Keys bound to their provider and address
 
@@ -580,4 +711,10 @@ Before any push or `gh pr create`, run `gh workflow list --all`; if
 
 ## Outcomes & Retrospective
 
-_To be written at completion._
+Follow-ups found so far (not in this plan's scope):
+
+- The hosted entry policy (`contracts/hosted-web.md` and the hosted boundary
+  fixture) allows only `'self' blob:` connections, while the shared Pose and
+  Action previews fetch inline `data:` clips; align the contract and fixture.
+
+_The rest is written at completion._

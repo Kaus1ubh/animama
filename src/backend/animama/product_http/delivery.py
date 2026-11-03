@@ -19,6 +19,12 @@ from animama.logging import get_logger
 
 _log = get_logger("product_http.delivery")
 
+STORED_BYTES_CONTENT_SECURITY_POLICY = "sandbox; default-src 'none'"
+"""Stored bytes never run as a document in the app's origin, whatever their type.
+
+Browsers ignore it when the bytes load as an image, media, model or fetch.
+"""
+
 
 def negotiate_json_encoding(request: Request, *, refusal_code: str) -> str:
     """Choose ``gzip`` or ``identity`` for one JSON response; explicit exclusions override wildcards.
@@ -64,7 +70,12 @@ def verified_file_response(file: VerifiedContentFile, *, if_none_match: str | No
     """Answer with the file's bytes, or 304 when the client's ETag matches its digest."""
 
     etag = f'"{file.sha256}"'
-    headers = {"Cache-Control": cache_control, "ETag": etag, "X-Content-Type-Options": "nosniff"}
+    headers = {
+        "Cache-Control": cache_control,
+        "ETag": etag,
+        "X-Content-Type-Options": "nosniff",
+        "Content-Security-Policy": STORED_BYTES_CONTENT_SECURITY_POLICY,
+    }
     if if_none_match == etag:
         file.handle.close()
         return Response(status_code=304, headers=headers)
@@ -166,6 +177,7 @@ class PackageDownloadResponse(StreamingResponse):
                 "X-Content-SHA256": review.package_sha256,
                 "Cache-Control": "private, no-store",
                 "X-Content-Type-Options": "nosniff",
+                "Content-Security-Policy": STORED_BYTES_CONTENT_SECURITY_POLICY,
             },
         )
 
@@ -184,6 +196,7 @@ class PackageDownloadResponse(StreamingResponse):
 
 
 __all__ = [
+    "STORED_BYTES_CONTENT_SECURITY_POLICY",
     "DeferredJsonBody",
     "PackageDownloadResponse",
     "encoded_json_response",

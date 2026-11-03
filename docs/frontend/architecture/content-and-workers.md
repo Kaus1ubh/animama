@@ -62,7 +62,11 @@ retain their existing root-relative paths. Optional manifests and notices ship
 with the application; optional model bytes require separate verified provisioning.
 Neither helper turns private catalog or API bytes into static resources. The
 [hosted artifact contract](../../../contracts/hosted-web.md#static-application-format-a5-producer--consumer-contract)
-owns the closed inventories, MIME/cache/range behavior and worker CSP.
+owns the closed inventories, MIME/cache/range behavior and worker CSP; local
+builds serve [their own policy](auth-server.md#content-security-policy), which
+also allows `data:` connections. A
+new worker loads from the application origin or a `blob:` URL, a new worklet
+from the application origin only, and neither may evaluate strings.
 
 ## Included content
 

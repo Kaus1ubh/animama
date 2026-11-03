@@ -20,6 +20,9 @@ describe("application entrypoints", () => {
     // Code that runs while a module loads may translate; a static import of the
     // application would run it before i18n exists and blank the app.
     const allowed = [
+      // Configures Zod only; it must load first (see the assertion below).
+      "@web/lib/zod-runtime",
+      "./lib/zod-runtime",
       "@fontsource-variable/dm-sans",
       "react",
       "react-dom/client",
@@ -38,6 +41,8 @@ describe("application entrypoints", () => {
         ...entry.matchAll(/^import\s+(?:[^"']*\sfrom\s+)?["']([^"']+)["']/gm),
       ].map((match) => match[1]);
       expect(staticImports.length).toBeGreaterThan(0);
+      // Zod schemas read its setting when they are created, so it comes first.
+      expect(staticImports[0]).toMatch(/^(?:@web|\.)\/lib\/zod-runtime$/);
       for (const specifier of staticImports)
         expect(allowed, specifier).toContain(specifier);
       expect(entry).toMatch(/import\("(?:@web|\.)\/app\/router"\)/);

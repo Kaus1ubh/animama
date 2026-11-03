@@ -127,6 +127,83 @@ async def test_navigation_and_head_revalidate_html_bytes(web_root: Path, path: s
             assert unchanged.headers["cache-control"] == "no-cache"
 
 
+def _policy(response: httpx.Response) -> dict[str, list[str]]:
+    """Parse a Content-Security-Policy header into its directives and sources."""
+
+    directives: dict[str, list[str]] = {}
+    for directive in response.headers["content-security-policy"].split(";"):
+        name, *sources = directive.split()
+        assert name not in directives, f"{name} appears twice"
+        directives[name] = sources
+    return directives
+
+
+def _assert_app_policy(policy: dict[str, list[str]], *, scripts: list[str]) -> None:
+    assert policy == {
+        "default-src": ["'none'"],
+        "script-src": scripts,
+        "style-src": ["'self'", "'unsafe-inline'"],
+        "img-src": ["'self'", "blob:", "data:"],
+        "font-src": ["'self'"],
+        # Inline data stays on the device; outside connections are the voice-sample
+        # host and its CDN, and the realtime speech socket.
+        "connect-src": [
+            "'self'",
+            "blob:",
+            "data:",
+            "https://huggingface.co",
+            "https://*.hf.co",
+            "wss://api.elevenlabs.io",
+        ],
+        "media-src": ["'self'", "blob:"],
+        "worker-src": ["'self'", "blob:"],
+        "frame-src": ["'none'"],
+        "frame-ancestors": ["'none'"],
+        "object-src": ["'none'"],
+        "base-uri": ["'none'"],
+        "form-action": ["'self'"],
+    }
+
+
+@pytest.mark.parametrize(
+    ("path", "headers"),
+    [
+        ("/", {"accept": "text/html"}),
+        ("/anima/c/chat", {"sec-fetch-mode": "navigate"}),
+        ("/assets/app-abcdefgh.js", {}),
+        ("/assets/worker-abcdefgh.js", {}),
+        ("/assets/app-abcdefgh.css", {}),
+        ("/config.json", {}),
+    ],
+)
+async def test_built_files_carry_the_application_policy(web_root: Path, path: str, headers: dict[str, str]) -> None:
+    # Workers take their policy from their own response, so every built file carries it.
+    (web_root / "assets/worker-abcdefgh.js").write_bytes(b"self.onmessage = () => {};")
+    async with _client(LocalAssets(web_root)) as client:
+        response = await client.get(path, headers=headers)
+        assert response.status_code == 200
+        _assert_app_policy(_policy(response), scripts=["'self'", "'wasm-unsafe-eval'"])
+        unchanged = await client.get(path, headers={**headers, "if-none-match": response.headers.get("etag", "")})
+        if unchanged.status_code == 304:
+            assert unchanged.headers["content-security-policy"] == response.headers["content-security-policy"]
+
+
+async def test_only_the_pocket_worker_may_evaluate_strings(web_root: Path) -> None:
+    worker = web_root / "tts/workers/inference-worker.js"
+    worker.parent.mkdir(parents=True)
+    worker.write_bytes(b"import '../vendor/sentencepiece.js';")
+    (web_root / "tts/workers/other-worker.js").write_bytes(b"")
+    async with _client(LocalAssets(web_root)) as client:
+        pocket = await client.get("/tts/workers/inference-worker.js")
+        assert pocket.status_code == 200
+        # The pinned sentencepiece binding builds call wrappers at runtime (#698).
+        _assert_app_policy(_policy(pocket), scripts=["'self'", "'wasm-unsafe-eval'", "'unsafe-eval'"])
+        other = await client.get("/tts/workers/other-worker.js")
+        assert "'unsafe-eval'" not in other.headers["content-security-policy"]
+        index = await client.get("/", headers={"accept": "text/html"})
+        assert "'unsafe-eval'" not in index.headers["content-security-policy"]
+
+
 @pytest.mark.parametrize("name", ["app-abcdefgh.js", "app-abcdefgh.css"])
 async def test_only_inventoried_code_is_immutable_with_conditional_get_and_head(web_root: Path, name: str) -> None:
     async with _client(LocalAssets(web_root)) as client:

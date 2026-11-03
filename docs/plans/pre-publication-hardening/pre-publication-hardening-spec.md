@@ -2,7 +2,7 @@
 
 Status: Agreed
 Authority: [#838](https://github.com/raymond-van/animama/issues/838). This file is
-a snapshot of that issue captured 2026-11-03T21:25:41Z; change the issue, not
+a snapshot of that issue captured 2026-11-03T22:58:24Z; change the issue, not
 this file.
 Owner decision: draft agreed by the owner on 2026-11-03. The same day the
 security review added three refinements (R3.3's switch list, R3.6's
@@ -91,11 +91,12 @@ Out of scope:
   `base-uri 'none'`, `frame-ancestors 'none'` and `form-action 'self'`, and
   `default-src 'none'`. Connection, media, image, font, style and worker
   sources are limited to what the app uses: its own origin; `blob:` where
-  the app creates object URLs; `data:` images; inline styles; and, for
-  connections only, the two outside services that the app's pages contact
-  directly today: the public voice-sample host (Hugging Face, including its
-  download CDN) and the ElevenLabs realtime socket. No wildcard origin is
-  allowed beyond that CDN's subdomains.
+  the app creates object URLs; `data:` images; `data:` connections for inline
+  preview clips and data embedded in model files, which never leave the
+  device; inline styles; and, for connections only, the two outside services
+  that the app's pages contact directly today: the public voice-sample host
+  (Hugging Face, including its download CDN) and the ElevenLabs realtime
+  socket. No wildcard origin is allowed beyond that CDN's subdomains.
 - **R2.2** The single verified Pocket TTS worker response
   (`/tts/workers/inference-worker.js`) additionally allows `'unsafe-eval'`, as
   `contracts/hosted-web.md` specifies, until #698 removes the need. No other
@@ -275,6 +276,9 @@ Owner decisions, 2026-11-03:
 - **Spec agreed** with the agent's proposals in it: the supported-versions and
   scope wording (R1.4, R1.5) and no policy in Vite development mode (R2.4).
 - **Pre-launch:** earlier installations and users need no migration.
+- **`data:` connections (R2.1), 2026-11-03:** the policy allows `data:`
+  connections, because the Pose and Action previews fetch inline clips and model
+  files may embed data; such data never leaves the device.
 
 Security review refinements, 2026-11-03, presented with the ExecPlan: the
 named switch list (R3.3), the smoke copy's throwaway profile and cleanup
