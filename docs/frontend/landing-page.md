@@ -46,10 +46,12 @@ the catalogs (below):
 
 - `STAGE_STOPS`: each stop's camera, backdrop and clips, and the stops its
   line links to.
-- `CLOSED_BETA`: while on, the header offers one **Request Beta Access**
-  button (the form at `BETA_ACCESS_URL`) instead of Download, Log in, Sign up
-  and the language picker, and stops show their `beta` copy. Turn it off at
-  launch to restore the rest.
+- `CLOSED_BETA`: off since the public launch. The header offers Download,
+  the language picker, and Log in and Sign up (Animama Cloud's account pages,
+  `SITE.signIn` and `SITE.signUp`); the last stop's Download goes to the
+  download page. Turned on, the header offers one **Request Beta Access**
+  button (the form at `BETA_ACCESS_URL`) instead, and stops show their `beta`
+  copy.
 - `SITE`: the canonical address, docs link, share image, copyright
   line (English in every locale), the contact address,
   the social links (Discord, YouTube and X icons, `social-icons.tsx`; also the
@@ -154,11 +156,12 @@ with code or fonts in the bundle.
 
 ## The site header on Cloud's pages
 
-Every page on animama.ai shows the same header: `site-header.tsx`. The
-overlay renders it over the tour (`tour`: fixed, Home and Download scroll the
-stops, the Avatar choice shows), and the build also makes it for the pages
-Animama Cloud publishes on the same host (About, Download, Privacy, Terms,
-Safety and 404), where it sits at the top of the page and Home and Download are links:
+Every page on animama.ai shows the same header, `site-header.tsx`, and its
+Download always goes to the download page. The overlay renders it over the
+tour (`tour`: fixed, Home scrolls to the first stop, the Avatar choice shows),
+and the build also makes it for the pages Animama Cloud publishes on the same
+host (About, Download, Privacy, Terms, Safety and 404), where it sits at the
+top of the page and Home is a link:
 
 - `site-chrome.tsx` is a separate Vite build, so it carries only the header's
   code (about 130 kB of compressed JavaScript, mostly React, the menus and
@@ -189,7 +192,7 @@ document the app's Safety dialog shows: the build renders it to HTML in
 `crisis-protocol.json` (`renderCrisisProtocol`), so a protocol change reaches
 the site through the next package set and Cloud repin. The page is English only.
 
-Changing the header's links or buttons (Request Beta Access, Log in, Sign up)
+Changing the header's links or buttons (Download, Log in, Sign up)
 changes every page, through the next package set and Cloud repin. Cloud's own
 build fails if a pinned site has no `site-chrome.json`.
 

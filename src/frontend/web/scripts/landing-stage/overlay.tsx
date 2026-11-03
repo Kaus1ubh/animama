@@ -15,13 +15,12 @@ import { createPortal, flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
 import { useTranslation } from "react-i18next";
 import {
-  Apple,
+  ArrowRight,
   ArrowUpRight,
   BookOpen,
   ChevronsLeft,
   ChevronsRight,
   Brain,
-  Monitor,
 } from "lucide-react";
 
 import { Message, MessageContent } from "@animama/product-ui/components";
@@ -129,7 +128,6 @@ function Overlay({ controller }: { controller: StageController }) {
         light={light}
         tour={{
           scrollToStop: (index) => controller.scrollToStop(index),
-          lastStop: STAGE_STOPS.length - 1,
           avatarSwitcher: (
             <AvatarSwitcher
               state={state}
@@ -1744,8 +1742,8 @@ function SiteFooter({ light }: { light: boolean }) {
 }
 
 /**
- * The last stop's actions: during the closed beta, Request Beta Access and
- * the docs; after it, the docs and the platforms the app runs on.
+ * The last stop's actions: Download (the download page) and the docs; during
+ * the closed beta, Request Beta Access in Download's place.
  */
 function DownloadActions() {
   const { t } = useLanding();
@@ -1771,24 +1769,21 @@ function DownloadActions() {
     );
   return (
     <div className="mt-5 flex flex-wrap items-center gap-2.5">
-      <Button asChild className="rounded-full">
+      <Button asChild className="group rounded-full">
+        <a href={SITE.download}>
+          {t("header.download")}
+          <ArrowRight
+            aria-hidden="true"
+            className="transition-transform group-hover:translate-x-0.5"
+          />
+        </a>
+      </Button>
+      <Button asChild variant="outline" className="rounded-full">
         <a href={DOCS_URL}>
           <BookOpen aria-hidden="true" />
           {t("page.readDocs")}
         </a>
       </Button>
-      {[
-        { label: "macOS", Icon: Apple },
-        { label: "Windows", Icon: Monitor },
-      ].map(({ label, Icon }) => (
-        <span
-          key={label}
-          className="text-muted-foreground inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-sm"
-        >
-          <Icon aria-hidden="true" className="size-4" />
-          {label}
-        </span>
-      ))}
     </div>
   );
 }

@@ -59,7 +59,7 @@
     "download": {
       "label": "ダウンロード",
       "title": "デスクトップで {name} に会おう",
-      "body": "macOS と Windows に近日対応。",
+      "body": "macOS と Windows で利用できます。",
       "beta": {
         "label": "ベータ",
         "body": "macOS と Windows でクローズドベータを実施中。"

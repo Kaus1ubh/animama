@@ -276,7 +276,7 @@ export async function renderPageHtml(server) {
   const logo = new URL("brand/animama-mark.png", SITE.url).href;
   const action = CLOSED_BETA
     ? { label: t("header.requestBetaAccess"), href: BETA_ACCESS_URL }
-    : { label: t("header.download"), href: `#stop-${last.id}` };
+    : { label: t("header.download"), href: SITE.download };
   const link = ({ label, href }) =>
     `<a href="${escapeHtml(href)}">${escapeHtml(label)}</a>`;
 
@@ -356,6 +356,12 @@ export async function renderPageHtml(server) {
       { label: t("header.home"), href: `#stop-${hero.id}` },
       { label: t("header.about"), href: SITE.about },
       { label: t("header.docs"), href: SITE.docsUrl },
+      ...(CLOSED_BETA
+        ? []
+        : [
+            { label: t("header.logIn"), href: SITE.signIn },
+            { label: t("header.signUp"), href: SITE.signUp },
+          ]),
       action,
     ]
       .map(link)

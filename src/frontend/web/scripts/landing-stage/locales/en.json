@@ -59,7 +59,7 @@
     "download": {
       "label": "Download",
       "title": "Meet {object} on your desktop",
-      "body": "Coming soon to macOS and Windows.",
+      "body": "Available for macOS and Windows.",
       "beta": {
         "label": "Beta",
         "body": "Now in closed beta for macOS and Windows."

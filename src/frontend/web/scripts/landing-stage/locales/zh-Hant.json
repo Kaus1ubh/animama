@@ -59,7 +59,7 @@
     "download": {
       "label": "下載",
       "title": "在桌面上遇見{object}",
-      "body": "即將登陸 macOS 和 Windows。",
+      "body": "現已支援 macOS 和 Windows。",
       "beta": {
         "label": "測試版",
         "body": "macOS 和 Windows 版正在封閉測試中。"
