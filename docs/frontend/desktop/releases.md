@@ -570,13 +570,16 @@ coverage, then uploads a fixed artifact list:
   release's files: not its description, nor which release is Latest. The feed
   is uploaded last. A run never makes the other target's draft or preview
   public or stable; two previews may share one prerelease.
-- **R2:** uploads each file create-only (`If-None-Match: *`) to
-  `<base>/v<version>/<name>`, signed with its SHA-256 so R2 rejects altered
-  bytes, with `Cache-Control: public, max-age=31536000, immutable`. It then
-  downloads every object through the public domain and compares SHA-256. A
-  preview stops there. Stable promotion rechecks the feed and writes the
-  target's own feed, `<base>/latest-mac.yml` or `<base>/latest.yml`, last
-  (`Cache-Control: no-cache`), then reads it back.
+- **R2:** asks the bucket through a signed `HEAD` whether each file already
+  exists at `<base>/v<version>/<name>`. An existing object is never sent again,
+  since the lock rule rejects any write to it; it must match before anything is
+  uploaded. Other files are then uploaded create-only (`If-None-Match: *`),
+  signed with their SHA-256 so R2 rejects altered bytes, with
+  `Cache-Control: public, max-age=31536000, immutable`. Every object is
+  downloaded from its exact public URL and its SHA-256 compared, retrying a
+  `404` for up to 5 minutes. A preview stops there. Stable promotion rechecks
+  the feed and writes the target's own feed, `<base>/latest-mac.yml` or
+  `<base>/latest.yml`, last (`Cache-Control: no-cache`), then reads it back.
 
 Stable publication adds the feed, checksum index and acceptance reports without
 replacing preview payloads. Interrupted uploads leave the previous stable feed in
@@ -602,6 +605,9 @@ new version for corrections.
   an object from the bucket does not remove cached copies; purge the exact URLs
   (Caching → Configuration → Custom Purge) as well. The feed is served
   `no-cache`; do not add a cache rule that caches `desktop/latest-mac.yml`.
+- The edge also caches a `404` for 3 minutes. The publisher reads the feed, and
+  shared files before uploading them, only through a one-off `noCache` query,
+  so keep the query string in the cache key (the default).
 
 ### Model objects
 
@@ -649,7 +655,8 @@ pnpm --filter animama-desktop models:publish --model parakeet-tdt-0.6b-v2-webgpu
   caching. Transfers allow extra time in proportion to the file's size.
 - Every object must then be served anonymously as exactly its bytes: `200`, no
   `Content-Encoding`, the exact `Content-Length` and SHA-256, the same
-  conditions the app's downloader enforces.
+  conditions the app's downloader enforces. A `404` is retried for up to 5
+  minutes, longer than the edge caches one.
 - `--dry-run` lists the keys and scan status without reading credentials. A
   missing or stale scan is refused before credentials are read. Publishing uses
   the same `ANIMAMA_R2_*` token as releases and needs owner approval.
