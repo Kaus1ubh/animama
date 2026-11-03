@@ -100,7 +100,8 @@ visibility is the owner's own action.
   (light; covered by the final integration review).
 - [x] Phase 4: agreed cleanups (high risk; review passed 2026-11-03 after two
   repair rounds, with an independent checks rerun).
-- [ ] Phase 5: publication readiness and the #235 checklist.
+- [x] Phase 5: publication readiness and the #235 checklist (light; covered by
+  the final integration review).
 
 ## Surprises & Discoveries
 
@@ -1043,7 +1044,8 @@ Tier B:
   shared code; 13 files needed formatting. Claude Code's format hook now also
   formats the TypeScript and JavaScript of the packages, e2e tests, frontend
   scripts and shared code; `SDLC.md` says that the check also covers files the
-  hook leaves alone, such as JSON, CSS and web's JavaScript.
+  hook leaves alone, such as JSON and CSS, and the hook comment adds web's
+  JavaScript (P4-F13).
   Python: a strict mypy override for
   `animama.*` found 27 errors in 8 files, all fixed; tests keep the relaxed
   rules.
@@ -1316,21 +1318,70 @@ visibility:
 5. Run `check_source.py` on the final tree, record the result, tick the #235
    items that are done, and list the rest as accepted or deferred by the owner.
 
+#### Phase 5 record
+
+On branch `chore/open-source-polish`, after the Phase 4 commit `226f2a13`.
+
+- Tracker text: #819's export of every issue and PR body, comment, earlier
+  title and edit-history revision was scanned for personal data, private paths
+  and wording the owner may want to change. #819 found no secrets and no
+  attachments. Four edit-history revisions (in #823 and PR #44) and one passage
+  of #235 are on a list the owner received privately, with how to delete a
+  revision in the web interface; current bodies hold no home-directory path or
+  personal address.
+- Branches: 251 remote branches besides `main`. 235 are merged into `main`;
+  the 16 unmerged ones (10 with open PRs) and the two that carry
+  `Co-Authored-By` lines are on the owner's list, with each one's PR and last
+  commit. One tag, `repo-split/initial-2026-09-08`. `main` has no attribution
+  trailers.
+- LFS: 298 LFS objects are reachable only from history; most are earlier
+  versions of owner content or permissively licensed models. The few that the
+  2026-09-15 cleanup removed for licensing reasons are listed privately, with a
+  drafted GitHub Support request to purge them before the visibility change
+  (GitHub offers no self-service purge short of deleting the repository).
+- `config.yml`'s security link now says "Report privately through GitHub or
+  security@animama.ai; please don't open a public issue.", the wording #838's
+  `SECURITY.md` uses. The private-reporting link itself waits for publication
+  day, when reporting is enabled (step 3).
+- Two optional wording fixes from Phase 4's final review land here: the B1
+  record now credits web's JavaScript to the hook comment (P4-F13), and the
+  hook comment names the frontend root's `.ts` and `.mjs` configs (P4-F14).
+- `check_source.py` on the final tree: every tracked file is covered exactly
+  once.
+- #235, read again immediately before the edit: the licence, publication
+  route, content clearance and trademark risk items are ticked, because they
+  are done on `main` or accepted by the owner (D1, D2, D11, D4). The items
+  this PR delivers (the licence-record gap left by #833, README, community
+  files, trademark note, issue forms, internal material and the README's
+  distribution-end paragraph) carry the PR's number and are ticked when it
+  merges. The repository metadata is deferred to publication day (D10).
+
+Check record (repository root, Phase 5 tree):
+
+| Command | Result |
+| --- | --- |
+| `.venv/bin/python scripts/public-release/check_source.py` | Every tracked file covered exactly once. |
+| `yaml.safe_load` of `.github/ISSUE_TEMPLATE/config.yml`; `bash -n .claude/hooks/format-edited-file.sh` | Pass. |
+| `git diff --cached --check` | Clean. |
+
+Review tier light: covered by the final integration review.
+
 ## Validation and acceptance
 
 From #823:
 
 - [x] The owner has the audit and has made decisions D1–D6 and D9.
 - [x] The owner has approved this plan (G0, 2026-11-03).
-- [ ] `scripts/public-release/check_source.py` passes on the final tree, and `LICENSE` and
+- [x] `scripts/public-release/check_source.py` passes on the final tree, and `LICENSE` and
   the package metadata state AGPL-3.0-only.
-- [ ] Every content inventory rule is cleared for redistribution, or its files
+- [x] Every content inventory rule is cleared for redistribution, or its files
   are removed.
-- [ ] Every README command and claim is verified; the community files and
+- [x] Every README command and claim is verified; the community files and
   public issue forms are in place.
-- [ ] The agreed PRs are open, with local validation recorded.
+- [x] The agreed PRs are open, with local validation recorded (#836, merged,
+  and the Phases 2–5 PR).
 - [ ] Every section 1 and 3 item in #235 is ticked, or accepted or deferred by
-  the owner.
+  the owner: the items this PR delivers are ticked when it merges.
 
 Hosted CI is disabled, so each PR records local results only and says that no
 hosted run took place. `gh workflow list --all` is checked immediately before
@@ -1349,4 +1400,23 @@ renames in their own commits, so `git revert` restores the old layout.
 
 ## Outcomes & Retrospective
 
-Not started.
+Delivered: the AGPL-3.0-only licence and licence records for every tracked
+file (#836); a public README, process page, community files, name and logo
+note and public issue forms; process documents and skills fit for public
+readers; and the Tier A and B cleanups, which take the root from 37 to 32
+entries and remove about 2,900 lines of dead or duplicate source without
+changing how the product behaves. The owner has a private checklist for the publication-day
+steps: tracker revisions to delete, the branches to prune, an optional LFS
+purge request, private vulnerability reporting and the repository metadata.
+
+Left for the owner or others: the visibility change after #819's gates; the
+final desktop release and the download cut-off (#837); a fresh desktop
+redistribution review before the next release, since the lockfiles changed;
+Cloud's inventory update at its next repin; the order-dependent benchmark
+runner test; and the optional Tier C moves.
+
+Lessons: splitting a large cleanup between two agents in one worktree worked
+when each owned a half and left the index alone, but the coordinator still had
+to catch cross-repository effects (product-ui's declarations) and a mis-tiered
+review: dependency and build changes make a phase high risk, whatever its
+intent.

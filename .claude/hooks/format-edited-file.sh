@@ -25,7 +25,7 @@ case "$file_path" in
   # TypeScript in web/ and desktop/, and the TypeScript and JavaScript that
   # `prettier:workspace` checks in packages, e2e tests, scripts and shared code.
   # `pnpm prettier:check` also checks files left alone here, such as JSON, CSS,
-  # web's JavaScript and the frontend root's config files.
+  # web's JavaScript and the frontend root's `.ts` and `.mjs` configs.
   "$frontend_root"/web/*.ts | "$frontend_root"/web/*.tsx | "$frontend_root"/web/*.mts | "$frontend_root"/web/*.cts | \
   "$frontend_root"/desktop/*.ts | "$frontend_root"/desktop/*.tsx | "$frontend_root"/desktop/*.mts | "$frontend_root"/desktop/*.cts | \
   "$frontend_root"/packages/*.ts | "$frontend_root"/packages/*.tsx | "$frontend_root"/packages/*.js | "$frontend_root"/packages/*.mjs | \

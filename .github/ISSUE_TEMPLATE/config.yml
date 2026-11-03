@@ -2,7 +2,7 @@ blank_issues_enabled: false
 contact_links:
   - name: Report a security vulnerability
     url: https://github.com/raymond-van/animama/security/policy
-    about: Report vulnerabilities privately, as the security policy describes, never in a public issue.
+    about: Report privately through GitHub or security@animama.ai; please don't open a public issue.
   - name: Community Discord
     url: https://discord.gg/pUHHRrZ2xg
     about: Questions and conversation about Animama.
