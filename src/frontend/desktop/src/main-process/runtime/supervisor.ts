@@ -226,6 +226,9 @@ export class RuntimeSupervisor {
       ANIMAMA_LOG_TO_CONSOLE: "1",
       ANIMAMA_DISABLE_WEBUI_TELEMETRY: "1",
       OTEL_SDK_DISABLED: "true",
+      // Memory Manager runs on the built-in OpenAI connection would otherwise
+      // upload Agents SDK traces to OpenAI; this overrides each run's setting.
+      OPENAI_AGENTS_DISABLE_TRACING: "1",
       PYTHONUNBUFFERED: "1",
     };
   }

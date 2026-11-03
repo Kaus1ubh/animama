@@ -122,9 +122,23 @@ async function verifyDownloadedBytes(
 }
 
 /**
+ * The only headers an update request needs. electron-updater also sends a
+ * random ID it keeps for each installation (`<userData>/.updaterId`) for staged
+ * rollouts, which no feed may use (see `validateUpdateCandidate`), and Chromium
+ * adds the system language.
+ */
+const UPDATE_REQUEST_HEADERS = new Set([
+  "accept",
+  "accept-encoding",
+  "cache-control",
+  "user-agent",
+]);
+
+/**
  * Pin the transport and consent rules shared by every platform: no automatic
  * download or install, no prerelease, downgrade, differential or web
- * installer, and requests confined to the sealed distribution.
+ * installer, and requests confined to the sealed distribution that carry
+ * nothing about the installation.
  */
 function createUpdateAdapter(
   policy: UpdatePolicy,
@@ -153,6 +167,15 @@ function createUpdateAdapter(
   let closed = false;
   updater.netSession.webRequest.onBeforeRequest((details, callback) =>
     callback({ cancel: !allowedUpdateUrl(details.url, policy) }),
+  );
+  updater.netSession.webRequest.onBeforeSendHeaders((details, callback) =>
+    callback({
+      requestHeaders: Object.fromEntries(
+        Object.entries(details.requestHeaders).filter(([name]) =>
+          UPDATE_REQUEST_HEADERS.has(name.toLowerCase()),
+        ),
+      ),
+    }),
   );
   updater.netSession.webRequest.onHeadersReceived((details, callback) => {
     const length = Object.entries(details.responseHeaders ?? {}).find(

@@ -478,6 +478,9 @@ the SDK's native global opt-out before starting the API:
 export OPENAI_AGENTS_DISABLE_TRACING=1
 ```
 
+The desktop supervisor always sets it for its runtime children, so desktop
+Memory Manager runs send no traces.
+
 Organizations operating under OpenAI Zero Data Retention must keep tracing
 disabled because the Agents SDK tracing service is unavailable under ZDR.
 

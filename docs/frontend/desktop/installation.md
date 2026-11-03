@@ -131,7 +131,9 @@ can be imported. Complete starter animation acquisition remains a release gate. 
 ## Updates, backup and removal
 
 A configured release checks for updates without blocking startup. Settings →
-General offers **Check for updates**. **Download update** and **Restart to
+General offers **Check for updates**. A check carries nothing that identifies
+your installation; the [safety and crisis protocol](../../safety/crisis-protocol.md#your-data)
+lists everything the desktop app sends. **Download update** and **Restart to
 install** are separate decisions; ordinary Quit never installs an update.
 Current unconfigured development builds do not have a working update feed.
 An update can refuse to proceed while a pack is busy or in-use content would
