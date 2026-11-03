@@ -399,9 +399,11 @@ settings, so an agent hands them to the owner:
    window, where the guest agent never starts.
 4. *Owner:* in the VM's Terminal, run
    `bash "/Volumes/My Shared Files/provision/provision-golden.sh"` and answer its
-   sudo prompts. It installs Apple's Command Line Tools, the pinned Node.js
-   `.pkg` with corepack's pnpm, and the signed Tart guest agent, all
-   checksum-verified, then disables sleep. The guest agent runs only its
+   sudo prompts. It installs Apple's Command Line Tools through
+   `softwareupdate`, the checksum-pinned Node.js `.pkg` with corepack, and the
+   checksum-pinned Tart guest agent after checking its Developer ID team, then
+   disables sleep. Each clone's first `pnpm install` fetches the pinned pnpm
+   version through corepack. The guest agent runs only its
    `tart exec` component, as a LaunchAgent in the login session; clipboard
    sharing stays off. Then shut the VM down.
 5. Create the owner-only key file `~/.config/animama/smoke-openai.env` (mode
@@ -421,7 +423,8 @@ python3 ../../scripts/heavy-slot.py -- pnpm desktop:smoke:mac:vm -- --artifact d
 ```
 
 The helper (`desktop/scripts/vm/smoke-macos-vm.sh`) refuses uncommitted
-tracked changes and an existing `desktop/release/smoke-name`. It then:
+tracked changes, an existing `desktop/release/smoke-name` and leftover
+`animama-smoke-run-*` clones. It then:
 
 - clones the golden VM and boots the clone without a window;
 - copies in the DMG, a git bundle of `HEAD` and the guest script over
@@ -430,16 +433,22 @@ tracked changes and an existing `desktop/release/smoke-name`. It then:
   or on disk outside the app's own vault;
 - clones the bundle and runs `pnpm install --frozen-lockfile`, then
   `pnpm desktop:smoke:mac -- --artifact <dmg> --setup name` in the guest;
-- copies the two reports into `desktop/release/smoke-name`. A failed run's
-  reports go to `smoke-name-failed-<time>` instead, so the publisher never reads
-  them;
 - checks that the reports pass and bind the DMG's SHA-256 and the
-  `runtime_build_id` in the adjacent `release-artifacts.json`.
+  `runtime_build_id` in the adjacent `release-artifacts.json`, then copies them
+  into `desktop/release/smoke-name`. Reports that fail any check go to
+  `smoke-name-failed-<time>` instead, so the publisher never reads them. Without
+  an adjacent `release-artifacts.json`, the helper only reminds you to check the
+  build ID by hand.
 
-The clone is deleted on every exit, so no profile, vault or key survives a run.
-`--keep` leaves a stopped clone for debugging, which may still hold the key; delete
-it afterwards with `tart delete`. Do not run the helper while a stage or `desktop:mac` pack
-is running: a clone uses four cores and 8 GB of memory.
+The helper deletes the clone when it exits, including after an interrupt, so no
+profile, vault or key survives a run. A host crash or `kill -9` can leave a
+clone behind; `tart list` shows it, and `tart delete <name>` removes it.
+`--keep` leaves a stopped clone for debugging, which may still hold the key, and
+the next run refuses until it is deleted. A failed step's underlying error stays
+in the guest unless `ANIMAMA_SMOKE_DEBUG=1` is set for the helper, which passes
+it to the guest's smoke. `ANIMAMA_SMOKE_VM_GOLDEN` and `ANIMAMA_SMOKE_KEY_FILE`
+override the golden VM name and key file. Do not run the helper while a stage or
+`desktop:mac` pack is running: a clone uses four cores and 8 GB of memory.
 
 This satisfies the fresh-account smoke gate. It proves the same as a host test
 account: the exact signed, notarized DMG verifies, installs and completes the
