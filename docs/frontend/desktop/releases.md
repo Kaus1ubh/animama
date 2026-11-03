@@ -405,8 +405,9 @@ settings, so an agent hands them to the owner:
    `tart exec` component, as a LaunchAgent in the login session; clipboard
    sharing stays off. Then shut the VM down.
 5. Create the owner-only key file `~/.config/animama/smoke-openai.env` (mode
-   600) holding `ANIMAMA_SMOKE_OPENAI_KEY=<key>`. A dedicated, low-budget
-   OpenAI project key limits exposure.
+   600) holding the line `ANIMAMA_SMOKE_OPENAI_KEY=sk-...`. The helper reads
+   only that line, never runs the file, and checks it before booting a clone.
+   A dedicated, low-budget OpenAI project key limits exposure.
 
 To update the golden VM's tools, for example after the Node pin changes,
 repeat steps 2 and 4; the script is idempotent. Never run a smoke in the golden

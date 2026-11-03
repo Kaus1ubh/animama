@@ -52,6 +52,19 @@ state=$(tart get "$golden" --format json 2>/dev/null | plutil -extract State raw
 [ "$state" = stopped ] || die "$golden must be stopped; smoke runs only in clones"
 [ -f "$key_file" ] && [ "$(stat -f %Su:%Lp "$key_file")" = "$(id -un):600" ] ||
   die "Create the owner-only key file $key_file (mode 600)"
+# Read the key line without running the file, so no error can echo its contents.
+read_key() {
+  local line key
+  line=$(grep -m 1 '^ANIMAMA_SMOKE_OPENAI_KEY=' "$key_file") ||
+    die "$key_file has no ANIMAMA_SMOKE_OPENAI_KEY= line"
+  key=${line#ANIMAMA_SMOKE_OPENAI_KEY=}
+  key=${key#[\"\']}
+  key=${key%[\"\']}
+  [[ $key =~ ^sk-[A-Za-z0-9_-]+$ ]] && [ "${#key}" -le 8192 ] ||
+    die "$key_file does not hold an OpenAI key (sk-...)"
+  printf '%s\n' "$key"
+}
+read_key >/dev/null
 [ -z "$(git -C "$frontend_root" status --porcelain --untracked-files=no)" ] ||
   die "The VM runs the committed HEAD; commit or remove tracked changes first"
 [ ! -e "$output" ] || die "$output exists; move the previous reports aside"
@@ -105,13 +118,7 @@ tart exec "$vm" /bin/mkdir -m 0700 "$guest_inputs"
 tar -c -C "$work/inputs" . | tart exec -i "$vm" /usr/bin/tar -x -C "$guest_inputs"
 
 status=0
-(
-  set -a
-  # shellcheck disable=SC1090
-  . "$key_file"
-  set +a
-  printf '%s\n' "${ANIMAMA_SMOKE_OPENAI_KEY:?is not set in the key file}"
-) | tart exec -i "$vm" /bin/bash "$guest_inputs/guest-smoke.sh" "$guest_inputs" "$(basename "$artifact")" ||
+read_key | tart exec -i "$vm" /bin/bash "$guest_inputs/guest-smoke.sh" "$guest_inputs" "$(basename "$artifact")" ||
   status=$?
 
 # Accept only the two expected regular files from the guest.
