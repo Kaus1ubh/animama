@@ -160,7 +160,7 @@ describe("R2 publication", () => {
     );
   });
 
-  it("stops without writing the feed when an existing object differs", async () => {
+  it("stops before any upload when an existing object differs", async () => {
     const { directory, files } = candidate({
       "Animama-0.2.0-arm64.zip": "zip bytes",
       "latest-mac.yml": "version: 0.2.0\n",
@@ -171,7 +171,8 @@ describe("R2 publication", () => {
     await expect(
       publish(r2, { directory, files, preview: false }),
     ).rejects.toThrow("differs");
-    expect(r2.puts).not.toContain("desktop/v0.2.0/Animama-0.2.0-arm64.zip");
+    // Nothing new enters the locked folder beside the mismatch, nor the feed.
+    expect(r2.puts).toEqual([]);
     expect(r2.objects.has("desktop/latest-mac.yml")).toBe(false);
   });
 

@@ -108,7 +108,7 @@ export async function publishR2({
   const prefix = base.pathname.slice(1);
   const versionKey = (name) => `${prefix}/v${version}/${name}`;
   for (const file of files.filter((item) => shared.includes(item.name))) {
-    // Never the exact URL: its cached 404 would outlast this run's verification.
+    // Never the exact URL: a 404 cached there would stall its verification.
     const response = await publicGet(
       fetchImpl,
       uncached(`${base.origin}/${keyPath(versionKey(file.name))}`),
@@ -138,19 +138,24 @@ export async function publishR2({
 
   // The bucket decides what a rerun still uploads: the version folder's lock
   // rule rejects any write to an existing object, even a create-only one. An
-  // existing object is accepted only by the anonymous verification below.
+  // existing object must match before anything is uploaded, since an upload
+  // into the locked folder can never be withdrawn.
+  const missing = [];
   for (const file of files)
-    if (!(await exists(versionKey(file.name))))
-      await put(
-        versionKey(file.name),
-        path.join(directory, file.name),
-        file.sha256,
-        {
-          createOnly: true,
-          cacheControl: IMMUTABLE,
-        },
-      );
-  for (const file of files) await verify(versionKey(file.name), file.sha256);
+    if (await exists(versionKey(file.name)))
+      await verify(versionKey(file.name), file.sha256);
+    else missing.push(file);
+  for (const file of missing)
+    await put(
+      versionKey(file.name),
+      path.join(directory, file.name),
+      file.sha256,
+      {
+        createOnly: true,
+        cacheControl: IMMUTABLE,
+      },
+    );
+  for (const file of missing) await verify(versionKey(file.name), file.sha256);
   if (preview) return;
 
   // Stable: recheck the feed, then replace it last so installed apps only ever
