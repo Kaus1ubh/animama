@@ -1,3 +1,5 @@
+// Adapted from Magic UI (MIT): apps/www/registry/magicui/sparkles-text.tsx.
+// See licenses/third-party/adapted-code.md.
 import type { JSX, ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "motion/react";

@@ -312,9 +312,10 @@ or migration behavior.
   `pnpm desktop:release:scan` receipt, anonymous destination checks and explicit
   approval. A destination that is not publicly served cannot deliver packs or
   updates. Do not add bypasses or change visibility to finish tests.
-  Native smoke uses a separate macOS account with verified absent app/profile
-  data. Initial publication is manual by `raymond-van` from reviewed `main`
-  inputs; CI publication is unconfigured. Follow
+  Native smoke uses a separate macOS account or a disposable clone of the
+  golden smoke VM, with verified absent app/profile data. Initial publication
+  is manual by `raymond-van` from reviewed `main` inputs; CI publication is
+  unconfigured. Follow
   `../../docs/frontend/desktop/release-process.md` and provide the exact command
   only after signing, artifact, native-acceptance and publication gates pass.
   User guides are `../../docs/frontend/desktop/installation.md`,

@@ -126,6 +126,7 @@ These are private composition inputs, not end-user configuration switches:
 | `ANIMAMA_DOCUMENT_WORKER_INSTANCE_ID`, `ANIMAMA_DOCUMENT_PACK_VERSION`                                            | Expected heartbeat instance and active version for lifecycle checks.                                     |
 | `ANIMAMA_DOCUMENT_WORKER_EXECUTABLE`, `ANIMAMA_DOCUMENT_WORKER_ROOT`, `ANIMAMA_DOCUMENT_WORKER_EXECUTABLE_SHA256` | Fixed, verified helper delegation inputs; not browser-supplied.                                          |
 | `ANIMAMA_DOCLING_ARTIFACTS_PATH`                                                                                  | Worker-only bundled model location.                                                                      |
+| `ANIMAMA_DISABLE_WEBUI_TELEMETRY`, `OTEL_SDK_DISABLED`, `OPENAI_AGENTS_DISABLE_TRACING` | Always set: no telemetry export, and no Agents SDK traces from any Memory Manager run, whatever its connection. |
 
 Desktop does not set `ANIMAMA_LOCAL_MODEL_HOST`, so the Ollama, LM Studio,
 llama.cpp and vLLM connection presets use `127.0.0.1`. See

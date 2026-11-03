@@ -42,7 +42,8 @@ Current behavior:
 Intended users and operators:
 
 - The **installation owner** chatting on the free desktop app, where Raymond is
-  likely the operator. The app is local-first with no telemetry.
+  likely the operator. The app is local-first and sends no usage data; the
+  safety and crisis protocol lists what it does send.
 - **Self-host operators** of the open-source stack, who are likely the operators
   of record for their deployments and need safe defaults.
 - A future **hosted web app**, where Animama is the operator. It is not built
@@ -355,8 +356,9 @@ placement. Add glossary entries for *AI notice*, *continuing interaction* and
 
 ## Constraints
 
-- **Accountless and local-first (ADR 0002).** One installation owner, no new
-  accounts or telemetry, and no network call beyond the selected provider request.
+- **Accountless and local-first (ADR 0002).** One installation owner. The safety
+  features add no accounts, telemetry or network calls beyond the selected
+  provider request.
 - **Request-local streamed chat (ADR 0003).** Detection and notice decisions are
   request-local, with no queues or workers. New SSE events are Animama domain
   events formatted by the route. `run.completed` ordering and the cancellation

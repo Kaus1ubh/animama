@@ -1,3 +1,5 @@
+# Adapted from Letta (Apache-2.0): letta/schemas/letta_base.py; modified for Animama.
+# See licenses/third-party/adapted-code.md.
 import uuid
 from datetime import datetime
 from logging import getLogger

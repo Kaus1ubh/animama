@@ -153,6 +153,10 @@
   "conversation": {
     "label": "대화"
   },
+  "markdown": {
+    "image": "[이미지: {{alt}}]",
+    "imageNotLoaded": "[이미지: 불러오지 않음]"
+  },
   "runStatus": {
     "searching_web": "웹 검색 중…",
     "summarizing_context": "이전 대화 요약 중…"

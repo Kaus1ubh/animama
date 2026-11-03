@@ -1,3 +1,5 @@
+// Adapted from ElevenLabs UI and Vercel AI Elements (MIT AND Apache-2.0): apps/www/registry/elevenlabs-ui/ui/message.tsx; modified for Animama.
+// See licenses/third-party/adapted-code.md.
 import {
   useState,
   type ComponentProps,

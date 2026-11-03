@@ -153,6 +153,10 @@
   "conversation": {
     "label": "对话"
   },
+  "markdown": {
+    "image": "[图片：{{alt}}]",
+    "imageNotLoaded": "[图片：未加载]"
+  },
   "runStatus": {
     "searching_web": "正在搜索网络…",
     "summarizing_context": "正在总结之前的对话…"

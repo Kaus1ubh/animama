@@ -1,3 +1,5 @@
+# Adapted from OpenAI Agents SDK (MIT): src/agents/usage.py.
+# See licenses/third-party/adapted-code.md.
 from __future__ import annotations
 
 from dataclasses import dataclass, field

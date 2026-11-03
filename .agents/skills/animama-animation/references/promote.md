@@ -13,7 +13,10 @@ Promote only when all of these hold:
   and any change of its display name or loop/one-shot kind;
 - the owner has approved **the licence entries**: the inventory rule's
   creator, provenance, `license_id` and `redistribution_review`, and the
-  source-review record. Show the exact wording before writing anything;
+  source-review record. Show the exact wording before writing anything. Everything
+  merged is published, so that approval is the redistribution clearance:
+  record it as `cleared-<date of approval>`; a `pending` rule fails
+  `tests/test_included_content_integrity.py`;
 - the work is on a task branch that goes through a PR.
 
 Do not change the starter loadout (`starter-loadout.v1.json` and the backend
@@ -43,7 +46,7 @@ relative to the items file.
       "creator": "...",
       "provenance": "...",
       "license_id": "LicenseRef-Animama-agent-authored",
-      "redistribution_review": "pending"
+      "redistribution_review": "cleared-YYYY-MM-DD"
     },
     "sourceReview": {
       "candidate_license": "AGPL-3.0-only",

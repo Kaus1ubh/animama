@@ -2,9 +2,9 @@
 
 This source review covers the exact files and SHA-256 values in
 [code-and-models.json](code-and-models.json). It preserves original third-party
-terms while Animama's working source remains proprietary. A later license
-transition for Raymond Van's own code must retain these exceptions and notices.
-It is a preparation record, not signed-binary or public-release acceptance.
+terms: Animama's own code is AGPL-3.0-only, and these exceptions and notices
+keep their own licences. It is a source record, not signed-binary
+acceptance.
 
 ## Browser and speech runtime
 
