@@ -1,0 +1,572 @@
+# Pre-publication security hardening
+
+Source agreement: [the spec](pre-publication-hardening-spec.md), agreed by the
+owner on 2026-11-03, with three security-review refinements added the same day
+(R3.3's switch list, R3.6's throwaway profile, R4.6 on redirects) that this
+plan presented and the owner approved with it. Authority:
+[#838](https://github.com/raymond-van/animama/issues/838), a sub-issue of #819;
+the spec file is its snapshot.
+Authorized scope: the whole plan (G0 approved by the owner, 2026-11-03).
+
+## Purpose and context
+
+One branch (`fix/pre-publication-hardening`) and one PR deliver five hardening
+changes before the repository is published. The spec owns the required
+behavior (R1 to R5); this plan owns how it is built and checked. Hosted CI
+(`Portable product validation`) stays disabled, so local checks are the
+evidence.
+
+Starting point: `origin/main` at `dacf928c4`, which already contains #834
+(markdown shows only app-served images) and #835 (update requests send only
+the headers they need; Memory Manager tracing is off on desktop).
+
+Orientation, by requirement:
+
+- **R1, security policy.** `SECURITY.md` at the repository root. The
+  open-source readiness plan
+  ([its Phase 3](../open-source-readiness/open-source-readiness-execplan.md))
+  will move it to `.github/SECURITY.md`; this work edits whichever path `main`
+  has when Phase 1 starts and gives that work the final wording for its issue
+  form links.
+- **R2, Content Security Policy.** FastAPI serves the built web app through
+  `LocalAssets` in `src/backend/animama/local/http/assets.py`
+  (`_static_response` builds the headers for every built file, including the
+  `index.html` fallback for app routes). Stored bytes go through
+  `verified_file_response` and `PackageDownloadResponse` in
+  `src/backend/animama/product_http/delivery.py`, which the local and hosted
+  compositions share. `contracts/hosted-web.md` already specifies the hosted
+  entry policy and the Pocket worker exception, and
+  `scripts/repository-boundary/consumers/hosted-app/server.mjs` implements it
+  for the hosted fixture. Development serves the page from Vite
+  (`src/frontend/web/vite.config.ts`), not FastAPI. The renderer's only
+  direct outside connections today are the Pocket voice-sample previews
+  (`web/src/lib/speech/pocket/voice-catalog.ts`; `huggingface.co`, which
+  redirects to its `*.hf.co` download CDN) and the ElevenLabs realtime socket
+  (`web/src/hooks/use-elevenlabs-tts-runtime.ts`; `wss://api.elevenlabs.io`).
+  The OpenRouter model list is fetched by the backend.
+- **R3, Electron.** `src/frontend/desktop/electron-builder.yml` has no
+  `electronFuses`; a packed 0.1.1 app reads RunAsNode, `NODE_OPTIONS` and
+  inspect arguments on, cookie encryption, asar integrity and
+  only-load-from-asar off, and file-protocol extra privileges on. electron-builder
+  26.18 flips fuses after `afterPack` and immediately before signing, with
+  `@electron/fuses` 1.8.0, and already writes `ElectronAsarIntegrity` into the
+  macOS `Info.plist`. Windows are created in `window/create-window.ts`,
+  `pip/pip-window-manager.ts`, `quick-chat/quick-chat-window-manager.ts` and
+  `runtime/recovery.ts`; the View menu's DevTools item is in
+  `ui/application-menu.ts`. Packaged development overrides are refused in
+  `runtime/paths.ts` (`prepareDesktopIdentity`). The release smoke
+  (`scripts/runtime/smoke-journey.mjs`, with `smoke-macos.mjs`,
+  `smoke-windows.mjs`, `ci-smoke.mjs` and the VM helper under `scripts/vm/`)
+  drives the installed app with Playwright's `_electron.launch`, which passes
+  `--inspect=0 --remote-debugging-port=0` and needs the Node inspector.
+  `scripts/native/test-global-input-hook.mjs` runs the packaged Windows
+  executable as Node. `scripts/runtime/audit.mjs` audits the stage before
+  packing and runs the *staged* Electron as Node, which keeps Electron's
+  default fuses, so it is unaffected.
+- **R4, keys.** Allowed key references are in
+  `src/backend/animama/app/model_clients/credential_store.py`
+  (`KNOWN_PROVIDER_CREDENTIAL_ENVS`, `MANAGED_CREDENTIAL_ENV_PATTERN`,
+  delivery validation) and resolved per request by
+  `StoreModelCredentialResolver` in `credentials.py`, which every model client,
+  probe, model listing, embedding and Memory Manager path uses.
+  `model_configuration_service.py` validates base URLs and credential settings
+  at save; `server/routers/model_configuration.py` reports `credential_state`.
+  The desktop vault (`desktop/src/main-process/runtime/vault.ts`) keeps
+  connection keys by variable name and delivers them as environment names; its
+  IPC types live in `src/frontend/shared/desktop-runtime.ts`. The connection
+  form is `web/src/ui/settings/models/ModelConnectionDialog.tsx`, and
+  `model-configuration-state.ts` already treats loopback names,
+  `127.0.0.0/8`, `::1` and `host.docker.internal` as this computer. Clients
+  that send a key in a custom header: ElevenLabs (`xi-api-key`, over an httpx
+  client with `follow_redirects=True`), the Anthropic SDK (`x-api-key`),
+  Gemini (`x-goog-api-key`) and Brave web search (`X-Subscription-Token`).
+- **R5, updates.** `desktop/src/main-process/updates/electron-adapter.ts`:
+  the macOS adapter's download verifier is empty and its install step hands
+  the cached ZIP to the system updater without rechecking it; the Windows
+  adapter rechecks bytes and publisher before running the installer.
+  `policy.ts` validates the feed and requires its version to be newer than the
+  running app. The electron-builder NSIS installer's `ProductVersion` string is
+  the app version; the macOS update ZIP holds `Animama.app` at its root.
+
+Boundaries: other review findings, GitHub settings, Cloud, the desktop version
+and release policy stay out (spec non-goals). Generated clients are not
+hand-edited; Prettier is not run on Markdown. Public records describe the
+hardening, not how a weakness could be used.
+
+## Progress
+
+- [x] Spec agreed (2026-11-03).
+- [x] G0: owner approved this plan, including the three review refinements
+  (2026-11-03).
+- [x] Workspace (2026-11-03): parent issue #838 (sub-issue of #819), branch
+  `fix/pre-publication-hardening` from `dacf928c4`, plan and spec snapshot
+  committed.
+- [ ] Phase 1: security policy.
+- [ ] Phase 2: Content Security Policy and sandboxed stored bytes.
+- [ ] Phase 3: keys bound to their provider and address.
+- [ ] Phase 4: Electron fuses, debugging guard, DevTools and the smoke copy.
+- [ ] Phase 5: update-download checks.
+- [ ] Final integration review.
+- [ ] Final validation: full pre-push suite, browser journeys, packed-app
+  checks (G1 for paid calls).
+- [ ] PR opened with local evidence.
+
+## Surprises & Discoveries
+
+- `audit.mjs` checks the stage before packing and runs the staged Electron,
+  not the packed app, so it cannot read a packed fuse wire. The packed-app
+  fuse assertion therefore lives in the packaging checks that see packed apps
+  (Phase 4), not in `audit.mjs`.
+- Playwright's `_electron.launch` waits for the Node inspector's "Debugger
+  listening" line before it attaches, so it cannot drive an app whose inspect
+  fuse is off. Connecting over the remote-debugging port alone would still need
+  a switch that a shipped app refuses.
+- The packaged app always uses the canonical profile
+  (`~/Library/Application Support/Animama`) and rejects the development
+  user-data override, so packed apps are not launched on the owner's own
+  account during this work; they run in disposable VM clones.
+- `@electron/fuses` 1.8.0 reads Electron 45's ninth fuse
+  (`WasmTrapHandlers`) without a name; the expected wire includes it at
+  Electron's default.
+
+## Decision Log
+
+- 2026-11-03, owner: one ExecPlan, one branch, one PR for R1 to R5.
+- 2026-11-03, owner: best-effort response time; the OpenAI key goes only to
+  `api.openai.com`; connection keys are bound to the origin saved with them;
+  the release smoke uses a harness-made, inspect-enabled copy for its journey.
+- 2026-11-03, owner: pre-launch, so no migration for earlier installations.
+- 2026-11-03, owner (from earlier sessions): per-phase checks are targeted;
+  the full pre-push suite runs once on the final candidate, which this plan's
+  approval authorizes. Each VM run with real provider calls needs the owner's
+  go-ahead (G1).
+- 2026-11-03, security review: the smoke copy gets a throwaway profile and is
+  deleted after the run; the debugging switch list is named; keys never follow
+  cross-origin redirects. Presented with this plan.
+- Agent: the throwaway profile reuses the existing development user-data
+  override, which a packaged app accepts only while its Node inspector runs,
+  the same condition that admits debugging switches. A shipped app can meet
+  neither.
+- Agent: the copy-based journey is a release-smoke mode, not a development
+  bypass. Before a signed candidate exists, it is exercised against a local
+  development pack by an uncommitted harness whose results are recorded here.
+- Agent: the real-Electron local feed check (R5.3) uses an uncommitted harness,
+  as #835 did, because it patches electron-updater's packaged-app detection;
+  the committed adapter tests cover the same decisions.
+- Agent: the update artifact checks reuse the existing
+  `update_download_invalid` code, so no new update text is needed.
+- Agent: R4 adds no API field; `credential_state` stays `missing` for a key
+  that cannot be used at the connection's address, and the connection form
+  explains what to do. New save refusals get stable codes and translated
+  messages.
+
+## Phased implementation
+
+Every phase starts from the previous phase's commit on
+`fix/pre-publication-hardening`. Phase commits use
+`<type>(<scope>)[p#]: <summary>`. Each phase records its check record
+(command, directory, result, Git tree) and review below. Per the owner's
+direction, phases run targeted checks only; the full pre-push suite runs once
+in final validation.
+
+### Workspace setup
+
+Use `implement` → `workspace-setup` in this worktree
+(`worktrees/animama/pre-publication-hardening-7b5c0d`):
+
+1. Verify the worktree is clean at `dacf928c4` or a later `origin/main`;
+   rename `claude/pre-publication-hardening-7b5c0d` to
+   `fix/pre-publication-hardening` (no push yet).
+2. Publish the agreed spec as a parent issue with the parent form's sections,
+   attach it as a native sub-issue of #819, read it back, and mark the spec
+   file as a snapshot of that issue.
+3. Add `licenses/source-review.json` entries for the new spec and plan files
+   (original-work attestation, as their neighbours) and run
+   `python3 scripts/public-release/check_source.py`.
+4. Prepare dependencies: `uv sync --python 3.12.13` at the root,
+   `pnpm install --frozen-lockfile` in `src/frontend`, `git lfs pull` before
+   any stage or full backend suite. Check `orb status` (OrbStack) before
+   backend tests.
+5. Commit `docs(security)[p0]: plan pre-publication hardening` with the spec
+   snapshot, plan and licence entries.
+
+Record (2026-11-03): worktree
+`worktrees/animama/pre-publication-hardening-7b5c0d`, branch
+`fix/pre-publication-hardening` at `dacf928c4` (`origin/main`), issue #838.
+`check_source.py` found three VM smoke scripts from #833 without entries on
+`main`; they get the original-work entries their neighbours have, so the check
+passes (`licenses/source-review.json covers every tracked file exactly once`).
+No stack is running for this task yet.
+
+### Phase 1: Security policy
+
+Review tier: light (documentation only); its review folds into the final
+integration review.
+
+Requirements: R1.1 to R1.7.
+
+Steps:
+
+1. Check which path `main` has (`SECURITY.md` or `.github/SECURITY.md`) and
+   edit that file. Write sections for: how to report (GitHub private
+   vulnerability reporting on this repository, or `security@animama.ai`), what
+   not to do (no public issue, pull request or discussion), what to include
+   (affected version or commit, platform, steps, impact, and no real keys or
+   personal data), response expectations (best effort, no promised time;
+   the maintainer acknowledges and coordinates disclosure), supported versions
+   (latest published desktop release and `main`), scope and out of scope, and
+   self-hosting on shared computers (the loopback API has no credential, so
+   any account on the computer can use it; use a computer only you use or put
+   your own authentication in front; the desktop app's local server admits
+   only its own windows). Link
+   [local deployment](../../architecture/deployment-topology.md) for exposure
+   beyond the computer.
+2. Search current documents for statements that contradict it
+   (`rg -n -i "vulnerab|security@|private vulnerability" --glob '!docs/plans/**'`)
+   and fix only real contradictions.
+3. Send the final wording to the open-source readiness session for its
+   `config.yml` link text, and record it in the shared notes.
+
+Checks: relative links resolve (`rg` for each new link target); no Prettier on
+Markdown; `check_source.py` if a path changed.
+
+Completion: the policy states every R1 item; commit
+`docs(security)[p1]: name the private reporting routes`.
+
+Check record: _to be filled._
+
+### Phase 2: Content Security Policy and sandboxed stored bytes
+
+Review tier: high risk (a security boundary and shared delivery code).
+
+Requirements: R2.1 to R2.5.
+
+Steps:
+
+1. Tests first (`tests/test_local_http_assets.py`): the entry document, an
+   app route's `index.html` fallback, a fingerprinted module script, a
+   Vite-emitted worker asset, a `304` revalidation and
+   `tts/workers/inference-worker.js` each carry the policy; only the Pocket
+   worker's policy contains `'unsafe-eval'`; model mount files are unchanged.
+   Delivery tests (`tests/test_local_content_delivery.py`,
+   `tests/test_anima_runtime_delivery.py` and the package export tests)
+   expect `Content-Security-Policy: sandbox; default-src 'none'` on content
+   files, Included files, previews, runtime members and package export
+   downloads.
+2. In `assets.py`, define the policy once and add it in `_static_response`:
+
+   ```text
+   default-src 'none'; script-src 'self' 'wasm-unsafe-eval';
+   style-src 'self' 'unsafe-inline'; img-src 'self' blob: data:;
+   font-src 'self'; connect-src 'self' blob: https://huggingface.co
+   https://*.hf.co wss://api.elevenlabs.io; media-src 'self' blob:;
+   worker-src 'self' blob:; frame-src 'none'; frame-ancestors 'none';
+   object-src 'none'; base-uri 'none'; form-action 'self'
+   ```
+
+   The exact Pocket worker name gets the same policy with
+   `script-src 'self' 'wasm-unsafe-eval' 'unsafe-eval'`. Sources are added
+   only when the live sweep (step 5) shows a real need, and each addition is
+   recorded under Surprises & Discoveries.
+3. In `delivery.py`, add the sandbox policy to `verified_file_response` and
+   `PackageDownloadResponse`.
+4. Add a check to the browser journeys' evidence fixture
+   (`src/frontend/e2e/fixtures/animama.ts`) that fails a journey when the page
+   or one of its workers reports a Content Security Policy violation, so
+   `pnpm e2e:test:fast` on a built stack becomes a standing check.
+5. Live sweep on a disposable built stack, for example
+   `ANIMAMA_WEB_BUILD_MODE=production ./reset.sh --name pph --base-port 8900`
+   (check free ports and running stacks first), with an uncommitted
+   Playwright script that records `securitypolicyviolation` events and
+   console reports in the page and its workers. Journeys: setup, chat with a
+   streamed reply, both starter Avatars, Avatar, Particle and Scene Effects
+   through a Gesture and the creators' previews, Pocket TTS speaking a reply,
+   Pocket voice cloning from a recording, a voice-sample preview, Parakeet and
+   SenseVoice dictation from a fake microphone file (when their model sets are
+   installed), the Safety dialog and page. Paid calls wait for G1.
+6. Documentation: the local HTTP architecture page
+   (`docs/frontend/architecture/auth-server.md`) states the policy, the worker
+   exception and the stored-bytes sandbox; the development guide
+   (`docs/backend/operations/development.md`) says Vite sends no policy and to
+   check policy-sensitive changes in a built stack or the desktop app;
+   `docs/frontend/runtime/vrchat-avatar-conversion.md` describes the served
+   policy accurately; `docs/frontend/architecture/content-and-workers.md`
+   points to the local policy beside the hosted contract.
+
+Checks: the touched pytest files with `uv run --no-sync pytest -q`;
+`uv run ruff check` and `uv run ruff format --check` on touched Python;
+`pnpm e2e:check` and `pnpm e2e:test:unit` for the fixture; the live sweep's
+results.
+
+Recovery: the policy is one constant per response kind; a missing source shows
+as a console violation and is fixed by adding that source, not by loosening
+others. If the sweep finds a library that needs `'unsafe-eval'` outside the
+Pocket worker, stop and bring it to the owner.
+
+Completion: tests pass, the sweep shows no violation (or every remaining one
+is recorded with its owner decision), docs match; commit
+`fix(web-security)[p2]: serve the app with a content security policy`.
+
+Check record: _to be filled._
+
+### Phase 3: Keys bound to their provider and address
+
+Review tier: high risk (credential and ownership boundary, desktop IPC
+contract and vault contents).
+
+Requirements: R4.1 to R4.6.
+
+Backend steps (tests first in `tests/test_runtime_credential_store.py`,
+`tests/test_model_connection_credentials.py`,
+`tests/test_model_configuration_api.py`, `tests/test_model_connection_probe.py`
+and `tests/test_desktop_credentials_route.py`):
+
+1. `credential_store.py`: replace the provider-name set with a mapping from
+   each provider variable to its origin (`OPENAI_API_KEY` →
+   `https://api.openai.com`, `DEEPSEEK_API_KEY` → `https://api.deepseek.com`,
+   `HF_TOKEN` → `https://router.huggingface.co`, `OPENROUTER_API_KEY` →
+   `https://openrouter.ai`). Accept `ANIMAMA_CONNECTION_<NAME>_ORIGIN` beside
+   each connection key, both from the process environment and in desktop
+   deliveries, and validate its value as a canonical `http(s)://host[:port]`
+   origin. The web-search name stays outside connection rules.
+2. `credentials.py`: the resolver sends an owner connection a key only when
+   the key's origin (its provider's, or the `_ORIGIN` value delivered or set
+   with it) equals the origin of the connection's base URL, and the transport
+   is HTTPS or plain HTTP to this computer (the same host rule as the web
+   form). Otherwise the connection's key is `missing`. Built-in connections
+   are unchanged.
+3. `model_configuration_service.py`: at create and update, refuse a provider
+   key at another origin and any key over plain HTTP to another computer
+   (`credential_origin_mismatch`, `credential_insecure_transport`), and a
+   self-hosted connection key whose configured origin differs (the service
+   receives the resolver for this check). A desktop connection whose saved key
+   has another origin can still be saved; it reports `missing` until the key
+   is entered again.
+4. Router and errors: map the new codes, add them to the web app's
+   user-visible error codes and add translated messages for every locale.
+5. Redirects (R4.6): a shared httpx response hook refuses a redirect to
+   another origin; the ElevenLabs, Anthropic, Gemini and web-search clients use
+   it (or disable redirects where the provider never redirects). Tests send a
+   cross-origin `302` through a mock transport and check that no second request
+   carries the key; a test also confirms that the OpenAI SDK's client drops
+   `Authorization` on a cross-origin redirect, so those clients need no hook.
+
+Desktop and web steps:
+
+6. `shared/desktop-runtime.ts` and `vault.ts`: a connection key change may
+   carry `origin` only together with a `value`; main validates it, stores it
+   in the vault entry, and delivers `<NAME>_ORIGIN` beside the key at startup
+   and on every live change. Entries without an origin are delivered without
+   one, so the backend does not use them. Tests in the desktop vault and IPC
+   suites.
+7. `ModelConnectionDialog.tsx`: on desktop, save the key with the origin of
+   the saved base URL; when the address's origin changes on a connection with
+   a saved key, require a new key (or removal) before saving and say why. On
+   self-hosted web, under the variable field, show the `_ORIGIN` line to add
+   for a connection key. Strings in English and the four translations; web
+   tests for both forms.
+8. Documentation: `docs/backend/operations/local-models.md` (keys on
+   self-hosted web, with the origin line), ADR 0011's credential paragraph,
+   the desktop runtime vault description
+   (`docs/backend/operations/desktop-runtime.md`) and the model configuration
+   API docs where they describe credential references. No OpenAPI schema
+   change is planned; if one becomes necessary, regenerate the client offline
+   with `pnpm openapi-ts`.
+
+Checks: the touched pytest files; `uv run ruff check` and format check;
+`pnpm desktop:test`; the touched web Vitest files; `pnpm check`;
+`pnpm i18n:check`.
+
+Recovery: keys live only in the vault and process environment, so a wrong
+binding refuses a key rather than leaking it; re-entering the key repairs a
+desktop connection.
+
+Completion: every R4 acceptance item is covered by a passing test; commit
+`fix(models)[p3]: send stored keys only to their own address`.
+
+Check record: _to be filled._
+
+### Phase 4: Electron fuses, debugging guard, DevTools and the smoke copy
+
+Review tier: high risk (packaging, release tooling and the desktop security
+boundary).
+
+Requirements: R3.1 to R3.6.
+
+Steps:
+
+1. `electron-builder.yml`: add `electronFuses` with the R3.1 values and
+   `resetAdHocDarwinSignature: true` (unsigned development packs need a valid
+   ad-hoc signature after the flip; signed builds are re-signed afterwards
+   anyway).
+2. Add `@electron/fuses` 1.8.0 (the version electron-builder already uses) as
+   a desktop devDependency, and a module
+   `scripts/runtime/fuses.mjs` that reads a packed app's wire and compares it
+   with the expected one, including the ninth fuse at Electron's default.
+   Call it from `package-development.mjs`, `release-macos.mjs`,
+   `release-windows.mjs` and the smoke's install step. Unit tests use a small
+   fixture file that contains a fuse wire.
+3. Debugging guard: a dependency-free module imported first by `main.ts`
+   checks, in packaged builds, for `--remote-debugging-port`,
+   `--remote-debugging-pipe`, `--inspect`, `--inspect-brk`, `--inspect-wait`
+   and `--inspect-port` (through Chromium's switch parser and `process.argv`),
+   and exits before any other startup code unless `inspector.url()` reports a
+   running inspector. Unit tests cover each switch, packaged and unpackaged,
+   with and without an inspector.
+4. `paths.ts`: a packaged app accepts `ANIMAMA_DESKTOP_DEV_USER_DATA` only while
+   its inspector runs; every other packaged override stays refused. Tests.
+5. DevTools: `devTools: !app.isPackaged` in the four window creators; the View
+   menu template drops its DevTools item when packaged. Tests for the menu and
+   window options.
+6. `scripts/native/test-global-input-hook.mjs`: on Windows, run the staged
+   Electron (`.desktop-runtime/win32-x64/electron/electron.exe`) as Node and
+   load the addon from the packaged `app.asar.unpacked`.
+7. Smoke: in `smoke-journey.mjs` and the platform modules,
+   - after the existing install and signature steps, read the exact
+     artifact's fuse wire, check its sealed `runtime/update-policy.json`
+     against the release policy (the publisher requirement is already checked
+     by `verifySignedApp` on macOS and the Authenticode check on Windows), and
+     launch it with each debugging switch, expecting a prompt nonzero exit, no
+     runtime state or process record and no runtime child;
+   - make the copy in a new private temporary directory outside the checkout:
+     `ditto` on macOS or a recursive copy on Windows, flip
+     `EnableNodeCliInspectArguments` on, re-sign it ad-hoc on macOS
+     (`codesign --force --deep --sign -`), and check its wire differs only in
+     that fuse;
+   - run the existing journey on the copy with a throwaway user-data directory
+     through `ANIMAMA_DESKTOP_DEV_USER_DATA`; the update step now expects
+     `unavailable`; children must run from the copy's runtime;
+   - delete the copy and the throwaway directory in `finally`, and on macOS
+     remove the copy's `Animama Safe Storage` Keychain item when the smoke
+     created it (verified absent at the start).
+   Report fields keep their sanitized shape; new checks are named, for example
+   `exact_fuse_wire`, `debugging_switches_refused`, `copy_fuse_wire` and
+   `copy_updates_unavailable`. Unit tests cover the pure helpers.
+8. Documentation: the installed-artifact smoke and VM sections of
+   `docs/frontend/desktop/releases.md`, and a short packaged-hardening note
+   (fuses, debugging switches, DevTools) in the desktop platform docs.
+
+Checks: `pnpm desktop:test`; `pnpm --filter animama-desktop check`; a
+development stage, audit and pack (`pnpm desktop:runtime:stage -- --platform
+darwin --arch arm64`, `pnpm desktop:runtime:audit -- …`, `pnpm desktop:mac`)
+through the heavy-job slot after checking that no other pack is running, whose
+fuse assertion passes; packed behavior is checked in final validation, not on
+the owner's account.
+
+Recovery: fuses are build configuration; reverting the `electronFuses` block
+and the guard restores the previous behavior. A failed smoke leaves the exact
+installed app in place for inspection, as before.
+
+Completion: tests pass, the pack's fuse assertion passes; commit
+`fix(desktop)[p4]: turn on Electron fuses and refuse debugging switches`.
+
+Check record: _to be filled._
+
+### Phase 5: Update-download checks
+
+Review tier: high risk (the release-critical update path).
+
+Requirements: R5.1 to R5.3.
+
+Steps:
+
+1. Tests first in `desktop/tests/desktop-updater-adapter.test.ts`: macOS
+   accepts a ZIP whose `Animama.app/Contents/Info.plist` and
+   `Contents/Resources/runtime/manifest.json` match the approved version and
+   build ID, and refuses an older or different inner version, a different
+   build ID, a missing entry or an oversized entry with
+   `update_download_invalid`; the install step rechecks size and SHA-512 and
+   refuses a changed archive before `nativeUpdater.checkForUpdates()`.
+   Windows refuses an installer whose `ProductVersion` differs, at download and
+   before it runs.
+2. `electron-adapter.ts`: read the two entries with `/usr/bin/unzip -p`
+   (bounded output, no extraction to disk), parse the version with
+   `/usr/bin/plutil` from standard input and the manifest as JSON; pass the
+   approved candidate to the download verifier; recheck bytes in the macOS
+   install step. Extend the Windows PowerShell check to return the installer's
+   `ProductVersion` with its signer.
+3. Real Electron check (uncommitted harness under the worktree's ignored
+   `.animama-drafts/`): bundle a small main script with the real adapter, serve
+   `latest-mac.yml` and fake update ZIPs from a local HTTPS server (self-signed
+   certificate trusted only by the updater session; the test host mapped to
+   loopback with `host-resolver-rules`), and run check and download with
+   electron-updater 6.8.11 under Electron 45.2.1. Cases: matching artifact
+   accepted; older inner version refused; different build ID refused; archive
+   changed after download refused before the system updater runs.
+4. Documentation: the update integrity section of
+   `docs/frontend/desktop/releases.md`.
+
+Checks: `pnpm desktop:test`; `pnpm --filter animama-desktop check`; the
+harness run, recorded here.
+
+Recovery: a refused update leaves the running app and data untouched; the
+person checks again.
+
+Completion: commit `fix(desktop-updates)[p5]: check the update artifact before
+installing`.
+
+Check record: _to be filled._
+
+## Final integration review
+
+An independent `sdlc-reviewer` covers combined acceptance (R1 to R5), Phase 1's
+folded light review, public-safety of all records, and integration across the
+phases (for example, the smoke copy with the guard, the vault origin with the
+backend rule). It reuses phase evidence and runs no checks. At most two repair
+rounds; findings and revisions are recorded here.
+
+## Validation and acceptance
+
+On the final candidate, in this order:
+
+1. Full pre-push suite through the heavy-job slots:
+   `python3 scripts/heavy-slot.py -- make check-test` from the root, and from
+   `src/frontend`: `python3 ../../scripts/heavy-slot.py -- pnpm verify`,
+   `pnpm web:test:browser`, `pnpm desktop:test` and `pnpm prettier:check`.
+2. Browser journeys: `pnpm e2e:test:fast` against a disposable built stack
+   (`ANIMAMA_LLM_SKIP=1 ANIMAMA_WEB_BUILD_MODE=production ./reset.sh --name
+   pph-e2e --base-port 8600` or a free base port), through the heavy-job slot,
+   with the new CSP check active.
+3. Packed app: a fresh development stage, audit and pack of the final
+   candidate, then, in a disposable clone of the golden VM, with an
+   uncommitted variant of the VM helper that accepts a development pack:
+   - the fuse assertion on the copied app;
+   - each debugging switch refused before a window or the runtime starts;
+   - the smoke copy journey with the throwaway profile (G1: the smoke key,
+     two short starter chats per run, at most three runs);
+   - a CSP sweep in the packed copy: chat, Avatar render, a Gesture with
+     effects, Pocket TTS speech, a voice-sample preview, PiP, Quick Chat and
+     the Safety dialog, recording violations across every window.
+   The clone is deleted afterwards.
+4. Owner gates that remain after the PR, recorded in it: the installed-artifact
+   smoke on a signed, notarized candidate in the VM; Windows packaged
+   acceptance; real-Mac checks of GPU, audio and microphone; turning on
+   private vulnerability reporting on publication day.
+
+Gates:
+
+- **G0:** the owner approves this plan.
+- **G1:** the owner's go-ahead for paid provider calls: in the built-stack
+  sweep, at most 20 short chat turns with the development OpenAI key and,
+  optionally, three ElevenLabs realtime replies to exercise the realtime
+  socket under the policy; in the VM, at most three smoke-journey runs.
+  Without it, the paid steps are skipped and recorded as not run.
+
+Before any push or `gh pr create`, run `gh workflow list --all`; if
+`Portable product validation` is enabled, stop and ask the owner.
+
+## Idempotence and recovery
+
+- Stacks are named and disposable; tear each down after its last use
+  (`docker compose -p animama-<name> down`) and say which are kept.
+- VM clones are deleted by the helper on exit; a leftover clone is listed by
+  `tart list` and removed with `tart delete`.
+- The stage, audit and pack can be rerun; never run them while another
+  `desktop:mac` pack or VM smoke is running.
+- Vault and key changes are local and reversible by entering the key again.
+- If the open-source readiness work moves `SECURITY.md` first, rebase and edit
+  `.github/SECURITY.md`.
+
+## Outcomes & Retrospective
+
+_To be written at completion._
