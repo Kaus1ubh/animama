@@ -2,7 +2,7 @@
   "name": "animama-desktop",
   "private": true,
   "license": "UNLICENSED",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Animama private desktop runtime",
   "author": "Animama",
   "type": "module",
