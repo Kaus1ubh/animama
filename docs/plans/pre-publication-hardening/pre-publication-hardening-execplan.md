@@ -101,7 +101,7 @@ hardening, not how a weakness could be used.
 - [x] Workspace (2026-11-03): parent issue #838 (sub-issue of #819), branch
   `fix/pre-publication-hardening` from `dacf928c4`, plan and spec snapshot
   committed.
-- [ ] Phase 1: security policy.
+- [x] Phase 1: security policy (light; review folded into the final review).
 - [ ] Phase 2: Content Security Policy and sandboxed stored bytes.
 - [ ] Phase 3: keys bound to their provider and address.
 - [ ] Phase 4: Electron fuses, debugging guard, DevTools and the smoke copy.
@@ -233,7 +233,18 @@ Markdown; `check_source.py` if a path changed.
 Completion: the policy states every R1 item; commit
 `docs(security)[p1]: name the private reporting routes`.
 
-Check record: _to be filled._
+Check record (2026-11-03):
+
+- `SECURITY.md` at the root (`main` had not moved it). Every R1 item is
+  present: both routes, no public reports, report contents, best-effort
+  responses, supported versions, scope, the shared-computer note.
+- Contradiction search over current documents (plans excluded): only the old
+  `SECURITY.md` text matched; `README.md`, `SDLC.md` and the parent issue form
+  point to the file without restating it.
+- Link targets: `docs/architecture/deployment-topology.md` exists; the GitHub
+  reporting form answers once private vulnerability reporting is on
+  (publication day).
+- Review: light tier, folded into the final integration review.
 
 ### Phase 2: Content Security Policy and sandboxed stored bytes
 
