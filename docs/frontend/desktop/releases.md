@@ -43,7 +43,11 @@ The pinned `electron-updater` 6.8.11 adapter sets `autoDownload=false` and
 platform and architecture only, and disables differential downloads and web
 installers. It checks the exact approved download's size and SHA-512 and
 refreshes the feed before downloading, so a changed candidate needs another
-check. Each platform's update must come from its own publisher, sealed into
+check. Its requests carry only `Accept`, `Accept-Encoding`, `Cache-Control` and
+the library's fixed `User-Agent` (`electron-builder`): the session drops the
+library's per-installation staged-rollout ID and Chromium's language header,
+and a feed that sets `stagingPercentage` is refused. Each platform's update
+must come from its own publisher, sealed into
 `runtime/update-policy.json` at staging: on macOS the Apple Team ID, on Windows
 the Authenticode certificate subject and identity-validation EKU.
 

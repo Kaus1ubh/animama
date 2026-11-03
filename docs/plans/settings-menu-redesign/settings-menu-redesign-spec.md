@@ -41,8 +41,9 @@ Non-goals and deferrals:
   picture-in-picture always-on-top toggle and quick-chat positioning. Deferred to a
   focused desktop discussion.
 - Bulk deletion of chats or memories, and data export/backup/restore.
-- An "Open backups folder" action and a telemetry opt-out (web telemetry currently
-  exports nothing, so a switch would be misleading).
+- An "Open backups folder" action and a telemetry opt-out (the desktop app sends
+  no usage data, so a switch would be misleading; the safety and crisis protocol
+  lists what it does send).
 - Changing which Anima-only settings exist (voice overrides, background, chat model
   per Anima) beyond the inheritance in R6.
 - Migrating existing development data; the development database may be reset.

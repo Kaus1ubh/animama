@@ -1149,6 +1149,31 @@ describe("runtime supervision", () => {
       expect((env as Record<string, string>).OPENAI_API_KEY).toBeUndefined();
   });
 
+  it("turns off OpenAI Agents SDK tracing in every runtime child, keys or not", async () => {
+    const first = create();
+    await first.runtime.start();
+    await first.runtime.changeCredentials([
+      { provider: "openai", value: "fixture-key" },
+    ]);
+    await first.runtime.stop();
+    const again = create(first.options.paths);
+    await again.runtime.start();
+
+    // The first FastAPI started without a key; the relaunch starts with it.
+    expect(fastapiLaunches().map((child) => child.env.OPENAI_API_KEY)).toEqual([
+      undefined,
+      "fixture-key",
+    ]);
+    const runtimeChildren = fixture.launches.filter(
+      (child) => child.name !== "postgres",
+    );
+    expect(runtimeChildren.map((child) => child.name)).toEqual(
+      expect.arrayContaining(["fastapi", "avatar-cleanup"]),
+    );
+    for (const child of runtimeChildren)
+      expect(child.env.OPENAI_AGENTS_DISABLE_TRACING).toBe("1");
+  });
+
   it("gives a saved connection key to FastAPI on start but never to cleanup", async () => {
     const env = "ANIMAMA_CONNECTION_C_0123456789AB_API_KEY";
     const first = create();
