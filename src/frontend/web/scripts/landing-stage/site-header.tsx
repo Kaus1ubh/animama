@@ -64,7 +64,7 @@ export const focusRing = (light: boolean) =>
 /**
  * The site header: the logo on the left; on the right one liquid-glass pill
  * holding Home, About and Docs, the theme toggle and language picker, Log in
- * and Sign up (placeholders until accounts exist), and Download as its one
+ * and Sign up (Animama Cloud's account pages), and Download as its one
  * solid button. During the closed beta the page is English only, Request Beta
  * Access (the form) replaces the language picker, Log in, Sign up and that
  * button, and Download becomes a link beside About (the download page). A
@@ -244,12 +244,12 @@ export function SiteHeader({
           {CLOSED_BETA ? null : (
             <>
               {divider}
-              <button type="button" data-pill-item="" className={link}>
+              <a href={SITE.signIn} data-pill-item="" className={link}>
                 Log in
-              </button>
-              <button type="button" data-pill-item="" className={link}>
+              </a>
+              <a href={SITE.signUp} data-pill-item="" className={link}>
                 Sign up
-              </button>
+              </a>
             </>
           )}
           {primary("ml-1 hover:brightness-105")}
@@ -472,8 +472,12 @@ function SiteMenu({
         {CLOSED_BETA ? null : (
           <>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>Log in</DropdownMenuItem>
-            <DropdownMenuItem>Sign up</DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <a href={SITE.signIn}>Log in</a>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <a href={SITE.signUp}>Sign up</a>
+            </DropdownMenuItem>
           </>
         )}
       </DropdownMenuContent>

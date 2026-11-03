@@ -44,10 +44,12 @@ with `build.pack_site` to check it before relying on the package set.
 `stops.ts` holds the copy, camera stops, clips and site settings:
 
 - `STAGE_STOPS`: each stop's title, line, camera, backdrop and clips.
-- `CLOSED_BETA`: while on, the header offers one **Request Beta Access**
-  button (the form at `BETA_ACCESS_URL`) instead of Download, Log in, Sign up
-  and the language picker, and stops show their `beta` copy. Turn it off at
-  launch to restore the rest.
+- `CLOSED_BETA`: off since the public launch. The header offers Download,
+  the language picker, and Log in and Sign up (Animama Cloud's account pages,
+  `SITE.signIn` and `SITE.signUp`); the last stop's Download goes to the
+  download page. Turned on, the header offers one **Request Beta Access**
+  button (the form at `BETA_ACCESS_URL`) instead, and stops show their `beta`
+  copy.
 - `SITE`: the canonical address, docs link, title, share image, copyright
   line, the 3D scene's description for screen readers, the contact address,
   the social links (Discord, YouTube and X icons, `social-icons.tsx`; also the
@@ -138,7 +140,7 @@ document the app's Safety dialog shows: the build renders it to HTML in
 `crisis-protocol.json` (`renderCrisisProtocol`), so a protocol change reaches
 the site through the next package set and Cloud repin. The page is English only.
 
-Changing the header's links or buttons (Request Beta Access, Log in, Sign up)
+Changing the header's links or buttons (Download, Log in, Sign up)
 changes every page, through the next package set and Cloud repin. Cloud's own
 build fails if a pinned site has no `site-chrome.json`.
 
