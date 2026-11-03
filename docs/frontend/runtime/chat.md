@@ -150,9 +150,9 @@ render as plaintext.
 
 Markdown replies, here and in the Memory Manager, show only images from the
 app's own origin. Any other image shows as text instead: its alt text, or
-Streamdown's `[Image blocked: …]` label for sources its sanitizer removes, such
-as `data:` and `blob:` URLs. HTML in a reply shows as text, and a link opens only
-after Streamdown's dialog shows its destination. Product-ui's
+Streamdown's `[Image blocked: …]` label for sources Streamdown itself rejects,
+such as `data:` and `blob:` URLs. HTML in a reply shows as text, and a link
+opens only after Streamdown's dialog shows its destination. Product-ui's
 `StreamdownResponse` applies these rules, and callers cannot override them.
 
 ### Model selector behavior
