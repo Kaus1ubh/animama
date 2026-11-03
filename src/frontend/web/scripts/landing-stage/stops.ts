@@ -531,7 +531,7 @@ const gesture = (stem: string, label: string): StageClip => ({
  * Download, Log in and Sign up, and stops use their `beta` copy. Turn off at
  * launch.
  */
-export const CLOSED_BETA = true;
+export const CLOSED_BETA = false;
 /**
  * The closed beta's request form: the Google Form's plain responder link,
  * never a pre-filled one (its `entry.…` values would be published).
@@ -567,6 +567,12 @@ export const SITE = {
   privacy: "/privacy/",
   terms: "/terms/",
   safety: "/safety/",
+  /**
+   * Animama Cloud's account pages, where the header's Log in and Sign up go.
+   * A sign-in without a `returnTo` continues into the hosted app.
+   */
+  signIn: "https://auth.animama.ai/sign-in",
+  signUp: "https://auth.animama.ai/sign-up",
   /** The public contact address, forwarded by the domain's email routing. */
   contactEmail: "ray@animama.ai",
   /**
@@ -750,7 +756,7 @@ export const STAGE_STOPS: StageStop[] = withBetaCopy([
     accent: "#8b7cf6",
     label: "Download",
     title: "Meet {object} on your desktop",
-    body: "Coming soon to macOS and Windows.",
+    body: "Available for macOS and Windows.",
     camera: {
       yaw: 372,
       distance: 1.2,
