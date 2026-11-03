@@ -145,7 +145,7 @@ users live.
 - [Deployment topology](docs/architecture/deployment-topology.md): desktop,
   self-host and development serving.
 - [Contributing](.github/CONTRIBUTING.md), [code of conduct](.github/CODE_OF_CONDUCT.md)
-  and [security policy](SECURITY.md).
+  and [security policy](.github/SECURITY.md).
 
 ## Licence, name and credits
 

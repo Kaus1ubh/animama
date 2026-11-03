@@ -24,6 +24,22 @@ The single durable owner generated for a local installation; **principal** is it
 authorization representation. This is not a login account, a central Cloud account
 or the temporary credential used to admit a desktop renderer.
 
+## Owner
+
+Raymond Van, who directs the project: product intent, specifications, plans,
+consequential choices, merges, releases and publication. Documents say **the
+owner** for the role and **Raymond** where the person matters. Not the
+**installation owner**, the local runtime's single generated principal.
+
+## Cloud (hosted composition)
+
+Animama Cloud, the hosted service that a separate, private repository builds from
+this repository's shared packages and contracts, with accounts and hosted
+storage. This repository builds, tests and runs without it; Cloud consumes only
+its reviewed, immutable public artifacts (see
+[repository boundaries](docs/architecture/repository-boundaries.md)). Code that
+serves both says **local composition** and **hosted composition**.
+
 ## Chat
 
 A persisted conversation associated with one Anima and its owner, containing

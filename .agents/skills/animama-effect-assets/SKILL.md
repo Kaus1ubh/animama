@@ -37,7 +37,8 @@ effect skill).
    the [house styles](#house-styles), never as a flat vector icon.
 2. **Get source images.** Use supplied art when there is any (owner art
    wins over generated art). Otherwise, if
-   the global `image-gen` skill is available, generate one image per asset
+   the global `image-gen` skill is available (an optional skill outside this
+   repository that runs Codex image generation), generate one image per asset
    with the prompt template below (`gen.sh --out <draft folder>/<name>-src.png`,
    a Bash timeout of at least 300000 ms). For variants of one design use
    `--n`; for a revision of an image use `--edit`; to keep a set consistent

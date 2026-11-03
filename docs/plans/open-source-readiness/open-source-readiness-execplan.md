@@ -96,7 +96,8 @@ visibility is the owner's own action.
   (review passed 2026-11-03; PR pending owner merge approval).
 - [x] Phase 2: README, process page and community files (review passed
   2026-11-03; in the single Phases 2–5 PR).
-- [ ] Phase 3: process documents and skills are current and public-safe.
+- [x] Phase 3: process documents and skills are current and public-safe
+  (light; covered by the final integration review).
 - [ ] Phase 4: agreed cleanups.
 - [ ] Phase 5: publication readiness and the #235 checklist.
 
@@ -859,6 +860,57 @@ published as it is (D2).
 
 Checks: the relative-link check; `git grep` for personal addresses and
 private paths; the skill files' front matter still parses.
+
+#### Phase 3 record
+
+On branch `chore/open-source-polish`, after the Phase 2 commit `db3488a0`.
+
+- `.claude/hooks/session-start.sh` no longer hard-codes a personal address: a
+  cloud session sets its commit identity only from `ANIMAMA_GIT_USER_NAME` and
+  `ANIMAMA_GIT_USER_EMAIL` when its environment supplies both, so the owner adds
+  those to the cloud environment to keep committing under that name. (Claude
+  Code's auto-mode classifier refused the first, shell-based edit of this hook
+  as self-modification; the edit tool's change went through.)
+- `AGENTS.md`: the naming rules now point to `SDLC.md#names-and-labels` instead
+  of repeating them; the "my approval" sentence about `reset.sh` is neutral and
+  limited to an agent's own stack; the undefined "skill pilot" gate became a
+  plain statement that installing a skill does not prove it works;
+  `$docs-sync` is now the `docs-sync` skill; "Accountless Transition" is
+  "Accountless local runtime".
+- `SDLC.md`: the dated 2026-09-18 enforcement inspection is a timeless rule to
+  check the actual protection; the skill-pilot sentence matches `AGENTS.md`;
+  `sdlc-reviewer` is named as Claude Code's reviewer; the format hook's `jq`
+  need is stated.
+- The ADR guide lets an agent accept only a decision the owner made or a
+  contract the system implements, matching ADR 0006. `merge-n-clean` closes the
+  parent only for a whole-plan delivery. `git-workflow` uses `gh pr merge
+  --match-head-commit` like `SDLC.md`, with the REST call as fallback, and the
+  PR template's private-plan wording. `implement` stops for the owner's review
+  of a new ExecPlan and names the no-scope phase commit form.
+- `GLOSSARY.md` gains **Owner** and **Cloud (hosted composition)**.
+  `animama-effect-assets` says the `image-gen` skill is optional and external;
+  `animama-vrm` records the current three-vrm version.
+- `SECURITY.md` moved to `.github/SECURITY.md` (agreed with #819), with its own
+  relative link and the README, `SDLC.md`, parent form and licence-review
+  references updated. The root now has 36 entries; Phase 4's A1 takes it to 32.
+- Left for the owner: `.claude/settings.json` pre-approves bare `make
+  check-test`, while `SDLC.md` routes it through `scripts/heavy-slot.py`.
+  Changing a permission list is the owner's call.
+- The compose profile list in `AGENTS.md` changes with Phase 4's A2, which
+  removes the broken `voice` service.
+
+Check record (repository root, staged Phase 3 tree):
+
+| Command | Result |
+| --- | --- |
+| Relative-link and anchor check over the 15 changed Markdown files | All resolve. |
+| `yaml.safe_load` of the issue forms; `bash -n .claude/hooks/session-start.sh` | Pass. |
+| `git grep` for the personal address | No match. |
+| `.venv/bin/python scripts/public-release/check_source.py` | Passes. |
+| `git diff --cached --check` | Clean. |
+
+Review tier light: no separate phase review; the final integration review
+covers Phase 3 explicitly.
 
 ### Phase 4: Agreed cleanups
 

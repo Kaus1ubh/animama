@@ -6,7 +6,7 @@ body:
       value: |
         Follow SPECS.md for authoring and SDLC.md for the lifecycle.
         This may begin as a proposal. Leave unresolved details explicit; submitting the form does not approve implementation.
-        Keep credentials, personal data, private context and raw approval transcripts out of the issue. Use SECURITY.md for sensitive reports.
+        Keep credentials, personal data, private context and raw approval transcripts out of the issue. Use the security policy (.github/SECURITY.md) for sensitive reports.
   - type: textarea
     id: problem
     attributes:

@@ -16,4 +16,4 @@ contact address.
 For ordinary bugs, include the version, reproduction steps and expected behavior,
 with private data removed. For self-hosting, keep the application on loopback or
 provide your own authentication and TLS boundary; see
-[local deployment](docs/architecture/deployment-topology.md).
+[local deployment](../docs/architecture/deployment-topology.md).
