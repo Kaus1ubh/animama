@@ -1150,12 +1150,20 @@ describe("runtime supervision", () => {
   });
 
   it("turns off OpenAI Agents SDK tracing in every runtime child, keys or not", async () => {
-    const current = create();
-    await current.runtime.start();
-    await current.runtime.changeCredentials([
+    const first = create();
+    await first.runtime.start();
+    await first.runtime.changeCredentials([
       { provider: "openai", value: "fixture-key" },
     ]);
+    await first.runtime.stop();
+    const again = create(first.options.paths);
+    await again.runtime.start();
 
+    // The first FastAPI started without a key; the relaunch starts with it.
+    expect(fastapiLaunches().map((child) => child.env.OPENAI_API_KEY)).toEqual([
+      undefined,
+      "fixture-key",
+    ]);
     const runtimeChildren = fixture.launches.filter(
       (child) => child.name !== "postgres",
     );

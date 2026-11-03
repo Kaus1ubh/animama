@@ -66,15 +66,18 @@ number.
   connects to other services only for the following, and each connection
   reveals your IP address:
   - Update checks to downloads.animama.ai, about 15 seconds after the app
-    starts and when you choose Check for updates. A check also shows whether
-    you use macOS or Windows, but nothing that identifies your installation.
+    finishes starting and when you choose Check for updates. A check also
+    shows whether you use macOS or Windows, but nothing that identifies your
+    installation.
   - Downloads from downloads.animama.ai of what you choose to use: an update,
     a feature pack, a speech model or a voice.
   - On Windows, a spell-check dictionary for your system language, which the
     app downloads from Google the first time it needs one.
   - A voice's sample from huggingface.co when you play it. This request also
-    shows the app's version, your system language and whether you use macOS
-    or Windows.
+    shows the app's version, your system language, whether you use macOS or
+    Windows, and your installation's local port number. That number doesn't
+    change, so huggingface.co could tell which plays came from the same
+    installation.
   - Requests to the model, voice and web search services you set up, carrying
     what each needs, such as your messages and the Anima's memories. Each
     service handles them under its own terms.

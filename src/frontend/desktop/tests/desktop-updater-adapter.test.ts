@@ -126,6 +126,9 @@ let root: string;
 beforeEach(() => {
   vi.clearAllMocks();
   fixture.native.removeAllListeners();
+  // Each test sees only the session hooks its own adapter registers.
+  fixture.beforeRequest = undefined as never;
+  fixture.beforeSendHeaders = undefined as never;
   root = mkdtempSync(path.join(realpathSync(tmpdir()), "animama-updater-"));
   fixture.file = path.join(root, "update.zip");
   writeFileSync(fixture.file, "zip fixture");
@@ -459,16 +462,22 @@ describe("update request headers", () => {
   };
 
   it.each([
-    ["macOS", () => createMacUpdateAdapter(policy, "0.1.0", vi.fn())],
+    [
+      "macOS",
+      () => createMacUpdateAdapter(policy, "0.1.0", vi.fn()),
+      "https://github.com/example/releases/releases/download/v0.2.0/latest-mac.yml",
+      "https://github.com/example/releases/releases/download/v0.2.0/Animama-0.2.0-arm64.zip",
+    ],
     [
       "Windows",
       () => createWindowsUpdateAdapter(windowsPolicy, "0.1.0", vi.fn()),
+      "https://downloads.example.test/desktop/latest.yml",
+      "https://downloads.example.test/desktop/v0.2.0/Animama-0.2.0-x64-setup.exe",
     ],
   ])(
     "carry no per-installation value or system language on %s",
-    (_platform, create) => {
+    (_platform, create, feed, download) => {
       create();
-      const feed = "https://downloads.example.test/desktop/latest.yml";
       for (const id of ["x-user-staging-id", "X-User-Staging-Id"])
         expect(
           send(feed, {
@@ -477,13 +486,9 @@ describe("update request headers", () => {
             ...added,
           }),
         ).toEqual(transport);
-      expect(
-        send("https://downloads.example.test/desktop/v0.2.0/update.zip", {
-          accept: "*/*",
-          ...transport,
-          ...added,
-        }),
-      ).toEqual({ accept: "*/*", ...transport });
+      expect(send(download, { accept: "*/*", ...transport, ...added })).toEqual(
+        { accept: "*/*", ...transport },
+      );
     },
   );
 });
