@@ -28,5 +28,7 @@ partial output, token/error in one chunk, errors followed by completion,
 non-destructive message restoration, later success ordering, chat switches and
 quiet intentional Stop. Memory cue checks cover run filtering, placement on the
 reply's last bubble while streaming, after completion and after reload, and
-memory cache invalidation. The fixture permits only its explicit synthetic API paths
-and never reaches a provider or an installation database.
+memory cache invalidation. A markdown check serves the page from a routed
+origin and confirms that a streamed reply requests only its same-origin image,
+showing remote images as alt text. The fixture permits only its explicit
+synthetic API paths and never reaches a provider or an installation database.

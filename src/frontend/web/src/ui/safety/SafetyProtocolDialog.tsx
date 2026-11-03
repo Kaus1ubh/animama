@@ -40,11 +40,7 @@ export function SafetyProtocolDialog({ className }: { className?: string }) {
         className="max-h-[85vh] overflow-y-auto sm:max-w-2xl"
       >
         <DialogTitle className="sr-only">{t("protocol.title")}</DialogTitle>
-        <MemoryMarkdownPreview
-          value={crisisProtocol}
-          allowImages={false}
-          externalLinks
-        />
+        <MemoryMarkdownPreview value={crisisProtocol} externalLinks />
       </DialogContent>
     </Dialog>
   );

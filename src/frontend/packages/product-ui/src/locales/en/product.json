@@ -158,6 +158,10 @@
   "conversation": {
     "label": "Conversation"
   },
+  "markdown": {
+    "image": "[Image: {{alt}}]",
+    "imageNotLoaded": "[Image: not loaded]"
+  },
   "runStatus": {
     "searching_web": "Searching the web…",
     "summarizing_context": "Summarizing earlier conversation…"

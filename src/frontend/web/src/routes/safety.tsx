@@ -24,7 +24,7 @@ function SafetyRoute() {
         >
           {t("protocol.back")}
         </Link>
-        <MemoryMarkdownPreview value={crisisProtocol} allowImages={false} />
+        <MemoryMarkdownPreview value={crisisProtocol} />
       </div>
     </main>
   );
