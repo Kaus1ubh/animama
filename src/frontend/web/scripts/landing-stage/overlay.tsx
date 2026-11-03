@@ -117,7 +117,6 @@ function Overlay({ controller }: { controller: StageController }) {
         light={light}
         tour={{
           scrollToStop: (index) => controller.scrollToStop(index),
-          lastStop: STAGE_STOPS.length - 1,
           avatarSwitcher: (
             <AvatarSwitcher
               state={state}

@@ -269,7 +269,7 @@ export async function renderPageHtml(server) {
   const logo = new URL("brand/animama-mark.png", SITE.url).href;
   const action = CLOSED_BETA
     ? { label: "Request Beta Access", href: BETA_ACCESS_URL }
-    : { label: "Download", href: `#stop-${last.id}` };
+    : { label: "Download", href: SITE.download };
   const link = ({ label, href }) =>
     `<a href="${escapeHtml(href)}">${escapeHtml(label)}</a>`;
 
@@ -348,6 +348,12 @@ export async function renderPageHtml(server) {
       { label: "Home", href: `#stop-${hero.id}` },
       { label: "About", href: SITE.about },
       { label: "Docs", href: SITE.docsUrl },
+      ...(CLOSED_BETA
+        ? []
+        : [
+            { label: "Log in", href: SITE.signIn },
+            { label: "Sign up", href: SITE.signUp },
+          ]),
       action,
     ]
       .map(link)

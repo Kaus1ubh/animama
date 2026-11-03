@@ -35,13 +35,12 @@ import { BETA_ACCESS_URL, CLOSED_BETA, SITE } from "./stops";
 export type SitePage = "about" | "download";
 
 /**
- * The landing page's tour, when the header sits over it: Home and Download
- * scroll the tour, and the Avatar choice shows (the switcher beside the pill,
- * and the options in the phone menu).
+ * The landing page's tour, when the header sits over it: Home scrolls the
+ * tour, and the Avatar choice shows (the switcher beside the pill, and the
+ * options in the phone menu).
  */
 type SiteHeaderTour = {
   scrollToStop: (index: number) => void;
-  lastStop: number;
   avatarSwitcher: ReactNode;
   avatarOptions: ReactNode;
 };
@@ -71,10 +70,10 @@ export const focusRing = (light: boolean) =>
  * single soft highlight glides to whichever item the pointer is over. Below 1024px the pill gives way to that button and a menu button that
  * holds the same items (`SiteMenu`).
  *
- * Over the tour (`tour`) the header is fixed above the stage, Home and
- * Download scroll it, and the Avatar switcher sits to the left of the pill or
- * menu. On the other pages it sits at the top of the page, and Home and
- * Download are links.
+ * Download always goes to the download page. Over the tour (`tour`) the header
+ * is fixed above the stage, Home scrolls it, and the Avatar switcher sits to
+ * the left of the pill or menu. On the other pages it sits at the top of the
+ * page, and Home is a link.
  */
 export function SiteHeader({
   light = false,
@@ -97,8 +96,10 @@ export function SiteHeader({
     const rect = item.getBoundingClientRect();
     setGlow({ x: rect.left - box.left, w: rect.width });
   };
+  // Tighter below 1280px, so the full pill and the tour's Avatar switcher fit
+  // beside the logo from 1024px.
   const link = cn(
-    "relative z-10 cursor-pointer rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors outline-none focus-visible:ring-2",
+    "relative z-10 cursor-pointer rounded-full px-2.5 py-1.5 text-sm font-medium whitespace-nowrap transition-colors outline-none focus-visible:ring-2 xl:px-3.5",
     focusRing(light),
     light
       ? "text-white"
@@ -146,17 +147,13 @@ export function SiteHeader({
           />
         </a>
       );
-    return tour ? (
-      <button
-        type="button"
+    return (
+      <a
+        href={SITE.download}
         data-pill-item=""
+        aria-current={current === "download" ? "page" : undefined}
         className={solid}
-        onClick={() => tour.scrollToStop(tour.lastStop)}
       >
-        {download}
-      </button>
-    ) : (
-      <a href={SITE.download} data-pill-item="" className={solid}>
         {download}
       </a>
     );
