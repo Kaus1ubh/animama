@@ -181,7 +181,6 @@ def _area(path: str, excluded: set[str]) -> str | None:
         "input.tsx",
         "label.tsx",
         "textarea.tsx",
-        "radio-group.tsx",
         "switch.tsx",
     }:
         return "web"

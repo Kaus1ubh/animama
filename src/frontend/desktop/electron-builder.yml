@@ -1,6 +1,6 @@
 appId: com.animama.desktop
 productName: Animama
-copyright: Copyright (c) 2026 Raymond Van. All rights reserved.
+copyright: Copyright (c) 2026 Raymond Van. AGPL-3.0-only; third-party terms apply.
 directories:
   output: release
 beforeBuild: ./scripts/before-build.mjs

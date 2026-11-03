@@ -1,3 +1,5 @@
+// Adapted from Vercel AI Elements (Apache-2.0): packages/elements/src/model-selector.tsx; modified for Animama.
+// See licenses/third-party/adapted-code.md.
 import {
   Command,
   CommandDialog,

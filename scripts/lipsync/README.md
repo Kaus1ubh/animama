@@ -62,9 +62,10 @@ MMS aligner. Its weights are licensed CC-BY-NC-4.0, so it is an evaluation tool
 only: it is never shipped, and tests never run it. Japanese is romanised from
 `pyopenjtalk-plus` readings, Chinese from `pypinyin`, Korean with `uroman`.
 
-The committed reference timings derive from that aligner. Their redistribution
-in a public source candidate is a pending rights question, recorded in
-`licenses/source-review.json`.
+The committed reference timings derive from that aligner. On 2026-11-03 the
+owner decided to keep them under the repository licence; they hold timings and
+audio features only, no audio or weights. `licenses/source-review.json` records
+the basis.
 
 ## English pronunciation data
 

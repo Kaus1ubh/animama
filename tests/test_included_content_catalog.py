@@ -78,7 +78,7 @@ def test_representative_included_entries_are_human_locatable(included: Path) -> 
     for entry in by_locator.values():
         assert not Path(entry.relative_locator).is_absolute()
         assert entry.revision_sha256 is not None
-        assert entry.provenance["redistribution_review"] == "pending"
+        assert entry.provenance["redistribution_review"].startswith("cleared-")
         assert all(not Path(file.relative_path).is_absolute() for file in entry.files)
         if entry.descriptor_relative_path:
             descriptor = Path(entry.descriptor_relative_path)

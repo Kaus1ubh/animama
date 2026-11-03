@@ -1,3 +1,5 @@
+// Adapted from shadcn/ui (MIT): apps/v4/registry/new-york-v4/ui/tooltip.tsx.
+// See licenses/third-party/adapted-code.md.
 import * as React from "react";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 

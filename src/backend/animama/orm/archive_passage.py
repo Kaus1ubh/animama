@@ -1,3 +1,5 @@
+# Adapted from Letta (Apache-2.0): letta/orm/passage.py; modified for Animama.
+# See licenses/third-party/adapted-code.md.
 from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import JSON, ForeignKey, Integer, String, Text, text as sa_text

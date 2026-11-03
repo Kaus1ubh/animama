@@ -1,7 +1,7 @@
 {
   "name": "animama-web",
   "private": true,
-  "license": "UNLICENSED",
+  "license": "AGPL-3.0-only",
   "type": "module",
   "scripts": {
     "routes:generate": "node scripts/generate-routes.mjs",
