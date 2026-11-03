@@ -17,13 +17,12 @@ type MarkdownImageProps = ComponentProps<typeof defaultComponents.img>;
 const STREAMING_IMAGE_PLACEHOLDER = "streamdown:incomplete-image";
 
 /**
- * Whether markdown may load `src` as an image: only sources the app serves
- * itself, so showing a reply never requests another site. These are URLs on
- * the page's own origin, that origin's `blob:` URLs and inline `data:image/`
- * URLs. Relative sources resolve as `<img>` would resolve them.
+ * Whether markdown may load `src` as an image: only an `http:` or `https:` URL
+ * on the page's own origin, so showing a reply never requests another site.
+ * Relative sources resolve as `<img>` would resolve them. Streamdown's
+ * sanitizer removes other schemes, such as `blob:` and `data:`, before this.
  */
 function isAppImageSource(src: string): boolean {
-  if (/^data:image\//i.test(src)) return true;
   // Server rendering has no page origin to compare with.
   if (typeof document === "undefined") return false;
   let url: URL;
@@ -33,13 +32,13 @@ function isAppImageSource(src: string): boolean {
     return false;
   }
   return (
-    ["http:", "https:", "blob:"].includes(url.protocol) &&
+    (url.protocol === "http:" || url.protocol === "https:") &&
     url.origin === window.location.origin
   );
 }
 
 /**
- * Streamdown's image for app-served sources and the streaming placeholder.
+ * Streamdown's image for same-origin sources and the streaming placeholder.
  * Any other image shows as its alt text and is never fetched.
  */
 function MarkdownImage(props: MarkdownImageProps) {

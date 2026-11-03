@@ -4,6 +4,9 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ChatMessage } from "@animama/product-ui/chat";
 import { ChatConversation } from "@animama/product-ui/components";
+import { defaultRehypePlugins } from "streamdown";
+
+import { MEMORY_MANAGER_MARKDOWN_ANIMATION } from "@/lib/memory-manager/transcript-projection";
 
 import { Response } from "./streamdown-response";
 
@@ -40,9 +43,17 @@ function chatReply(text: string) {
   return mount(<ChatConversation messages={messages} markdownEnabled />);
 }
 
-/** A Memory Manager reply, which renders through the same response component. */
+/** A streaming Memory Manager reply, with the panel's markdown props. */
 function managerReply(text: string) {
-  return mount(<Response>{text}</Response>);
+  return mount(
+    <Response
+      animated={MEMORY_MANAGER_MARKDOWN_ANIMATION}
+      isAnimating
+      parseMarkdownIntoBlocksFn={(markdown) => [markdown]}
+    >
+      {text}
+    </Response>,
+  );
 }
 
 /** Every URL the rendered markdown asks the browser to load. */
@@ -69,6 +80,13 @@ const remoteImages = [
   "[chart]: https://images.example/ref.png",
 ].join("\n");
 
+/** Remote sources written so that a loose check might read them as local. */
+const disguisedRemoteImages = [
+  "![relative](//images.example/protocol-relative.png)",
+  "![upper](HTTPS://IMAGES.EXAMPLE/upper.png)",
+  "![slash](/\\images.example/backslash.png)",
+].join("\n\n");
+
 describe.each([
   ["chat", chatReply],
   ["Memory Manager", managerReply],
@@ -79,6 +97,15 @@ describe.each([
     expect(container.querySelector("img, picture, source")).toBeNull();
     for (const alt of ["chart", "ref", "badge", "encoded"]) {
       expect(container.textContent).toContain(`[Image: ${alt}]`);
+    }
+  });
+
+  it("loads a disguised remote source only from the app's own origin", () => {
+    const container = render(disguisedRemoteImages);
+    for (const source of loadedSources(container)) {
+      expect(new URL(source, document.baseURI).origin).toBe(
+        window.location.origin,
+      );
     }
   });
 
@@ -124,5 +151,23 @@ describe("markdown replies", () => {
     );
     expect(dialog?.textContent).toContain("https://site.example/guide");
     expect(open).not.toHaveBeenCalled();
+  });
+
+  it("keep their image, HTML and link rules whatever a caller passes", () => {
+    const container = mount(
+      <Response
+        components={{ img: "img" }}
+        rehypePlugins={Object.values(defaultRehypePlugins)}
+        linkSafety={{ enabled: false }}
+      >
+        {
+          "![chart](https://images.example/chart.png) H<sub>2</sub>O [guide](https://site.example/)"
+        }
+      </Response>,
+    );
+    expect(loadedSources(container)).toEqual([]);
+    expect(container.textContent).toContain("[Image: chart]");
+    expect(container.querySelector("sub")).toBeNull();
+    expect(container.querySelector("a[href]")).toBeNull();
   });
 });
