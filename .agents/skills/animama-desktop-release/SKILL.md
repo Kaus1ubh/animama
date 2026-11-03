@@ -1,6 +1,6 @@
 ---
 name: animama-desktop-release
-description: Build a signed Animama desktop release candidate from the latest main — release branch and version, model inputs, dependency audit, private-pack fetch, stage and audit, the owner's redistribution review receipt merged to main, the signed and notarized macOS build (or the Authenticode-signed build on the Windows host), the release scan and evidence checks — then hand the fresh-account smoke to the owner and, only on separate approval, publish a preview or stable release. Use when the owner asks to build, sign, notarize, smoke, scan, resume or publish a desktop release or candidate, or for a signing rehearsal.
+description: Build a signed Animama desktop release candidate from the latest main — release branch and version, model inputs, dependency audit, private-pack fetch, stage and audit, the owner's redistribution review receipt merged to main, the signed and notarized macOS build (or the Authenticode-signed build on the Windows host), the release scan and evidence checks — then run the fresh-account smoke in a disposable VM clone (or hand it to the owner for a test account) and, only on separate approval, publish a preview or stable release. Use when the owner asks to build, sign, notarize, smoke, scan, resume or publish a desktop release or candidate, or for a signing rehearsal.
 ---
 
 # Animama Desktop Release
@@ -25,8 +25,9 @@ under `desktop/` are relative to `src/frontend`.
   - **Pushing the release branch** and **merging its PR**.
   - **Windows signing spend**: confirm before each signed Windows build or
     rehearsal; each uses about 140 signatures from a monthly quota.
-  - **Fresh-account smoke**: the owner runs it in a test account. It makes real
-    provider calls with the owner's key.
+  - **Fresh-account smoke**: it makes real provider calls with the owner's key,
+    so run it only when the owner asks for this candidate. Run it in a clone of
+    the golden smoke VM; without one, the owner runs it in a test account.
   - **Publication**: a preview or stable publish needs an explicit request naming
     the version and stage. Stable also needs the owner's own acceptance JSON;
     never fill its checks or approval fields.
@@ -107,7 +108,9 @@ under `desktop/` are relative to `src/frontend`.
      - Commit `build(desktop): record the <target> redistribution review`.
 8. **Merge the reviewed inputs.**
    - With the owner's go-ahead, push the branch and open the PR
-     `build: release desktop <version>`, which closes the release issue.
+     `build: release desktop <version>`. It covers only part of the release, so
+     it says `Refs #<issue>`, not `Closes`. Keep the issue open, and tick its
+     checklist as each gate passes.
    - After the owner approves, merge it with an ordinary merge commit.
    - Switch the release worktree to the merged `main` commit. If its tree differs
      from the staged commit beyond the receipts and docs, stage and audit again
@@ -123,16 +126,20 @@ under `desktop/` are relative to `src/frontend`.
    at the recorded commit.
 10. **Release scan.** Run `desktop:release:scan` with the pinned Gitleaks on the
     machine that built the candidate. On a finding, stop and report its rule ID
-    and location, never the matched value. Add an allowlist entry only as the docs
-    allow, and only with the owner's agreement.
+    and location, never the matched value. For a likely false positive, identify
+    the value without printing it, then propose an exact allowlist entry
+    ([commands](references/commands.md#scan-findings)). Add it only with the
+    owner's agreement, on its own PR. After that merges, move the release worktree
+    to the new `main` and rescan; the candidate is not rebuilt.
 11. **Hand off.**
     - Report:
       - the release commit and the worktree;
       - the artifact names, hashes and sizes;
       - the remaining gates, including native acceptance and the
         frozen-runtime provider checks.
-    - Give the owner the [smoke handoff](references/commands.md#fresh-account-smoke).
-      When the reports come back, check that they bind the candidate's
+    - On the owner's go-ahead, run the [VM smoke](references/commands.md#fresh-account-smoke)
+      and report its result. Without the golden VM, give the owner the
+      test-account handoff there. Check that the reports bind the candidate's
       DMG/installer hash and runtime build ID.
 12. **Publish (owner gate, only on request).**
     - **Preview:** run the publisher's preview stage.
@@ -140,12 +147,16 @@ under `desktop/` are relative to `src/frontend`.
       dependency audit and the Electron check, and present the results. Then
       publish with the owner's acceptance JSON.
 
-    Verify the published objects anonymously
-    ([commands](references/commands.md#publication)). After a stable release,
+    Verify every published object anonymously
+    ([commands](references/commands.md#publication)). A preview publish is
+    followed by the owner's native acceptance; on request, install the app for it
+    ([commands](references/commands.md#install-for-native-acceptance)). After a
+    stable release,
     propose a follow-up to update `desktop/runtime/size-baseline.json` from the
     released size report.
-13. **Clean up** after publication or abandonment. The publisher runs from the
-    release worktree, so keep it until then. Remove it with the
+13. **Clean up** after publication or abandonment. Close the release issue with
+    a comment naming the published stage. The publisher runs from the release
+    worktree, so keep it until then. Remove it with the
     [worktree cleanup procedure](../../../docs/backend/operations/development.md#cleaning-up-worktree-stacks);
     the release has no Compose stack.
 

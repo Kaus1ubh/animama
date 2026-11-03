@@ -16,9 +16,12 @@ when the two differ, the docs win. Report the difference.
 ```bash
 curl -fsS https://downloads.animama.ai/desktop/latest-mac.yml | head -3
 curl -fsS https://downloads.animama.ai/desktop/latest.yml | head -3
-curl -s -o /dev/null -w '%{http_code}\n' -I "https://downloads.animama.ai/desktop/v<version>/Animama-<version>-arm64.dmg"
-curl -s -o /dev/null -w '%{http_code}\n' -I "https://downloads.animama.ai/desktop/v<version>/Animama-<version>-x64-setup.exe"
+curl -s -o /dev/null -w '%{http_code}\n' -I "https://downloads.animama.ai/desktop/v<version>/Animama-<version>-arm64.dmg?noCache=$RANDOM"
+curl -s -o /dev/null -w '%{http_code}\n' -I "https://downloads.animama.ai/desktop/v<version>/Animama-<version>-x64-setup.exe?noCache=$RANDOM"
 ```
+
+The query keeps the edge from caching a 404 on the real URL, which would delay
+the publisher's verification by up to 3 minutes.
 
 Read the results:
 
@@ -51,7 +54,7 @@ secret values:
 ```bash
 export ANIMAMA_RELEASE_DISTRIBUTION=r2
 export ANIMAMA_MODEL_ROOT="$HOME/Library/Caches/Animama/models"
-export ANIMAMA_MACOS_NOTARY_PROFILE=<profile name from the owner>
+export ANIMAMA_MACOS_NOTARY_PROFILE=animama-notary
 export ANIMAMA_GITLEAKS="$HOME/Library/Caches/Animama/tools/gitleaks-8.30.1/bin/gitleaks"
 ```
 
@@ -78,8 +81,9 @@ Check each result:
   build itself refuses to run below 8 GiB. As a rule of thumb, ask before
   continuing with less than 30 GB free.
 
-If the notary profile is missing, the owner restores it with
-`xcrun notarytool store-credentials <profile>`. If the Gitleaks copy is missing,
+The owner's notary profile is `animama-notary`; the `history` call is read-only
+and lists earlier submissions. If it fails, ask the owner, who restores it with
+`xcrun notarytool store-credentials animama-notary`. If the Gitleaks copy is missing,
 ask before downloading it, then verify the archive SHA-256 against
 `scanner-pins.json`.
 
@@ -109,6 +113,13 @@ npm view "electron@<installed major>" version | tail -1
 
 The installed version must be the newest in its major. That major must be one
 of the latest three stable majors.
+
+The `desktop>electron` prefix also matches electron-builder's packaging tools
+(for example `desktop>electron-builder>app-builder-lib>…`). For each such
+entry, report whether the package ships. After staging, check that it is
+absent from `runtime/licenses/inventory.json`. The owner may then accept it as
+build-time only. Record each accepted advisory and its reason in
+`accepted-advisories.txt`.
 
 ## Packs, stage and audit
 
@@ -223,6 +234,32 @@ byte search in `ANIMAMA_SCAN_PRIVATE_TEXT`, supplied by the owner, never in a
 file in the worktree. Each receipt is a `release-scan.json` in the candidate
 and in each `models/<modelId>/` directory.
 
+### Scan findings
+
+`release-scan.json` lists each finding's rule, artifact, path and line, never
+the value. To identify a value without printing it, copy the flagged file into
+an empty scratch folder. Run the pinned Gitleaks there with the release config
+and `--redact`. Then print only the report's `RuleID`, `StartColumn`, `EndColumn`
+and redacted `Match`:
+
+```bash
+"$ANIMAMA_GITLEAKS" dir <scratch>/in --config desktop/runtime/release-scan.gitleaks.toml --redact --no-banner --report-format json --report-path <scratch>/report.json
+```
+
+For minified code, show the text before `StartColumn` and the shape of the match
+(letters as `a`, digits as `9`), never its characters. To confirm an exact
+candidate value, compare the unredacted `Secret` with it in a script that prints
+only true or false, then delete that report. Propose a `regexTarget = "secret"`
+entry that matches only that exact value, as an anchored regex. Before opening
+the PR, check two things:
+
+- with the new config, Gitleaks reports nothing for the flagged file;
+- a realistic synthetic key in a scratch file is still reported.
+
+The publisher accepts only a receipt made with the worktree's current config.
+So after the allowlist merges, switch the release worktree to the new `main`.
+Check that the diff from the build commit touches only the config. Then rescan.
+
 ## Preserve a candidate
 
 Before any rebuild in the same worktree:
@@ -238,6 +275,25 @@ ls "$dest"
 
 ## Fresh-account smoke
 
+Run it in a disposable clone of the golden smoke VM
+([release tooling](../../../../docs/frontend/desktop/releases.md#fresh-account-smoke-in-a-local-vm)).
+First check that `tart get animama-smoke-golden` reports it stopped and that
+`~/.config/animama/smoke-openai.env` exists, without reading it. If either is
+missing, ask the owner to finish the golden VM setup, or use the
+[test-account handoff](#test-account-handoff). From `<release>/src/frontend`,
+in the background with a log, while nothing else runs in the worktree:
+
+```bash
+python3 ../../scripts/heavy-slot.py -- pnpm desktop:smoke:mac:vm -- --artifact desktop/release/publish/Animama-<version>-arm64.dmg
+```
+
+It writes `desktop/release/smoke-name`, checks the reports against the DMG and
+`release-artifacts.json`, and deletes the clone. A failed run's reports land in
+`desktop/release/smoke-name-failed-<time>`; report the failed step. Do not use
+`--keep` unless debugging, and then delete the kept clone with `tart delete`.
+
+### Test-account handoff
+
 The owner runs this in a macOS test account that has never run Animama.
 Prepare a shared handoff folder from `<release>`:
 
@@ -249,9 +305,17 @@ git bundle create "$handoff/source.bundle" HEAD
 chmod a+rX "$handoff" "$handoff"/*.dmg "$handoff/source.bundle"
 ```
 
+The smoke refuses an account that still has `~/Library/Application Support/Animama`
+or `Anima`, `~/Applications/Animama.app` or `~/.config/Anima`. A test account
+reused from an earlier smoke has them, so ask the owner to move them aside
+(never delete them) before starting. The test account also needs its own Node 24
+with pnpm (`corepack enable`). If it has none, copy this Mac's Node binary,
+`corepack` and `npm` into `$handoff/node`, and have the owner put
+`$handoff/node/bin` first on `PATH`.
+
 Give the owner these steps for the test account:
 
-1. Clone the bundle: `git clone /Users/Shared/animama-smoke-<version>/source.bundle animama-smoke`.
+1. Clone the bundle: `GIT_LFS_SKIP_SMUDGE=1 git clone /Users/Shared/animama-smoke-<version>/source.bundle animama-smoke`.
 2. Install dependencies with `pnpm -C src/frontend install --frozen-lockfile`.
 3. Set `ANIMAMA_SMOKE_OPENAI_KEY` for that shell only.
 4. From `src/frontend`, run:
@@ -299,9 +363,35 @@ curl -fsSI "https://downloads.animama.ai/desktop/v<version>/Animama-<version>-ar
 curl -fsS https://downloads.animama.ai/desktop/latest-mac.yml
 ```
 
-The feed appears only after a stable publish. Inspect the remote state before
-retrying an uncertain publish. A differing object stops the publisher; never
-replace it.
+The feed appears only after a stable publish. Run each publish in the
+background with a log under `.animama-drafts/desktop-release/`. After any
+publish, check every published object, not only the DMG. Fetch each name in
+`previewAssets(release-artifacts.json)` from
+`desktop/scripts/runtime/release-artifacts.mjs` (stable adds
+`release-artifacts.json`, `SHA256SUMS.txt` and the acceptance reports). Fetch
+each URL listed in `backend-model-assets.json`. Compare each SHA-256 with the
+local candidate. An uncertain publish can be rerun: uploads are create-only, and
+existing objects are verified, not sent again. A differing object stops the
+publisher; never replace it.
+
+## Install for native acceptance
+
+The owner accepts the published build on their own Mac. Install it from the
+local candidate DMG, which is byte-identical to the published one. A local copy
+skips the quarantine check that a browser download gets, so say so:
+
+```bash
+test ! -e /Applications/Animama.app
+mnt=$(mktemp -d) && hdiutil attach -nobrowse -readonly -mountpoint "$mnt" desktop/release/publish/Animama-<version>-arm64.dmg
+ditto "$mnt/Animama.app" /Applications/Animama.app; hdiutil detach "$mnt"
+spctl -a -vv -t exec /Applications/Animama.app
+```
+
+If `/Applications/Animama.app` exists, ask before replacing it. If
+`~/Library/Application Support/Animama` exists, ask the owner whether to keep that
+profile or start clean. To start clean, move the profile into
+`~/.Trash/Animama profile <date>`; never delete it. Then `open -a /Applications/Animama.app`
+and confirm that the app, its backend and PostgreSQL start.
 
 ## Signing rehearsal
 
