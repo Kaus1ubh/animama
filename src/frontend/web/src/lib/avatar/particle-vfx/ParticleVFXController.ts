@@ -452,7 +452,8 @@ export class ParticleVFXController {
     this._bumpRequestVersion(appliedId);
     this._pendingAppliedIds.delete(appliedId);
     this._pendingReservations.delete(appliedId);
-    this._removeFinishingInstance(appliedId);
+    // A second finish (the effect's own expiry, then its clip's end) leaves it finishing.
+    if (!options.finish) this._removeFinishingInstance(appliedId);
     const instance = this._activeInstances.get(appliedId);
     if (!instance) return false;
 
@@ -475,6 +476,15 @@ export class ParticleVFXController {
       this._removeInstance(instance);
     }
     this._activeInstances.clear();
+    for (const appliedId of Array.from(this._finishingInstances.keys())) {
+      this._removeFinishingInstance(appliedId);
+    }
+    this._emit();
+  }
+
+  /** Remove every finishing effect's particles now (resets and previews). */
+  clearFinishingEffects(): void {
+    if (this._isDisposed || this._finishingInstances.size === 0) return;
     for (const appliedId of Array.from(this._finishingInstances.keys())) {
       this._removeFinishingInstance(appliedId);
     }
@@ -514,6 +524,7 @@ export class ParticleVFXController {
 
     this._batchRenderer?.update(deltaSec);
 
+    const wasFinishing = this._finishingInstances.size > 0;
     for (const [appliedId, finishing] of Array.from(this._finishingInstances)) {
       finishing.elapsedSec += deltaSec;
       if (
@@ -527,7 +538,11 @@ export class ParticleVFXController {
     for (const appliedId of expiredIds) {
       this.clearEffect(appliedId, { finish: true });
     }
-    if (this._activeInstances.size > 0 || expiredIds.length > 0) {
+    if (
+      this._activeInstances.size > 0 ||
+      expiredIds.length > 0 ||
+      wasFinishing
+    ) {
       this._emit();
     }
   }
@@ -639,6 +654,11 @@ export class ParticleVFXController {
     const quarks = this._quarks;
     if (!quarks || this._countLiveParticles(instance) === 0) return false;
     try {
+      // endEmit stops emission over time; a looping system's bursts restart
+      // every cycle regardless, so it stops looping too.
+      for (const system of this._collectParticleSystems(instance.object)) {
+        system.looping = false;
+      }
       quarks.QuarksUtil.endEmit(instance.object);
     } catch {
       return false;
@@ -789,6 +809,7 @@ export class ParticleVFXController {
       catalog: this._catalogProvider.listParticleVFX(),
       activeInstances,
       activeCount: activeInstances.length,
+      finishingCount: this._finishingInstances.size,
       loadedEffectIds: Array.from(this._loadedEffectIds).sort(),
       loadedCount: this._loadedEffectIds.size,
       warnings: [...this._warnings],
