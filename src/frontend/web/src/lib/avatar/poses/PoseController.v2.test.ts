@@ -185,6 +185,9 @@ describe("PoseController with animaPoseClip/2.0", () => {
       controller.playAnimaPoseClip(shifted(0.02));
       controller.update(0.5);
       expect(hipsX(applied.pose)).not.toBe(0);
+    });
+  });
+
   describe("effects at the end", () => {
     const withEvents = (
       events: AnimaPoseClipV2["events"],
