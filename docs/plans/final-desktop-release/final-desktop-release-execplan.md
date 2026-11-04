@@ -80,7 +80,7 @@ Orientation, from a read-only survey on 2026-11-04:
 - [x] Phase 2: model downloads end in the backend (review #2 passed; one repair round).
 - [x] Phase 3: download controls explain the end (review #2 passed; one repair round).
 - [ ] Phase 4: packaged notices.
-- [ ] Phase 5: script defaults.
+- [x] Phase 5: script defaults (review #1; trivial repairs).
 - [ ] Phase 6: documentation, version and runbook.
 - [ ] Final integration review; full pre-push suite and fast browser journeys.
 - [ ] PR opened with local evidence.
@@ -480,7 +480,40 @@ Checks: those tests; `uv run ruff check scripts/models`; one real
 
 Completion: commit `chore(models)[p5]: acquire speech models from upstream by default`.
 
-Check record: _to be filled._
+Check record (repository root): red first, the two new default tests failed;
+then `uv run pytest -q tests/test_model_store.py
+tests/test_sensevoice_model_store.py` 76 passed, 6 skipped; `uv run ruff
+check scripts/models` and `ruff format --check` on the two test files passed.
+The Parakeet CLI tests live in `tests/test_model_store.py`, not the
+server-source tests the step named. After the review's repairs: the same files
+plus `tests/test_release_model_inputs.py` 80 passed, 6 skipped; ruff passed.
+No real `acquire` was run.
+
+#### Code Review #1 Findings
+
+Standard tier, working-tree tree `4fc90c85`; the reviewer reran the three
+test files (80 passed, 6 skipped) and ruff, refused `--source` with `path` and
+`verify` by hand, simulated `--source animama` after the cut-off (exit 1 with
+a connectivity message, nothing activated), and confirmed with `HEAD`
+requests that all seven pinned upstream files answer `200` with their
+manifest sizes through the allowed Hugging Face hosts.
+
+- P5-R1-F1 (blocking, wording): the README's host list still named Animama's
+  origin as the normal one.
+- P5-R1-F2 (blocking, wording): `parakeet.py` comments said the base sets use
+  Animama's objects by default.
+- Non-blocking: a SenseVoice test name and its untested `--source animama`
+  mapping; a colon that made the README example read as the failure; README
+  lines on packaged downloads and on `pocket_cloning.py`; `README.md`,
+  `model-assets.md` and `runtime-staging.md` sentences for Phase 6.
+
+#### Code Review #1 Revisions
+
+F1 and F2 fixed as trivial repairs (no recheck needed below the high-risk
+tier; verified by the rerun above). The SenseVoice test now runs
+`main([... "--source", "animama"])`; the README punctuation, packaged-download
+and `pocket_cloning.py` lines are fixed; the Phase 6 documents carry the rest.
+Phase 5 passes.
 
 ### Phase 6: Documentation, version and runbook
 
