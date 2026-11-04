@@ -180,17 +180,24 @@ top of the page and Home is a link:
   `Button` classes (`solidButton`).
 - The saved theme is one key (`landing-stage-theme`) for the whole site;
   Cloud's pages load `theme.js` before paint as `index.html` does.
-- The header speaks the visitor's language on Cloud's English pages too,
-  marking its own `lang` (the page's stays `en`). Its prerender is English,
-  so for a visitor in another language `theme.js` sets
-  `data-locale-pending` and `site-header.css` hides a header with the
-  language picker until `site-chrome.tsx` has reworded it, or for two
-  seconds if the script cannot load.
+- The header speaks the visitor's language on Cloud's pages too, marking its
+  own `lang`. Cloud prerenders its pages in English and holds their
+  translations as inert `<template data-localizes="<id>" lang="<locale>">`
+  blocks; for the header's locale, `pageLocalizer` (`localize-page.ts`)
+  swaps each into the element with that `id` (marked `data-localized`). A
+  template's `data-title` sets the title, and `main`'s sets `<html lang>`. A
+  switch in the picker swaps them live, and English restores the prerender.
+  Text without a template stays English, as the Privacy and Terms bodies do.
+- For a visitor in another language `theme.js` sets `data-locale-pending`,
+  and `site-header.css` hides a header with the language picker and the
+  page's `data-localized` parts until `site-chrome.tsx` has reworded them,
+  or for two seconds if the script cannot load.
 
 Cloud's `/safety/` page publishes `docs/safety/crisis-protocol.md`, the same
 document the app's Safety dialog shows: the build renders it to HTML in
-`crisis-protocol.json` (`renderCrisisProtocol`), so a protocol change reaches
-the site through the next package set and Cloud repin. The page is English only.
+`crisis-protocol.json` (`renderCrisisProtocol`), with the app's machine
+translations beside the English, so a protocol change reaches the site through
+the next package set and Cloud repin. Update the translations with the English.
 
 Changing the header's links or buttons (Download, Log in, Sign up)
 changes every page, through the next package set and Cloud repin. Cloud's own

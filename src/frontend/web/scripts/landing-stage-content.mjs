@@ -402,8 +402,10 @@ export const CRISIS_PROTOCOL_FILE = "crisis-protocol.json";
 /**
  * The safety and crisis protocol (`docs/safety/crisis-protocol.md`, the
  * document the app's Safety dialog shows), rendered once to HTML for Animama
- * Cloud's `/safety/` page, as `crisis-protocol.json`. English is authoritative;
- * the app's machine translations stay in the app.
+ * Cloud's `/safety/` page, as `crisis-protocol.json`: the authoritative
+ * English in `html`, and the app's machine translations
+ * (`crisis-protocol.<locale>.md`, each of which says so) in `translations`,
+ * by UI Locale.
  */
 export async function renderCrisisProtocol() {
   const [
@@ -417,14 +419,28 @@ export async function renderCrisisProtocol() {
     import("react-markdown"),
     import("remark-gfm"),
   ]);
-  const source = readFileSync(
-    path.join(repoRoot, "docs/safety/crisis-protocol.md"),
-    "utf8",
+  const safetyDir = path.join(repoRoot, "docs/safety");
+  const render = (name) =>
+    renderToStaticMarkup(
+      createElement(
+        Markdown,
+        { remarkPlugins: [remarkGfm] },
+        readFileSync(path.join(safetyDir, name), "utf8"),
+      ),
+    );
+  // Sorted by file name, so the output is the same on every file system.
+  const translations = Object.fromEntries(
+    readdirSync(safetyDir)
+      .sort()
+      .map((name) => /^crisis-protocol\.([\w-]+)\.md$/.exec(name))
+      .filter(Boolean)
+      .map(([name, locale]) => [locale, render(name)]),
   );
-  const html = renderToStaticMarkup(
-    createElement(Markdown, { remarkPlugins: [remarkGfm] }, source),
-  );
-  return `${JSON.stringify({ schema_version: 1, html }, null, 2)}\n`;
+  return `${JSON.stringify(
+    { schema_version: 2, html: render("crisis-protocol.md"), translations },
+    null,
+    2,
+  )}\n`;
 }
 
 /** The file Animama Cloud reads to put the site header on its pages. */

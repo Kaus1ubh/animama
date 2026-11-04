@@ -71,11 +71,13 @@
 /*
  * On Animama Cloud's pages, a header for a visitor in another language stays
  * hidden while `site-chrome.tsx` rewords its English prerender (`theme.js`
- * marks the page); after two seconds it shows regardless, in case the
- * script cannot load. Only a header with the language picker waits: during
- * the closed beta it stays English.
+ * marks the page), and so does each part of the page it swaps for a
+ * translation (`data-localized`); after two seconds they show regardless,
+ * in case the script cannot load. Only a page whose header has the language
+ * picker waits: during the closed beta it stays English.
  */
-[data-locale-pending] #site-header:has([data-locale-picker]) {
+[data-locale-pending] #site-header:has([data-locale-picker]),
+[data-locale-pending]:has(#site-header [data-locale-picker]) [data-localized] {
   visibility: hidden;
   animation: site-header-reveal 0s 2s forwards;
 }
