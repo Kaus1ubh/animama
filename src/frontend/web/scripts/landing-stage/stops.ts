@@ -1,6 +1,7 @@
 import type { TrackedEmotion } from "@/lib/emotion";
 
 import type { AmbientMood } from "./ambient";
+import type { LandingKey, LandingT } from "./i18n";
 import type { SocialIconName } from "./social-icons";
 
 /*
@@ -8,28 +9,22 @@ import type { SocialIconName } from "./social-icons";
  * one feature; scrolling moves the camera between consecutive stops. Camera
  * values are relative to the Avatar's rest head height, so another VRM keeps
  * the same framing. The server (`../landing-stage.mjs`) reads this module to
- * resolve the Library sources the page plays.
+ * resolve the Library sources the page plays. The page's words are in the
+ * catalogs (`locales/<tag>.json`), keyed by these stops' and Avatars' ids.
  */
 
-/** An Included Avatar the visitor can switch to, with its starter Anima. */
+/**
+ * An Included Avatar the visitor can switch to, with its starter Anima. Its
+ * pronouns, IDENTITY.md excerpts, memory-demo replies and notebook lines are
+ * the catalogs' `avatars.<id>`.
+ */
 export type StageAvatar = {
   /** Included VRM file name, without `.vrm`. */
   id: string;
-  /** The starter Anima's name, used in the demos. */
+  /** The starter Anima's name, used in the demos (as in the app, unchanged in every locale). */
   name: string;
   /** Portrait file in `content/included/appearances/avatar-portraits`. */
   portrait: string;
-  /** The pronouns captions use for this Anima (see `voice`). */
-  pronouns: { subject: string; object: string; possessive: string };
-  /** IDENTITY.md excerpts for the memory demo, from the starter identity. */
-  identity: { heading: string; line: string }[];
-  /**
-   * The memory demo's chat for each note: a visitor's line and this Anima's
-   * reply, in its own voice.
-   */
-  memoryChats: Record<MemoryNote, { user: string; reply: string }>;
-  /** What each memory notebook page is for, in this Anima's own voice. */
-  notebook: { purpose: Record<MemoryNote, string> };
 };
 
 /**
@@ -46,102 +41,22 @@ export const STAGE_AVATARS: StageAvatar[] = [
     id: "Annie",
     name: "Annie",
     portrait: "app-avatar-model-annie-v1.webp",
-    pronouns: { subject: "she", object: "her", possessive: "her" },
-    identity: [
-      {
-        heading: "Essence",
-        line: "A warm, curious companion who helps you think out loud and turn vague ideas into clear next steps.",
-      },
-      {
-        heading: "Speaking style",
-        line: "Short, natural sentences. She reflects back what she heard before offering ideas, with gentle humor.",
-      },
-      {
-        heading: "Interests",
-        line: "Journaling, cozy cafés and whatever you're excited about.",
-      },
-    ],
-    memoryChats: {
-      profile: {
-        user: "We adopted a kitten today! Her name is Miso.",
-        reply:
-          "Miso! Welcome to the family, little one. Tell me everything about her first week.",
-      },
-      identity: {
-        user: "Everything is due this week and I don't know where to start.",
-        reply:
-          "So it all landed at once. Let's make it smaller. What's due first?",
-      },
-      memories: {
-        user: "I'll tell you how the recital goes on Friday!",
-        reply: "Deal. Friday, full report. I'll be the first to ask.",
-      },
-    },
-    notebook: {
-      purpose: {
-        profile:
-          "Things you've told me about you. Every Anima shares this page, and you can edit it too.",
-        identity:
-          "Who I am and how I talk. You can rewrite this page any time. I never change it myself.",
-        memories:
-          "Our moments: promises, in-jokes, little milestones. I write this page as we chat.",
-      },
-    },
   },
   {
     id: "Andrew",
     name: "Andrew",
     portrait: "app-avatar-model-andrew-v1.webp",
-    pronouns: { subject: "he", object: "him", possessive: "his" },
-    identity: [
-      {
-        heading: "Essence",
-        line: "A friendly, easygoing university student who likes figuring things out together.",
-      },
-      {
-        heading: "Speaking style",
-        line: "Casual and clear, thinks out loud, asks good follow-ups, with a quick self-deprecating joke.",
-      },
-      {
-        heading: "Interests",
-        line: "Making playlists, games, new places to eat and odd facts picked up from lectures.",
-      },
-    ],
-    memoryChats: {
-      profile: {
-        user: "We adopted a kitten today! Her name is Miso.",
-        reply:
-          "No way, Miso! Great name. Okay, I need everything. What does she look like?",
-      },
-      identity: {
-        user: "Everything is due this week and I don't know where to start.",
-        reply:
-          "Ugh, I know that feeling. Let's list it all out, then pick the smallest thing first?",
-      },
-      memories: {
-        user: "I'll tell you how the recital goes on Friday!",
-        reply: "You'd better! Friday, full story. I'll be rooting for you.",
-      },
-    },
-    notebook: {
-      purpose: {
-        profile:
-          "Stuff you've told me about you. Every Anima shares this page, and you can edit it too.",
-        identity:
-          "Who I am and how I talk. You can rewrite this page any time; I won't.",
-        memories:
-          "Our story so far: plans, inside jokes, big days. I jot it down as we talk.",
-      },
-    },
   },
 ];
 
 /**
  * Fill a caption's tokens for an Avatar: `{name}`, and the pronouns
- * `{subject}`, `{object}` and `{possessive}`, capitalised when the token is
- * (`{Subject}`).
+ * `{subject}`, `{object}` and `{possessive}` (the catalog's
+ * `avatars.<id>.pronouns`), capitalised when the token is (`{Subject}`).
+ * A locale uses whichever tokens read naturally: Japanese and Korean name
+ * the Anima where English uses a pronoun.
  */
-export function voice(text: string, avatar: StageAvatar): string {
+export function voice(text: string, avatar: StageAvatar, t: LandingT): string {
   return text.replace(
     /\{(name|subject|object|possessive)\}/gi,
     (_match, token: string) => {
@@ -149,7 +64,7 @@ export function voice(text: string, avatar: StageAvatar): string {
       const word =
         key === "name"
           ? avatar.name
-          : avatar.pronouns[key as keyof StageAvatar["pronouns"]];
+          : t(`avatars.${avatar.id}.pronouns.${key}` as LandingKey);
       return token[0] === token[0].toUpperCase()
         ? word[0].toUpperCase() + word.slice(1)
         : word;
@@ -190,11 +105,18 @@ export type StageCamera = {
   lift: number;
 };
 
-/** A Gesture or Reaction a stop plays, with the label its chip shows. */
+/**
+ * A Gesture or Reaction a stop plays. Its chip's label is the feeling's name
+ * from the app's `emotion` catalog for a Reaction, else the landing
+ * catalog's `clips.<stem>`.
+ */
 export type StageClip = {
-  label: string;
   /** Library spec of the clip. */
   spec: string;
+  /** The Included item's name, the end of its spec. */
+  stem: string;
+  /** The feeling a Reaction shows. */
+  feeling?: TrackedEmotion;
   /** Emotion mascot shown on the chip (`public/emotions/<file>`). */
   mascot?: string;
   /**
@@ -207,27 +129,27 @@ export type StageClip = {
 /** The interactive demo a stop shows beside its caption. */
 export type StagePanel = "mascots" | "chips" | "memory";
 
-/** A body word, in its stop's accent, that takes the visitor to that stop. */
-export type StageLink = {
-  word: string;
-  /** Id of the stop to scroll to. */
-  stop: string;
-};
+/** A stop's copy field; see `stopCopy`. */
+type StopField = "label" | "title" | "body";
 
+/**
+ * A stop. Its words are the catalog's `stops.<id>`: `label`, the short name
+ * the progress thread shows while it is active; `title` and `body`, its
+ * caption's heading and one supporting line; and `links`, the body's words
+ * that scroll to other stops.
+ */
 export type StageStop = {
   id: string;
-  /** Short name the progress thread shows while the stop is active. */
-  label: string;
   /**
    * The stop's colour, used by the hero's link to it: a deeper shade of an
    * app pastel, so it reads as text on the light backdrops.
    */
   accent: string;
-  /** Feature caption: a short heading and one supporting line. */
-  title: string;
-  body?: string;
-  /** Words in the body shown in colour that scroll to another stop. */
-  links?: StageLink[];
+  /**
+   * Ids of the stops the body links to, in its stop's accent; each locale's
+   * `stops.<id>.links.<stop>` is the word, which must appear in its body.
+   */
+  links?: string[];
   /** Wide (desktop) framing, and overrides for tall (phone) viewports. */
   camera: StageCamera;
   tall?: Partial<StageCamera>;
@@ -261,8 +183,8 @@ export type StageStop = {
   avatarClips?: Record<string, StageClip[]>;
   clipMode: "once" | "cycle";
   panel?: StagePanel;
-  /** Copy shown in its place while `CLOSED_BETA` is on. */
-  beta?: Partial<Pick<StageStop, "label" | "title" | "body">>;
+  /** Fields shown from `stops.<id>.beta` while `CLOSED_BETA` is on. */
+  beta?: StopField[];
   /**
    * How far (0–1) her upper body and head turn toward the camera when it is
    * behind her, for an over-the-shoulder look back.
@@ -510,18 +432,16 @@ const FEELINGS: Partial<
  * A Reaction chip, labelled with its feeling ("Joy"): its mascot and made-up
  * emotional state.
  */
-const reaction = (stem: string, feeling: TrackedEmotion): StageClip => {
-  const name = feeling.charAt(0).toUpperCase() + feeling.slice(1);
-  return {
-    label: name,
-    spec: `library:included/${stem}`,
-    mascot: `${feeling}-very.webp`,
-    emotion: FEELINGS[feeling],
-  };
-};
-const gesture = (stem: string, label: string): StageClip => ({
-  label,
+const reaction = (stem: string, feeling: TrackedEmotion): StageClip => ({
   spec: `library:included/${stem}`,
+  stem,
+  feeling,
+  mascot: `${feeling}-very.webp`,
+  emotion: FEELINGS[feeling],
+});
+const gesture = (stem: string): StageClip => ({
+  spec: `library:included/${stem}`,
+  stem,
 });
 
 /**
@@ -541,21 +461,22 @@ export const BETA_ACCESS_URL =
 
 /**
  * The public site: its address, and what search results and link previews
- * show (the description joins the hero's line and the last stop's).
+ * show. The title (`site.title`) and description (the hero's line and the
+ * last stop's) are the English catalog's; search engines and link previews
+ * read the English page.
  */
 export const SITE = {
   url: "https://animama.ai/",
   docsUrl: "https://docs.animama.ai/",
-  title: "Animama — AI companions that feel alive",
   /** A 1200×630 still of the hero, in the page's `static/` folder. */
   shareImage: "og-image.jpg",
   shareImageAlt:
     "Annie, an Animama companion, under the words Meet your Anima.",
-  /** Matches the repository's LICENSE and the desktop app's copyright. */
+  /**
+   * Matches the repository's LICENSE and the desktop app's copyright, so it
+   * stays English in every locale.
+   */
   copyright: "© 2026 Raymond Van. All rights reserved.",
-  /** What the 3D stage shows, for screen readers (it is hidden from them). */
-  sceneDescription:
-    "{name}, an animated 3D Anima, walks in and waves, then shows {possessive} gestures, emotions and memories as you scroll.",
   /** Third-party notices, written by the production build. */
   notices: "/notices.txt",
   /**
@@ -600,38 +521,51 @@ export const SITE = {
 };
 
 /**
- * The footer's text links, shared by the overlay and the prerendered page
- * text; the social links follow them as icons.
+ * The footer's text links (labelled by the catalog's `footer.<key>`), shared
+ * by the overlay and the prerendered page text; the social links follow
+ * them as icons.
  */
 export const FOOTER_LINKS = [
-  { label: "About", href: SITE.about },
-  { label: "Privacy", href: SITE.privacy },
-  { label: "Terms", href: SITE.terms },
-  { label: "Safety", href: SITE.safety },
-  { label: "Contact", href: `mailto:${SITE.contactEmail}` },
-  { label: "Third-party notices", href: SITE.notices },
-];
+  { key: "about", href: SITE.about },
+  { key: "privacy", href: SITE.privacy },
+  { key: "terms", href: SITE.terms },
+  { key: "safety", href: SITE.safety },
+  { key: "contact", href: `mailto:${SITE.contactEmail}` },
+  { key: "notices", href: SITE.notices },
+] as const;
 
-/** Stops with their `beta` copy applied while `CLOSED_BETA` is on. */
-function withBetaCopy(stops: StageStop[]): StageStop[] {
-  return CLOSED_BETA
-    ? stops.map((stop) => (stop.beta ? { ...stop, ...stop.beta } : stop))
-    : stops;
+/**
+ * A stop's words for an Avatar in the active locale (`stops.<id>`), with
+ * its `beta` copy while `CLOSED_BETA` is on.
+ */
+export function stopCopy(stop: StageStop, avatar: StageAvatar, t: LandingT) {
+  const field = (name: StopField) =>
+    voice(
+      t(
+        (CLOSED_BETA && stop.beta?.includes(name)
+          ? `stops.${stop.id}.beta.${name}`
+          : `stops.${stop.id}.${name}`) as LandingKey,
+      ),
+      avatar,
+      t,
+    );
+  return {
+    label: field("label"),
+    title: field("title"),
+    body: field("body"),
+    links: (stop.links ?? []).map((target) => ({
+      word: t(`stops.${stop.id}.links.${target}` as LandingKey),
+      stop: target,
+    })),
+  };
 }
 
-export const STAGE_STOPS: StageStop[] = withBetaCopy([
+export const STAGE_STOPS: StageStop[] = [
   {
     id: "hero",
     accent: "#8b7cf6",
-    label: "Intro",
     followCursor: true,
-    title: "Meet your Anima",
-    body: "AI companions that move, feel and remember.",
-    links: [
-      { word: "move", stop: "gestures" },
-      { word: "feel", stop: "emotion" },
-      { word: "remember", stop: "memory" },
-    ],
+    links: ["gestures", "emotion", "memory"],
     camera: {
       yaw: 0,
       distance: 0.74,
@@ -646,18 +580,12 @@ export const STAGE_STOPS: StageStop[] = withBetaCopy([
     backdrop: HERO,
     ink: "dark",
     // The stage plays the first unless `?wave=small` picks the second.
-    clips: [
-      gesture("wave-hello", "Wave hello"),
-      gesture("small-shy-wave", "Small wave"),
-    ],
+    clips: [gesture("wave-hello"), gesture("small-shy-wave")],
     clipMode: "once",
   },
   {
     id: "gestures",
     accent: "#2f9fd0",
-    label: "Behaviors",
-    title: "Body Language",
-    body: "From goofy antics to romantic gestures: **over 300 unique gestures and reactions**, picked as {subject} talks.",
     camera: {
       yaw: 16,
       distance: 1.25,
@@ -671,24 +599,24 @@ export const STAGE_STOPS: StageStop[] = withBetaCopy([
     backdrop: LAVENDER,
     ink: "dark",
     clips: [
-      gesture("lean-in-coy", "Coy"),
-      gesture("soul-leaves-body", "Soulless"),
-      gesture("flustered-fan", "Flustered fan"),
-      gesture("innocent-whistle", "Innocent whistle"),
-      gesture("finger-heart-pose", "Finger heart"),
-      gesture("double-peace-pop", "Double peace"),
-      gesture("dramatic-swoon", "Dramatic swoon"),
-      gesture("snicker-laugh", "Snicker"),
+      gesture("lean-in-coy"),
+      gesture("soul-leaves-body"),
+      gesture("flustered-fan"),
+      gesture("innocent-whistle"),
+      gesture("finger-heart-pose"),
+      gesture("double-peace-pop"),
+      gesture("dramatic-swoon"),
+      gesture("snicker-laugh"),
     ],
     avatarClips: {
       Andrew: [
-        gesture("offer-a-rose", "Rose"),
-        gesture("air-guitar", "Air guitar"),
-        gesture("beckon", "Beckon"),
-        gesture("brush-off-shoulders", "Brush shoulders"),
-        gesture("lean-in-coy", "Coy"),
-        gesture("ohohoho-noble-laugh", "Noble laugh"),
-        gesture("nervous-head-scratch", "Head scratch"),
+        gesture("offer-a-rose"),
+        gesture("air-guitar"),
+        gesture("beckon"),
+        gesture("brush-off-shoulders"),
+        gesture("lean-in-coy"),
+        gesture("ohohoho-noble-laugh"),
+        gesture("nervous-head-scratch"),
       ],
     },
     clipMode: "cycle",
@@ -697,10 +625,7 @@ export const STAGE_STOPS: StageStop[] = withBetaCopy([
   {
     id: "emotion",
     accent: "#e8557c",
-    label: "Emotions",
     followCursor: true,
-    title: "{Possessive} heart on {possessive} sleeve",
-    body: "24 emotions that shift and evolve during your time together.",
     camera: {
       yaw: 25,
       distance: 0.62,
@@ -729,9 +654,6 @@ export const STAGE_STOPS: StageStop[] = withBetaCopy([
   {
     id: "memory",
     accent: "#68a614",
-    label: "Memories",
-    title: "{Subject} remembers the little things",
-    body: "Your cat's name, Friday's recital: {subject} follows up so you don't have to.",
     camera: {
       yaw: 160,
       distance: 0.9,
@@ -754,9 +676,6 @@ export const STAGE_STOPS: StageStop[] = withBetaCopy([
   {
     id: "download",
     accent: "#8b7cf6",
-    label: "Download",
-    title: "Meet {object} on your desktop",
-    body: "Available for macOS and Windows.",
     camera: {
       yaw: 372,
       distance: 1.2,
@@ -769,14 +688,11 @@ export const STAGE_STOPS: StageStop[] = withBetaCopy([
     tall: { distance: 1.85, shift: 0, lift: 0.17 },
     backdrop: HERO,
     ink: "dark",
-    clips: [gesture("goodbye-wave", "Goodbye wave")],
+    clips: [gesture("goodbye-wave")],
     clipMode: "once",
-    beta: {
-      label: "Beta",
-      body: "Now in closed beta for macOS and Windows.",
-    },
+    beta: ["label", "body"],
   },
-]);
+];
 
 /** The clips a stop plays for an Avatar: its own set, else the stop's. */
 export function stopClips(stop: StageStop, avatarId: string): StageClip[] {

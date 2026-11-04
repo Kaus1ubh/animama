@@ -70,6 +70,7 @@ test("the catalog check fails only on errors and reports missing beta keys", asy
     const web = path.join(root, "web/src/locales");
     const product = path.join(root, "packages/product-ui/src/locales");
     const desktop = path.join(root, "desktop/src/locales");
+    const landing = path.join(root, "web/scripts/landing-stage/locales");
     await mkdir(path.join(web, "en"), { recursive: true });
     await mkdir(path.join(web, "ja"), { recursive: true });
     await mkdir(path.join(product, "en"), { recursive: true });
@@ -77,6 +78,8 @@ test("the catalog check fails only on errors and reports missing beta keys", asy
     await mkdir(desktop, { recursive: true });
     await writeFile(path.join(desktop, "en.json"), "{}");
     await writeFile(path.join(desktop, "ja.json"), "{}");
+    await mkdir(landing, { recursive: true });
+    await writeFile(path.join(landing, "en.json"), "{}");
     await writeFile(path.join(web, "en/common.json"), JSON.stringify(english));
     await writeFile(
       path.join(web, "ja/common.json"),
@@ -107,10 +110,15 @@ test("desktop shell catalogs (one file per locale) get the same checks", async (
     for (const directory of [
       "web/src/locales/en",
       "packages/product-ui/src/locales/en",
+      "web/scripts/landing-stage/locales",
     ])
       await mkdir(path.join(root, directory), { recursive: true });
     await writeFile(
       path.join(root, "packages/product-ui/src/locales/en/product.json"),
+      "{}",
+    );
+    await writeFile(
+      path.join(root, "web/scripts/landing-stage/locales/en.json"),
       "{}",
     );
     const desktop = path.join(root, "desktop/src/locales");

@@ -1,5 +1,6 @@
 import {
   Fragment,
+  createElement,
   useEffect,
   useLayoutEffect,
   useMemo,
@@ -12,6 +13,7 @@ import type { i18n as I18nInstance } from "i18next";
 import { MotionConfig, motion, type Variants } from "motion/react";
 import { createPortal, flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
+import { useTranslation } from "react-i18next";
 import {
   ArrowRight,
   ArrowUpRight,
@@ -41,6 +43,7 @@ import {
 } from "@/ui/components/tooltip";
 
 import type { StageController, StageState } from "./controller";
+import { useLanding, type LandingKey, type LandingT } from "./i18n";
 import { MoodBloom } from "./mood-bloom";
 import { PROGRAM } from "./program";
 import { TextShimmer } from "./text-shimmer";
@@ -55,10 +58,13 @@ import {
   STAGE_STOPS,
   voice,
   type StageAvatar,
+  type StageClip,
   type StageStop,
   stopClips,
+  stopCopy,
   type MemoryNote,
 } from "./stops";
+import { captionWords, continuesWord, unspaced } from "./words";
 
 /*
  * The landing page's DOM layer over the 3D stage: header, progress, one
@@ -101,17 +107,22 @@ export function mountOverlay(
 
 function Overlay({ controller }: { controller: StageController }) {
   const state = useSyncExternalStore(controller.subscribe, controller.getState);
+  const { t, locale } = useLanding();
   const active = Math.max(0, state.active);
   const light = STAGE_STOPS[active].ink === "light";
   const avatar =
     STAGE_AVATARS.find(({ id }) => id === state.avatar) ?? STAGE_AVATARS[0];
+  // The tab's title follows the language; `index.html` keeps the English one.
+  useEffect(() => {
+    document.title = t("site.title");
+  }, [t, locale]);
   return (
     <>
       <a
         href="#content"
         className="bg-card text-foreground focus-visible:ring-ring sr-only z-50 rounded-full px-4 py-2 text-sm font-medium shadow-md outline-none focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus-visible:ring-2"
       >
-        Skip to content
+        {t("page.skipToContent")}
       </a>
       <SiteHeader
         light={light}
@@ -139,7 +150,9 @@ function Overlay({ controller }: { controller: StageController }) {
       />
       <main id="content" tabIndex={-1} className="outline-none">
         {/* The 3D stage itself is hidden from screen readers. */}
-        <p className="sr-only">{voice(SITE.sceneDescription, avatar)}</p>
+        <p className="sr-only">
+          {voice(t("site.sceneDescription"), avatar, t)}
+        </p>
         {STAGE_STOPS.map((stop, index) => (
           <section
             key={stop.id}
@@ -196,11 +209,12 @@ function AvatarSwitcher({
   light: boolean;
   controller: StageController;
 }) {
+  const { t } = useLanding();
   // The stills show her only.
   if (state.fallback) return null;
   return (
     <nav
-      aria-label="Avatars"
+      aria-label={t("page.avatars")}
       className={cn(
         // The reveal fades this wrapper: `.liquid-glass` sets its own transition.
         "transition-opacity duration-700 max-sm:hidden",
@@ -250,7 +264,9 @@ function AvatarSwitcher({
                 </button>
               </TooltipTrigger>
               <TooltipContent side="bottom" sideOffset={8}>
-                {loading ? `Loading ${avatar.name}…` : avatar.name}
+                {loading
+                  ? t("page.loadingAvatar", { name: avatar.name })
+                  : avatar.name}
               </TooltipContent>
             </Tooltip>
           );
@@ -268,6 +284,7 @@ function AvatarOptions({
   state: StageState;
   controller: StageController;
 }) {
+  const { t } = useLanding();
   return (
     <DropdownMenuRadioGroup
       value={state.avatar}
@@ -287,7 +304,7 @@ function AvatarOptions({
             </AvatarFallback>
           </Avatar>
           {avatar.id === state.avatarLoading
-            ? `Loading ${avatar.name}…`
+            ? t("page.loadingAvatar", { name: avatar.name })
             : avatar.name}
         </DropdownMenuRadioItem>
       ))}
@@ -316,12 +333,14 @@ function ProgressThread({
   controller: StageController;
 }) {
   const progress = useScrollProgress();
+  const { t } = useLanding();
+  const copies = STAGE_STOPS.map((stop) => stopCopy(stop, avatar, t));
   const last = STAGE_STOPS.length - 1;
   const at = (share: number) => `${share * 100}%`;
   const count = (value: number) => String(value).padStart(2, "0");
   return (
     <nav
-      aria-label="Features"
+      aria-label={t("page.features")}
       className={cn(
         "fixed top-1/2 left-10 z-40 hidden h-[min(26rem,54vh)] -translate-y-1/2 transition-opacity duration-700 md:block",
         revealed ? "opacity-100 delay-700" : "pointer-events-none opacity-0",
@@ -343,7 +362,7 @@ function ProgressThread({
         <button
           key={stop.id}
           type="button"
-          aria-label={voice(stop.title, avatar)}
+          aria-label={copies[index].title}
           aria-current={index === active ? "step" : undefined}
           onClick={() => controller.scrollToStop(index)}
           className="group focus-visible:ring-ring absolute left-0 flex w-12 -translate-1/2 cursor-pointer items-center justify-center rounded-full outline-none focus-visible:ring-2"
@@ -375,7 +394,7 @@ function ProgressThread({
                   : "bg-card text-foreground border",
               )}
             >
-              {stop.label}
+              {copies[index].label}
             </span>
           )}
         </button>
@@ -405,7 +424,7 @@ function ProgressThread({
             {count(active + 1)} / {count(last + 1)}
           </span>
           <span key={active} className="thread-label text-base font-semibold">
-            {STAGE_STOPS[active].label}
+            {copies[active].label}
           </span>
         </span>
       </div>
@@ -422,8 +441,10 @@ function Stop(props: StopProps) {
   const emotion = useEmotionalState(props);
   const entries = useEntries(props.active);
   const memory = useMemoryCycle(active && stop.panel === "memory");
+  const { t, locale } = useLanding();
   // The hero's text sits in the stage, behind her canvas (`#hero-layer`).
   if (stop.id === "hero") return createPortal(<Hero {...props} />, heroLayer);
+  const copy = stopCopy(stop, props.avatar, t);
   const light = stop.ink === "light";
   const place = {
     memory: cn(
@@ -453,11 +474,12 @@ function Stop(props: StopProps) {
         aria-hidden={!active}
       >
         {/* Replayed each time the stop becomes active, or its text changes
-            (another Avatar's pronouns). */}
+            (another Avatar's pronouns, or another language). */}
         <StopCaptionText
-          key={`caption-${entries}-${props.avatar.id}`}
-          title={voice(stop.title, props.avatar)}
-          body={voice(stop.body ?? "", props.avatar)}
+          key={`caption-${entries}-${props.avatar.id}-${locale}`}
+          locale={locale}
+          title={copy.title}
+          body={copy.body}
           titleClassName={cn(
             "text-3xl font-bold tracking-tight text-balance md:text-5xl",
             light ? "text-white" : "text-foreground caption-halo",
@@ -511,10 +533,11 @@ function Stop(props: StopProps) {
  * The opening title and line. The logo already sits in the header, so the
  * line says what an Anima does; its feature words jump to their stops.
  */
-function Hero({ stop, active, state, controller }: StopProps) {
+function Hero({ stop, active, avatar, state, controller }: StopProps) {
   // The title and line wait for her wave, then rise in one after another.
   const revealed = state.revealed;
   const entries = useEntries(active);
+  const { t, locale } = useLanding();
   const reveal = (delay: string) =>
     cn(
       "transition-[opacity,translate] duration-700 ease-out",
@@ -553,11 +576,12 @@ function Hero({ stop, active, state, controller }: StopProps) {
       aria-hidden={!active}
     >
       <div className="flex flex-col items-center">
-        {/* Replayed whenever the text is revealed or the hero comes back
-            into view. */}
+        {/* Replayed whenever the text is revealed, the hero comes back
+            into view or the language changes. */}
         <HeroText
-          key={`hero-${revealed}-${entries}`}
-          stop={stop}
+          key={`hero-${revealed}-${entries}-${locale}`}
+          copy={stopCopy(stop, avatar, t)}
+          locale={locale}
           controller={controller}
           revealed={revealed}
           titleClassName={reveal("delay-0")}
@@ -582,6 +606,9 @@ function useEntries(active: boolean) {
  */
 const COLLAPSE_SPACES = "[&_.whitespace-pre-wrap]:whitespace-normal";
 
+/** Seconds between one title letter's bounce and the next. */
+const TITLE_STAGGER_SEC = 0.02;
+
 /**
  * Titles bounce in letter by letter, each springing up from a slight tilt.
  * The rise is in `em`, so it scales with the text.
@@ -589,7 +616,10 @@ const COLLAPSE_SPACES = "[&_.whitespace-pre-wrap]:whitespace-normal";
 const BOUNCE_LETTERS = {
   container: {
     hidden: { opacity: 0 },
-    visible: { opacity: 1, transition: { staggerChildren: 0.02 } },
+    visible: {
+      opacity: 1,
+      transition: { staggerChildren: TITLE_STAGGER_SEC },
+    },
   },
   item: {
     hidden: { opacity: 0, y: "0.25em", rotate: -8 },
@@ -621,6 +651,9 @@ const LINE_FADE = {
   }),
 } satisfies Variants;
 
+/** A caption word as drawn (text, a bold run or a link), and whether a space comes before it. */
+type LineWord = { node: ReactNode; space: boolean };
+
 /**
  * Words fading in by the line they wrap onto, once `start` is on; until then
  * they hold their places, unseen. Words may be elements (bold runs, links).
@@ -631,7 +664,7 @@ function FadeLines({
   start,
   onComplete,
 }: {
-  words: ReactNode[];
+  words: LineWord[];
   start: boolean;
   onComplete?: () => void;
 }) {
@@ -667,14 +700,14 @@ function FadeLines({
     >
       {words.map((word, index) => (
         <Fragment key={index}>
-          {index > 0 ? " " : null}
+          {index > 0 && word.space ? " " : null}
           <motion.span
             data-word=""
             custom={lines[index] ?? 0}
             variants={LINE_FADE}
             className="inline-block"
           >
-            {word}
+            {word.node}
           </motion.span>
         </Fragment>
       ))}
@@ -683,38 +716,57 @@ function FadeLines({
 }
 
 /**
- * A caption's body as words: `**bold**` runs keep a stronger weight and
- * colour, and punctuation straight after a run stays with its last word.
+ * A caption's body as words (`captionWords`): `**bold**` runs keep a
+ * stronger weight and colour, and punctuation straight after a run stays
+ * with its last word, as does a Japanese ending (`continuesWord`).
  */
-function bodyWords(text: string, boldClassName: string): ReactNode[] {
-  const words: ReactNode[] = [];
+function bodyWords(
+  text: string,
+  boldClassName: string,
+  locale: string,
+): LineWord[] {
+  const words: LineWord[] = [];
+  // The last word's text, for whether the next run continues it.
+  let previousText = "";
   const runs = text.split("**");
   runs.forEach((run, index) => {
     const bold = index % 2 === 1;
-    // Runs meet mid-word when neither side of the `**` has a space.
-    const joinsPrevious =
-      index > 0 && !/\s$/.test(runs[index - 1]) && !/^\s/.test(run);
-    run.split(/(\s+)/).forEach((token, position) => {
-      if (!token || /^\s+$/.test(token)) return;
-      const word = bold ? (
+    captionWords(run, locale).forEach((token, position) => {
+      const node = bold ? (
         <strong
           key={`${index}-${position}`}
           className={cn("font-semibold", boldClassName)}
         >
-          {token}
+          {token.text}
         </strong>
       ) : (
-        token
+        token.text
       );
-      // A run joined to the previous one continues its last word.
-      if (position === 0 && joinsPrevious && words.length > 0)
-        words[words.length - 1] = (
-          <Fragment key={`${index}-glue`}>
-            {words[words.length - 1]}
-            {word}
-          </Fragment>
-        );
-      else words.push(word);
+      // A space on either side of the `**` separates a run from the last.
+      const space =
+        token.space || (position === 0 && /\s$/.test(runs[index - 1] ?? ""));
+      // Runs meeting without one continue the previous word where words
+      // are spaced; where they are not, only punctuation and endings do.
+      const previous = words.at(-1);
+      const continues = unspaced(locale)
+        ? continuesWord({ text: token.text, space }, previousText, locale)
+        : !space;
+      if (position === 0 && previous && continues) {
+        words[words.length - 1] = {
+          node: (
+            <Fragment key={`${index}-glue`}>
+              {previous.node}
+              {space ? " " : null}
+              {node}
+            </Fragment>
+          ),
+          space: previous.space,
+        };
+        previousText += token.text;
+      } else {
+        words.push({ node, space });
+        previousText = token.text;
+      }
     });
   });
   return words;
@@ -726,12 +778,14 @@ function bodyWords(text: string, boldClassName: string): ReactNode[] {
  * switch.
  */
 function StopCaptionText({
+  locale,
   title,
   body,
   titleClassName,
   bodyClassName,
   boldClassName,
 }: {
+  locale: string;
   title: string;
   body: string;
   titleClassName: string;
@@ -743,27 +797,36 @@ function StopCaptionText({
     <>
       <BouncingTitle
         text={title}
+        locale={locale}
         className={titleClassName}
         onComplete={() => setTitleDone(true)}
       />
       <p className={bodyClassName}>
-        <FadeLines words={bodyWords(body, boldClassName)} start={titleDone} />
+        <FadeLines
+          words={bodyWords(body, boldClassName, locale)}
+          start={titleDone}
+        />
       </p>
     </>
   );
 }
+
+/** A stop's words in the active locale. */
+type StopCopy = ReturnType<typeof stopCopy>;
 
 /**
  * The hero's title and line: the title bounces in and shimmers once, and
  * the line fades up after it.
  */
 function HeroText({
-  stop,
+  copy,
+  locale,
   controller,
   revealed,
   titleClassName,
 }: {
-  stop: StageStop;
+  copy: StopCopy;
+  locale: string;
   controller: StageController;
   revealed: boolean;
   titleClassName: string;
@@ -773,14 +836,15 @@ function HeroText({
   return (
     <>
       <HeroTitle
-        text={stop.title}
+        text={copy.title}
+        locale={locale}
         shine={revealed}
         className={titleClassName}
         onLanded={() => setTitleDone(true)}
       />
       <p className="font-hero-line text-muted-foreground mt-2 max-w-[30ch] text-[1.125rem] leading-snug text-balance md:mt-3 md:max-w-[32ch] md:text-[1.9375rem]">
         <FadeLines
-          words={heroWords(stop, controller, lineDone)}
+          words={heroWords(copy, locale, controller, lineDone)}
           start={revealed && titleDone}
           onComplete={() => setLineDone(true)}
         />
@@ -792,28 +856,60 @@ function HeroText({
 /**
  * A title's entrance (Motion Primitives' Text Effect): its letters bounce up
  * one at a time from a slight tilt. `onComplete` follows the last letter.
+ * Text Effect wraps only at spaces, so a Japanese or Chinese title gets one
+ * per word, each starting where the letters before it leave off.
  */
 function BouncingTitle({
   text,
+  locale,
   as = "h2",
   className,
   onComplete,
 }: {
   text: string;
+  locale: string;
   as?: TextEffectProps["as"];
   className?: string;
   onComplete?: () => void;
 }) {
-  return (
-    <TextEffect
-      as={as}
-      per="char"
-      variants={BOUNCE_LETTERS}
-      className={cn(className, COLLAPSE_SPACES)}
-      onAnimationComplete={onComplete}
-    >
-      {text}
-    </TextEffect>
+  if (!unspaced(locale))
+    return (
+      <TextEffect
+        as={as}
+        per="char"
+        variants={BOUNCE_LETTERS}
+        className={cn(className, COLLAPSE_SPACES)}
+        onAnimationComplete={onComplete}
+      >
+        {text}
+      </TextEffect>
+    );
+  const words = captionWords(text, locale);
+  let lettersBefore = 0;
+  return createElement(
+    as,
+    { className },
+    words.map((word, index) => {
+      const delay = lettersBefore * TITLE_STAGGER_SEC;
+      lettersBefore += word.text.length;
+      return (
+        <Fragment key={index}>
+          {index > 0 && word.space ? " " : null}
+          <TextEffect
+            as="span"
+            per="char"
+            delay={delay}
+            variants={BOUNCE_LETTERS}
+            className="inline-block"
+            onAnimationComplete={
+              index === words.length - 1 ? onComplete : undefined
+            }
+          >
+            {word.text}
+          </TextEffect>
+        </Fragment>
+      );
+    }),
   );
 }
 
@@ -825,11 +921,13 @@ function BouncingTitle({
  */
 function HeroTitle({
   text,
+  locale,
   shine,
   className,
   onLanded,
 }: {
   text: string;
+  locale: string;
   shine: boolean;
   className: string;
   /** Called once every letter has landed. */
@@ -854,6 +952,7 @@ function HeroTitle({
       <BouncingTitle
         as="span"
         text={text}
+        locale={locale}
         onComplete={() => {
           if (shine) setSweeping(true);
           onLanded();
@@ -863,22 +962,35 @@ function HeroTitle({
   );
 }
 
+const escapeRegExp = (text: string) =>
+  text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+/**
+ * A hero link word as a pattern, matching whole words at a Latin letter or
+ * digit (`\b` finds no boundary beside Japanese, Korean or Chinese text).
+ */
+const linkPattern = (word: string) =>
+  `${/^\w/.test(word) ? "\\b" : ""}${escapeRegExp(word)}${/\w$/.test(word) ? "\\b" : ""}`;
+
 /**
  * The hero line as words, its link words as coloured buttons to their stops
  * (each keeping the punctuation after it). Once `waving`, a light wave runs
  * through the link words' letters in reading order, then rests.
  */
 function heroWords(
-  stop: StageStop,
+  { body: text, links }: StopCopy,
+  locale: string,
   controller: StageController,
   waving: boolean,
-): ReactNode[] {
-  const text = stop.body ?? "";
-  const links = stop.links ?? [];
-  const plain = (part: string) => part.split(/\s+/).filter(Boolean);
+): LineWord[] {
+  const plain = (part: string): LineWord[] =>
+    captionWords(part, locale).map(({ text, space }) => ({
+      node: text,
+      space,
+    }));
   if (links.length === 0) return plain(text);
   const pattern = new RegExp(
-    `\\b(${links.map(({ word }) => word).join("|")})\\b([,.;:]?)`,
+    `(${links.map(({ word }) => linkPattern(word)).join("|")})([,.;:!?、，。！？]?)`,
   );
   const parts = text.split(pattern);
   // split() returns text, word, punctuation, text, ...
@@ -888,7 +1000,7 @@ function heroWords(
   const cycle =
     (letterCount - 1) * LETTER_STAGGER_MS + LETTER_WAVE_MS + WAVE_REST_MS;
   let lettersBefore = 0;
-  return parts.flatMap((part, index): ReactNode[] => {
+  return parts.flatMap((part, index): LineWord[] => {
     if (index % 3 === 0) return plain(part);
     if (index % 3 === 2) return [];
     const link = links.find(({ word }) => word === part)!;
@@ -896,16 +1008,21 @@ function heroWords(
     const waveAt = FIRST_WAVE_MS + lettersBefore * LETTER_STAGGER_MS;
     lettersBefore += part.length;
     return [
-      <span key={index}>
-        <WavingLink
-          word={part}
-          color={STAGE_STOPS[target].accent}
-          onClick={() => controller.scrollToStop(target)}
-          waveAt={waving ? waveAt : null}
-          waveCycle={cycle}
-        />
-        {parts[index + 1]}
-      </span>,
+      {
+        node: (
+          <span key={index}>
+            <WavingLink
+              word={part}
+              color={STAGE_STOPS[target].accent}
+              onClick={() => controller.scrollToStop(target)}
+              waveAt={waving ? waveAt : null}
+              waveCycle={cycle}
+            />
+            {parts[index + 1]}
+          </span>
+        ),
+        space: /\s$/.test(parts[index - 1]),
+      },
     ];
   });
 }
@@ -1051,6 +1168,8 @@ function ReactionStepper({
   controller,
 }: StopProps) {
   const clips = stopClips(stop, avatar.id);
+  const { t } = useLanding();
+  const clipLabel = useClipLabel();
   const playing = state.playing?.stop === index ? state.playing.clip : null;
   // The last reaction played stays shown in the moment between two clips.
   const [current, setCurrent] = useState(0);
@@ -1069,7 +1188,7 @@ function ReactionStepper({
     <div className="bg-card/85 mx-auto flex w-fit items-center gap-1 rounded-full border p-1 shadow-xs">
       <button
         type="button"
-        aria-label="Previous reaction"
+        aria-label={t("page.previousReaction")}
         className={step}
         onClick={() => play(-1)}
       >
@@ -1081,11 +1200,11 @@ function ReactionStepper({
         aria-live="polite"
         className="reaction-in min-w-28 text-center text-sm font-medium"
       >
-        {clips[current].label}
+        {clipLabel(clips[current])}
       </span>
       <button
         type="button"
-        aria-label="Next reaction"
+        aria-label={t("page.nextReaction")}
         className={step}
         onClick={() => play(1)}
       >
@@ -1095,8 +1214,22 @@ function ReactionStepper({
   );
 }
 
+/**
+ * A clip's label: a Reaction's feeling from the app's `emotion` catalog,
+ * else the landing catalog's `clips.<stem>`.
+ */
+function useClipLabel() {
+  const { t } = useLanding();
+  const { t: emotionT } = useTranslation("emotion");
+  return (clip: StageClip) =>
+    clip.feeling
+      ? emotionT(`emotions.${clip.feeling}`)
+      : t(`clips.${clip.stem}` as LandingKey);
+}
+
 /** Mascot or text chips for a stop's clips; the playing one is marked. */
 function ClipChips({ stop, index, state, avatar, controller }: StopProps) {
+  const clipLabel = useClipLabel();
   const playing = state.playing?.stop === index ? state.playing.clip : null;
   return (
     <div className="-mx-5 mt-4 flex gap-2 overflow-x-auto px-5 pb-1 md:mx-0 md:mt-6 md:flex-wrap md:overflow-visible md:px-0">
@@ -1121,7 +1254,7 @@ function ClipChips({ stop, index, state, avatar, controller }: StopProps) {
               className="size-8 object-contain"
             />
           ) : null}
-          {clip.label}
+          {clipLabel(clip)}
         </button>
       ))}
     </div>
@@ -1159,55 +1292,56 @@ type MemoryFile = {
  * comes from IDENTITY.md, which chat never edits; the promise to follow up
  * is the relationship's, so the Anima files it in its own MEMORIES.md.
  */
-const memoryFiles = (avatar: StageAvatar): MemoryFile[] => [
-  {
-    id: "profile",
-    file: "PROFILE.md",
-    name: "About you",
-    sections: [
-      { heading: "Basics", lines: ["Sam. Toronto, Eastern time."] },
-      {
-        heading: "People",
-        lines: ["My sister Ana, who is getting married in June."],
-        fresh: "Miso, our new kitten.",
-      },
-    ],
-  },
-  {
-    id: "identity",
-    file: "IDENTITY.md",
-    name: "Who I am",
-    // The voice a reply speaks in leads its page.
-    sections: [...avatar.identity]
-      .sort(
-        (a, b) =>
-          Number(b.heading === "Speaking style") -
-          Number(a.heading === "Speaking style"),
-      )
-      .slice(0, 2)
-      .map(({ heading, line }) => ({
-        heading,
-        lines: [line],
-        voice: heading === "Speaking style",
-      })),
-  },
-  {
-    id: "memories",
-    file: "MEMORIES.md",
-    name: "Our story",
-    sections: [
-      {
-        heading: "Our story",
-        lines: ["We met in exam season, both running on tea."],
-      },
-      {
-        heading: "Open threads",
-        lines: ["Ana's wedding in June: help with the toast."],
-        fresh: "Sam's recital is Friday. I promised to ask how it went.",
-      },
-    ],
-  },
-];
+const memoryFiles = (avatar: StageAvatar, t: LandingT): MemoryFile[] => {
+  const identity = (section: "essence" | "speakingStyle") => ({
+    heading: t(
+      `avatars.${avatar.id}.identity.${section}.heading` as LandingKey,
+    ),
+    lines: [t(`avatars.${avatar.id}.identity.${section}.line` as LandingKey)],
+    voice: section === "speakingStyle",
+  });
+  return [
+    {
+      id: "profile",
+      file: "PROFILE.md",
+      name: t("memory.pages.profile"),
+      sections: [
+        {
+          heading: t("memory.profile.basics"),
+          lines: [t("memory.profile.basicsLine")],
+        },
+        {
+          heading: t("memory.profile.people"),
+          lines: [t("memory.profile.peopleLine")],
+          fresh: t("memory.profile.peopleNew"),
+        },
+      ],
+    },
+    {
+      id: "identity",
+      file: "IDENTITY.md",
+      name: t("memory.pages.identity"),
+      // The voice a reply speaks in leads its page.
+      sections: [identity("speakingStyle"), identity("essence")],
+    },
+    {
+      id: "memories",
+      file: "MEMORIES.md",
+      name: t("memory.pages.memories"),
+      sections: [
+        {
+          heading: t("memory.memories.story"),
+          lines: [t("memory.memories.storyLine")],
+        },
+        {
+          heading: t("memory.memories.threads"),
+          lines: [t("memory.memories.threadsLine")],
+          fresh: t("memory.memories.threadsNew"),
+        },
+      ],
+    },
+  ];
+};
 /** The order the pages cycle in: profile, identity, then memories. */
 const MEMORY_FILE_ORDER: MemoryNote[] = ["profile", "identity", "memories"];
 /**
@@ -1356,7 +1490,11 @@ function ChatExchange({
   changed?: boolean;
   sizer?: boolean;
 }) {
-  const chat = avatar.memoryChats[note];
+  const { t } = useLanding();
+  const chat = {
+    user: t(`memory.user.${note}`),
+    reply: t(`avatars.${avatar.id}.replies.${note}` as LandingKey),
+  };
   return (
     <div
       className={cn("col-start-1 row-start-1", sizer && "invisible")}
@@ -1386,7 +1524,7 @@ function ChatExchange({
                 className="text-muted-foreground mt-1 ml-1 inline-flex items-center gap-1.5 text-xs"
               >
                 <Brain aria-hidden="true" className="size-3.5" />
-                Memory updated
+                {t("memory.updated")}
               </Reveal>
             )}
           </div>
@@ -1415,7 +1553,8 @@ function MemoryNotebook({
   avatar: StageAvatar;
   cycle: MemoryCycle;
 }) {
-  const files = memoryFiles(avatar);
+  const { t } = useLanding();
+  const files = memoryFiles(avatar, t);
   const file = files.find(({ id }) => id === cycle.note)!;
   return (
     <div>
@@ -1427,8 +1566,11 @@ function MemoryNotebook({
               key={page.id}
               type="button"
               aria-pressed={page.id === cycle.note}
-              aria-label={`${page.name}, ${page.file}`}
-              title={`Open ${page.file}`}
+              aria-label={t("memory.ribbon", {
+                page: page.name,
+                file: page.file,
+              })}
+              title={t("memory.openFile", { file: page.file })}
               onClick={() => cycle.pick(page.id)}
               className={cn(
                 "font-hand h-9 cursor-pointer rounded-t-md px-2.5 pt-1.5 text-[1rem] leading-none whitespace-nowrap text-[#2e2b36] shadow-sm transition-[translate,filter,box-shadow] duration-200 outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#2e2b36]",
@@ -1452,7 +1594,7 @@ function MemoryNotebook({
                 {file.file}
               </p>
               <p className="font-hand mt-[26px] text-[1.05rem] leading-[26px] max-md:mt-0">
-                {avatar.notebook.purpose[file.id]}
+                {t(`avatars.${avatar.id}.notebook.${file.id}` as LandingKey)}
               </p>
             </div>
             <div className="px-4 pt-3 pb-4">
@@ -1494,8 +1636,7 @@ function MemoryNotebook({
         </div>
       </div>
       <p className="mt-2.5 text-xs text-white [text-shadow:0_1px_3px_rgb(0_0_0/0.5)]">
-        Pick a ribbon to turn the page. Every page is a file you can read, edit
-        and roll back.
+        {t("memory.hint")}
       </p>
     </div>
   );
@@ -1552,6 +1693,7 @@ function Reveal({
  * notices, then the copyright line beside Animama's social icons.
  */
 function SiteFooter({ light }: { light: boolean }) {
+  const { t } = useLanding();
   const linkClass = cn(
     "rounded-sm outline-none focus-visible:ring-2",
     focusRing(light),
@@ -1564,15 +1706,15 @@ function SiteFooter({ light }: { light: boolean }) {
         light ? "text-white/70" : "text-muted-foreground",
       )}
     >
-      <nav aria-label="Footer">
+      <nav aria-label={t("footer.label")}>
         <ul className="flex flex-wrap gap-x-4 gap-y-1">
-          {FOOTER_LINKS.map(({ label, href }) => (
-            <li key={label}>
+          {FOOTER_LINKS.map(({ key, href }) => (
+            <li key={key}>
               <a
                 href={href}
                 className={cn(linkClass, "underline-offset-2 hover:underline")}
               >
-                {label}
+                {t(`footer.${key}`)}
               </a>
             </li>
           ))}
@@ -1604,12 +1746,13 @@ function SiteFooter({ light }: { light: boolean }) {
  * the closed beta, Request Beta Access in Download's place.
  */
 function DownloadActions() {
+  const { t } = useLanding();
   if (CLOSED_BETA)
     return (
       <div className="mt-5 flex flex-wrap items-center gap-2.5">
         <Button asChild className="group rounded-full">
           <a href={BETA_ACCESS_URL} target="_blank" rel="noreferrer">
-            Request Beta Access
+            {t("header.requestBetaAccess")}
             <ArrowUpRight
               aria-hidden="true"
               className="transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
@@ -1619,7 +1762,7 @@ function DownloadActions() {
         <Button asChild variant="outline" className="rounded-full">
           <a href={DOCS_URL}>
             <BookOpen aria-hidden="true" />
-            Read the docs
+            {t("page.readDocs")}
           </a>
         </Button>
       </div>
@@ -1628,7 +1771,7 @@ function DownloadActions() {
     <div className="mt-5 flex flex-wrap items-center gap-2.5">
       <Button asChild className="group rounded-full">
         <a href={SITE.download}>
-          Download
+          {t("header.download")}
           <ArrowRight
             aria-hidden="true"
             className="transition-transform group-hover:translate-x-0.5"
@@ -1638,7 +1781,7 @@ function DownloadActions() {
       <Button asChild variant="outline" className="rounded-full">
         <a href={DOCS_URL}>
           <BookOpen aria-hidden="true" />
-          Read the docs
+          {t("page.readDocs")}
         </a>
       </Button>
     </div>

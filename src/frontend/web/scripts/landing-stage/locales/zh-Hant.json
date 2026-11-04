@@ -1,0 +1,180 @@
+{
+  "site": {
+    "title": "Animama — 栩栩如生的 AI 夥伴",
+    "sceneDescription": "3D 動畫 Anima {name} 走進畫面、揮手打招呼，隨著你捲動頁面，展示{possessive}動作、情緒和記憶。"
+  },
+  "header": {
+    "site": "網站",
+    "home": "首頁",
+    "about": "關於",
+    "download": "下載",
+    "docs": "說明文件",
+    "logIn": "登入",
+    "signUp": "註冊",
+    "requestBetaAccess": "申請加入測試版",
+    "requestAccess": "申請加入",
+    "menu": "選單",
+    "avatar": "虛擬形象",
+    "darkMode": "深色模式",
+    "language": "語言",
+    "currentLanguage": "語言：{{language}}",
+    "switchToLight": "切換為淺色模式",
+    "switchToDark": "切換為深色模式"
+  },
+  "page": {
+    "skipToContent": "跳至主要內容",
+    "avatars": "虛擬形象",
+    "loadingAvatar": "正在載入 {{name}}…",
+    "features": "功能",
+    "previousReaction": "上一個反應",
+    "nextReaction": "下一個反應",
+    "readDocs": "閱讀說明文件"
+  },
+  "stops": {
+    "hero": {
+      "label": "開場",
+      "title": "遇見你的 Anima",
+      "body": "會動、會感受、會記住的 AI 夥伴。",
+      "links": {
+        "gestures": "會動",
+        "emotion": "會感受",
+        "memory": "會記住"
+      }
+    },
+    "gestures": {
+      "label": "動作",
+      "title": "肢體語言",
+      "body": "從搞笑耍寶到浪漫撩人：**300 多種獨特的動作和反應**，隨著{subject}說話自然切換。"
+    },
+    "emotion": {
+      "label": "情緒",
+      "title": "心情全寫在臉上",
+      "body": "24 種情緒，在你們相處的時光裡不斷變化、慢慢成長。"
+    },
+    "memory": {
+      "label": "記憶",
+      "title": "{Subject}記得每一件小事",
+      "body": "貓咪的名字、週五的發表會……{subject}都會主動問起，不用你操心。"
+    },
+    "download": {
+      "label": "下載",
+      "title": "在桌面上遇見{object}",
+      "body": "現已支援 macOS 和 Windows。",
+      "beta": {
+        "label": "測試版",
+        "body": "macOS 和 Windows 版正在封閉測試中。"
+      }
+    }
+  },
+  "clips": {
+    "lean-in-coy": "害羞靠近",
+    "soul-leaves-body": "靈魂出竅",
+    "flustered-fan": "慌張搧風",
+    "innocent-whistle": "裝傻吹口哨",
+    "finger-heart-pose": "比愛心",
+    "double-peace-pop": "雙手比 YA",
+    "dramatic-swoon": "誇張暈倒",
+    "snicker-laugh": "偷笑",
+    "offer-a-rose": "獻玫瑰",
+    "air-guitar": "空氣吉他",
+    "beckon": "招手",
+    "brush-off-shoulders": "撥撥肩膀",
+    "ohohoho-noble-laugh": "大小姐高笑",
+    "nervous-head-scratch": "抓頭"
+  },
+  "memory": {
+    "updated": "記憶已更新",
+    "hint": "點一下書籤就能翻頁。每一頁都是一個檔案，你可以隨時查看、編輯和還原。",
+    "openFile": "開啟 {{file}}",
+    "ribbon": "{{page}}，{{file}}",
+    "pages": {
+      "profile": "關於你",
+      "identity": "我是誰",
+      "memories": "我們的故事"
+    },
+    "user": {
+      "profile": "我們今天領養了一隻小貓！她叫味噌。",
+      "identity": "這週所有東西都要交，我都不知道從哪裡開始。",
+      "memories": "週五發表會結束後，我再跟你說怎麼樣！"
+    },
+    "profile": {
+      "basics": "基本資料",
+      "basicsLine": "山姆，住在多倫多，北美東部時間。",
+      "people": "身邊的人",
+      "peopleLine": "我妹妹安娜，六月要結婚了。",
+      "peopleNew": "味噌，我們新養的小貓。"
+    },
+    "memories": {
+      "story": "我們的故事",
+      "storyLine": "我們在考試季認識，那時都靠喝茶續命。",
+      "threads": "待續的事",
+      "threadsLine": "安娜六月的婚禮：幫忙準備致詞。",
+      "threadsNew": "山姆的發表會在週五。我答應過要問問結果。"
+    }
+  },
+  "avatars": {
+    "Annie": {
+      "pronouns": {
+        "subject": "她",
+        "object": "她",
+        "possessive": "她的"
+      },
+      "identity": {
+        "essence": {
+          "heading": "核心特質",
+          "line": "溫暖又好奇的夥伴，陪你把想法說出來，把模糊的念頭變成清楚的下一步。"
+        },
+        "speakingStyle": {
+          "heading": "說話風格",
+          "line": "句子簡短自然。給建議前，先把聽到的話複述一遍，帶點溫柔的幽默。"
+        }
+      },
+      "replies": {
+        "profile": "味噌！歡迎加入這個家，小傢伙。快跟我說說她來的第一週吧。",
+        "identity": "原來事情全擠在一起了。我們把它拆小一點。最先要交的是哪個？",
+        "memories": "一言為定。週五，完整報告。我會第一個來問。"
+      },
+      "notebook": {
+        "profile": "你跟我說過的關於你的事。每個 Anima 都共用這一頁，你也可以編輯。",
+        "identity": "我是誰、我怎麼說話。你隨時可以改寫這一頁。我自己從來不改。",
+        "memories": "我們的點點滴滴：約定、只有我們懂的梗、小小的里程碑。我們聊天時，我會把它們寫在這一頁。"
+      }
+    },
+    "Andrew": {
+      "pronouns": {
+        "subject": "他",
+        "object": "他",
+        "possessive": "他的"
+      },
+      "identity": {
+        "essence": {
+          "heading": "核心特質",
+          "line": "友善隨和的大學生，喜歡跟你一起把事情弄清楚。"
+        },
+        "speakingStyle": {
+          "heading": "說話風格",
+          "line": "隨性又清楚，邊想邊說，很會追問，還會順便自嘲一下。"
+        }
+      },
+      "replies": {
+        "profile": "不會吧，味噌！名字真好聽。快快快，我要知道全部。她長什麼樣子？",
+        "identity": "唉，我懂那種感覺。要不要先全部列出來，再從最小的那件開始？",
+        "memories": "一定要說喔！週五，從頭講起。我會幫你加油的。"
+      },
+      "notebook": {
+        "profile": "你跟我說過的關於你的事。每個 Anima 都共用這一頁，你也可以編輯。",
+        "identity": "我是誰、我怎麼說話。你隨時可以改寫這一頁，我不會動它。",
+        "memories": "我們到目前為止的故事：計畫、梗、重要的日子。聊天時我會隨手記下來。"
+      }
+    }
+  },
+  "footer": {
+    "label": "頁尾",
+    "about": "關於",
+    "privacy": "隱私權政策",
+    "terms": "服務條款",
+    "safety": "安全",
+    "contact": "聯絡我們",
+    "notices": "第三方聲明"
+  }
+}

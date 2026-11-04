@@ -1,5 +1,7 @@
 import type { UiLocale } from "@animama/runtime-contracts/locale";
 
+import { cn } from "@/lib/utils";
+
 /*
  * Round flag icons for the language picker, drawn inline so they look the
  * same everywhere (Windows does not draw flag emoji). Each UI Locale shows
@@ -118,7 +120,11 @@ const FLAGS: Record<UiLocale, () => React.JSX.Element> = {
   "zh-Hant": Taiwan,
 };
 
-/** A UI Locale's flag as a small round icon. */
+/**
+ * A UI Locale's flag as a small round icon. Its ring is a class
+ * (`rounded-full` and a shadow) rather than an inline style, which the
+ * site's CSP refuses in the header prerendered for Animama Cloud's pages.
+ */
 export function LocaleFlag({
   locale,
   className,
@@ -131,11 +137,10 @@ export function LocaleFlag({
     <svg
       viewBox="0 0 24 24"
       aria-hidden="true"
-      className={className}
-      style={{
-        borderRadius: "999px",
-        boxShadow: "0 0 0 1px rgb(0 0 0 / 0.08)",
-      }}
+      className={cn(
+        "rounded-full shadow-[0_0_0_1px_rgb(0_0_0/0.08)]",
+        className,
+      )}
     >
       <clipPath id={`flag-${locale}`}>
         <circle cx="12" cy="12" r="12" />
