@@ -24,12 +24,12 @@ the headers they need; Memory Manager tracing is off on desktop).
 
 Orientation, by requirement:
 
-- **R1, security policy.** `SECURITY.md` at the repository root. The
-  open-source readiness plan
+- **R1, security policy.** `.github/SECURITY.md`. Phase 1 edited
+  `SECURITY.md` at the repository root; the open-source readiness work
   ([its Phase 3](../open-source-readiness/open-source-readiness-execplan.md))
-  will move it to `.github/SECURITY.md`; this work edits whichever path `main`
-  has when Phase 1 starts and gives that work the final wording for its issue
-  form links.
+  then moved it to `.github/SECURITY.md` (#845), and the merge of `main`
+  (`ab9de1316`) carries this policy there. The issue forms and contributor
+  documents link to `/security/policy`, so no wording hand-off remains.
 - **R2, Content Security Policy.** FastAPI serves the built web app through
   `LocalAssets` in `src/backend/animama/local/http/assets.py`
   (`_static_response` builds the headers for every built file, including the
@@ -1060,6 +1060,18 @@ correct. No public-safety problem in any record apart from FI-F8.
 - Repair budget: one of two rounds used; a targeted recheck follows, then the
   full pre-push suite on the final candidate.
 
+### Final integration review #2
+
+Reviewed source: `74cb6422d`; targeted recheck of the merge and the FI-F1 to
+FI-F9 revisions, with ruff, mypy, the import boundary, typed-content and
+licence checks rerun, 477 backend tests over the branch-touched files, the web
+and e2e type checks and 357 web and desktop tests over the touched files.
+Verdict: pass. FI-F1 and FI-F2 are fixed, the revisions are in place, and the
+merge changed none of this branch's work beyond the four resolved files. The
+stale R1 orientation and recovery notes (FI2-N1) are updated; FI2-N2 (the R1
+issue-form item is met by `main`'s links to `/security/policy`) goes into the
+PR.
+
 ## Validation and acceptance
 
 On the final candidate, in this order:
@@ -1121,8 +1133,8 @@ Before any push or `gh pr create`, run `gh workflow list --all`; if
 - The stage, audit and pack can be rerun; never run them while another
   `desktop:mac` pack or VM smoke is running.
 - Vault and key changes are local and reversible by entering the key again.
-- If the open-source readiness work moves `SECURITY.md` first, rebase and edit
-  `.github/SECURITY.md`.
+- `SECURITY.md` moved to `.github/SECURITY.md` on `main` (#845); the merge
+  `ab9de1316` resolved it to this policy (done).
 
 ## Outcomes & Retrospective
 
