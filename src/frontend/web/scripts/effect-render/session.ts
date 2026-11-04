@@ -356,12 +356,22 @@ export class EffectSession {
    * Play `clip` on the Avatar's clip player, as chat plays a Gesture,
    * replacing any clip playing; `fromSec` starts it part-way through
    * (`Avatar.seekPoseClip`: events before that time do not fire). Needs
-   * `clipPlayback: "avatar"` and `apply` first.
+   * `clipPlayback: "avatar"` and `apply` first. `enterSec` replaces the
+   * clip's fade-in, as chat's planner does with its enter policy.
    */
-  playGesture(clip: unknown, fromSec = 0): void {
+  playGesture(
+    clip: unknown,
+    fromSec = 0,
+    enterSec: number | null = null,
+  ): void {
     this.avatar.playAnimaPoseClip(
       clip as Parameters<Avatar["playAnimaPoseClip"]>[0],
-      { preserveProceduralOffsets: true },
+      {
+        preserveProceduralOffsets: true,
+        ...(enterSec === null
+          ? {}
+          : { transition: { mode: "fadeIn", durationSec: enterSec } }),
+      },
     );
     if (fromSec > 0) this.avatar.seekPoseClip(fromSec);
   }

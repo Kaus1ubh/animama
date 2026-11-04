@@ -94,6 +94,8 @@ type ReelCue = {
   at: number;
   /** Clip time (s) a Gesture starts at. */
   from: number;
+  /** A Gesture's fade-in (s) in place of its own, or null for its own. */
+  enter: number | null;
   /** Take time the clip is stopped (with its fade), or null for the default. */
   until: number | null;
   clip: unknown;
@@ -705,7 +707,7 @@ function frameHook(open: NonNullable<typeof item>, time: number) {
     if (state.started || state.cue.at > due) continue;
     state.started = true;
     if (state.cue.kind === "gesture") {
-      session.playGesture(state.cue.clip, state.cue.from);
+      session.playGesture(state.cue.clip, state.cue.from, state.cue.enter);
       open.gesture = state;
     } else {
       session.playReaction(state.cue.clip, state.cue.id);

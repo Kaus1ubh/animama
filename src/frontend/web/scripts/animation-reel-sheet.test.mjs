@@ -30,7 +30,12 @@ test("parses a cue sheet's takes and rejects invalid ones", () => {
       camera: "landing",
       duration: 3,
       cues: [
-        { gesture: "library:gesture/double-peace-pop", beat: "pop", beatAt: 1 },
+        {
+          gesture: "library:gesture/double-peace-pop",
+          beat: "pop",
+          beatAt: 1,
+          enter: 0.35,
+        },
         { reaction: "library:reaction/joy-3-b", at: 0.3, until: 2.5 },
       ],
       speech: { alignment: "take.json", audio: "take.mp3", at: 0.5 },
@@ -48,12 +53,13 @@ test("parses a cue sheet's takes and rejects invalid ones", () => {
   );
   assert.equal(take.duration, 3);
   assert.deepEqual(
-    take.cues.map(({ kind, spec, at, beat, beatAt, until }) => ({
+    take.cues.map(({ kind, spec, at, beat, beatAt, enter, until }) => ({
       kind,
       spec,
       at,
       beat,
       beatAt,
+      enter,
       until,
     })),
     [
@@ -63,6 +69,7 @@ test("parses a cue sheet's takes and rejects invalid ones", () => {
         at: null,
         beat: "pop",
         beatAt: 1,
+        enter: 0.35,
         until: null,
       },
       {
@@ -71,6 +78,7 @@ test("parses a cue sheet's takes and rejects invalid ones", () => {
         at: 0.3,
         beat: null,
         beatAt: null,
+        enter: null,
         until: 2.5,
       },
     ],
@@ -103,6 +111,8 @@ test("parses a cue sheet's takes and rejects invalid ones", () => {
       /"reaction", "face" or "mood"/,
     ],
     [{ cues: [{ reaction: "a", from: 1 }] }, /unknown field "from"/],
+    [{ cues: [{ reaction: "a", enter: 1 }] }, /unknown field "enter"/],
+    [{ cues: [{ gesture: "a", enter: -1 }] }, /enter must be/],
     [{ cues: [{ gesture: "a", at: -1 }] }, /at must be/],
     [{ cues: [{ gesture: "a", beat: "pop" }] }, /go together/],
     [

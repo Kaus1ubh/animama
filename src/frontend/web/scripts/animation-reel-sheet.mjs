@@ -35,7 +35,9 @@ import {
  * the same kind replaces the earlier one. A Gesture may start part-way
  * through: `from` is a clip time or beat id, or `beat` and `beatAt` start it
  * so that beat lands at that take time (from its start when `at` is
- * omitted). `until` stops a clip, with its fade; otherwise a looping clip
+ * omitted). `enter` sets a Gesture's fade-in in seconds in place of its
+ * own, as chat's planner does (it fades Gestures in over 0.35 s). `until`
+ * stops a clip, with its fade; otherwise a looping clip
  * stops after one pass, and a talking-scoped one (a Reaction) after `--talk`
  * seconds or, in a take that speaks, once the speech has ended, as chat
  * holds it while the Anima speaks. `speech` plays a voice take with ElevenLabs
@@ -73,6 +75,7 @@ const GESTURE_KEYS = new Set([
   "from",
   "beat",
   "beatAt",
+  "enter",
   "until",
 ]);
 const REACTION_KEYS = new Set(["reaction", "at", "until"]);
@@ -197,6 +200,7 @@ export function parseCueSheet(sheet, { dir, name = "sheet" }) {
           from: cue.from ?? null,
           beat: cue.beat ?? null,
           beatAt: seconds(cue.beatAt, at, "beatAt"),
+          enter: seconds(cue.enter, at, "enter"),
           until: seconds(cue.until, at, "until"),
           where: at,
         },
@@ -555,6 +559,7 @@ export async function listSheetItems(file, { localContent = null } = {}) {
         id: cue.spec,
         at,
         from,
+        enter: cue.enter,
         until: cue.until,
         clip: clipFrom(named.clip, from),
       });

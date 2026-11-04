@@ -558,6 +558,7 @@ export function itemCues(item, lead) {
         id: item.stem,
         at: lead,
         from: 0,
+        enter: null,
         until: null,
         clip: item.clip,
       },
