@@ -250,8 +250,9 @@ validates and sanitizes every body. See
 `offline_speech_enabled` and its versions describe current Parakeet (English)
 availability, and `offline_multilingual_speech_enabled` and its versions current
 SenseVoice-Small (Japanese, Korean and Chinese) availability, not permission to
-use voice. An absent optional set does not remove browser voice, Pocket TTS,
-supported server speech, or the workflow to download a permitted set. The
+use voice. An absent optional set does not remove browser voice, Pocket TTS or
+supported server speech. A model-asset list without `downloads_offered`, as a
+hosted one is, means downloads are offered. The
 hosted capability fixture reports SenseVoice off, and the hosted build lists no
 SenseVoice lazy resource. The packaged model-asset catalog nevertheless
 contains `sensevoice-stt` and `sensevoice-stt-webgpu`, so a hosted consumer that

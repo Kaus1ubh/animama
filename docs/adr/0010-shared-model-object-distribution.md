@@ -3,7 +3,8 @@
 - Status: accepted; items 2, 8 (Parakeet clause), 3 (built self-host) and 9
   (setup draft, GPU visibility) superseded by [0012](0012-backend-parakeet-model-assets.md)
 - Recorded: 2026-09-28
-- Amended: 2026-10-20, Michael is a core voice for the Andrew starter ([issue #618](https://github.com/raymond-van/animama/issues/618))
+- Amended: 2026-10-20, Michael is a core voice for the Andrew starter ([issue #618](https://github.com/raymond-van/animama/issues/618));
+  2026-11-04, downloads end (below)
 - Retrospective: no
 - Original decision date: 2026-09-28
 - Decision basis: owner decisions and implementation authorization in [issue #188](https://github.com/raymond-van/animama/issues/188), synchronized 2026-09-28
@@ -118,6 +119,17 @@ their archive transport.
   first tries to download its own missing objects.
 - Model publication is immutable. A partial release can leave valid unreferenced
   objects; retry verifies and reuses them. Corrections use new hash paths.
+
+## Amendment (2026-11-04): downloads end
+
+Animama's prebuilt distribution ends before 2027-01-01 (owner decision D5 of the
+[open-source readiness plan](../plans/open-source-readiness/open-source-readiness-execplan.md);
+[issue #837](https://github.com/raymond-van/animama/issues/837)). The local
+composition no longer downloads model assets: installing an asset that is not
+installed is refused with `model_downloads_ended`, while assets installed
+earlier keep working and can be removed. The objects on `downloads.animama.ai`
+stay published only for a short transition after the final desktop release.
+The catalog and downloader are unchanged for a build that offers downloads.
 
 ## Evidence
 

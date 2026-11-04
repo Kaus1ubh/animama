@@ -96,11 +96,10 @@ its configured provider and connectivity, and chat a reachable model connection.
 PiP is visual-only; the main renderer owns audio. See [Keyboard shortcuts](keyboard-shortcuts.md)
 for native hook permissions.
 
-Offline speech installs in place from Voice settings; see
-[Speech model downloads](feature-packs.md#speech-model-downloads). An
-interrupted download resumes with **Retry download**. To reinstall, remove GPU
-acceleration first, then the CPU model, and download again. "Speech recognition
-is in use" means another window still has the model loaded for dictation or
+Offline speech can no longer be downloaded; a set installed earlier keeps
+working, and Voice settings remove it (GPU acceleration first, then the CPU
+model). See [Speech model downloads](feature-packs.md#speech-model-downloads).
+A removed set cannot be installed again. "Speech recognition is in use" means another window still has the model loaded for dictation or
 Voice Mode: stop it or close that window and retry. Directories left by the
 retired `parakeet-stt*` speech packs are deleted automatically at startup; do
 not move model files into `packs/` or the data directory by hand.
@@ -128,7 +127,9 @@ checks.
 
 ## Update failures
 
-A failed check or download leaves the current app available. Retry the offered
+The final release, 0.1.3, never checks for updates, so it shows none of these
+failures. In a preview build, a failed check or download leaves the current
+app available. Retry the offered
 action after resolving network or disk problems. A changed candidate requires
 a fresh check. An active pack operation or incompatible in-use content can
 block an update; do not clear those guards by deleting files.

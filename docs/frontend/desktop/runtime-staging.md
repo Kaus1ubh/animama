@@ -248,9 +248,9 @@ defaults.
 
 ## Release model inputs
 
-The packaged app downloads the speech-to-text sets (Parakeet and SenseVoice),
-the optional Pocket voices and the cloning encoder at runtime as backend model
-assets; none is a staging input or pack.
+The packaged app no longer downloads the speech-to-text sets (Parakeet and
+SenseVoice), the optional Pocket voices or the cloning encoder; it serves those
+installed earlier as backend model assets, and none is a staging input or pack.
 `desktop:dist:mac` copies each set named by the frozen backend catalog from the
 verified model store into publication candidates, so a signed release needs those
 sets acquired first (for example `python3 scripts/models/parakeet.py acquire`,
@@ -269,7 +269,7 @@ voice hashes without accepting changes. An ordinary web build or stage does not
 need these inputs.
 
 This developer/producer cache is not an installed app model directory. The
-installed app keeps downloaded models under its data directory
+installed app keeps models it downloaded earlier under its data directory
 (`<userData>/data/internal/model-assets/`), so clearing a developer cache never
 affects it.
 

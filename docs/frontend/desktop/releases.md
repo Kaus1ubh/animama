@@ -2,9 +2,13 @@
 
 The release tools build signed macOS 15+ Apple-silicon candidates and support
 guarded updates, upgrade snapshots and installed-artifact smoke tests.
-**No accepted public release is available.** Fresh matching artifacts, complete
-starter inputs, inventory review, minimum-OS/native acceptance and a real forward
-upgrade remain required. Unit tests do not approve redistribution or publication.
+Signed macOS preview builds 0.1.0 to 0.1.2 are published; no stable feed has
+been. Animama's prebuilt distribution ends before 2027-01-01: the final
+release, 0.1.3 for macOS, never checks for updates, and
+[Ending distribution](#ending-distribution) is the owner's runbook for it and
+the cut-off. Fresh matching artifacts, inventory review, minimum-OS/native
+acceptance and a real forward upgrade remain required for it. Unit tests do not
+approve redistribution or publication.
 Windows 11 x64 has the same tooling: a signed candidate builder
 ([Build a signed Windows candidate](#build-a-signed-windows-candidate)), guarded
 updates through its per-user installer, installed-artifact smoke and
@@ -17,6 +21,12 @@ Initial publication runs manually from reviewed `main` inputs. Start with the
 the tooling reference. CI publication remains unconfigured.
 
 ## What people see
+
+A build whose sealed `runtime/update-policy.json` says `"updates": "ended"`,
+as the final release does, never checks for updates: it verifies no publisher,
+creates no updater session, makes no feed request and shows no update row or
+notice, as an unpackaged build does. Nothing read at run time turns checks back
+on. The rest of this section describes a build that offers updates.
 
 A signed, configured app checks its release feed 15 seconds after startup. Offline checks time out without blocking the application. Settings →
 General also offers **Check for updates**. A notice offers **Download update**;
@@ -32,9 +42,10 @@ distribution (see [Distribution selection](#distribution-selection)): for R2,
 only the platform's feed (`<base_url>/latest-mac.yml` on macOS,
 `<base_url>/latest.yml` on Windows) and `<base_url>/v<version>/` files; for GitHub,
 only the configured repository's releases and asset CDN. Archive packs follow
-the same rule. Backend model-asset downloads, including the speech-to-text
-sets, always use the fixed `https://downloads.animama.ai/models/` origin, with
-no redirects. R2 app downloads
+the same rule. Builds from current source download no model assets (see
+[downloaded model assets](../../backend/operations/model-assets.md#downloaded-model-assets));
+older builds fetched them from the fixed `https://downloads.animama.ai/models/`
+origin, with no redirects. R2 app downloads
 also follow no redirects. No Animama account or token
 is required for the installed application.
 
@@ -63,8 +74,8 @@ the Authenticode certificate subject and identity-validation EKU.
   new version. If the installer cannot start, the services restart and the
   current version keeps running.
 
-At startup an installed app first checks its own signature against the sealed
-publisher; a build that fails offers no updates. Do not copy options from a
+At startup an installed app that offers updates first checks its own signature
+against the sealed publisher; a build that fails offers no updates. Do not copy options from a
 newer updater version without checking its API.
 
 Before both download and restart, the supervisor checks free space, active pack
@@ -128,7 +139,7 @@ explicit publication decision; these commands do not select one.
 
 | Input                                             | Required operator decision                                                                                                                                                                                     |
 | ------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `desktop/runtime/release-policy.json`             | Both distributions (R2 public base URL and bucket; GitHub `owner`/`repo`), stable channel, one human redistribution receipt per target                                                                         |
+| `desktop/runtime/release-policy.json`             | Both distributions (R2 public base URL and bucket; GitHub `owner`/`repo`), stable channel, `updates` (`offered`, or `ended` for the final release, which also forbids an active pack), one human redistribution receipt per target |
 | `desktop/runtime/feature-pack-releases.json`      | Approved active-pack hashes, explicit deferred-pack status, Apple Team ID, Developer ID identity, document-helper designated requirement. Pack URLs are derived from the selected distribution, never set here |
 | `feature-pack-releases.json` `windows`            | Artifact Signing endpoint, account and certificate profile, and the certificate subject and identity-validation EKU every Windows signature must carry. None is a secret                                       |
 | `desktop/runtime/windows-signing.lock.json`       | The Windows SDK `signtool` and Artifact Signing client library, pinned by version and SHA-256                                                                                                                  |
@@ -367,8 +378,10 @@ The smoke rejects empty and all-whitespace names before completing named setup.
 Required-name evidence gates publication.
 The harness checks the signed DMG and contained app, installs into the absent
 `~/Applications/Animama.app`, launches with a system-only PATH, verifies child
-executables belong to app resources and that its update check passes the
-publisher check, and tests setup, a provider key applied
+executables belong to app resources, that the installed runtime seals the
+update policy the release source expects, and that its update check reports
+`unavailable` when that policy has ended updates (otherwise that it passes the
+publisher check), and tests setup, a provider key applied
 without a window or backend restart, provider status, local HTTP
 rejection, core capabilities, both starter chats, exact typed bytes, private
 upload, restart persistence, temporary-key removal, and owned shutdown. It leaves the profile and app
@@ -764,6 +777,56 @@ it. Never replace a published object.
 The canonical generated evidence is the complete tree in `desktop/release/publish`,
 with `SHA256SUMS.txt` and `signing-report.json`. See the [evidence map](release-process.md#evidence-and-actual-artifact-names)
 for the required-name smoke and network report paths.
+
+## Ending distribution
+
+Animama's prebuilt desktop downloads, update feed and model objects at
+`downloads.animama.ai` end before 2027-01-01. Current source already behaves
+as the final release: `release-policy.json` seals `"updates": "ended"`, no
+pack is active, local compositions download no model assets, and the speech
+setup scripts default to Hugging Face. The owner runs these steps, each with
+its own approval:
+
+1. **Final release, 0.1.3 for macOS.** Build from `main` once the security
+   fixes chosen for the last build have merged. Stage `darwin-arm64`, review
+   `runtime/licenses/inventory.json` and `THIRD_PARTY_NOTICES.txt`, and record
+   a fresh `darwin-arm64` receipt
+   ([exact artifact review](redistribution-review.md#exact-artifact-review)).
+   Run the dependency audits, build the signed candidate, and run the smoke,
+   which records `sealed_update_policy` and `updates_ended`; the VM guest smoke
+   selects the R2 distribution. In native acceptance, the pack checks need no
+   attestation while no pack is active. Check offline dictation by upgrading a
+   0.1.2 preview that already has offline speech installed, which is also the
+   forward upgrade. Publish stable with the feed promoted last. No Windows
+   build is released.
+2. **Transition.** Keep the feed and version folders published for about four
+   weeks, ending no later than 2026-12-31, so preview installs are offered
+   0.1.3.
+3. **Cut-off.**
+   - Merge a documentation change that puts the README, installation and
+     release pages in the past tense, and turn off the landing site's download
+     page.
+   - Disconnect the custom domain `downloads.animama.ai` from the
+     `animama-releases` bucket in the Cloudflare dashboard. Keep the bucket,
+     its retention locks and the disabled `r2.dev` URL, so the domain can be
+     reconnected.
+   - From another network, check that the feed
+     (`https://downloads.animama.ai/desktop/latest-mac.yml`), a version's DMG
+     and a model object no longer answer `200`; purge any exact URL the edge
+     still serves.
+   - Revoke the R2 write token.
+   - Keep `animama.ai` and the `downloads` host name registered and never point
+     the name at anything else: installs that never took the final release
+     keep requesting it, fail their update checks quietly and show download
+     errors.
+4. **Animama Cloud follow-ups.** Its landing download links, hosted privacy
+   terms, operator dashboard download analytics and its copy of
+   `included-content-attribution.txt` need the same change, and its next
+   repin admits `local-http` 22 and `runtime-contracts` 0.22.0.
+
+Before the cut-off, a revert restores updates and downloads for a new build;
+after it, reconnecting the custom domain restores service while the bucket
+exists.
 
 ## Recovery and retention
 

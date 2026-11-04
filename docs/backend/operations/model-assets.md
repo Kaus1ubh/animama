@@ -6,11 +6,11 @@ Parakeet INT8 inputs recorded in
 [`models/parakeet-tdt-0.6b-v2/manifest.json`](../../../models/parakeet-tdt-0.6b-v2/manifest.json).
 The five upstream files are pinned to full Hugging Face commits, sizes and
 SHA-256 digests. Animama's README and attribution complete the seven-file set.
-Normal acquisition downloads the verified raw files and notices from Animama's
-shared content-addressed model origin. No Cloud checkout, Hugging Face account
-or API credential is needed. Before those objects are published, release
-maintainers can explicitly use `parakeet.py acquire --source upstream`; missing
-ordinary objects never trigger an upstream fallback. The SenseVoice-Small sets
+`acquire` downloads the pinned upstream files and uses the checked-in notices;
+until `downloads.animama.ai` is disconnected, `--source animama` fetches
+Animama's content-addressed objects instead, and a missing object never falls
+back to upstream. No Cloud checkout, Hugging Face account or API credential is
+needed. The SenseVoice-Small sets
 for Japanese, Korean and Chinese use the same store and commands; see
 [SenseVoice multilingual sets](#sensevoice-multilingual-sets).
 
@@ -125,15 +125,16 @@ docker compose -f docker-compose.yml -f docker-compose.development.yml config --
 Development uses read-only bind mounts that refuse to create a missing host
 path, and Vite serves the speech-to-text sets at `/__client-parakeet-models`,
 `/__client-sensevoice-models` and their `-webgpu-models` counterparts. Built
-mode does not resolve or mount host speech-to-text sets: the app downloads them
-through the backend model-asset service. The browser never downloads from Hugging Face. Keep the application
+mode does not resolve or mount host speech-to-text sets: it serves only sets
+the backend model-asset service installed before downloads ended, so a new
+built self-host has no offline speech recognition. The browser never downloads from Hugging Face. Keep the application
 loopback/private-service boundaries unchanged. Acquiring bytes does not repair
 unrelated missing starter animation assets.
 
 Direct host Vite resolves the same store offline at startup. Production frontend builds verify and copy the browser speech assets into `dist`;
 speech-to-text sets are not build inputs. Unit checks that do not build or start an
 application need no model acquisition. Packaged desktop and built self-host
-download speech-to-text sets in the app and do not depend on this cache.
+never read this cache.
 See [desktop runtime staging](../../frontend/desktop/runtime-staging.md).
 
 ## Recovery and deliberate cleanup
@@ -154,6 +155,14 @@ self-host operators needing durable availability should choose persistent storag
 Installed desktop packs remain separately owned under Application Support.
 
 ## Downloaded model assets
+
+Animama no longer distributes model files, so the local composition downloads
+no new assets: its model-asset list reports `downloads_offered: false`, an
+install of an asset that is not installed is refused with
+`model_downloads_ended`, and startup discards staged bytes, which could never
+resume. Assets installed earlier keep working, are served and leased as
+before, and can be removed. The rest of this section describes the downloader,
+which a build that offers downloads still uses.
 
 The backend's shared downloader installs pinned files and multi-file sets on
 demand through [`/v1/model-assets`](../architecture/http-api.md#model-assets).
@@ -181,8 +190,9 @@ It is the same FastAPI code on desktop and self-host, and it needs no restart.
   failure before a body arrives (an HTTP error, a refused host or a mismatched
   range) is not retried. A file failing its size or digest is discarded and
   downloaded again on the next install; Remove/cancel discards all staged
-  bytes, including during a resume wait. Startup deletes staging that cannot
-  resume and stored assets whose IDs left the catalog.
+  bytes, including during a resume wait. Startup deletes stored assets whose
+  IDs left the catalog and staging that cannot resume (all staging, once
+  downloads have ended).
 - `<data_root>` is `ANIMAMA_DATA_ROOT`: `<userData>/data` on desktop and
   `/var/lib/animama/data` in Compose (the `ANIMAMA_DATA_HOST_PATH` bind
   mount), so installs persist with that data. There is no quota; an install
@@ -211,12 +221,12 @@ voices (`pocket-voice-<id>`, set `models/pocket-tts-voices`). FastAPI serves
 installed speech-to-text sets and reports them in runtime capabilities under the
 default `ANIMAMA_PARAKEET_SOURCE=asset-store`, which selects the source for
 both engines; development Compose sets `operator`, where Vite serves the host
-sets instead. The voices install on
-desktop and self-host when a user picks one, explicitly downloads it, or a saved
-voice is first needed. The separate `pocket-tts-voice-cloning-encoder` asset is
-downloaded on an explicit cloning/download action. Ordinary playback and saved
-clones do not need that encoder. Setup and Voice settings also expose download,
-cancel, retry and removal without changing the selected provider or voice.
+sets instead. While downloads were offered, the voices installed when a user
+picked one, explicitly downloaded it, or a saved voice was first needed, and
+the separate `pocket-tts-voice-cloning-encoder` asset on an explicit
+cloning/download action. Ordinary playback and saved clones do not need that
+encoder. Setup and Voice settings show each asset's state and offer removal;
+in place of a download they say that downloads have ended.
 
 Use the downloader for restart-free data files the running app can pick up,
 such as optional voices and the speech-to-text sets. Bundles that need a service
@@ -265,15 +275,13 @@ Where each build gets it:
 - **Vite development stacks** (including `desktop:dev`) serve this
   operator-provided set at `/__client-parakeet-webgpu-models/`. Acquire it on
   the host and rerun `reset.sh` for a running stack.
-- **Built self-host** downloads it in the app as the `parakeet-stt-webgpu`
-  model asset set, from its published objects under `models/` on
-  `downloads.animama.ai`, into the data root (see
+- **Built self-host** serves the `parakeet-stt-webgpu` model asset set only if
+  the app installed it before downloads ended (see
   [Downloaded model assets](#downloaded-model-assets)). The former single-file
-  `parakeet-tdt-0.6b-v2-webgpu-encoder` asset is removed at startup and must be
-  downloaded again. The host model store is not used, and a host that cannot
-  reach `downloads.animama.ai` cannot enable WebGPU.
-- **Packaged desktop** downloads it the same way as built self-host, and
-  FastAPI serves it at `/onnx/models/parakeet-tdt-0.6b-v2-webgpu/`.
+  `parakeet-tdt-0.6b-v2-webgpu-encoder` asset is removed at startup. The host
+  model store is not used.
+- **Packaged desktop** serves an installed set the same way, at
+  `/onnx/models/parakeet-tdt-0.6b-v2-webgpu/`.
 
 The GPU add-on is always shown beneath the CPU model; its action is disabled,
 with a stated reason, until CPU speech is installed and a WebGPU adapter exists.
@@ -300,9 +308,9 @@ author and keeping the model name:
   for WebGPU, where the INT8 graph's quantized operators have no kernels. It
   requires the base set, whose tokens and metadata it uses.
 
-Both sets are published on `downloads.animama.ai`, where in-app installs and
-the default `acquire` source fetch them. `--source upstream` instead downloads
-the pinned upstream revision, as for Parakeet:
+The default `acquire` source downloads the pinned upstream revision, as for
+Parakeet; until the cut-off, `--source animama` fetches the objects published
+on `downloads.animama.ai`, where in-app installs used to fetch them:
 
 ```bash
 python3 scripts/models/sensevoice.py acquire
@@ -346,8 +354,8 @@ described under Downloaded model assets.
 Mimi voice conditioning is also separate. `pocket_cloning.py acquire` prepares
 the optional 39,768,446-byte encoder and its two notices for authoring/release
 work. Ordinary builds need neither it nor the optional voice set. In the app,
-first-use cloning offers a download and retains the selected recording in memory
-until the verified encoder is available. Saving a named clone still persists its
+cloning needs an encoder installed before downloads ended; without one, the
+clone flow says it can no longer be downloaded. Saving a named clone still persists its
 original recording and encoded catalog; removing the encoder preserves both.
 
 Their manifest preserves the exact upstream commits, hashes and per-file

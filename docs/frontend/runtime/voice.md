@@ -81,9 +81,15 @@ and built self-host, each offline engine has two downloadable sets:
 | Parakeet         | English                            | `parakeet-stt`   | `parakeet-stt-webgpu`   |
 | SenseVoice-Small | Japanese, Korean, Chinese, English | `sensevoice-stt` | `sensevoice-stt-webgpu` |
 
-Each set installs in place through the backend
+Each set installed in place through the backend
 [model assets](../../backend/architecture/http-api.md#model-assets) with size,
-progress, cancel, retry and removal. The add-on is always shown; when it cannot
+progress, cancel, retry and removal. Animama no longer distributes model files:
+when the model-asset list reports `downloads_offered: false`, as every local
+composition does, a set that is not installed shows no download or size, the
+panel says that downloads have ended and what still works
+(`modelDownloadsEndedNote`), installed sets keep their removal, and dictation
+says a missing model can no longer be downloaded. The rest of this section
+describes a runtime that offers downloads. The add-on is always shown; when it cannot
 be installed (CPU model missing, no WebGPU adapter, or not in this build) its
 action is disabled with the reason. A loaded asset list without an engine's
 sets shows them as not available, for example on a runtime whose operator does
@@ -1265,6 +1271,11 @@ the public ORT 1.24.2 inventory does not replace those dependency versions.
     installed starts its install on the next reply.
   - A failed download shows one notice per session, and the next reply or pick
     retries it.
+  - Once downloads have ended (`downloadsEnded` from the model-asset list), a
+    voice that is not installed shows as not available and cannot be picked;
+    a reply that would have installed it speaks with the default voice and
+    shows one notice per session. Without an installed encoder, cloning says
+    it can no longer be downloaded instead of offering the encoder.
 - Anima voice selection keeps a compact picker with search, All/Female/Male tabs,
   Recommended only and Custom filters, previews and inline download/retry/cancel
   actions. Custom shows saved clones and uploaded voices; preset filters pause
