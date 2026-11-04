@@ -1,4 +1,4 @@
-import { BrowserWindow, nativeTheme } from "electron";
+import { app, BrowserWindow, nativeTheme } from "electron";
 import { randomBytes } from "node:crypto";
 // esbuild inlines both as data URLs (see scripts/build.mjs).
 import dmSans from "@fontsource-variable/dm-sans/files/dm-sans-latin-wght-normal.woff2";
@@ -216,6 +216,8 @@ export async function createRecoveryWindow(
       nodeIntegration: false,
       sandbox: true,
       webSecurity: true,
+      // Packaged builds open no DevTools.
+      devTools: !app.isPackaged,
     },
   });
   callers.register(window, "recovery", url);

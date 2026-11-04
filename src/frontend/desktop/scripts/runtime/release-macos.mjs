@@ -16,6 +16,7 @@ import {
   sha256,
   writeJson,
 } from "./common.mjs";
+import { assertFuseWire } from "./fuses.mjs";
 import { assertInventory, inventoryId } from "./inventory.mjs";
 import { componentInventory } from "./inventory.mjs";
 import {
@@ -241,6 +242,7 @@ export async function releaseMac(args = []) {
   )
     throw new Error("Signed runtime identity mismatch");
   assertInventory(runtime, manifest.files);
+  assertFuseWire(app);
   if (rehearsal) verifyAppCodeSignature(app, release.publisher.team_id);
   else verifySignedApp(app, release.publisher.team_id);
   const dmg = path.join(directory, `Animama-${release.version}-arm64.dmg`);

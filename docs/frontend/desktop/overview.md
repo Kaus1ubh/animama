@@ -481,8 +481,10 @@ pnpm desktop:build
 pnpm web:check
 ```
 
-Renderer DevTools are available with `Ctrl+Shift+I`. Use
-`pnpm desktop:dev_inspect` to debug the Electron main process on port `9229`.
+In unpackaged development, renderer DevTools are available with
+`Ctrl+Shift+I`, and `pnpm desktop:dev_inspect` debugs the Electron main process
+on port `9229`. Packaged builds offer neither
+([packaged hardening](platforms.md#packaged-hardening)).
 
 ## Packaging
 

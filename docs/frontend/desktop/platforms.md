@@ -186,10 +186,12 @@ a separate Windows account, or back up `%LOCALAPPDATA%\Animama` first: it also
 holds the default developer model store unless `ANIMAMA_MODEL_ROOT` points
 elsewhere.
 
-With the app packaged, `pnpm desktop:test:native-input` checks the input hook
-on Windows: it loads the addon from the packaged `app.asar.unpacked` inside
-`Animama.exe` and requires an injected F24 key press to arrive as one down and
-one up. Press-to-talk with a real key and mouse button remains a manual check.
+With the app packaged and the Windows runtime staged,
+`pnpm desktop:test:native-input` checks the input hook on Windows: Electron's
+staged `electron.exe`, run as Node (the packaged `Animama.exe` cannot be),
+loads the addon from the packaged `app.asar.unpacked` and requires an injected
+F24 key press to arrive as one down and one up. Press-to-talk with a real key
+and mouse button remains a manual check.
 
 ### Supervised development
 
@@ -205,7 +207,9 @@ pnpm desktop:dev
 The application treats that data directory as durable, not as build output.
 The staging command clears only its target directory, not `dev`.
 Never put user data inside `darwin-arm64/runtime`. Both overrides are
-development-only and rejected in packaged mode.
+development-only and rejected in packaged mode, except that a packaged app
+whose Node inspector is running (only the release smoke's copy) accepts the
+data-directory override.
 
 Unpackaged Electron is only ad-hoc signed, so after an Electron upgrade a
 supervised launch waits at the vault stage while macOS asks whether it may use
@@ -254,6 +258,28 @@ outstanding. The deferred document worker requires signing, notarization and
 publisher verification before execution; see the
 [pack producer](runtime-staging.md#optional-pack-producer). Windows feature
 packs are not built yet, so a Windows release refuses any active pack.
+
+## Packaged hardening
+
+Every packed app, development packs included, carries the fuse wire that
+`electronFuses` in `desktop/electron-builder.yml` sets: it cannot run as Node,
+reads no `NODE_OPTIONS`, takes no Node inspect switches, encrypts its cookies,
+loads only its own integrity-checked `app.asar` and gives `file:` pages no
+extra privileges. `package-development.mjs`, `release-macos.mjs` and
+`release-windows.mjs` read each packed app's wire with
+`scripts/runtime/fuses.mjs` and fail when it differs; `tests/fuses.test.mjs`
+also pins Electron's own defaults, so an Electron upgrade that changes them
+fails until the expected wire is reviewed.
+
+A packaged app started with `--remote-debugging-port`,
+`--remote-debugging-pipe`, `--inspect`, `--inspect-brk`, `--inspect-wait` or
+`--inspect-port` exits with status 1 before any other start-up code runs
+(`src/main-process/security/debugging-guard.ts`, imported first by `main.ts`),
+unless its Node inspector is actually running, which the shipped fuse wire never
+allows. Packaged windows open no DevTools and their View menu has no DevTools
+item. Unpackaged development keeps all three. A tool that needs Node beside a
+packaged app runs Electron's own staged binary
+(`.desktop-runtime/<target>/electron/`), never the packaged executable.
 
 ## Validation
 

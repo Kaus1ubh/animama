@@ -726,6 +726,35 @@ describe("private local state and vault", () => {
     expect(setPath).not.toHaveBeenCalled();
   });
 
+  it("lets a packaged app take a throwaway profile only while its inspector runs", () => {
+    const appData = fixture("a-");
+    const legacy = path.join(appData, "Anima");
+    mkdirSync(legacy);
+    writeFileSync(path.join(legacy, "keep"), "legacy profile");
+    const base = path.join(fixture("a-"), "smoke-profile");
+    vi.stubEnv("ANIMAMA_DESKTOP_DEV_USER_DATA", base);
+    const app = () =>
+      ({
+        isPackaged: true,
+        setName: vi.fn(),
+        setPath: vi.fn(),
+        getPath: (name: string) => (name === "home" ? fixture() : appData),
+      }) as unknown as App;
+
+    expect(() => prepareDesktopIdentity(app(), false)).toThrow(
+      "packaged_runtime_override_rejected",
+    );
+    expect(prepareDesktopIdentity(app(), true).base).toBe(base);
+    // The legacy profile stays where it is; only the canonical root adopts it.
+    expect(readFileSync(path.join(legacy, "keep"), "utf8")).toBe(
+      "legacy profile",
+    );
+    vi.stubEnv("ANIMAMA_DESKTOP_DEV_RUNTIME_ROOT", fixture());
+    expect(() => prepareDesktopIdentity(app(), true)).toThrow(
+      "packaged_runtime_override_rejected",
+    );
+  });
+
   it("creates the selected userData directory before Electron setPath", () => {
     // A short prefix keeps the root within the Windows data-root budget.
     const base = path.join(fixture("a-"), "new-profile");

@@ -7,6 +7,7 @@ import {
   readFileSync,
   renameSync,
 } from "node:fs";
+import { url as inspectorUrl } from "node:inspector";
 import path from "node:path";
 import { atomicWrite, privateDirectory } from "./atomic-file.js";
 import { RuntimeError } from "./errors.js";
@@ -78,8 +79,16 @@ export function dataRootFits(platform: string, root: string): boolean {
   return platform !== "win32" || root.length <= MAX_WINDOWS_DATA_ROOT;
 }
 
-/** Call before creating sessions, logs or safeStorage; no packaged URL overrides. */
-export function prepareDesktopIdentity(application: App): RuntimePaths {
+/**
+ * Call before creating sessions, logs or safeStorage; no packaged URL overrides.
+ * A packaged app takes the development profile override only while its Node
+ * inspector runs, which the shipped fuse wire never allows: the release
+ * smoke's inspect-enabled copy uses it for a throwaway profile.
+ */
+export function prepareDesktopIdentity(
+  application: App,
+  inspecting = inspectorUrl() !== undefined,
+): RuntimePaths {
   application.setName("Animama");
   const root =
     process.platform === "win32"
@@ -88,8 +97,9 @@ export function prepareDesktopIdentity(application: App): RuntimePaths {
           "Animama",
         )
       : path.join(application.getPath("appData"), "Animama");
-  const override = !application.isPackaged
-    ? process.env.ANIMAMA_DESKTOP_DEV_USER_DATA
+  const profileOverride = !application.isPackaged || inspecting;
+  const override = profileOverride
+    ? process.env.ANIMAMA_DESKTOP_DEV_USER_DATA || undefined
     : undefined;
   const paths = runtimePaths(override || root);
   if (!dataRootFits(process.platform, paths.base))
@@ -99,7 +109,8 @@ export function prepareDesktopIdentity(application: App): RuntimePaths {
     Object.keys(process.env).some(
       (name) =>
         (name === "ANIMAMA_DESKTOP_WEB_URL" ||
-          name.startsWith("ANIMAMA_DESKTOP_DEV_") ||
+          (name.startsWith("ANIMAMA_DESKTOP_DEV_") &&
+            !(profileOverride && name === "ANIMAMA_DESKTOP_DEV_USER_DATA")) ||
           name === "ANIMAMA_DESKTOP_DISABLE_CHROMIUM_SANDBOX") &&
         process.env[name],
     )
@@ -109,31 +120,33 @@ export function prepareDesktopIdentity(application: App): RuntimePaths {
   // Electron requires an existing directory for setPath. Rename the legacy tree
   // before creating the destination; the instance lock still precedes services,
   // sessions, logs and safeStorage. Concurrent cold starts never merge profiles.
-  migrateLegacyIdentity(application, paths);
+  if (!override) migrateLegacyIdentity(application, paths);
   privateDirectory(paths.base);
   application.setPath("userData", paths.base);
   return paths;
 }
 
-/** Run before logs or Chromium can create a conflicting destination tree. */
+/**
+ * Adopt an earlier release's profile into the canonical root. Run before logs
+ * or Chromium can create a conflicting destination tree; an overridden
+ * profile never adopts it.
+ */
 function migrateLegacyIdentity(application: App, paths: RuntimePaths): void {
-  if (application.isPackaged || !process.env.ANIMAMA_DESKTOP_DEV_USER_DATA) {
-    migrateLegacyTree(
-      path.join(application.getPath("appData"), "Anima"),
-      paths.base,
-      `${paths.base}.migration.json`,
-    );
-    const legacyLogs = path.join(
-      process.env.XDG_CONFIG_HOME ||
-        path.join(application.getPath("home"), ".config"),
-      "Anima/logs",
-    );
-    migrateLegacyTree(
-      legacyLogs,
-      paths.logs,
-      `${paths.base}.logs-migration.json`,
-    );
-  }
+  migrateLegacyTree(
+    path.join(application.getPath("appData"), "Anima"),
+    paths.base,
+    `${paths.base}.migration.json`,
+  );
+  const legacyLogs = path.join(
+    process.env.XDG_CONFIG_HOME ||
+      path.join(application.getPath("home"), ".config"),
+    "Anima/logs",
+  );
+  migrateLegacyTree(
+    legacyLogs,
+    paths.logs,
+    `${paths.base}.logs-migration.json`,
+  );
 }
 
 /** gatewayPort stores the application port; preserving it keeps the saved browser origin stable. */

@@ -1663,6 +1663,13 @@ Load command 4
         first_anima_chat: true,
         temporary_provider_removed: true,
         temporary_provider_removal_persists: true,
+        exact_fuse_wire: true,
+        publisher_signature: true,
+        sealed_update_policy: true,
+        debugging_switches_refused: true,
+        copy_fuse_wire: true,
+        copy_updates_unavailable: true,
+        canonical_profile_untouched: true,
       },
     };
     const network = { violations: 0 };
@@ -1679,6 +1686,11 @@ Load command 4
       {
         ...smoke,
         checks: { ...smoke.checks, temporary_provider_removal_persists: false },
+      },
+      { ...smoke, checks: { ...smoke.checks, exact_fuse_wire: false } },
+      {
+        ...smoke,
+        checks: { ...smoke.checks, debugging_switches_refused: false },
       },
       { ...smoke, cleanup_required: "Manual key removal required" },
       { ...smoke, dmg_sha256: "b".repeat(64) },

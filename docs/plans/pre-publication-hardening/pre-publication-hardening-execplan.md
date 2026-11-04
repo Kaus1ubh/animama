@@ -101,7 +101,8 @@ hardening, not how a weakness could be used.
   passed; one repair round).
 - [x] Phase 3: keys bound to their provider and address (review #5 passed;
   two repair rounds plus two owner-approved rounds).
-- [ ] Phase 4: Electron fuses, debugging guard, DevTools and the smoke copy.
+- [x] Phase 4: Electron fuses, debugging guard, DevTools and the smoke copy
+  (review #2 passed; one repair round).
 - [ ] Final integration review.
 - [ ] Final validation: full pre-push suite, browser journeys, packed-app
   checks (G1 for paid calls).
@@ -200,6 +201,14 @@ hardening, not how a weakness could be used.
   finding, failing closed: no key matches a non-ASCII host name, and owners
   write such names in their ASCII (`xn--`) form. One more independent recheck
   before committing.
+- Agent (Phase 4): the fuse wire is read and written by a small dependency-free
+  module (`scripts/runtime/fuses.mjs`) instead of a direct `@electron/fuses`
+  dependency; electron-builder keeps using its own copy to flip the fuses.
+- Agent (Phase 4): the debugging guard calls `app.exit(1)` and then holds its
+  module with a top-level await that never settles, so `main.ts`, whose body is
+  the rest of start-up, never runs, whichever path Electron's exit takes.
+- Agent (Phase 4): publication requires the smoke's seven hardening checks
+  (`hardeningSmokeChecks`); the copy's update check must report `unavailable`.
 - 2026-11-04, owner: R5 (update-download checks) is dropped from #838. #837
   builds 0.1.3 as the final release after #838 with update checks sealed off,
   so no later desktop build checks for updates; checks on downloaded update
@@ -881,7 +890,105 @@ installed app in place for inspection, as before.
 Completion: tests pass, the pack's fuse assertion passes; commit
 `fix(desktop)[p4]: turn on Electron fuses and refuse debugging switches`.
 
-Check record: _to be filled._
+Check record (2026-11-04, working tree `53c87b22c` before this record; base
+`6abc74c72`):
+
+- `src/frontend/desktop`: `pnpm exec vitest run` (the desktop suite): 642
+  passed, 14 skipped. Red first: the profile-override, guard, `main.ts` import,
+  menu and smoke-helper tests failed before their code; the PiP test mock needed
+  `app`.
+- `src/frontend/desktop`: `pnpm exec tsc --noEmit -p .` and
+  `pnpm --filter animama-desktop prettier:check` passed; `pnpm desktop:build`
+  bundled `main.js` with the guard as its first app code (only lazy dependency
+  wrappers precede it).
+- `src/frontend`: `python3 ../../scripts/heavy-slot.py -- pnpm desktop:mac:build`
+  (fresh stage, audit and unsigned pack, no other pack running): passed;
+  electron-builder flipped the fuses and `package-development.mjs` asserted the
+  packed wire. Read back: wire `010011001`, `codesign --verify --deep --strict`
+  passes on the ad-hoc signature, `ElectronAsarIntegrity` is in `Info.plist`.
+  A dry run of the smoke's copy steps on this pack (ditto, inspect fuse on,
+  `codesign --force --deep --sign -`) gave wire `010111001` and a valid
+  signature; the copy was deleted. The packed app was not launched on the
+  owner's account; the guard and the copy journey run in the final VM check.
+- `python3 scripts/public-release/check_source.py` (new files staged as intent
+  to add): covers every tracked file.
+- Not run in this phase: the Windows pack and Windows smoke (no Windows host),
+  the full pre-push suite and the browser journeys (final validation).
+
+#### Code Review #1 Findings
+
+Reviewed source: working tree on `6abc74c72` (check tree `53c87b22c`); high-risk
+tier, full initial review, with an independent rerun of the checks (all seven
+passed on tree `d5186661e`; the guard is the first app code in the bundle).
+
+- **P4-R1-F1 (blocking):** on Windows the copy's throwaway profile lived under
+  `%TEMP%`, which can exceed the packaged app's 70-character data-root limit,
+  so the copy would open recovery instead of the journey.
+- **P4-R1-F2 (blocking, docs):** the VM section still said the signed app
+  completes the journey (it now runs on an ad-hoc copy without the hardened
+  runtime and entitlements); the native-input and override statements in
+  `platforms.md` were stale.
+- Non-blocking: F3, one-shot process check after quit; F4, cleanup messages
+  after the copy-based change; F5, a stricter "nothing written" profile check
+  and a check that the installed app's profile stays unused; F6, the Electron
+  defaults test downloads Electron where it is absent and assumed LF; F7, a
+  100 ms timer in the guard test; F8, nothing asserted that the copy is outside
+  the checkout; F9, the Windows copy's invalid Authenticode signature; F10,
+  duplicated wire lookup; F11, "one launch per switch" in the docs; F12, the
+  removed Phase 5 named an ignored path.
+
+#### Code Review #1 Revisions
+
+- F1: accepted. On Windows the copy and its profile live in a short
+  `am-smoke-*` folder under the long-form `%LOCALAPPDATA%` (`a` and `p`); the
+  harness checks the profile against `MAX_WINDOWS_DATA_ROOT` before creating
+  anything and fails with a clear message. A test pins the constant to
+  `paths.ts`.
+- F2: accepted. The VM section names what the copy-based run does not prove
+  (hardened runtime, entitlements, the updater's run-time self-check), and
+  `platforms.md` describes the staged-Electron input check and the inspector
+  exception for the profile override.
+- F3: accepted; the check polls with `eventually`. F4: accepted; the provider
+  cleanup no longer asks for a manual removal (the key lives only in the
+  deleted throwaway vault), a failed copy or Keychain removal sets its own
+  instruction, later failures no longer overwrite the first failed step, and
+  the final message says the copy was deleted only when it was.
+- F5: accepted. Each debugging launch must leave the profile holding nothing
+  the app wrote (Chromium's `DevToolsActivePort` is allowed), and a new
+  `canonical_profile_untouched` check after the copy's first launch is the
+  seventh publication check.
+- F6: accepted; the Electron defaults test runs only on macOS and Windows, and
+  the config parse accepts CRLF. F7: accepted; 2 s. F8: accepted;
+  `smokeCopyDirectory` refuses a base inside the checkout. F9: accepted; the
+  Windows smoke docs say Smart App Control or application control may block the
+  copy. F10: accepted; one `locateWire` helper. F11: accepted. F12: resolved by
+  the removal of Phase 5 (Decision Log, 2026-11-04).
+- Checks (tree `e04afec78`), from `src/frontend/desktop`: `pnpm exec vitest run`:
+  644 passed, 14 skipped; `pnpm exec tsc --noEmit -p .` and
+  `pnpm --filter animama-desktop prettier:check` passed; the packed app's wire
+  still reads `010011001` with the refactored reader. No `src/` file changed in
+  this round, so the earlier pack stands.
+- Repair budget: one of two rounds used; review #2 (targeted recheck) follows.
+
+#### Code Review #2 Findings
+
+Reviewed source: working tree on `6abc74c72` (check tree `e04afec78`); targeted
+recheck of P4-R1-F1 to F12, with the desktop suite rerun (644 passed, 14
+skipped) and probes of the Windows path budget, the CRLF parse, the checkout
+refusal and the wire reader and writer on the packed app.
+
+- F1 to F12 resolved; no blocking findings. Phase 4 passes.
+- Optional: N1, Chromium writes `DevToolsActivePort` only once start-up
+  reaches its debugging server, which the guard prevents (stock Electron probe:
+  exit 1 in 0.17 s, profile empty), so the exception is unneeded; N2, the
+  Windows budget refusal runs only after the installer and the debugging
+  launches, and its message is hidden without `ANIMAMA_SMOKE_DEBUG`; N3, the
+  copy's runtime paths are one character longer than the installed ones, not
+  shorter; N4, three stale sentences in `releases.md`; N5, a code comment
+  still says one launch per switch.
+
+N1 to N5 are fixed in a follow-up commit after the Phase 4 commit, for the
+final integration review to check.
 
 ## Final integration review
 

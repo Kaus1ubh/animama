@@ -1,3 +1,6 @@
+// First: a packaged app started with a debugging switch quits here, before
+// any other start-up code runs.
+import "./main-process/security/debugging-guard.js";
 import {
   app,
   BrowserWindow,
@@ -454,7 +457,7 @@ else {
   /** A menu failure must never block startup or recovery. */
   function applyApplicationMenu(strings: ShellStrings): void {
     try {
-      installApplicationMenu(strings, app.name);
+      installApplicationMenu(strings, app.name, app.isPackaged);
     } catch {
       writeLog("error", "application_menu_failed");
     }

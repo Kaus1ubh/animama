@@ -16,6 +16,7 @@ import {
   sha256,
   writeJson,
 } from "./common.mjs";
+import { assertFuseWire } from "./fuses.mjs";
 import { windowsIcon } from "./icon.mjs";
 import { assertInventory, inventoryId } from "./inventory.mjs";
 import {
@@ -188,6 +189,7 @@ export async function releaseWindows(args = []) {
   )
     throw new Error("Signed runtime identity mismatch");
   assertInventory(runtime, manifest.files);
+  assertFuseWire(path.join(app, WINDOWS_EXECUTABLE));
   const executable = builderFiles.get(WINDOWS_EXECUTABLE);
   if (!executable)
     throw new Error(
