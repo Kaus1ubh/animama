@@ -5,7 +5,15 @@ description = "Animama backend for an AI avatar companion app with direct model-
 readme = "README.md"
 requires-python = ">=3.12"
 license = "AGPL-3.0-only"
-license-files = ["LICENSE"]
+# The wheel carries code adapted from Letta (Apache-2.0) and the OpenAI Agents
+# SDK (MIT); licenses/third-party/adapted-code.md names the files.
+license-files = [
+    "LICENSE",
+    "licenses/third-party/adapted-code.md",
+    "licenses/third-party/code-Apache-2.0.txt",
+    "licenses/third-party/code-letta-LICENSE.txt",
+    "licenses/third-party/code-openai-agents-LICENSE.txt",
+]
 authors = [{ name = "Raymond Van" }]
 dependencies = [
     "fastapi[standard]>=0.141.1",
