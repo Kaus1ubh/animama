@@ -2917,8 +2917,9 @@ export class Avatar {
       NonNullable<AnimaPoseClipEventSink["clearParticleVFX"]>
     >[0],
     context: AnimaPoseClipEventContext,
+    options?: { finish?: boolean },
   ): void => {
-    this._clearClipOwnedParticleVFX(context);
+    this._clearClipOwnedParticleVFX(context, options);
   };
 
   private async _applyClipOwnedAvatarVFX(
@@ -3058,9 +3059,12 @@ export class Avatar {
     }
   }
 
-  private _clearClipOwnedParticleVFX(context: AnimaPoseClipEventContext): void {
+  private _clearClipOwnedParticleVFX(
+    context: AnimaPoseClipEventContext,
+    options?: { finish?: boolean },
+  ): void {
     this._clipOwnedParticleVFXIds.delete(context.appliedId);
-    this.particleVFXController?.clearEffect(context.appliedId);
+    this.particleVFXController?.clearEffect(context.appliedId, options);
   }
 
   private _clearTrackedClipVFX(): void {

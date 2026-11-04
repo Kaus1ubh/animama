@@ -62,6 +62,8 @@ type DisposableQuarksBatch = THREE.Object3D & {
 const MAX_WARNING_COUNT = 8;
 const MAX_ACTIVE_PARTICLE_EFFECTS = 4;
 const MAX_ACTIVE_PARTICLES = 512;
+/** Longest a stopped effect's particles may live on before it is removed. */
+const FINISH_MAX_SEC = 3;
 
 /**
  * Runtime host for avatar-bound three.quarks particle effects.
@@ -87,6 +89,11 @@ export class ParticleVFXController {
   private readonly _activeInstances = new Map<
     string,
     ParticleVFXRuntimeInstance
+  >();
+  /** Stopped effects whose particles are living out their life (`clearEffect` with `finish`). */
+  private readonly _finishingInstances = new Map<
+    string,
+    { instance: ParticleVFXRuntimeInstance; elapsedSec: number }
   >();
   private readonly _emitterAnchors = new Map<
     string,
@@ -433,16 +440,26 @@ export class ParticleVFXController {
     }
   }
 
-  clearEffect(appliedId: string): boolean {
+  /**
+   * Stop the effect `appliedId`. With `finish` it stops emitting and its
+   * particles live out their life (at most `FINISH_MAX_SEC`) before it is
+   * removed, so they do not vanish in one frame; it no longer counts as
+   * active either way. Without it, everything goes now, including a
+   * finishing effect of the same id.
+   */
+  clearEffect(appliedId: string, options: { finish?: boolean } = {}): boolean {
     if (this._isDisposed) return false;
     this._bumpRequestVersion(appliedId);
     this._pendingAppliedIds.delete(appliedId);
     this._pendingReservations.delete(appliedId);
+    this._removeFinishingInstance(appliedId);
     const instance = this._activeInstances.get(appliedId);
     if (!instance) return false;
 
-    this._removeInstance(instance);
     this._activeInstances.delete(appliedId);
+    if (!options.finish || !this._beginFinishing(instance)) {
+      this._removeInstance(instance);
+    }
     this._emit();
     return true;
   }
@@ -458,6 +475,9 @@ export class ParticleVFXController {
       this._removeInstance(instance);
     }
     this._activeInstances.clear();
+    for (const appliedId of Array.from(this._finishingInstances.keys())) {
+      this._removeFinishingInstance(appliedId);
+    }
     this._emit();
   }
 
@@ -494,8 +514,18 @@ export class ParticleVFXController {
 
     this._batchRenderer?.update(deltaSec);
 
+    for (const [appliedId, finishing] of Array.from(this._finishingInstances)) {
+      finishing.elapsedSec += deltaSec;
+      if (
+        finishing.elapsedSec >= FINISH_MAX_SEC ||
+        this._countLiveParticles(finishing.instance) === 0
+      ) {
+        this._removeFinishingInstance(appliedId);
+      }
+    }
+    // A timed effect that has run its course lets its last particles finish.
     for (const appliedId of expiredIds) {
-      this.clearEffect(appliedId);
+      this.clearEffect(appliedId, { finish: true });
     }
     if (this._activeInstances.size > 0 || expiredIds.length > 0) {
       this._emit();
@@ -599,6 +629,41 @@ export class ParticleVFXController {
       anchor,
       transform,
     });
+  }
+
+  /**
+   * Stop `instance` emitting and keep it in `_finishingInstances`. False when
+   * it has no live particles to finish (or quarks cannot end its emission).
+   */
+  private _beginFinishing(instance: ParticleVFXRuntimeInstance): boolean {
+    const quarks = this._quarks;
+    if (!quarks || this._countLiveParticles(instance) === 0) return false;
+    try {
+      quarks.QuarksUtil.endEmit(instance.object);
+    } catch {
+      return false;
+    }
+    // It stays where it stopped: its anchors no longer follow the Avatar.
+    this._emitterAnchors.delete(instance.appliedId);
+    this._finishingInstances.set(instance.appliedId, {
+      instance,
+      elapsedSec: 0,
+    });
+    return true;
+  }
+
+  private _countLiveParticles(instance: ParticleVFXRuntimeInstance): number {
+    return this._collectParticleSystems(instance.object).reduce(
+      (total, system) => total + (system.particleNum ?? 0),
+      0,
+    );
+  }
+
+  private _removeFinishingInstance(appliedId: string): void {
+    const finishing = this._finishingInstances.get(appliedId);
+    if (!finishing) return;
+    this._finishingInstances.delete(appliedId);
+    this._safeRemoveObject(finishing.instance.object);
   }
 
   private _removeInstance(instance: ParticleVFXRuntimeInstance): void {

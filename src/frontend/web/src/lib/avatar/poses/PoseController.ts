@@ -131,9 +131,11 @@ export type AnimaPoseClipEventSink = {
     event: AnimaPoseClipParticleVFXEvent,
     context: AnimaPoseClipEventContext,
   ) => void | Promise<void>;
+  /** `finish` lets the effect's particles live out their life (a normal end). */
   clearParticleVFX?: (
     event: AnimaPoseClipParticleVFXEvent,
     context: AnimaPoseClipEventContext,
+    options?: { finish?: boolean },
   ) => void | Promise<void>;
   playSfx?: (
     event: AnimaPoseClipSFXEvent,
