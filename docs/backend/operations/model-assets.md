@@ -188,8 +188,8 @@ It is the same FastAPI code on desktop and self-host, and it needs no restart.
   mount), so installs persist with that data. There is no quota; an install
   starts only with its remaining bytes plus 64 MiB free on that filesystem.
 - `scripts/backup-local.sh` and restore rollbacks omit installed and staged
-  model assets. After a restore they report not installed; download them again
-  in the app.
+  model assets. A restore keeps the installation's installed sets in place,
+  because they can no longer be downloaded again, and discards staged bytes.
 
 Each catalog URL names an object published once under
 `https://downloads.animama.ai/models/<model-id>/<file-sha256>/<file-name>`,

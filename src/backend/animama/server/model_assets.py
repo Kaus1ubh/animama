@@ -2,7 +2,9 @@
 
 One service per application owns the packaged catalog, the store beneath the
 installation data root (desktop ``<userData>/data``, Compose
-``/var/lib/animama/data``) and the production-only release fetcher. Consumers
+``/var/lib/animama/data``) and the production-only release fetcher. Animama no
+longer distributes model files, so the service keeps installed assets and
+downloads nothing new (``downloads_offered=False``). Consumers
 that must veto removal register guards in ``_build_service``. Tests inject a
 fixture service with a dependency override on ``get_model_asset_service`` (or
 ``application.state.model_asset_service``).
@@ -57,10 +59,13 @@ def _data_root(application: FastAPI) -> Path:
 
 def _build_service(application: FastAPI) -> ModelAssetService:
     # Register consumer removal guards here, e.g. voices in use by an Anima.
+    # Animama no longer distributes model files from its release host, so local
+    # compositions keep installed assets and download nothing new.
     return ModelAssetService(
         load_packaged_asset_catalog(),
         FilesystemModelAssetStore(_data_root(application)),
         HttpAssetFetcher(),
+        downloads_offered=False,
     )
 
 

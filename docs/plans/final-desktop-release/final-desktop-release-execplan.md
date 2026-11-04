@@ -77,7 +77,7 @@ Orientation, from a read-only survey on 2026-11-04:
   `build/final-desktop-release` at `8ae2d1f05`, plan and spec snapshot
   committed.
 - [x] Phase 1: sealed end of updates and packs (review #2 passed; one repair round).
-- [ ] Phase 2: model downloads end in the backend.
+- [x] Phase 2: model downloads end in the backend (review #2 passed; one repair round).
 - [ ] Phase 3: download controls explain the end.
 - [ ] Phase 4: packaged notices.
 - [ ] Phase 5: script defaults.
@@ -100,6 +100,12 @@ Orientation, from a read-only survey on 2026-11-04:
   that no build has offered.
 - `check_source.py` failed on `f2f9d07fa` (landing files without entries);
   #847 fixed it on `6c405817b`.
+- The structural OpenAPI change needs a `local-http` major (22.0.0), not the
+  minor the plan first said; `runtime-contracts` becomes 0.22.0, and after the
+  bump `pnpm install --frozen-lockfile` must run again before staging.
+- Ending downloads made a self-host restore lose installed model assets for
+  good (backups omit them and the restore wiped the data root); the restore
+  now keeps them in place.
 
 ## Decision Log
 
@@ -242,9 +248,10 @@ Steps (tests first in `tests/test_model_assets.py` and the route tests):
    contract, so hosted responses stay valid). The install route documents the
    new 409 code.
 4. Regenerate the OpenAPI document and SDK offline (`pnpm openapi-ts`), bump the
-   `local-http` contract minor version, and, if the `runtime-contracts`
-   declarations change, bump that package as earlier bump commits do
-   (`package.json` and the version line in `contracts/hosted-web.md`).
+   `local-http` contract major version (package-set `compare` requires a major
+   for any structural OpenAPI change), and bump `runtime-contracts`, whose
+   declarations change, as earlier bump commits do (`package.json` and the
+   version line in `contracts/hosted-web.md`).
 5. Development override: none. The dev stack's speech sets still come from the
    host (`ANIMAMA_PARAKEET_SOURCE=operator`).
 
@@ -258,7 +265,73 @@ downloads; installed assets are never touched.
 
 Completion: commit `feat(models)[p2]: end model downloads in local compositions`.
 
-Check record: _to be filled._
+Check record (repository root unless noted):
+
+- Red first: the three new tests in `tests/test_model_assets.py` failed.
+- Tree `3ed3d838` (initial): model-asset, set, Parakeet-source, Pocket-voice
+  and SenseVoice store tests 127 passed; with the runtime-capability, port and
+  Compose-boundary tests 251 passed; `ruff check`, `ruff format --check`,
+  `mypy` on the touched files and `make audit-typed-content` passed;
+  `pnpm openapi-ts:check` (Python 3.12.13) current; runtime-contracts
+  `pnpm -s test` 10 passed.
+- Tree `eb7a0e3a` (after repair round 1): the same pytest set plus
+  `tests/test_local_state_scripts.py` 325 passed; ruff, ruff format and mypy
+  clean; `bash -n` on the restore scripts; `docker compose -f
+  docker-compose.yml config --quiet` exit 0.
+- After the optional round-2 fixes: `tests/test_local_state_scripts.py` 16
+  passed; `bash -n` on both scripts.
+
+#### Code Review #1 Findings
+
+Reviewed tree `3ed3d838`, high risk; the reviewer reran the pytest set (306
+passed), ruff, mypy, the import-boundary check, `openapi-ts:check` and the
+runtime-contracts tests.
+
+- P2-R1-F1 (blocking): a self-host restore wiped the data root while backups
+  and rollbacks omit model assets, so installed sets were lost with no way to
+  download them again.
+- P2-R1-F2 (blocking): the HTTP API reference did not describe
+  `downloads_offered` or `model_downloads_ended`.
+- P2-R1-F3: the plan said a minor contract bump; a major is required.
+- P2-R1-F4: other text now false (Compose comment, module docstrings,
+  development and agent guides, hosted contract, ADRs 0012 and 0029).
+- P2-R1-F5: staged prefixes of interrupted downloads could never resume and
+  stayed on disk.
+- P2-R1-F6: small test gaps (refusal on the real composition, refusal before
+  requirements).
+
+#### Code Review #1 Revisions
+
+- F1 accepted: `animama_state_replace_data_root` keeps
+  `internal/model-assets` across a restore; behavioural test added; the
+  model-asset operations page corrected.
+- F2 accepted: the Model Assets section documents both.
+- F3 accepted: step 4 and Surprises corrected.
+- F4: Compose comment and docstrings fixed; the documents are on Phase 6's
+  list.
+- F5 accepted: a service that offers no downloads discards staging at
+  construction, with a test.
+- F6 accepted: both tests added; a lease test was not, since leases do not
+  read the flag.
+
+#### Code Review #2 Findings
+
+Targeted recheck of tree `eb7a0e3a`; the reviewer reran the pytest set (325
+passed), ruff, mypy, the boundary check, `bash -n`, Compose config and
+`openapi-ts:check`, and exercised the restore helper on scratch directories
+(failed extraction, interrupted rerun, nothing installed). All dispositions
+verified; no blocking findings. Optional: P2-R2-F1 "before any other check"
+overstated the order (busy comes first); P2-R2-F2 a failed extraction leaves
+the kept sets at `.restore-model-assets` without saying so, and backups would
+include that folder; P2-R2-F3 the operations page's startup-staging sentence
+(Phase 6).
+
+#### Code Review #2 Revisions
+
+P2-R2-F1 and P2-R2-F2 accepted as trivial repairs (doc wording; one tar
+exclude in each script and a line in the restore failure message), verified by
+the rerun above and left for the final integration review to confirm.
+P2-R2-F3 is on Phase 6's list. Phase 2 passes.
 
 ### Phase 3: Download controls explain the end
 
@@ -370,11 +443,23 @@ Steps:
 2. `README.md` distribution and connection paragraphs;
    `docs/safety/crisis-protocol.md` and its four translations (the desktop
    connection list); `docs/backend/operations/model-assets.md`;
-   `docs/frontend/desktop/feature-packs.md` where it promises downloads.
-3. `docs/frontend/desktop/releases.md`: "What people see" for the final build,
-   and a new "Ending distribution" section with the runbook (G1 to G3 below,
-   including Cloud follow-ups and rollback); `release-process.md` gates note
-   the ended state and fresh receipts.
+   `docs/frontend/desktop/feature-packs.md` where it promises downloads;
+   `docs/backend/operations/model-assets.md` startup staging sentence;
+   `docs/frontend/runtime/voice.md` where it describes offered downloads;
+   `docs/backend/operations/development.md` and `src/frontend/AGENTS.md` where
+   they say built installs download speech sets; `contracts/hosted-web.md`
+   where it names the download workflow; an amendment to ADRs 0012 and 0029
+   recording the end of backend downloads. Say plainly that a new built
+   self-host cannot get offline speech recognition (script-acquired sets serve
+   only the development stack).
+3. `docs/frontend/desktop/releases.md`: "What people see" for the final build
+   (including the startup publisher check, the `release-policy.json` row and
+   the smoke's update step, which the Phase 1 review named), and a new
+   "Ending distribution" section with the runbook (G1 to G3 below, including
+   Cloud follow-ups and rollback); `release-process.md` gates note the ended
+   state, fresh receipts, pack checks that need no attestation without packs,
+   offline dictation checked by upgrading a 0.1.2 preview that already has it,
+   and that the VM guest smoke selects the R2 distribution.
 4. `src/frontend/desktop/package.json` version `0.1.3` (decision 1); the
    runbook targets macOS only (decision 2).
 
@@ -418,8 +503,9 @@ Owner gates after merge (not phases):
   and a model URL are no longer served (purge exact URLs if one still is); keep
   `animama.ai` registered and the `downloads` name unused; revoke the R2 write
   token; record the outcome on #235. Cloud follow-ups: its landing download
-  links, privacy terms, operator dashboard's download analytics, and its copy
-  of the Included-content attribution.
+  links, privacy terms, operator dashboard's download analytics, its copy of
+  the Included-content attribution, and admitting `local-http` 22 and
+  `runtime-contracts` 0.22.0 at its next repin.
 
 ## Idempotence and recovery
 

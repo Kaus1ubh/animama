@@ -320,3 +320,23 @@ animama_state_validate_tar_paths() {
     esac
   done < <(tar -tvzf "$archive")
 }
+
+# Replace the private data root with a backup's data archive. Backups omit
+# installed model assets, and Animama no longer offers them for download, so
+# this installation's installed sets stay in place. Staged downloads do not.
+animama_state_replace_data_root() {
+  local archive="$1"
+  local root="$ANIMAMA_STATE_DATA_ROOT"
+  local kept="${root}/.restore-model-assets"
+  # A kept copy left by an interrupted restore is already the one to keep.
+  if [ -d "${root}/internal/model-assets" ] && [ ! -e "$kept" ]; then
+    mv -- "${root}/internal/model-assets" "$kept"
+  fi
+  find "$root" -mindepth 1 -maxdepth 1 ! -name .restore-model-assets -exec rm -rf -- {} +
+  tar -xzf "$archive" -C "$root"
+  if [ -d "$kept" ]; then
+    mkdir -p "${root}/internal"
+    rm -rf -- "${root}/internal/model-assets"
+    mv -- "$kept" "${root}/internal/model-assets"
+  fi
+}
