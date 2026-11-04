@@ -32,6 +32,8 @@ import {
 import { assertBundledImports } from "../scripts/runtime/js-audit.mjs";
 import {
   javascriptLicenses,
+  licenseRecordFiles,
+  readLicenseRecord,
   readStaticLicenseNotice,
 } from "../scripts/runtime/licenses.mjs";
 import { checkSizes, validateSizeReport } from "../scripts/runtime/size.mjs";
@@ -216,6 +218,59 @@ describe("desktop runtime packaging", () => {
     const notice = readStaticLicenseNotice("opencc-data-apache-2.0.txt").text;
     expect(notice).toContain("opencc-data");
     expect(notice).toContain("Apache License");
+  });
+
+  it("carries the adapted-code and Hey API records from licenses/third-party", () => {
+    const policy = JSON.parse(
+      readFileSync(
+        new URL("../runtime/license-sources.json", import.meta.url),
+        "utf8",
+      ),
+    );
+    const group = policy.groups.find((item) => item.id === "adapted-code");
+    expect(group.license_record_files).toEqual(
+      expect.arrayContaining([
+        "adapted-code.md",
+        "code-hey-api-LICENSE.md",
+        "code-shadcn-ui-LICENSE.md",
+        "code-ai-elements-LICENSE.txt",
+        "code-Apache-2.0.txt",
+        "code-letta-LICENSE.txt",
+        "code-openai-agents-LICENSE.txt",
+      ]),
+    );
+    expect(licenseRecordFiles(policy)).toEqual(
+      [...group.license_record_files].sort(),
+    );
+    for (const name of licenseRecordFiles(policy)) {
+      const record = readLicenseRecord(name);
+      expect(record.path).toBe(`licenses/third-party/${name}`);
+      expect(record.text.trim().length).toBeGreaterThan(0);
+    }
+    expect(readLicenseRecord("code-hey-api-LICENSE.md").text).toContain(
+      "Hey API",
+    );
+  });
+
+  it.each([
+    "../adapted-code.md",
+    "art-NOTICES.md",
+    "code-and-models.md",
+    "code-x-LICENSE.md/../../LICENSE",
+    "code-Hey-LICENSE.md",
+  ])("rejects licence record path %s", (name) => {
+    expect(() => readLicenseRecord(name)).toThrow(
+      "Invalid licence record path",
+    );
+  });
+
+  it("credits no excluded pack in the Included content attribution", () => {
+    const text = readStaticLicenseNotice(
+      "included-content-attribution.txt",
+    ).text;
+    expect(text).not.toMatch(/LeLu/iu);
+    // Only CC0 derivatives of these packs ship, never their licence files.
+    expect(text).not.toMatch(/packaged (?:License\.txt|LICENSE & CREDITS)/u);
   });
 
   it.each([

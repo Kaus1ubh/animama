@@ -29,6 +29,8 @@ class PackedArtifactTests(unittest.TestCase):
         self.files = {
             "dist/index.js": "export const answer = 42;",
             "dist/index.d.ts": "export declare const answer: 42;",
+            "dist/LICENSE": "GNU AFFERO GENERAL PUBLIC LICENSE",
+            "dist/THIRD_PARTY_NOTICES.md": "MIT License\n\nCopyright (c) Hey API",
         }
 
     def pack(self):
@@ -55,6 +57,33 @@ class PackedArtifactTests(unittest.TestCase):
         self.pack()
         with self.assertRaisesRegex(ValueError, "Checkout-bound import"):
             packed.inspect_tarball(self.path)
+
+    def test_missing_licence_is_rejected(self):
+        del self.files["dist/LICENSE"]
+        self.pack()
+        with self.assertRaisesRegex(ValueError, "Missing licence"):
+            packed.inspect_tarball(self.path)
+
+    def test_third_party_code_needs_its_notice(self):
+        del self.files["dist/THIRD_PARTY_NOTICES.md"]
+        self.pack()
+        with self.assertRaisesRegex(ValueError, "Missing third-party notice"):
+            packed.inspect_tarball(self.path)
+        self.files["dist/THIRD_PARTY_NOTICES.md"] = "MIT License"
+        self.pack()
+        with self.assertRaisesRegex(ValueError, "Missing third-party notice"):
+            packed.inspect_tarball(self.path)
+
+    def test_product_ui_needs_its_adapted_code_notice(self):
+        self.metadata["name"] = "@animama/product-ui"
+        self.metadata["exports"]["./styles.css"] = "./dist/styles.css"
+        self.files["dist/styles.css"] = ":root {}"
+        self.pack()
+        with self.assertRaisesRegex(ValueError, "Missing third-party notice"):
+            packed.inspect_tarball(self.path)
+        self.files["dist/THIRD_PARTY_NOTICES.md"] = "MIT License\n\nCopyright (c) 2023 shadcn"
+        self.pack()
+        self.assertEqual(packed.inspect_tarball(self.path)["name"], "@animama/product-ui")
 
     def test_missing_emitted_export_is_rejected(self):
         del self.files["dist/index.js"]

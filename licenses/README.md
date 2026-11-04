@@ -47,3 +47,13 @@ preserved documents, not claims that Raymond authored their wording. Installed
 dependencies and binary build inputs need the runtime notice generation and
 final artifact review; this source record does not replace that dependency or
 redistribution audit.
+
+The desktop and hosted notice bundles read `adapted-code.md` and the upstream
+licence texts for the code that ships from this folder, through the
+`adapted-code` group in `src/frontend/desktop/runtime/license-sources.json`
+(three-liltoon's licence ships with its npm package, and the plugin-react patch
+is a build tool). The packed `runtime-contracts` and `product-ui` packages
+carry the texts for the code they contain as `dist/THIRD_PARTY_NOTICES.md`
+beside the AGPL `LICENSE`. When a package gains adapted code, update both the
+list in `src/frontend/scripts/build-typescript-package.mjs` and the copyright
+line `scripts/repository-boundary/check-packed-artifacts.py` requires.

@@ -12,7 +12,10 @@ import {
 } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { javascriptLicenses } from "../desktop/scripts/runtime/licenses.mjs";
+import {
+  javascriptLicenses,
+  licenseRecordFiles,
+} from "../desktop/scripts/runtime/licenses.mjs";
 import { resolveBrowserRuntimeAssets } from "./browser-runtime-assets.mjs";
 
 const frontend = fileURLToPath(new URL("..", import.meta.url));
@@ -90,6 +93,13 @@ function addNotices(root) {
   ]) {
     copy(path.join(repository, "licenses", name), `notices/source/${name}`);
   }
+  // The adapted-code record and the upstream texts for adapted code and the
+  // generated client's Hey API runtime, as the desktop bundle carries them.
+  for (const name of licenseRecordFiles())
+    copy(
+      path.join(repository, "licenses/third-party", name),
+      `notices/source/third-party/${name}`,
+    );
   copy(path.join(repository, "LICENSE"), "notices/animama-LICENSE.txt");
   const dependencies = javascriptLicenses(frontend, ["web"]);
   if (dependencies.records.some((record) => record.license === "NOASSERTION"))

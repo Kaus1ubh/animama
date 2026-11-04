@@ -27,6 +27,12 @@ from pathlib import Path, PurePosixPath
 ROOT = Path(__file__).resolve().parents[2]
 FIXTURES = Path(__file__).with_name("consumers")
 PACKAGES = ("@animama/runtime-contracts", "@animama/product-ui", "@animama/discover-client")
+# A line each package's third-party notice must carry for the code it contains
+# (licenses/third-party/adapted-code.md lists the files).
+THIRD_PARTY_NOTICES = {
+    "@animama/runtime-contracts": "Copyright (c) Hey API",
+    "@animama/product-ui": "Copyright (c) 2023 shadcn",
+}
 # Wall time of each consumer step in run order, reported in summary.json.
 PHASES: list[dict] = []
 
@@ -89,6 +95,11 @@ def inspect_tarball(path: Path) -> dict:
                     raise ValueError(f"Source dependency in packed manifest: {name}={version}")
         if not any(path.endswith(".d.ts") for path in files):
             raise ValueError(f"Missing declarations: {metadata['name']}")
+        if not files.get("dist/LICENSE", b"").strip():
+            raise ValueError(f"Missing licence: {metadata['name']}")
+        required = THIRD_PARTY_NOTICES.get(metadata["name"])
+        if required and required.encode() not in files.get("dist/THIRD_PARTY_NOTICES.md", b""):
+            raise ValueError(f"Missing third-party notice: {metadata['name']}")
         if metadata["name"] == "@animama/product-ui" and "./styles.css" not in exports:
             raise ValueError("Product UI must export its CSS")
         for name, data in files.items():

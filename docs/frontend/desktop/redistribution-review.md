@@ -13,6 +13,11 @@ human review; stored receipts apply only to their exact inputs.
   modifications.
 - [Artwork notices](../../../licenses/third-party/art-NOTICES.md) identify
   retained textures, particle derivatives, models and portraits.
+- [Adapted code](../../../licenses/third-party/adapted-code.md) names UI and
+  backend files adapted from MIT, Apache-2.0 and ISC projects, and the
+  generated client's Hey API runtime. The `adapted-code` license-source group
+  copies it and the upstream texts for the code that ships into
+  `THIRD_PARTY_NOTICES.txt`.
 - `content/included/licenses/inventory.json` records Included-content provenance
   and distribution rules. Required excluded or untracked inputs fail staging.
 - [Source review inventory](../../../licenses/README.md) describes the broader
@@ -77,6 +82,11 @@ inputs or notices. Inspect `runtime/licenses/inventory.json`,
 and source metadata are bound into the inventory, so changing either invalidates
 an approval for different bytes. Resolve unclassified or unclear records; do not
 fill approval fields automatically from a passing scan.
+
+The `darwin-arm64` receipt of 2026-11-03 predates the switch of the `animama`
+group to AGPL-3.0-only, the dependency lockfile changes of the open-source
+preparation, the `adapted-code` notice group and the corrected Included-content
+attribution, so the final release needs a fresh `darwin-arm64` review.
 
 The `win32-x64` receipt in `release-policy.json` predates the removal of the
 `litellm` runtime dependency and four later changes, so the next Windows stage

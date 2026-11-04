@@ -79,9 +79,9 @@ Orientation, from a read-only survey on 2026-11-04:
 - [x] Phase 1: sealed end of updates and packs (review #2 passed; one repair round).
 - [x] Phase 2: model downloads end in the backend (review #2 passed; one repair round).
 - [x] Phase 3: download controls explain the end (review #2 passed; one repair round).
-- [ ] Phase 4: packaged notices.
+- [x] Phase 4: packaged notices (review #2 passed; one repair round).
 - [x] Phase 5: script defaults (review #1; trivial repairs).
-- [ ] Phase 6: documentation, version and runbook.
+- [x] Phase 6: documentation, version and runbook (light; review folded into the final review).
 - [ ] Final integration review; full pre-push suite and fast browser journeys.
 - [ ] PR opened with local evidence.
 - [ ] G1 to G3 (owner-run, after merge): final release, transition, cut-off.
@@ -103,6 +103,8 @@ Orientation, from a read-only survey on 2026-11-04:
 - The structural OpenAPI change needs a `local-http` major (22.0.0), not the
   minor the plan first said; `runtime-contracts` becomes 0.22.0, and after the
   bump `pnpm install --frozen-lockfile` must run again before staging.
+- The production image's `web-builder` stage copies only what its build reads,
+  so the package notices needed `licenses/third-party` copied in.
 - Ending downloads made a self-host restore lose installed model assets for
   good (backups omit them and the restore wiped the data root); the restore
   now keeps them in place.
@@ -461,7 +463,63 @@ bundle.
 
 Completion: commit `build(licenses)[p4]: ship the adapted-code and Hey API notices`.
 
-Check record: _to be filled._
+Check record (from `src/frontend` unless noted):
+
+- Red first: 7 new runtime-packaging tests and 2 packed-artifact tests failed.
+- Tree `a49841d9` (initial): `runtime-packaging.test.mjs` 82 passed;
+  `pnpm desktop:test` 610 passed, 14 skipped; desktop `prettier:check` and
+  `prettier:workspace --check` passed; repo root
+  `scripts/repository-boundary/test_packed_artifacts.py` 9 passed and ruff
+  passed. `pnpm -s packages:pack` to a scratch folder: product-ui and
+  runtime-contracts carry `dist/LICENSE` and `dist/THIRD_PARTY_NOTICES.md`,
+  discover-client `dist/LICENSE`; `inspect_tarball` accepts all three.
+  `pnpm -s web:build:hosted`: `notices/source/third-party/` holds
+  `adapted-code.md` and ten upstream texts, all listed in `.hosted-build.json`.
+  A darwin-arm64 stage through the heavy slot (after `pnpm install
+  --frozen-lockfile`) carries the Hey API, shadcn and Letta texts and the
+  `adapted-code.md` section in `THIRD_PARTY_NOTICES.txt`, no LeLu anywhere in
+  its licences, and an `adapted-code` record with 11 notices.
+- Tree `833ca1ed` (after repair round 1): `runtime-packaging.test.mjs` 82
+  passed; `pnpm desktop:test` 610 passed, 14 skipped; Prettier checks passed;
+  packed-artifact tests 10 passed; ruff passed; `check_source.py` passes;
+  `docker buildx build --target web-builder` through the heavy slot exit 0.
+  The earlier stage predates the repair's `license-sources.json` text change,
+  so it is not evidence for the final bytes; the owner restages at G1. The
+  product-ui declaration list is unchanged by construction (only a `.md` file
+  is added).
+
+#### Code Review #1 Findings
+
+High risk, tree `8a4f5109` (the recorded tree plus plan records); the reviewer
+reran the runtime-packaging tests, `desktop:test`, the packed-artifact tests,
+ruff, `check_source.py` and `pnpm pack` in each package, and compared the
+hosted and staged notices with the records.
+
+- P4-R1-F1 (blocking): the production image's `web-builder` stage had no
+  `licenses/third-party`, so `pnpm packages:build` would fail there.
+- N1: the Included-content group still named "source-specific permissive
+  terms" and packaged readme files. N2: the public wheel's `license-files`
+  covers only the AGPL licence although it ships Letta and OpenAI Agents code.
+  N3: the landing site's notices lack Motion Primitives' text for
+  `text-shimmer.tsx`. N4: the hosted copy did not apply the strict name rule.
+  N5: wording said the bundles carry every text `adapted-code.md` links. N6:
+  two hand-kept maps and no product-ui checker test. N7: the Windows receipt
+  list is incomplete. N8: Cloud impact and the declaration check.
+
+#### Code Review #1 Revisions
+
+F1 accepted: the stage copies `licenses/third-party`, verified by building it.
+N1, N4 and N5 accepted; N6 partly (a product-ui test and a README note naming
+both maps). N2 and N3 are follow-ups outside the agreed spec. N7 left: no
+Windows release, and any Windows stage needs a fresh review. N8 recorded above.
+
+#### Code Review #2 Findings
+
+Targeted recheck of tree `833ca1ed`; the reviewer reran the runtime-packaging
+tests (82), `desktop:test` (610 passed, 14 skipped), the packed-artifact tests
+(10), ruff, `check_source.py`, called `licenseRecordFiles` with bad names, and
+rebuilt the `web-builder` stage without its cache (exit 0). All dispositions
+verified; no blocking findings. Phase 4 passes.
 
 ### Phase 5: Script defaults
 
@@ -554,7 +612,17 @@ one covers it; `crisisProtocolTranslations.test.ts`; no Prettier on Markdown.
 
 Completion: commit `docs(release)[p6]: describe the final release and the cut-off`.
 
-Check record: _to be filled._
+Check record: a relative-link and anchor check over the 25 changed Markdown
+files found no broken link; `pnpm exec vitest run
+src/ui/safety/crisisProtocolTranslations.test.ts` 5 passed; `pnpm desktop:test`
+after the version bump 610 passed, 14 skipped. Documents changed:
+`installation.md`, `releases.md` (including the new Ending distribution
+runbook), `release-process.md`, `feature-packs.md`, `troubleshooting.md`,
+`overview.md` and `runtime-staging.md` under `docs/frontend/desktop`; the
+README; the crisis protocol in five languages; `model-assets.md` and
+`development.md`; `src/frontend/AGENTS.md`; `contracts/hosted-web.md`; ADRs
+0010, 0012 and 0029 and the ADR index; `docs/frontend/runtime/voice.md`. Light
+tier: the final integration review covers it.
 
 ## Final integration review
 
