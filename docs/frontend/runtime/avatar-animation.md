@@ -1948,7 +1948,7 @@ about 75% → 45% of a core idle, and about 26% at the idle rate.
 
 The Avatar is idle when the interaction phase is `idle` and
 `avatar.isMotionActive()` is false: an `idle` animation state, no reaction clip
-and no Avatar or particle effect. `AvatarCanvasActor` writes this into the
+and no Avatar or particle effect (finishing particles included). `AvatarCanvasActor` writes this into the
 scene's `SceneFrameDemand` after each update. Window pointer, wheel and key
 input, and in PiP the desktop cursor feed, keep the full rate for
 `SCENE_INPUT_ACTIVE_MS` (1.5 s) so cursor look-at stays smooth. Scenes with a

@@ -211,6 +211,7 @@ type MockParticleSystem = {
   stop: ReturnType<typeof vi.fn>;
   endEmit: ReturnType<typeof vi.fn>;
   particleNum: number;
+  looping: boolean;
 };
 
 type MockLoadQueueItem =
@@ -405,6 +406,7 @@ function createMockParticleSystem(
     stop: vi.fn(),
     endEmit: vi.fn(),
     particleNum: 0,
+    looping: true,
   };
   return system;
 }
@@ -1622,7 +1624,12 @@ describe("ParticleVFXController", () => {
       const { controller, system } = await playLoop("hearts");
       expect(controller.clearEffect("hearts", { finish: true })).toBe(true);
       expect(system.endEmit).toHaveBeenCalled();
-      expect(controller.getSnapshot().activeCount).toBe(0);
+      // A looping system's bursts would restart every cycle.
+      expect(system.looping).toBe(false);
+      expect(controller.getSnapshot()).toMatchObject({
+        activeCount: 0,
+        finishingCount: 1,
+      });
       controller.update(0.5);
       expect(system.dispose).not.toHaveBeenCalled();
       expect(quarksMockState.lastBatchRenderer?.systems.size).toBe(1);
@@ -1643,11 +1650,54 @@ describe("ParticleVFXController", () => {
       controller.dispose();
     });
 
-    it("removes a finishing effect at once on clearAll or a new play of its id", async () => {
+    it("removes a finishing effect at once on clearAll", async () => {
       const { controller, system } = await playLoop("again");
       controller.clearEffect("again", { finish: true });
       controller.clearAll();
       expect(system.dispose).toHaveBeenCalled();
+      expect(controller.getSnapshot().finishingCount).toBe(0);
+      controller.dispose();
+    });
+
+    it("removes a finishing effect at once on an immediate clear of its id or a reset", async () => {
+      const first = await playLoop("cut");
+      first.controller.clearEffect("cut", { finish: true });
+      first.controller.clearEffect("cut");
+      expect(first.system.dispose).toHaveBeenCalled();
+      first.controller.dispose();
+      resetQuarksMockState();
+      const second = await playLoop("reset");
+      second.controller.clearEffect("reset", { finish: true });
+      second.controller.clearFinishingEffects();
+      expect(second.system.dispose).toHaveBeenCalled();
+      second.controller.dispose();
+    });
+
+    it("keeps finishing when asked to finish again", async () => {
+      const { controller, system } = await playLoop("twice");
+      controller.clearEffect("twice", { finish: true });
+      controller.clearEffect("twice", { finish: true });
+      expect(system.dispose).not.toHaveBeenCalled();
+      expect(controller.getSnapshot().finishingCount).toBe(1);
+      controller.dispose();
+    });
+
+    it("leaves finishing effects out of the concurrency limit", async () => {
+      const { controller } = await playLoop("tail");
+      controller.clearEffect("tail", { finish: true });
+      for (const id of ["a", "b", "c", "d"]) {
+        quarksMockState.loadQueue.push({
+          kind: "resolve",
+          object: createMockQuarksPrefab(),
+        });
+        await expect(
+          controller.playEffect({ effectId: "heart-fixture", appliedId: id }),
+        ).resolves.toBe(true);
+      }
+      expect(controller.getSnapshot()).toMatchObject({
+        activeCount: 4,
+        finishingCount: 1,
+      });
       controller.dispose();
     });
 
