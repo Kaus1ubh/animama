@@ -475,6 +475,7 @@ describe("ReactionClipPlayer", () => {
       const faces: Record<string, number>[] = [];
       const intensities: number[] = [];
       const cleared: string[] = [];
+      const particleClears: string[] = [];
       const player = new ReactionClipPlayer(
         {
           setExpressionOverlay: (_ownerId, expressions) => {
@@ -499,10 +500,16 @@ describe("ReactionClipPlayer", () => {
             setAvatarVFXIntensity: (_event, _context, intensity) => {
               intensities.push(Number(intensity.toFixed(3)));
             },
+            applyParticleVFX: () => undefined,
+            clearParticleVFX: (event, _context, options) => {
+              particleClears.push(
+                `${event.id}:${options?.finish ? "finish" : "now"}`,
+              );
+            },
           },
         },
       );
-      return { player, faces, intensities, cleared };
+      return { player, faces, intensities, cleared, particleClears };
     };
 
     it("fades a Reaction in from the face the one it replaces shows", () => {
@@ -587,6 +594,37 @@ describe("ReactionClipPlayer", () => {
       play(player, clip);
       player.update(0.3);
       expect(log).toEqual(["apply vein", "clear vein", "apply vein"]);
+    });
+
+    const hearts = {
+      id: "hearts",
+      time: 0,
+      kind: "particle_vfx" as const,
+      effectId: "hearts",
+    };
+
+    it("lets a fading-out Reaction's particles finish", () => {
+      const { player, particleClears } = recordingPlayer();
+      play(player, reaction("love", "happy", { fadeOut: 0.2 }, [hearts]));
+      player.clear("owner");
+      player.update(0.2);
+      expect(particleClears).toEqual(["hearts:finish"]);
+    });
+
+    it("lets a replaced Reaction's particles finish under the new fade-in", () => {
+      const { player, particleClears } = recordingPlayer();
+      play(player, reaction("love", "happy", {}, [hearts]));
+      play(player, reaction("worry", "surprised", { fadeIn: 0.2 }));
+      expect(particleClears).toEqual(["hearts:finish"]);
+    });
+
+    it("removes a Reaction's particles at once on an immediate clear or a cut", () => {
+      const { player, particleClears } = recordingPlayer();
+      play(player, reaction("love", "happy", {}, [hearts]));
+      player.clear("owner", { immediate: true });
+      play(player, reaction("love", "happy", {}, [hearts]));
+      play(player, reaction("calm", "relaxed", { fadeIn: 0 }));
+      expect(particleClears).toEqual(["hearts:now", "hearts:now"]);
     });
 
     it("cuts to the new Reaction when it has no fade-in", () => {

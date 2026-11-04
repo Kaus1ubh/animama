@@ -209,6 +209,8 @@ type MockParticleSystem = {
   dispose: ReturnType<typeof vi.fn>;
   play: ReturnType<typeof vi.fn>;
   stop: ReturnType<typeof vi.fn>;
+  endEmit: ReturnType<typeof vi.fn>;
+  particleNum: number;
 };
 
 type MockLoadQueueItem =
@@ -326,6 +328,11 @@ vi.mock("three.quarks", async () => {
         emitter.system.stop();
       });
     },
+    endEmit(object: Object3D) {
+      QuarksUtil.runOnAllParticleEmitters(object, (emitter) => {
+        emitter.system.endEmit();
+      });
+    },
   };
 
   return { BatchedRenderer, QuarksLoader, QuarksUtil };
@@ -396,6 +403,8 @@ function createMockParticleSystem(
     }),
     play: vi.fn(),
     stop: vi.fn(),
+    endEmit: vi.fn(),
+    particleNum: 0,
   };
   return system;
 }
@@ -1581,6 +1590,102 @@ describe("ParticleVFXController", () => {
       "does not allow looping",
     );
     expect(quarksMockState.loadAttempts).toBe(0);
+    controller.dispose();
+  });
+
+  describe("finishing", () => {
+    const playLoop = async (appliedId: string) => {
+      const avatar = createMockAvatar({
+        chest: new Vector3(0, 1.1, 0),
+      }) as Avatar;
+      const controller = new ParticleVFXController(
+        avatar,
+        TEST_PARTICLE_MEDIA_PROVIDER,
+      );
+      quarksMockState.loadQueue.push({
+        kind: "resolve",
+        object: createMockQuarksPrefab(),
+      });
+      await expect(
+        controller.playEffect({
+          effectId: "loop-fixture",
+          appliedId,
+          lifetime: { kind: "manual" },
+        }),
+      ).resolves.toBe(true);
+      const system = quarksMockState.createdSystems[0]!;
+      system.particleNum = 5;
+      return { controller, system };
+    };
+
+    it("lets a stopped effect's particles live out their life before removing it", async () => {
+      const { controller, system } = await playLoop("hearts");
+      expect(controller.clearEffect("hearts", { finish: true })).toBe(true);
+      expect(system.endEmit).toHaveBeenCalled();
+      expect(controller.getSnapshot().activeCount).toBe(0);
+      controller.update(0.5);
+      expect(system.dispose).not.toHaveBeenCalled();
+      expect(quarksMockState.lastBatchRenderer?.systems.size).toBe(1);
+      system.particleNum = 0;
+      controller.update(0.1);
+      expect(system.dispose).toHaveBeenCalled();
+      expect(quarksMockState.lastBatchRenderer?.systems.size).toBe(0);
+      controller.dispose();
+    });
+
+    it("removes a finishing effect after the cap even if particles remain", async () => {
+      const { controller, system } = await playLoop("stuck");
+      controller.clearEffect("stuck", { finish: true });
+      controller.update(2.9);
+      expect(system.dispose).not.toHaveBeenCalled();
+      controller.update(0.2);
+      expect(system.dispose).toHaveBeenCalled();
+      controller.dispose();
+    });
+
+    it("removes a finishing effect at once on clearAll or a new play of its id", async () => {
+      const { controller, system } = await playLoop("again");
+      controller.clearEffect("again", { finish: true });
+      controller.clearAll();
+      expect(system.dispose).toHaveBeenCalled();
+      controller.dispose();
+    });
+
+    it("removes an effect with no live particles straight away", async () => {
+      const { controller, system } = await playLoop("empty");
+      system.particleNum = 0;
+      controller.clearEffect("empty", { finish: true });
+      expect(system.dispose).toHaveBeenCalled();
+      controller.dispose();
+    });
+  });
+
+  it("lets a timed effect's last particles finish when it expires", async () => {
+    const avatar = createMockAvatar({ head: new Vector3(0, 1.5, 0) }) as Avatar;
+    const controller = new ParticleVFXController(
+      avatar,
+      TEST_PARTICLE_MEDIA_PROVIDER,
+    );
+    quarksMockState.loadQueue.push({
+      kind: "resolve",
+      object: createMockQuarksPrefab(),
+    });
+    await expect(
+      controller.playEffect({
+        effectId: "heart-fixture",
+        appliedId: "timed-burst",
+        lifetime: { kind: "duration", durationSec: 0.2 },
+      }),
+    ).resolves.toBe(true);
+    const system = quarksMockState.createdSystems[0]!;
+    system.particleNum = 3;
+    controller.update(0.25);
+    expect(controller.getSnapshot().activeCount).toBe(0);
+    expect(system.endEmit).toHaveBeenCalled();
+    expect(system.dispose).not.toHaveBeenCalled();
+    system.particleNum = 0;
+    controller.update(0.1);
+    expect(system.dispose).toHaveBeenCalled();
     controller.dispose();
   });
 
