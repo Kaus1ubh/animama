@@ -453,9 +453,13 @@ export class ParticleVFXController {
     this._pendingAppliedIds.delete(appliedId);
     this._pendingReservations.delete(appliedId);
     // A second finish (the effect's own expiry, then its clip's end) leaves it finishing.
-    if (!options.finish) this._removeFinishingInstance(appliedId);
+    const removedFinishing =
+      !options.finish && this._removeFinishingInstance(appliedId);
     const instance = this._activeInstances.get(appliedId);
-    if (!instance) return false;
+    if (!instance) {
+      if (removedFinishing) this._emit();
+      return false;
+    }
 
     this._activeInstances.delete(appliedId);
     if (!options.finish || !this._beginFinishing(instance)) {
@@ -679,11 +683,13 @@ export class ParticleVFXController {
     );
   }
 
-  private _removeFinishingInstance(appliedId: string): void {
+  /** Remove a finishing effect's particles now; false when none had that id. */
+  private _removeFinishingInstance(appliedId: string): boolean {
     const finishing = this._finishingInstances.get(appliedId);
-    if (!finishing) return;
+    if (!finishing) return false;
     this._finishingInstances.delete(appliedId);
     this._safeRemoveObject(finishing.instance.object);
+    return true;
   }
 
   private _removeInstance(instance: ParticleVFXRuntimeInstance): void {

@@ -1664,6 +1664,7 @@ describe("ParticleVFXController", () => {
       first.controller.clearEffect("cut", { finish: true });
       first.controller.clearEffect("cut");
       expect(first.system.dispose).toHaveBeenCalled();
+      expect(first.controller.getSnapshot().finishingCount).toBe(0);
       first.controller.dispose();
       resetQuarksMockState();
       const second = await playLoop("reset");
