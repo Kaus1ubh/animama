@@ -5,7 +5,7 @@ import {
   mapServerMessagesForDisplay,
   messageTimestampMs,
   sortDisplayMessagesByCreatedAt,
-} from "./display-message-mapping";
+} from "@animama/product-ui/chat";
 
 describe("display message mapping", () => {
   it("expands one persisted structured assistant row into speech then display", () => {

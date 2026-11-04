@@ -148,6 +148,13 @@ Markdown" (saved as `presentation.render_markdown`) can turn this off, which
 falls back to the plaintext renderer and sparkle animation path. User bubbles always
 render as plaintext.
 
+Markdown replies, here and in the Memory Manager, show only images from the
+app's own origin. Any other image shows as text instead: its alt text, or
+Streamdown's `[Image blocked: …]` label for sources Streamdown itself rejects,
+such as `data:` and `blob:` URLs. HTML in a reply shows as text, and a link
+opens only after Streamdown's dialog shows its destination. Product-ui's
+`StreamdownResponse` applies these rules, and callers cannot override them.
+
 ### Model selector behavior
 
 `ChatInputModelSelector` controls the anima's explicit direct-chat profile

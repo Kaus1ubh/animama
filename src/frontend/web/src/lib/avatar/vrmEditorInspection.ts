@@ -22,6 +22,7 @@ import type {
   VRMRuntimePrimitiveBinding,
   VRMSpecVersion,
 } from "./vrm-editor-types";
+import { isRecord } from "@/lib/records";
 
 type RawGltf = TransformGLTF.IGLTF;
 type RawNode = NonNullable<RawGltf["nodes"]>[number];
@@ -44,10 +45,6 @@ type BuildInspectionSnapshotArgs = {
   avatar?: Avatar | null;
   warnings?: string[];
 };
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
-}
 
 function toRecord(value: unknown): Record<string, unknown> | null {
   return isRecord(value) ? value : null;

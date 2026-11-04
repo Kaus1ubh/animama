@@ -8,16 +8,16 @@ from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import noload, selectinload
 
+from animama.adapters.mappers.anima_map import anima_domain_to_orm, anima_orm_to_domain
+from animama.app.ports import AnimaRepository
+from animama.domain import Anima
 from animama.domain.anima_definition import ANIMA_IDENTITY_PATH, AnimaDefinitionError, normalize_display_name
 from animama.domain.emotions import normalize_emotional_state
 from animama.logging import get_logger
+from animama.orm.anima import ORMAnima
 from animama.orm.anima_definition import ORMAnimaDefinitionRevision
 from animama.orm.memory_entry import ORMMemoryEntry, ORMMemoryEntryVersion
 
-from ....adapters.mappers.anima_map import anima_domain_to_orm, anima_orm_to_domain
-from ....app.ports import AnimaRepository
-from ....domain import Anima
-from ....orm.anima import ORMAnima
 from .anima_creation_repo import SQLAlchemyAnimaCreationRepository
 
 

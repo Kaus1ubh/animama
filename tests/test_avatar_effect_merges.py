@@ -51,11 +51,11 @@ def _action(dependencies: list[dict[str, Any]], events: list[dict[str, Any]]) ->
     return descriptor, clip
 
 
-def _effect(ref: str, alias: str, **extra: Any) -> dict[str, Any]:  # noqa: ANN401
+def _effect(ref: str, alias: str, **extra: Any) -> dict[str, Any]:
     return {"ref": ref, "alias": alias, "content_type": "avatar_effect", "config": {}, **extra}
 
 
-def _event(event_id: str, alias: str, **extra: Any) -> dict[str, Any]:  # noqa: ANN401
+def _event(event_id: str, alias: str, **extra: Any) -> dict[str, Any]:
     return {"id": event_id, "time": 0.1, "kind": "avatar_vfx", "effectId": alias, **extra}
 
 

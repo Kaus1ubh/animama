@@ -30,7 +30,7 @@ Backend source of truth:
 
 Frontend source of truth:
 
-- `src/frontend/web/src/lib/emotion/index.ts`
+- `src/frontend/packages/product-ui/src/lib/emotion.ts`
 
 ## 2) Canonical tracked emotions
 
@@ -237,7 +237,7 @@ Frontend runtime type:
 
 Relevant file:
 
-- `src/frontend/web/src/lib/emotion/index.ts`
+- `src/frontend/packages/product-ui/src/lib/emotion.ts`
 
 ### Group derivation
 
@@ -280,7 +280,7 @@ If the update is accepted:
 
 Relevant files:
 
-- `src/frontend/web/src/query/mutations/useChatSse.ts`
+- `src/frontend/packages/product-ui/src/query/mutations/useChatSse.ts`
 - `src/frontend/web/src/stores/avatar-runtime-store.ts`
 - `src/frontend/web/src/ui/main/chat/useChatSession.ts`
 
@@ -305,7 +305,7 @@ Current manifest lane mapping:
 
 Relevant files:
 
-- `src/frontend/web/src/lib/emotion/index.ts`
+- `src/frontend/packages/product-ui/src/lib/emotion.ts`
 - `src/frontend/web/src/lib/avatar/animationManifest.ts`
 - `src/frontend/web/src/lib/avatar/animationPreloadPlan.ts`
 - `src/frontend/web/src/lib/avatar/planner/AvatarPlanner.ts`
@@ -650,8 +650,8 @@ The `EmotionalState` component accepts a `sourceLabel` prop so each surface can 
 If you change the emotion system, update these pieces together:
 
 - backend source of truth: `src/backend/animama/domain/emotions.py`
-- frontend source of truth: `src/frontend/web/src/lib/emotion/index.ts`
-- backend prompt/schema: `src/backend/animama/app/main_structured_response.py`, `src/backend/animama/prompts/structured_output.py`
+- frontend source of truth: `src/frontend/packages/product-ui/src/lib/emotion.ts`
+- backend prompt/schema: `src/backend/animama/app/main_structured_response.py`
 - backend primary update helper: `src/backend/animama/app/primary_emotion_update.py`
 - frontend runtime/UI/avatar mapping files under `src/frontend/web/src/lib/emotion`, `src/frontend/web/src/lib/avatar`, and `src/frontend/web/src/ui/components`
 

@@ -93,7 +93,6 @@ export function CreateAnimaIdentityStep({
         <TabsContent value="preview">
           <MemoryMarkdownPreview
             value={draft.identity_markdown}
-            allowImages={false}
             emptyText={t("identityStep.previewEmpty")}
             className="min-h-[390px] overflow-auto rounded-xl border p-5"
           />

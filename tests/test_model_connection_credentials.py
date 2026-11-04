@@ -165,7 +165,7 @@ async def _headers_sent_by_real_sdk(
 
     original_init = AsyncOpenAI.__init__
 
-    def _init_with_transport(self, *args, **kwargs):  # noqa: ANN001, ANN002, ANN003
+    def _init_with_transport(self, *args, **kwargs):
         kwargs["http_client"] = httpx2.AsyncClient(transport=httpx2.MockTransport(_handler))
         original_init(self, *args, **kwargs)
 

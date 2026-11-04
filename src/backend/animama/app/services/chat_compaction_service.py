@@ -7,16 +7,16 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 
 from animama.app.model_clients.context_budget import context_budget_for_model, estimate_text_tokens
+from animama.app.ports import UnitOfWork
+from animama.app.ports.chat_compaction_port import ChatCompactionRepository
+from animama.app.ports.chat_message_port import ChatMessageRepository
+from animama.app.ports.chat_port import ChatRepository
 from animama.domain import ModelProvider
 from animama.domain.chat import ChatMessage, MessageRole
 from animama.domain.chat_compaction import STATUS_ACTIVE, ChatCompaction
 from animama.domain.usage import Usage
 from animama.logging import get_logger
 
-from ..ports import UnitOfWork
-from ..ports.chat_compaction_port import ChatCompactionRepository
-from ..ports.chat_message_port import ChatMessageRepository
-from ..ports.chat_port import ChatRepository
 from .direct_model_prompt_runner import DirectModelPromptRequest, DirectModelPromptRunner
 
 

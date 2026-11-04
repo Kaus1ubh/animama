@@ -42,7 +42,7 @@ vi.mock("@/lib/speech/offline-stt/clients", () => ({
     return manager.offered;
   },
 }));
-vi.mock("@/hooks/use-pocket-voice-downloads", () => ({
+vi.mock("@/hooks/usePocketVoiceDownloads", () => ({
   usePocketVoiceDownloads: () => ({
     availability: () => null,
     install: manager.mutate,

@@ -62,9 +62,11 @@ implementation details and task progress belong in their existing records.
    landing concurrent additions and repair links if an unaccepted record is renumbered.
 3. Write concise context, decision and rationale, with evidence. Include alternatives
    and consequences when they explain a real trade-off; do not invent past deliberation.
-4. Mark unresolved choices `proposed`. An AI agent may accept a supported record
-   without separate confirmation from Raymond. Record the decision basis;
-   this grants no authority to make otherwise unauthorized product or architecture changes.
+4. Mark unresolved choices `proposed`. An AI agent may mark a record `accepted`
+   only when it records a decision the owner already made or a contract the
+   system already implements; a new choice stays `proposed` until the owner
+   decides it. Record the decision basis; this grants no authority to make
+   otherwise unauthorized product or architecture changes.
 5. Add the record and its status to this index. Correct current documentation
    made incomplete or misleading by the decision; an ADR is not a usage guide.
 

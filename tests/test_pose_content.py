@@ -52,7 +52,7 @@ def pose_document(*, weight: float = 0.5) -> dict[str, Any]:
 
 
 @pytest.fixture
-async def pose_api(async_session, tmp_path: Path) -> AsyncIterator[tuple[Any, Any, dict[str, str]]]:  # noqa: ANN001
+async def pose_api(async_session, tmp_path: Path) -> AsyncIterator[tuple[Any, Any, dict[str, str]]]:
     paths, catalog, service, saves, packages = package_services(async_session, tmp_path)
     application = FastAPI()
     application.include_router(content.router)
@@ -73,7 +73,7 @@ async def pose_api(async_session, tmp_path: Path) -> AsyncIterator[tuple[Any, An
         await async_session.commit()
 
 
-async def test_pose_http_save_preview_reopen_and_owner_boundary(pose_api) -> None:  # noqa: ANN001
+async def test_pose_http_save_preview_reopen_and_owner_boundary(pose_api) -> None:
     client, (paths, _catalog, _service, _saves, _packages), principal = pose_api
     form = {"operation_id": "create-salute", "descriptor_json": json.dumps(pose_document())}
     saved = await client.put("/v1/poses/Salute", data=form)
@@ -104,7 +104,7 @@ async def test_pose_http_save_preview_reopen_and_owner_boundary(pose_api) -> Non
     assert (await client.get(preview["files"][0]["url"])).status_code == 404
 
 
-async def test_pose_save_conflict_retry_and_invalid_update_preserve_saved_values(pose_api) -> None:  # noqa: ANN001
+async def test_pose_save_conflict_retry_and_invalid_update_preserve_saved_values(pose_api) -> None:
     client, (paths, _catalog, _service, _saves, _packages), _principal = pose_api
     initial_form = {"operation_id": "create", "descriptor_json": json.dumps(pose_document())}
     first = await client.put("/v1/poses/Salute", data=initial_form)
@@ -144,7 +144,7 @@ async def test_pose_save_conflict_retry_and_invalid_update_preserve_saved_values
     assert original_replay.status_code == 200 and original_replay.json() == item
 
 
-async def test_pose_package_copy_rewrites_identity_and_remains_independent(pose_api) -> None:  # noqa: ANN001
+async def test_pose_package_copy_rewrites_identity_and_remains_independent(pose_api) -> None:
     _client, (paths, catalog, service, saves, packages), _principal = pose_api
     saved = await saves.save_descriptor(
         user_id="package-owner",
@@ -186,7 +186,7 @@ async def test_pose_package_copy_rewrites_identity_and_remains_independent(pose_
     assert copied_file.exists()
 
 
-async def test_included_pose_is_read_only_and_manual_local_edits_report_health(pose_api) -> None:  # noqa: ANN001
+async def test_included_pose_is_read_only_and_manual_local_edits_report_health(pose_api) -> None:
     client, (paths, _catalog, service, _saves, _packages), _principal = pose_api
     root = paths.included_root / "poses" / "salute"
     root.mkdir(parents=True)
@@ -258,7 +258,7 @@ def test_resolved_pose_fixture_matches_frontend_values() -> None:
     assert admitted.metadata["pose"] == document["pose"]
 
 
-async def test_rescan_retires_removed_included_pose_starters_from_typed_listing(pose_api) -> None:  # noqa: ANN001
+async def test_rescan_retires_removed_included_pose_starters_from_typed_listing(pose_api) -> None:
     """An existing 27-item index narrows to five usable starters without stale Library rows."""
     import shutil
 
@@ -313,7 +313,7 @@ async def test_rescan_retires_removed_included_pose_starters_from_typed_listing(
     assert (await client.get(f"/v1/poses/{sorted(retired_ids)[0]}")).status_code == 404
 
 
-async def test_catalog_responses_report_non_portable_included_content(pose_api) -> None:  # noqa: ANN001
+async def test_catalog_responses_report_non_portable_included_content(pose_api) -> None:
     client, (paths, _catalog, service, _saves, _packages), _principal = pose_api
     root = paths.included_root / "poses" / "salute"
     root.mkdir(parents=True)

@@ -40,6 +40,7 @@ import {
 } from "./textureUvMapping";
 import { buildRuntimePrimitiveBindings } from "../vrmEditorInspection";
 import { createLogger } from "@/lib/logger";
+import { isNonNullObject } from "@/lib/records";
 
 const logger = createLogger("AvatarFaceTextureAnchors");
 const EPSILON = 1e-6;
@@ -256,17 +257,13 @@ function isSeeThrough(material: THREE.Material): boolean {
   return material.transparent || material.alphaTest > 0;
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === "object";
-}
-
 function getMorphTargetBinds(expression: unknown): MorphTargetBindLike[] {
-  if (!isRecord(expression) || !Array.isArray(expression.binds)) {
+  if (!isNonNullObject(expression) || !Array.isArray(expression.binds)) {
     return [];
   }
   return expression.binds
     .map((bind) => {
-      if (!isRecord(bind) || typeof bind.index !== "number") {
+      if (!isNonNullObject(bind) || typeof bind.index !== "number") {
         return null;
       }
       const primitives = Array.isArray(bind.primitives)

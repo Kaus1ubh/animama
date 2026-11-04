@@ -163,7 +163,6 @@ Startup performs process-level setup:
   archive passages whose model differs from the owner's Embeddings role
 - watches Local content; ordinary single-root installations also watch Included,
   while immutable desktop Included mounts are scanned without a watcher
-- initializes optional voice provider state when `ANIMAMA_ENABLE_VOICE` is set
 
 The app owns a lazy `local.database.LocalDatabase`, or an explicitly injected
 `session_factory`. Request dependencies, startup scans, and streaming chat

@@ -498,7 +498,9 @@ timeout (connecting is capped at 10 seconds), honors its
 `strip_function_strict` option, sends `store` only on Responses, and sends
 `prompt_cache_key` on Responses or when the connection's
 `send_openai_extensions` option is on. Agents SDK tracing, which exports to
-OpenAI, is disabled unless the row is on the built-in OpenAI connection. Runs
+OpenAI, is disabled unless the row is on the built-in OpenAI connection; the
+desktop app disables it for every row
+([Memory Manager tracing](../operations/development.md#memory-manager-tracing)). Runs
 record the row's provider type, model, row id and connection.
 
 A run pins the row that ran its latest step (`memory_manager_runs.model_provider_id`):
@@ -1067,7 +1069,7 @@ Environment and settings:
   Completions rows use an approval-gated `apply_patch` function tool and replay
   the run's stored messages each turn; Anthropic rows use the memory tool and
   store each paused step's conversation. Tracing is disabled for rows not on
-  the built-in OpenAI connection.
+  the built-in OpenAI connection, and on desktop for every row.
 - `ANIMAMA_MODEL_CLIENT_TIMEOUT_SECONDS`: request timeout, default `60.0`, for
   connections without their own; a connection's `timeout_seconds` applies when
   set. On the OpenAI Agents runtime connecting is also capped at 10 seconds.

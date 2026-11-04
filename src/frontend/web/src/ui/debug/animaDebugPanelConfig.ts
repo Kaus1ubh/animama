@@ -1,5 +1,3 @@
-"use client";
-
 export const DEBUG_SECTION_KEYS = [
   "animation",
   "signals",

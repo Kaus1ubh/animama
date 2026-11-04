@@ -69,7 +69,7 @@ class _Scenario:
 
 
 @pytest_asyncio.fixture
-async def scenario(async_session_factory):  # noqa: ANN001, ANN201
+async def scenario(async_session_factory):
     async with async_session_factory() as writer, async_session_factory() as reader:
         owner = f"mutation-{uuid4().hex}"
         value = _Scenario(owner, writer, SQLAlchemyContentCatalog(writer), SQLAlchemyContentCatalog(reader))
@@ -118,7 +118,7 @@ async def test_mutation_hides_catalog_owner_provenance_and_receipt_until_commit(
 
 
 @pytest.mark.parametrize("failure", [RuntimeError, asyncio.CancelledError])
-async def test_failure_or_cancellation_rolls_back_catalog_and_receipt(scenario: _Scenario, failure) -> None:  # noqa: ANN001
+async def test_failure_or_cancellation_rolls_back_catalog_and_receipt(scenario: _Scenario, failure) -> None:
     with pytest.raises(failure):
         async with scenario.catalog.mutation_transaction():
             item_id = await scenario.reconcile()

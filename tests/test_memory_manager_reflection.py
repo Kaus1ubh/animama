@@ -93,7 +93,7 @@ def _user(user_id: str) -> RequestPrincipal:
     return RequestPrincipal(id=user_id)
 
 
-def _entries(async_session) -> MemoryEntryService:  # noqa: ANN001
+def _entries(async_session) -> MemoryEntryService:
     return MemoryEntryService(
         memory_entries=SQLAlchemyMemoryEntryRepository(async_session),
         uow=SQLAlchemyUnitOfWork(async_session),
@@ -123,7 +123,7 @@ async def clean_rows(async_session):
     await _clean()
 
 
-async def _anima(async_session, *, user_id: str, name: str = "Annie") -> tuple[str, str]:  # noqa: ANN001
+async def _anima(async_session, *, user_id: str, name: str = "Annie") -> tuple[str, str]:
     """Create an owned Anima with its identity and template MEMORIES.md; return (anima_id, memories_id)."""
 
     anima_id = f"anima-{uuid.uuid4().hex}"
@@ -148,7 +148,7 @@ async def _anima(async_session, *, user_id: str, name: str = "Annie") -> tuple[s
     return anima_id, memories.id
 
 
-async def _chat(async_session, *, user_id: str, anima_id: str, title: str = "Chat") -> str:  # noqa: ANN001
+async def _chat(async_session, *, user_id: str, anima_id: str, title: str = "Chat") -> str:
     chat_id = f"chat-{uuid.uuid4().hex}"
     async_session.add(ORMChat(id=chat_id, user_id=user_id, anima_id=anima_id, title=title))
     await async_session.flush()
@@ -201,7 +201,7 @@ def _turn_rows(
     return rows
 
 
-async def _add_turns(async_session, chat_id: str, texts: list[str], *, start: datetime) -> None:  # noqa: ANN001
+async def _add_turns(async_session, chat_id: str, texts: list[str], *, start: datetime) -> None:
     rows: list[ORMChatMessage] = []
     for index, text in enumerate(texts):
         rows.extend(
@@ -212,7 +212,7 @@ async def _add_turns(async_session, chat_id: str, texts: list[str], *, start: da
 
 
 async def _reflect(
-    async_session,  # noqa: ANN001
+    async_session,
     *,
     user_id: str,
     anima_id: str,
@@ -226,7 +226,7 @@ async def _reflect(
     )
 
 
-async def _decide(async_session, *, user_id: str, approval_id: str, decision: Literal["approve", "reject"]):  # noqa: ANN001, ANN202
+async def _decide(async_session, *, user_id: str, approval_id: str, decision: Literal["approve", "reject"]):
     return await memory_manager_router.decide_memory_manager_approval(
         approval_id,
         PyMemoryManagerApprovalDecisionRequest(decision=decision),
@@ -236,17 +236,17 @@ async def _decide(async_session, *, user_id: str, approval_id: str, decision: Li
     )
 
 
-async def _coverage(async_session, *, user_id: str, anima_id: str):  # noqa: ANN001, ANN202
+async def _coverage(async_session, *, user_id: str, anima_id: str):
     return await SQLAlchemyAnimaMemoryReflectionRepository(async_session).get(user_id=user_id, anima_id=anima_id)
 
 
-async def _memories(async_session, *, user_id: str, entry_id: str):  # noqa: ANN001, ANN202
+async def _memories(async_session, *, user_id: str, entry_id: str):
     return await memory_entries_router.get_memory_entry(
         entry_id, repositories=SQLAlchemyProductRepositories(async_session), policy=TEST_POLICY, user=_user(user_id)
     )
 
 
-async def _run_domain(async_session, *, user_id: str, run_id: str) -> MemoryManagerRun:  # noqa: ANN001
+async def _run_domain(async_session, *, user_id: str, run_id: str) -> MemoryManagerRun:
     run = await SQLAlchemyMemoryManagerRepository(async_session).get_run(user_id=user_id, run_id=run_id)
     assert run is not None
     return run
@@ -862,7 +862,7 @@ async def test_live_runtime_offers_turn_reading_and_own_memories_only_in_reflect
         timeout_seconds=1.0,
     )
 
-    async def _agent(run: MemoryManagerRun):  # noqa: ANN202
+    async def _agent(run: MemoryManagerRun):
         connection, credential = runtime._require_model()
         client = runtime._client(connection, credential)
         try:

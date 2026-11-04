@@ -1,18 +1,4 @@
 {
-  "background": {
-    "apply": "適用",
-    "applying": "適用中...",
-    "back": "背景の設定に戻る",
-    "canvasSize": "{{width}} x {{height}}",
-    "description": "選択したアバター背景の切り抜きとズームを調整します。",
-    "heading": "メディアを編集",
-    "hint": "ドラッグして位置を調整し、ズームしてライブのアバターキャンバスに合わせます。",
-    "liveCanvas": "ライブキャンバス",
-    "reset": "リセット",
-    "title": "{{name}} の背景のサイズを変更",
-    "zoomIn": "背景を拡大",
-    "zoomOut": "背景を縮小"
-  },
   "canvas": {
     "camera": {
       "axis": "{{label}} {{axis}}",

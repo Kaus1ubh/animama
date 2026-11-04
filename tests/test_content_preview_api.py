@@ -125,7 +125,7 @@ def test_preview_projects_descriptor_relative_logical_resources() -> None:
     assert response.metadata["logical_resource_files"] == {"textures/spark.png": {"role": "texture", "ordinal": 3}}
 
 
-async def test_preview_freezes_exact_owner_scoped_file_facts(async_session, tmp_path: Path) -> None:  # noqa: ANN001
+async def test_preview_freezes_exact_owner_scoped_file_facts(async_session, tmp_path: Path) -> None:
     paths = initialize_local_runtime(
         Settings(
             animama_content_root=tmp_path / "content",
@@ -185,7 +185,7 @@ async def test_preview_freezes_exact_owner_scoped_file_facts(async_session, tmp_
 
 async def test_equip_selects_a_logical_catalog_item_for_the_next_loadout_revision(
     async_session, tmp_path: Path
-) -> None:  # noqa: ANN001
+) -> None:
     paths = initialize_local_runtime(
         Settings(
             animama_content_root=tmp_path / "content",

@@ -56,10 +56,10 @@ from sqlalchemy.exc import SQLAlchemyError
 from animama.app.chat import DirectChatTurnSetupError, ModelClientNotFoundError
 from animama.app.model_clients import StaticModelClientRegistry
 from animama.domain import ModelProvider
+from scripts.evals.core import catalog
+from scripts.evals.core.inputs import EvalInputError
+from scripts.evals.core.pricing import TokenPrices, parse_token_prices
 
-from ..core import catalog
-from ..core.inputs import EvalInputError
-from ..core.pricing import TokenPrices, parse_token_prices
 from . import calibrate
 from .configs import Configuration, builtin_chat_rows, capability_problem, parse_config, standard_configurations
 from .judge import (

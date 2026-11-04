@@ -1,4 +1,5 @@
-"use client";
+// Adapted from shadcn/ui (MIT): apps/v4/registry/new-york-v4/ui/command.tsx.
+// See licenses/third-party/adapted-code.md.
 
 import * as React from "react";
 import { Command as CommandPrimitive } from "cmdk";

@@ -46,6 +46,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Any
 
+from animama.adapters.model_clients._common import jsonable
 from animama.app.model_catalog import DEFAULT_ANTHROPIC_CHAT_EFFORT, early_compaction_available, offered_effort
 from animama.app.model_clients import (
     ANTHROPIC_TOOL_RESULT_ITEM_TYPE,
@@ -56,7 +57,6 @@ from animama.app.model_clients import (
 from animama.app.model_clients.prompt import prompt_messages, prompt_tools
 from animama.domain import ModelProvider
 
-from .._common import jsonable
 from .schema import anthropic_strict_schema
 from .support import ANTHROPIC_MESSAGES_HTTP_PROVIDER_TYPE, clean_str
 

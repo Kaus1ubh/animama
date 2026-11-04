@@ -197,9 +197,9 @@ describe("animationManifest", () => {
     expect(vrmaEntries.every((entry) => entry.file.endsWith(".vrma"))).toBe(
       true,
     );
-    expect(vrmaEntries.every((entry) => !entry.file.startsWith("gesture_"))).toBe(
-      true,
-    );
+    expect(
+      vrmaEntries.every((entry) => !entry.file.startsWith("gesture_")),
+    ).toBe(true);
   });
 
   it("normalizes gesture ids like backend animation hints", () => {

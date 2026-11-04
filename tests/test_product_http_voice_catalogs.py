@@ -80,7 +80,7 @@ async def test_owners_reach_only_their_own_uploads(
             await session.commit()
 
 
-async def test_upload_requests_use_the_runtime_layout_startup_prepared(async_session, tmp_path: Path) -> None:  # noqa: ANN001
+async def test_upload_requests_use_the_runtime_layout_startup_prepared(async_session, tmp_path: Path) -> None:
     runtime_settings = Settings(animama_content_root=tmp_path / "content", animama_data_root=tmp_path / "data")
     app = FastAPI()
     app.include_router(voice_catalogs.router)

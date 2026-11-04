@@ -9,7 +9,7 @@ import {
 import { queryKeys } from "@animama/product-ui/query";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { RuntimeOwnerProvider } from "@web/app/runtime/RuntimeOwnerContext";
+import { RuntimeOwnerProvider } from "@/app/runtime/RuntimeOwnerContext";
 
 (
   globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }

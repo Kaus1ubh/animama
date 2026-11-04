@@ -4,12 +4,12 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
-import json
 from dataclasses import asdict, dataclass, field
 from typing import Any
 
 from animama.app.ports.content_catalog import ContentCatalog
 from animama.app.ports.content_store import ContentStore
+from animama.app.services.canonical_digest import canonical_digest, canonical_json
 from animama.app.services.content_kind_registry import RETIRED_CONTENT_KINDS
 from animama.app.services.idle_playback import read_gesture_idle_playback
 from animama.app.services.runtime_budget_policy import (
@@ -37,14 +37,6 @@ from animama.domain.runtime_content_descriptor import (
     RuntimeContentRootSelection,
     validate_admitted_item_revisions,
 )
-
-
-def _canonical(value: Any) -> str:
-    return json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
-
-
-def _digest(value: Any) -> str:
-    return hashlib.sha256(_canonical(value).encode()).hexdigest()
 
 
 def _root_id(selection: RuntimeContentRootSelection) -> str:
@@ -228,7 +220,7 @@ class RuntimeContentClosureCompiler:
                 member.size_bytes for member in new_members
             )
             next_config_bytes = config_bytes + sum(
-                len(_canonical(_effective_metadata(item)).encode()) for item in new_entries
+                len(canonical_json(_effective_metadata(item)).encode()) for item in new_entries
             )
             budget_code = None
             if next_entry_count > MAX_RUNTIME_ENTRIES:
@@ -328,7 +320,7 @@ class RuntimeContentClosureCompiler:
             diagnostics=tuple(diagnostics),
             admitted_item_revisions=admitted_item_revisions,
             total_bytes=sum(member.size_bytes for member in ordered_members),
-            revision=f"rcd2-{_digest(identity)}",
+            revision=f"rcd2-{canonical_digest(identity)}",
         )
         return descriptor, {source: tuple(sorted(paths)) for source, paths in changed_paths.items()}
 

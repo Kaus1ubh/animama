@@ -1,3 +1,5 @@
+// Adapted from Magic UI (MIT): apps/www/registry/magicui/shine-border.tsx.
+// See licenses/third-party/adapted-code.md.
 import * as React from "react";
 
 import { cn } from "../lib/utils";

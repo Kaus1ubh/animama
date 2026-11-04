@@ -6,9 +6,11 @@ import hashlib
 import re
 import uuid
 from dataclasses import replace
-from datetime import datetime
 from typing import Any, NoReturn
 
+from animama.app.ports.anima_port import AnimaRepository
+from animama.app.ports.memory_entry_port import MemoryEntryRepository, MemoryEntryRepositoryConflictError
+from animama.app.ports.uow_port import UnitOfWork
 from animama.domain.anima import Anima
 from animama.domain.anima_definition import (
     ANIMA_IDENTITY_KIND,
@@ -43,10 +45,8 @@ from animama.domain.memory_entry import (
 )
 from animama.domain.memory_episode import MEMORY_EPISODE_LOG_ENTRY_KIND
 from animama.logging import get_logger
+from animama.utils.clock import naive_utc_now
 
-from ..ports.anima_port import AnimaRepository
-from ..ports.memory_entry_port import MemoryEntryRepository, MemoryEntryRepositoryConflictError
-from ..ports.uow_port import UnitOfWork
 from .memory_entry_diff import build_memory_unified_diff
 
 MEMORY_ENTRY_DEFAULT_MAX_BYTES = 32 * 1024
@@ -189,17 +189,6 @@ def normalize_memory_file_path(path: str) -> tuple[str, str]:
     clean_path, normalized_path = normalize_memory_entry_path(path)
     if not clean_path.endswith(".md"):
         raise MemoryEntryValidationError("Memory file entry paths must end with .md")
-    return clean_path, normalized_path
-
-
-def normalize_memory_directory_path(path: str | None) -> tuple[str, str]:
-    """Validate an optional relative directory path."""
-
-    if path is None or path == "":
-        return "", ""
-    clean_path, normalized_path = normalize_memory_entry_path(path)
-    if clean_path.endswith(".md"):
-        raise MemoryEntryValidationError("Memory directory paths cannot end with .md")
     return clean_path, normalized_path
 
 
@@ -836,7 +825,7 @@ class MemoryEntryService:
                 if has_descendants and not recursive:
                     raise MemoryEntryConflictError("Directory is not empty")
 
-            deleted_at = datetime.utcnow()
+            deleted_at = naive_utc_now()
             deleted = replace(current, version=current.version + 1, deleted_at=deleted_at)
             stored = await self._memory_entries.update_entry(deleted)
             await self._memory_entries.append_version(
@@ -945,7 +934,7 @@ class MemoryEntryService:
             deleted = replace(
                 current,
                 version=current.version + 1,
-                deleted_at=datetime.utcnow(),
+                deleted_at=naive_utc_now(),
             )
             stored = await self._memory_entries.update_entry(deleted)
             await self._memory_entries.append_version(
@@ -1682,7 +1671,6 @@ __all__ = [
     "is_protected_memory_path",
     "is_reserved_user_memory_path",
     "new_memory_entry_id",
-    "normalize_memory_directory_path",
     "normalize_memory_entry_description",
     "normalize_memory_entry_name",
     "normalize_memory_entry_path",

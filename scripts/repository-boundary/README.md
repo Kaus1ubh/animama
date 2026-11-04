@@ -5,8 +5,8 @@ and the emitted whole application.
 Repository ownership is documented in
 [repository boundaries](../../docs/architecture/repository-boundaries.md).
 
-For an unpublished source review candidate, use
-[source preparation](../public-release/README.md).
+For per-file licence coverage, use the
+[source review check](../public-release/README.md).
 
 Run the tooling tests from the repository root:
 

@@ -1,5 +1,3 @@
-"use client";
-
 import {
   useEffect,
   useMemo,
@@ -41,7 +39,7 @@ import {
   normalizeEmotionStateMap,
   type EmotionStateMap,
 } from "@/lib/emotion";
-import { usePocketTtsRuntime } from "@/hooks/use-pocket-tts-runtime";
+import { usePocketTtsRuntime } from "@/hooks/usePocketTtsRuntime";
 import { cn } from "@/lib/utils";
 import { useUpdateAnimaEmotionalState } from "@/query/mutations/useUpdateAnimaEmotionalState";
 import { Button } from "@/ui/components/button";

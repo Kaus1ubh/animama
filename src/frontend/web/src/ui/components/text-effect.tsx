@@ -1,2 +1,3 @@
 /** Shared presentation implementation. */
-export * from "@animama/product-ui/components";
+export { TextEffect } from "@animama/product-ui/components";
+export type { TextEffectProps } from "@animama/product-ui/components";

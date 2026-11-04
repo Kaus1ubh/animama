@@ -1,5 +1,3 @@
-"use client";
-
 import { useFrame } from "@react-three/fiber";
 
 import { usePoseCreatorStore } from "@/stores/pose-creator-store";

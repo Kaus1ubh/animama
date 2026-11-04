@@ -47,9 +47,3 @@ class EmbeddingResult:
 
     vectors: list[list[float]]
     usage: Usage | None
-
-
-class UsageReportingTextEmbedder(TextEmbedder, Protocol):
-    """Compositions wrap each call with admission, settlement and cancellation."""
-
-    async def embed_texts_with_usage(self, texts: Iterable[str]) -> EmbeddingResult: ...

@@ -1,5 +1,3 @@
-"use client";
-
 import { useEffect, useMemo, useState } from "react";
 
 import { useAnimas } from "@/query/hooks/useAnimas";

@@ -1,3 +1,9 @@
+"""Direct-chat memory tools: specs, path validation and execution.
+
+The tools list, read, search, write and patch the owner's memory files, confined to
+the user's memory root, and search or read the files attached to the turn.
+"""
+
 from __future__ import annotations
 
 import json
@@ -41,9 +47,12 @@ from animama.domain.anima_definition import (
 from animama.domain.memory_entry import MEMORY_ENTRY_TYPE_FILE, MemoryEntry
 from animama.domain.memory_manager import MEMORY_PATCH_OPERATION_CREATE, MEMORY_PATCH_OPERATION_UPDATE
 from animama.domain.user_file_processing import UserFileReadableChunk
+from animama.logging import get_logger
 
 from .memory_cue import AnimaMemoriesTurn
 from .memory_search import search_uploaded_files
+
+_log = get_logger("app.chat.memory_tools")
 
 MEMORY_TOOL_LIST_FILES = "memory_list_files"
 MEMORY_TOOL_READ_FILES = "memory_read_files"
@@ -52,6 +61,7 @@ MEMORY_TOOL_SEARCH_UPLOADED_FILES = "search_uploaded_files"
 MEMORY_TOOL_READ_UPLOADED_FILE_CHUNKS = "read_uploaded_file_chunks"
 MEMORY_TOOL_APPLY_PATCH = "memory_apply_patch"
 MEMORY_TOOL_WRITE_FILE = "memory_write_file"
+
 MEMORY_SEARCH_DEFAULT_LIMIT = DEFAULT_MEMORY_SEARCH_LIMIT
 MEMORY_SEARCH_DEFAULT_CONTEXT_CHARS = DEFAULT_MEMORY_SEARCH_CONTEXT_CHARS
 MAX_UPLOADED_FILE_FILTER_NAMES = 50
@@ -61,15 +71,6 @@ MAX_UPLOADED_FILE_READ_CHUNKS = 5
 # characters.
 MAX_UPLOADED_FILE_READ_RESPONSE_TOKENS = 6_000
 
-MEMORY_TOOL_READ_NAMES = frozenset(
-    {
-        MEMORY_TOOL_LIST_FILES,
-        MEMORY_TOOL_READ_FILES,
-        MEMORY_TOOL_SEARCH_MEMORY_FILES,
-        MEMORY_TOOL_SEARCH_UPLOADED_FILES,
-        MEMORY_TOOL_READ_UPLOADED_FILE_CHUNKS,
-    }
-)
 MEMORY_TOOL_WRITE_NAMES = frozenset(
     {
         MEMORY_TOOL_APPLY_PATCH,
@@ -438,6 +439,8 @@ class DirectChatMemoryToolService:
                     )
                 )
         except Exception:
+            # The model only sees a retryable error; keep the cause for the operator.
+            _log.warning("Uploaded-file read failed", exc_info=True)
             return _tool_error(
                 "upload_read_failed",
                 "Uploaded-file reading failed",
@@ -1298,7 +1301,6 @@ __all__ = [
     "MEMORY_TOOL_APPLY_PATCH",
     "MEMORY_TOOL_LIST_FILES",
     "MEMORY_TOOL_READ_FILES",
-    "MEMORY_TOOL_READ_NAMES",
     "MEMORY_TOOL_READ_UPLOADED_FILE_CHUNKS",
     "MEMORY_TOOL_SEARCH_MEMORY_FILES",
     "MEMORY_TOOL_SEARCH_UPLOADED_FILES",

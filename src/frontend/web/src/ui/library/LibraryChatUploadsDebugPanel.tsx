@@ -1,5 +1,3 @@
-"use client";
-
 import DashboardModal from "@uppy/react/dashboard-modal";
 import { useUppyState } from "@uppy/react";
 import {

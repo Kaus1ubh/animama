@@ -74,7 +74,7 @@ class _ClosableClient:
     def __init__(self) -> None:
         self.close_calls = 0
 
-    async def stream(self, _spec):  # noqa: ANN001
+    async def stream(self, _spec):
         if False:
             yield None
 
@@ -123,17 +123,17 @@ class _FakeOpenAIClient:
         self.chat = SimpleNamespace(completions=SimpleNamespace(create=self._create))
         self.responses = SimpleNamespace(create=self._responses_create)
 
-    def with_options(self, **kwargs):  # noqa: ANN003
+    def with_options(self, **kwargs):
         self.with_options_calls.append(dict(kwargs))
         return self
 
-    async def _create(self, **kwargs):  # noqa: ANN003
+    async def _create(self, **kwargs):
         self.create_calls.append(dict(kwargs))
         if self._chat_failures:
             raise self._chat_failures.pop(0)
         return _FakeOpenAIStream(self._chunks)
 
-    async def _responses_create(self, **kwargs):  # noqa: ANN003
+    async def _responses_create(self, **kwargs):
         self.response_create_calls.append(dict(kwargs))
         if self._response_failures:
             raise self._response_failures.pop(0)
@@ -148,7 +148,7 @@ class _FailingResponsesOpenAIClient(_FakeOpenAIClient):
         super().__init__([], [])
         self.exc = exc
 
-    async def _responses_create(self, **kwargs):  # noqa: ANN003
+    async def _responses_create(self, **kwargs):
         self.response_create_calls.append(dict(kwargs))
         raise self.exc
 

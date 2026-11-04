@@ -13,7 +13,7 @@ from animama.orm.content_catalog import ORMContentCatalogItem
 from tests.content_package_helpers import package_services, vrma
 
 
-def test_fresh_descriptor_destination_rejects_existing_files(async_session, tmp_path) -> None:  # noqa: ANN001
+def test_fresh_descriptor_destination_rejects_existing_files(async_session, tmp_path) -> None:
     paths, _, content, _, _ = package_services(async_session, tmp_path)
     original = {
         "schema_version": 1,
@@ -42,7 +42,7 @@ def test_fresh_descriptor_destination_rejects_existing_files(async_session, tmp_
     assert (paths.local_root / "reactions/occupied/occupied.meta.json").read_bytes() == before
 
 
-async def test_rescan_ignores_a_local_idle_style_folder_left_by_an_older_version(async_session, tmp_path) -> None:  # noqa: ANN001
+async def test_rescan_ignores_a_local_idle_style_folder_left_by_an_older_version(async_session, tmp_path) -> None:
     """Idle Styles are retired: their old folder is neither admitted nor touched."""
 
     owner = f"leftover-{uuid4().hex}"

@@ -27,7 +27,6 @@ before(async () => {
     resolve: {
       alias: {
         "@": path.join(webRoot, "src"),
-        "@web": path.join(webRoot, "src"),
       },
     },
     server: { host: "127.0.0.1", port: 0, strictPort: false },

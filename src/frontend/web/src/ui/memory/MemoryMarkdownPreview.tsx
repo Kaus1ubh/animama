@@ -1,5 +1,3 @@
-"use client";
-
 import type { ReactNode } from "react";
 
 import { useTranslation } from "react-i18next";
@@ -17,17 +15,19 @@ type MemoryMarkdownPreviewProps = {
   /** Markdown shown for a blank value; defaults to an italic "Empty file". */
   emptyText?: string;
   className?: string;
-  allowImages?: boolean;
   /** Open links outside the app, so following one never navigates the current view. */
   externalLinks?: boolean;
 };
 
+/**
+ * Sanitized markdown for memory, identity and Safety text. Images show as
+ * their alt text and are never fetched, whatever their source.
+ */
 export function MemoryMarkdownPreview({
   value,
   children,
   emptyText,
   className,
-  allowImages = true,
   externalLinks = false,
 }: MemoryMarkdownPreviewProps) {
   const { t } = useTranslation("memory");
@@ -43,17 +43,13 @@ export function MemoryMarkdownPreview({
           remarkPlugins={[remarkGfm]}
           rehypePlugins={[rehypeSanitize]}
           components={{
-            ...(!allowImages
-              ? {
-                  img: ({ alt }) => (
-                    <span>
-                      {alt
-                        ? t("markdown.image", { alt })
-                        : t("markdown.imageNotLoaded")}
-                    </span>
-                  ),
-                }
-              : {}),
+            img: ({ alt }) => (
+              <span>
+                {alt
+                  ? t("markdown.image", { alt })
+                  : t("markdown.imageNotLoaded")}
+              </span>
+            ),
             ...(externalLinks
               ? {
                   a: ({ href, children: linkChildren }) => (

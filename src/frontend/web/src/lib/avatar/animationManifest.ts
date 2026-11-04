@@ -8,6 +8,7 @@ import {
   type TrackedEmotion,
 } from "@/lib/emotion";
 import type { AnimationLoopType } from "./types";
+import { isRecord } from "@/lib/records";
 
 export type ManifestGestureType = "vrma" | "animaPoseClip";
 export type ManifestAnimationRole = "idle" | "gesture";
@@ -571,8 +572,4 @@ function ensureVrmaExtension(file: string): string {
   if (!trimmed) return trimmed;
   if (trimmed.endsWith(".vrma")) return trimmed;
   return `${trimmed}.vrma`;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }

@@ -2,11 +2,10 @@ from __future__ import annotations
 
 from typing import Any
 
+from animama.app.ports import AnimaChatProfileRepository, ModelProviderRepository, UnitOfWork
 from animama.domain import AnimaChatProfile
 from animama.domain.model_connection import MODEL_KIND_CHAT
 from animama.logging import get_logger
-
-from ..ports import AnimaChatProfileRepository, ModelProviderRepository, UnitOfWork
 
 
 class AnimaChatProfileService:

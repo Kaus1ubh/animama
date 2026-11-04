@@ -1,3 +1,5 @@
+import { isNonNullObject } from "@/lib/records";
+
 export type PocketTtsDebugLatencySummary = {
   count: number;
   lastMs: number | null;
@@ -110,10 +112,6 @@ const INITIAL_ONNX_RUNTIME_DEBUG_VALUE: PocketTtsOrtRuntimeDebug[] = [
 export const INITIAL_ONNX_RUNTIME_DEBUG: PocketTtsOrtRuntimeDebug[] =
   INITIAL_ONNX_RUNTIME_DEBUG_VALUE;
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return Boolean(value) && typeof value === "object";
-}
-
 function toFiniteNumberOrNull(value: unknown): number | null {
   return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
@@ -127,7 +125,7 @@ function toNullableBoolean(value: unknown): boolean | null {
 }
 
 function parseLatencySummary(value: unknown): PocketTtsDebugLatencySummary {
-  const input = isRecord(value) ? value : {};
+  const input = isNonNullObject(value) ? value : {};
   return {
     count:
       typeof input.count === "number" && Number.isFinite(input.count)
@@ -143,7 +141,7 @@ function parseLatencySummary(value: unknown): PocketTtsDebugLatencySummary {
 function parseWorkerDebugSnapshot(
   value: unknown,
 ): PocketTtsWorkerDebugSnapshot | null {
-  if (!isRecord(value)) return null;
+  if (!isNonNullObject(value)) return null;
   const workerId = toNullableString(value.workerId);
   const name = toNullableString(value.name);
   const kind = toNullableString(value.kind);
@@ -191,7 +189,7 @@ function parseWorkerDebugSnapshot(
 export function parseWorkerRegistryDebug(
   value: unknown,
 ): PocketTtsWorkerRegistryDebug | null {
-  if (!isRecord(value)) return null;
+  if (!isNonNullObject(value)) return null;
 
   const workers = Array.isArray(value.workers)
     ? value.workers
@@ -218,7 +216,7 @@ export function parseWorkerRegistryDebug(
 }
 
 function parseOrtSessionDebug(value: unknown): PocketTtsOrtSessionDebug | null {
-  if (!isRecord(value)) return null;
+  if (!isNonNullObject(value)) return null;
   const name = toNullableString(value.name);
   if (!name) return null;
   return {
@@ -233,12 +231,12 @@ function parseOrtSessionDebug(value: unknown): PocketTtsOrtSessionDebug | null {
 export function parseOrtRuntimeDebug(
   value: unknown,
 ): PocketTtsOrtRuntimeDebug | null {
-  if (!isRecord(value)) return null;
+  if (!isNonNullObject(value)) return null;
   const runtimeId = toNullableString(value.runtimeId);
   const runtimeName = toNullableString(value.runtimeName);
   if (!runtimeId || !runtimeName) return null;
 
-  const wasm = isRecord(value.wasm) ? value.wasm : {};
+  const wasm = isNonNullObject(value.wasm) ? value.wasm : {};
   const sessions = Array.isArray(value.sessions)
     ? value.sessions
         .map((session) => parseOrtSessionDebug(session))

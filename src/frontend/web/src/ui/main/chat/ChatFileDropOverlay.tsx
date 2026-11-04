@@ -1,5 +1,3 @@
-"use client";
-
 import type { UserFileUploadUppy } from "@/hooks/useUserFileUpload";
 import { getUserFileErrorMessage } from "@/lib/user-files/uploads";
 import { cn } from "@/lib/utils";

@@ -7,7 +7,7 @@ import { useRuntimeAdmission } from "./runtime/RuntimeAdmissionProvider";
 import type { AppRouterContext } from "./router-context";
 import { AdmissionScreen } from "./runtime/AdmissionScreen";
 import { useRuntimePlatform } from "@/platform/RuntimePlatformProvider";
-import { routeTree } from "@web/routeTree.gen";
+import { routeTree } from "@/routeTree.gen";
 import {
   PageLoadError,
   subscribeToAppFileErrors,

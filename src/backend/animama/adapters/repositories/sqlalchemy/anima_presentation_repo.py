@@ -6,17 +6,17 @@ from pathlib import PurePosixPath
 from typing import Any
 from urllib.parse import urlsplit
 
-from sqlalchemy import and_, func, or_, select
+from sqlalchemy import Select, and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
 
-from ....app.ports.anima_presentation_port import AnimaPresentationRepository
-from ....domain.anima_presentation import AnimaPresentationImageCandidate, AnimaPresentationRecord
-from ....domain.content_catalog import ContentSource
-from ....orm.anima import ORMAnima
-from ....orm.anima_loadout import ORMAnimaLoadout
-from ....orm.avatar import ORMAvatar
-from ....orm.content_catalog import ORMAnimaContentBinding, ORMContentCatalogFile, ORMContentCatalogItem
+from animama.app.ports.anima_presentation_port import AnimaPresentationRepository
+from animama.domain.anima_presentation import AnimaPresentationImageCandidate, AnimaPresentationRecord
+from animama.domain.content_catalog import ContentSource
+from animama.orm.anima import ORMAnima
+from animama.orm.anima_loadout import ORMAnimaLoadout
+from animama.orm.avatar import ORMAvatar
+from animama.orm.content_catalog import ORMAnimaContentBinding, ORMContentCatalogFile, ORMContentCatalogItem
 
 
 class SQLAlchemyAnimaPresentationRepository(AnimaPresentationRepository):
@@ -48,7 +48,7 @@ class SQLAlchemyAnimaPresentationRepository(AnimaPresentationRepository):
         return self._record(row) if row else None
 
     @staticmethod
-    def _statement(*, user_id: str):
+    def _statement(*, user_id: str) -> Select[Any]:
         profile_binding = aliased(ORMAnimaContentBinding, name="profile_binding")
         profile_item = aliased(ORMContentCatalogItem, name="profile_item")
         portrait_item = aliased(ORMContentCatalogItem, name="portrait_item")

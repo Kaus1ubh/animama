@@ -20,6 +20,7 @@ import {
   type ActionDocument,
   type ActionIntent,
 } from "./actionDocument";
+import { isRecord } from "@/lib/records";
 
 export const ACTION_PROJECT_SCHEMA = "animamaActionProject/1.0" as const;
 
@@ -45,10 +46,6 @@ export type UnresolvedActionReference = {
   alias: string;
   contentType: ActionComponentType;
 };
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return Boolean(value && typeof value === "object" && !Array.isArray(value));
-}
 
 /** A non-empty string, or a failure worded by `missing`. */
 function requiredString(value: unknown, missing: () => string): string {

@@ -212,9 +212,7 @@ def test_starter_staging_admits_an_effect_whose_optional_sound_is_excluded(tmp_p
     assert all(not starter["diagnostics"] for starter in inventory["starters"])
 
 
-async def test_local_content_cannot_use_optional_edges_or_non_portable_sounds(  # noqa: ANN001
-    async_session, tmp_path: Path
-) -> None:
+async def test_local_content_cannot_use_optional_edges_or_non_portable_sounds(async_session, tmp_path: Path) -> None:
     paths, _catalog, content, _saves, _packages = package_services(async_session, tmp_path)
     _inventory(
         paths.included_root, {"glob": "sfx/**", "distribution": "non-portable", **_RULE}, {"glob": "**", **_RULE}
@@ -242,7 +240,7 @@ async def test_local_content_cannot_use_optional_edges_or_non_portable_sounds(  
         await async_session.commit()
 
 
-async def test_export_leaves_out_an_optional_non_portable_sound(async_session, tmp_path: Path) -> None:  # noqa: ANN001
+async def test_export_leaves_out_an_optional_non_portable_sound(async_session, tmp_path: Path) -> None:
     paths, _catalog, content, _saves, packages = package_services(async_session, tmp_path)
     _inventory(
         paths.included_root, {"glob": "sfx/**", "distribution": "non-portable", **_RULE}, {"glob": "**", **_RULE}
@@ -282,7 +280,7 @@ async def test_export_leaves_out_an_optional_non_portable_sound(async_session, t
         await async_session.commit()
 
 
-async def test_a_required_non_portable_sound_still_blocks_export(async_session, tmp_path: Path) -> None:  # noqa: ANN001
+async def test_a_required_non_portable_sound_still_blocks_export(async_session, tmp_path: Path) -> None:
     paths, _catalog, content, _saves, packages = package_services(async_session, tmp_path)
     _inventory(
         paths.included_root, {"glob": "sfx/**", "distribution": "non-portable", **_RULE}, {"glob": "**", **_RULE}
@@ -302,7 +300,7 @@ async def test_a_required_non_portable_sound_still_blocks_export(async_session, 
 
 
 @pytest.mark.parametrize("optional", [False, True])
-async def test_saving_own_content_with_a_licensed_sound_is_refused_and_rolled_back(  # noqa: ANN001
+async def test_saving_own_content_with_a_licensed_sound_is_refused_and_rolled_back(
     async_session, tmp_path: Path, optional: bool
 ) -> None:
     paths, _catalog, content, saves, _packages = package_services(async_session, tmp_path)
@@ -343,7 +341,7 @@ async def test_saving_own_content_with_a_licensed_sound_is_refused_and_rolled_ba
         await async_session.commit()
 
 
-async def test_unmounting_the_pack_keeps_effects_valid_and_remounting_restores_the_sound(  # noqa: ANN001
+async def test_unmounting_the_pack_keeps_effects_valid_and_remounting_restores_the_sound(
     async_session, tmp_path: Path
 ) -> None:
     core, pack, local = tmp_path / "core", tmp_path / "pack", tmp_path / "local"
@@ -395,7 +393,7 @@ async def test_unmounting_the_pack_keeps_effects_valid_and_remounting_restores_t
         await async_session.commit()
 
 
-async def test_a_kept_optional_sound_exports_as_an_ordinary_edge_and_imports(async_session, tmp_path: Path) -> None:  # noqa: ANN001
+async def test_a_kept_optional_sound_exports_as_an_ordinary_edge_and_imports(async_session, tmp_path: Path) -> None:
     paths, receiver_catalog, content, _saves, packages = package_services(async_session, tmp_path)
     _inventory(paths.included_root)
     _sound(paths.included_root)
@@ -477,7 +475,7 @@ def test_package_inspection_refuses_an_optional_edge(tmp_path: Path) -> None:
     assert refused.value.code == "package_optional_dependency" and refused.value.items == ("Sweat Drop",)
 
 
-async def test_licensed_sound_bytes_cannot_be_saved_as_own_content(  # noqa: ANN001
+async def test_licensed_sound_bytes_cannot_be_saved_as_own_content(
     async_session, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     payload = _vorbis()
@@ -532,9 +530,7 @@ def _sfx_gesture(root: Path, *, content_id: str = "builtin:gesture:wave-pop") ->
     )
 
 
-async def test_an_included_gesture_plays_without_its_absent_optional_sound(  # noqa: ANN001
-    async_session, tmp_path: Path
-) -> None:
+async def test_an_included_gesture_plays_without_its_absent_optional_sound(async_session, tmp_path: Path) -> None:
     paths, catalog, content, _saves, _packages = package_services(async_session, tmp_path)
     _inventory(paths.included_root)
     _sfx_gesture(paths.included_root)
@@ -583,7 +579,7 @@ async def test_an_included_gesture_plays_without_its_absent_optional_sound(  # n
 
 
 @pytest.mark.parametrize("installed", [True, False])
-async def test_export_drops_the_sound_events_of_an_omitted_optional_sound(  # noqa: ANN001
+async def test_export_drops_the_sound_events_of_an_omitted_optional_sound(
     async_session, tmp_path: Path, installed: bool
 ) -> None:
     paths, _catalog, content, _saves, packages = package_services(async_session, tmp_path)
@@ -615,9 +611,7 @@ async def test_export_drops_the_sound_events_of_an_omitted_optional_sound(  # no
         await async_session.commit()
 
 
-async def test_a_local_gesture_cannot_declare_an_optional_sound(  # noqa: ANN001
-    async_session, tmp_path: Path
-) -> None:
+async def test_a_local_gesture_cannot_declare_an_optional_sound(async_session, tmp_path: Path) -> None:
     """The parser accepts optional Action sound edges; only built-in content may use them."""
 
     paths, _catalog, content, _saves, _packages = package_services(async_session, tmp_path)

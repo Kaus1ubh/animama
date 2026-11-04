@@ -1,3 +1,7 @@
+"""Classifies OpenAI SDK, HTTP and stream errors into sanitized model-client errors,
+decides retries and redacts credentials from provider messages.
+"""
+
 from __future__ import annotations
 
 import asyncio

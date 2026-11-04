@@ -7,6 +7,13 @@ from typing import Any
 
 from openai import AsyncOpenAI, OpenAIError
 
+from animama.adapters.model_clients._common import close_maybe_async
+from animama.adapters.model_clients.openai_errors import (
+    classify_openai_exception,
+    model_client_error_from_openai_info,
+    should_retry_openai_error,
+    sleep_before_openai_retry,
+)
 from animama.app.model_clients import (
     ModelClientDelta,
     ModelClientFinal,
@@ -27,13 +34,6 @@ from animama.domain.model_connection import ModelConnection
 from animama.domain.usage import Usage
 from animama.logging import get_logger
 
-from .._common import close_maybe_async
-from ..openai_errors import (
-    classify_openai_exception,
-    model_client_error_from_openai_info,
-    should_retry_openai_error,
-    sleep_before_openai_retry,
-)
 from .connection_sdk import (
     base_client_for_connection,
     connection_base_url,

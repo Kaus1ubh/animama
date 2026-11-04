@@ -102,7 +102,7 @@ takes them:
 
 ```json
 { "source": "library:local/Ink Mark", "stem": "ink_mark", "mode": "add", "sound": null,
-  "licence": { "creator": "…", "provenance": "…", "license_id": "…", "redistribution_review": "pending" },
+  "licence": { "creator": "…", "provenance": "…", "license_id": "…", "redistribution_review": "cleared-YYYY-MM-DD" },
   "sourceReview": { "candidate_license": "…", "copyright": "…", "review": "…",
     "basis": { "ink_mark.json": "…", "ink_mark-sheet.png": "…" } } }
 ```
@@ -111,7 +111,10 @@ takes them:
 general rule; a delete removes it) and `sourceReview` its files' records;
 `basis` is one text or an object giving each file's. Word them like the
 existing agent-authored entries (such as the `vfx/avatar/broken-heart/**` rule
-and its files' records) and show the owner the exact wording. Items can share
+and its files' records) and show the owner the exact wording. Everything merged
+is published, so the owner's approval is the redistribution clearance: record it as
+`cleared-<date of approval>`, because a `pending` rule fails
+`tests/test_included_content_integrity.py`. Items can share
 one rule with `"glob"` in `licence`, such as `reactions/**/*` when every
 Included Reaction has the same terms. A file that repeats other Included art
 keeps that file's record, and its rule's terms when the item's rule differs.
@@ -142,7 +145,7 @@ keeps that file's record, and its rule's terms when the item's rule differs.
    `tests/test_starter_content_closure.py`; that test fails while any valid
    Included item is left out of core.
 4. Run `uv run pytest -q tests/test_included_content_integrity.py
-   tests/test_included_content_catalog.py tests/test_starter_content_closure.py
-   scripts/public-release/test_prepare_source.py`, then from `src/frontend`
-   `pnpm verify` and `pnpm web:test:browser`.
+   tests/test_included_content_catalog.py tests/test_starter_content_closure.py`
+   and `python3 scripts/public-release/check_source.py`, then from
+   `src/frontend` `pnpm verify` and `pnpm web:test:browser`.
 5. Do not change the starter loadout or equip anything unless asked.

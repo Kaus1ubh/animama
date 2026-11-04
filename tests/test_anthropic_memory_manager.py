@@ -130,7 +130,7 @@ async def clean_rows(async_session):
     await _clean()
 
 
-def _entries(async_session, *, commit_on_write: bool = True) -> MemoryEntryService:  # noqa: ANN001
+def _entries(async_session, *, commit_on_write: bool = True) -> MemoryEntryService:
     return MemoryEntryService(
         memory_entries=SQLAlchemyMemoryEntryRepository(async_session),
         uow=SQLAlchemyUnitOfWork(async_session),
@@ -140,7 +140,7 @@ def _entries(async_session, *, commit_on_write: bool = True) -> MemoryEntryServi
 
 
 def _service(
-    async_session,  # noqa: ANN001
+    async_session,
     user_id: str,
     client: FakeAnthropicClient,
     *,
@@ -195,13 +195,13 @@ def _service(
     return service, selector
 
 
-async def _seed_profile(async_session, user_id: str) -> None:  # noqa: ANN001
+async def _seed_profile(async_session, user_id: str) -> None:
     await _entries(async_session).put_file_by_path(
         user_id=user_id, path="PROFILE.md", content=PROFILE, kind="user_memory", description="Who the user is"
     )
 
 
-async def _profile(async_session, user_id: str):  # noqa: ANN001, ANN202
+async def _profile(async_session, user_id: str):
     return await _entries(async_session).get_entry_by_path(user_id=user_id, path="PROFILE.md")
 
 
@@ -236,7 +236,7 @@ def _proposal_script() -> list[Any]:
     ]
 
 
-async def _start(async_session, user_id: str, client: FakeAnthropicClient, **options: Any):  # noqa: ANN001, ANN202
+async def _start(async_session, user_id: str, client: FakeAnthropicClient, **options: Any):
     service, _selector = _service(async_session, user_id, client)
     return await service.create_run(
         user_id=user_id,
@@ -497,7 +497,7 @@ def _response(*blocks: dict[str, Any], signature: str = "parallel") -> list[dict
     )
 
 
-async def _paused_state(async_session, user_id: str, run_id: str) -> AnthropicManagerState:  # noqa: ANN001
+async def _paused_state(async_session, user_id: str, run_id: str) -> AnthropicManagerState:
     run = await SQLAlchemyMemoryManagerRepository(async_session).get_run(user_id=user_id, run_id=run_id)
     assert run is not None and run.serialized_agent_state is not None
     return AnthropicManagerState.from_json(run.serialized_agent_state)
@@ -896,7 +896,7 @@ async def test_a_reflection_reads_its_turns_and_its_approved_change_covers_them(
 
 
 def _selector_for(
-    async_session,  # noqa: ANN001
+    async_session,
     user_id: str,
     role_row: ModelProvider,
     *rows: ModelProvider,

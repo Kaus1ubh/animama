@@ -41,7 +41,7 @@ Follow:
 - [SDLC](../../../SDLC.md), [PLANS](../../../PLANS.md) and the root and scoped
   agent guides;
 - [ADR 0002](../../adr/0002-accountless-installation-and-http-admission.md): a
-  single owner, no telemetry;
+  single owner, and safety features that add no telemetry;
 - [ADR 0003](../../adr/0003-request-local-streamed-chat.md): request-local
   turns, route-formatted domain events, `run.completed` ordering.
 

@@ -121,7 +121,7 @@ def sdk_transport() -> Iterator[Callable[[Callable[[httpx2.Request], httpx2.Resp
     patch = pytest.MonkeyPatch()
 
     def install(server: Callable[[httpx2.Request], httpx2.Response]) -> None:
-        def _init(self, *args, **kwargs):  # noqa: ANN001, ANN002, ANN003
+        def _init(self, *args, **kwargs):
             kwargs["http_client"] = httpx2.AsyncClient(transport=httpx2.MockTransport(server))
             original_init(self, *args, **kwargs)
 
@@ -267,7 +267,7 @@ async def test_models_and_embeddings_are_listed_and_measured(sdk_transport):
 class _StalledStream(httpx2.AsyncByteStream):
     """Sends response headers, then times out while the body is read."""
 
-    async def __aiter__(self):  # noqa: ANN204
+    async def __aiter__(self):
         raise httpx2.ReadTimeout("stalled")
         yield b""  # pragma: no cover
 

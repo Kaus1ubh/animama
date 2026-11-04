@@ -29,7 +29,7 @@ class FakeStarters:
     def __init__(self) -> None:
         self.owners: list[str] = []
 
-    async def ensure(self, *, user_id: str, request):  # noqa: ANN001
+    async def ensure(self, *, user_id: str, request):
         self.owners.append(user_id)
         return {
             "complete": True,
@@ -40,7 +40,7 @@ class FakeStarters:
         }
 
 
-def _service(session, starters: FakeStarters) -> OwnerBootstrapService:  # noqa: ANN001
+def _service(session, starters: FakeStarters) -> OwnerBootstrapService:
     return OwnerBootstrapService(
         profiles=SQLAlchemyOwnerProfileBootstrapAdapter(SQLAlchemyUserProfileRepository(session)),
         user_settings=SQLAlchemyUserSettingsRepository(session),

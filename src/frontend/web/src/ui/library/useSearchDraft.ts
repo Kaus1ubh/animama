@@ -1,5 +1,3 @@
-"use client";
-
 import { useEffect, useRef, useState } from "react";
 
 const SEARCH_DEBOUNCE_MS = 300;

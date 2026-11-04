@@ -1,5 +1,3 @@
-"use client";
-
 import {
   ClapperboardIcon,
   Code2Icon,

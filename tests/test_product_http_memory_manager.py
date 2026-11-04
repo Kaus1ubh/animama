@@ -144,7 +144,7 @@ async def test_owners_reach_only_their_own_runs_and_approvals(
 class _AdmittingPorts(DeferredCommitPorts):
     """A composition whose admission refuses Memory Manager work for now."""
 
-    async def memory_manager(self, session, principal):  # noqa: ANN001, ANN201
+    async def memory_manager(self, session, principal):
         raise ProductRefusal(429, "memory_manager_busy")
 
 

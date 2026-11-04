@@ -45,6 +45,4 @@ unmeasured speed claim.
 Use the relevant subsystem guides and `make help` to select checks. Record
 inherited failures and unrun native/audio journeys explicitly. A green lint or
 scanner result does not replace behavior verification or establish licensing
-permission. The working checkout stays proprietary until a separately reviewed
-source candidate satisfies publication requirements; see
-[repository boundaries](repository-boundaries.md).
+permission; see [repository boundaries](repository-boundaries.md).

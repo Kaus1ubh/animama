@@ -29,7 +29,7 @@ from tests.test_pocket_voice_content import source_audio, voice_catalog
 
 
 @asynccontextmanager
-async def voice_package(session, tmp_path: Path):  # noqa: ANN001, ANN201
+async def voice_package(session, tmp_path: Path):
     """Use real saved clone files, creation bindings, source capture and archives."""
     async with anima_creation_fixture(session, tmp_path) as fixture:
         clone = await saved_clone(fixture, session)
@@ -62,7 +62,7 @@ async def voice_package(session, tmp_path: Path):  # noqa: ANN001, ANN201
             await session.commit()
 
 
-async def prepare(packages, owner: str, anima_id: str):  # noqa: ANN001, ANN201
+async def prepare(packages, owner: str, anima_id: str):
     summary = await packages.summarize(user_id=owner, anima_id=anima_id)
     review = await packages.prepare_export(user_id=owner, anima_id=anima_id, expected_digest=summary.digest)
     cached = await packages.get_export(user_id=owner, export_id=review.export_id)

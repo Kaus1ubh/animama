@@ -733,7 +733,7 @@ def test_model_provider_orm_metadata_is_registered() -> None:
     assert table.c.regional_processing_uplift_factor.nullable
 
 
-async def _apply_seed_sql(session) -> None:  # noqa: ANN001
+async def _apply_seed_sql(session) -> None:
     connection = await session.connection()
     raw = await connection.get_raw_connection()
     await raw.driver_connection.execute(SEED_SQL_PATH.read_text(encoding="utf-8"))

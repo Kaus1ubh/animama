@@ -637,7 +637,7 @@ class ContentSaveService:
         check_clip_effect_overrides(clip, effects, code="action_effect_override_invalid")
 
 
-def _read_json(stream: BinaryIO) -> Any:  # noqa: ANN401
+def _read_json(stream: BinaryIO) -> Any:
     """Parse a JSON companion from its current position; ``None`` when it is not JSON."""
     try:
         return json.loads(stream.read())

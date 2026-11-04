@@ -168,7 +168,7 @@ class AvatarEffectMergeTransitionService:
             )
 
 
-def _file(source: CatalogContentEntry, matches: Any) -> CatalogContentFile:  # noqa: ANN401
+def _file(source: CatalogContentEntry, matches: Any) -> CatalogContentFile:
     found = [
         file
         for file in source.files

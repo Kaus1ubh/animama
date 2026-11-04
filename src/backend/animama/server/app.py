@@ -181,7 +181,8 @@ def create_local_app(
         try:
             configure_logging()
         except Exception:
-            pass
+            # Serving continues with the default handlers; say why file logs are missing.
+            logger.warning("Logging configuration failed; using default handlers", exc_info=True)
 
     @application.on_event("startup")
     async def warn_companion_safety_overrides() -> None:
@@ -195,6 +196,7 @@ def create_local_app(
 
             await init_model_client_registry(application)
         except Exception:
+            logger.warning("Model client registry failed to start; model calls are unavailable", exc_info=True)
             application.state.model_client_registry = None
 
     @application.on_event("shutdown")
@@ -204,17 +206,7 @@ def create_local_app(
 
             await close_model_client_registry(application)
         except Exception:
-            pass
-
-    @application.on_event("startup")
-    async def init_voice_providers() -> None:  # pragma: no cover - simple IO
-        if os.getenv("ANIMAMA_ENABLE_VOICE"):
-            try:
-                from animama.server.voice_providers import ensure_voice_providers
-
-                await ensure_voice_providers()
-            except Exception:
-                pass
+            logger.warning("Model client registry did not close cleanly", exc_info=True)
 
     lifecycle = install_local_http(
         application,

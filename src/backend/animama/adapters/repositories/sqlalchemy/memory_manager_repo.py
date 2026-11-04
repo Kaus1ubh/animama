@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from datetime import datetime
 from typing import Any
 
 from sqlalchemy import RowMapping, SQLColumnExpression, func, select
@@ -30,6 +29,7 @@ from animama.orm.memory_manager import (
     ORMMemoryManagerMessage,
     ORMMemoryManagerRun,
 )
+from animama.utils.clock import naive_utc_now
 
 _MEMORY_MANAGER_CONFLICT_CONSTRAINTS = frozenset(
     {"uq_memory_manager_runs_user_open", "uq_memory_manager_runs_user_open_automatic"}
@@ -374,7 +374,7 @@ class SQLAlchemyMemoryManagerRepository(MemoryManagerRepository):
             role=message.role,
             content=message.content,
             metadata_=dict(message.metadata or {}),
-            created_at=message.created_at or datetime.utcnow(),
+            created_at=message.created_at or naive_utc_now(),
         )
         self._s.add(obj)
         await self._s.flush()

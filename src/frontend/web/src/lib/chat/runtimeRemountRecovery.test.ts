@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { runtimeRemountRecovery } from "./runtimeRemountRecovery";
+import { runtimeRemountRecovery } from "@animama/product-ui/chat";
 
 describe("runtimeRemountRecovery", () => {
   it("preserves text and never retries against a different revision", () => {

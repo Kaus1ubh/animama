@@ -53,7 +53,7 @@ def _form(definition_patch: dict[str, Any], *, operation_id: str) -> tuple[dict[
 
 
 @pytest.fixture
-async def effect_api(async_session, tmp_path: Path) -> AsyncIterator[tuple[Any, Path]]:  # noqa: ANN001
+async def effect_api(async_session, tmp_path: Path) -> AsyncIterator[tuple[Any, Path]]:
     paths, *_ = package_services(async_session, tmp_path)
     application = FastAPI()
     application.include_router(content.router)

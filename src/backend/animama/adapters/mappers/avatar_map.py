@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from animama.app.contracts.avatar import PyAvatarCreate, PyAvatarResponse
+from animama.app.contracts.avatar import PyAvatarResponse
 from animama.domain.avatar import Avatar
 from animama.orm.avatar import ORMAvatar
 
@@ -68,24 +68,8 @@ def avatar_domain_to_schema(avatar: Avatar) -> PyAvatarResponse:
     )
 
 
-def avatar_schema_to_domain(schema: PyAvatarCreate) -> Avatar:
-    """Convert create schema to Avatar domain object."""
-    return Avatar(
-        id=schema.id,
-        name=schema.name,
-        file_path=schema.file_path,
-        identity=schema.identity,
-        user_id=schema.user_id,
-        model_type=schema.model_type,
-        animation_profile=schema.animation_profile,
-        private=schema.private,
-        catalog_item_id=None,
-    )
-
-
 __all__ = [
     "avatar_domain_to_orm",
     "avatar_orm_to_domain",
     "avatar_domain_to_schema",
-    "avatar_schema_to_domain",
 ]

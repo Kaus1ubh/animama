@@ -106,7 +106,7 @@ class _AllowAnimaRepository:
         return self.anima
 
 
-def _memory_service(async_session, *, animas: _AllowAnimaRepository | None = None) -> MemoryEntryService:  # noqa: ANN001
+def _memory_service(async_session, *, animas: _AllowAnimaRepository | None = None) -> MemoryEntryService:
     return MemoryEntryService(
         memory_entries=SQLAlchemyMemoryEntryRepository(async_session),
         uow=SQLAlchemyUnitOfWork(async_session),
@@ -123,7 +123,7 @@ class _FakeEmbedder:
 
 
 def _tool_service(
-    async_session,  # noqa: ANN001
+    async_session,
     *,
     include_user_files: bool = False,
     include_embedder: bool = False,
@@ -137,7 +137,7 @@ def _tool_service(
     )
 
 
-def _native_tool_service(async_session) -> DirectChatMemoryToolService:  # noqa: ANN001
+def _native_tool_service(async_session) -> DirectChatMemoryToolService:
     memory_entries = _memory_service(async_session)
     return DirectChatMemoryToolService(
         memory_entries=memory_entries,
@@ -146,7 +146,7 @@ def _native_tool_service(async_session) -> DirectChatMemoryToolService:  # noqa:
 
 
 async def _put_user_file(
-    async_session,  # noqa: ANN001
+    async_session,
     relative_path: str,
     content: str,
     *,
@@ -173,7 +173,7 @@ def _now() -> datetime:
 
 
 async def _insert_uploaded_file_chunk(
-    async_session,  # noqa: ANN001
+    async_session,
     *,
     file_id: str,
     text: str | list[str],
@@ -634,7 +634,7 @@ async def test_memory_search_can_exclude_episodes_before_result_limit(async_sess
     }
 
 
-async def _search_memory_results(async_session, query: str) -> list[dict[str, Any]]:  # noqa: ANN001
+async def _search_memory_results(async_session, query: str) -> list[dict[str, Any]]:
     search = _loads(
         await _tool_service(async_session).execute(
             tool_name=MEMORY_TOOL_SEARCH_MEMORY_FILES,
@@ -647,11 +647,11 @@ async def _search_memory_results(async_session, query: str) -> list[dict[str, An
     return cast(list[dict[str, Any]], search["memory_results"])
 
 
-async def _search_memory_paths(async_session, query: str) -> list[str]:  # noqa: ANN001
+async def _search_memory_paths(async_session, query: str) -> list[str]:
     return [result["path"] for result in await _search_memory_results(async_session, query)]
 
 
-async def _put_episode_log(async_session, relative_path: str, text: str) -> None:  # noqa: ANN001
+async def _put_episode_log(async_session, relative_path: str, text: str) -> None:
     await _put_user_file(
         async_session,
         relative_path,
@@ -2038,7 +2038,7 @@ async def test_native_apply_patch_rejects_stale_planned_version_without_mutation
     delegate = AgentsSDKV4AMemoryPatchPlanner(memory_entries=memory_entries)
 
     class _StalePlanner:
-        async def plan_v4a_operation(self, **kwargs):  # noqa: ANN003
+        async def plan_v4a_operation(self, **kwargs):
             candidate = await delegate.plan_v4a_operation(**kwargs)
             assert candidate.target_entry_id is not None
             await memory_entries.patch_entry(
@@ -2081,7 +2081,7 @@ _SELF_MEMORIES = "[self]/MEMORIES.md"
 _MEMORIES_BODY = "# Memories\n\n## Our story\nWe met at the lake.\n"
 
 
-def _anima_tool_service(async_session) -> DirectChatMemoryToolService:  # noqa: ANN001
+def _anima_tool_service(async_session) -> DirectChatMemoryToolService:
     memory_entries = _memory_service(async_session, animas=_AllowAnimaRepository())
     return DirectChatMemoryToolService(
         memory_entries=memory_entries,
@@ -2099,7 +2099,7 @@ def _anima_context(
     return replace(_native_context() if native else _context(), anima_memories=turn), turn
 
 
-async def _put_anima_memories(async_session, content: str, *, anima_id: str = "anima-1") -> None:  # noqa: ANN001
+async def _put_anima_memories(async_session, content: str, *, anima_id: str = "anima-1") -> None:
     await _memory_service(async_session, animas=_AllowAnimaRepository()).put_file_by_path(
         user_id="user-1",
         anima_id=anima_id,
@@ -2111,7 +2111,7 @@ async def _put_anima_memories(async_session, content: str, *, anima_id: str = "a
     )
 
 
-async def _anima_memories(async_session, *, anima_id: str = "anima-1") -> ORMMemoryEntry:  # noqa: ANN001
+async def _anima_memories(async_session, *, anima_id: str = "anima-1") -> ORMMemoryEntry:
     stored: ORMMemoryEntry | None = await async_session.scalar(
         select(ORMMemoryEntry).where(
             ORMMemoryEntry.user_id == "user-1",

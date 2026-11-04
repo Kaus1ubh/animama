@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   convertPcm16ToFloat32,
   decodeBase64Pcm16,
-} from "@/hooks/use-finalized-tts-runtime";
+} from "@/hooks/useFinalizedTtsRuntime";
 
 describe("finalized TTS runtime helpers", () => {
   it("decodes base64 PCM into Int16 samples", () => {

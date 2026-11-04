@@ -1,4 +1,4 @@
-name: Bounded task or sub-issue
+name: "Maintainer: bounded task or sub-issue"
 description: A plan phase, implementation assignment, maintenance task or routine improvement.
 body:
   - type: markdown

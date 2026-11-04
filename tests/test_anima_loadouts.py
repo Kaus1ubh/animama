@@ -13,7 +13,7 @@ from tests.typed_loadout_support import (
 
 
 @pytest.mark.asyncio
-async def test_gesture_plan_commit_is_typed_revisioned_and_idempotent(async_session) -> None:  # noqa: ANN001
+async def test_gesture_plan_commit_is_typed_revisioned_and_idempotent(async_session) -> None:
     fixture = await create_loadout_fixture(async_session)
     gesture = await add_typed_item(
         async_session,
@@ -78,7 +78,7 @@ async def test_gesture_plan_commit_is_typed_revisioned_and_idempotent(async_sess
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("with_hint", [False, True])
-async def test_reaction_can_be_assigned_to_any_loadout_cell(async_session, with_hint: bool) -> None:  # noqa: ANN001
+async def test_reaction_can_be_assigned_to_any_loadout_cell(async_session, with_hint: bool) -> None:
     fixture = await create_loadout_fixture(async_session)
     reaction = await add_typed_item(
         async_session,
@@ -142,7 +142,7 @@ async def test_reaction_can_be_assigned_to_any_loadout_cell(async_session, with_
 
 
 @pytest.mark.asyncio
-async def test_gesture_using_an_unconverted_avatar_effect_is_refused(async_session) -> None:  # noqa: ANN001
+async def test_gesture_using_an_unconverted_avatar_effect_is_refused(async_session) -> None:
     from animama.orm.content_catalog import ORMContentCatalogDependency
 
     fixture = await create_loadout_fixture(async_session)
@@ -195,7 +195,7 @@ async def test_gesture_using_an_unconverted_avatar_effect_is_refused(async_sessi
 
 
 @pytest.mark.asyncio
-async def test_a_source_with_a_retired_dependency_is_refused_by_its_own_code(async_session) -> None:  # noqa: ANN001
+async def test_a_source_with_a_retired_dependency_is_refused_by_its_own_code(async_session) -> None:
     """The retired-dependency check is not folded into the generic invalid-source error."""
 
     fixture = await create_loadout_fixture(async_session)

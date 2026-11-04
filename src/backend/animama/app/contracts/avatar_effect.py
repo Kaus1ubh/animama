@@ -69,7 +69,6 @@ Scale = Annotated[float, Field(gt=0, le=MAX_SCALE)]
 Degrees = Annotated[float, Field(ge=-MAX_ROTATION_DEGREES, le=MAX_ROTATION_DEGREES)]
 UvOffset = Annotated[float, Field(ge=-2, le=2)]
 Meters = Annotated[float, Field(ge=-5, le=5)]
-Fraction = Annotated[float, Field(ge=-5, le=5)]
 
 
 class _Strict(BaseModel):
@@ -90,14 +89,6 @@ class AvatarEffectVector2(_Strict):
 
     x: float = Field(default=0, ge=-10, le=10)
     y: float = Field(default=0, ge=-10, le=10)
-
-
-class AvatarEffectVector3(_Strict):
-    """A 3D value; units depend on the attachment that owns it."""
-
-    x: float = Field(default=0, ge=-10, le=10)
-    y: float = Field(default=0, ge=-10, le=10)
-    z: float = Field(default=0, ge=-10, le=10)
 
 
 class AvatarEffectUvOffset(_Strict):
@@ -433,7 +424,7 @@ class AvatarEffectEventOverride(_Strict):
 
     @model_validator(mode="before")
     @classmethod
-    def _refuse_null_parts(cls, data: Any) -> Any:  # noqa: ANN401
+    def _refuse_null_parts(cls, data: Any) -> Any:
         if isinstance(data, dict):
             for key, value in data.items():
                 if value is None:

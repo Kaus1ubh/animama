@@ -7,9 +7,9 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 
-from ...domain.anima import Anima
-from ...logging import get_logger
-from ..ports import AnimaRepository, UnitOfWork
+from animama.app.ports import AnimaRepository, UnitOfWork
+from animama.domain.anima import Anima
+from animama.logging import get_logger
 
 
 class AnimaService:

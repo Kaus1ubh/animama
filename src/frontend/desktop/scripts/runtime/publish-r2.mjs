@@ -6,6 +6,7 @@ import {
   IMMUTABLE,
   keyPath,
   publicGet,
+  r2Exists,
   r2Writer,
   verifyPublicObject,
 } from "./r2-objects.mjs";
@@ -22,11 +23,17 @@ function compareVersions(left, right) {
   return 0;
 }
 
+/**
+ * `url` with a one-off query. The edge caches by full URL, so this read
+ * bypasses any cached copy of `url`, and a 404 it caches never reaches `url`.
+ */
+const uncached = (url) => `${url}?noCache=${randomBytes(6).toString("hex")}`;
+
 /** The public stable feed's bytes, bypassing caches, or null before the first release. */
 async function fetchFeed(fetchImpl, distribution, feed) {
   const response = await publicGet(
     fetchImpl,
-    `${distribution.base_url}/${feed}?noCache=${randomBytes(6).toString("hex")}`,
+    uncached(`${distribution.base_url}/${feed}`),
   );
   if (response.status === 404) return null;
   if (!response.ok)
@@ -76,12 +83,13 @@ export async function preflightR2({
 }
 
 /**
- * Publish to R2: create-only uploads into `<base>/v<version>/`, anonymous
- * verification of every object, and, for stable promotion only, the target's
- * root feed written last. Nothing is overwritten except that feed, so an
- * interrupted run leaves the previous stable release in place and resumes
- * with byte-identical objects. `shared` names files the other target may
- * already have published; they must match byte for byte before any upload.
+ * Publish to R2: create-only uploads into `<base>/v<version>/` of the objects
+ * the bucket does not already hold, anonymous verification of every object,
+ * and, for stable promotion only, the target's root feed written last. Nothing
+ * is overwritten except that feed, so an interrupted run leaves the previous
+ * stable release in place and resumes with byte-identical objects. `shared`
+ * names files the other target may already have published; they must match
+ * byte for byte before any upload.
  */
 export async function publishR2({
   distribution,
@@ -100,9 +108,10 @@ export async function publishR2({
   const prefix = base.pathname.slice(1);
   const versionKey = (name) => `${prefix}/v${version}/${name}`;
   for (const file of files.filter((item) => shared.includes(item.name))) {
+    // Never the exact URL: a 404 cached there would stall its verification.
     const response = await publicGet(
       fetchImpl,
-      `${base.origin}/${keyPath(versionKey(file.name))}`,
+      uncached(`${base.origin}/${keyPath(versionKey(file.name))}`),
     );
     if (response.status === 404) continue;
     if (!response.ok)
@@ -116,6 +125,7 @@ export async function publishR2({
       );
   }
   const put = r2Writer({ bucket, credentials, fetch: fetchImpl });
+  const exists = r2Exists({ bucket, credentials, fetch: fetchImpl });
   const verify = (key, sha256) =>
     verifyPublicObject({
       url: `${base.origin}/${keyPath(key)}`,
@@ -126,7 +136,16 @@ export async function publishR2({
       retryDelayMs,
     });
 
+  // The bucket decides what a rerun still uploads: the version folder's lock
+  // rule rejects any write to an existing object, even a create-only one. An
+  // existing object must match before anything is uploaded, since an upload
+  // into the locked folder can never be withdrawn.
+  const missing = [];
   for (const file of files)
+    if (await exists(versionKey(file.name)))
+      await verify(versionKey(file.name), file.sha256);
+    else missing.push(file);
+  for (const file of missing)
     await put(
       versionKey(file.name),
       path.join(directory, file.name),
@@ -136,7 +155,7 @@ export async function publishR2({
         cacheControl: IMMUTABLE,
       },
     );
-  for (const file of files) await verify(versionKey(file.name), file.sha256);
+  for (const file of missing) await verify(versionKey(file.name), file.sha256);
   if (preview) return;
 
   // Stable: recheck the feed, then replace it last so installed apps only ever

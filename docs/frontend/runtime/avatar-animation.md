@@ -92,7 +92,7 @@ The avatar runtime is split into four layers:
 4. **Chat/SSE integration layer**  
    Files:
    - `src/frontend/web/src/ui/main/chat/useChatSession.ts`
-   - `src/frontend/web/src/query/mutations/useChatSse.ts`
+   - `src/frontend/packages/product-ui/src/query/mutations/useChatSse.ts`
    - `src/frontend/web/src/ui/main/chat/ChatInterface.tsx`  
      Converts chat lifecycle + SSE events into avatar store updates.
 
@@ -261,7 +261,9 @@ Important behavior:
 - Clips can define optional `fadeIn` and `fadeOut` playback envelopes. Fade-in
   blends from the current normalized avatar pose into the sampled clip, while
   fade-out blends sampled clip output back to the app default pose path
-  (`relaxedRest` today) before automatic playback resumes. Pose clip events are
+  (`relaxedRest` today) before automatic playback resumes. A bone position the
+  fade's target leaves out (usually the hips) fades to rest rather than holding
+  its offset, so a clip ends without a jump. Pose clip events are
   not newly dispatched during fade-out; active VFX events remain owned by the
   clip and clear when their event duration expires or when the clip fully
   stops.

@@ -478,6 +478,9 @@ the SDK's native global opt-out before starting the API:
 export OPENAI_AGENTS_DISABLE_TRACING=1
 ```
 
+The desktop supervisor always sets it for its runtime children, so desktop
+Memory Manager runs send no traces.
+
 Organizations operating under OpenAI Zero Data Retention must keep tracing
 disabled because the Agents SDK tracing service is unavailable under ZDR.
 
@@ -692,9 +695,9 @@ is not owner acceptance of the coverage or budget tradeoff.
 The selector owns the exact allowlists. Backend production eligibility initially
 contains only `src/backend/animama/app/services/memory_entry_diff.py`; ordinary
 root-level `tests/test_*.py` files exclude shared guards and fixture/helper code.
-Web eligibility is confined to eight existing presentation controls under
-`web/src/ui/components`: `button`, `card`, `checkbox`, `input`, `label`, `textarea`,
-`radio-group` and `switch` (all `.tsx`). Other UI paths contain runtime, settings,
+Web eligibility is confined to seven existing presentation controls under
+`web/src/ui/components`: `button`, `card`, `checkbox`, `input`, `label`, `textarea`
+and `switch` (all `.tsx`). Other UI paths contain runtime, settings,
 persistence and avatar logic and remain full scope. Directory location alone is
 not permission to reduce checks. Changed imports or unsupported dependency syntax
 automatically select full validation. This does not prove functional purity;
@@ -1042,7 +1045,7 @@ API's re-embedding adds its vectors once the connection works.
 ## Docker Compose
 
 `docker-compose.yml` supplies the built application and private PostgreSQL, with
-optional voice/profile services and local administration tools. The development
+optional local administration tools (the `dev-tools` profile). The development
 override adds Vite/HMR and keeps FastAPI private. HMR covers the web app's own
 source only: the `web` service builds the workspace packages, including the
 generated API client, once at start. After changing a package or running
@@ -1101,10 +1104,10 @@ To disable all optional profiles explicitly on the main stack:
 COMPOSE_PROFILES= ./reset.sh
 ```
 
-If other profiles should remain, remove only `dev-tools`, for example
-`COMPOSE_PROFILES=voice ./reset.sh`. Omitting the CLI flag alone does not disable
-an inherited or `.env` profile. Also remove the persisted selection if future
-fresh-shell starts should stay disabled. Reset stops this project's old tools
+If the selection also names other profiles, remove only `dev-tools` from it.
+Omitting the CLI flag alone does not disable an inherited or `.env` profile.
+Also remove the persisted selection if future fresh-shell starts should stay
+disabled. Reset stops this project's old tools
 even when their profile is no longer active, closes their host listeners, and
 preserves volumes, the principal, chats and files. Re-enabling restores
 pgAdmin's saved state. Neither direction requires `--purge`, nor changes the
@@ -1421,7 +1424,7 @@ Useful examples:
 ```bash
 ./reset.sh --name avatar --base-port 8200
 ./reset.sh --name runtime --base-port 8300 --build animama-server
-COMPOSE_PROFILES=memory ./reset.sh --name memory --base-port 8400
+./reset.sh --name tools --base-port 8400 --profile dev-tools
 ```
 
 Use project-scoped Docker commands after startup. Do not use bare
@@ -1761,7 +1764,6 @@ Voice:
   forwards it to `animama-server`, empty when unset; keep it in the owner-only
   credentials file selected through `COMPOSE_ENV_FILES`, never in a worktree
   `.env`. See [voice and speech](../integrations/voice-and-speech.md#gemini-tts))
-- `ANIMAMA_ENABLE_VOICE`
 - realtime TTS intermediary settings
 
 Check `server/config.py` for exact names and defaults before adding new

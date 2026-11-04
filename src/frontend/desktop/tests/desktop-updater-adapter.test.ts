@@ -35,6 +35,10 @@ const fixture = vi.hoisted(() => ({
     details: { url: string },
     callback: (value: { cancel: boolean }) => void,
   ) => void,
+  beforeSendHeaders: undefined as unknown as (
+    details: { url: string; requestHeaders: Record<string, string> },
+    callback: (value: { requestHeaders: Record<string, string> }) => void,
+  ) => void,
 }));
 vi.mock("electron", async () => {
   const { EventEmitter } = await import("node:events");
@@ -74,6 +78,9 @@ vi.mock("electron-updater", async () => {
         onBeforeRequest: (callback: typeof fixture.beforeRequest) => {
           fixture.beforeRequest = callback;
         },
+        onBeforeSendHeaders: (callback: typeof fixture.beforeSendHeaders) => {
+          fixture.beforeSendHeaders = callback;
+        },
         onHeadersReceived: vi.fn(),
       },
     };
@@ -103,10 +110,25 @@ const policy = {
   channel: "stable" as const,
   team_id: "TESTTEAM01",
 };
+const windowsPolicy = {
+  schema: "animama-update-policy/2" as const,
+  distribution: {
+    kind: "r2" as const,
+    base_url: "https://downloads.example.test/desktop",
+  },
+  channel: "stable" as const,
+  windows_publisher: {
+    certificate_subject: "CN=Example Publisher, O=Example Publisher, C=CA",
+    identity_validation_eku: "1.3.6.1.4.1.311.97.1.2.3.4",
+  },
+};
 let root: string;
 beforeEach(() => {
   vi.clearAllMocks();
   fixture.native.removeAllListeners();
+  // Each test sees only the session hooks its own adapter registers.
+  fixture.beforeRequest = undefined as never;
+  fixture.beforeSendHeaders = undefined as never;
   root = mkdtempSync(path.join(realpathSync(tmpdir()), "animama-updater-"));
   fixture.file = path.join(root, "update.zip");
   writeFileSync(fixture.file, "zip fixture");
@@ -279,18 +301,6 @@ describe("macOS updater adapter", () => {
 });
 
 describe("Windows updater adapter", () => {
-  const windowsPolicy = {
-    schema: "animama-update-policy/2" as const,
-    distribution: {
-      kind: "r2" as const,
-      base_url: "https://downloads.example.test/desktop",
-    },
-    channel: "stable" as const,
-    windows_publisher: {
-      certificate_subject: "CN=Example Publisher, O=Example Publisher, C=CA",
-      identity_validation_eku: "1.3.6.1.4.1.311.97.1.2.3.4",
-    },
-  };
   const signedBy = (subject: string, ekus: string) =>
     vi.mocked(runCommand).mockResolvedValue(`${subject}\r\n${ekus}`);
   const valid = () =>
@@ -425,4 +435,60 @@ describe("Windows updater adapter", () => {
       "updates_not_configured",
     );
   });
+});
+
+describe("update request headers", () => {
+  // What Electron 45 hands the updater session for electron-updater 6.8.11's
+  // requests. The feed check carries the random ID the library keeps for each
+  // installation in <userData>/.updaterId; Chromium adds the system language.
+  const added = {
+    "Sec-Fetch-Site": "none",
+    "Sec-Fetch-Mode": "no-cors",
+    "Sec-Fetch-Dest": "empty",
+    "Accept-Language": "ja",
+  };
+  const transport = {
+    "Accept-Encoding": "identity",
+    "User-Agent": "electron-builder",
+    "Cache-Control": "no-cache",
+  };
+  const send = (url: string, requestHeaders: Record<string, string>) => {
+    let sent: Record<string, string> | undefined;
+    fixture.beforeSendHeaders(
+      { url, requestHeaders },
+      (value) => (sent = value.requestHeaders),
+    );
+    return sent;
+  };
+
+  it.each([
+    [
+      "macOS",
+      () => createMacUpdateAdapter(policy, "0.1.0", vi.fn()),
+      "https://github.com/example/releases/releases/download/v0.2.0/latest-mac.yml",
+      "https://github.com/example/releases/releases/download/v0.2.0/Animama-0.2.0-arm64.zip",
+    ],
+    [
+      "Windows",
+      () => createWindowsUpdateAdapter(windowsPolicy, "0.1.0", vi.fn()),
+      "https://downloads.example.test/desktop/latest.yml",
+      "https://downloads.example.test/desktop/v0.2.0/Animama-0.2.0-x64-setup.exe",
+    ],
+  ])(
+    "carry no per-installation value or system language on %s",
+    (_platform, create, feed, download) => {
+      create();
+      for (const id of ["x-user-staging-id", "X-User-Staging-Id"])
+        expect(
+          send(feed, {
+            [id]: "06ef7693-dac9-5eb8-80bc-29e45fa749d6",
+            ...transport,
+            ...added,
+          }),
+        ).toEqual(transport);
+      expect(send(download, { accept: "*/*", ...transport, ...added })).toEqual(
+        { accept: "*/*", ...transport },
+      );
+    },
+  );
 });

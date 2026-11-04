@@ -59,9 +59,28 @@ number.
   moderation service for the check.
   [OpenAI says](https://developers.openai.com/api/docs/guides/your-data) it
   doesn't train on or keep these requests.
-- Animama reports crisis cards to no one. The desktop app has no telemetry;
-  Animama Cloud's telemetry and conversation traces are described in its
+- Animama reports crisis cards to no one. Animama Cloud's telemetry and
+  conversation traces are described in its
   [Privacy Notice](https://animama.ai/privacy/).
+- The desktop app sends no usage data, crash reports or diagnostic traces. It
+  connects to other services only for the following, and each connection
+  reveals your IP address:
+  - Update checks to downloads.animama.ai, about 15 seconds after the app
+    finishes starting and when you choose Check for updates. A check also
+    shows whether you use macOS or Windows, but nothing that identifies your
+    installation.
+  - Downloads from downloads.animama.ai of what you choose to use: an update,
+    a feature pack, a speech model or a voice.
+  - On Windows, a spell-check dictionary for your system language, which the
+    app downloads from Google the first time it needs one.
+  - A voice's sample from huggingface.co when you play it. This request also
+    shows the app's version, your system language, whether you use macOS or
+    Windows, and your installation's local port number. That number doesn't
+    change, so huggingface.co could tell which plays came from the same
+    installation.
+  - Requests to the model, voice and web search services you set up, carrying
+    what each needs, such as your messages and the Anima's memories. Each
+    service handles them under its own terms.
 - Chats are saved as usual. Animas are instructed not to save details of a
   suicide or self-harm crisis to memory unless you ask them to.
 - For safety, Animama stores only when the AI notice was last shown, your age
@@ -74,4 +93,4 @@ card, and may log message previews. The desktop app always uses the defaults.
 ## Contact
 
 To report a safety concern or a problem with this protocol, email
-ray@animama.ai. Last updated 2026-11-01.
+ray@animama.ai. Last updated 2026-11-03.

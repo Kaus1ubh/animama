@@ -26,7 +26,7 @@ class FakeOwnerBootstrap(OwnerBootstrapService):
         self._calls = calls
         self._result = result or OwnerBootstrapResult()
 
-    async def ensure(self, *, owner_id: str, policy):  # noqa: ANN001
+    async def ensure(self, *, owner_id: str, policy):
         assert policy.profile_template_version == "2"
         self._calls.append(owner_id)
         return self._result
@@ -36,7 +36,7 @@ class RecoveringOwnerBootstrap(OwnerBootstrapService):
     def __init__(self) -> None:
         self.calls = 0
 
-    async def ensure(self, *, owner_id: str, policy):  # noqa: ANN001
+    async def ensure(self, *, owner_id: str, policy):
         del owner_id, policy
         self.calls += 1
         if self.calls == 1:
@@ -44,7 +44,7 @@ class RecoveringOwnerBootstrap(OwnerBootstrapService):
         return OwnerBootstrapResult()
 
 
-async def _replace_principal(session_factory, principal_id: str | None) -> None:  # noqa: ANN001
+async def _replace_principal(session_factory, principal_id: str | None) -> None:
     async with session_factory() as session:
         await session.execute(delete(ORMInstallationSettings))
         if principal_id is not None:

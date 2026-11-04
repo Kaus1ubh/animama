@@ -15,8 +15,7 @@ from animama.orm import ORMAnima
 from animama.server.deps import get_async_session, get_current_principal
 from animama.server.embeddings import role_embedder
 from animama.server.model_roles import ModelRoleSettings, get_model_role_settings
-
-from ..schemas import (
+from animama.server.schemas import (
     PyArchive,
     PyArchivePassageCreate,
     PyArchivePassageResponse,
