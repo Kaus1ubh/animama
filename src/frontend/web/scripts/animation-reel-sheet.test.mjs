@@ -105,10 +105,10 @@ test("parses a cue sheet's takes and rejects invalid ones", () => {
     [{ takes: [] }, /no takes/],
     [{ takes: [{ cues: [] }], fps: 30 }, /no other fields/],
     [{ cues: [] }, /at least one cue or speech/],
-    [{ cues: [{ wave: "a" }] }, /"reaction", "face" or "mood"/],
+    [{ cues: [{ wave: "a" }] }, /"reaction", "vrma", "face" or "mood"/],
     [
       { cues: [{ gesture: "a", reaction: "b" }] },
-      /"reaction", "face" or "mood"/,
+      /"reaction", "vrma", "face" or "mood"/,
     ],
     [{ cues: [{ reaction: "a", from: 1 }] }, /unknown field "from"/],
     [{ cues: [{ reaction: "a", enter: 1 }] }, /unknown field "enter"/],
@@ -472,6 +472,56 @@ test("rejects a cue stopped before it starts and a missing Avatar file", async (
       await resolveAvatarFile("annie", dir, "--avatar"),
       /avatars\/Annie\.vrm$/,
     );
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("lists a VRMA cue with its file, start, speed and fade", async () => {
+  const dir = await mkdtemp(path.join(tmpdir(), "animama-sheet-"));
+  try {
+    await writeFile(path.join(dir, "cheer.vrma"), "glTF");
+    const sheet = path.join(dir, "takes.json");
+    await writeFile(
+      sheet,
+      JSON.stringify({
+        duration: 4,
+        cues: [
+          { vrma: "cheer.vrma", at: 0.5, from: 0.45, speed: 0.95, enter: 0 },
+          { face: { happy: 0.3 }, at: 0, until: 4 },
+        ],
+      }),
+    );
+    const [item] = await listSheetItems(sheet);
+    assert.equal(item.cues.length, 1);
+    const [cue] = item.cues;
+    assert.equal(cue.kind, "vrma");
+    assert.equal(cue.at, 0.5);
+    assert.equal(cue.from, 0.45);
+    assert.equal(cue.speed, 0.95);
+    assert.equal(cue.enter, 0);
+    assert.equal(cue.until, null);
+    assert.equal(path.basename(cue.file), "cheer.vrma");
+    assert.equal(item.description, "cheer");
+
+    const bad = (cue) => parseCueSheet({ cues: [cue] }, { dir, name: "s" });
+    assert.throws(
+      () => bad({ vrma: "cheer.glb" }),
+      /vrma must name a \.vrma file/,
+    );
+    assert.throws(
+      () => bad({ vrma: "cheer.vrma", speed: 0 }),
+      /speed must be more than 0/,
+    );
+    assert.throws(
+      () => bad({ vrma: "cheer.vrma", beat: "x" }),
+      /unknown field "beat"/,
+    );
+    await writeFile(
+      sheet,
+      JSON.stringify({ cues: [{ vrma: "missing.vrma" }] }),
+    );
+    await assert.rejects(listSheetItems(sheet), /cannot read the VRMA file/);
   } finally {
     await rm(dir, { recursive: true, force: true });
   }

@@ -86,9 +86,11 @@ type ReelSoundInfo = { name: string; duration: number };
 type ReelCue = {
   /**
    * `gesture` plays on the Avatar's clip player (chat's Gestures, and every
-   * single-item reel); `reaction` on its reaction layer, beside a Gesture.
+   * single-item reel); `reaction` on its reaction layer, beside a Gesture;
+   * `vrma` a VRM Animation file on the Avatar's animation mixer, as the app
+   * plays a VRMA Gesture.
    */
-  kind: "gesture" | "reaction";
+  kind: "gesture" | "reaction" | "vrma";
   /** Names the cue in errors, such as its source. */
   id: string;
   at: number;
@@ -98,7 +100,11 @@ type ReelCue = {
   enter: number | null;
   /** Take time the clip is stopped (with its fade), or null for the default. */
   until: number | null;
-  clip: unknown;
+  /** The Anima Pose Clip of a Gesture or Reaction (none for a VRMA cue). */
+  clip?: unknown;
+  /** A VRMA cue's file URL and playback speed. */
+  url?: string;
+  speed?: number;
 };
 
 /** Expression weights added over the face from `at` to `until`. */
@@ -396,9 +402,10 @@ let item: {
   /** Lens shift of a landing page framing, as shares of the frame. */
   offset: { shift: number; lift: number } | null;
   cues: CueState[];
-  /** The Gesture and Reaction cues playing, which their stops apply to. */
+  /** The Gesture, Reaction and VRMA cues playing, which their stops apply to. */
   gesture: CueState | null;
   reaction: CueState | null;
+  vrma: CueState | null;
   speech: ReelSpeech | null;
   /** The mood cues' feelings, in cue order. */
   moods: { at: number; until: number; feelings: EmotionRuntimeState }[];
@@ -486,6 +493,8 @@ function cueStopAt(
   speechEnd: number,
 ): number | null {
   if (cue.until !== null) return cue.until;
+  // A VRMA cue plays once and ends by itself.
+  if (cue.kind === "vrma") return null;
   const clip = parseAnimaPoseClip(cue.clip);
   const after = stopAfter(clip, talk);
   if (after === null) return null;
@@ -559,6 +568,13 @@ function landingView(avatar: Avatar, view: StageCamera) {
 
 /** The expression overlay owner face cues use. */
 const FACE_OVERLAY_OWNER = "reel-face";
+/** A VRMA cue's default fade-in (s), as the app's Gesture preview plays one. */
+const VRMA_ENTER_SEC = 0.25;
+
+/** A VRMA cue's absolute URL (the motion catalog admits URLs with a scheme). */
+const vrmaUrl = (cue: ReelCue) => new URL(cue.url!, location.href).href;
+/** A VRMA cue's clip name on the mixer. */
+const vrmaName = (cue: ReelCue) => `reel-vrma:${cue.id}`;
 
 /** The face cues' summed weights at take time `time`. */
 function faceWeights(
@@ -642,6 +658,12 @@ async function openReelItem(request: ReelItemRequest): Promise<void> {
     current.label.element.hidden = !request.label;
     // Event sinks and effect loads, before any cue plays.
     await session.apply({ effects: [] });
+    // VRMA files are decoded before the first frame, so each starts on time.
+    for (const { cue } of cues)
+      if (cue.kind === "vrma")
+        await session.avatar.loadAnimationClip(vrmaUrl(cue), {
+          clipName: vrmaName(cue),
+        });
     const { framing, offset } = cameraView(
       session.avatar,
       request.camera,
@@ -655,6 +677,7 @@ async function openReelItem(request: ReelItemRequest): Promise<void> {
       cues,
       gesture: null,
       reaction: null,
+      vrma: null,
       speech,
       moods,
       faceShown: false,
@@ -712,16 +735,34 @@ function frameHook(open: NonNullable<typeof item>, time: number) {
     if (state.cue.kind === "gesture") {
       session.playGesture(state.cue.clip, state.cue.from, state.cue.enter);
       open.gesture = state;
+    } else if (state.cue.kind === "vrma") {
+      // Decoded already, so it starts within this frame's update.
+      const { cue } = state;
+      void session.avatar
+        .playAnimationWithName(vrmaUrl(cue), vrmaName(cue), {
+          loopType: "once",
+          loopCount: 1,
+          timeScale: cue.speed ?? 1,
+          keepExisting: false,
+          fadeDuration: cue.enter ?? VRMA_ENTER_SEC,
+          startTimeSec: cue.from,
+        })
+        .catch((error: unknown) =>
+          open.warnings.add(`${cue.id} did not play: ${String(error)}`),
+        );
+      open.vrma = state;
     } else {
       session.playReaction(state.cue.clip, state.cue.id);
       open.reaction = state;
     }
   }
-  for (const state of [open.gesture, open.reaction]) {
+  for (const state of [open.gesture, open.reaction, open.vrma]) {
     if (!state || state.stopped || state.stopAt === null) continue;
     if (state.stopAt > due) continue;
     state.stopped = true;
     if (state.cue.kind === "gesture") session.avatar.stopClip();
+    else if (state.cue.kind === "vrma")
+      session.avatar.stopAnimation(vrmaName(state.cue));
     else session.stopReaction();
   }
   const controller = session.avatar.expressionController;

@@ -1057,9 +1057,14 @@ export async function recordReel({
         ...(
           await Promise.all(medias.map((media) => sourceRoots([], media)))
         ).flat(),
-        // Vite allows single files, so only the Avatar files themselves are served.
+        // Vite allows single files, so only the Avatar and VRMA files themselves are served.
         ...[defaultAvatar, ...items.map((item) => item.avatarFile)].filter(
           Boolean,
+        ),
+        ...items.flatMap((item) =>
+          (item.cues ?? [])
+            .filter((cue) => cue.kind === "vrma")
+            .map((cue) => cue.file),
         ),
       ]),
     ];
@@ -1160,7 +1165,10 @@ export async function recordReel({
                 avatar: { id: avatarId(file), url: fsUrl(file) },
                 size,
                 camera: item.camera ?? camera,
-                cues: itemCues(item, lead),
+                // A VRMA cue's file is served to the page by URL.
+                cues: itemCues(item, lead).map(({ file, ...cue }) =>
+                  cue.kind === "vrma" ? { ...cue, url: fsUrl(file) } : cue,
+                ),
                 faces: item.faces ?? [],
                 moods: item.moods ?? [],
                 clipMedia: await pageClipMedia(media, { fsUrl, imageUrl }),

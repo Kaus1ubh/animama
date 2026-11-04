@@ -49,6 +49,12 @@ import {
  * shapes, as the debug modal's switch), `lead` how many seconds the mouth
  * moves ahead of the sound and `gain` a scale on its openness (default 1). Paths are relative to the sheet.
  *
+ * A VRMA cue, `{ "vrma": "wave.vrma", "at": 1, "from": 0.5, "speed": 1.2,
+ * "enter": 0.3, "until": 4 }`, plays a VRM Animation file (a converted
+ * Mixamo or VRoid motion) on the Avatar's animation mixer, as the app plays
+ * a VRMA Gesture: from `from` seconds into it, `speed` times as fast, fading
+ * in over `enter` seconds (default 0.25), once, until it ends or `until`.
+ *
  * Two more cue kinds direct her face while she speaks. A face cue,
  * `{ "face": { "happy": 0.5, "browInnerUp": 0.3 }, "at": 2, "until": 4,
  * "fade": 0.25 }`, adds expression weights (Avatar expressions or ARKit
@@ -79,6 +85,7 @@ const GESTURE_KEYS = new Set([
   "until",
 ]);
 const REACTION_KEYS = new Set(["reaction", "at", "until"]);
+const VRMA_KEYS = new Set(["vrma", "at", "from", "speed", "enter", "until"]);
 const FACE_KEYS = new Set(["face", "at", "until", "fade"]);
 const MOOD_KEYS = new Set(["mood", "at", "until"]);
 const SPEECH_KEYS = new Set([
@@ -177,10 +184,11 @@ export function parseCueSheet(sheet, { dir, name = "sheet" }) {
         moods.push(parseMood(cue, at));
         return [];
       }
+      if ("vrma" in cue) return [parseVrma(cue, at, dir)];
       const kind =
         "gesture" in cue ? "gesture" : "reaction" in cue ? "reaction" : null;
       if (!kind || ("gesture" in cue && "reaction" in cue))
-        fail(at, 'name one "gesture", "reaction", "face" or "mood".');
+        fail(at, 'name one "gesture", "reaction", "vrma", "face" or "mood".');
       checkKeys(cue, kind === "gesture" ? GESTURE_KEYS : REACTION_KEYS, at);
       if (typeof cue[kind] !== "string" || !cue[kind])
         fail(at, `${kind} must name a source.`);
@@ -264,6 +272,26 @@ function cueWindow(cue, where) {
   if (until <= at)
     fail(where, `until (${until} s) must be later than at (${at} s).`);
   return { at, until };
+}
+
+/** A VRMA cue: a VRM Animation file played from `from`, at `speed`. */
+function parseVrma(cue, where, dir) {
+  checkKeys(cue, VRMA_KEYS, where);
+  if (typeof cue.vrma !== "string" || !/\.vrma$/i.test(cue.vrma))
+    fail(where, "vrma must name a .vrma file.");
+  const speed = seconds(cue.speed, where, "speed", "a number") ?? 1;
+  if (speed === 0) fail(where, "speed must be more than 0.");
+  return {
+    kind: "vrma",
+    spec: cue.vrma,
+    file: path.resolve(dir, cue.vrma),
+    at: seconds(cue.at, where, "at") ?? 0,
+    from: seconds(cue.from, where, "from") ?? 0,
+    speed,
+    enter: seconds(cue.enter, where, "enter"),
+    until: seconds(cue.until, where, "until"),
+    where,
+  };
 }
 
 /** A face cue: expression weights (0 to 1) over a window, with its ramp. */
@@ -533,6 +561,27 @@ export async function listSheetItems(file, { localContent = null } = {}) {
     const dependencies = [];
     const names = [];
     for (const [cueIndex, cue] of take.cues.entries()) {
+      if (cue.kind === "vrma") {
+        if (!(await stat(cue.file).catch(() => null))?.isFile())
+          fail(cue.where, `cannot read the VRMA file ${cue.file}.`);
+        if (cue.until !== null && cue.until <= cue.at)
+          fail(
+            cue.where,
+            `until (${cue.until} s) must be later than its start (${cue.at} s).`,
+          );
+        cues.push({
+          kind: "vrma",
+          id: cue.spec,
+          at: cue.at,
+          from: cue.from,
+          enter: cue.enter,
+          until: cue.until,
+          speed: cue.speed,
+          file: await realpath(cue.file),
+        });
+        names.push(path.basename(cue.file, path.extname(cue.file)));
+        continue;
+      }
       const source = await resolveClipSource(cue.spec, {
         cwd: dir,
         localContent,
