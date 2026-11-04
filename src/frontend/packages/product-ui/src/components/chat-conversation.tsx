@@ -105,11 +105,7 @@ export function ChatConversation({
               </MessageContent>
             </Message>
             {accessory ? (
-              <Message
-                from="assistant"
-                messageLayout={layout}
-                className="pt-0"
-              >
+              <Message from="assistant" messageLayout={layout} className="pt-0">
                 <div className="flex items-center">{accessory}</div>
               </Message>
             ) : null}

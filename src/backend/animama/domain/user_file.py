@@ -14,16 +14,6 @@ STATUS_FAILED = "failed"
 STATUS_DELETE_PENDING = "delete_pending"
 STATUS_DELETED = "deleted"
 
-ACTIVE_USER_FILE_STATUSES = {
-    STATUS_PENDING_UPLOAD,
-    STATUS_UPLOADED,
-    STATUS_PROCESSING,
-    STATUS_READY,
-    STATUS_READY_KEYWORD_ONLY,
-    STATUS_FAILED,
-    STATUS_DELETE_PENDING,
-}
-
 
 @dataclass(slots=True)
 class UserFile:
@@ -49,7 +39,6 @@ class UserFile:
 
 
 __all__ = [
-    "ACTIVE_USER_FILE_STATUSES",
     "STATUS_ABORTED",
     "STATUS_DELETED",
     "STATUS_DELETE_PENDING",

@@ -1,5 +1,3 @@
-"use client";
-
 import { useProductApiClient } from "@animama/product-ui";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo } from "react";

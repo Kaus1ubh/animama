@@ -172,7 +172,7 @@ never globally prune Docker, Git or caches. No new cleanup helper is required.
 
 When starting or debugging a stack, report the stack name, branch/worktree, base
 port, build mode and one application URL. Identify the published application
-service and confirm PostgreSQL and supporting services remain private. Note whether optional profiles such as `voice` or `memory` were
-enabled. Never print provider or desktop-control credentials, their digests, or existing
+service and confirm PostgreSQL and supporting services remain private. Note whether the optional `dev-tools`
+profile was enabled. Never print provider or desktop-control credentials, their digests, or existing
 user memory contents. Distinguish model/asset readiness, health checks, browser
 evidence and any unperformed paid or native checks.

@@ -20,7 +20,7 @@ class LoadoutFixture:
     suffix: str
 
 
-async def create_loadout_fixture(session) -> LoadoutFixture:  # noqa: ANN001
+async def create_loadout_fixture(session) -> LoadoutFixture:
     suffix = uuid4().hex
     fixture = LoadoutFixture(
         user_id=f"loadout-user-{suffix}",
@@ -58,7 +58,7 @@ async def create_loadout_fixture(session) -> LoadoutFixture:  # noqa: ANN001
 
 
 async def add_typed_item(
-    session,  # noqa: ANN001
+    session,
     fixture: LoadoutFixture,
     *,
     kind: str,
@@ -104,7 +104,7 @@ def catalog_source(item: ORMContentCatalogItem) -> dict[str, object]:
     }
 
 
-async def cleanup_loadout_fixture(session, fixture: LoadoutFixture) -> None:  # noqa: ANN001
+async def cleanup_loadout_fixture(session, fixture: LoadoutFixture) -> None:
     await session.execute(delete(ORMAnima).where(ORMAnima.id == fixture.anima_id))
     await session.execute(delete(ORMContentCatalogItem).where(ORMContentCatalogItem.owner_user_id == fixture.user_id))
     await session.execute(delete(ORMAvatar).where(ORMAvatar.id == fixture.avatar_id))

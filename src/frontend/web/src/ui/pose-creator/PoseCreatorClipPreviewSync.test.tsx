@@ -58,7 +58,7 @@ vi.mock("./PoseCreatorPreviewProvider", () => ({
     },
   }),
 }));
-vi.mock("@/hooks/use-sound-controller", () => ({
+vi.mock("@/hooks/useSoundController", () => ({
   useOptionalSoundController: () => harness.sound,
 }));
 vi.mock("./poseCreatorClipPreview", async (original) => ({

@@ -51,13 +51,13 @@ def _install_trace(engine: Any, trace: Trace) -> None:
     sync_engine = engine.sync_engine
 
     @event.listens_for(sync_engine, "before_cursor_execute")
-    def before(conn, _cursor, statement, _parameters, _context, _executemany):  # noqa: ANN001, ANN202
+    def before(conn, _cursor, statement, _parameters, _context, _executemany):
         trace.statements += 1
         text = statement.upper()
         if "FROM ANIMA_LOADOUTS" in text and " FOR " in text:
             trace.lock_started.setdefault(id(conn.connection), time.perf_counter())
 
-    def finished(conn) -> None:  # noqa: ANN001
+    def finished(conn) -> None:
         started = trace.lock_started.pop(id(conn.connection), None)
         if started is not None:
             trace.lock_seconds.append(time.perf_counter() - started)
@@ -89,7 +89,7 @@ async def _delay_proxy(target_host: str, target_port: int, delay: float) -> tupl
 
 
 async def _prepare_schema(url: str) -> None:
-    import animama.local.installation_model  # noqa: F401 (local schema registration)
+    import animama.local.installation_model  # Local schema registration
     import animama.orm  # noqa: F401 (shared schema registration)
     from animama.orm.base import Base
 

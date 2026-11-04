@@ -5,6 +5,9 @@ This is the repository-level entrypoint for AI coding agents. Read this first, t
 - Backend/FastAPI: `src/backend/AGENTS.md`
 - Frontend and Electron shell: `src/frontend/AGENTS.md`
 
+[How Animama is built](docs/agents/README.md) gives human readers an overview
+of the lifecycle these guides implement.
+
 The nested guides are authoritative for their areas. Keep this file focused on
 repo-wide workflow, ownership boundaries, and local development conventions.
 
@@ -24,9 +27,11 @@ chat history persisted in `chats` and `chat_messages`.
 - `src/frontend`: Vite React web app,
   Electron desktop shell, generated API client, and public
   runtime assets.
-- `docker-compose.yml`: local service graph for Postgres, pgAdmin, backend,
-  web development override, and optional `voice`, `memory`, and `dev-tools` profiles.
-- `reset.sh`: preferred local stack reset/start script. You have my approval to run this script as needed to restart the local docker containers if needed. Generally, the local dev environment will already be accessible.
+- `docker-compose.yml`: local service graph for Postgres, the backend, the web
+  development override and the optional `dev-tools` profile (pgAdmin and Dozzle).
+- `reset.sh`: preferred local stack reset/start script. Agents may run it to start
+  or restart their own task's stack. The main stack is usually already running;
+  other tasks' stacks are not theirs to restart.
 - `tests`: backend and integration tests. Frontend manual testing is currently
   important for audio, avatar animation, voice, and desktop behavior.
 
@@ -41,8 +46,8 @@ Keep the record current so another contributor can resume it. Read the
 [repository setup contract](SDLC.md#repository-setup) before using a lifecycle
 skill. This established setup is the workflow authority; repair missing or
 inconsistent prerequisites before dependent work instead of choosing a fallback.
-Preserve every explicit verification gate in an existing plan; skill
-creation does not complete the separately gated skill pilot.
+Preserve every explicit verification gate in an existing plan; installing or
+editing a skill does not show that it works in real tasks.
 Use this guide, the scoped guides and checked-in architecture, contract and
 operational documentation as the implementation references.
 
@@ -63,37 +68,15 @@ invocable interview for unresolved intent, not a required interview for every ta
 
 ## Branches and pull requests
 
-Name new task branches `<type>/<short-kebab-case-task>` and PR titles
-`<type>: <summary>`. Scope belongs in commit subjects: use
-`<type>(<scope>): <summary>` when the affected area is clear, with a short,
-lowercase kebab-case scope such as `chat`, `models` or `workflow`. Omit the scope
-when no meaningful area is defined; do not invent one. Commits associated with
-an ExecPlan phase use `<type>(<scope>)[p#]: <summary>`, for example
-`feat(chat)[p1]: persist the selected chat`. Without a meaningful scope, use
-`<type>[p#]: <summary>`. Keep one branch and PR per plan in each affected
-repository; phase markers belong only in commit subjects.
-Choose the primary purpose of the change:
-
-| Type       | Purpose                                    |
-| ---------- | ------------------------------------------ |
-| `feat`     | New user-facing capability                 |
-| `fix`      | Bug correction                             |
-| `refactor` | Code restructuring with preserved behavior |
-| `chore`    | Routine maintenance or mechanical cleanup  |
-| `docs`     | Documentation-only changes                 |
-| `test`     | Test coverage or test infrastructure       |
-| `build`    | Dependencies, packaging or build tooling   |
-| `ci`       | CI workflow changes                        |
-| `perf`     | Performance improvements                   |
-
-For example, `fix/chat-reconnect` pairs with PR title `fix: restore chat after reconnect`
-and commit subject `fix(chat): restore chat after reconnect`.
-Use `fix` for bugs; classify cleanup as `chore` or `refactor` according to intent.
-Do not add an agent-name prefix or rename an existing shared branch just to
-match this convention. When a tool starts a task on a generated branch such as
-`claude/<name>`, rename it to `<type>/<short-kebab-case-task>` before pushing,
-choosing the type from the task. Matching PR labels are optional, not a
-prerequisite. This naming policy grants no additional push, merge or
+Name branches, PRs and commits as [names and labels](SDLC.md#names-and-labels)
+defines: `<type>/<short-kebab-case-task>` branches, `<type>: <summary>` PR
+titles, `<type>(<scope>): <summary>` commits and `<type>(<scope>)[p#]: <summary>`
+phase commits, with one primary type per change (`fix` for bugs; cleanup is
+`chore` or `refactor` according to intent). Do not add an agent-name prefix or
+rename an existing shared branch just to match this convention. When a tool
+starts a task on a generated branch such as `claude/<name>`, rename it to
+`<type>/<short-kebab-case-task>` before pushing, choosing the type from the
+task. This naming policy grants no additional push, merge or
 remote-configuration authority. See [worktree cleanup](docs/backend/operations/development.md#cleaning-up-worktree-stacks)
 for the data-preserving handoff workflow.
 
@@ -147,7 +130,7 @@ solutions that fit the surrounding patterns.
 4. Prefer existing patterns, helpers, commands, and architecture boundaries over
    introducing parallel paths.
 
-## Accountless Transition
+## Accountless local runtime
 
 The local composition uses a generated installation owner, FastAPI request boundary,
 credential-free React startup, and loopback-only desktop/self-host services.
@@ -317,7 +300,7 @@ Describe current behavior; put significant decision history in ADRs and delivery
 evidence in issues, PRs or plans. Preserve actionable constraints and recovery
 instructions. See the [domain guide](docs/agents/domain.md) for placement.
 
-Use `$docs-sync` when asked to audit documentation coverage or propose doc
+Use the `docs-sync` skill when asked to audit documentation coverage or propose doc
 updates. Before changing OpenAI platform integrations, verify models, request
 fields, streaming behavior, tools, auth assumptions and rate limits against
 current official OpenAI documentation. Agent skills are optional local

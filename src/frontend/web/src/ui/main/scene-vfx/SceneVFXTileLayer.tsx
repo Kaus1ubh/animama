@@ -1,5 +1,3 @@
-"use client";
-
 import type { CSSProperties } from "react";
 
 import { directionVector } from "@/lib/scene-vfx/layerGeometry";

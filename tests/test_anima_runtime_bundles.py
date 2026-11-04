@@ -193,11 +193,11 @@ def bundle_http(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> SimpleNamesp
     state.authorizations = authorizations
 
     class Runtime:
-        def __init__(self, _session):  # noqa: ANN001
+        def __init__(self, _session):
             self.catalog = state.catalog_service
             self.session = state.session
 
-        async def get_bundle(self, *, user_id: str, anima_id: str, revision: str, bundle_id: str):  # noqa: ANN202
+        async def get_bundle(self, *, user_id: str, anima_id: str, revision: str, bundle_id: str):
             # The snapshot's refusals, over the bundles issuance stored for its catalog.
             if (user_id, anima_id, revision) != ("owner", "anima", "revision"):
                 raise RuntimeSnapshotError("runtime_file_not_found")
@@ -208,7 +208,7 @@ def bundle_http(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> SimpleNamesp
                 raise RuntimeSnapshotError("runtime_file_not_found")
             return stored[bundle_id]
 
-        async def authorize_files(self, *, file_refs: list[str], **_kwargs):  # noqa: ANN003, ANN202
+        async def authorize_files(self, *, file_refs: list[str], **_kwargs):
             state.queries += 1
             return {
                 ref: RuntimeSnapshotError("runtime_file_changed_remount_required")
@@ -252,7 +252,7 @@ def bundle_http(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> SimpleNamesp
 
     original_open = FilesystemContentStore.open_verified_file
 
-    def opened(self, **kwargs):  # noqa: ANN001, ANN003, ANN202
+    def opened(self, **kwargs):
         state.opens += 1
         return original_open(self, **kwargs)
 

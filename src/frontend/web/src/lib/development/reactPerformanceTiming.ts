@@ -1,14 +1,13 @@
-let activeCleanup: (() => void) | undefined;
+import { isNonNullObject } from "@/lib/records";
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
-}
+let activeCleanup: (() => void) | undefined;
 
 /** Match the metadata emitted by the installed React 19.2 development renderers. */
 function isReactMeasure(entry: PerformanceEntry): boolean {
   if (entry.entryType !== "measure") return false;
   const detail: unknown = (entry as PerformanceMeasure).detail;
-  if (!isRecord(detail) || !isRecord(detail.devtools)) return false;
+  if (!isNonNullObject(detail) || !isNonNullObject(detail.devtools))
+    return false;
   return (
     detail.devtools.track === "Components ⚛" ||
     detail.devtools.trackGroup === "Scheduler ⚛"

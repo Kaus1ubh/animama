@@ -71,7 +71,7 @@ class _UnwrappingInspector:
         return self._inspector.inspect(lease._target if isinstance(lease, _WatchedLease) else lease)
 
 
-async def test_export_and_import_never_touch_stages_on_the_event_loop(async_session, tmp_path: Path) -> None:  # noqa: ANN001
+async def test_export_and_import_never_touch_stages_on_the_event_loop(async_session, tmp_path: Path) -> None:
     paths, _catalog, content, saves, packages = package_services(async_session, tmp_path)
     on_loop: list[str] = []
     stages = _Watched(packages.stages, on_loop, "stages")

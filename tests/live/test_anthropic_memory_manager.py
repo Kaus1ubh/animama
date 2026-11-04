@@ -109,7 +109,7 @@ def _haiku() -> ModelProvider:
     )
 
 
-def _entries(async_session, *, commit_on_write: bool = True) -> MemoryEntryService:  # noqa: ANN001
+def _entries(async_session, *, commit_on_write: bool = True) -> MemoryEntryService:
     return MemoryEntryService(
         memory_entries=SQLAlchemyMemoryEntryRepository(async_session),
         uow=SQLAlchemyUnitOfWork(async_session),
@@ -118,7 +118,7 @@ def _entries(async_session, *, commit_on_write: bool = True) -> MemoryEntryServi
     )
 
 
-def _service(async_session, user_id: str) -> MemoryManagerService:  # noqa: ANN001
+def _service(async_session, user_id: str) -> MemoryManagerService:
     """A request-scoped service on the real runtime, as the router builds it for an Anthropic row."""
 
     memory_entries = _entries(async_session, commit_on_write=False)
@@ -137,7 +137,7 @@ def _service(async_session, user_id: str) -> MemoryManagerService:  # noqa: ANN0
     )
 
 
-async def _commands(async_session, user_id: str, run_id: str) -> list[str]:  # noqa: ANN001
+async def _commands(async_session, user_id: str, run_id: str) -> list[str]:
     """The memory-tool commands of the paused step, without their content."""
 
     run = await SQLAlchemyMemoryManagerRepository(async_session).get_run(user_id=user_id, run_id=run_id)

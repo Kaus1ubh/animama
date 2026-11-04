@@ -44,7 +44,7 @@ vi.mock("@tanstack/react-router", () => ({
 vi.mock("@/ui/app/AnimaRouteProviders", () => ({
   useMountedAnimaRuntimeContent: () => harness.runtime,
 }));
-vi.mock("@/hooks/use-sound-controller", () => ({
+vi.mock("@/hooks/useSoundController", () => ({
   useOptionalSoundController: () => null,
 }));
 vi.mock("@/lib/runtime-content/animaRuntimeSnapshot", () => ({

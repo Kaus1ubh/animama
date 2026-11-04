@@ -10,6 +10,7 @@ import {
   foldMissingTorsoRotations,
   torsoFoldsOf,
 } from "./anatomy/optionalBones";
+import { isRecord } from "@/lib/records";
 
 export const ANIMA_POSE_SCHEMA = "animaPose/1.0" as const;
 
@@ -568,8 +569,4 @@ function sanitizeRequiredString(value: unknown): string | null {
 
 function clampUnitInterval(value: number): number {
   return Math.max(0, Math.min(1, value));
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
 }

@@ -1,5 +1,3 @@
-"use client";
-
 import { withNameHash } from "@/lib/content/nameIdentifiers";
 import { useProductApiClient } from "@animama/product-ui";
 import type { Client } from "@animama/runtime-contracts/sdk";

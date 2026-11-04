@@ -6,6 +6,8 @@ from collections.abc import Iterable
 from datetime import UTC, date, datetime
 from typing import Any, NoReturn
 
+from animama.app.ports.memory_episode_port import MemoryEpisodeRepository, MemoryEpisodeRepositoryConflictError
+from animama.app.ports.uow_port import UnitOfWork
 from animama.domain.memory_entry import MemoryEntry
 from animama.domain.memory_episode import (
     MEMORY_EPISODE_KIND_CHAT_TURN,
@@ -19,8 +21,6 @@ from animama.domain.memory_episode import (
 )
 from animama.logging import get_logger
 
-from ..ports.memory_episode_port import MemoryEpisodeRepository, MemoryEpisodeRepositoryConflictError
-from ..ports.uow_port import UnitOfWork
 from .memory_entry_service import MemoryEntryNotFoundError, MemoryEntryService
 
 MEMORY_EPISODE_TEXT_MAX_CHARS = 2000

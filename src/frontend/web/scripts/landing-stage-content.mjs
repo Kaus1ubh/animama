@@ -80,7 +80,6 @@ export function stageViteConfig({ root = webRoot } = {}) {
     resolve: {
       alias: {
         "@": path.join(webRoot, "src"),
-        "@web": path.join(webRoot, "src"),
       },
     },
   };

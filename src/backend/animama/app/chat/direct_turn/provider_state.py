@@ -1,9 +1,14 @@
+"""Per-turn provider decisions for direct chat: model validation, memory-tool and native-tool
+access, reasoning effort, compacted history and Responses continuation cursors.
+"""
+
 from __future__ import annotations
 
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, replace
 from typing import Any, cast
 
+from animama.app.chat.options import DirectChatOptions
 from animama.app.model_clients import (
     ModelClientContinuation,
     ModelClientError,
@@ -26,7 +31,6 @@ from animama.domain.model_connection import (
     MODEL_SOURCE_OWNER,
 )
 
-from ..options import DirectChatOptions
 from .constants import (
     ANTHROPIC_MESSAGES_PROVIDER,
     DIRECT_MEMORY_TOOL_SUPPORT_BY_PROVIDER,

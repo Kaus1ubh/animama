@@ -1,5 +1,3 @@
-"use client";
-
 import { gradientCss } from "@/lib/scene-vfx/layerGeometry";
 import type { SceneBackgroundGradientLayer } from "@/lib/scene-vfx/types";
 

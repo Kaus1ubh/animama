@@ -2,13 +2,12 @@
 
 from __future__ import annotations
 
-from typing import Any, Literal
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from animama.app.contracts.elevenlabs import ElevenLabsRealtimeTtsModelId, replace_retired_elevenlabs_tts_model_id
 from animama.app.contracts.gemini import SUPPORTED_GEMINI_TTS_MODEL_IDS, GeminiTtsModelId
-from animama.domain.events import EventType
 
 
 class PyAnimaTtsRunOptions(BaseModel):
@@ -49,13 +48,3 @@ class PyAnimaDispatchOptions(BaseModel):
     native_tools: list[str] | None = None
     reasoning_effort: str | None = None
     tts: PyAnimaTtsRunOptions | None = None
-
-
-class PyAnimaEventPublishRequest(BaseModel):
-    type: EventType
-    payload: dict[str, Any] = Field(default_factory=dict)
-    topic: str | None = None
-    correlation_id: str | None = None
-    causation_id: str | None = None
-    anima_ids: list[str] | None = None
-    binary: bool = False

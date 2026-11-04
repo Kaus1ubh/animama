@@ -13,6 +13,7 @@ from animama.app.services.owner_bootstrap_service import BOOTSTRAP_STEPS
 from animama.domain.request_principal import RequestPrincipal
 from animama.domain.user_profile import UserProfileInvalidError, UserProfileNotFoundError
 from animama.local.installation_repository import SQLAlchemyInstallationSettingsRepository
+from animama.server.deps import get_async_session, get_current_principal
 from animama.server.installation_personalization import (
     AdultConfirmationRequiredError,
     InstallationBootstrapIncompleteError,
@@ -22,8 +23,6 @@ from animama.server.installation_personalization import (
 )
 from animama.server.local_installation_bootstrap import LocalInstallationBootstrapService
 from animama.server.schemas.runtime import PyOnboardingCompleteRequest, PyRuntimeContext
-
-from ..deps import get_async_session, get_current_principal
 
 router = APIRouter(tags=["local-runtime"])
 

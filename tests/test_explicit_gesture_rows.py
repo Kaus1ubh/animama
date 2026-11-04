@@ -32,7 +32,7 @@ from tests.typed_loadout_support import LoadoutFixture, add_typed_item
 IMPLEMENTATION = {"implementation": {"kind": "anima_clip", "file_role": "sequence"}}
 
 
-async def _included_gesture(session, user_id: str, name: str) -> ORMContentCatalogItem:  # noqa: ANN001
+async def _included_gesture(session, user_id: str, name: str) -> ORMContentCatalogItem:
     """An Included starter Gesture whose declared semantic key differs from its id."""
 
     starter_id = f"{name}-{uuid4().hex[:8]}"
@@ -56,7 +56,7 @@ async def _included_gesture(session, user_id: str, name: str) -> ORMContentCatal
     return row
 
 
-async def _cleanup(session, user_id: str, item_ids: list[str]) -> None:  # noqa: ANN001
+async def _cleanup(session, user_id: str, item_ids: list[str]) -> None:
     """Delete the owner's Animas first: their rows still reference the Included Gestures."""
 
     await session.rollback()
@@ -69,7 +69,7 @@ def _key(item: ORMContentCatalogItem) -> str:
     return str(item.content_metadata["semantic_key"])
 
 
-async def _starter_loadout(session, monkeypatch, user_id: str, anima_id: str, content_ids: list[str]):  # noqa: ANN001, ANN202
+async def _starter_loadout(session, monkeypatch, user_id: str, anima_id: str, content_ids: list[str]):
     """Replace the Anima's loadout with the starter loadout of ``content_ids``, committed."""
 
     monkeypatch.setattr(anima_loadout_service, "starter_gestures", lambda version: tuple(content_ids))
@@ -87,7 +87,7 @@ async def _starter_loadout(session, monkeypatch, user_id: str, anima_id: str, co
     return diagnostics
 
 
-async def _gesture_rows(session, anima_id: str) -> dict[str, tuple[str, dict[str, Any]]]:  # noqa: ANN001
+async def _gesture_rows(session, anima_id: str) -> dict[str, tuple[str, dict[str, Any]]]:
     rows = await session.execute(
         select(ORMAnimaContentBinding).where(
             ORMAnimaContentBinding.anima_id == anima_id, ORMAnimaContentBinding.slot_key.startswith("gesture:")
@@ -96,7 +96,7 @@ async def _gesture_rows(session, anima_id: str) -> dict[str, tuple[str, dict[str
     return {row.slot_key: (row.catalog_item_id, dict(row.config)) for row in rows.scalars()}
 
 
-async def _readers(session, user_id: str, anima_id: str) -> dict[str, dict[str, str]]:  # noqa: ANN001
+async def _readers(session, user_id: str, anima_id: str) -> dict[str, dict[str, str]]:
     """Every AI-callable Gesture the read model, runtime mount and package export each list, by semantic key.
 
     Nothing is filtered, so an implied Gesture (even an unresolved one) would show.
@@ -118,7 +118,7 @@ async def _readers(session, user_id: str, anima_id: str) -> dict[str, dict[str, 
     }
 
 
-async def _remove(session, user_id: str, anima_id: str, item_id: str) -> None:  # noqa: ANN001
+async def _remove(session, user_id: str, anima_id: str, item_id: str) -> None:
     service = AnimaLoadoutService(session)
     loadout = await service.read_model(user_id=user_id, anima_id=anima_id)
     binding = next(row for row in loadout.gestures if row.source.catalog_item_id == item_id)

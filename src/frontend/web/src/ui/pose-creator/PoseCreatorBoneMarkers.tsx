@@ -1,5 +1,3 @@
-"use client";
-
 import { createPortal, useThree } from "@react-three/fiber";
 import { VRMHumanBoneList, type VRMHumanBoneName } from "@pixiv/three-vrm";
 import { Fragment, memo, useMemo } from "react";

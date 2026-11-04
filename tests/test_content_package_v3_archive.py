@@ -244,7 +244,7 @@ def test_disk_failure_removes_only_its_private_staging(tmp_path: Path, monkeypat
     write_package(archive, manifest, payloads)
     open_path = Path.open
 
-    def fail_payload(path: Path, mode: str = "r", *args: Any, **kwargs: Any):  # noqa: ANN202
+    def fail_payload(path: Path, mode: str = "r", *args: Any, **kwargs: Any):
         if mode == "xb" and path.suffix == ".wav":
             raise OSError(28, "fixture disk is full")
         return open_path(path, mode, *args, **kwargs)

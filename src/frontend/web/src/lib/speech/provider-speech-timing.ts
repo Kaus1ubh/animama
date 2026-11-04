@@ -22,6 +22,8 @@
  * cursor.
  */
 
+import { isRecord } from "@/lib/records";
+
 /** One character of the text sent to the provider, with its spoken window. */
 export type TimedChar = {
   char: string;
@@ -47,10 +49,6 @@ export type SpeechTimingCollector = {
    */
   acceptRunAlignment: (alignment: unknown) => TimedChar[];
 };
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
 
 function isTimeArray(value: unknown, length: number): value is number[] {
   return (

@@ -14,7 +14,7 @@ from tests.content_package_helpers import package_services, reviewed_export, sav
 
 async def test_export_generates_a_self_contained_boundary_manifest_without_changing_local(
     async_session, tmp_path: Path
-) -> None:  # noqa: ANN001
+) -> None:
     paths, _catalog, _content, saves, packages = package_services(async_session, tmp_path)
     try:
         saved = await save_wave(saves)

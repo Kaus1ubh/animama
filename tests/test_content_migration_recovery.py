@@ -33,7 +33,7 @@ def _settings(url: str, root: Path) -> Settings:
     return Settings(animama_database_url=url, animama_content_root=root / "content", animama_data_root=root / "data")
 
 
-async def _bootstrap(database: LocalDatabase, settings: Settings):  # noqa: ANN202
+async def _bootstrap(database: LocalDatabase, settings: Settings):
     """Run the real factory, including defaults; empty Included has no starters."""
     service = create_local_installation_bootstrap_service(
         session_factory=database.session_factory(),

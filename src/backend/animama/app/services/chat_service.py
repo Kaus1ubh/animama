@@ -5,10 +5,10 @@ from __future__ import annotations
 import uuid
 from typing import Any
 
-from ...domain.chat import Chat
-from ...logging import get_logger
-from ..ports import UnitOfWork
-from ..ports.chat_port import ChatRepository
+from animama.app.ports import UnitOfWork
+from animama.app.ports.chat_port import ChatRepository
+from animama.domain.chat import Chat
+from animama.logging import get_logger
 
 
 class ChatService:

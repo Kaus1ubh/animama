@@ -17,8 +17,6 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints, field_validator
 
-AVATAR_FACE_PARTS_SCHEMA = "animama/avatar-face-parts/1"
-
 # A VRM rarely has more than a few dozen primitives; the bound keeps a hostile
 # correction small without limiting real models.
 MAX_PART_BINDINGS = 64
@@ -99,7 +97,6 @@ class AvatarFacePartsState(BaseModel):
 
 
 __all__ = [
-    "AVATAR_FACE_PARTS_SCHEMA",
     "AvatarFacePartBindings",
     "AvatarFacePartCorrection",
     "AvatarFacePartsSource",

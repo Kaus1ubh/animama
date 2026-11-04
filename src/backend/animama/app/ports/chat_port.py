@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from typing import Any, Protocol
 
-from ...domain.chat import Chat
-from ...domain.usage import Usage
+from animama.domain.chat import Chat
+from animama.domain.usage import Usage
 
 
 class ChatRepository(Protocol):

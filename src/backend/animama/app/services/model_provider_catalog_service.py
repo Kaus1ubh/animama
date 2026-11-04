@@ -10,11 +10,10 @@ from animama.adapters.mappers.model_provider_map import (
 )
 from animama.app.model_catalog import default_chat_reasoning_effort, serialize_model_provider_catalog
 from animama.app.model_provider_native_tools import requestable_native_tool_support
+from animama.app.ports import ModelProviderRepository, UnitOfWork
 from animama.domain import ModelProvider
 from animama.domain.model_connection import BUILTIN_CONNECTION_IDS, BUILTIN_OPENAI_CONNECTION_ID, MODEL_SOURCE_OWNER
 from animama.logging import get_logger
-
-from ..ports import ModelProviderRepository, UnitOfWork
 
 
 @dataclass(frozen=True, slots=True)

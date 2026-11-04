@@ -2,8 +2,8 @@ import "@fontsource-variable/dm-sans";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 
-import { initialLocale } from "@web/i18n/locale-preference";
-import { createWebI18n } from "@web/i18n/web-i18n";
+import { initialLocale } from "@/i18n/locale-preference";
+import { createWebI18n } from "@/i18n/web-i18n";
 // Product UI's stylesheet comes first so the app's own utilities override it;
 // it is CSS only, so loading it here runs no application code.
 import "@animama/product-ui/styles.css";
@@ -11,7 +11,7 @@ import "./index.css";
 
 // Keep development profiling cleanup out of all built application artifacts.
 if (__ANIMAMA_DEV_BUILD__) {
-  void import("@web/lib/development/reactPerformanceTiming");
+  void import("@/lib/development/reactPerformanceTiming");
 }
 
 // Text renders in the first-paint locale; App settings may switch it once loaded.
@@ -26,12 +26,12 @@ void createWebI18n(initialLocale()).then(async (i18n) => {
     { AppProviders },
     { AppRouter },
   ] = await Promise.all([
-    import("@web/lib/local-gateway/fetch-interceptor"),
+    import("@/lib/local-gateway/fetch-interceptor"),
     import("./app/local-runtime/local-composition"),
     import("./app/runtime/runtime-controller"),
     import("./app/runtime/browser-session-resources"),
-    import("@web/app/providers/AppProviders"),
-    import("@web/app/router"),
+    import("@/app/providers/AppProviders"),
+    import("@/app/router"),
   ]);
   installLocalGatewayFetchInterceptor();
   const controller = new RuntimeController(createLocalComposition());

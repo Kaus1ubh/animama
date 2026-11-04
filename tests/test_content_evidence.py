@@ -11,7 +11,7 @@ from tests.anima_creation_service_support import anima_creation_fixture
 from tests.local_http_client import local_client
 
 
-def _root(item, *, kind: str | None = None, revision: str | None = None) -> dict[str, Any]:  # noqa: ANN001
+def _root(item, *, kind: str | None = None, revision: str | None = None) -> dict[str, Any]:
     return {
         "kind": kind or item.kind.value,
         "source": {
@@ -24,14 +24,14 @@ def _root(item, *, kind: str | None = None, revision: str | None = None) -> dict
 async def test_batch_evidence_reads_catalog_once_and_writes_nothing(
     async_session,
     tmp_path,
-    monkeypatch,  # noqa: ANN001
+    monkeypatch,
 ) -> None:
     async with anima_creation_fixture(async_session, tmp_path) as fixture:
         await fixture.add_action_support(async_session)
         original = SQLAlchemyContentCatalog.list_visible
         reads = 0
 
-        async def counted(self, *, user_id: str):  # noqa: ANN001, ANN202
+        async def counted(self, *, user_id: str):
             nonlocal reads
             reads += 1
             return await original(self, user_id=user_id)
@@ -67,7 +67,7 @@ async def test_batch_evidence_reads_catalog_once_and_writes_nothing(
 async def test_batch_evidence_reports_stale_kind_and_hidden_roots_without_substitution(
     async_session,
     tmp_path,
-    monkeypatch,  # noqa: ANN001
+    monkeypatch,
 ) -> None:
     async with anima_creation_fixture(async_session, tmp_path) as fixture:
         app = fixture.app(async_session, monkeypatch)
@@ -123,7 +123,7 @@ async def test_batch_evidence_reports_stale_kind_and_hidden_roots_without_substi
 async def test_batch_evidence_rejects_delivery_and_unknown_fields(
     async_session,
     tmp_path,
-    monkeypatch,  # noqa: ANN001
+    monkeypatch,
 ) -> None:
     async with anima_creation_fixture(async_session, tmp_path) as fixture:
         app = fixture.app(async_session, monkeypatch)

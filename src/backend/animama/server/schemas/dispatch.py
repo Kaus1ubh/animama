@@ -2,6 +2,5 @@
 
 from animama.app.contracts.dispatch import (
     PyAnimaDispatchOptions as PyAnimaDispatchOptions,
-    PyAnimaEventPublishRequest as PyAnimaEventPublishRequest,
     PyAnimaTtsRunOptions as PyAnimaTtsRunOptions,
 )

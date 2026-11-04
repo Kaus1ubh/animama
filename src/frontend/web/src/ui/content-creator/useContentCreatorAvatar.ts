@@ -1,5 +1,3 @@
-"use client";
-
 import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { getI18n } from "react-i18next";

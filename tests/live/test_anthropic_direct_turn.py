@@ -56,7 +56,7 @@ class _RecordingAdapter(AnthropicMessagesModelClient):
         )
         self.requests: list[dict[str, Any]] = []
 
-    async def stream(self, spec):  # noqa: ANN001, ANN201
+    async def stream(self, spec):
         text_deltas = 0
         async for delta in super().stream(spec):
             if delta.kind == "text_delta":

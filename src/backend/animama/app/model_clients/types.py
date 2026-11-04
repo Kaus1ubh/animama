@@ -1,3 +1,7 @@
+"""Provider-neutral model-client contracts: requests, streamed deltas, finals, tool calls,
+errors, continuation cursors and the client registry.
+"""
+
 from __future__ import annotations
 
 from collections.abc import AsyncIterator, Mapping
@@ -10,6 +14,7 @@ from animama.domain.model_provider import ModelProvider
 from animama.domain.usage import Usage
 
 from .event_types import MCEvent
+from .frozen import frozen_mapping
 from .limits import ModelCallLimits
 
 if TYPE_CHECKING:
@@ -21,29 +26,6 @@ ANTHROPIC_TOOL_USE_ITEM_TYPE = "anthropic_tool_use"
 """Prompt and history item for one Anthropic ``tool_use`` block (``id``, ``name``, ``input``)."""
 ANTHROPIC_TOOL_RESULT_ITEM_TYPE = "anthropic_tool_result"
 """Prompt and history item for one Anthropic ``tool_result`` block (``tool_use_id``, ``content``)."""
-
-
-def _freeze_value(value: Any) -> Any:
-    """Recursively freeze provider metadata so stream consumers cannot mutate it."""
-
-    if isinstance(value, Mapping):
-        return MappingProxyType({str(key): _freeze_value(item) for key, item in value.items()})
-    if isinstance(value, list | tuple):
-        return tuple(_freeze_value(item) for item in value)
-    if isinstance(value, set | frozenset):
-        return frozenset(_freeze_value(item) for item in value)
-    return value
-
-
-def _frozen_mapping(value: Mapping[str, Any] | None) -> Mapping[str, Any]:
-    """Return an immutable mapping for provider metadata fields."""
-
-    if value is None:
-        return MappingProxyType({})
-    frozen = _freeze_value(value)
-    if not isinstance(frozen, Mapping):
-        return MappingProxyType({})
-    return frozen
 
 
 def _string_tuple(value: object) -> tuple[str, ...]:
@@ -107,7 +89,7 @@ class ModelClientModeration:
     category_scores: Mapping[str, float] = field(default_factory=lambda: MappingProxyType({}))
 
     def __post_init__(self) -> None:
-        object.__setattr__(self, "category_scores", _frozen_mapping(self.category_scores))
+        object.__setattr__(self, "category_scores", frozen_mapping(self.category_scores))
 
 
 @dataclass(frozen=True, slots=True)
@@ -141,13 +123,13 @@ class ModelClientFinal:
     """True only for provider-reported usage, never estimates or default zero."""
 
     def __post_init__(self) -> None:
-        object.__setattr__(self, "raw_provider_metadata", _frozen_mapping(self.raw_provider_metadata))
+        object.__setattr__(self, "raw_provider_metadata", frozen_mapping(self.raw_provider_metadata))
         object.__setattr__(
             self,
             "replay_prefix",
-            tuple(_frozen_mapping(block) for block in self.replay_prefix if isinstance(block, Mapping)),
+            tuple(frozen_mapping(block) for block in self.replay_prefix if isinstance(block, Mapping)),
         )
-        structured = None if self.structured_payload is None else _frozen_mapping(self.structured_payload)
+        structured = None if self.structured_payload is None else frozen_mapping(self.structured_payload)
         object.__setattr__(self, "structured_payload", structured)
         object.__setattr__(
             self,
@@ -188,7 +170,7 @@ class ModelClientDelta:
     raw_metadata: Mapping[str, Any] = field(default_factory=lambda: MappingProxyType({}))
 
     def __post_init__(self) -> None:
-        object.__setattr__(self, "raw_metadata", _frozen_mapping(self.raw_metadata))
+        object.__setattr__(self, "raw_metadata", frozen_mapping(self.raw_metadata))
 
 
 def model_client_event_delta(event: MCEvent) -> ModelClientDelta:
@@ -216,7 +198,7 @@ class ModelClientError(Exception):
         super().__init__(message)
         self.message = message
         self.code = code
-        self.raw_metadata = _frozen_mapping(raw_metadata)
+        self.raw_metadata = frozen_mapping(raw_metadata)
 
 
 class ModelClientProviderError(ModelClientError):
@@ -242,7 +224,7 @@ class ModelClientContinuation:
     def __post_init__(self) -> None:
         object.__setattr__(self, "provider_type", str(self.provider_type or "").strip())
         object.__setattr__(self, "cursor", str(self.cursor or "").strip())
-        object.__setattr__(self, "metadata", _frozen_mapping(self.metadata))
+        object.__setattr__(self, "metadata", frozen_mapping(self.metadata))
 
 
 @dataclass(frozen=True, slots=True)
@@ -355,13 +337,6 @@ class ModelClient(Protocol):
         raise NotImplementedError
 
 
-class ModelClientWithComplete(ModelClient, Protocol):
-    """Optional non-streaming extension for model clients that support it."""
-
-    async def complete(self, request: ModelClientRequest) -> ModelClientFinal:
-        raise NotImplementedError
-
-
 def uses_native_context_compaction(client: object) -> bool:
     """Return whether ``client`` asks its provider to compact long prompts itself.
 
@@ -426,7 +401,6 @@ __all__ = [
     "ModelClientTimeoutError",
     "ModelClientToolCall",
     "ModelClientToolResult",
-    "ModelClientWithComplete",
     "StaticModelClientRegistry",
     "model_client_event_delta",
     "model_client_run_status_delta",

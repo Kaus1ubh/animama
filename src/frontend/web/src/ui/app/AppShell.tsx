@@ -1,5 +1,3 @@
-"use client";
-
 import type { Dispatch, ReactNode, SetStateAction } from "react";
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { useRouterState } from "@tanstack/react-router";

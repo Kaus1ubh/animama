@@ -38,6 +38,7 @@ import {
   RETIRED_DESCRIPTION_SCHEMA,
   sourceVersion,
 } from "./preview/sources";
+import { isRecord } from "@/lib/records";
 
 export type MotionCliContext = {
   /** Directory holding the Included `.vrm` files. */
@@ -219,10 +220,6 @@ function countTracks(clip: AnimaPoseClipV2): { tracks: number; keys: number } {
       keys += track.length;
     }
   return { tracks, keys };
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function schemaOf(value: unknown): unknown {

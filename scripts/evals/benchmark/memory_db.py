@@ -25,7 +25,7 @@ from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
 
-from ..core.inputs import EvalInputError
+from scripts.evals.core.inputs import EvalInputError
 
 __all__ = [
     "BENCHMARK_DATABASE_PREFIX",
@@ -105,7 +105,7 @@ async def benchmark_database(application_url: str | URL, name: str) -> AsyncIter
 
 
 def _create_all(sync_connection: object) -> None:
-    import animama.local.installation_model  # noqa: F401 (local schema registration)
+    import animama.local.installation_model  # Local schema registration
     import animama.orm  # noqa: F401 (shared schema registration)
     from animama.orm.base import Base
 

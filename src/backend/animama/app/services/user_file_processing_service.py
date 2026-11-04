@@ -9,7 +9,6 @@ import math
 import time
 from collections.abc import Iterable
 from dataclasses import dataclass
-from datetime import UTC, datetime
 from io import StringIO
 from typing import Any
 from uuid import uuid4
@@ -47,6 +46,7 @@ from animama.domain.user_file_processing import (
     UserFileSearchResult,
 )
 from animama.logging import get_logger
+from animama.utils.clock import utc_now
 
 PROCESSABLE_FILE_STATUSES = {
     STATUS_UPLOADED,
@@ -111,10 +111,6 @@ def new_user_file_processing_job_id() -> str:
     """Return an opaque user-file processing job identifier."""
 
     return f"job-{uuid4().hex}"
-
-
-def _utcnow() -> datetime:
-    return datetime.now(UTC)
 
 
 def estimate_tokens(text: str) -> int:
@@ -371,7 +367,7 @@ class UserFileProcessingService:
             file_id=file_id,
             job_type=JOB_TYPE_PROCESS_FILE,
             max_attempts=self._max_attempts,
-            run_after=_utcnow(),
+            run_after=utc_now(),
             metadata={"force": force},
         )
         created = await self._processing.create_processing_job(job=job, set_file_processing=True)
@@ -394,7 +390,7 @@ class UserFileProcessingService:
         claimed = await self._processing.claim_next_job(
             worker_id=worker_id,
             lease_seconds=lease_seconds,
-            now=_utcnow(),
+            now=utc_now(),
             limit_file_id=limit_file_id,
         )
         if claimed is not None:
@@ -431,7 +427,7 @@ class UserFileProcessingService:
                 user_id=claimed.job.user_id,
                 file_id=claimed.job.file_id,
                 sha256=content_sha256,
-                processed_at=_utcnow(),
+                processed_at=utc_now(),
                 embedding_model_id=embedder.model_id if embedder is not None else None,
             )
             if reused is not None:
@@ -602,7 +598,7 @@ class UserFileProcessingService:
             file_status=file_status,
             processing_metadata=processing_metadata,
             file_metadata_updates={"overview": serialize_user_file_overview(overview)},
-            processed_at=_utcnow(),
+            processed_at=utc_now(),
             embedding_model_id=embedding_model_id,
         )
         await self._uow.commit()
@@ -620,7 +616,7 @@ class UserFileProcessingService:
             user_id=claimed.job.user_id,
             file_id=claimed.job.file_id,
             error=error,
-            now=_utcnow(),
+            now=utc_now(),
             retry_delay_seconds=retry_delay,
         )
         await self._uow.commit()

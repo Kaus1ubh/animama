@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any, Protocol
 
-from ...domain.archive import Archive, ArchivePassage
+from animama.domain.archive import Archive, ArchivePassage
 
 
 class ArchiveRepository(Protocol):

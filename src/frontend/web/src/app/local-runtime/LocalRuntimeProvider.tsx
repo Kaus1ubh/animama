@@ -1,5 +1,3 @@
-"use client";
-
 import {
   completeRuntimeOnboardingV1RuntimeOnboardingCompletePost,
   ensureRuntimeBootstrapV1RuntimeBootstrapEnsurePost,

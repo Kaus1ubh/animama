@@ -1,5 +1,3 @@
-"use client";
-
 import { VRMHumanBoneList, type VRMHumanBoneName } from "@pixiv/three-vrm";
 import { Euler, MathUtils, Quaternion } from "three";
 import { getI18n } from "react-i18next";

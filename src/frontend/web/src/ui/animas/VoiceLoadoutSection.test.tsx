@@ -83,7 +83,7 @@ vi.mock("@/ui/settings/SettingsProvider", () => ({
     isUpdating: false,
   }),
 }));
-vi.mock("@/hooks/use-pocket-tts-runtime", () => ({
+vi.mock("@/hooks/usePocketTtsRuntime", () => ({
   usePocketTtsRuntime: () => ({
     hasCustomVoice: false,
     isEncodingVoice: false,
@@ -91,7 +91,7 @@ vi.mock("@/hooks/use-pocket-tts-runtime", () => ({
     setVoice: fixtures.setVoice,
   }),
 }));
-vi.mock("@/hooks/use-pocket-voice-downloads", () => ({
+vi.mock("@/hooks/usePocketVoiceDownloads", () => ({
   usePocketVoiceDownloads: () => ({
     availability: fixtures.availability,
     install: fixtures.install,

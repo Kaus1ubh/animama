@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from collections.abc import Mapping, Sequence
+from collections.abc import Mapping
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
@@ -105,19 +105,3 @@ def get_manifest_gesture_inventory(
         seen_ids.add(gesture_id)
 
     return tuple(gestures)
-
-
-def render_available_animations(
-    gestures: Sequence[ManifestGestureEntry] | None = None,
-    *,
-    manifest: Mapping[str, Any] | None = None,
-) -> str:
-    candidates = tuple(gestures) if gestures is not None else get_manifest_gesture_inventory(manifest)
-    if not candidates:
-        return "No animations available."
-
-    blocks = []
-    for gesture in candidates:
-        blocks.append(f"- ID: {gesture.id}\n  Name: {gesture.name}\n  Description: {gesture.description}")
-
-    return "\n\n".join(blocks)

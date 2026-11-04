@@ -1,3 +1,5 @@
+import { isRecord } from "@/lib/records";
+
 export const MEMORY_WORKSPACE_LAYOUT_STORAGE_KEY =
   "animama.memory-workspace.layout.v1";
 
@@ -53,10 +55,6 @@ function clamp(value: number, minimum: number, maximum: number) {
 
 function finiteNonNegative(value: number) {
   return Number.isFinite(value) ? Math.max(0, value) : 0;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
 function validPreference(

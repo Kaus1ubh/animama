@@ -1,4 +1,8 @@
 # ruff: noqa: E501
+"""Builds the memory part of direct-chat instructions: the core companion instruction,
+memory guidance, the memory file map and the opened memory files with their fingerprints.
+"""
+
 from __future__ import annotations
 
 from collections.abc import Callable, Iterable, Mapping
@@ -35,7 +39,6 @@ Respond to the user's latest message naturally, as in a live conversation: warm,
 """
 # Where the core instruction points for the identity; Anthropic rows name its XML tag instead.
 DEFAULT_IDENTITY_REFERENCE = "under Anima Identity"
-CORE_COMPANION_INSTRUCTION = CORE_COMPANION_INSTRUCTION_TEMPLATE.format(identity_reference=DEFAULT_IDENTITY_REFERENCE)
 
 _SHARED_FILES_MEMORY = (
     "- Shared memory files such as `PROFILE.md`: durable facts about the user, such as their goals, motivations, "
@@ -515,7 +518,6 @@ def _scope_path_key(anima_id: str | None, path: str) -> str:
 __all__ = [
     "ANIMA_MEMORIES_GUIDANCE",
     "ANIMA_MEMORIES_WRITE_GUIDANCE",
-    "CORE_COMPANION_INSTRUCTION",
     "CORE_COMPANION_INSTRUCTION_TEMPLATE",
     "DirectChatMemoryContext",
     "DirectChatMemoryContextError",

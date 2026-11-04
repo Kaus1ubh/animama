@@ -28,9 +28,6 @@ export const DEBUG_ENABLED =
 
 export const env = {
   mode: readString("MODE") ?? "production",
-  isDev: import.meta.env.DEV,
-  baseUrl: readString("BASE_URL") ?? "/",
-  appEnv: readString("VITE_APP_ENV") ?? "development",
   appVersion: __ANIMAMA_APP_VERSION__,
   disableWebuiTelemetry: readBooleanFlag("VITE_DISABLE_WEBUI_TELEMETRY"),
   disableWebuiTraces: readBooleanFlag("VITE_DISABLE_WEBUI_TRACES"),

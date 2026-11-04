@@ -16,6 +16,7 @@ from typing import Any
 import httpx2
 from openai import AsyncOpenAI, OpenAIError
 
+from animama.adapters.model_clients.openai_errors import classify_openai_exception
 from animama.app.model_catalog import STRUCTURED_OUTPUT_TRANSPORT_JSON_OBJECT, STRUCTURED_OUTPUT_TRANSPORT_JSON_SCHEMA
 from animama.app.model_clients import ModelClientProviderError
 from animama.app.model_clients.credentials import ModelCredentialResolver
@@ -45,7 +46,6 @@ from animama.app.model_connection_presets import PRESET_LLAMA_CPP, PRESET_LM_STU
 from animama.domain.model_connection import ModelConnection
 from animama.logging import get_logger
 
-from ..openai_errors import classify_openai_exception
 from .connection_sdk import (
     CONNECT_TIMEOUT_SECONDS,
     connection_base_url,

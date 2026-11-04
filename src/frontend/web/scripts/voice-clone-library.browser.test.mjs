@@ -53,7 +53,6 @@ before(async () => {
           replacement: path.join(fixture, "boundaries.ts"),
         },
         { find: "@", replacement: path.join(webRoot, "src") },
-        { find: "@web", replacement: path.join(webRoot, "src") },
       ],
     },
     server: { host: "127.0.0.1", port: 0, strictPort: false },

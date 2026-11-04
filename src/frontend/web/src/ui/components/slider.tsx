@@ -1,6 +1,5 @@
 // Adapted from shadcn/ui (MIT): apps/www/registry/new-york/ui/slider.tsx.
 // See licenses/third-party/adapted-code.md.
-"use client";
 
 import * as React from "react";
 import { Slider as SliderPrimitive } from "radix-ui";

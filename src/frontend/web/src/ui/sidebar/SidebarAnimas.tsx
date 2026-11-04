@@ -1,5 +1,3 @@
-"use client";
-
 import { useMemo, useState } from "react";
 import { Link, useLocation, useParams } from "@tanstack/react-router";
 import { AnimatePresence, motion } from "motion/react";

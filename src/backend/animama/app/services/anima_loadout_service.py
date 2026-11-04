@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import hashlib
-import json
 from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
@@ -18,6 +16,7 @@ from animama.adapters.repositories.sqlalchemy.avatar_repo import SQLAlchemyAvata
 from animama.adapters.repositories.sqlalchemy.content_catalog_repo import SQLAlchemyContentCatalog
 from animama.app.ports.content_store import ContentStore
 from animama.app.services.avatar_effect_conversion import is_unconverted_avatar_effect
+from animama.app.services.canonical_digest import canonical_digest
 from animama.app.services.content_kind_registry import RETIRED_CONTENT_KINDS
 from animama.app.services.idle_playback import read_gesture_idle_playback
 from animama.app.services.starter_loadout_policy import (
@@ -89,14 +88,6 @@ LoadoutFamily = Literal[
     "appearance",
     "voice",
 ]
-
-
-def _canonical(value: object) -> str:
-    return json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
-
-
-def _digest(value: object) -> str:
-    return hashlib.sha256(_canonical(value).encode()).hexdigest()
 
 
 def _source(value: TypedCatalogItem) -> CatalogLoadoutSource:
@@ -758,7 +749,7 @@ class AnimaLoadoutService:
             }
         plan = LoadoutPlan(
             action=cast(Any, action),
-            digest=_digest(identity),
+            digest=canonical_digest(identity),
             current_name=current.slot_key if current else None,
             target_name=target.document.name if target else None,
             included_resource_counts=counts,
@@ -923,7 +914,7 @@ class AnimaLoadoutService:
             definition = await self._animas.lock_definition(user_id=user_id, anima_id=anima_id)
         except AnimaDefinitionError as exc:
             raise AnimaLoadoutError(exc.code, current_revision=exc.current_revision) from exc
-        request_digest = _digest(
+        request_digest = canonical_digest(
             {
                 "anima_id": anima_id,
                 "family": family,

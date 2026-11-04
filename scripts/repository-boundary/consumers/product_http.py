@@ -18,7 +18,7 @@ FORBIDDEN = ("animama.local", "animama.server", "animama.runtime", "animama.hook
 class LocalImportBlocker(importlib.abc.MetaPathFinder):
     """Refuse every local composition module a shared import might reach."""
 
-    def find_spec(self, fullname, path=None, target=None):  # noqa: ANN001, ANN201
+    def find_spec(self, fullname, path=None, target=None):
         if any(fullname == prefix or fullname.startswith(prefix + ".") for prefix in FORBIDDEN):
             raise ImportError(f"shared product HTTP imported local module {fullname}")
         return None

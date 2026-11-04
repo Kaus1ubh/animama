@@ -1,2 +1,2 @@
 /** Shared presentation implementation. */
-export * from "@animama/product-ui/components";
+export { Button } from "@animama/product-ui/components";

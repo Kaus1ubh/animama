@@ -14,12 +14,12 @@ SUPPLIED_STARTERS_STATEMENTS = 300
 
 
 @contextmanager
-def counted_statements(session) -> Iterator[list[str]]:  # noqa: ANN001
+def counted_statements(session) -> Iterator[list[str]]:
     """Collect every statement ``session``'s engine sends inside the block."""
 
     statements: list[str] = []
 
-    def record(_conn, _cursor, statement, _parameters, _context, _executemany):  # noqa: ANN001
+    def record(_conn, _cursor, statement, _parameters, _context, _executemany):
         statements.append(statement)
 
     engine = session.bind.sync_engine

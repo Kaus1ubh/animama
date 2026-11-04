@@ -1,8 +1,6 @@
-"use client";
-
 import { useTranslation } from "react-i18next";
 
-import { useSoundController } from "@/hooks/use-sound-controller";
+import { useSoundController } from "@/hooks/useSoundController";
 import { cn } from "@/lib/utils";
 import { Checkbox } from "@/ui/components/checkbox";
 import { Slider } from "@/ui/components/slider";

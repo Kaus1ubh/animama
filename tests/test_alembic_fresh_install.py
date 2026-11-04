@@ -45,7 +45,7 @@ def test_current_schema_is_the_single_root_and_head() -> None:
     assert revisions[0].down_revision is None
 
 
-def test_fresh_database_migrates_to_head(db_url: str, monkeypatch) -> None:  # noqa: ANN001
+def test_fresh_database_migrates_to_head(db_url: str, monkeypatch) -> None:
     """Create the current schema directly, with independent installation owners."""
 
     base_url = make_url(db_url.replace("+asyncpg", "+psycopg"))

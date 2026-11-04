@@ -16,7 +16,8 @@ from datetime import timedelta
 from pathlib import Path
 from typing import Any
 
-from ..ports.settings_port import UserSettingsRepository
+from animama.app.ports.settings_port import UserSettingsRepository
+
 from .ai_notice import DEFAULT_REMINDER_INTERVAL
 
 SAFETY_PREFERENCES_KEY = "safety"

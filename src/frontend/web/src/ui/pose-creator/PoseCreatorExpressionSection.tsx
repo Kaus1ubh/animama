@@ -1,5 +1,3 @@
-"use client";
-
 import { ChevronUpIcon, RotateCcwIcon, SearchIcon } from "lucide-react";
 import { memo, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";

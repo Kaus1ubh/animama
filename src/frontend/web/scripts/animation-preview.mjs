@@ -87,7 +87,6 @@ export async function startPreviewServer({
     resolve: {
       alias: {
         "@": path.join(webRoot, "src"),
-        "@web": path.join(webRoot, "src"),
       },
     },
     optimizeDeps: {

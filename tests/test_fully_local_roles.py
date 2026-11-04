@@ -128,21 +128,21 @@ class _ForbiddenClient:
     async def aclose(self) -> None:
         pass
 
-    async def stream(self, request):  # noqa: ANN001, ANN201
+    async def stream(self, request):
         _ForbiddenClient.calls += 1
         raise AssertionError("the OpenAI Responses client was used")
         yield  # pragma: no cover
 
 
 @pytest.fixture
-def local_only(monkeypatch, set_runtime_credentials):  # noqa: ANN001
+def local_only(monkeypatch, set_runtime_credentials):
     """Remove OpenAI credentials and route every SDK client to the local server."""
 
     server = _LocalModelServer()
     base_urls: list[str] = []
     original_init = AsyncOpenAI.__init__
 
-    def _init(self, *args, **kwargs):  # noqa: ANN001, ANN002, ANN003
+    def _init(self, *args, **kwargs):
         base_urls.append(str(kwargs.get("base_url")))
         kwargs["http_client"] = httpx2.AsyncClient(transport=httpx2.MockTransport(server))
         original_init(self, *args, **kwargs)
@@ -155,7 +155,7 @@ def local_only(monkeypatch, set_runtime_credentials):  # noqa: ANN001
     return server, base_urls
 
 
-async def _seed_local_roles(session, owner_id: str) -> None:  # noqa: ANN001
+async def _seed_local_roles(session, owner_id: str) -> None:
     await sse._seed_owner_connection(
         session, "conn-local-ollama", preset="ollama", base_url=LOCAL_BASE_URL, name="Ollama"
     )

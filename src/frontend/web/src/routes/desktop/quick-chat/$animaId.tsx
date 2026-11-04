@@ -1,5 +1,3 @@
-"use client";
-
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useCallback, useEffect, useLayoutEffect, useState } from "react";
 import type { ChangeEvent } from "react";

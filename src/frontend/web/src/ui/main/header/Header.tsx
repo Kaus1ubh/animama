@@ -1,5 +1,3 @@
-"use client";
-
 import type { ReactNode } from "react";
 import { Suspense, lazy, useEffect, useState } from "react";
 import { useLocation, useParams } from "@tanstack/react-router";
@@ -74,16 +72,6 @@ export function Header({
   const handleMenuClick =
     onMenuClick ?? appShell?.toggleSidebar ?? appShell?.openSidebar;
   const showMenuButton = Boolean(handleMenuClick);
-  // const desktopSidebarInset = appShell?.isDesktop === true ? 88 : 0;
-  // Ignore sidebar when it comes to centered title, may impact left header content...
-  const desktopSidebarInset = 0;
-  const headerStyle =
-    desktopSidebarInset > 0
-      ? {
-          marginLeft: `${desktopSidebarInset}px`,
-          width: `calc(100% - ${desktopSidebarInset}px)`,
-        }
-      : undefined;
   const animaName = activeAnima ? getAnimaDisplayName(activeAnima) : null;
   const animaLabel = isLoading
     ? t("header.anima.loading")
@@ -154,7 +142,6 @@ export function Header({
         "group flex items-center justify-between bg-transparent px-4 py-3 transition-[margin-left,width] duration-150 ease-in-out",
         className,
       )}
-      style={headerStyle}
     >
       <div className="pointer-events-auto grid w-full grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] sm:gap-4">
         <div className="flex min-w-0 items-center gap-2">

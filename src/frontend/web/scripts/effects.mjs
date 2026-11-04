@@ -95,7 +95,6 @@ export async function loadWebModule(file) {
     resolve: {
       alias: {
         "@": path.join(webRoot, "src"),
-        "@web": path.join(webRoot, "src"),
       },
     },
     server: { middlewareMode: true, hmr: false, ws: false },

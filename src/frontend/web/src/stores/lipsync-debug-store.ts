@@ -1,5 +1,3 @@
-"use client";
-
 import { create } from "zustand";
 
 import { registerPrivateStateReset } from "@/app/runtime/private-module-state";

@@ -105,7 +105,7 @@ def find(baseline: str, baseline_tree: str, *, fetch=_get_json, download=_downlo
                 "artifact": artifact,
                 "source_commit": named["source"]["commit"],
             }
-        except Exception:  # noqa: BLE001 - try the next run; transport text may contain signed URLs.
+        except Exception:  # Try the next run; transport text may contain signed URLs.
             continue
     raise ValueError("No retained validated set for the baseline")
 
@@ -177,7 +177,7 @@ def run(args: argparse.Namespace) -> int:
             "manifest_sha256": hashlib.sha256((old / "manifest.json").read_bytes()).hexdigest(),
             "source": manifest["source"],
         }
-    except Exception as exc:  # noqa: BLE001 - any doubt rebuilds; transport text may contain signed URLs.
+    except Exception as exc:  # Any doubt rebuilds; transport text may contain signed URLs.
         reason = str(exc) if isinstance(exc, ValueError) and "http" not in str(exc) else type(exc).__name__
         record |= {"path": "rebuilt", "reason": reason}
         # Record the decision before a rebuild that may itself fail.

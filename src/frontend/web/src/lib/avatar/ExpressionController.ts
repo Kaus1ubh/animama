@@ -41,6 +41,7 @@ import {
   type EmotionExpressionComposition,
   type EmotionExpressionIntensity,
 } from "./emotionExpressionPresets";
+import { isRecord } from "@/lib/records";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Constants
@@ -293,10 +294,6 @@ const logger = createLogger("Avatar LipSync");
 
 function normalizeLipSyncFormat(value: unknown): LipSyncFrameFormat {
   return value === "vowel5" ? "vowel5" : "arkit_52";
-}
-
-function isRecordLike(value: unknown): value is Record<string, unknown> {
-  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
 class LipSyncController {
@@ -1409,7 +1406,7 @@ export class ExpressionController {
       }
     }
 
-    if (isRecordLike(manager.expressionMap)) {
+    if (isRecord(manager.expressionMap)) {
       for (const name of Object.keys(manager.expressionMap)) {
         if (this._hasBlendshape(name)) {
           names.add(name);

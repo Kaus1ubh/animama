@@ -1,5 +1,3 @@
-"use client";
-
 import { createLogger } from "@/lib/logger";
 
 import { getAudioPrefsFromSnapshot, loadAudioPrefs } from "./audio-prefs";

@@ -1,15 +1,10 @@
-"use client";
-
 import { useState } from "react";
 import { ChevronDown, ChevronRight } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import { isRecord } from "@/lib/records";
 
 export type JsonExpandMode = "smart" | "all" | "collapsed";
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
-}
 
 function getJsonNodeDefaultOpen(
   depth: number,

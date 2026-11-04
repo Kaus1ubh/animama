@@ -1,5 +1,3 @@
-"use client";
-
 import { useCallback, useEffect, useRef, useState } from "react";
 import { usePoseCreatorStore } from "@/stores/pose-creator-store";
 import {
