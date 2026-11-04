@@ -2,19 +2,20 @@
 
 Status: Agreed
 Authority: [#838](https://github.com/raymond-van/animama/issues/838). This file is
-a snapshot of that issue captured 2026-11-03T22:58:24Z; change the issue, not
+a snapshot of that issue captured 2026-11-04T19:04:19Z; change the issue, not
 this file.
 Owner decision: draft agreed by the owner on 2026-11-03. The same day the
 security review added three refinements (R3.3's switch list, R3.6's
 throwaway profile and R4.6 on redirects), which go to the owner with the
-ExecPlan. Dated decisions are listed under
+ExecPlan. On 2026-11-04 the owner dropped R5 (update-download checks). Dated
+decisions are listed under
 [Open questions and decisions](#open-questions-and-decisions).
 
 ## Problem and intended users
 
 The Animama repository will be published with its history, and the macOS
 desktop app keeps shipping. A security review before publication (#819)
-recommended five hardening changes, which this spec covers together:
+recommended five hardening changes. This spec covers four of them together:
 
 1. **Reporting route.** `SECURITY.md` says there is no monitored way to report
    a vulnerability privately.
@@ -27,9 +28,6 @@ recommended five hardening changes, which this spec covers together:
 4. **Provider keys.** A model connection may name a stored provider key
    whatever its base URL is, keeps its key when its address changes, and may
    send a key over plain `http://` to another computer.
-5. **Update downloads.** Before installing an update, the desktop app trusts
-   the version that the feed file names, not the version inside the downloaded
-   artifact, and on macOS it does not recheck the cached update archive.
 
 The people who benefit are those who install the desktop app or self-host
 Animama, whose keys and signed-app permissions stay bound to Animama itself;
@@ -38,7 +36,7 @@ maintainer, who receives reports privately.
 
 ## Goals, scope and non-goals
 
-In scope: requirements R1 to R5 below, their tests, documentation and the
+In scope: requirements R1 to R4 below, their tests, documentation and the
 release smoke changes that R3 requires.
 
 Out of scope:
@@ -49,6 +47,9 @@ Out of scope:
   (the owner does that on publication day).
 - Animama Cloud. The content-bytes header (R2.3) lives in shared delivery code,
   so a hosted consumer receives it when it adopts a release containing it.
+- Checks on downloaded update artifacts: no later desktop build checks for
+  updates, so they are out of scope; a build that re-enables updates should
+  add them (owner, 2026-11-04).
 - Signing the update feed file, or adding an expiry to it.
 - An "Automatically check for updates" setting.
 - The desktop version number and the release policy.
@@ -188,22 +189,6 @@ Out of scope:
   header the HTTP library does not drop on a cross-origin redirect refuses
   such redirects.
 
-### R5: Update-download checks
-
-- **R5.1** After an update downloads and before anything is installed, the app
-  checks the artifact itself against the approved update, whose feed version
-  must already be newer than the running app:
-  - macOS: the app in the update archive has the approved version, and its
-    runtime manifest names the approved version and runtime build ID;
-  - Windows: the installer's product version is the approved version.
-  A mismatch refuses the update with a stable error code. The running app,
-  its services and its data are untouched, and the person can check again.
-- **R5.2** On macOS, immediately before the update is handed to the system
-  updater, the cached archive's size and SHA-512 are checked again against the
-  approved values, as Windows already does for its installer.
-- **R5.3** These checks run with real Electron and the pinned updater against a
-  local feed server, as well as in unit tests.
-
 ## Constraints
 
 - **Public records stay public-safe.** Records describe the hardening, not how
@@ -253,10 +238,6 @@ Out of scope:
   resolution, and a cross-origin redirect for each key-carrying client;
   desktop tests cover origins in the vault and its delivery; web tests cover
   the address-change prompt.
-- [ ] R5: adapter tests cover matching and mismatched artifacts on both
-  platforms and the macOS recheck; a real-Electron run against a local feed
-  server shows a matching update accepted and a changed version, build ID or
-  archive refused before install.
 - [ ] The full pre-push suite passes on the final candidate, and the PR records
   local evidence separately from hosted validation.
 
@@ -279,6 +260,11 @@ Owner decisions, 2026-11-03:
 - **`data:` connections (R2.1), 2026-11-03:** the policy allows `data:`
   connections, because the Pose and Action previews fetch inline clips and model
   files may embed data; such data never leaves the device.
+
+Owner decision, 2026-11-04: R5 (update-download checks) is dropped. #837
+builds 0.1.3 as the final release with update checks sealed off, so no later
+desktop build checks for updates; a build that re-enables updates should add
+these checks.
 
 Security review refinements, 2026-11-03, presented with the ExecPlan: the
 named switch list (R3.3), the smoke copy's throwaway profile and cleanup
