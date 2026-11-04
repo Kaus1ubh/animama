@@ -1,5 +1,5 @@
 {
-  "schema": "animama-release-policy/3",
+  "schema": "animama-release-policy/4",
   "distributions": {
     "r2": {
       "base_url": "https://downloads.animama.ai/desktop",
@@ -11,6 +11,7 @@
     }
   },
   "channel": "stable",
+  "updates": "ended",
   "distribution_basis": {
     "commercial": false,
     "pocket_tts_onnx_license": "CC-BY-4.0"

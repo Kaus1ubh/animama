@@ -44,6 +44,7 @@ export function assertFreshProfile(paths, account) {
  * - `userData`: the canonical profile the app creates;
  * - `installed`, `executable` and `env`: the installed app and its minimal
  *   launch environment, whose `PATH` the app must keep;
+ * - `runtime`: the installed app's sealed runtime resources;
  * - `install()`: verifies and installs the exact artifact, recording its
  *   runtime build ID in the report;
  * - `ownedChild(child)`: whether a recorded child runs the installed runtime;
@@ -220,17 +221,25 @@ export async function runSmokeJourney({ report, provider, platform }) {
       ),
     );
     observeChildren();
-    // A packaged app offers updates only after its own signature matched the
-    // sealed publisher; otherwise it reports "unavailable". Before the first
-    // release the feed itself may be missing, which is an error state.
-    step = "update-publisher";
+    // The install step bound this sealed policy to the release source's.
+    const updatesEnded =
+      readJson(path.join(platform.runtime, "update-policy.json")).updates ===
+      "ended";
+    step = updatesEnded ? "updates-ended" : "update-publisher";
     const update = await page.evaluate(() =>
       window.animamaDesktop.updates.check(),
     );
-    evidence(
-      "update_publisher_verified",
-      typeof update?.state === "string" && update.state !== "unavailable",
-    );
+    if (updatesEnded)
+      // The final release never checks for updates and offers none.
+      evidence("updates_ended", update?.state === "unavailable");
+    else
+      // A packaged app offers updates only after its own signature matched the
+      // sealed publisher; otherwise it reports "unavailable". Before the first
+      // release the feed itself may be missing, which is an error state.
+      evidence(
+        "update_publisher_verified",
+        typeof update?.state === "string" && update.state !== "unavailable",
+      );
     // Setup is three steps: Welcome (required name) → AI → Voice, then age confirmation.
     step = "setup-welcome";
     const continueButton = page.getByRole("button", {

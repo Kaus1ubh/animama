@@ -175,6 +175,7 @@ export async function smokeWindows(args) {
       userData,
       installed,
       executable: path.join(installed, "Animama.exe"),
+      runtime,
       env: windowsLaunchEnvironment(),
       async install(evidence) {
         verifySigned(path.dirname(artifact), path.basename(artifact));
@@ -188,6 +189,12 @@ export async function smokeWindows(args) {
             manifest.app_version === release.version,
         );
         assertInventory(runtime, manifest.files);
+        // The candidate seals the update policy the release source expects.
+        evidence(
+          "sealed_update_policy",
+          JSON.stringify(readJson(path.join(runtime, "update-policy.json"))) ===
+            JSON.stringify(release.updatePolicy),
+        );
         report.runtime_build_id = manifest.build_id;
       },
       ownedChild: (child) =>

@@ -105,18 +105,20 @@ vi.mock("electron-updater", async () => {
 });
 
 const policy = {
-  schema: "animama-update-policy/2" as const,
+  schema: "animama-update-policy/3" as const,
   distribution: { kind: "github" as const, owner: "example", repo: "releases" },
   channel: "stable" as const,
+  updates: "offered" as const,
   team_id: "TESTTEAM01",
 };
 const windowsPolicy = {
-  schema: "animama-update-policy/2" as const,
+  schema: "animama-update-policy/3" as const,
   distribution: {
     kind: "r2" as const,
     base_url: "https://downloads.example.test/desktop",
   },
   channel: "stable" as const,
+  updates: "offered" as const,
   windows_publisher: {
     certificate_subject: "CN=Example Publisher, O=Example Publisher, C=CA",
     identity_validation_eku: "1.3.6.1.4.1.311.97.1.2.3.4",

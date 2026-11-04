@@ -76,7 +76,7 @@ Orientation, from a read-only survey on 2026-11-04:
 - [x] Workspace (2026-11-04): spec published to #837, branch
   `build/final-desktop-release` at `8ae2d1f05`, plan and spec snapshot
   committed.
-- [ ] Phase 1: sealed end of updates and packs.
+- [x] Phase 1: sealed end of updates and packs (review #2 passed; one repair round).
 - [ ] Phase 2: model downloads end in the backend.
 - [ ] Phase 3: download controls explain the end.
 - [ ] Phase 4: packaged notices.
@@ -169,7 +169,59 @@ installed data changes.
 
 Completion: commit `build(desktop)[p1]: seal the end of update checks into the build`.
 
-Check record: _to be filled._
+Check record (from `src/frontend` unless noted):
+
+- Red first: the five update/policy test files failed 8 tests before the change.
+- Tree `34754509` (initial): `pnpm --filter animama-desktop exec vitest run
+  tests/desktop-updates.test.ts tests/runtime-packaging.test.mjs
+  tests/windows-release.test.mjs tests/feature-packs.test.ts
+  tests/desktop-updater-adapter.test.ts` 174 passed; `pnpm --filter
+  animama-desktop check` passed; `pnpm desktop:test` 599 passed, 14 skipped;
+  `cd desktop && pnpm -s prettier:check` passed;
+  `python3 ../../scripts/heavy-slot.py -- pnpm desktop:runtime:stage --
+  --platform darwin --arch arm64` exit 0, staged `update-policy.json` is
+  schema `/3` with `"updates": "ended"`, `pack-catalog.json` entries `[]`.
+- Tree `1df902b6` (after repair round 1): `pnpm --filter animama-desktop check`
+  passed; `pnpm desktop:test` 603 passed, 14 skipped; desktop
+  `prettier:check` passed.
+
+#### Code Review #1 Findings
+
+Reviewed tree `34754509` (staged Phase 1), high risk; the reviewer reran the
+five update/policy test files (174 passed) and `tsc`.
+
+- P1-R1-F1 (blocking): no unit test pinned the main-process decision; a merge
+  could move the early return below the publisher check unnoticed.
+- P1-R1-F2: the smoke took its expectation from the artifact under test.
+- P1-R1-F3: stable macOS acceptance required pack checks a build without packs
+  cannot exercise.
+- P1-R1-F4: `releases.md` lines on the startup publisher check, the policy row
+  and the smoke's update check become misleading (Phase 6).
+- P1-R1-F5: the policy comment's reason for keeping the distribution was wrong.
+- P1-R1-F6: no win32 ended case and no `release-policy/3` rejection test.
+
+#### Code Review #1 Revisions
+
+- F1 accepted: `openSealedUpdates` in `updates/policy.ts` validates, returns
+  before the publisher check and controller when ended, and is used by
+  `main.ts`; four tests cover ended, offered, cancelled and invalid.
+- F2 accepted: both smoke installs record `sealed_update_policy` against the
+  release source's policy before the journey branches.
+- F3 accepted: `validateManualAcceptance(..., { packs })` skips the three pack
+  checks when no pack is active; `publish-release.mjs` passes it.
+  `offline_dictation` stays: it is exercised by upgrading from a 0.1.2 preview
+  that has offline speech installed (Phase 6 runbook).
+- F4 deferred to Phase 6. F5 and F6 accepted. The ended smoke step is named
+  `updates-ended`. The `publish-macos-models` fixture gains `activePackIds`.
+
+#### Code Review #2 Findings
+
+Targeted recheck of tree `1df902b6`; the reviewer reran eight affected desktop
+test files (206 passed) and the whole desktop suite (603 passed, 14 skipped).
+All dispositions verified; no blocking findings. P1-R2-F1 (optional): the VM
+guest smoke does not forward `ANIMAMA_RELEASE_DISTRIBUTION`, so a GitHub-built
+candidate fails `sealed_update_policy` there; it fails closed and R2 is the
+release distribution, so the Phase 6 runbook notes it. Phase 1 passes.
 
 ### Phase 2: Model downloads end in the backend
 

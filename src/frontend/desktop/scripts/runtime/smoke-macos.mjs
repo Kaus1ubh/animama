@@ -85,6 +85,7 @@ export async function smokeMac(args) {
       userData,
       installed,
       executable: path.join(installed, "Contents/MacOS/Animama"),
+      runtime: path.join(installed, "Contents/Resources/runtime"),
       env,
       async install(evidence) {
         run(
@@ -126,6 +127,18 @@ export async function smokeMac(args) {
         assertInventory(
           path.join(mount, "Animama.app/Contents/Resources/runtime"),
           manifest.files,
+        );
+        // The candidate seals the update policy the release source expects.
+        evidence(
+          "sealed_update_policy",
+          JSON.stringify(
+            readJson(
+              path.join(
+                mount,
+                "Animama.app/Contents/Resources/runtime/update-policy.json",
+              ),
+            ),
+          ) === JSON.stringify(release.updatePolicy),
         );
         report.runtime_build_id = manifest.build_id;
         // ditto retains the code signature and stapled ticket; do not touch a pre-existing application.

@@ -63,6 +63,13 @@ export const manualWindowsChecks = [
   "native_network",
 ];
 
+/** Checks that only a build with an active feature pack can exercise. */
+const PACK_CHECKS = new Set([
+  "document_processing",
+  "expanded_content",
+  "pack_interruption",
+]);
+
 /** What each target's smoke report and human acceptance are bound to. */
 const ACCEPTANCE = {
   "darwin-arm64": {
@@ -115,14 +122,22 @@ function olderStableVersion(previous, current) {
   return false;
 }
 
-/** This is an explicit human attestation bound to the exact signed artifact, not a test override. */
+/**
+ * This is an explicit human attestation bound to the exact signed artifact, not
+ * a test override. A build without active packs (`packs: false`) skips the
+ * pack checks it cannot exercise.
+ */
 export function validateManualAcceptance(
   value,
   artifactSha256,
   version,
   target = "darwin-arm64",
+  { packs = true } = {},
 ) {
   const spec = ACCEPTANCE[target];
+  const checks = packs
+    ? spec.checks
+    : spec.checks.filter((name) => !PACK_CHECKS.has(name));
   if (
     value?.schema !== spec.schema ||
     value.app_version !== version ||
@@ -131,7 +146,7 @@ export function validateManualAcceptance(
     !/^[^\x00-\x1f\x7f]{1,100}$/u.test(value.reviewed_by) ||
     !/^\d{4}-\d{2}-\d{2}$/u.test(value.reviewed_on ?? "") ||
     value.reviewed_on > new Date().toISOString().slice(0, 10) ||
-    !spec.checks.every((name) => value.checks?.[name] === true) ||
+    !checks.every((name) => value.checks?.[name] === true) ||
     !olderStableVersion(value.prior_signed_version, version)
   )
     throw new Error(
@@ -144,6 +159,6 @@ export function validateManualAcceptance(
     reviewed_by: value.reviewed_by,
     reviewed_on: value.reviewed_on,
     prior_signed_version: value.prior_signed_version,
-    checks: Object.fromEntries(spec.checks.map((name) => [name, true])),
+    checks: Object.fromEntries(checks.map((name) => [name, true])),
   };
 }
