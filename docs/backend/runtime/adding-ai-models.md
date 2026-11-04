@@ -221,9 +221,10 @@ defaults: label and logo, default base URL (local presets derive the host from
 variable, timeout and `ModelConnectionCompatibility`. Settings read presets
 from `GET /v1/model-connection-presets`; chat-failure hints in
 `packages/product-ui/src/chat/chat-failure.ts` name local presets. A suggested
-key variable must also be allowed by `KNOWN_PROVIDER_CREDENTIAL_ENVS` in
-`app/model_clients/credentials.py`; otherwise owners use
-`ANIMAMA_CONNECTION_<NAME>_API_KEY`.
+key variable must also be listed with its provider's origin in
+`PROVIDER_CREDENTIAL_ORIGINS` (`app/model_clients/credential_store.py`), and its
+key then goes only to that origin; otherwise owners use
+`ANIMAMA_CONNECTION_<NAME>_API_KEY` with its `_ORIGIN`.
 
 When a server differs in a way the existing options cannot express, add a
 compatibility option and apply it in

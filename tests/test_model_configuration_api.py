@@ -592,7 +592,7 @@ async def test_connection_updates_keep_omitted_fields_and_relabel_their_models(a
                 json=_connection_body(
                     name="Workstation",
                     preset="custom",
-                    base_url="http://192.168.1.20:8000/v1",
+                    base_url="https://192.168.1.20:8443/v1",
                     credential={"mode": "env", "env": "ANIMAMA_CONNECTION_WORKSTATION_API_KEY"},
                     compatibility={"fold_developer_role": False, "send_openai_extensions": True},
                     timeout_seconds=120,
@@ -610,7 +610,7 @@ async def test_connection_updates_keep_omitted_fields_and_relabel_their_models(a
     view = renamed.json()
     assert view["name"] == "Workstation vLLM"
     assert view["preset"] == "vllm"
-    assert view["base_url"] == "http://192.168.1.20:8000/v1"
+    assert view["base_url"] == "https://192.168.1.20:8443/v1"
     assert view["credential_env"] == "ANIMAMA_CONNECTION_WORKSTATION_API_KEY"
     assert view["compatibility"]["fold_developer_role"] is False
     assert view["timeout_seconds"] == 120

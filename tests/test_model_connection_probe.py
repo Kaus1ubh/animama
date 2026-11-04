@@ -203,9 +203,10 @@ async def test_probe_stops_after_a_rejected_key(sdk_transport):
     sdk_transport(server)
     connection = _connection("custom", credential_env="ANIMAMA_CONNECTION_C1_API_KEY")
 
-    report = await _probe(server, {"ANIMAMA_CONNECTION_C1_API_KEY": "sk-owner"}).probe_chat_model(
-        connection, model="qwen3:8b"
-    )
+    report = await _probe(
+        server,
+        {"ANIMAMA_CONNECTION_C1_API_KEY": "sk-owner", "ANIMAMA_CONNECTION_C1_ORIGIN": "https://models.example.test"},
+    ).probe_chat_model(connection, model="qwen3:8b")
 
     assert [(step.name, step.ok, step.category) for step in report.steps] == [
         ("streaming", False, "credential_rejected")
@@ -221,6 +222,32 @@ async def test_probe_requires_the_referenced_key_before_any_request(sdk_transpor
         await _probe(server).probe_chat_model(
             _connection("deepseek", credential_env="DEEPSEEK_API_KEY"), model="deepseek-chat"
         )
+
+    assert exc_info.value.category == "credential_missing"
+    assert server.requests == []
+
+
+@pytest.mark.parametrize(
+    "keys",
+    [
+        {"ANIMAMA_CONNECTION_C1_API_KEY": "sk-owner"},
+        {"ANIMAMA_CONNECTION_C1_API_KEY": "sk-owner", "ANIMAMA_CONNECTION_C1_ORIGIN": "https://elsewhere.example.test"},
+    ],
+    ids=["no-origin", "another-origin"],
+)
+async def test_probe_sends_nothing_with_a_key_saved_for_another_address(sdk_transport, keys):
+    server = _Server()
+    sdk_transport(server)
+    connection = ModelConnection(
+        id="c1",
+        name="Lab",
+        preset="custom",
+        base_url="https://models.example.test/v1",
+        credential_env="ANIMAMA_CONNECTION_C1_API_KEY",
+    )
+
+    with pytest.raises(ModelConnectionProbeError) as exc_info:
+        await _probe(server, keys).probe_chat_model(connection, model="qwen3:8b")
 
     assert exc_info.value.category == "credential_missing"
     assert server.requests == []

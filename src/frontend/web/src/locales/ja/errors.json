@@ -158,7 +158,9 @@
   "modelConfiguration": {
     "bad_request": "サーバーがリクエストを拒否しました。",
     "context_exceeded": "リクエストがモデルのコンテキストウィンドウを超えていました。",
+    "credential_insecure_transport": "キーは https、またはこのコンピューターへの http でのみ送信されます。https またはローカルサーバーを使用してください。",
     "credential_missing": "この接続を使用するにはキーが必要です。",
+    "credential_origin_mismatch": "このキーは別のアドレス用です。プロバイダーのキーはそのプロバイダーの API にのみ、接続のキーは一緒に保存されたアドレスにのみ送信されます。",
     "credential_rejected": "サーバーがキーを拒否しました。",
     "detectionNotRunning": "{{baseUrl}} では何も実行されていません。{{server}} を起動して再試行してください。",
     "invalid_base_url": "ベース URL が無効です。",

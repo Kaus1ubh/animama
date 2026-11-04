@@ -20,6 +20,7 @@ from dataclasses import dataclass, field
 from types import MappingProxyType
 from typing import Protocol
 
+from animama.app.model_clients.key_origins import is_origin
 from animama.logging import get_logger
 
 _log = get_logger("app.model_clients.credential_store")
@@ -32,14 +33,28 @@ GEMINI_CREDENTIAL_ENV = "GEMINI_API_KEY"
 MANAGED_CREDENTIAL_ENV_PATTERN = re.compile(r"^ANIMAMA_CONNECTION_[A-Z0-9_]{1,64}_API_KEY$")
 """Names for owner connection keys; the desktop vault writes keys under this namespace."""
 
-KNOWN_PROVIDER_CREDENTIAL_ENVS = frozenset(
-    {OPENAI_CREDENTIAL_ENV, "DEEPSEEK_API_KEY", "HF_TOKEN", "OPENROUTER_API_KEY"}
+PROVIDER_CREDENTIAL_ORIGINS: Mapping[str, str] = MappingProxyType(
+    {
+        OPENAI_CREDENTIAL_ENV: "https://api.openai.com",
+        "DEEPSEEK_API_KEY": "https://api.deepseek.com",
+        "HF_TOKEN": "https://router.huggingface.co",
+        "OPENROUTER_API_KEY": "https://openrouter.ai",
+    }
 )
-"""Conventional provider key variables an owner connection may also reference.
+"""Conventional provider keys an owner connection may reference, each only at its provider's API.
 
 ``ANTHROPIC_API_KEY`` and ``GEMINI_API_KEY`` are deliberately absent: only the
 built-in Anthropic connection and the Gemini voice read them, so each is sent
 only to its own provider's API.
+"""
+
+KNOWN_PROVIDER_CREDENTIAL_ENVS = frozenset(PROVIDER_CREDENTIAL_ORIGINS)
+
+CONNECTION_ORIGIN_ENV_PATTERN = re.compile(r"^ANIMAMA_CONNECTION_[A-Z0-9_]{1,64}_ORIGIN$")
+"""The origin a connection key may be sent to, beside ``ANIMAMA_CONNECTION_<NAME>_API_KEY``.
+
+The desktop vault delivers it with the key; a self-hosted operator sets it. Its
+value is an origin (``scheme://host[:port]``), not a secret.
 """
 
 WEB_SEARCH_MANAGED_CREDENTIAL_ENV = "ANIMAMA_CONNECTION_WEB_SEARCH_API_KEY"
@@ -65,6 +80,12 @@ class CredentialStoreError(ValueError):
         self.code = code
 
 
+def connection_origin_env(key_env: str) -> str:
+    """Return the variable that holds the origin saved with connection key ``key_env``."""
+
+    return key_env.removesuffix("_API_KEY") + "_ORIGIN"
+
+
 def is_allowed_credential_env(name: str) -> bool:
     """Return whether an owner connection may read a key from ``name``.
 
@@ -85,6 +106,7 @@ def is_process_credential_env(name: str) -> bool:
         name in {ELEVENLABS_CREDENTIAL_ENV, ANTHROPIC_CREDENTIAL_ENV, GEMINI_CREDENTIAL_ENV}
         or name in WEB_SEARCH_CREDENTIAL_ENVS
         or is_allowed_credential_env(name)
+        or bool(CONNECTION_ORIGIN_ENV_PATTERN.fullmatch(name))
     )
 
 
@@ -92,17 +114,22 @@ def is_deliverable_credential_env(name: str) -> bool:
     """Return whether a runtime replacement may set ``name``.
 
     This is the desktop vault's namespace: the OpenAI, Anthropic, ElevenLabs and
-    Gemini keys and managed connection keys. It is deliberately narrower than what
-    startup reads, so a delivery can never name an arbitrary environment
-    variable.
+    Gemini keys, managed connection keys and the origins saved with them. It is
+    deliberately narrower than what startup reads, so a delivery can never name
+    an arbitrary environment variable.
     """
 
-    return name in {
-        OPENAI_CREDENTIAL_ENV,
-        ANTHROPIC_CREDENTIAL_ENV,
-        ELEVENLABS_CREDENTIAL_ENV,
-        GEMINI_CREDENTIAL_ENV,
-    } or bool(MANAGED_CREDENTIAL_ENV_PATTERN.fullmatch(name))
+    return (
+        name
+        in {
+            OPENAI_CREDENTIAL_ENV,
+            ANTHROPIC_CREDENTIAL_ENV,
+            ELEVENLABS_CREDENTIAL_ENV,
+            GEMINI_CREDENTIAL_ENV,
+        }
+        or bool(MANAGED_CREDENTIAL_ENV_PATTERN.fullmatch(name))
+        or bool(CONNECTION_ORIGIN_ENV_PATTERN.fullmatch(name))
+    )
 
 
 def credential_values_from_environment(environ: Mapping[str, str]) -> dict[str, str]:
@@ -119,6 +146,7 @@ def _validated_delivery(values: Mapping[str, object]) -> dict[str, str]:
     if not isinstance(values, Mapping):
         raise CredentialStoreError("credentials_invalid")
     connections = 0
+    origins = 0
     validated: dict[str, str] = {}
     for name, value in values.items():
         if not isinstance(name, str) or not is_deliverable_credential_env(name):
@@ -131,8 +159,13 @@ def _validated_delivery(values: Mapping[str, object]) -> dict[str, str]:
             raise CredentialStoreError("credentials_invalid")
         if MANAGED_CREDENTIAL_ENV_PATTERN.fullmatch(name):
             connections += 1
+        elif CONNECTION_ORIGIN_ENV_PATTERN.fullmatch(name):
+            # An origin that matches no address leaves only its own key unused.
+            if not is_origin(value):
+                raise CredentialStoreError("credentials_invalid")
+            origins += 1
         validated[name] = value
-    if connections > MAX_CONNECTION_CREDENTIALS:
+    if connections > MAX_CONNECTION_CREDENTIALS or origins > MAX_CONNECTION_CREDENTIALS:
         raise CredentialStoreError("credentials_invalid")
     return validated
 
@@ -249,6 +282,7 @@ class RuntimeCredentialStore:
 
 __all__ = [
     "ANTHROPIC_CREDENTIAL_ENV",
+    "CONNECTION_ORIGIN_ENV_PATTERN",
     "ELEVENLABS_CREDENTIAL_ENV",
     "GEMINI_CREDENTIAL_ENV",
     "KNOWN_PROVIDER_CREDENTIAL_ENVS",
@@ -256,6 +290,7 @@ __all__ = [
     "MAX_CONNECTION_CREDENTIALS",
     "MAX_CREDENTIAL_LENGTH",
     "OPENAI_CREDENTIAL_ENV",
+    "PROVIDER_CREDENTIAL_ORIGINS",
     "WEB_SEARCH_CREDENTIAL_ENVS",
     "WEB_SEARCH_MANAGED_CREDENTIAL_ENV",
     "CredentialListener",
@@ -264,6 +299,7 @@ __all__ = [
     "CredentialStoreError",
     "RuntimeCredentialStore",
     "FixedCredentials",
+    "connection_origin_env",
     "credential_values_from_environment",
     "is_allowed_credential_env",
     "is_deliverable_credential_env",

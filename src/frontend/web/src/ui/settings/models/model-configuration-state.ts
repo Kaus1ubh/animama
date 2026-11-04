@@ -13,7 +13,12 @@ import type {
 } from "@animama/runtime-contracts/api-types";
 import type { TFunction } from "i18next";
 import { getI18n } from "react-i18next";
-import type { CredentialProvider } from "../../../../../shared/desktop-runtime";
+import {
+  connectionCredentialPattern,
+  connectionOriginVariable,
+  httpOrigin,
+  type CredentialProvider,
+} from "../../../../../shared/desktop-runtime";
 import {
   apiErrorLine,
   apiErrorText,
@@ -608,6 +613,27 @@ export function keyWouldTravelInsecurely(baseUrl: string): boolean {
   }
   if (url.protocol !== "http:") return false;
   return !isThisComputerHost(bareHost(url));
+}
+
+/**
+ * The origin (`scheme://host[:port]`) a key entered for this base URL may be
+ * sent to, or `null` for an address that is not an http(s) URL. The backend
+ * sends a connection key only to the origin saved with it.
+ */
+export function keyOrigin(baseUrl: string | null | undefined): string | null {
+  return httpOrigin((baseUrl ?? "").trim());
+}
+
+/**
+ * The variable that names where a self-hosted connection key may be sent
+ * (`ANIMAMA_CONNECTION_<NAME>_ORIGIN`), or `null` for any other variable; a
+ * provider key goes only to its provider.
+ */
+export function keyOriginVariable(env: string): string | null {
+  const name = env.trim();
+  return connectionCredentialPattern.test(name)
+    ? connectionOriginVariable(name)
+    : null;
 }
 
 /** Status line for a Detect result, naming the server type to start. */

@@ -63,6 +63,7 @@ async def test_openai_chat_completions_client_sends_each_connection_only_its_own
                 "OPENAI_API_KEY": "sk-openai",
                 "DEEPSEEK_API_KEY": "sk-deepseek",
                 "ANIMAMA_CONNECTION_C1_API_KEY": "sk-custom",
+                "ANIMAMA_CONNECTION_C1_ORIGIN": "https://models.example.test",
             }
         ),
         client=None,
@@ -205,7 +206,10 @@ async def test_keyed_connection_request_carries_only_its_own_key() -> None:
     headers = await _headers_sent_by_real_sdk(
         connection,
         environ=_HOSTILE_PROCESS_ENVIRONMENT,
-        resolver_environ={"ANIMAMA_CONNECTION_C1_API_KEY": "sk-owner"},
+        resolver_environ={
+            "ANIMAMA_CONNECTION_C1_API_KEY": "sk-owner",
+            "ANIMAMA_CONNECTION_C1_ORIGIN": "https://models.example.test",
+        },
     )
 
     assert headers.get_list("authorization") == ["Bearer sk-owner"]

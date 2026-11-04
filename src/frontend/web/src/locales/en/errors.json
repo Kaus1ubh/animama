@@ -158,7 +158,9 @@
   "modelConfiguration": {
     "bad_request": "The server rejected the request.",
     "context_exceeded": "The request was larger than the model's context window.",
+    "credential_insecure_transport": "Keys are sent only over https, or plain http to this computer. Use https or a local server.",
     "credential_missing": "This connection needs a key before it can be used.",
+    "credential_origin_mismatch": "This key belongs to another address. A provider's key goes only to that provider's API, and a connection key only to the address saved with it.",
     "credential_rejected": "The server rejected the key.",
     "detectionNotRunning": "Nothing is running at {{baseUrl}}. Start {{server}} and try again.",
     "invalid_base_url": "The base URL is not valid.",

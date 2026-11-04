@@ -77,8 +77,8 @@ class _Recorder:
             json={"error": {"code": self._status, "message": "unavailable", "status": "UNAVAILABLE"}},
         )
 
-    def client(self) -> httpx.AsyncClient:
-        return httpx.AsyncClient(transport=httpx.MockTransport(self.handler))
+    def transport(self) -> httpx.MockTransport:
+        return httpx.MockTransport(self.handler)
 
 
 def _assert_sent_only_to_gemini(request: httpx.Request) -> None:
@@ -97,7 +97,7 @@ async def test_interactions_use_the_passed_key_pinned_host_and_one_attempt(
     hostile_environment: Path, stream: bool
 ) -> None:
     recorder = _Recorder(status=503)
-    client: Any = gemini_sdk_client(api_key=REAL_KEY, httpx_async_client=recorder.client())
+    client: Any = gemini_sdk_client(api_key=REAL_KEY, transport=recorder.transport())
 
     with pytest.raises(SDK_ERRORS):
         response = await client.aio.interactions.create(model=MODEL, input="Hello", stream=stream)
@@ -113,7 +113,7 @@ async def test_interactions_use_the_passed_key_pinned_host_and_one_attempt(
 @pytest.mark.asyncio
 async def test_interactions_do_not_retry_connection_errors(hostile_environment: Path) -> None:
     recorder = _Recorder(connect_error=True)
-    client = gemini_sdk_client(api_key=REAL_KEY, httpx_async_client=recorder.client())
+    client = gemini_sdk_client(api_key=REAL_KEY, transport=recorder.transport())
 
     with pytest.raises(SDK_ERRORS):
         await client.aio.interactions.create(model=MODEL, input="Hello")
@@ -127,7 +127,7 @@ async def test_debug_logging_and_replay_recording_never_capture_the_key(
 ) -> None:
     recorder = _Recorder(status=503)
     caplog.set_level(logging.DEBUG)
-    client = gemini_sdk_client(api_key=REAL_KEY, httpx_async_client=recorder.client())
+    client = gemini_sdk_client(api_key=REAL_KEY, transport=recorder.transport())
 
     with pytest.raises(SDK_ERRORS):
         await client.aio.interactions.create(model=MODEL, input="Hello")

@@ -165,6 +165,24 @@ the backend reads that variable. Allowed names are `OPENAI_API_KEY`,
 `ANIMAMA_CONNECTION_<NAME>_API_KEY`. `ANTHROPIC_API_KEY` is reserved for the
 built-in Anthropic connection, so no other connection can send it elsewhere.
 
+A key that a connection names goes only to its own address. A provider key
+goes only to that provider's API (`OPENAI_API_KEY` to `https://api.openai.com`,
+`DEEPSEEK_API_KEY` to `https://api.deepseek.com`, `HF_TOKEN` to
+`https://router.huggingface.co` and `OPENROUTER_API_KEY` to
+`https://openrouter.ai`). A connection key goes only to the origin
+(`scheme://host[:port]`) set beside it in `ANIMAMA_CONNECTION_<NAME>_ORIGIN`;
+the connection form shows the line to add. Without that line the key is not
+sent, and the connection reports its key as missing. No such key travels over
+plain `http://` to another computer: use `https://`, or a server on this
+computer (`localhost`, a loopback address or `host.docker.internal`). Saving a
+connection that breaks either rule is refused with
+`credential_origin_mismatch` or `credential_insecure_transport`. Write a
+non-ASCII host name in its ASCII form (`xn--…`, the form the connection form's
+origin line uses), in the base URL and in the origin line: no key is sent to a
+host name written in other characters, or to an address with user information
+or a `%` in it. The built-in OpenAI connection is separate: it
+sends `OPENAI_API_KEY` to `OPENAI_BASE_URL`, which only the operator sets.
+
 With Compose, put `ANIMAMA_CONNECTION_<NAME>_API_KEY` values in an owner-only
 file outside the checkout and select it with `ANIMAMA_CONNECTION_KEYS_FILE`:
 
@@ -174,8 +192,9 @@ mkdir -p -m 700 ~/.config/animama
 ```
 
 This keeps an existing file. Add lines such as
-`ANIMAMA_CONNECTION_LAB_API_KEY='<key>'` with an editor; single quotes stop
-Compose from expanding a `$` inside the key. Name
+`ANIMAMA_CONNECTION_LAB_API_KEY='<key>'` and
+`ANIMAMA_CONNECTION_LAB_ORIGIN=https://lab.example.com` with an editor; single
+quotes stop Compose from expanding a `$` inside the key. Name
 `ANIMAMA_CONNECTION_LAB_API_KEY` on the connection, then start the stack:
 
 ```bash
@@ -200,3 +219,4 @@ ignored: those come from the Compose environment, like other secrets. For a nati
 | The first reply times out            | The model is still loading; retry, or raise the connection's timeout.                                                      |
 | Web search Test: `json_format_disabled` | Add `json` to `search.formats` in the SearXNG `settings.yml` and restart it.                                            |
 | "… has no API key configured"        | Self-hosted web: the named variable is not set in the backend's environment; restart the stack after adding it.            |
+| The key shows as missing although it is set | The key's origin differs from the base URL's: a provider key works only at its provider's API, a connection key needs `ANIMAMA_CONNECTION_<NAME>_ORIGIN` set to the base URL's origin. On the desktop app, enter the key again after moving a connection to another address. |

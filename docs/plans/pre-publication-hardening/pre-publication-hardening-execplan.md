@@ -104,7 +104,8 @@ hardening, not how a weakness could be used.
 - [x] Phase 1: security policy (light; review folded into the final review).
 - [x] Phase 2: Content Security Policy and sandboxed stored bytes (review #2
   passed; one repair round).
-- [ ] Phase 3: keys bound to their provider and address.
+- [x] Phase 3: keys bound to their provider and address (review #5 passed;
+  two repair rounds plus two owner-approved rounds).
 - [ ] Phase 4: Electron fuses, debugging guard, DevTools and the smoke copy.
 - [ ] Phase 5: update-download checks.
 - [ ] Final integration review.
@@ -141,6 +142,17 @@ hardening, not how a weakness could be used.
   journey check also repeats page events on the console.
 - Chrome's fake microphone cannot read its sample file while the audio-service
   sandbox is on; the sweep's throwaway test browser disabled only that sandbox.
+- Phase 3: the Anthropic SDK (`x-api-key`), the Gemini SDK's Interactions client
+  (`x-goog-api-key`) and the ElevenLabs pool (`xi-api-key`) all follow
+  redirects, and httpx keeps those headers on a cross-origin one. The OpenAI
+  SDK's httpx2 client follows redirects too but drops `Authorization`. Brave and
+  the other keyed clients use httpx's default of not following redirects.
+- Phase 3 review: in a shuffled run of the backend selection, an Anthropic
+  test that hides two built-in rows in the shared test database makes a model
+  benchmark test fail when it runs first. Both are unchanged here (follow-up).
+- Phase 3: with no transport of its own, the Gemini SDK sends its other
+  resources through aiohttp; Interactions, the only resource Animama calls,
+  always uses the SDK's httpx client, which is where the hook is installed.
 
 ## Decision Log
 
@@ -180,6 +192,23 @@ hardening, not how a weakness could be used.
   that cannot be used at the connection's address, and the connection form
   explains what to do. New save refusals get stable codes and translated
   messages.
+- Agent (Phase 3): the connection form now blocks saving a key over plain HTTP
+  to another computer (it used to warn), because the backend refuses that save.
+- Agent (Phase 3): the Gemini builder takes a `transport` for tests instead of
+  a whole client, so tests run through the same client arguments, hook
+  included; the SDK still builds and closes its own client.
+- Agent (Phase 3): a malformed origin in a desktop change is
+  `credential_origin_invalid`; an origin without a value, or on a provider key,
+  is `credential_changes_invalid`. Origins are not added to log redaction.
+- 2026-11-04, owner: one extra repair round for Phase 3's look-alike host
+  finding, failing closed: no key matches a non-ASCII host name, and owners
+  write such names in their ASCII (`xn--`) form. One more independent recheck
+  before committing.
+- 2026-11-04, owner: fix review #4's user-information finding with strict
+  parsing and one more independent recheck before committing.
+- Agent (Phase 3 review): R4.3 covers keys that owner connections name. The
+  built-in OpenAI connection keeps sending `OPENAI_API_KEY` to the operator's
+  `OPENAI_BASE_URL` (R4.1, plan step 2), which no API request can change.
 
 ## Phased implementation
 
@@ -526,7 +555,244 @@ desktop connection.
 Completion: every R4 acceptance item is covered by a passing test; commit
 `fix(models)[p3]: send stored keys only to their own address`.
 
-Check record: _to be filled._
+Check record (2026-11-03, working tree `f0bb6062f` before this record; base
+`b763aac67`):
+
+- Root: `uv run --no-sync pytest -q -p no:randomly` over `tests/test_model_*.py`,
+  `tests/test_*credential*.py`, `tests/test_*elevenlabs*.py`,
+  `tests/test_gemini*.py`, `tests/test_anthropic*.py`,
+  `tests/test_web_search*.py`, `tests/test_openrouter*.py`,
+  `tests/test_key_redirects.py`, `tests/test_embeddings_role.py` and
+  `tests/test_fully_local_roles.py`: 1076 passed, 6 skipped. Eight existing
+  tests failed under the new rules until their fixtures saved an origin or used
+  HTTPS. With the redirect hook replaced by a no-op, the ElevenLabs, Anthropic
+  and Gemini redirect tests fail (3 failures).
+- Root: `uv run --no-sync ruff check` and `ruff format --check` (whole
+  repository), `uv run --no-sync mypy src/backend/animama tests --exclude
+  web-ui --exclude deprecated --exclude templates` (899 files) and
+  `scripts/repository-boundary/check-python-imports.py` (0 forbidden edges):
+  passed.
+- `src/frontend`: `pnpm desktop:test`: 608 passed, 14 skipped (the vault and IPC
+  origin tests failed first: 10 failures); `pnpm check`, `pnpm i18n:check` and
+  `pnpm prettier:check`: passed.
+- `src/frontend/web`: `pnpm exec vitest run src/ui/settings src/lib/errors`: 218
+  passed (the four `ModelConnectionDialog` tests fail against the previous
+  dialog); `pnpm exec eslint` on the four touched files: passed.
+- `python3 scripts/public-release/check_source.py` (new files staged as intent
+  to add): covers every tracked file.
+- Not run in this phase: the full pre-push suite and the browser journeys
+  (final validation); no live provider call.
+
+#### Code Review #1 Findings
+
+Reviewed source: the working tree on `b763aac67` (check tree `f0bb6062f`, plus
+the record edits); high-risk tier, full initial review, with an independent
+rerun of the checks (all passed on tree `7bdb9ed1e`).
+
+- **P3-R1-F1 (blocking, docs):** `docs/frontend/features/model-settings.md`
+  still said a plain-HTTP key shows a warning (the form now blocks it), and did
+  not describe the saved origin or the self-hosted `_ORIGIN` line; the desktop
+  troubleshooting table and the `credentials.apply` contract lacked the new
+  code and field.
+- **P3-R1-F2 (blocking, tests):** no negative test sent an unbound key through
+  model listing, chat, embeddings or Memory Manager resolution; nor covered an
+  operator's key moved by update, or a keyed create over plain HTTP to this
+  computer.
+- **P3-R1-F3:** the Anthropic builder passed `transport=None`, so production
+  clients lost the SDK's keepalive transport and proxy mounts.
+- **P3-R1-F4:** uncompressed IPv6, non-ASCII hosts and some IPv4 spellings
+  compare differently in the browser and the backend (fails closed).
+- **P3-R1-F5:** some docs said no key ever travels over plain HTTP, but the
+  built-in OpenAI connection keeps the operator's `OPENAI_BASE_URL`.
+- **P3-R1-F6:** a desktop key the backend withholds reads as unsaved, so
+  removing the connection, or saving it without a key, left it in the vault.
+- **P3-R1-F7:** wording in `desktop-runtime.md` and the self-hosted form.
+- **P3-R1-F8:** the origin-variable rule and the origin computation repeated in
+  the desktop and web code; a drift test matched source text.
+- Check gaps: memory manager, chat SSE, app composition, local HTTP, user-file
+  and Compose boundary tests were outside the recorded selection.
+
+#### Code Review #1 Revisions
+
+- F1: accepted. The model settings, desktop overview and troubleshooting docs
+  describe the saved origin, the blocked plain-HTTP save, the `_ORIGIN` line
+  and `credential_origin_invalid`.
+- F2: accepted. `test_no_model_path_sends_a_key_saved_for_another_address`
+  runs model listing, the probe, chat, embeddings and Memory Manager resolution
+  with a key that has no origin or another one, and asserts that no request is
+  sent (it fails with the refusal rule disabled); new tests cover an operator's
+  key moved by update (refused) and a keyed create over plain HTTP to this
+  computer (accepted).
+- F3: accepted. The builder passes a transport only when given; a test compares
+  the production client's socket options with the SDK default.
+- F4: accepted in part. `canonical_origin` now gives IP addresses their
+  standard form and non-ASCII names their IDNA form, as `URL.origin` does;
+  rarer spellings a browser rewrites (`127.1`, percent-encoding) still never
+  match, which withholds the key. Tested.
+- F5: accepted. ADR 0011, `key_origins.py` and `local-models.md` say the rule
+  covers keys that owner connections name, and that the built-in OpenAI
+  connection keeps the operator's `OPENAI_BASE_URL`, as the plan's step 2 and
+  R4.1 decided (Decision Log).
+- F6: accepted. Removing a desktop connection always deletes its vault
+  variable (confirmation only when the key is in use), and a save that drops
+  the variable deletes the key; a dialog test covers the second.
+- F7: accepted. `desktop-runtime.md` reworded; a self-hosted connection key that
+  the backend cannot use reads "Not usable yet …", translated. The `_ORIGIN`
+  line stays visible when the key works, as the configuration to keep.
+- F8: accepted. `connectionOriginVariable` and `httpOrigin` live in
+  `shared/desktop-runtime.ts` for the vault and the form; the backend drift
+  test checks the delivered name, which the vault tests pin too.
+- Check gaps: run (below).
+- Checks after the revisions: the backend selection above plus
+  `test_memory_manager*.py`, `test_product_http_memory_manager.py`,
+  `test_anima_chat_sse.py`, `test_local_app_composition.py`,
+  `test_local_http_*.py`, `test_user_file_*.py` and
+  `test_compose_network_boundaries.py`: 1859 passed, 6 skipped, 1 failed
+  (`test_local_http_transport.py::test_real_partial_multipart_spools_close_when_body_receipt_fails[deadline]`,
+  a deadline test that passes alone and with its file, 31 passed; Phase 3
+  changes nothing under `local/`). Ruff, format check and mypy (899 files)
+  passed. `pnpm desktop:test`: 608 passed; `pnpm check`, `pnpm i18n:check` and
+  `pnpm prettier:check` passed; web `vitest run src/ui/settings src/lib/errors
+  src/app/local-runtime`: 235 passed; ESLint on the five touched files passed.
+- Repair budget: one of two rounds used; review #2 (targeted recheck) follows.
+
+#### Code Review #2 Findings
+
+Reviewed source: working tree `2224226d0` on `b763aac67`; targeted recheck of
+F1 to F8 and of regressions from the revisions, with the four touched backend
+test files, `pnpm desktop:test` and the model settings web tests rerun.
+
+- F1 to F8 resolved; for F2 a positive control confirmed every step of the new
+  negative test would send a request with a matching origin.
+- **P3-R2-1 (blocking):** the delivery accepted only origins that the backend
+  normalisation leaves unchanged. A browser writes some origins differently
+  (`https://[::ffff:a00:5]`, `https://api..example.test`, long labels), so one
+  such connection key made the whole delivery fail and the desktop app fell
+  back to restarting the backend on every key change.
+- Non-blocking: the IDNA wording overstated browser parity; no tests for the
+  removal path or the "not usable" text; two backend docs lacked the built-in
+  OpenAI qualifier.
+
+#### Code Review #2 Revisions
+
+- P3-R2-1: accepted. A delivery accepts any bare `scheme://host[:port]`
+  origin (`is_origin`), and `key_refusal` compares the canonical forms of both
+  sides, so an origin that matches no address withholds only its own key.
+  Every origin a browser writes is such a bare origin, and `canonical_origin`
+  keeps ASCII host names as written. Tests: browser-written origins resolve
+  against their addresses,
+  an unmatched origin leaves other keys working, and malformed values are
+  still refused.
+- Wording, the "not usable" test and the two doc qualifiers: accepted and done.
+  The removal path keeps no separate test: it calls the same deletion as the
+  tested save path.
+- Checks after the revisions (tree `99c6fc260`): the widened backend selection,
+  1866 passed, 6 skipped; ruff, format check and mypy (899 files) passed; web
+  `vitest run src/ui/settings/models`: 110 passed.
+- Repair budget: both rounds used; review #3 (final targeted recheck) follows.
+
+#### Code Review #3 Findings
+
+Reviewed source: working tree on `b763aac67` (code tree `99c6fc260`); final
+targeted recheck of P3-R2-1 and its fix, with the key tests and the model
+settings web tests rerun.
+
+- P3-R2-1 resolved: every origin a browser writes (576 probed) is delivered,
+  and malformed values are still refused.
+- **P3-R3-1 (blocking):** the round-1 revision encoded non-ASCII hosts with
+  Python's IDNA 2003 codec, which maps some characters differently from the
+  IDNA 2008 encoding the model clients' HTTP library uses. A key bound to one
+  name could then be accepted for a look-alike name that the client resolves
+  to another domain.
+- P3-R3-2 (non-blocking): the delivery accepted non-ASCII values and bracketed
+  hosts that are not IPv6; no producer sends them today.
+
+Both repair rounds were used, so the finding went to the owner, who approved
+one more round that fails closed for non-ASCII hosts (Decision Log).
+
+#### Code Review #3 Revisions
+
+- P3-R3-1: accepted. `canonical_origin` returns `None` for a non-ASCII host
+  name, so no key matches one; owners write such a name in its ASCII (`xn--`)
+  form, which browsers and the HTTP library also use. Tests: look-alike
+  pairs (`faß.de`, `σοφιας.gr`, `例え.jp`) are refused, the `xn--` form works,
+  an operator's key moved to a look-alike name is refused at save, and a
+  desktop key moved there reports `missing`.
+- P3-R3-2: accepted. `is_origin` requires a host `canonical_origin` accepts:
+  ASCII, and only an IPv6 address in brackets. Tests added.
+- Docs: `local-models.md` and the model settings page say to write non-ASCII
+  names in their ASCII form.
+- Checks (tree `46a52baee`): the widened backend selection, 1876 passed, 6
+  skipped; ruff, format check and mypy (899 files) passed. No web or desktop
+  code changed in this round.
+- Review #4, an owner-approved final recheck, follows.
+
+#### Code Review #4 Findings
+
+Reviewed source: working tree on `b763aac67` (code tree `46a52baee`); targeted
+recheck of P3-R3-1 and P3-R3-2, with the key tests rerun, a mutation probe and
+a corpus comparison of the backend's origins with the browser's and the HTTP
+library's.
+
+- P3-R3-1 resolved: the new tests fail with IDNA 2003 or UTS46 encoding put
+  back, and every origin the vault can store is still delivered.
+- **P3-R4-1 (blocking):** user information in the authority, even an empty
+  `@`, hid the brackets of an IPv6 address from the round-3 check, so two
+  addresses that the HTTP library treats as different hosts could compare
+  equal. It needs an operator-written origin containing `@`; the vault never
+  stores one.
+- Non-blocking: P3-R4-2, the Kelvin sign lowercases to ASCII `k` before the
+  ASCII test (no security effect); P3-R4-3, IPv6 zone IDs were case-folded
+  (operator-written origins only); P3-R4-4, a doc phrase about the address
+  bar; P3-R4-5, a keyed connection whose base URL has a non-ASCII host cannot
+  be made to work from the app, and only the docs say why.
+
+The owner approved fixing P3-R4-1 with one more independent recheck (Decision
+Log).
+
+#### Code Review #4 Revisions
+
+- P3-R4-1, P3-R4-2 and P3-R4-3: accepted. `canonical_origin` returns `None`
+  when the authority contains any user information, any character outside
+  ASCII (tested before lowercasing) or a `%`; `is_origin` inherits it. Tests:
+  the collision pair, empty user parts, the Kelvin sign, a zone ID and
+  percent-encoding are refused as addresses and as deliveries; 12 of these
+  cases fail with the round-3 function put back.
+- P3-R4-4: accepted; `local-models.md` points at the origin line the form shows.
+- P3-R4-5: deferred to a follow-up: the rule fails closed as the owner chose;
+  telling the owner in the form, or saving the ASCII form of the address, is UI
+  work outside this round.
+- Checks (tree `109a2ba5d`), from the repository root: `uv run --no-sync pytest -q
+  -p no:randomly` over the widened backend selection (the Phase 3 selection
+  plus the memory manager, chat SSE, app composition, local HTTP, user-file and
+  Compose boundary files): 1888 passed, 6 skipped; `uv run --no-sync ruff
+  check`, `ruff format --check` and `mypy src/backend/animama tests --exclude
+  web-ui --exclude deprecated --exclude templates` (899 files) passed. No web or
+  desktop code changed in this round.
+- Review #5, the owner-approved final recheck, follows.
+
+#### Code Review #5 Findings
+
+Reviewed source: working tree on `b763aac67` (code tree `109a2ba5d`); final
+targeted recheck of P3-R4-1 to P3-R4-4, with the key tests rerun, a mutation
+control (12 failures with the round-4 function) and corpus, end-to-end and
+redirect probes.
+
+- P3-R4-1 to P3-R4-4 resolved: across about 50,000 spellings no two compare
+  equal while the HTTP library connects to different hosts; every origin the
+  vault can store is still delivered and releases its own key at its own
+  address; the redirect hook still refuses cross-origin targets.
+- No blocking findings. Optional: P3-R5-1, the redirect hook treats two URLs
+  without an origin as the same origin (no effect today: the hooked clients
+  start only at fixed provider origins); P3-R5-2, a base URL with an empty `@`
+  or a `%` in its host now withholds its key, which belongs with the P3-R4-5
+  follow-up, and a doc phrase should say the `%` rule covers the address part
+  only; P3-R5-3, no delivery test for a percent-encoded host; P3-R5-4,
+  `is_origin` accepts trailing non-ASCII whitespace (same host, no producer).
+
+Phase 3 passes. P3-R5-1, P3-R5-3, P3-R5-4 and the P3-R5-2 wording are fixed in
+a separate follow-up commit after the Phase 3 commit, and the final integration
+review checks it; P3-R5-2's behaviour joins the P3-R4-5 follow-up.
 
 ### Phase 4: Electron fuses, debugging guard, DevTools and the smoke copy
 

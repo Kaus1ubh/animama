@@ -19,6 +19,7 @@ from elevenlabs.core import ApiError
 from fastapi import HTTPException, status
 from starlette.concurrency import run_in_threadpool
 
+from animama.adapters.key_redirects import refuse_cross_origin_redirect
 from animama.app.contracts.elevenlabs import (
     DEFAULT_ELEVENLABS_REALTIME_TTS_MODEL_ID,
     replace_retired_elevenlabs_tts_model_id,
@@ -171,11 +172,26 @@ def resolve_realtime_tts_model_id(
     )
 
 
+def _new_elevenlabs_http_client(transport: httpx.BaseTransport | None = None) -> httpx.Client:
+    """Build a pool for ElevenLabs clients; ``transport`` is for tests.
+
+    The SDK sends the key in ``xi-api-key``, which httpx keeps on a redirect, so
+    a redirect to another origin is refused.
+    """
+
+    return httpx.Client(
+        timeout=_ELEVENLABS_TIMEOUT_SECONDS,
+        follow_redirects=True,
+        event_hooks={"response": [refuse_cross_origin_redirect]},
+        transport=transport,
+    )
+
+
 @lru_cache(maxsize=1)
 def _elevenlabs_http_client() -> httpx.Client:
     """Connection pool shared by ElevenLabs clients; it holds no key."""
 
-    return httpx.Client(timeout=_ELEVENLABS_TIMEOUT_SECONDS, follow_redirects=True)
+    return _new_elevenlabs_http_client()
 
 
 def get_elevenlabs_client() -> ElevenLabs:

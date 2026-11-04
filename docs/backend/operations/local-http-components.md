@@ -146,7 +146,8 @@ most 512 KiB, exactly
 `{"schema_version":1,"generation":N,"credentials":{name:value}}`, with no
 duplicate keys. Names are limited to `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`,
 `ELEVENLABS_API_KEY`, `GEMINI_API_KEY` and `ANIMAMA_CONNECTION_<ID>_API_KEY` (at most 32), and values follow the vault
-rules. Absent names are removed. Values never reach `os.environ`. A generation
+rules. Each connection key may arrive with `ANIMAMA_CONNECTION_<ID>_ORIGIN`, a
+canonical `scheme://host[:port]` (at most 32). Absent names are removed. Values never reach `os.environ`. A generation
 at or below the current one is refused, so a delayed older push cannot
 overwrite a newer one. Success returns `{"schema_version":1,"generation":N}`.
 Refusals return only `{"detail":{"code":…}}`: `credentials_media_type` (415),

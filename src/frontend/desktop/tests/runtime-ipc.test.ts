@@ -169,6 +169,7 @@ describe("privileged runtime IPC", () => {
         {
           connection: "ANIMAMA_CONNECTION_C_0123456789AB_API_KEY",
           value: "fixture-connection-key",
+          origin: "https://lab.example.test",
         },
         { connection: "ANIMAMA_CONNECTION_C_OTHER_API_KEY" },
         {
@@ -183,6 +184,7 @@ describe("privileged runtime IPC", () => {
       {
         connection: "ANIMAMA_CONNECTION_C_0123456789AB_API_KEY",
         value: "fixture-connection-key",
+        origin: "https://lab.example.test",
       },
       { connection: "ANIMAMA_CONNECTION_C_OTHER_API_KEY" },
       {
@@ -205,6 +207,27 @@ describe("privileged runtime IPC", () => {
       [{ connection: "ANTHROPIC_API_KEY", value: "fixture-key" }],
       [{ connection: "GEMINI_API_KEY", value: "fixture-key" }],
       [{ connection: "animama_connection_c1_api_key" }],
+      // An origin belongs only to a connection key being saved.
+      [
+        {
+          connection: "ANIMAMA_CONNECTION_C1_API_KEY",
+          origin: "https://lab.example.test",
+        },
+      ],
+      [
+        {
+          provider: "openai",
+          value: "fixture-key",
+          origin: "https://api.openai.com",
+        },
+      ],
+      [
+        {
+          connection: "ANIMAMA_CONNECTION_C1_API_KEY",
+          value: "fixture-key",
+          origin: "https://lab.example.test/v1",
+        },
+      ],
       [
         {
           provider: "openai",
@@ -222,7 +245,7 @@ describe("privileged runtime IPC", () => {
       await expect(
         invoke("credentials:apply", main.event, invalid),
       ).rejects.toThrow(
-        /credential_(changes|provider|connection|value)_invalid/,
+        /credential_(changes|provider|connection|value|origin)_invalid/,
       );
     expect(applied).toHaveBeenCalledOnce();
   });

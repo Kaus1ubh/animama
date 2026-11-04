@@ -161,14 +161,18 @@ export function ModelConnectionsSettings({
       : undefined;
 
   /**
-   * The desktop key this app saved for a connection, if any. Removing the
-   * connection deletes it too.
+   * The vault variable that may hold a connection's desktop key. Removing the
+   * connection deletes it, even a key the backend withholds because it was
+   * entered for another address.
    */
-  const savedKey = (connection: PyModelConnection): string | null =>
-    managedKeys &&
-    connection.credential_state === "configured" &&
-    connection.credential_env?.startsWith("ANIMAMA_CONNECTION_")
+  const managedKeyEnv = (connection: PyModelConnection): string | null =>
+    managedKeys && connection.credential_env?.startsWith("ANIMAMA_CONNECTION_")
       ? connection.credential_env
+      : null;
+  /** A saved key in use; removal asks first, because it cannot be recovered. */
+  const savedKey = (connection: PyModelConnection): string | null =>
+    connection.credential_state === "configured"
+      ? managedKeyEnv(connection)
       : null;
 
   /**
@@ -200,7 +204,7 @@ export function ModelConnectionsSettings({
         : t("ownerModel.removed"),
     );
     const env =
-      target.kind === "connection" ? savedKey(target.connection) : null;
+      target.kind === "connection" ? managedKeyEnv(target.connection) : null;
     if (env && credentials) await deleteConnectionKey(credentials, env);
   };
 

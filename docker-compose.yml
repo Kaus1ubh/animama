@@ -58,7 +58,8 @@ services:
       - "host.docker.internal:host-gateway"
     # Keys for owner-added model connections: an optional owner-only file of
     # ANIMAMA_CONNECTION_<NAME>_API_KEY=... lines that connections name in App
-    # Settings → Models. reset.sh verifies its permissions.
+    # Settings → Models, each with the ANIMAMA_CONNECTION_<NAME>_ORIGIN=... it
+    # may be sent to. reset.sh verifies its permissions.
     env_file:
       - path: ${ANIMAMA_CONNECTION_KEYS_FILE:-/dev/null}
         required: false
