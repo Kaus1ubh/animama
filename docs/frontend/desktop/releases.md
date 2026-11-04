@@ -57,7 +57,8 @@ refreshes the feed before downloading, so a changed candidate needs another
 check. Its requests carry only `Accept`, `Accept-Encoding`, `Cache-Control` and
 the library's fixed `User-Agent` (`electron-builder`): the session drops the
 library's per-installation staged-rollout ID and Chromium's language header,
-and a feed that sets `stagingPercentage` is refused. Each platform's update
+and a feed that sets `stagingPercentage` is refused. The published previews
+0.1.0 to 0.1.2 predate that change, so their checks still send both. Each platform's update
 must come from its own publisher, sealed into
 `runtime/update-policy.json` at staging: on macOS the Apple Team ID, on Windows
 the Authenticode certificate subject and identity-validation EKU.

@@ -134,9 +134,10 @@ can be imported. Complete starter animation acquisition remains a release gate. 
 The final release, 0.1.3, never checks for updates, and Settings offers none.
 Preview builds check without blocking startup and offer 0.1.3 until downloads
 end; after that their checks fail quietly. In a preview, Settings → General
-offers **Check for updates**. A check carries nothing that identifies your
-installation; the [safety and crisis protocol](../../safety/crisis-protocol.md#your-data)
-lists what the desktop app sends and when. **Download update** and **Restart to
+offers **Check for updates**. A preview's check also sends your system language
+and a random ID that stays the same for its installation; the
+[safety and crisis protocol](../../safety/crisis-protocol.md#your-data) lists
+what the desktop app sends and when. **Download update** and **Restart to
 install** are separate decisions; ordinary Quit never installs an update.
 Unconfigured development builds do not have a working update feed.
 An update can refuse to proceed while a pack is busy or in-use content would

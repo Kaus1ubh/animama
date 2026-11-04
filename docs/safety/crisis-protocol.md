@@ -68,9 +68,11 @@ number.
   - Only in preview builds before the final release: update checks to
     downloads.animama.ai, about 15 seconds after the app finishes starting and
     when you choose Check for updates, and downloads from there of what you
-    choose to use: an update, a speech model or a voice. A check also shows
-    whether you use macOS or Windows, but nothing that identifies your
-    installation. The final release contacts downloads.animama.ai for neither.
+    choose to use: an update, a speech model or a voice. A preview build's
+    check also shows whether you use macOS or Windows, your system language
+    and a random ID that stays the same for each installation, so the server
+    could tell which checks came from the same installation. The final release
+    contacts downloads.animama.ai for neither.
   - On Windows, a spell-check dictionary for your system language, which the
     app downloads from Google the first time it needs one.
   - A voice's sample from huggingface.co when you play it. This request also
