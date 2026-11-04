@@ -990,10 +990,13 @@ export class PoseController {
       const sourceSample = this._clipState.fadeOutSourceSample ?? sample;
       const targetSample =
         this._clipState.fadeOutTargetSample ??
-        this._createDefaultPoseSample(getSampleExpressionNames(sourceSample));
+        withRestPositions(
+          this._createDefaultPoseSample(getSampleExpressionNames(sourceSample)),
+          sourceSample,
+        );
       return interpolateSamples(
         sourceSample,
-        withRestPositions(targetSample, sourceSample),
+        targetSample,
         progress,
         easeProgress(progress, transition.easing),
         transition,
@@ -1032,8 +1035,9 @@ export class PoseController {
     this._clipState.fadeInSourceSample = null;
     this._clipState.fadeOutSourceSample = fadeOutSourceSample;
     this._clipState.fadeOutDurationSec = fadeOutDurationSec;
-    this._clipState.fadeOutTargetSample = this._createDefaultPoseSample(
-      currentExpressionNames,
+    this._clipState.fadeOutTargetSample = withRestPositions(
+      this._createDefaultPoseSample(currentExpressionNames),
+      fadeOutSourceSample,
     );
     this._applyClipSampleAtTime(this._clipState.elapsedSec);
     return true;
