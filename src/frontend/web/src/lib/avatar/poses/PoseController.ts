@@ -951,9 +951,10 @@ export class PoseController {
       const progress = this._getCurrentClipFadeProgress(
         this._clipState.fadeInDurationSec,
       );
+      const sourceSample = this._clipState.fadeInSourceSample ?? {};
       return interpolateSamples(
-        this._clipState.fadeInSourceSample ?? {},
-        sample,
+        sourceSample,
+        withRestPositions(sample, sourceSample),
         progress,
         easeProgress(progress, transition.easing),
         transition,
@@ -971,7 +972,7 @@ export class PoseController {
         this._createDefaultPoseSample(getSampleExpressionNames(sourceSample));
       return interpolateSamples(
         sourceSample,
-        targetSample,
+        withRestPositions(targetSample, sourceSample),
         progress,
         easeProgress(progress, transition.easing),
         transition,
@@ -1498,6 +1499,27 @@ function mergeClipHumanoidSamples(
     pose[boneName] = cloneVRMPoseTransform(overlayTransform);
   }
   return pose;
+}
+
+/**
+ * `target` plus the rest position (a zero offset in normalized pose space)
+ * for each bone that `source` positions and `target` does not. Interpolation
+ * holds a position present on one side only, so without this a fade would
+ * keep such an offset (usually the hips) and it would snap back to rest on
+ * the frame the clip ends.
+ */
+function withRestPositions(
+  target: AnimaPoseClipSample,
+  source: AnimaPoseClipSample,
+): AnimaPoseClipSample {
+  let humanoid: VRMPose | null = null;
+  for (const bone of getSampleHumanoidBoneNames(source.humanoid ?? {})) {
+    if (!source.humanoid?.[bone]?.position || target.humanoid?.[bone]?.position)
+      continue;
+    humanoid ??= { ...target.humanoid };
+    humanoid[bone] = { ...target.humanoid?.[bone], position: [0, 0, 0] };
+  }
+  return humanoid ? { ...target, humanoid } : target;
 }
 
 function clamp01(value: number): number {

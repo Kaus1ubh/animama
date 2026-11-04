@@ -139,6 +139,55 @@ describe("PoseController with animaPoseClip/2.0", () => {
     expect(applied.weights.happy).toBe(0);
   });
 
+  describe("hip offsets", () => {
+    const hipsX = (pose: VRMPose) => pose.hips?.position?.[0] ?? 0;
+    const shifted = (x: number) =>
+      clip({
+        id: "shift",
+        name: "Shift",
+        fadeIn: { duration: 0.2, easing: "linear" },
+        fadeOut: { duration: 0.2, easing: "linear" },
+        hipsPosition: { x: [{ beat: "start", v: x }] },
+      });
+
+    it("fades a clip's hip offset back to rest as it stops", () => {
+      const { vrm, applied } = stubVrm();
+      const controller = new PoseController(vrm);
+      controller.playAnimaPoseClip(shifted(0.02));
+      controller.update(0.5);
+      const offset = hipsX(applied.pose);
+      expect(offset).not.toBe(0);
+      expect(controller.stopClip()).toBe(false);
+      controller.update(0.1);
+      expect(hipsX(applied.pose)).toBeCloseTo(offset / 2, 5);
+      controller.update(0.09);
+      expect(Math.abs(hipsX(applied.pose))).toBeLessThan(
+        Math.abs(offset) * 0.1,
+      );
+    });
+
+    it("fades an inherited hip offset to rest when the new clip has no hip motion", () => {
+      const { vrm, applied } = stubVrm();
+      const controller = new PoseController(vrm);
+      applied.pose = { hips: { position: [0.02, 0, 0] } };
+      controller.playAnimaPoseClip(
+        clip({ fadeIn: { duration: 0.2, easing: "linear" } }),
+      );
+      controller.update(0.1);
+      expect(hipsX(applied.pose)).toBeCloseTo(0.01, 5);
+      controller.update(0.1);
+      expect(hipsX(applied.pose)).toBeCloseTo(0, 5);
+    });
+
+    it("keeps the hip offset a clip itself keys", () => {
+      const { vrm, applied } = stubVrm();
+      const controller = new PoseController(vrm);
+      controller.playAnimaPoseClip(shifted(0.02));
+      controller.update(0.5);
+      expect(hipsX(applied.pose)).not.toBe(0);
+    });
+  });
+
   it("replaces a playing clip and reports only its own expressions", () => {
     const { vrm } = stubVrm();
     const controller = new PoseController(vrm);
