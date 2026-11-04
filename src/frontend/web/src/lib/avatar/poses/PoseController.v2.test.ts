@@ -179,12 +179,28 @@ describe("PoseController with animaPoseClip/2.0", () => {
       expect(hipsX(applied.pose)).toBeCloseTo(0, 5);
     });
 
-    it("keeps the hip offset a clip itself keys", () => {
+    it("fades into the hip offset a clip keys, not to rest", () => {
       const { vrm, applied } = stubVrm();
       const controller = new PoseController(vrm);
+      applied.pose = { hips: { position: [0.04, 0, 0] } };
       controller.playAnimaPoseClip(shifted(0.02));
-      controller.update(0.5);
-      expect(hipsX(applied.pose)).not.toBe(0);
+      controller.update(0.1);
+      const halfway = hipsX(applied.pose);
+      controller.update(0.1);
+      const keyed = hipsX(applied.pose);
+      expect(keyed).not.toBe(0);
+      expect(halfway).toBeCloseTo((0.04 + keyed) / 2, 5);
+    });
+
+    it("fades any other positioned bone to rest too", () => {
+      const { vrm, applied } = stubVrm();
+      const controller = new PoseController(vrm);
+      applied.pose = { leftShoulder: { position: [0, 0.01, 0] } };
+      controller.playAnimaPoseClip(
+        clip({ fadeIn: { duration: 0.2, easing: "linear" } }),
+      );
+      controller.update(0.1);
+      expect(applied.pose.leftShoulder?.position?.[1]).toBeCloseTo(0.005, 5);
     });
   });
 
