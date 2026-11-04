@@ -1171,6 +1171,7 @@ export async function recordReel({
                 ),
                 faces: item.faces ?? [],
                 moods: item.moods ?? [],
+                root: item.root ?? [],
                 clipMedia: await pageClipMedia(media, { fsUrl, imageUrl }),
                 label: label ? itemLabel : null,
                 sounds: Object.fromEntries(

@@ -27,7 +27,9 @@ import {
  * A framing object (`{ "distance": 1, "aim": 1 }`) overrides the landing hero
  * close-up's fields: `yaw` (degrees), `distance`, `aim` and `rise` in head
  * heights, `fov` (degrees), and `shift` and `lift` (lens shifts as shares of
- * the frame).
+ * the frame). A framing with `position` and `target` (metres, `[x, y, z]`)
+ * stands the camera there with its `fov`, `shift` and `lift`, whatever the
+ * Avatar's size, so several takes share one view.
  *
  * Times are seconds on the take's clock, from the moment its Avatar stands
  * ready. A Gesture plays on the Avatar's clip player and a Reaction on its
@@ -54,6 +56,16 @@ import {
  * Mixamo or VRoid motion) on the Avatar's animation mixer, as the app plays
  * a VRMA Gesture: from `from` seconds into it, `speed` times as fast, fading
  * in over `enter` seconds (default 0.25), once, until it ends or `until`.
+ * With `"loop": true` it repeats until `until`. Stopping it holds its pose
+ * and eases to rest, as the app stops a VRMA Gesture.
+ *
+ * A take's `root` moves the Avatar on the floor: keys
+ * `{ "at": 1, "x": 0.5, "z": -1, "yaw": 90, "ease": "linear" }` (metres,
+ * degrees about the vertical axis, 0 facing the camera's default side),
+ * each field held from the key before when omitted, eased into from the key
+ * before (`linear`, the default, `in`, `out` or `inOut`). With a camera that
+ * stands still (`position` and `target`), Avatars of several takes share one
+ * view, so their layers stack in one scene.
  *
  * Two more cue kinds direct her face while she speaks. A face cue,
  * `{ "face": { "happy": 0.5, "browInnerUp": 0.3 }, "at": 2, "until": 4,
@@ -74,7 +86,10 @@ const TAKE_KEYS = new Set([
   "duration",
   "cues",
   "speech",
+  "root",
 ]);
+const ROOT_KEYS = new Set(["at", "x", "z", "yaw", "ease"]);
+const ROOT_EASES = new Set(["linear", "in", "out", "inOut"]);
 const GESTURE_KEYS = new Set([
   "gesture",
   "at",
@@ -85,7 +100,15 @@ const GESTURE_KEYS = new Set([
   "until",
 ]);
 const REACTION_KEYS = new Set(["reaction", "at", "until"]);
-const VRMA_KEYS = new Set(["vrma", "at", "from", "speed", "enter", "until"]);
+const VRMA_KEYS = new Set([
+  "vrma",
+  "at",
+  "from",
+  "speed",
+  "enter",
+  "until",
+  "loop",
+]);
 const FACE_KEYS = new Set(["face", "at", "until", "fade"]);
 const MOOD_KEYS = new Set(["mood", "at", "until"]);
 const SPEECH_KEYS = new Set([
@@ -109,6 +132,16 @@ const CAMERA_KEYS = new Set([
   "distance",
   "aim",
   "rise",
+  "fov",
+  "shift",
+  "lift",
+  "position",
+  "target",
+]);
+/** A fixed camera's fields: it stands at `position` looking at `target`. */
+const FIXED_CAMERA_KEYS = new Set([
+  "position",
+  "target",
   "fov",
   "shift",
   "lift",
@@ -159,10 +192,25 @@ export function parseCueSheet(sheet, { dir, name = "sheet" }) {
       if (take[key] !== undefined && typeof take[key] !== "string")
         fail(where, `${key} must be a string.`);
     if (isRecord(take.camera)) {
-      checkKeys(take.camera, CAMERA_KEYS, `${where} camera`);
-      for (const [key, value] of Object.entries(take.camera))
-        if (typeof value !== "number" || !Number.isFinite(value))
+      const fixed = "position" in take.camera || "target" in take.camera;
+      checkKeys(
+        take.camera,
+        fixed ? FIXED_CAMERA_KEYS : CAMERA_KEYS,
+        `${where} camera`,
+      );
+      for (const [key, value] of Object.entries(take.camera)) {
+        if (key === "position" || key === "target") {
+          if (
+            !Array.isArray(value) ||
+            value.length !== 3 ||
+            !value.every((v) => typeof v === "number" && Number.isFinite(v))
+          )
+            fail(`${where} camera`, `${key} must be [x, y, z] in metres.`);
+        } else if (typeof value !== "number" || !Number.isFinite(value))
           fail(`${where} camera`, `${key} must be a number.`);
+      }
+      if (fixed && !("position" in take.camera && "target" in take.camera))
+        fail(`${where} camera`, "a fixed camera gives position and target.");
     } else if (take.camera !== undefined && typeof take.camera !== "string")
       fail(where, "camera must be a preset name or a framing object.");
     const duration = seconds(take.duration, where, "duration");
@@ -254,6 +302,7 @@ export function parseCueSheet(sheet, { dir, name = "sheet" }) {
       detail: take.detail ?? null,
       avatar: take.avatar ?? null,
       camera: take.camera ?? null,
+      root: parseRoot(take.root, `${where} root`),
       duration,
       cues,
       faces,
@@ -274,6 +323,38 @@ function cueWindow(cue, where) {
   return { at, until };
 }
 
+/** A take's root path: keys in time order, each field held when omitted. */
+function parseRoot(root, where) {
+  if (root === undefined) return [];
+  if (!Array.isArray(root) || root.length === 0)
+    fail(where, "root is a list of keys.");
+  let last = { at: -Infinity, x: 0, z: 0, yaw: 0 };
+  return root.map((key, index) => {
+    const at = `${where} key ${index + 1}`;
+    if (!isRecord(key)) fail(at, "a key is an object.");
+    checkKeys(key, ROOT_KEYS, at);
+    const time = seconds(key.at, at, "at");
+    if (time === null) fail(at, "give at.");
+    if (time < last.at) fail(at, "keys go in time order.");
+    for (const name of ["x", "z", "yaw"])
+      if (
+        key[name] !== undefined &&
+        (typeof key[name] !== "number" || !Number.isFinite(key[name]))
+      )
+        fail(at, `${name} must be a number.`);
+    if (key.ease !== undefined && !ROOT_EASES.has(key.ease))
+      fail(at, `ease must be ${[...ROOT_EASES].join(", ")}.`);
+    last = {
+      at: time,
+      x: key.x ?? last.x,
+      z: key.z ?? last.z,
+      yaw: key.yaw ?? last.yaw,
+      ease: key.ease ?? "linear",
+    };
+    return last;
+  });
+}
+
 /** A VRMA cue: a VRM Animation file played from `from`, at `speed`. */
 function parseVrma(cue, where, dir) {
   checkKeys(cue, VRMA_KEYS, where);
@@ -281,6 +362,10 @@ function parseVrma(cue, where, dir) {
     fail(where, "vrma must name a .vrma file.");
   const speed = seconds(cue.speed, where, "speed", "a number") ?? 1;
   if (speed === 0) fail(where, "speed must be more than 0.");
+  if (cue.loop !== undefined && typeof cue.loop !== "boolean")
+    fail(where, "loop must be true or false.");
+  if (cue.loop === true && cue.until === undefined)
+    fail(where, "a looping VRMA cue needs until.");
   return {
     kind: "vrma",
     spec: cue.vrma,
@@ -288,6 +373,7 @@ function parseVrma(cue, where, dir) {
     at: seconds(cue.at, where, "at") ?? 0,
     from: seconds(cue.from, where, "from") ?? 0,
     speed,
+    loop: cue.loop === undefined ? false : cue.loop,
     enter: seconds(cue.enter, where, "enter"),
     until: seconds(cue.until, where, "until"),
     where,
@@ -577,6 +663,7 @@ export async function listSheetItems(file, { localContent = null } = {}) {
           enter: cue.enter,
           until: cue.until,
           speed: cue.speed,
+          loop: cue.loop,
           file: await realpath(cue.file),
         });
         names.push(path.basename(cue.file, path.extname(cue.file)));
@@ -660,6 +747,7 @@ export async function listSheetItems(file, { localContent = null } = {}) {
         ? await resolveAvatarFile(take.avatar, dir, take.where)
         : null,
       camera: take.camera,
+      root: take.root,
       duration: take.duration,
       faces: take.faces,
       moods: take.moods,

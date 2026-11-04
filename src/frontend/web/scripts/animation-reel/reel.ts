@@ -105,6 +105,21 @@ type ReelCue = {
   /** A VRMA cue's file URL and playback speed. */
   url?: string;
   speed?: number;
+  /** A VRMA cue repeats until `until`. */
+  loop?: boolean;
+};
+
+/**
+ * A key of the take's root path: where the Avatar stands on the floor
+ * (metres) and which way it faces (degrees about the vertical axis), eased
+ * into from the key before.
+ */
+type ReelRootKey = {
+  at: number;
+  x: number;
+  z: number;
+  yaw: number;
+  ease: "linear" | "in" | "out" | "inOut";
 };
 
 /** Expression weights added over the face from `at` to `until`. */
@@ -125,7 +140,16 @@ type ReelMood = { at: number; until: number; values: Record<string, number> };
  * the hero close-up), or a landing-style framing whose fields override the
  * hero close-up's.
  */
-type ReelCamera = string | Partial<StageCamera>;
+type ReelCamera = string | Partial<StageCamera> | ReelFixedCamera;
+
+/** A camera standing still in the scene, whatever the Avatar's size. */
+type ReelFixedCamera = {
+  position: [number, number, number];
+  target: [number, number, number];
+  fov?: number;
+  shift?: number;
+  lift?: number;
+};
 
 type ReelItemRequest = {
   avatar: { id: string; url: string };
@@ -134,6 +158,8 @@ type ReelItemRequest = {
   cues: ReelCue[];
   faces: ReelFace[];
   moods: ReelMood[];
+  /** The Avatar's path on the floor; empty keeps it at the origin. */
+  root: ReelRootKey[];
   /** The effects the cues' events play, by (take-unique) alias. */
   clipMedia: PageClipMedia | null;
   /** The corner label, or null for none. */
@@ -398,6 +424,8 @@ type CueState = {
 let item: {
   request: ReelItemRequest;
   session: EffectSession;
+  /** The Avatar's parent on the stage, which the root path moves. */
+  rig: THREE.Group;
   framing: Framing;
   /** Lens shift of a landing page framing, as shares of the frame. */
   offset: { shift: number; lift: number } | null;
@@ -447,9 +475,9 @@ function ensureStage({ width, height }: ReelItemRequest["size"]) {
 /** Close the open take, keeping the stage for the next one. */
 function closeReelItem(): void {
   if (!item || !stage) return;
-  const { session } = item;
+  const { session, rig } = item;
   item = null;
-  if (session.avatar.scene) stage.scene.remove(session.avatar.scene);
+  stage.scene.remove(rig);
   session.dispose();
   stage.review.bands.clearScenes();
   stage.review.bands.setAvatar(null);
@@ -521,9 +549,23 @@ function cameraView(
   camera: ReelCamera,
   { width, height }: ReelItemRequest["size"],
 ): { framing: Framing; offset: { shift: number; lift: number } | null } {
+  if (typeof camera === "object" && "position" in camera) {
+    const fixed = camera as ReelFixedCamera;
+    return {
+      framing: {
+        position: new THREE.Vector3(...fixed.position),
+        target: new THREE.Vector3(...fixed.target),
+        fov: fixed.fov ?? 35,
+      },
+      offset: { shift: fixed.shift ?? 0, lift: fixed.lift ?? 0 },
+    };
+  }
   if (typeof camera === "object") {
     const hero = STAGE_STOPS.find(({ id }) => id === "hero")!;
-    return landingView(avatar, { ...hero.camera, ...camera });
+    return landingView(avatar, {
+      ...hero.camera,
+      ...(camera as Partial<StageCamera>),
+    });
   }
   if (camera === "pip")
     return {
@@ -564,6 +606,41 @@ function landingView(avatar: Avatar, view: StageCamera) {
     },
     offset: { shift: view.shift, lift: view.lift },
   };
+}
+
+/** The frame step of the session's clock (`EffectSession`: 60 Hz). */
+const FRAME_SEC = 1 / 60;
+
+const ROOT_EASE: Record<ReelRootKey["ease"], (u: number) => number> = {
+  linear: (u) => u,
+  in: (u) => u * u * u,
+  out: (u) => 1 - (1 - u) ** 3,
+  inOut: (u) => (u < 0.5 ? 4 * u * u * u : 1 - (-2 * u + 2) ** 3 / 2),
+};
+
+/** Stand the rig where the root path has it at take time `time`. */
+function placeRoot(
+  rig: THREE.Group,
+  keys: readonly ReelRootKey[],
+  time: number,
+) {
+  if (keys.length === 0) return;
+  const next = keys.findIndex((key) => key.at > time);
+  let x: number, z: number, yaw: number;
+  if (next === -1 || next === 0) {
+    const key = keys[next === 0 ? 0 : keys.length - 1]!;
+    ({ x, z, yaw } = key);
+  } else {
+    const a = keys[next - 1]!;
+    const b = keys[next]!;
+    const u = ROOT_EASE[b.ease]((time - a.at) / (b.at - a.at));
+    x = a.x + (b.x - a.x) * u;
+    z = a.z + (b.z - a.z) * u;
+    yaw = a.yaw + (b.yaw - a.yaw) * u;
+  }
+  rig.position.set(x, 0, z);
+  rig.rotation.set(0, THREE.MathUtils.degToRad(yaw), 0);
+  rig.updateMatrixWorld(true);
 }
 
 /** The expression overlay owner face cues use. */
@@ -651,7 +728,12 @@ async function openReelItem(request: ReelItemRequest): Promise<void> {
     current.review,
   );
   current.review.attachCanvas(current.renderer.domElement, session.avatar);
-  current.scene.add(session.avatar.scene!);
+  // The root path moves this parent, so the Avatar's own scene keeps the
+  // transform its loader gave it (a VRM 0 model is turned to face +z).
+  const rig = new THREE.Group();
+  rig.add(session.avatar.scene!);
+  current.scene.add(rig);
+  placeRoot(rig, request.root, 0);
   // Until the take is open, a failure must take its Avatar off the stage.
   try {
     if (request.label) current.label.show(request.label, request.sounds);
@@ -672,6 +754,7 @@ async function openReelItem(request: ReelItemRequest): Promise<void> {
     const open: NonNullable<typeof item> = {
       request,
       session,
+      rig,
       framing,
       offset,
       cues,
@@ -709,7 +792,7 @@ async function openReelItem(request: ReelItemRequest): Promise<void> {
     session.setFrameHook((time) => frameHook(open, time));
     item = open;
   } catch (error) {
-    current.scene.remove(session.avatar.scene!);
+    current.scene.remove(rig);
     session.dispose();
     current.review.bands.clearScenes();
     current.review.bands.setAvatar(null);
@@ -727,6 +810,9 @@ const TALKING_HANDS_RELEASE_SEC = 1.6;
  */
 function frameHook(open: NonNullable<typeof item>, time: number) {
   const { session } = open;
+  // The step after this hook draws at `time` + one frame: the root is placed
+  // there, so spring bones and the drawn frame see it where the cues have it.
+  placeRoot(open.rig, open.request.root, time + FRAME_SEC);
   // Within half a frame, so a cue on a frame boundary is not a frame late.
   const due = time + 1e-6;
   for (const state of open.cues) {
@@ -740,8 +826,8 @@ function frameHook(open: NonNullable<typeof item>, time: number) {
       const { cue } = state;
       void session.avatar
         .playAnimationWithName(vrmaUrl(cue), vrmaName(cue), {
-          loopType: "once",
-          loopCount: 1,
+          loopType: cue.loop ? "repeat" : "once",
+          loopCount: cue.loop ? Infinity : 1,
           timeScale: cue.speed ?? 1,
           keepExisting: false,
           fadeDuration: cue.enter ?? VRMA_ENTER_SEC,

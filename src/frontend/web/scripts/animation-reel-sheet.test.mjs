@@ -526,3 +526,71 @@ test("lists a VRMA cue with its file, start, speed and fade", async () => {
     await rm(dir, { recursive: true, force: true });
   }
 });
+
+test("lists a looping walk with its root path and a fixed camera", async () => {
+  const dir = await mkdtemp(path.join(tmpdir(), "animama-sheet-"));
+  try {
+    await writeFile(path.join(dir, "walk.vrma"), "glTF");
+    const sheet = path.join(dir, "takes.json");
+    const camera = {
+      position: [0, 1.05, 6.2],
+      target: [0, 0.78, 0],
+      fov: 22.5,
+    };
+    await writeFile(
+      sheet,
+      JSON.stringify({
+        duration: 4,
+        camera,
+        root: [
+          { at: 0, x: -3, z: -1, yaw: 90 },
+          { at: 2, x: 0 },
+          { at: 2.5, yaw: 0, ease: "inOut" },
+        ],
+        cues: [{ vrma: "walk.vrma", at: 0, speed: 1.02, loop: true, until: 2 }],
+      }),
+    );
+    const [item] = await listSheetItems(sheet);
+    assert.equal(item.cues[0].loop, true);
+    assert.deepEqual(item.camera, camera);
+    // Each key holds the fields it omits from the key before.
+    assert.deepEqual(item.root, [
+      { at: 0, x: -3, z: -1, yaw: 90, ease: "linear" },
+      { at: 2, x: 0, z: -1, yaw: 90, ease: "linear" },
+      { at: 2.5, x: 0, z: -1, yaw: 0, ease: "inOut" },
+    ]);
+
+    const bad = (take) =>
+      parseCueSheet(
+        { cues: [{ face: { happy: 1 }, at: 0, until: 1 }], ...take },
+        { dir, name: "s" },
+      );
+    assert.throws(
+      () => bad({ cues: [{ vrma: "walk.vrma", loop: true }] }),
+      /a looping VRMA cue needs until/,
+    );
+    assert.throws(
+      () => bad({ root: [{ at: 1 }, { at: 0 }] }),
+      /keys go in time order/,
+    );
+    assert.throws(
+      () => bad({ root: [{ at: 0, ease: "bounce" }] }),
+      /ease must be/,
+    );
+    assert.throws(
+      () => bad({ camera: { position: [0, 1, 6] } }),
+      /a fixed camera gives position and target/,
+    );
+    assert.throws(
+      () => bad({ camera: { position: [0, 1], target: [0, 1, 0] } }),
+      /position must be \[x, y, z\]/,
+    );
+    assert.throws(
+      () =>
+        bad({ camera: { position: [0, 1, 6], target: [0, 1, 0], yaw: 20 } }),
+      /unknown field "yaw"/,
+    );
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
