@@ -666,6 +666,16 @@ the 34 changed Markdown files (no broken link),
 (82 passed, for the notice and license-source text) and desktop
 `prettier:check`. The final review passes; the follow-ups go to the PR.
 
+The full pre-push suite then failed on that candidate (`029bc90a1`): the
+reworded `pocket-tts-attribution.txt` is a size- and hash-pinned file of the
+browser speech model set, so `browser_speech.py` refused the store,
+`test_voice_tools.py` no longer matched its generator, and the web bundle
+could not resolve the browser speech assets. The notice keeps its wording (it
+now describes earlier versions' downloads); changing it needs a new browser
+speech manifest and is a follow-up. After the revert,
+`tests/test_voice_tools.py` and `tests/test_browser_model_store.py` pass (62)
+and `browser_speech.py path --offline` resolves.
+
 One independent review of combined acceptance, including Phase 6. Then, with
 the owner's go-ahead at G0, the full pre-push suite once on the final candidate
 through the heavy slot (`make check-test`, `pnpm verify`,
