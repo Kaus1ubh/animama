@@ -103,10 +103,12 @@ hardening, not how a weakness could be used.
   two repair rounds plus two owner-approved rounds).
 - [x] Phase 4: Electron fuses, debugging guard, DevTools and the smoke copy
   (review #2 passed; one repair round).
-- [ ] Final integration review.
-- [ ] Final validation: full pre-push suite, browser journeys, packed-app
-  checks (G1 for paid calls).
-- [ ] PR opened with local evidence.
+- [x] Final integration review (review #2 passed; one repair round).
+- [x] Final validation (2026-11-04): full pre-push suite, browser journeys,
+  packed-app checks (G1 for paid calls); see the record under Validation and
+  acceptance.
+- [x] PR opened with local evidence (2026-11-04), from the commit that adds
+  this record.
 
 ## Surprises & Discoveries
 
@@ -220,6 +222,9 @@ hardening, not how a weakness could be used.
 - Agent (Phase 3 review): R4.3 covers keys that owner connections name. The
   built-in OpenAI connection keeps sending `OPENAI_API_KEY` to the operator's
   `OPENAI_BASE_URL` (R4.1, plan step 2), which no API request can change.
+- 2026-11-04, owner: the packed-app policy sweep is the smoke copy's journey
+  with violation capture in every window. Effects, Pocket TTS, PiP, Quick Chat
+  and the Safety dialog are recorded as not run in the packed app.
 
 ## Phased implementation
 
@@ -1124,6 +1129,76 @@ Gates:
 Before any push or `gh pr create`, run `gh workflow list --all`; if
 `Portable product validation` is enabled, stop and ask the owner.
 
+### Final validation record
+
+Candidate: `dbc31f97c` (tree `0a6bc2933`), which contains `origin/main` at
+`8ae2d1f05` through the merge `ab9de1316`; base `dacf928c4`.
+
+1. Full pre-push suite through the heavy-job slots, first on `0782c5956`
+   (tree `f8b67ec14`):
+   - `make check-test`: 5358 passed, 29 skipped, 1 failed. The repository
+     boundary test refused the fake `Bearer` key in the new
+     `tests/test_key_redirects.py`; `dbc31f97c` adds the file to that test's
+     list of synthetic-credential tests. Rerun on `dbc31f97c`: 5359 passed,
+     29 skipped.
+   - `pnpm verify`: passed (6300 web tests passed, 2 skipped).
+   - `pnpm web:test:browser`: 136 of 137 passed;
+     `hosted-workflows.browser.test.mjs` timed out under machine load and
+     passed alone (25 of 25).
+   - `pnpm desktop:test`: 644 passed, 14 skipped; `pnpm prettier:check`:
+     passed.
+   `dbc31f97c` changes only that Python test, so the frontend results stand
+   for it.
+2. Browser journeys on the disposable built stack `animama-pph-e2e` (base
+   port 8600, `ANIMAMA_LLM_SKIP=1`), through the heavy-job slot, with the
+   policy-violation check active:
+   - The first full `pnpm e2e:test` ran at a load average of about 40 from
+     other jobs and hit its 90-minute limit. The complete-Anima sharing
+     journey reached its own 40-minute limit, with single deletes taking up
+     to 30 s. The item it left behind then failed later journeys' exact
+     cleanup.
+     The server logged no error, and no journey reported a policy violation.
+   - After a purge, the rerun at a load average of 8 to 15 passed 40 of 42 in
+     60 minutes, with content cleanup complete. Each complete-Anima journey
+     spends about 27 minutes deleting its ~515 imported items one by one, so
+     the 90-minute wrapper was lifted mid-run.
+   - The two failures, the Scene creator's "discard new draft" and the
+     Gesture creator's "discard existing draft", stalled after a Library
+     Edit click: the creator's code loaded, but the navigation never
+     committed. One logged the router library's own `Cannot read properties
+     of undefined (reading '_nonReactive')` from its hover preload; this
+     branch changes no router code or dependency. Both journeys' policy
+     checks found no violation.
+   - Rerun alone five times each, both passed (10 of 10).
+   - Document picture-in-picture, on the same stack with Playwright's
+     Chromium, a throwaway profile and a trusted click on the canvas's
+     picture-in-picture button: the entry document carried the policy. The
+     PiP window opened with the avatar canvas and four cloned stylesheets
+     and rendered Annie. Closing it returned the canvas. Neither window
+     recorded a violation or a policy console message.
+3. Packed app: `pnpm desktop:mac:build` of `dbc31f97c` (unsigned development
+   app; runtime inventory OK; fuse wire `010011001`; runtime build
+   `23c19ada`), then one run in a disposable clone of the golden VM (macOS
+   26.6.2) through the uncommitted development-pack variant of the VM helper.
+   All 39 smoke checks passed, among them the exact fuse wire on the installed
+   app and on the smoke copy, the sealed update policy, every debugging switch
+   refused, the canonical profile untouched, the copy's update check
+   unavailable, both starter chats with persisted replies, persistence across
+   a restart, typed bytes served same-origin and no provider secret in the
+   logs. The violation capture recorded none in any window across the copy's
+   three launches (setup, chats, restart), and the network report none. A
+   separate probe run without provider calls injected an inline script into
+   the packed app's page: the policy blocked it and the capture recorded it.
+   The variant skipped the DMG signature, stapling and publisher-signature
+   checks (signed-candidate gate). Not run in the packed app, by the owner's
+   choice: Effects, Pocket TTS, PiP, Quick Chat and the Safety dialog, and
+   Parakeet and SenseVoice dictation (no microphone or speech model sets in
+   the VM). Phase 2's sweep covered Effects, Pocket TTS, dictation and the
+   Safety page in a browser on a built stack, which serves the same policy,
+   and item 2 covers browser picture-in-picture; the desktop PiP and Quick
+   Chat windows ran under no policy check. Paid usage (G1): one smoke-journey
+   run of three, with two short starter chats. Both clones were deleted.
+
 ## Idempotence and recovery
 
 - Stacks are named and disposable; tear each down after its last use
@@ -1138,6 +1213,17 @@ Before any push or `gh pr create`, run `gh workflow list --all`; if
 
 ## Outcomes & Retrospective
 
+R1 to R4 are delivered on `fix/pre-publication-hardening` in one PR. Every
+phase passed its review, and the final integration review passed. Final
+validation passed on `dbc31f97c`, as recorded above. The owner gates under
+Validation and acceptance item 4 remain.
+
+Phase 3 took two owner-approved rounds beyond the default review budget,
+because an address can be spelled many ways. The search ended once the
+comparison failed closed on every spelling that the HTTP library might read
+differently: host names outside ASCII, user information and
+percent-encoding.
+
 - Follow-up for #837 (final desktop release with update checks off):
   revisit `SECURITY.md`'s supported-versions and scope wording, and the
   smoke's `copy_updates_unavailable` and `sealed_update_policy` checks, whose
@@ -1148,5 +1234,20 @@ Follow-ups found so far (not in this plan's scope):
 - The hosted entry policy (`contracts/hosted-web.md` and the hosted boundary
   fixture) allows only `'self' blob:` connections, while the shared Pose and
   Action previews fetch inline `data:` clips; align the contract and fixture.
+- A keyed connection whose base URL has a host outside ASCII, an empty `@` or
+  a `%` withholds its key, and only the docs say why (P3-R4-5, P3-R5-2). The
+  connection form could say so, or save the address in its ASCII form.
+- In a shuffled backend run, an existing Anthropic test that hides built-in
+  rows makes a model benchmark test fail when it runs first (Surprises &
+  Discoveries).
+- In the full journey run, a Library Edit click sometimes leaves the app on
+  the Library: the router's hover preload can fail with `Cannot read
+  properties of undefined (reading '_nonReactive')`, and the navigation never
+  commits. The affected discard journeys pass alone. This needs a reproduction
+  on `main` and a router fix or a workaround.
+- In the rerun, each complete-Anima journey spent about 27 minutes in
+  cleanup: about 3 s per item, with the server busy on one core. The full
+  suite took 60 minutes, not the documented 35.
 
-_The rest is written at completion._
+Handoff: the task stacks `animama-pph` and `animama-pph-e2e` are down, and
+their Postgres volumes are kept for the post-merge cleanup.
