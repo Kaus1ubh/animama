@@ -87,6 +87,23 @@ async def test_the_hook_follows_only_redirects_within_the_origin(location: str, 
     assert (len(sync_server.requests), len(async_server.requests)) == (expected, expected)
 
 
+@pytest.mark.parametrize(
+    "start", ["https://:@api.example.test/start", "https://api%2eexample.test/start", "https://a^b.example.test/start"]
+)
+def test_the_hook_refuses_any_redirect_from_an_address_without_a_plain_origin(start: str) -> None:
+    server = _Server("/next")
+    client = httpx.Client(
+        transport=httpx.MockTransport(server),
+        follow_redirects=True,
+        event_hooks={"response": [refuse_cross_origin_redirect]},
+    )
+
+    with pytest.raises(CrossOriginRedirectError):
+        client.get(start, headers={"x-api-key": KEY})
+
+    assert len(server.requests) == 1
+
+
 def test_elevenlabs_refuses_a_redirect_to_another_origin() -> None:
     server = _Server(ELSEWHERE)
     pool = elevenlabs_service._new_elevenlabs_http_client(httpx.MockTransport(server))  # noqa: SLF001

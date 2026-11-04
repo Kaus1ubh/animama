@@ -790,9 +790,20 @@ redirect probes.
   only; P3-R5-3, no delivery test for a percent-encoded host; P3-R5-4,
   `is_origin` accepts trailing non-ASCII whitespace (same host, no producer).
 
-Phase 3 passes. P3-R5-1, P3-R5-3, P3-R5-4 and the P3-R5-2 wording are fixed in
-a separate follow-up commit after the Phase 3 commit, and the final integration
-review checks it; P3-R5-2's behaviour joins the P3-R4-5 follow-up.
+Phase 3 passes. Commit: `dd46a3353` (`fix(models)[p3]: send stored keys only
+to their own address`).
+
+Follow-up commit (`fix(models): refuse key redirects from an address without
+an origin`), for the final integration review to check: the redirect hook
+refuses a redirect when either URL has no plain origin (P3-R5-1), `is_origin`
+refuses surrounding and non-ASCII whitespace (P3-R5-4), a percent-encoded host
+is a tested delivery refusal (P3-R5-3) and `local-models.md` says the `%` and
+user-information rule covers the `scheme://host[:port]` part (P3-R5-2 wording).
+Checks: `tests/test_key_redirects.py`, `test_model_key_destinations.py`,
+`test_desktop_credentials_route.py`, `test_runtime_credential_store.py`,
+`test_gemini_sdk_isolation.py`, `test_anthropic_model_probe.py` and
+`test_elevenlabs_service.py`: 267 passed; ruff, format check and mypy on the
+touched files passed. P3-R5-2's behaviour joins the P3-R4-5 follow-up.
 
 ### Phase 4: Electron fuses, debugging guard, DevTools and the smoke copy
 

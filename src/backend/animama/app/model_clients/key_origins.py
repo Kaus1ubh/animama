@@ -62,7 +62,12 @@ def is_origin(value: str) -> bool:
         parts = urlsplit(value)
     except ValueError:
         return False
-    return canonical_origin(value) is not None and value == f"{parts.scheme}://{parts.netloc}"
+    return (
+        value.isascii()
+        and value == value.strip()
+        and canonical_origin(value) is not None
+        and value == f"{parts.scheme}://{parts.netloc}"
+    )
 
 
 def is_this_computer(origin: str) -> bool:

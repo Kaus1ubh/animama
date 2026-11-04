@@ -181,7 +181,9 @@ def test_origins_compare_in_the_form_a_browser_gives(url: str, origin: str | Non
         "https://@lab.example.test",
         "https://@[2001:db8::1:8443]",
         "https://[fe80::1%eth0]",
+        "https://lab%2eexample.test",
         "https://\u212aey.example",
+        "https://lab.example.test\u3000",
     ],
 )
 def test_a_delivery_refuses_a_value_that_is_not_an_origin(origin: str) -> None:

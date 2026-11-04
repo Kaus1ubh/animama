@@ -22,13 +22,15 @@ class CrossOriginRedirectError(Exception):
 def refuse_cross_origin_redirect(response: httpx.Response | httpx2.Response) -> None:
     """Response hook: raise instead of following a redirect to another origin.
 
+    A redirect from or to an address without a plain origin is refused too.
     The error does not echo the redirect target, which the provider chose.
     """
 
     if not response.has_redirect_location:
         return
+    origin = canonical_origin(str(response.url))
     target = response.url.join(response.headers["location"])
-    if canonical_origin(str(target)) != canonical_origin(str(response.url)):
+    if origin is None or canonical_origin(str(target)) != origin:
         raise CrossOriginRedirectError("The provider redirected the request to another address; it was not followed.")
 
 

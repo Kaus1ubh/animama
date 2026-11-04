@@ -179,8 +179,8 @@ connection that breaks either rule is refused with
 `credential_origin_mismatch` or `credential_insecure_transport`. Write a
 non-ASCII host name in its ASCII form (`xn--…`, the form the connection form's
 origin line uses), in the base URL and in the origin line: no key is sent to a
-host name written in other characters, or to an address with user information
-or a `%` in it. The built-in OpenAI connection is separate: it
+host name written in other characters, or to an address whose
+`scheme://host[:port]` part has user information or a `%`. The built-in OpenAI connection is separate: it
 sends `OPENAI_API_KEY` to `OPENAI_BASE_URL`, which only the operator sets.
 
 With Compose, put `ANIMAMA_CONNECTION_<NAME>_API_KEY` values in an owner-only
