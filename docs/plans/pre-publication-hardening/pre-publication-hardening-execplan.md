@@ -987,8 +987,19 @@ refusal and the wire reader and writer on the packed app.
   shorter; N4, three stale sentences in `releases.md`; N5, a code comment
   still says one launch per switch.
 
-N1 to N5 are fixed in a follow-up commit after the Phase 4 commit, for the
-final integration review to check.
+Phase 4 commit: `8c7ab5997` (`fix(desktop)[p4]: turn on Electron fuses and
+refuse debugging switches`), after `974b753f1`, which removed the former R5
+from this plan.
+
+Follow-up commit (`fix(desktop): tighten the release smoke's profile and path
+checks`), for the final integration review to check: N1, a refused debugging
+launch must leave the profile absent or empty, with no exception; N2,
+`assertWindowsCopyFits` runs before the installer and fails with its own
+message (profile folder names of up to 29 characters fit, as `releases.md` now
+says); N3 and N5, comment wording; N4, the cleanup, copy-location and
+Authenticode sentences in `releases.md`. Checks: from `src/frontend/desktop`,
+`pnpm exec vitest run`: 644 passed, 14 skipped;
+`pnpm --filter animama-desktop prettier:check` passed.
 
 ## Final integration review
 

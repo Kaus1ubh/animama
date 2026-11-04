@@ -79,27 +79,41 @@ export function ownedWindowsChild(child, runtime, images) {
 }
 
 /**
+ * Fail before anything is installed when the journey copy's throwaway profile
+ * (`<%LOCALAPPDATA%>\am-smoke-XXXXXX\p`) would not fit the packaged app's
+ * data-root budget: profile folder names of at most 29 characters fit.
+ */
+export function assertWindowsCopyFits(
+  localAppData,
+  resolve = realpathSync.native,
+) {
+  if (!localAppData)
+    throw new Error("Run smoke from a normal Windows user session");
+  const base = resolve(localAppData);
+  // mkdtemp adds six characters to the prefix.
+  const length = win.join(base, "am-smoke-XXXXXX", "p").length;
+  if (length > MAX_WINDOWS_DATA_ROOT)
+    throw new Error(
+      `The smoke profile path would be ${length} characters; the app accepts at most ${MAX_WINDOWS_DATA_ROOT}. Use a test account with a shorter profile folder name.`,
+    );
+  return base;
+}
+
+/**
  * A short private folder under the long-form `%LOCALAPPDATA%` for the journey
- * copy (`a`) and its throwaway profile (`p`). The profile must fit the packaged
- * app's data-root budget, and the copy's runtime paths stay shorter than the
- * installed ones.
+ * copy (`a`) and its throwaway profile (`p`). The profile fits the packaged
+ * app's data-root budget, and the copy's runtime paths are at most one
+ * character longer than the installed ones.
  */
 export function windowsCopyLocation(
   localAppData,
   { make = smokeCopyDirectory, resolve = realpathSync.native } = {},
 ) {
-  if (!localAppData)
-    throw new Error("Run smoke from a normal Windows user session");
-  const base = resolve(localAppData);
-  // Checked before anything is created: mkdtemp adds six characters.
-  const length = win.join(base, "am-smoke-XXXXXX", "p").length;
-  if (length > MAX_WINDOWS_DATA_ROOT)
-    throw new Error(
-      `The smoke profile path would be ${length} characters; the app accepts at most ${MAX_WINDOWS_DATA_ROOT}. Use a test account with a shorter profile folder.`,
-    );
-  const directory = make(base, "am-smoke-");
-  const profile = win.join(directory, "p");
-  return { directory, profile };
+  const directory = make(
+    assertWindowsCopyFits(localAppData, resolve),
+    "am-smoke-",
+  );
+  return { directory, profile: win.join(directory, "p") };
 }
 
 /** Whether no process of this account runs an executable inside `root`. */
@@ -184,6 +198,8 @@ export async function smokeWindows(args) {
     throw new Error(`Smoke input must be ${installerName}`);
   const { userData, installed, existing } = windowsProfile();
   assertFreshProfile(existing, "Windows");
+  // Before the installer runs, so a refusal leaves the account fresh.
+  assertWindowsCopyFits(process.env.LOCALAPPDATA);
   const provider = smokeProviderKey();
   const runtime = path.join(installed, "resources", "runtime");
   const verifySigned = (directory, name) =>

@@ -19,7 +19,10 @@ import {
   smokeCopyDirectory,
 } from "../scripts/runtime/smoke-hardening.mjs";
 import { hardeningSmokeChecks } from "../scripts/runtime/smoke-policy.mjs";
-import { windowsCopyLocation } from "../scripts/runtime/smoke-windows.mjs";
+import {
+  assertWindowsCopyFits,
+  windowsCopyLocation,
+} from "../scripts/runtime/smoke-windows.mjs";
 
 const roots = [];
 afterEach(() => {
@@ -78,10 +81,8 @@ describe("installed-artifact smoke hardening", () => {
     expect(check({ status: 1 }, { noInstalledProcesses: () => false })).toBe(
       false,
     );
-    // Chromium's own debugging-port file is not the app's start-up.
+    // Even Chromium's debugging-port file shows start-up got too far.
     writeFileSync(path.join(userData, "DevToolsActivePort"), "0\n");
-    expect(check({ status: 1 })).toBe(true);
-    writeFileSync(path.join(userData, "Local State"), "{}");
     expect(check({ status: 1 })).toBe(false);
   });
 
@@ -115,9 +116,17 @@ describe("installed-artifact smoke hardening", () => {
       directory: "C:\\Users\\smoke\\AppData\\Local\\am-smoke-Ab12Cd",
       profile: "C:\\Users\\smoke\\AppData\\Local\\am-smoke-Ab12Cd\\p",
     });
-    const long = `C:\\Users\\${"x".repeat(40)}\\AppData\\Local`;
+    // Profile folder names of up to 29 characters fit.
+    const local = (name) => `C:\\Users\\${name}\\AppData\\Local`;
+    expect(() =>
+      assertWindowsCopyFits(local("x".repeat(29)), resolve),
+    ).not.toThrow();
+    expect(() => assertWindowsCopyFits(local("x".repeat(30)), resolve)).toThrow(
+      "shorter profile folder name",
+    );
+    const long = local("x".repeat(40));
     expect(() => windowsCopyLocation(long, { make, resolve })).toThrow(
-      "shorter profile folder",
+      "shorter profile folder name",
     );
     // Nothing is created when the path would not fit.
     expect(made).toEqual(["C:\\Users\\smoke\\AppData\\Local"]);

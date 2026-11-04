@@ -356,9 +356,12 @@ the harness does not load developer `.env` files. Those API calls incur provider
 usage. The key travels through the normal setup UI into the encrypted vault.
 After checking restart persistence, the harness deletes this temporary OpenAI
 credential through the normal vault API and verifies absence after another
-restart. Failure paths attempt the same cleanup before shutdown; a failed
-cleanup fails the smoke and reports the required manual removal. It never
-changes the source key or any other account's vault. Real provider calls require
+restart. Failure paths attempt the same cleanup before shutdown, and a failed
+cleanup fails the smoke. The key only ever lives in the journey copy's
+throwaway profile, which the harness deletes; the smoke reports a manual
+removal only when it cannot delete that copy folder or, on macOS, the Keychain
+item the copy created. It never changes the source key or any other account's
+vault. Real provider calls require
 explicit authorization for the scoped smoke and its temporary credential cleanup.
 
 ```sh
@@ -375,8 +378,9 @@ debugging switch (with and without a value), each of which must exit promptly
 with a failure and leave no process running and no session, log or runtime
 state in its profile.
 
-The journey runs on a copy that the harness makes in a new private temporary
-folder, outside the checkout and the publish folders: the installed app with
+The journey runs on a copy that the harness makes in a new private folder
+outside the checkout and the publish folders (the temporary folder on macOS, a
+short folder under `%LOCALAPPDATA%` on Windows): the installed app with
 only Node's inspect switches turned on (so the test driver can attach) and an
 ad-hoc signature. A packaged app accepts the throwaway
 `ANIMAMA_DESKTOP_DEV_USER_DATA` profile only while its inspector runs, so only
@@ -503,16 +507,16 @@ pnpm desktop:smoke:windows -- --artifact desktop/release/publish/Animama-<versio
 It checks the installer's signature, installs it silently for that user,
 checks the installed `Animama.exe` signature, runtime inventory, fuse wire,
 sealed update policy and debugging-switch refusal, and runs the same journey on
-a copy in a private temporary folder (the copy's changed `Animama.exe` loses
-its Authenticode signature, so its updates are unavailable), with a throwaway
-profile and a system-only PATH. Each recorded child must run from the copy's
-runtime inside its process guard. After every quit, no process from the copy
-may remain. The copy and its profile live in a short `am-smoke-*` folder under
-`%LOCALAPPDATA%`, so the profile fits the app's 70-character data-root limit;
-the harness refuses an account whose profile folder name is too long, and
-deletes the folder afterwards. The changed `Animama.exe` carries an invalid
-Authenticode signature, so Smart App Control or an application-control policy
-may block the copy; run the smoke where neither applies. The report binds
+a copy with a throwaway profile and a system-only PATH. Each recorded child
+must run from the copy's runtime inside its process guard. After every quit,
+no process from the copy may remain. The copy and its profile live in a short
+`am-smoke-*` folder under `%LOCALAPPDATA%`, so the profile fits the app's
+70-character data-root limit; before installing anything the harness refuses an
+account whose profile folder name is longer than 29 characters, and it deletes
+the folder afterwards. The copy's changed `Animama.exe` carries an invalid
+Authenticode signature, so its updates are unavailable, and Smart App Control or
+an application-control policy may block it; run the smoke where neither
+applies. The report binds
 `installer_sha256` and the runtime build ID.
 
 `desktop/release/smoke-name/` contains sanitized smoke and categorical

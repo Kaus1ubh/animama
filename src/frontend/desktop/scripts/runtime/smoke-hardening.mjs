@@ -11,7 +11,7 @@ import { repoRoot } from "./common.mjs";
 export const MAX_WINDOWS_DATA_ROOT = 70;
 
 /**
- * One launch per debugging switch the packaged guard refuses
+ * Launches for each debugging switch the packaged guard refuses
  * (`src/main-process/security/debugging-switches.ts`), with and without a
  * value. A test keeps the two lists in step.
  */
@@ -53,20 +53,12 @@ export function smokeCopyDirectory(base, prefix) {
 }
 
 /**
- * Chromium writes this file into the default profile when it opens a remote
- * debugging port, before any of the app's own start-up code runs.
- */
-const CHROMIUM_DEBUGGING_FILES = new Set(["DevToolsActivePort"]);
-
-/**
- * Whether a profile directory is absent or holds nothing the app wrote: no
- * session, log or runtime state.
+ * Whether a profile directory is absent or empty. A refused debugging launch
+ * exits before Chromium writes anything there, its debugging port file
+ * included.
  */
 export function profileUnused(directory) {
-  return (
-    !existsSync(directory) ||
-    readdirSync(directory).every((name) => CHROMIUM_DEBUGGING_FILES.has(name))
-  );
+  return !existsSync(directory) || readdirSync(directory).length === 0;
 }
 
 /**
