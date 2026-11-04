@@ -6,10 +6,14 @@ import { SpeechLanguageNotice } from "@/ui/settings/SpeechLanguageNotice";
 
 const runtime = vi.hoisted(() => ({
   capabilities: undefined as Record<string, unknown> | undefined,
+  downloadsEnded: false,
 }));
 
 vi.mock("@/query/hooks/useRuntimeCapabilities", () => ({
   useRuntimeCapabilities: () => ({ data: runtime.capabilities }),
+}));
+vi.mock("@/query/hooks/useModelDownloadsEnded", () => ({
+  useModelDownloadsEnded: () => runtime.downloadsEnded,
 }));
 
 /** A local runtime with Parakeet and, optionally, SenseVoice installed. */
@@ -22,6 +26,7 @@ const local = (senseVoice: boolean) => ({
 describe("speech language notice", () => {
   beforeEach(() => {
     runtime.capabilities = local(false);
+    runtime.downloadsEnded = false;
   });
   afterEach(async () => {
     await getI18n().changeLanguage("en");
@@ -105,6 +110,31 @@ describe("speech language notice", () => {
         />,
       ),
     ).toBe("");
+  });
+
+  it("says the language's model can no longer be downloaded once downloads have ended", async () => {
+    runtime.downloadsEnded = true;
+    expect(
+      renderToStaticMarkup(
+        <SpeechLanguageNotice
+          direction="speechToText"
+          provider="parakeet"
+          engine="sensevoice"
+        />,
+      ),
+    ).toContain(getI18n().t("voice:languageNotice.speechToTextModelEnded"));
+    await getI18n().changeLanguage("ko");
+    const markup = renderToStaticMarkup(
+      <SpeechLanguageNotice direction="speechToText" provider="parakeet" />,
+    );
+    expect(markup).toContain(
+      getI18n().t("voice:languageNotice.speechToTextEnded", {
+        language: "한국어",
+      }),
+    );
+    expect(markup).not.toContain(
+      getI18n().t("voice:languageNotice.speechToText", { language: "한국어" }),
+    );
   });
 
   it("says when the operator does not provide the language's model", async () => {

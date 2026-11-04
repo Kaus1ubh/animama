@@ -78,7 +78,7 @@ Orientation, from a read-only survey on 2026-11-04:
   committed.
 - [x] Phase 1: sealed end of updates and packs (review #2 passed; one repair round).
 - [x] Phase 2: model downloads end in the backend (review #2 passed; one repair round).
-- [ ] Phase 3: download controls explain the end.
+- [x] Phase 3: download controls explain the end (review #2 passed; one repair round).
 - [ ] Phase 4: packaged notices.
 - [ ] Phase 5: script defaults.
 - [ ] Phase 6: documentation, version and runbook.
@@ -366,7 +366,60 @@ as before.
 
 Completion: commit `feat(voice)[p3]: explain that model downloads have ended`.
 
-Check record: _to be filled._
+Check record (from `src/frontend/web` unless noted):
+
+- Red first: 13 new or changed tests failed before the source change.
+- Tree `fdeac870` (initial): the 14 affected Vitest files 162 passed; from
+  `src/frontend`, `pnpm -s i18n:extract` then `pnpm -s i18n:check` ("Every
+  translated catalog is complete") and `pnpm -s check` passed; eslint on the
+  touched sources and `pnpm -s prettier:check` passed. After `pnpm
+  packages:build`, the setup-downloads, model-download-coordination and
+  voice-clone-library browser files: 35 passed and 1 failed (the voice-clone
+  route stub refused the new list request); with the list stubbed,
+  voice-clone-library 5/5.
+- Tree `021db05e` (after repair round 1): `pnpm exec vitest related --run` on
+  the 18 changed sources, 40 files and 407 tests passed;
+  `client-parakeet/client.test.ts` 12 passed; `pnpm -s check`, eslint and
+  `prettier:check` passed; `python3 scripts/public-release/check_source.py`
+  covers every tracked file exactly once.
+
+Design notes: a pure `modelDownloadsEnded(list)` and
+`fetchModelDownloadsEnded(apiClient)` in `query/model-download-coordination.ts`;
+a `useModelDownloadsEnded()` hook in its own module, so tests that mock
+`useModelAssets` still apply; one shared note, `models:downloadsEnded.note`,
+beside the operator-managed note, which keeps precedence everywhere.
+
+#### Code Review #1 Findings
+
+Standard tier, tree `fdeac870`; the reviewer ran `vitest related` on the 15
+changed sources (30 files, 235 passed) and eslint on the tests.
+
+- P3-R1-F1 (blocking): dictation and Voice Mode still told people to install
+  offline speech recognition in Settings.
+- P3-R1-F2: `docs/frontend/runtime/voice.md` was missing from Phase 6.
+- P3-R1-F3: in Vite development the ended note could sit beside the host-model
+  commands.
+- P3-R1-F4: the list-unavailable setup sentence is untrue locally (rare).
+- P3-R1-F5: four comments still described offered downloads.
+- P3-R1-F6: the clone flow did not map `model_downloads_ended`.
+- P3-R1-F7: the new hook fetched the list even where models are
+  operator-managed.
+
+#### Code Review #1 Revisions
+
+F1 accepted: `useDictation` and the offline worker clients ask
+`fetchModelDownloadsEnded` on the missing-model path and use new
+`offlineSpeechEnded`/`languageSpeechEnded` strings in all five locales, with a
+client test. F2 added to Phase 6. F3, F5, F6 and F7 accepted. F4 left: rare,
+and still true for hosted.
+
+#### Code Review #2 Findings
+
+Targeted recheck of tree `021db05e`; the reviewer reran voice-clone-library's
+browser file (5 passed). All dispositions verified; no blocking findings.
+P3-R2-F1 (optional, left): with offline speech turned off by a self-host
+operator while a set is installed, the new error says it can no longer be
+downloaded; the previous wording was equally wrong there. Phase 3 passes.
 
 ### Phase 4: Packaged notices
 

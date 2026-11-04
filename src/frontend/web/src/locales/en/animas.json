@@ -599,6 +599,7 @@
         "verifying": "Download complete. Verifying voice cloning…"
       },
       "downloading": "Downloading voice cloning…",
+      "downloadsEnded": "Voice cloning needs a model that can no longer be downloaded. Saved clones keep working.",
       "errors": {
         "cancelFailed": "The download could not be cancelled. Try again.",
         "cancelled": "Download cancelled. Your sample is ready to retry.",
@@ -692,6 +693,7 @@
       "downloadFailed": "{{voice}} could not be downloaded. Open the voice list to retry.",
       "downloading": "Downloading {{voice}}… {{percent}}",
       "libraryFailed": "Saved voices could not be loaded.",
+      "notDownloadable": "{{voice}} can no longer be downloaded, so replies use the default voice.",
       "notProvided": "{{voice}} is not available here, so replies use the default voice.",
       "savedUnavailable": "Saved voice unavailable",
       "sectionLabel": "PocketTTS voice",

@@ -364,5 +364,8 @@
       "stopsSearching": "模型将停止搜索网页。",
       "turningOff": "正在关闭…"
     }
+  },
+  "downloadsEnded": {
+    "note": "Animama 已不再提供模型下载。已下载的内容仍可继续使用；聊天、虚拟形象和内置语音无需下载。"
   }
 }

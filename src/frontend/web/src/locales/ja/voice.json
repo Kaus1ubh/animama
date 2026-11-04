@@ -150,7 +150,8 @@
     "fallback": {
       "customMissing": "カスタムの PocketTTS 音声が選択されていますが、カスタム音声がアップロードされていません。",
       "downloadFailed": "音声「{{voice}}」をダウンロードできなかったため、デフォルトの音声を使用しています。ダウンロードは次の返事のとき、または音声を選び直したときに再試行されます。",
-      "unknownVoice": "保存された音声「{{voice}}」は利用できなくなったため、デフォルトの音声を使用しています。ふるまい → 音声 で別の音声を選んでください。"
+      "unknownVoice": "保存された音声「{{voice}}」は利用できなくなったため、デフォルトの音声を使用しています。ふるまい → 音声 で別の音声を選んでください。",
+      "downloadsEnded": "音声「{{voice}}」はダウンロードできなくなったため、デフォルトの音声を使用しています。"
     },
     "sample": {
       "playFailed": "{{name}} のサンプルを再生できませんでした。接続を確認して、もう一度お試しください。"
@@ -248,6 +249,8 @@
     "speechToTextModel": "SenseVoice を使うには、そのモデルをダウンロードしてください。",
     "speechToTextModelUnavailable": "このサーバーでは SenseVoice を利用できません。",
     "textToSpeech": "Pocket TTS は英語のみ話せます。Anima に{{language}}で話してもらうには、ElevenLabs または Gemini を選んでください。",
-    "speechToTextUnavailable": "このサーバーでは{{language}}のオフライン音声認識を利用できません。"
+    "speechToTextUnavailable": "このサーバーでは{{language}}のオフライン音声認識を利用できません。",
+    "speechToTextEnded": "{{language}}のオフライン音声認識には、ダウンロードできなくなったモデルが必要です。",
+    "speechToTextModelEnded": "SenseVoice には、ダウンロードできなくなったモデルが必要です。"
   }
 }
