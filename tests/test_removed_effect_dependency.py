@@ -48,7 +48,7 @@ INCLUDED = {
 
 
 @pytest.fixture(autouse=True)
-async def _cleanup(async_session):  # noqa: ANN001, ANN202
+async def _cleanup(async_session):
     yield
     await async_session.rollback()
     await async_session.execute(
@@ -118,7 +118,7 @@ EFFECTS = [
 ]
 
 
-async def _reaction(catalog: Any) -> CatalogContentEntry:  # noqa: ANN401
+async def _reaction(catalog: Any) -> CatalogContentEntry:
     reaction: CatalogContentEntry
     [reaction] = [
         item for item in await catalog.list_visible(user_id=OWNER) if item.logical_key == "local:reaction:cheer"
@@ -126,7 +126,7 @@ async def _reaction(catalog: Any) -> CatalogContentEntry:  # noqa: ANN401
     return reaction
 
 
-async def test_local_reaction_plays_without_removed_included_effects(async_session, tmp_path) -> None:  # noqa: ANN001
+async def test_local_reaction_plays_without_removed_included_effects(async_session, tmp_path) -> None:
     paths, catalog, content, _, packages = package_services(async_session, tmp_path)
     for ref in INCLUDED:
         _include(paths, ref)
@@ -197,8 +197,8 @@ async def test_local_reaction_plays_without_removed_included_effects(async_sessi
     ],
 )
 async def test_other_unresolved_dependencies_still_invalidate(
-    async_session,  # noqa: ANN001
-    tmp_path,  # noqa: ANN001
+    async_session,
+    tmp_path,
     dependency: dict[str, Any],
 ) -> None:
     paths, catalog, content, _, _ = package_services(async_session, tmp_path)
@@ -211,7 +211,7 @@ async def test_other_unresolved_dependencies_still_invalidate(
     assert {diagnostic.code for diagnostic in reaction.diagnostics} >= {"unresolved_dependency"}
 
 
-async def test_an_invalid_included_effect_still_invalidates(async_session, tmp_path) -> None:  # noqa: ANN001
+async def test_an_invalid_included_effect_still_invalidates(async_session, tmp_path) -> None:
     paths, catalog, content, _, _ = package_services(async_session, tmp_path)
     for ref in (AVATAR, PARTICLE):
         _include(paths, ref)
@@ -224,7 +224,7 @@ async def test_an_invalid_included_effect_still_invalidates(async_session, tmp_p
     assert reaction.missing_dependencies == ()
 
 
-async def test_an_included_action_naming_a_removed_effect_is_invalid(async_session, tmp_path) -> None:  # noqa: ANN001
+async def test_an_included_action_naming_a_removed_effect_is_invalid(async_session, tmp_path) -> None:
     paths, catalog, content, _, _ = package_services(async_session, tmp_path)
     _include(paths, AVATAR)
     meta, clip = _reaction_files(EFFECTS[:2])
@@ -241,7 +241,7 @@ async def test_an_included_action_naming_a_removed_effect_is_invalid(async_sessi
     assert reaction.missing_dependencies == ()
 
 
-async def test_a_save_naming_a_missing_effect_is_refused(async_session, tmp_path) -> None:  # noqa: ANN001
+async def test_a_save_naming_a_missing_effect_is_refused(async_session, tmp_path) -> None:
     paths, catalog, content, saves, _ = package_services(async_session, tmp_path)
     _include(paths, AVATAR)
     await content.rescan(user_id=OWNER)

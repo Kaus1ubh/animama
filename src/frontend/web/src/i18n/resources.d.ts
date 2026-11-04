@@ -1425,20 +1425,6 @@ export default interface Resources {
     }
   },
   "chat": {
-    "background": {
-      "apply": "Apply",
-      "applying": "Applying...",
-      "back": "Back to background settings",
-      "canvasSize": "{{width}} x {{height}}",
-      "description": "Adjust the crop and zoom for the selected avatar background.",
-      "heading": "Edit media",
-      "hint": "Drag to reposition and zoom to fit the live avatar canvas.",
-      "liveCanvas": "Live canvas",
-      "reset": "Reset",
-      "title": "Resize {{name}} background",
-      "zoomIn": "Zoom in background",
-      "zoomOut": "Zoom out background"
-    },
     "canvas": {
       "camera": {
         "axis": "{{label}} {{axis}}",
@@ -5578,11 +5564,6 @@ export default interface Resources {
       "unavailable": "Unavailable"
     },
     "clip": {
-      "advanced": {
-        "body": "Select a keyframe or event on the timeline to edit it. Gesture and Reaction releases retain the complete sequence JSON when saved.",
-        "description": "Timing and event data are edited directly in the typed action timeline.",
-        "title": "Clip data"
-      },
       "anchors": {
         "root": "Root"
       },

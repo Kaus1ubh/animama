@@ -20,11 +20,10 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
+from animama.app.ports import ModelProviderRepository, UserSettingsRepository
 from animama.domain import ModelProvider
 from animama.domain.model_connection import MODEL_KIND_CHAT, MODEL_KIND_EMBEDDING, MODEL_SOURCE_OWNER
 from animama.logging import get_logger
-
-from ..ports import ModelProviderRepository, UserSettingsRepository
 
 ROLE_CHAT = "chat"
 ROLE_UTILITY = "utility"

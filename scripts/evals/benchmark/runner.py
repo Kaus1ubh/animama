@@ -23,11 +23,11 @@ from animama.app.chat import DirectChatTurnExecutor, ModelClientNotFoundError
 from animama.app.chat.direct_turn.types import PreparedDirectChatTurn
 from animama.app.model_clients import ModelClientRegistry, uses_native_context_compaction
 from animama.app.model_clients.context_budget import estimate_prompt_tokens
+from scripts.evals.core.chat import EvalChats, StaticMemoryContext, build_executor, instruction_bytes, turn_request
+from scripts.evals.core.model_calls import BudgetedModelClient, CallBudget, CallPrice, Clock, call_latency, seconds
+from scripts.evals.core.pricing import usage_json
+from scripts.evals.core.turns import TurnOutcome, execute_turn
 
-from ..core.chat import EvalChats, StaticMemoryContext, build_executor, instruction_bytes, turn_request
-from ..core.model_calls import BudgetedModelClient, CallBudget, CallPrice, Clock, call_latency, seconds
-from ..core.pricing import usage_json
-from ..core.turns import TurnOutcome, execute_turn
 from .configs import Configuration
 from .manager_runner import run_memory_manager
 from .measures import offered_tools, recovery_path

@@ -93,8 +93,9 @@ App Settings opens over the active route without remounting the chat runtime.
   built on the entrypoint's same-origin transport; there is no global default
   client. The local request interceptor adds only the CSRF marker to mutating
   `/v1` requests.
-- TanStack Query state uses `src/frontend/web/src/query/keys.ts` and the hooks
-  under `query/hooks` and `query/mutations`.
+- TanStack Query state uses the query keys in
+  `src/frontend/packages/product-ui/src/query/keys.ts` (imported in web as
+  `@/query/keys`) and the hooks under `query/hooks` and `query/mutations`.
 - Runtime-local state that is not server state lives in Zustand stores under
   `src/frontend/web/src/stores`.
 

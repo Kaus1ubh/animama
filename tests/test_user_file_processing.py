@@ -451,7 +451,7 @@ async def test_process_endpoint_enforces_current_user_not_found(monkeypatch) -> 
 async def test_debug_search_endpoint_returns_results_without_embedder_for_keyword(monkeypatch) -> None:
     monkeypatch.setattr(user_files_router, "_processing_service", lambda _session: _RouterProcessingService())
 
-    async def _unexpected_embedder(*_args, **_kwargs):  # noqa: ANN002, ANN003
+    async def _unexpected_embedder(*_args, **_kwargs):
         pytest.fail("keyword search should not resolve an embedder")
 
     monkeypatch.setattr(user_files_router, "role_embedder", _unexpected_embedder)

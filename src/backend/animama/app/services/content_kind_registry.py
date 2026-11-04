@@ -1611,36 +1611,6 @@ def descriptor_file_paths(value: Mapping[str, Any]) -> tuple[str, ...]:
     return tuple(item.path for item in _files(value))
 
 
-def descriptor_file_roles(value: Mapping[str, Any]) -> dict[str, str]:
-    return {item.path: item.role for item in _files(value)}
-
-
-def descriptor_dependencies(value: Mapping[str, Any]) -> tuple[str, ...]:
-    raw = value.get("dependencies", [])
-    if not isinstance(raw, list):
-        return ()
-    result: list[str] = []
-    for item in raw:
-        reference = _dependency_reference(item)
-        if reference is not None and _valid_dependency_reference(reference):
-            result.append(reference)
-    return tuple(result)
-
-
-def logical_key_from_metadata(value: Mapping[str, Any]) -> str | None:
-    try:
-        return _content_id(value)
-    except ContentDocumentError:
-        return None
-
-
-def display_name_from_metadata(value: Mapping[str, Any], fallback: Path) -> str:
-    candidate = value.get("display_name", value.get("name"))
-    if isinstance(candidate, str) and candidate.strip() and len(candidate.strip()) <= 120:
-        return candidate.strip()
-    return display_name_from_path(fallback)[:120]
-
-
 def descriptor_filename(definition: ContentKindDefinition, entry_name: str) -> str:
     if definition.descriptor_suffix is None:
         raise ValueError(f"{definition.kind.value} does not use a folder descriptor")
@@ -1667,15 +1637,11 @@ __all__ = [
     "RuntimeProjection",
     "RuntimeProjectionInput",
     "definition_for_kind",
-    "descriptor_dependencies",
     "descriptor_file_paths",
-    "descriptor_file_roles",
     "descriptor_filename",
-    "display_name_from_metadata",
     "display_name_from_path",
     "handler_for_kind",
     "is_descriptor_path",
-    "logical_key_from_metadata",
     "media_type_for",
     "parse_json_object",
     "validate_descriptor",

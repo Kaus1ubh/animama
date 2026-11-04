@@ -19,7 +19,7 @@ from tests.content_package_helpers import package_services, reviewed_export, rev
 @pytest.mark.parametrize("failure", ["promotion", "admission", "before_commit", "after_commit"])
 async def test_import_files_and_catalog_follow_one_durable_outcome(
     async_session, tmp_path: Path, monkeypatch, failure: str
-) -> None:  # noqa: ANN001
+) -> None:
     paths, catalog, content, saves, packages = package_services(async_session, tmp_path)
     try:
         saved = await save_wave(saves)
@@ -80,7 +80,7 @@ async def test_import_files_and_catalog_follow_one_durable_outcome(
 
 async def test_historical_import_receipt_status_survives_retirement_and_result_deletion(
     async_session, tmp_path: Path
-) -> None:  # noqa: ANN001
+) -> None:
     _paths, catalog, content, saves, packages = package_services(async_session, tmp_path)
     try:
         saved = await save_wave(saves)
@@ -114,7 +114,7 @@ async def test_historical_import_receipt_status_survives_retirement_and_result_d
 
 async def test_lost_finalize_receipt_wins_then_restart_cleanup_preserves_later_manual_edits(
     async_session, tmp_path: Path, monkeypatch
-) -> None:  # noqa: ANN001
+) -> None:
     paths, catalog, content, saves, packages = package_services(async_session, tmp_path)
     try:
         saved = await save_wave(saves)
@@ -148,7 +148,7 @@ async def test_lost_finalize_receipt_wins_then_restart_cleanup_preserves_later_m
 @pytest.mark.parametrize("manual_edit", [False, True])
 async def test_operation_status_recovers_interrupted_uncommitted_import_without_harming_manual_edits(
     async_session, tmp_path: Path, monkeypatch, manual_edit: bool
-) -> None:  # noqa: ANN001
+) -> None:
     paths, catalog, content, saves, packages = package_services(async_session, tmp_path)
     try:
         saved = await save_wave(saves)
@@ -197,7 +197,7 @@ async def test_operation_status_recovers_interrupted_uncommitted_import_without_
         await async_session.commit()
 
 
-async def test_manual_file_wins_atomic_fresh_publication_race(async_session, tmp_path: Path, monkeypatch) -> None:  # noqa: ANN001
+async def test_manual_file_wins_atomic_fresh_publication_race(async_session, tmp_path: Path, monkeypatch) -> None:
     paths, catalog, _content, saves, packages = package_services(async_session, tmp_path)
     try:
         saved = await save_wave(saves)

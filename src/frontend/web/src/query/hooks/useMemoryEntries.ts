@@ -1,5 +1,3 @@
-"use client";
-
 import { useProductApiClient } from "@animama/product-ui";
 
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";

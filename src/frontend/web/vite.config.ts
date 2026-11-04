@@ -103,7 +103,6 @@ const routerConfig = {
 const appDependencies = [
   "@gltf-transform/core",
   "@gltf-transform/extensions",
-  "@hookform/resolvers",
   "@opentelemetry/api",
   "@pixiv/three-vrm",
   "@pixiv/three-vrm-animation",
@@ -113,7 +112,6 @@ const appDependencies = [
   "@radix-ui/react-dropdown-menu",
   "@radix-ui/react-label",
   "@radix-ui/react-popover",
-  "@radix-ui/react-radio-group",
   "@radix-ui/react-select",
   "@radix-ui/react-slot",
   "@radix-ui/react-switch",
@@ -135,7 +133,6 @@ const appDependencies = [
   "radix-ui",
   "react",
   "react-dom",
-  "react-hook-form",
   "sonner",
   "streamdown",
   "tailwind-merge",
@@ -273,7 +270,6 @@ export default defineConfig(({ mode, command, isPreview }) => {
     resolve: {
       alias: {
         "@": webSrc,
-        "@web": webSrc,
       },
       dedupe: [...appDependencies],
       tsconfigPaths: true,

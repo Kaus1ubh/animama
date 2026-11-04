@@ -1,4 +1,4 @@
-import { disposePocketTtsRuntime } from "@/hooks/use-pocket-tts-runtime";
+import { disposePocketTtsRuntime } from "@/hooks/usePocketTtsRuntime";
 import { clearVrmaCache } from "@/lib/avatar";
 import { terminateLipSyncWorker } from "@/lib/lipsync/lipsync-worker-client";
 import { terminateOfflineSttWorkers } from "@/lib/speech/offline-stt/clients";

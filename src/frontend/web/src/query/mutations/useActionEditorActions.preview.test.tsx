@@ -4,7 +4,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { RuntimeOwnerProvider } from "@web/app/runtime/RuntimeOwnerContext";
+import { RuntimeOwnerProvider } from "@/app/runtime/RuntimeOwnerContext";
 import type { PyExactContentSource } from "@/lib/content/catalogTypes";
 import { useActionEditorActions } from "./useActionEditorActions";
 

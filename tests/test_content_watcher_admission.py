@@ -80,7 +80,7 @@ def _scene_document(color: str = "#123456") -> dict[str, Any]:
     }
 
 
-async def _save_scene(saves, *, previous=None):  # noqa: ANN001, ANN202
+async def _save_scene(saves, *, previous=None):
     return await saves.save_descriptor(
         user_id=OWNER,
         kind=ContentKind.SCENE_EFFECT,
@@ -94,7 +94,7 @@ async def _save_scene(saves, *, previous=None):  # noqa: ANN001, ANN202
 
 
 @pytest.mark.parametrize("kind", ["scene", "standalone"])
-async def test_delayed_own_file_and_ancestor_events_preserve_created_and_updated_reads(services, kind: str) -> None:  # noqa: ANN001
+async def test_delayed_own_file_and_ancestor_events_preserve_created_and_updated_reads(services, kind: str) -> None:
     paths, catalog, content, saves, _ = services
     saved = await _save_scene(saves) if kind == "scene" else await save_wave(saves)
     typed = TypedContentService(catalog=catalog, content=content)
@@ -137,7 +137,7 @@ async def test_delayed_own_file_and_ancestor_events_preserve_created_and_updated
 )
 async def test_external_or_unknown_change_still_fences_saved_scene(
     services, monkeypatch: pytest.MonkeyPatch, change: str
-) -> None:  # noqa: ANN001
+) -> None:
     paths, catalog, content, saves, _ = services
     saved = await _save_scene(saves)
     descriptor = paths.local_root / saved.item.files[0].relative_path
@@ -154,13 +154,13 @@ async def test_external_or_unknown_change_still_fences_saved_scene(
         descriptor.symlink_to(target)
     elif change == "scan_failure":
 
-        def failed_scan(_source):  # noqa: ANN001, ANN202
+        def failed_scan(_source):
             raise OSError("owned test scan failure")
 
         monkeypatch.setattr(content.mutations.store, "scan", failed_scan)
     else:
 
-        async def failed_recovery():  # noqa: ANN202
+        async def failed_recovery():
             raise RuntimeError("owned test blocked journal")
 
         monkeypatch.setattr(content.mutations, "_recover", failed_recovery)
@@ -184,7 +184,7 @@ def _wav(frame: bytes) -> bytes:
 
 
 @pytest.mark.parametrize("change", ["changed_target", "duplicate_target"])
-async def test_dependency_changes_fence_unchanged_dependents(services, change: str) -> None:  # noqa: ANN001
+async def test_dependency_changes_fence_unchanged_dependents(services, change: str) -> None:
     paths, catalog, content, saves, _ = services
     target = (
         await saves.save_standalone(
@@ -237,7 +237,7 @@ async def test_dependency_changes_fence_unchanged_dependents(services, change: s
         assert (await catalog.get_visible_item(item_id=item_id, user_id=OWNER)).status is ContentStatus.SCAN_REQUIRED
 
 
-async def test_included_license_notification_remains_unconditional(services, monkeypatch: pytest.MonkeyPatch) -> None:  # noqa: ANN001
+async def test_included_license_notification_remains_unconditional(services, monkeypatch: pytest.MonkeyPatch) -> None:
     _, catalog, content, saves, _ = services
     await _save_scene(saves)
     scanned = content.mutations.store.scan(ContentSource.LOCAL)
@@ -249,7 +249,7 @@ async def test_included_license_notification_remains_unconditional(services, mon
     )
     assert len(included) == 1 and included[0].status is ContentStatus.VALID
 
-    def unexpected_scan(_source):  # noqa: ANN001, ANN202
+    def unexpected_scan(_source):
         pytest.fail("Included must not use the Local redundant-event optimization")
 
     monkeypatch.setattr(content.mutations.store, "scan", unexpected_scan)
@@ -261,14 +261,14 @@ async def test_watcher_waits_for_inflight_save_then_preserves_committed_admissio
     services,
     database: LocalDatabase,
     tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,  # noqa: ANN001
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     _, _, _, saves, _ = services
     staged = asyncio.Event()
     release = asyncio.Event()
-    original_finish = saves._finish  # noqa: SLF001
+    original_finish = saves._finish
 
-    async def pause_before_commit(**kwargs):  # noqa: ANN003, ANN202
+    async def pause_before_commit(**kwargs):
         result = await original_finish(**kwargs)
         staged.set()
         await release.wait()

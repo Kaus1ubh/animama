@@ -1,5 +1,3 @@
-"use client";
-
 import { useProductApiClient } from "@animama/product-ui";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";

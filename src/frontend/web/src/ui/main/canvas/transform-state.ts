@@ -1,5 +1,3 @@
-"use client";
-
 import type { Object3D } from "three";
 
 export type TransformMode = "translate" | "rotate" | "scale";

@@ -1,5 +1,3 @@
-"use client";
-
 import { ChatConversation } from "@animama/product-ui/components";
 
 import {
@@ -41,14 +39,14 @@ import { PromptSuggestion } from "./PromptSuggestion";
 import { MemoryCue } from "./MemoryCue";
 import { SkipSpeechButton } from "./SkipSpeechButton";
 import { useFirstChatSuggestions } from "./useFirstChatSuggestions";
-import { useDictation } from "@/hooks/use-dictation";
+import { useDictation } from "@/hooks/useDictation";
 import {
   ChatLoadingStatusLines,
   useChatLoadingStatus,
   type ChatLoadingStatus,
 } from "./ChatLoadingStatus";
 import { useQueryClient } from "@tanstack/react-query";
-import { useDesktopVoiceShortcuts } from "@/hooks/use-desktop-voice-shortcuts";
+import { useDesktopVoiceShortcuts } from "@/hooks/useDesktopVoiceShortcuts";
 import {
   useDesktopQuickChatOwner,
   type DesktopQuickChatPromptSuggestion,

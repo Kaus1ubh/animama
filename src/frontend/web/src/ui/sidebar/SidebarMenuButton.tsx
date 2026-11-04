@@ -1,5 +1,3 @@
-"use client";
-
 import { Menu } from "lucide-react";
 import { useTranslation } from "react-i18next";
 

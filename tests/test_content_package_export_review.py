@@ -53,7 +53,7 @@ def test_download_filename_preserves_safe_names_with_a_utc_zip_timestamp(
 @pytest.mark.parametrize("direction", ["import", "export"])
 async def test_small_package_review_uses_its_actual_expansion_on_low_disk(
     async_session, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, direction: str
-) -> None:  # noqa: ANN001
+) -> None:
     paths, _catalog, _content, saves, packages = package_services(async_session, tmp_path)
     monkeypatch.setattr(
         "animama.app.services.content_package_staging.shutil.disk_usage",
@@ -85,7 +85,7 @@ async def test_small_package_review_uses_its_actual_expansion_on_low_disk(
         await async_session.commit()
 
 
-async def test_export_summary_and_review_freeze_portable_bytes(async_session, tmp_path: Path) -> None:  # noqa: ANN001
+async def test_export_summary_and_review_freeze_portable_bytes(async_session, tmp_path: Path) -> None:
     paths, _catalog, content, saves, packages = package_services(async_session, tmp_path)
     try:
         saved = await save_wave(saves)
@@ -133,7 +133,7 @@ async def test_export_summary_and_review_freeze_portable_bytes(async_session, tm
 @pytest.mark.parametrize("change", ["expired", "changed"])
 async def test_cached_download_never_regenerates_an_expired_or_changed_archive(
     async_session, tmp_path: Path, change: str
-) -> None:  # noqa: ANN001
+) -> None:
     paths, _catalog, _content, saves, packages = package_services(async_session, tmp_path)
     try:
         saved = await save_wave(saves)
@@ -161,7 +161,7 @@ async def test_cached_download_never_regenerates_an_expired_or_changed_archive(
 
 async def test_overlapping_selected_roots_share_one_support_and_count_selected_once(
     async_session, tmp_path: Path
-) -> None:  # noqa: ANN001
+) -> None:
     paths, _catalog, content, _saves, packages = package_services(async_session, tmp_path)
     audio = BytesIO()
     with wave.open(audio, "wb") as output:
@@ -211,7 +211,7 @@ async def test_overlapping_selected_roots_share_one_support_and_count_selected_o
 @pytest.mark.parametrize("alias", [None, "chime"])
 async def test_export_rewrites_normalized_clip_event_selectors(
     async_session, tmp_path: Path, alias: str | None
-) -> None:  # noqa: ANN001
+) -> None:
     paths, _catalog, content, _saves, packages = package_services(async_session, tmp_path)
     audio = BytesIO()
     with wave.open(audio, "wb") as output:
@@ -266,7 +266,7 @@ async def test_export_rewrites_normalized_clip_event_selectors(
 
 async def test_avatar_default_portrait_is_automatic_and_broken_association_blocks_review(
     async_session, tmp_path: Path
-) -> None:  # noqa: ANN001
+) -> None:
     paths, _catalog, content, _saves, packages = package_services(async_session, tmp_path)
     write_file(paths.local_root / "avatars/companion.vrm", vrm())
     write_json(
@@ -316,7 +316,7 @@ async def test_avatar_default_portrait_is_automatic_and_broken_association_block
 @pytest.mark.parametrize("display_name", ["Test Companion", "旅の友 / A"])
 async def test_complete_anima_export_keeps_explicit_empties_and_independent_shared_image(
     async_session, tmp_path: Path, display_name: str
-) -> None:  # noqa: ANN001
+) -> None:
     async with anima_creation_fixture(async_session, tmp_path) as fixture:
         request = fixture.request(avatar="included-avatar").model_dump()
         request["display_name"] = display_name
@@ -389,7 +389,7 @@ async def test_complete_anima_export_keeps_explicit_empties_and_independent_shar
 @pytest.mark.parametrize("change", ["bytes", "new_portrait"])
 async def test_drift_during_capture_rejects_review_and_removes_its_cache(
     async_session, tmp_path: Path, monkeypatch, change: str
-) -> None:  # noqa: ANN001
+) -> None:
     paths, _catalog, content, _saves, packages = package_services(async_session, tmp_path)
     write_file(paths.local_root / "avatars/companion.vrm", vrm())
     write_json(
@@ -400,7 +400,7 @@ async def test_drift_during_capture_rejects_review_and_removes_its_cache(
         summary = await packages.summarize(user_id="package-owner", item_ids=(avatar.id,))
         original = ContentPackageExportService._write
 
-        def mutate_after_capture(service, selection, destination):  # noqa: ANN001, ANN202
+        def mutate_after_capture(service, selection, destination):
             result = original(service, selection, destination)
             if change == "bytes":
                 write_file(paths.local_root / "avatars/companion.vrm", vrm("changed during capture"))
@@ -430,7 +430,7 @@ async def test_drift_during_capture_rejects_review_and_removes_its_cache(
 
 async def test_export_reserves_real_zip_growth_and_download_excludes_expiry_cleanup(
     async_session, tmp_path: Path
-) -> None:  # noqa: ANN001
+) -> None:
     paths, _catalog, content, saves, _packages = package_services(async_session, tmp_path)
     now = datetime(2026, 9, 24, tzinfo=UTC)
     stages = PackageStageService(paths.imports_staging_root, paths.exports_staging_root, clock=lambda: now)
@@ -465,7 +465,7 @@ async def test_export_reserves_real_zip_growth_and_download_excludes_expiry_clea
         await async_session.commit()
 
 
-async def test_interrupted_response_keeps_the_same_download_retryable(async_session, tmp_path: Path) -> None:  # noqa: ANN001
+async def test_interrupted_response_keeps_the_same_download_retryable(async_session, tmp_path: Path) -> None:
     _paths, _catalog, _content, saves, packages = package_services(async_session, tmp_path)
     try:
         saved = await save_wave(saves)
@@ -489,7 +489,7 @@ async def test_interrupted_response_keeps_the_same_download_retryable(async_sess
 
 async def test_cancelled_download_open_closes_completed_handle_and_releases_stage(
     async_session, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:  # noqa: ANN001
+) -> None:
     paths, _catalog, content, saves, _packages = package_services(async_session, tmp_path)
     stages = PackageStageService(paths.imports_staging_root, paths.exports_staging_root)
     exports = ContentPackageExportService(content=content, exports_root=paths.exports_staging_root, stages=stages)
@@ -503,7 +503,7 @@ async def test_cancelled_download_open_closes_completed_handle_and_releases_stag
         )
         original = exports._open_download
 
-        def delayed_open(user_id: str, export_id: str):  # noqa: ANN202
+        def delayed_open(user_id: str, export_id: str):
             result = original(user_id, export_id)
             held.append(result)
             started.set()

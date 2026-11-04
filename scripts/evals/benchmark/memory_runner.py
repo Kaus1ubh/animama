@@ -52,10 +52,10 @@ from animama.product_http.chat.session_services import (
 )
 from animama.product_http.chat.setup_helpers import chat_manager
 from animama.server.config import Settings
+from scripts.evals.core.chat import NoAnimaProfile, SelectedModelProvider, turn_request
+from scripts.evals.core.model_calls import BudgetedModelClient, Clock
+from scripts.evals.core.turns import TurnOutcome, execute_turn
 
-from ..core.chat import NoAnimaProfile, SelectedModelProvider, turn_request
-from ..core.model_calls import BudgetedModelClient, Clock
-from ..core.turns import TurnOutcome, execute_turn
 from .configs import Configuration
 from .options import PROVIDER_MODERATION, memory_turn_options
 from .prompt_set import MemoryChat, MemoryFixture, Persona, PromptSet

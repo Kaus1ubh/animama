@@ -167,7 +167,7 @@ class _FakeChatManager:
         self.context_calls: list[dict[str, Any]] = []
         self.record_turn_calls: list[dict[str, Any]] = []
 
-    async def ensure_owned_chat(self, **kwargs):  # noqa: ANN003
+    async def ensure_owned_chat(self, **kwargs):
         self.ensure_calls.append(dict(kwargs))
         return SimpleNamespace(
             id=kwargs["chat_id"],
@@ -178,16 +178,16 @@ class _FakeChatManager:
             openai_previous_response_id=self.openai_previous_response_id,
         )
 
-    async def get_chat_context(self, **kwargs):  # noqa: ANN003
+    async def get_chat_context(self, **kwargs):
         self.context_calls.append(dict(kwargs))
         return SimpleNamespace(messages=list(self.history), blocks=[], active_compaction=self.active_compaction)
 
-    async def prepare_chat_context(self, **kwargs):  # noqa: ANN003
+    async def prepare_chat_context(self, **kwargs):
         chat = await self.ensure_owned_chat(**kwargs)
         context = await self.get_chat_context(chat_id=kwargs["chat_id"])
         return chat, context
 
-    async def record_turn(self, **kwargs):  # noqa: ANN003
+    async def record_turn(self, **kwargs):
         self.record_turn_calls.append(dict(kwargs))
         user_msg = kwargs.get("user_msg")
         assistant_msg = kwargs.get("assistant_msg")
@@ -287,7 +287,7 @@ class _FakeMemoryContextService:
         self.anima_memories_version = anima_memories_version
         self.calls: list[dict[str, Any]] = []
 
-    async def build_context(self, **kwargs):  # noqa: ANN003
+    async def build_context(self, **kwargs):
         self.calls.append(dict(kwargs))
         memory_map = None
         if not kwargs["request_options"].disable_memory_influence:
@@ -419,11 +419,11 @@ class _FakeMemoryToolService:
             allow_uploaded_file_tools=allow_uploaded_file_tools,
         )
 
-    async def execute(self, **kwargs):  # noqa: ANN003
+    async def execute(self, **kwargs):
         self.calls.append(dict(kwargs))
         return json.dumps(self.result, ensure_ascii=True, separators=(",", ":"))
 
-    async def execute_native_patch(self, **kwargs):  # noqa: ANN003
+    async def execute_native_patch(self, **kwargs):
         self.native_patch_calls.append(dict(kwargs))
         return json.dumps(self.result, ensure_ascii=True, separators=(",", ":"))
 
@@ -433,7 +433,7 @@ class _FakeMemoryEpisodeRecorder:
         self.fail = fail
         self.calls: list[dict[str, Any]] = []
 
-    async def record_episode_item(self, **kwargs):  # noqa: ANN003
+    async def record_episode_item(self, **kwargs):
         self.calls.append(dict(kwargs))
         if self.fail:
             raise RuntimeError("episode capture failed")
@@ -447,7 +447,7 @@ class _SelfMemoriesWritingToolService(_FakeMemoryToolService):
         super().__init__(result={"ok": True, "path": "[self]/MEMORIES.md", "replacements_applied": 1})
         self.contexts: list[Any] = []
 
-    async def execute(self, **kwargs):  # noqa: ANN003
+    async def execute(self, **kwargs):
         context = kwargs["context"]
         self.contexts.append(context)
         if context.anima_memories is not None:

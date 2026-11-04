@@ -45,7 +45,7 @@ class _Embedder:
         self.fail = fail
         self.inputs: list[list[str]] = []
 
-    async def embed_texts(self, texts):  # noqa: ANN001
+    async def embed_texts(self, texts):
         batch = list(texts)
         self.inputs.append(batch)
         if self.fail is not None:
@@ -63,7 +63,7 @@ def _vector(text: str) -> list[float]:
 
 
 class _OversizedRejectingEmbedder(_Embedder):
-    async def embed_texts(self, texts):  # noqa: ANN001
+    async def embed_texts(self, texts):
         batch = list(texts)
         self.inputs.append(batch)
         if any(len(text) > 40 for text in batch):
@@ -75,7 +75,7 @@ class _OversizedRejectingEmbedder(_Embedder):
         return [_vector(text) for text in batch]
 
 
-async def _owner_with_file(session, owner_id: str, *, status: str = "ready", chunks: list[dict[str, Any]]) -> str:  # noqa: ANN001
+async def _owner_with_file(session, owner_id: str, *, status: str = "ready", chunks: list[dict[str, Any]]) -> str:
     file_id = f"file-{uuid4().hex[:8]}"
     session.add(
         ORMUserFile(
@@ -108,7 +108,7 @@ async def _owner_with_file(session, owner_id: str, *, status: str = "ready", chu
     return file_id
 
 
-async def _anima_archive(session, owner_id: str, passages: list[dict[str, Any]]) -> str:  # noqa: ANN001
+async def _anima_archive(session, owner_id: str, passages: list[dict[str, Any]]) -> str:
     archive_id = f"archive-{uuid4().hex[:8]}"
     session.add(ORMArchive(id=archive_id, name="Archive"))
     await session.flush()
@@ -119,7 +119,7 @@ async def _anima_archive(session, owner_id: str, passages: list[dict[str, Any]])
     return archive_id
 
 
-def _refresh(session, *, batch_size: int = 32) -> EmbeddingRefreshService:  # noqa: ANN001
+def _refresh(session, *, batch_size: int = 32) -> EmbeddingRefreshService:
     return EmbeddingRefreshService(
         store=SQLAlchemyEmbeddingRefreshRepository(session),
         uow=SQLAlchemyUnitOfWork(session),
@@ -230,7 +230,7 @@ async def test_refresh_fails_the_batch_for_connection_errors_and_short_answers(a
     service = _refresh(async_session)
 
     class _Short(_Embedder):
-        async def embed_texts(self, texts):  # noqa: ANN001
+        async def embed_texts(self, texts):
             return [[1.0, 0.0, 0.0]]
 
     with pytest.raises(ModelClientProviderError):
@@ -250,7 +250,7 @@ async def test_worker_reports_retrying_until_a_pass_succeeds(async_session, asyn
     await _owner_with_file(async_session, owner_id, chunks=[{"text": "Moon base"}])
     embedders = {"current": _Embedder(fail=ModelClientProviderError("down", code="openai_connection_error"))}
 
-    async def _role_embedder(_session, user_id, _roles):  # noqa: ANN001
+    async def _role_embedder(_session, user_id, _roles):
         return embedders["current"] if user_id == owner_id else None
 
     monkeypatch.setattr(embedding_refresh, "role_embedder", _role_embedder)
@@ -271,7 +271,7 @@ async def test_worker_reports_retrying_until_a_pass_succeeds(async_session, asyn
     assert (recovered.state, recovered.pending, recovered.error_category) == ("current", 0, None)
 
 
-def _archive_service(session, embedder=None) -> ArchiveService:  # noqa: ANN001
+def _archive_service(session, embedder=None) -> ArchiveService:
     return ArchiveService(
         archives=SQLAlchemyArchiveRepository(session),
         uow=SQLAlchemyUnitOfWork(session),
@@ -341,7 +341,7 @@ def _embedding_row(connection: ModelConnection) -> ModelProvider:
 
 
 @pytest.fixture
-def scripted_embeddings(monkeypatch):  # noqa: ANN001
+def scripted_embeddings(monkeypatch):
     requests: list[httpx2.Request] = []
     responses: list[httpx2.Response] = []
     original_init = AsyncOpenAI.__init__
@@ -354,7 +354,7 @@ def scripted_embeddings(monkeypatch):  # noqa: ANN001
         data = [{"object": "embedding", "index": i, "embedding": [0.5, float(i)]} for i in range(len(body["input"]))]
         return httpx2.Response(200, json={"object": "list", "model": body["model"], "data": data})
 
-    def _init(self, *args, **kwargs):  # noqa: ANN001, ANN002, ANN003
+    def _init(self, *args, **kwargs):
         kwargs["http_client"] = httpx2.AsyncClient(transport=httpx2.MockTransport(handler))
         original_init(self, *args, **kwargs)
 
@@ -430,7 +430,7 @@ class _RejectingEmbedder(_Embedder):
         self.marker = marker
         self.code = code
 
-    async def embed_texts(self, texts):  # noqa: ANN001
+    async def embed_texts(self, texts):
         batch = list(texts)
         self.inputs.append(batch)
         if any(self.marker in text for text in batch):
@@ -475,7 +475,7 @@ async def test_a_rejected_text_is_isolated_but_a_batch_that_always_fails_is_retr
     assert (await service.pending(owner_id=other_owner, embedding_model_id=NEW_MODEL)).chunks == 2
 
 
-async def _refresh_until_recorded(service, owner_id: str, embedder) -> list[int | str]:  # noqa: ANN001
+async def _refresh_until_recorded(service, owner_id: str, embedder) -> list[int | str]:
     """Run passes until one succeeds, returning each failed pass's category or the handled count."""
 
     outcomes: list[int | str] = []
@@ -620,7 +620,7 @@ async def test_bounded_embedder_reports_its_deadline_as_a_model_timeout(monkeypa
 
     original_init = AsyncOpenAI.__init__
 
-    def _init(self, *args, **kwargs):  # noqa: ANN001, ANN002, ANN003
+    def _init(self, *args, **kwargs):
         kwargs["http_client"] = httpx2.AsyncClient(transport=httpx2.MockTransport(stalled))
         original_init(self, *args, **kwargs)
 

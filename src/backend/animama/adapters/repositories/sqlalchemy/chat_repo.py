@@ -8,12 +8,12 @@ from sqlalchemy import cast, func, or_, select, update
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ....app.ports.chat_port import ChatRepository
-from ....domain.chat import Chat
-from ....domain.usage import Usage, UsageInputDetails, UsageOutputDetails
-from ....orm.chat_messages import ORMChatMessage
-from ....orm.chats import ORMChat
-from ...mappers.chat_map import chat_domain_to_orm, chat_orm_to_domain
+from animama.adapters.mappers.chat_map import chat_domain_to_orm, chat_orm_to_domain
+from animama.app.ports.chat_port import ChatRepository
+from animama.domain.chat import Chat
+from animama.domain.usage import Usage, UsageInputDetails, UsageOutputDetails
+from animama.orm.chat_messages import ORMChatMessage
+from animama.orm.chats import ORMChat
 
 
 class SQLAlchemyChatRepository(ChatRepository):

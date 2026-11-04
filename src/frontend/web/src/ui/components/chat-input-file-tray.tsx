@@ -1,5 +1,3 @@
-"use client";
-
 import type { PyUserFileResponse } from "@/lib/content/catalogTypes";
 import type { UserFileUploadUppy } from "@/hooks/useUserFileUpload";
 import {

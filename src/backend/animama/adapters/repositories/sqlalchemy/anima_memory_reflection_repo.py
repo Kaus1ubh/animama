@@ -6,10 +6,10 @@ from sqlalchemy import delete, func, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ....app.ports.anima_memory_reflection_port import AnimaMemoryReflectionRepository
-from ....domain.chat import ChatHistoryPosition
-from ....domain.memory_manager import AnimaMemoryReflection
-from ....orm.anima_memory_reflection import ORMAnimaMemoryReflection
+from animama.app.ports.anima_memory_reflection_port import AnimaMemoryReflectionRepository
+from animama.domain.chat import ChatHistoryPosition
+from animama.domain.memory_manager import AnimaMemoryReflection
+from animama.orm.anima_memory_reflection import ORMAnimaMemoryReflection
 
 
 def _to_domain(orm: ORMAnimaMemoryReflection) -> AnimaMemoryReflection:

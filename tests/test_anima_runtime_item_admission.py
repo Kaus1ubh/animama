@@ -103,7 +103,7 @@ def _fence(descriptor: RuntimeContentDescriptor) -> dict[str, Any]:
 
 
 async def _add_item(
-    session,  # noqa: ANN001
+    session,
     *,
     owner_user_id: str | None,
     file_count: int = 2,
@@ -153,7 +153,7 @@ async def _add_item(
 
 
 async def _add_snapshot(
-    session,  # noqa: ANN001
+    session,
     *,
     owner_user_id: str,
     anima_id: str,
@@ -177,7 +177,7 @@ async def _add_snapshot(
     return snapshot
 
 
-async def test_runtime_file_authorization_uses_one_read_only_item_pin_projection(async_session) -> None:  # noqa: ANN001
+async def test_runtime_file_authorization_uses_one_read_only_item_pin_projection(async_session) -> None:
     owner = f"runtime-owner-{uuid4().hex}"
     anima = ORMAnima(id=f"runtime-anima-{uuid4().hex}", user_id=owner)
     async_session.add(anima)
@@ -192,19 +192,19 @@ async def test_runtime_file_authorization_uses_one_read_only_item_pin_projection
     await async_session.commit()
 
     service = AnimaRuntimeService(async_session)
-    await service._recheck_admission(  # noqa: SLF001 - exact issue-time fence
+    await service._recheck_admission(  # Exact issue-time fence
         user_id=owner,
         **_fence(_descriptor(item, files)),
     )
     with pytest.raises(RuntimeSnapshotError, match="runtime_remount_required"):
-        await service._recheck_admission(  # noqa: SLF001 - whole-item invariant regression
+        await service._recheck_admission(  # Whole-item invariant regression
             user_id=owner,
             **_fence(_descriptor(item, files[:1])),
         )
 
     statements: list[str] = []
 
-    def record_statement(_conn, _cursor, statement, _parameters, _context, _executemany):  # noqa: ANN001
+    def record_statement(_conn, _cursor, statement, _parameters, _context, _executemany):
         statements.append(statement)
 
     engine = async_session.bind.sync_engine
@@ -270,7 +270,7 @@ async def test_runtime_file_authorization_uses_one_read_only_item_pin_projection
 
 
 async def test_issue_recheck_holds_catalog_rows_stable_until_snapshot_insert(
-    async_session_factory,  # noqa: ANN001
+    async_session_factory,
 ) -> None:
     """A concurrent Save/Rescan cannot advance a pin between recheck and insert."""
 
@@ -280,7 +280,7 @@ async def test_issue_recheck_holds_catalog_rows_stable_until_snapshot_insert(
         descriptor = _descriptor(item, files)
 
     async with async_session_factory() as issuer, async_session_factory() as editor:
-        await AnimaRuntimeService(issuer)._recheck_admission(  # noqa: SLF001
+        await AnimaRuntimeService(issuer)._recheck_admission(
             user_id="lock-test-owner",
             **_fence(descriptor),
         )
@@ -307,7 +307,7 @@ async def test_issue_recheck_holds_catalog_rows_stable_until_snapshot_insert(
 
 
 async def test_issue_persists_immutable_body_reuses_winner_and_fences_later_edit(
-    async_session,  # noqa: ANN001
+    async_session,
     tmp_path: Path,
 ) -> None:
     owner = f"runtime-issue-owner-{uuid4().hex}"
@@ -400,7 +400,7 @@ async def test_issue_persists_immutable_body_reuses_winner_and_fences_later_edit
     await async_session.commit()
 
 
-async def test_runtime_renew_preserves_pins_and_body_and_cleanup_is_bounded(async_session) -> None:  # noqa: ANN001
+async def test_runtime_renew_preserves_pins_and_body_and_cleanup_is_bounded(async_session) -> None:
     owner = f"runtime-renew-owner-{uuid4().hex}"
     anima = ORMAnima(id=f"runtime-renew-anima-{uuid4().hex}", user_id=owner)
     async_session.add(anima)
@@ -454,7 +454,7 @@ async def test_runtime_renew_preserves_pins_and_body_and_cleanup_is_bounded(asyn
     await async_session.commit()
 
 
-async def test_scale_fixture_persists_one_snapshot_for_200_items_and_600_files(async_session) -> None:  # noqa: ANN001
+async def test_scale_fixture_persists_one_snapshot_for_200_items_and_600_files(async_session) -> None:
     owner = f"runtime-scale-owner-{uuid4().hex}"
     anima = ORMAnima(id=f"runtime-scale-anima-{uuid4().hex}", user_id=owner)
     async_session.add(anima)
@@ -483,7 +483,7 @@ async def test_scale_fixture_persists_one_snapshot_for_200_items_and_600_files(a
     )
     connection = await async_session.connection()
 
-    def table_names(sync_connection):  # noqa: ANN001, ANN202
+    def table_names(sync_connection):
         return set(inspect(sync_connection).get_table_names())
 
     tables = await connection.run_sync(table_names)

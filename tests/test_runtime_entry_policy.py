@@ -19,7 +19,7 @@ from animama.domain.runtime_content_descriptor import RuntimeContentRootSelectio
 
 
 @pytest.mark.asyncio
-async def test_budget_failure_omits_later_optional_root(monkeypatch) -> None:  # noqa: ANN001
+async def test_budget_failure_omits_later_optional_root(monkeypatch) -> None:
     monkeypatch.setattr(closure_module, "MAX_RUNTIME_BYTES", 4)
     entries = []
     for index in range(2):
@@ -50,14 +50,14 @@ async def test_budget_failure_omits_later_optional_root(monkeypatch) -> None:  #
         )
 
     class Catalog:
-        async def list_visible(self, *, user_id):  # noqa: ANN001, ANN202
+        async def list_visible(self, *, user_id):
             return entries
 
-        async def mark_scan_required(self, **kwargs):  # noqa: ANN003, ANN202
+        async def mark_scan_required(self, **kwargs):
             raise AssertionError(kwargs)
 
     class Store:
-        def open_verified_file(self, **facts):  # noqa: ANN003, ANN202
+        def open_verified_file(self, **facts):
             return VerifiedContentFile(
                 BytesIO(b"data"),
                 facts["expected_size_bytes"],

@@ -16,7 +16,6 @@ from __future__ import annotations
 import uuid
 from collections.abc import Callable
 from dataclasses import dataclass, field, replace
-from datetime import UTC, datetime
 from typing import Any
 from urllib.parse import urlsplit
 
@@ -44,6 +43,13 @@ from animama.app.model_clients.credentials import (
 from animama.app.model_clients.probe import ModelConnectionProbe, ModelConnectionProbeError
 from animama.app.model_connection_presets import MODEL_CONNECTION_PRESETS, model_connection_preset
 from animama.app.model_provider_native_tools import requestable_native_tool_support
+from animama.app.ports import (
+    AnimaChatProfileRepository,
+    ModelConnectionRepository,
+    ModelProviderRepository,
+    UnitOfWork,
+    UserSettingsRepository,
+)
 from animama.domain import ModelProvider, ModelProviderCapabilities, ModelProviderPricing
 from animama.domain.model_connection import (
     BUILTIN_OPENAI_CONNECTION_ID,
@@ -56,14 +62,8 @@ from animama.domain.model_connection import (
 )
 from animama.domain.model_provider import AnimaModelUsage
 from animama.logging import get_logger
+from animama.utils.clock import naive_utc_now
 
-from ..ports import (
-    AnimaChatProfileRepository,
-    ModelConnectionRepository,
-    ModelProviderRepository,
-    UnitOfWork,
-    UserSettingsRepository,
-)
 from .model_role_resolver import ROLE_PREFERENCE_PATHS, role_preference
 
 CREDENTIAL_MODE_NONE = "none"
@@ -483,7 +483,7 @@ class ModelConfigurationService:
         return template
 
     async def _retire_rows(self, rows: list[ModelProvider]) -> None:
-        now = datetime.now(UTC).replace(tzinfo=None)
+        now = naive_utc_now()
         retired = [replace(row, active=False, deprecated_at=row.deprecated_at or now) for row in rows if row.active]
         if retired:
             await self._model_providers.upsert_many(retired)

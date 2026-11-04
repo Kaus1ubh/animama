@@ -1,5 +1,3 @@
-"use client";
-
 import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { useEffect, useRef, type WheelEvent } from "react";
 import { useTranslation } from "react-i18next";

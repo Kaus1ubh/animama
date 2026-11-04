@@ -19,7 +19,7 @@ from tests.product_http_support import install_local_ports
 OWNER = "safety-owner"
 
 
-def _app(session, tmp_path, **settings_overrides):  # noqa: ANN001, ANN003
+def _app(session, tmp_path, **settings_overrides):
     app = FastAPI()
     app.state.runtime_settings = Settings(
         animama_content_root=tmp_path / "content",

@@ -5,7 +5,6 @@ from __future__ import annotations
 import asyncio
 import functools
 import hashlib
-import json
 import re
 import sys
 from collections import defaultdict
@@ -29,6 +28,7 @@ from animama.adapters.repositories.sqlalchemy.content_catalog_repo import SQLAlc
 from animama.app.ports.avatar_face_parts import AvatarFacePartOverride
 from animama.app.ports.content_store import ContentStore
 from animama.app.services.avatar_face_parts import override_face_parts
+from animama.app.services.canonical_digest import canonical_digest
 from animama.app.services.content_access_policy import ContentAccessPolicy
 from animama.app.services.runtime_content_closure import RuntimeContentClosureCompiler
 from animama.app.services.typed_runtime_projection import project_typed_runtime_catalog
@@ -131,14 +131,6 @@ def _owned_loadout_revision(*, user_id: str, anima_id: str) -> Select[tuple[int]
     )
 
 
-def _canonical(value: Any) -> str:
-    return json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
-
-
-def _sha(value: Any) -> str:
-    return hashlib.sha256(_canonical(value).encode()).hexdigest()
-
-
 @functools.cache
 def _backend_build() -> str:
     """Identify the running backend code, so a reused snapshot never outlives an upgrade.
@@ -190,7 +182,7 @@ def _inputs_digest(
         entries[item_id] = None if item is None else repr(replace(item, scanned_at=None))
         if item is not None:
             pending.extend(item.dependency_item_ids)
-    return _sha(
+    return canonical_digest(
         {
             "build": build,
             "projection_version": RUNTIME_PROJECTION_VERSION,
@@ -370,7 +362,7 @@ class AnimaRuntimeService:
             "root_contexts": [{"root_id": root.root_id, "context": root.context} for root in descriptor.roots],
             "catalog": catalog_body,
         }
-        catalog_digest = _sha(identity_body)
+        catalog_digest = canonical_digest(identity_body)
         return PreparedRuntime(
             anima_id=anima_id,
             loadout_revision=loadout_revision,
@@ -657,7 +649,7 @@ class AnimaRuntimeService:
             selections.append(
                 RuntimeContentRootSelection(
                     slot_key=slot_key,
-                    catalog_item_id=item.id if item else f"unresolved:{_sha(missing_identity)[:32]}",
+                    catalog_item_id=item.id if item else f"unresolved:{canonical_digest(missing_identity)[:32]}",
                     kind=kind,
                     context=context,
                 )

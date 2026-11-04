@@ -215,7 +215,7 @@ async def test_compositions_without_owner_roles_use_only_operator_defaults():
     assert utility.assignment_available is True
 
 
-def _app(session, tmp_path, owner_id: str) -> FastAPI:  # noqa: ANN001
+def _app(session, tmp_path, owner_id: str) -> FastAPI:
     app = FastAPI()
     app.state.runtime_settings = Settings(
         animama_content_root=tmp_path / "content",
@@ -243,7 +243,7 @@ def owner_id() -> str:
     return f"owner-{uuid4().hex[:8]}"
 
 
-async def _set_preferences(session, owner_id: str, preferences: dict[str, Any]) -> None:  # noqa: ANN001
+async def _set_preferences(session, owner_id: str, preferences: dict[str, Any]) -> None:
     await session.execute(delete(ORMUserSettings).where(ORMUserSettings.user_id == owner_id))
     session.add(ORMUserSettings(user_id=owner_id, preferences=preferences))
     await session.commit()
@@ -332,7 +332,7 @@ class _CapturingClient:
     async def aclose(self) -> None:
         pass
 
-    async def stream(self, request: ModelClientRequest):  # noqa: ANN201
+    async def stream(self, request: ModelClientRequest):
         self.requests.append(request)
         yield ModelClientDelta(kind="final", final=ModelClientFinal(text="A title", usage=Usage()))
 

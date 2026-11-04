@@ -271,7 +271,7 @@ class RuntimeCredentialStore:
             # report the delivery as refused. Log only the listener's type.
             try:
                 listener(previous, snapshot)
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 _log.error(
                     "Credential listener failed",
                     listener=getattr(listener, "__qualname__", "?"),

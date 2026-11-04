@@ -1,5 +1,3 @@
-"use client";
-
 import { useProductApiClient } from "@animama/product-ui";
 import type { Client } from "@animama/runtime-contracts/sdk";
 import { CreatorTimelineTransport } from "@/ui/content-creator/CreatorTimeline";

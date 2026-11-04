@@ -19,6 +19,12 @@ export const CATALOG_SETS = [
   { name: "product-ui", root: "packages/product-ui/src/locales" },
   // The desktop shell's startup page, window titles and application menu.
   { name: "desktop", root: "desktop/src/locales", namespace: "shell" },
+  // The animama.ai landing page and the site header.
+  {
+    name: "landing",
+    root: "web/scripts/landing-stage/locales",
+    namespace: "landing",
+  },
 ];
 
 export const SOURCE_LOCALE = "en";

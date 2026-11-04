@@ -1,3 +1,7 @@
+"""Collects provider-neutral model-client streams into one assistant final per turn,
+aggregating usage across tool rounds and retrying stale Responses cursors.
+"""
+
 from __future__ import annotations
 
 import asyncio
@@ -7,6 +11,8 @@ from collections.abc import AsyncIterator, Awaitable, Callable, Mapping
 from dataclasses import replace
 from typing import Any, cast
 
+from animama.app.chat.memory_cue import AnimaMemoriesTurn
+from animama.app.chat.memory_tools import DirectChatMemoryToolService, MemoryToolExecutionContext
 from animama.app.model_clients import (
     DirectChatPrompt,
     ModelClientDelta,
@@ -37,8 +43,6 @@ from animama.domain.events import RunStatusKind
 from animama.domain.usage import Usage
 from animama.logging import get_logger
 
-from ..memory_cue import AnimaMemoriesTurn
-from ..memory_tools import DirectChatMemoryToolService, MemoryToolExecutionContext
 from .constants import (
     ANTHROPIC_MESSAGES_PROVIDER,
     CONTEXT_LIMIT_FINAL_INSTRUCTION,

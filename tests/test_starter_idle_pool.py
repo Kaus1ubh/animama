@@ -76,7 +76,7 @@ def _gesture(key: str, *, config: dict[str, object] | None = None) -> CatalogCon
 
 
 class _Store:
-    def open_verified_file(self, **facts):  # noqa: ANN003, ANN202
+    def open_verified_file(self, **facts):
         return VerifiedContentFile(BytesIO(CLIP), len(CLIP), facts["expected_sha256"], facts["media_type"])
 
 
@@ -85,7 +85,7 @@ def _seed_keys(*, mixamo: bool) -> set[str]:
     return {key for key in keys if mixamo or ":mixamo-" not in key}
 
 
-def _cells(members) -> dict[str, set[str]]:  # noqa: ANN001
+def _cells(members) -> dict[str, set[str]]:
     result: dict[str, set[str]] = {}
     for member in members:
         result.setdefault(member.cell, set()).add(member.source.logical_key)

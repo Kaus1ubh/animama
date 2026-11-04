@@ -38,7 +38,7 @@ from animama.server.installation_personalization import (
 )
 
 
-async def _seed_personalization(session, owner_id: str) -> None:  # noqa: ANN001
+async def _seed_personalization(session, owner_id: str) -> None:
     await session.execute(delete(ORMInstallationSettings))
     session.add(ORMInstallationSettings(id=1, installation_principal_id=owner_id))
     profiles = SQLAlchemyUserProfileRepository(session)
@@ -65,7 +65,7 @@ async def _seed_personalization(session, owner_id: str) -> None:  # noqa: ANN001
     await session.commit()
 
 
-async def _profile_memory(session, owner_id: str):  # noqa: ANN001
+async def _profile_memory(session, owner_id: str):
     return await SQLAlchemyMemoryEntryRepository(session).get_entry_by_path(
         user_id=owner_id,
         anima_id=None,
@@ -327,7 +327,7 @@ def _chat_row(suffix: str, **overrides: Any) -> ModelProvider:
     return ModelProvider(**values)
 
 
-async def _seed_setup_models(session, owner_id: str):  # noqa: ANN001
+async def _seed_setup_models(session, owner_id: str):
     """Creation, chosen and unrelated models; both starters plus a non-starter Anima."""
 
     suffix = uuid4().hex[:10]
@@ -369,13 +369,13 @@ async def _seed_setup_models(session, owner_id: str):  # noqa: ANN001
     }
 
 
-async def _pinned(session, anima_id: str) -> str:  # noqa: ANN001
+async def _pinned(session, anima_id: str) -> str:
     profile = await SQLAlchemyAnimaChatProfileRepository(session).get(anima_id)
     assert profile is not None
     return profile.default_model_provider_id
 
 
-async def _preferences(session, owner_id: str) -> dict[str, Any]:  # noqa: ANN001
+async def _preferences(session, owner_id: str) -> dict[str, Any]:
     session.expire_all()
     settings = await SQLAlchemyUserSettingsRepository(session).get(owner_id)
     assert settings is not None

@@ -11,8 +11,9 @@ do not ask for the same approval again. Stop dependent work for unresolved produ
 decisions, missing setup prerequisites or an explicit existing gate.
 
 Invoke `workspace-setup` first, including on resume so existing state is verified.
-Use the configured brief approach for routine work; create an ExecPlan through
-`to-execplan` before proceeding if scope becomes substantial, uncertain or risky.
+Use the configured brief approach for routine work; if scope becomes substantial,
+uncertain or risky, create an ExecPlan through `to-execplan` and stop for the
+owner's review of it before implementing.
 
 ## Execute each authorized phase
 
@@ -41,7 +42,7 @@ rounds. Do not reset the budget on resumption or relabel a failed review as
 passing. Escalate remaining concrete blockers at the limit.
 
 Commit verified phase changes through `git-workflow` using
-`<type>(scope)[p#]: summary`, with the phase's records in the same commit. If an existing
+`<type>(scope)[p#]: summary` (or `<type>[p#]: summary` when no scope fits), with the phase's records in the same commit. If an existing
 gate controls committing, honor it. Mark the phase complete only when its required
 checks, review and explicit gates are satisfied. Distinguish agent readiness from
 pending human acceptance. Advance automatically within the authorized phase range

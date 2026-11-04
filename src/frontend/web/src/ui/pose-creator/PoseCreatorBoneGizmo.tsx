@@ -1,5 +1,3 @@
-"use client";
-
 import { AvatarTransformControls as TransformControls } from "@/ui/avatar-preview/AvatarTransformControls";
 import { useThree } from "@react-three/fiber";
 import {

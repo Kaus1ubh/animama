@@ -194,7 +194,6 @@ async function compareCommand(source, optimized, options) {
     resolve: {
       alias: {
         "@": path.join(webRoot, "src"),
-        "@web": path.join(webRoot, "src"),
       },
     },
     optimizeDeps: {

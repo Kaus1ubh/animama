@@ -1,0 +1,23 @@
+name: Feature request
+description: Suggest something Animama could do, or do better.
+body:
+  - type: markdown
+    attributes:
+      value: "Thanks for the idea. Search existing issues first; the maintainer may turn a larger idea into a proposal with its own specification."
+  - type: textarea
+    id: problem
+    attributes:
+      label: What you want to do
+      description: The situation and what you are trying to achieve. A concrete example helps most.
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: What could help
+      description: How you imagine it working. Optional; describing the need is enough.
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Workarounds or alternatives
+      description: What you do today, or other approaches you considered.

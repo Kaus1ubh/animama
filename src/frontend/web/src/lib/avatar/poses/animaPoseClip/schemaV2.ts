@@ -37,6 +37,7 @@ import {
   type AnimaPoseClipRole,
   type QuaternionTuple,
 } from "./clipVocabulary";
+import { isRecord } from "@/lib/records";
 
 /**
  * `animaPoseClip/2.0`: motion stored as keyed tracks grouped by beats.
@@ -1172,8 +1173,4 @@ function requiredString(
   return typeof value === "string" && value.trim() && value.length <= maxLength
     ? value
     : null;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }

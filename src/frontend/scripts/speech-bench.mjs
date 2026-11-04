@@ -199,7 +199,9 @@ function trackMemory(rootPid, page) {
     const sorted = [...clipSamples].sort((a, b) => a - b);
     const middle = sorted.length >> 1;
     const median =
-      sorted.length % 2 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2;
+      sorted.length % 2
+        ? sorted[middle]
+        : (sorted[middle - 1] + sorted[middle]) / 2;
     return {
       loadPeakMb: mb(peaks.loading.total),
       medianMb: mb(median ?? 0),

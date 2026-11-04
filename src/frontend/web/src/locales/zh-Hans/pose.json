@@ -117,11 +117,6 @@
     "unavailable": "不可用"
   },
   "clip": {
-    "advanced": {
-      "body": "在时间轴上选择关键帧或事件进行编辑。动作和反应在保存时会保留完整的序列 JSON。",
-      "description": "时间和事件数据直接在行为时间轴中编辑。",
-      "title": "片段数据"
-    },
     "anchors": {
       "root": "根节点"
     },

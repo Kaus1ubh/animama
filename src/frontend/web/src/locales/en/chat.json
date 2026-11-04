@@ -1,18 +1,4 @@
 {
-  "background": {
-    "apply": "Apply",
-    "applying": "Applying...",
-    "back": "Back to background settings",
-    "canvasSize": "{{width}} x {{height}}",
-    "description": "Adjust the crop and zoom for the selected avatar background.",
-    "heading": "Edit media",
-    "hint": "Drag to reposition and zoom to fit the live avatar canvas.",
-    "liveCanvas": "Live canvas",
-    "reset": "Reset",
-    "title": "Resize {{name}} background",
-    "zoomIn": "Zoom in background",
-    "zoomOut": "Zoom out background"
-  },
   "canvas": {
     "camera": {
       "axis": "{{label}} {{axis}}",

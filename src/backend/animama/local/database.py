@@ -8,8 +8,11 @@ from urllib.parse import parse_qs, quote_plus, urlencode, urlsplit, urlunsplit
 
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
 
+from animama.logging import get_logger
 from animama.orm.base import Base
 from animama.server.config import Settings, settings
+
+_log = get_logger("local.database")
 
 
 def _extract_sslmode(url: str) -> tuple[str, str | None]:
@@ -142,7 +145,7 @@ def create_local_engine(runtime_settings: Settings, *, url: str | None = None) -
         instrument_sqlalchemy(engine)
     except Exception:
         # Telemetry is optional; never block engine creation.
-        pass
+        _log.warning("Database telemetry instrumentation failed; continuing without it", exc_info=True)
     return engine
 
 

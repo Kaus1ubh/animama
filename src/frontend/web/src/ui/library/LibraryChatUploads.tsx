@@ -1,5 +1,3 @@
-"use client";
-
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { FileText, Loader2, RefreshCw, Search } from "lucide-react";
 import { useTranslation } from "react-i18next";

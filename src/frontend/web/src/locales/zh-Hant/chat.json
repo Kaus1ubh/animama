@@ -1,18 +1,4 @@
 {
-  "background": {
-    "apply": "套用",
-    "applying": "正在套用...",
-    "back": "返回背景設定",
-    "canvasSize": "{{width}} x {{height}}",
-    "description": "調整所選虛擬形象背景的裁切和縮放。",
-    "heading": "編輯媒體",
-    "hint": "拖曳以調整位置，縮放以符合即時虛擬形象畫布。",
-    "liveCanvas": "即時畫布",
-    "reset": "重設",
-    "title": "調整 {{name}} 背景的大小",
-    "zoomIn": "放大背景",
-    "zoomOut": "縮小背景"
-  },
   "canvas": {
     "camera": {
       "axis": "{{label}} {{axis}}",

@@ -1,3 +1,11 @@
+"""Request-local orchestration of one direct chat turn.
+
+``DirectChatTurnExecutor`` prepares the turn, streams the selected model client
+through any memory-tool rounds, and turns the main structured reply into speech,
+emotion and Gesture events. Stream collection, persistence payloads and provider
+state live in ``direct_turn``.
+"""
+
 from __future__ import annotations
 
 import asyncio

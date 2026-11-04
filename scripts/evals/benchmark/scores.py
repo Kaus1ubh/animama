@@ -14,7 +14,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from ..core.inputs import EvalInputError
+from scripts.evals.core.inputs import EvalInputError
+
 from .judge import JUDGE_DIR
 
 __all__ = ["JudgeResults", "JudgedItem", "by_line", "item_score", "load_judge_results"]

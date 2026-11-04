@@ -3,6 +3,7 @@ import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 import { REVIEW_REGIONS, type ReviewRegion } from "./reviewRegions";
+import { isRecord } from "@/lib/records";
 
 /**
  * Review notes for the motion preview tool: the owner pins notes to a time
@@ -268,8 +269,4 @@ function invalidSidecarReason(value: unknown): string | null {
     )
       return `versions[${index}] needs a valid id`;
   return null;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }

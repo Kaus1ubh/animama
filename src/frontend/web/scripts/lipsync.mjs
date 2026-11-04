@@ -50,7 +50,6 @@ async function createLoader() {
     resolve: {
       alias: {
         "@": path.join(webRoot, "src"),
-        "@web": path.join(webRoot, "src"),
       },
     },
     // Nothing here runs in a browser, so skip the dependency scan.

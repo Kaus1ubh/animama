@@ -1,5 +1,3 @@
-"use client";
-
 import type { SceneVFXActiveByKind } from "@/lib/scene-vfx/runtime-state";
 import { cn } from "@/lib/utils";
 import { useCanvasViewport } from "@/ui/main/canvas/CanvasViewportContext";

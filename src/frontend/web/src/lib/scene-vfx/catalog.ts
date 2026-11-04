@@ -39,6 +39,7 @@ import {
   SCENE_VFX_KINDS,
   isSceneLegacyEmojiItem,
 } from "./types";
+import { isRecord } from "@/lib/records";
 
 type RawCatalogRecord = Record<string, unknown>;
 
@@ -97,10 +98,6 @@ function createAllowedValueSet<T extends string>(
 
 function createError(context: string, message: string): Error {
   return new Error(`[SceneVFXCatalog] ${context}: ${message}`);
-}
-
-function isRecord(value: unknown): value is RawCatalogRecord {
-  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
 function readRecord(

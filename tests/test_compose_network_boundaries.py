@@ -70,7 +70,7 @@ def test_rendered_compose_enforces_the_local_publication_boundary() -> None:
     validate_local_compose_document(_rendered_compose())
 
 
-@pytest.mark.parametrize("profiles", [(), ("dev-tools",), ("voice",), ("*",)])
+@pytest.mark.parametrize("profiles", [(), ("dev-tools",), ("*",)])
 def test_development_override_publishes_only_vite_and_keeps_fastapi_private(profiles: tuple[str, ...]) -> None:
     document = _rendered_compose(profiles, development=True)
     validate_local_compose_document(document)
@@ -124,7 +124,7 @@ def test_rendered_boundary_rejects_a_broad_application_mapping() -> None:
         validate_local_compose_document(document)
 
 
-@pytest.mark.parametrize("profiles", [(), ("dev-tools",), ("voice",), ("voice", "dev-tools"), ("*",)])
+@pytest.mark.parametrize("profiles", [(), ("dev-tools",), ("*",)])
 def test_tools_are_explicit_loopback_publications(profiles: tuple[str, ...]) -> None:
     document = _rendered_compose(profiles)
     validate_local_compose_document(document)
@@ -190,7 +190,7 @@ def test_duplicate_host_ports_fail() -> None:
         validate_local_compose_document(document)
 
 
-@pytest.mark.parametrize("service", ["postgres", "parakeet"])
+@pytest.mark.parametrize("service", ["postgres"])
 def test_other_infrastructure_cannot_be_published(service: str) -> None:
     document = deepcopy(_rendered_compose())
     document["services"][service]["ports"] = deepcopy(document["services"]["dozzle"]["ports"])
@@ -482,14 +482,14 @@ def test_reset_preserves_dotenv_profiles_and_custom_ports(tmp_path: Path) -> Non
     result, commands, workspace = _run_reset(
         tmp_path,
         ["--profile", "dev-tools"],
-        {"ANIMAMA_TEST_DOTENV_PROFILES": "voice", "PGADMIN_PORT": "15050", "DOZZLE_PORT": "19999"},
+        {"ANIMAMA_TEST_DOTENV_PROFILES": "custom", "PGADMIN_PORT": "15050", "DOZZLE_PORT": "19999"},
     )
     assert result.returncode == 0, result.stderr
     assert "http://localhost:15050" in result.stdout
     assert "http://localhost:19999" in result.stdout
-    assert "export COMPOSE_PROFILES=dev-tools\\,voice" in (workspace / ".animama-stack.env").read_text()
+    assert "export COMPOSE_PROFILES=dev-tools\\,custom" in (workspace / ".animama-stack.env").read_text()
     assert all(
-        command["profiles"] == "dev-tools,voice" for command in commands if "--environment" not in command["args"]
+        command["profiles"] == "dev-tools,custom" for command in commands if "--environment" not in command["args"]
     )
 
 
@@ -564,7 +564,7 @@ def _run_web_launcher(
     pnpm = tmp_path / "pnpm"
     pnpm.write_text(
         "#!/bin/sh\n"
-        'printf "%s|%s|%s\\n" "$NODE_ENV" "$VITE_APP_ENV" "$*" >> "$ANIMAMA_TEST_WEB_COMMANDS"\n'
+        'printf "%s|%s\\n" "$NODE_ENV" "$*" >> "$ANIMAMA_TEST_WEB_COMMANDS"\n'
         'if [ "$ANIMAMA_TEST_FAIL_WEB_BUILD" = 1 ] && [ "$3" = build ]; then exit 9; fi\n',
         encoding="utf-8",
     )
@@ -573,7 +573,6 @@ def _run_web_launcher(
     environment.update(
         PATH=f"{tmp_path}{os.pathsep}{environment['PATH']}",
         NODE_ENV="development",
-        VITE_APP_ENV="development",
         ANIMAMA_TEST_WEB_COMMANDS=str(commands),
         ANIMAMA_TEST_FAIL_WEB_BUILD="1" if fail_build else "0",
     )
@@ -594,7 +593,7 @@ def _run_web_launcher(
 def test_web_launcher_runs_only_the_development_server(tmp_path: Path, mode: str | None) -> None:
     result, commands = _run_web_launcher(tmp_path, mode=mode)
     assert result.returncode == 0, result.stderr
-    assert commands == ["development|development|--filter animama-web dev --host 0.0.0.0 --port 5173 --strictPort"]
+    assert commands == ["development|--filter animama-web dev --host 0.0.0.0 --port 5173 --strictPort"]
     scripts = json.loads((REPO_ROOT / "src/frontend/web/package.json").read_text())["scripts"]
     assert scripts["dev"].startswith(
         "pnpm --dir .. poses:check && pnpm --dir .. packages:build && pnpm routes:generate && vite"

@@ -56,12 +56,12 @@ class RuntimeFixture:
     root: Path
     items: dict[str, CatalogContentEntry]
 
-    def service(self, session) -> AnimaRuntimeService:  # noqa: ANN001
+    def service(self, session) -> AnimaRuntimeService:
         return AnimaRuntimeService(session, store=self.store)
 
 
 @asynccontextmanager
-async def runtime_fixture(session, tmp_path: Path) -> AsyncIterator[RuntimeFixture]:  # noqa: ANN001
+async def runtime_fixture(session, tmp_path: Path) -> AsyncIterator[RuntimeFixture]:
     """An Anima whose loadout equips two clip Gestures and one Idle Gesture from a scanned Local library."""
 
     owner = f"issuance-owner-{uuid4().hex}"
@@ -132,7 +132,7 @@ async def runtime_fixture(session, tmp_path: Path) -> AsyncIterator[RuntimeFixtu
         await session.commit()
 
 
-async def test_issuance_stores_the_bundles_it_advertises(async_session, tmp_path: Path) -> None:  # noqa: ANN001
+async def test_issuance_stores_the_bundles_it_advertises(async_session, tmp_path: Path) -> None:
     async with runtime_fixture(async_session, tmp_path) as fixture:
         issued = await fixture.service(async_session).issue(user_id=fixture.owner, anima_id=fixture.anima_id)
         snapshot = await async_session.scalar(
@@ -147,7 +147,7 @@ async def test_issuance_stores_the_bundles_it_advertises(async_session, tmp_path
         assert stored["members"] == list(selected[0].members)
 
 
-async def test_a_bundle_read_loads_only_its_own_members(async_session, tmp_path: Path) -> None:  # noqa: ANN001
+async def test_a_bundle_read_loads_only_its_own_members(async_session, tmp_path: Path) -> None:
     async with runtime_fixture(async_session, tmp_path) as fixture:
         service = fixture.service(async_session)
         issued = await service.issue(user_id=fixture.owner, anima_id=fixture.anima_id)
@@ -167,7 +167,7 @@ async def test_a_bundle_read_loads_only_its_own_members(async_session, tmp_path:
 
 
 @pytest.mark.parametrize("case", ["unknown_bundle", "malformed_bundle", "other_revision", "expired"])
-async def test_a_bundle_read_keeps_its_refusals(async_session, tmp_path: Path, case: str) -> None:  # noqa: ANN001
+async def test_a_bundle_read_keeps_its_refusals(async_session, tmp_path: Path, case: str) -> None:
     async with runtime_fixture(async_session, tmp_path) as fixture:
         service = fixture.service(async_session)
         issued = await service.issue(user_id=fixture.owner, anima_id=fixture.anima_id)
@@ -201,7 +201,7 @@ def _writes_or_locks(statements: list[str]) -> list[str]:
     ]
 
 
-async def test_preparation_takes_no_lock_and_writes_nothing(async_session, tmp_path: Path) -> None:  # noqa: ANN001
+async def test_preparation_takes_no_lock_and_writes_nothing(async_session, tmp_path: Path) -> None:
     async with runtime_fixture(async_session, tmp_path) as fixture:
         service = fixture.service(async_session)
         with counted_statements(async_session) as statements:
@@ -212,7 +212,7 @@ async def test_preparation_takes_no_lock_and_writes_nothing(async_session, tmp_p
 
 @pytest.mark.parametrize("reused", [False, True])
 async def test_the_final_transaction_locks_rechecks_and_writes_only(
-    async_session,  # noqa: ANN001
+    async_session,
     tmp_path: Path,
     reused: bool,
 ) -> None:
@@ -242,8 +242,8 @@ async def test_the_final_transaction_locks_rechecks_and_writes_only(
 
 
 async def test_a_loadout_change_after_preparation_reissues_the_new_loadout(
-    async_session,  # noqa: ANN001
-    async_session_factory,  # noqa: ANN001
+    async_session,
+    async_session_factory,
     tmp_path: Path,
 ) -> None:
     async with runtime_fixture(async_session, tmp_path) as fixture:
@@ -262,7 +262,7 @@ async def test_a_loadout_change_after_preparation_reissues_the_new_loadout(
 
 
 async def test_a_loadout_that_keeps_changing_is_refused_as_a_conflict(
-    async_session,  # noqa: ANN001
+    async_session,
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -284,7 +284,7 @@ async def test_a_loadout_that_keeps_changing_is_refused_as_a_conflict(
 
 
 async def test_changed_files_found_while_preparing_are_marked_when_committing(
-    async_session,  # noqa: ANN001
+    async_session,
     tmp_path: Path,
 ) -> None:
     async with runtime_fixture(async_session, tmp_path) as fixture:
@@ -301,10 +301,10 @@ async def test_changed_files_found_while_preparing_are_marked_when_committing(
         await async_session.rollback()
         events: list[str] = []
 
-        def statement(_conn, _cursor, text, _parameters, _context, _executemany):  # noqa: ANN001, ANN202
+        def statement(_conn, _cursor, text, _parameters, _context, _executemany):
             events.append(text)
 
-        def committed(_conn) -> None:  # noqa: ANN001
+        def committed(_conn) -> None:
             events.append("COMMIT")
 
         engine = async_session.bind.sync_engine
@@ -326,7 +326,7 @@ async def test_changed_files_found_while_preparing_are_marked_when_committing(
 
 @pytest.mark.parametrize("owner", ["another-owner", None])
 async def test_preparation_refuses_another_owners_or_a_missing_anima(
-    async_session,  # noqa: ANN001
+    async_session,
     tmp_path: Path,
     owner: str | None,
 ) -> None:
@@ -350,7 +350,7 @@ def _forbid_compiling(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 async def test_an_unchanged_loadout_is_reissued_without_compiling(
-    async_session,  # noqa: ANN001
+    async_session,
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -368,13 +368,13 @@ async def test_an_unchanged_loadout_is_reissued_without_compiling(
         assert await async_session.scalar(count) == 1
 
 
-async def _change_loadout_revision(fixture: RuntimeFixture, session) -> None:  # noqa: ANN001
+async def _change_loadout_revision(fixture: RuntimeFixture, session) -> None:
     await session.execute(
         update(ORMAnimaLoadout).where(ORMAnimaLoadout.anima_id == fixture.anima_id).values(revision=2)
     )
 
 
-async def _change_motion(fixture: RuntimeFixture, session) -> None:  # noqa: ANN001
+async def _change_motion(fixture: RuntimeFixture, session) -> None:
     path = fixture.root / fixture.items["nod"].files[0].relative_path
     path.write_bytes(json.dumps(anima_clip(clip_id="nod", name="nod", duration=3)).encode())
     await ContentCatalogService(store=fixture.store, catalog=SQLAlchemyContentCatalog(session)).rescan(
@@ -382,7 +382,7 @@ async def _change_motion(fixture: RuntimeFixture, session) -> None:  # noqa: ANN
     )
 
 
-async def _invalidate_item(fixture: RuntimeFixture, session) -> None:  # noqa: ANN001
+async def _invalidate_item(fixture: RuntimeFixture, session) -> None:
     await session.execute(
         update(ORMContentCatalogItem)
         .where(ORMContentCatalogItem.id == fixture.items["breathe"].id)
@@ -390,7 +390,7 @@ async def _invalidate_item(fixture: RuntimeFixture, session) -> None:  # noqa: A
     )
 
 
-async def _show_a_hidden_item(fixture: RuntimeFixture, session) -> None:  # noqa: ANN001
+async def _show_a_hidden_item(fixture: RuntimeFixture, session) -> None:
     # The loadout already binds an item the owner could not see; now it can.
     await session.execute(
         update(ORMContentCatalogItem)
@@ -400,7 +400,7 @@ async def _show_a_hidden_item(fixture: RuntimeFixture, session) -> None:  # noqa
 
 
 @pytest.mark.parametrize("change", [_change_loadout_revision, _change_motion, _invalidate_item, _show_a_hidden_item])
-async def test_each_changed_input_compiles_again(async_session, tmp_path: Path, change) -> None:  # noqa: ANN001
+async def test_each_changed_input_compiles_again(async_session, tmp_path: Path, change) -> None:
     async with runtime_fixture(async_session, tmp_path) as fixture:
         if change is _show_a_hidden_item:
             await async_session.execute(
@@ -416,7 +416,7 @@ async def test_each_changed_input_compiles_again(async_session, tmp_path: Path, 
         compiled: list[int] = []
         compile_with_changes = RuntimeContentClosureCompiler.compile_with_changes
 
-        async def counted(self, **kwargs):  # noqa: ANN001, ANN003, ANN202
+        async def counted(self, **kwargs):
             compiled.append(kwargs["loadout_revision"])
             return await compile_with_changes(self, **kwargs)
 
@@ -429,8 +429,8 @@ async def test_each_changed_input_compiles_again(async_session, tmp_path: Path, 
 
 @pytest.mark.parametrize("change", [{"revision_sha256": "0" * 64}, {"owner_user_id": "another-owner"}])
 async def test_a_reused_snapshot_is_fenced_like_a_fresh_one(
-    async_session,  # noqa: ANN001
-    async_session_factory,  # noqa: ANN001
+    async_session,
+    async_session_factory,
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     change: dict[str, str],
@@ -455,7 +455,7 @@ async def test_a_reused_snapshot_is_fenced_like_a_fresh_one(
 
 
 async def test_a_reused_snapshot_that_expires_before_commit_is_compiled_again(
-    async_session,  # noqa: ANN001
+    async_session,
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -477,7 +477,7 @@ async def test_a_reused_snapshot_that_expires_before_commit_is_compiled_again(
 
 
 async def test_a_compile_that_found_changed_files_is_never_reused(
-    async_session,  # noqa: ANN001
+    async_session,
     tmp_path: Path,
 ) -> None:
     async with runtime_fixture(async_session, tmp_path) as fixture:
@@ -534,9 +534,7 @@ def _digest_inputs() -> dict[str, Any]:
 
 
 def _digest(inputs: dict[str, Any]) -> str:
-    return anima_runtime_service._inputs_digest(  # noqa: SLF001
-        **{key: value for key, value in inputs.items() if key != "entry"}
-    )
+    return anima_runtime_service._inputs_digest(**{key: value for key, value in inputs.items() if key != "entry"})
 
 
 def _changed(name: str, inputs: dict[str, Any]) -> dict[str, Any]:
@@ -611,7 +609,7 @@ def test_the_inputs_digest_ignores_scan_times_and_unrelated_entries() -> None:
 
 
 def _build_identity() -> str:
-    return anima_runtime_service._backend_build.__wrapped__()  # noqa: SLF001
+    return anima_runtime_service._backend_build.__wrapped__()
 
 
 def test_a_frozen_build_is_identified_by_its_executable(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

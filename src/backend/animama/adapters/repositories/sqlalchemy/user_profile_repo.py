@@ -6,18 +6,18 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ....app.ports.user_profile_port import (
-    UserProfileRepository,
-    UserProfileRepositoryConflictError,
-    UserProfileRepositoryConsistencyError,
-)
-from ....domain.user_profile import UserProfile
-from ....orm.user_profile import ORMUserProfile
-from ...mappers.user_profile_map import (
+from animama.adapters.mappers.user_profile_map import (
     apply_user_profile_to_orm,
     user_profile_domain_to_orm,
     user_profile_orm_to_domain,
 )
+from animama.app.ports.user_profile_port import (
+    UserProfileRepository,
+    UserProfileRepositoryConflictError,
+    UserProfileRepositoryConsistencyError,
+)
+from animama.domain.user_profile import UserProfile
+from animama.orm.user_profile import ORMUserProfile
 
 
 class SQLAlchemyUserProfileRepository(UserProfileRepository):

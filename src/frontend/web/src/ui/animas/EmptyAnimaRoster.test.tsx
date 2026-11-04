@@ -6,7 +6,7 @@ import { EmptyAnimaRoster } from "./EmptyAnimaRoster";
 
 const fixture = vi.hoisted(() => ({ setupPending: false }));
 
-vi.mock("@web/app/runtime/RuntimeAdmissionProvider", () => ({
+vi.mock("@/app/runtime/RuntimeAdmissionProvider", () => ({
   useOptionalRuntimeSetupPending: () => fixture.setupPending,
 }));
 vi.mock("@tanstack/react-router", async (original) => ({

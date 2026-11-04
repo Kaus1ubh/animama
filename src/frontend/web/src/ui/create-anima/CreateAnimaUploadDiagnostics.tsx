@@ -1,5 +1,3 @@
-"use client";
-
 import { AlertTriangle, CheckCircle2, LoaderCircle } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";

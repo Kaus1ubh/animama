@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Protocol
 
-from ...domain.user_file import UserFile
+from animama.domain.user_file import UserFile
 
 
 class UserFileRepository(Protocol):

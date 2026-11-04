@@ -19,10 +19,10 @@ from animama.server.avatar_uploads import (
     STATUS_PENDING,
     list_uploads_for_cleanup,
     set_upload_status,
-    utcnow,
 )
 from animama.server.config import settings
 from animama.server.user_file_storage import delete_private_file
+from animama.utils.clock import utc_now
 from animama.workers.shutdown import install_shutdown_handlers
 
 log = get_logger("avatar-upload.cleanup")
@@ -88,7 +88,7 @@ class AvatarUploadCleanupWorker:
         async with self._session_factory() as session:
             uploads = await list_uploads_for_cleanup(
                 session,
-                now=utcnow(),
+                now=utc_now(),
                 limit=self._batch_size,
             )
             if not uploads:
@@ -96,7 +96,7 @@ class AvatarUploadCleanupWorker:
 
             for upload in uploads:
                 deleted = delete_private_file(upload.storage_locator)
-                if upload.status == STATUS_PENDING and upload.expires_at <= utcnow():
+                if upload.status == STATUS_PENDING and upload.expires_at <= utc_now():
                     set_upload_status(
                         upload,
                         status=STATUS_EXPIRED if deleted else STATUS_CLEANUP_PENDING,

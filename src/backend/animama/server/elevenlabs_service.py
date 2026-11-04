@@ -1,3 +1,10 @@
+"""ElevenLabs operations for the local composition: speech synthesis, voice cloning
+and access checks, sound effects, audio isolation and realtime TTS sessions.
+
+Each call carries the key from the process credential store; ``LocalSpeech`` is the
+speech port the local app installs.
+"""
+
 from __future__ import annotations
 
 import asyncio

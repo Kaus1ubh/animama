@@ -15,6 +15,7 @@ from animama.app.services.anima_runtime_service import AnimaRuntimeService
 from animama.app.services.content_catalog_service import ContentCatalogService
 from animama.app.services.content_package_staging import PackageStageService
 from animama.app.services.content_transition_service import ContentTransitionService
+from animama.domain.content_catalog import ContentSource
 from animama.logging_config import get_logger
 from animama.server.deps import get_async_session_factory
 from animama.server.local_runtime import LocalRuntimePaths, local_content_store
@@ -105,7 +106,7 @@ async def start_content_runtime(
                     exc_type=exc.__class__.__name__,
                 )
 
-    async def invalidate(source, relative_paths: tuple[str, ...]) -> None:  # noqa: ANN001
+    async def invalidate(source: ContentSource, relative_paths: tuple[str, ...]) -> None:
         try:
             session_factory = get_async_session_factory(app)
             async with session_factory() as session:
