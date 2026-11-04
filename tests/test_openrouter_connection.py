@@ -134,11 +134,11 @@ def test_changing_a_connection_preset_rebuilds_its_cached_client() -> None:
     custom = replace(openrouter, preset="custom")
     credential = resolver.resolve(openrouter)
 
-    attributed = client._client_for_connection(openrouter, timeout=None, credential=credential)  # noqa: SLF001
-    plain = client._client_for_connection(custom, timeout=None, credential=credential)  # noqa: SLF001
+    attributed = client._client_for_connection(openrouter, timeout=None, credential=credential)
+    plain = client._client_for_connection(custom, timeout=None, credential=credential)
 
-    assert attributed._custom_headers.get("X-Title") == "Animama"  # noqa: SLF001
-    assert "X-Title" not in plain._custom_headers  # noqa: SLF001
+    assert attributed._custom_headers.get("X-Title") == "Animama"
+    assert "X-Title" not in plain._custom_headers
 
 
 class _OpenRouterServer:
@@ -176,7 +176,7 @@ def openrouter_server(monkeypatch: pytest.MonkeyPatch) -> _OpenRouterServer:
     server = _OpenRouterServer()
     original_init = AsyncOpenAI.__init__
 
-    def _init(self, *args: Any, **kwargs: Any) -> None:  # noqa: ANN001
+    def _init(self, *args: Any, **kwargs: Any) -> None:
         kwargs["http_client"] = httpx2.AsyncClient(transport=httpx2.MockTransport(server))
         original_init(self, *args, **kwargs)
 
@@ -286,7 +286,7 @@ async def test_chat_sse_openrouter_turn_streams_through_chat_completions_with_at
 
     original_init = AsyncOpenAI.__init__
 
-    def _init(self, *args, **kwargs):  # noqa: ANN001, ANN002, ANN003
+    def _init(self, *args, **kwargs):
         kwargs["http_client"] = httpx2.AsyncClient(transport=httpx2.MockTransport(openrouter))
         original_init(self, *args, **kwargs)
 

@@ -36,7 +36,7 @@ from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "models"))
-import parakeet as store  # noqa: E402  (reuse the reviewed HTTPS download helpers)
+import parakeet as store  # Reuse the reviewed HTTPS download helpers
 
 TESTSET = Path(__file__).with_name("testset.json")
 MODELS = Path(__file__).with_name("models.json")

@@ -1,5 +1,3 @@
-"use client";
-
 import { ImageUp, LoaderCircle } from "lucide-react";
 import {
   useMemo,

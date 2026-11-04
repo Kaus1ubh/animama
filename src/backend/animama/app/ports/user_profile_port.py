@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Protocol
 
-from ...domain.user_profile import UserProfile
+from animama.domain.user_profile import UserProfile
 
 
 class UserProfileRepositoryConflictError(Exception):

@@ -34,7 +34,7 @@ def _glb() -> bytes:
     )
 
 
-async def test_registered_delivery_authorizes_then_verifies_etag_and_bytes(async_session, tmp_path: Path) -> None:  # noqa: ANN001
+async def test_registered_delivery_authorizes_then_verifies_etag_and_bytes(async_session, tmp_path: Path) -> None:
     paths = initialize_local_runtime(
         Settings(animama_content_root=tmp_path / "content", animama_data_root=tmp_path / "data")
     )

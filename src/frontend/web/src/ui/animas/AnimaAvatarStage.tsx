@@ -1,5 +1,3 @@
-"use client";
-
 import { useFrame, useThree } from "@react-three/fiber";
 import { Camera } from "lucide-react";
 import type { Dispatch, ReactNode, SetStateAction } from "react";

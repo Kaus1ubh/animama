@@ -1,5 +1,3 @@
-"use client";
-
 import { useProductApiClient } from "@animama/product-ui";
 import { useFormatters } from "@animama/product-ui/i18n";
 import type { Client } from "@animama/runtime-contracts/sdk";

@@ -1,5 +1,3 @@
-"use client";
-
 import { ChevronDown, RotateCcw } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";

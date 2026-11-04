@@ -20,6 +20,7 @@ import {
   type ParticleVFXTransformAxisTriple,
   type ParticleVFXTransformInput,
 } from "../../particle-vfx/types";
+import { isRecord } from "@/lib/records";
 
 /**
  * Vocabulary shared by `animaPoseClip/2.0` (`schemaV2.ts`) and clip playback:
@@ -1035,10 +1036,6 @@ function sanitizeUnitNumber(value: unknown): number | null {
 function areStringArraysEqual(left: string[], right: string[]): boolean {
   if (left.length !== right.length) return false;
   return left.every((value, index) => value === right[index]);
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
 // Shared with the 2.0 parser under clip-specific names.

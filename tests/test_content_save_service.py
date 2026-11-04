@@ -42,7 +42,7 @@ def _glb(label: str) -> bytes:
     )
 
 
-def _services(async_session, tmp_path: Path):  # noqa: ANN001, ANN202
+def _services(async_session, tmp_path: Path):
     paths = initialize_local_runtime(
         Settings(
             animama_content_root=tmp_path / "content",
@@ -64,7 +64,7 @@ def _services(async_session, tmp_path: Path):  # noqa: ANN001, ANN202
 
 async def test_direct_standalone_save_edits_one_readable_file_under_a_revision_fence(
     async_session, tmp_path: Path
-) -> None:  # noqa: ANN001
+) -> None:
     service, paths = _services(async_session, tmp_path)
     try:
         created = await service.save_standalone(
@@ -118,7 +118,7 @@ async def test_direct_standalone_save_edits_one_readable_file_under_a_revision_f
 @pytest.mark.parametrize("with_hint", [False, True])
 async def test_direct_descriptor_save_uses_entry_name_and_removes_stale_companions(
     async_session, tmp_path: Path, with_hint: bool
-) -> None:  # noqa: ANN001
+) -> None:
     service, paths = _services(async_session, tmp_path)
     first_descriptor = json.dumps(
         {
@@ -184,7 +184,7 @@ async def test_direct_descriptor_save_uses_entry_name_and_removes_stale_companio
         await async_session.commit()
 
 
-async def test_direct_save_http_route_streams_into_the_readable_local_library(async_session, tmp_path: Path) -> None:  # noqa: ANN001
+async def test_direct_save_http_route_streams_into_the_readable_local_library(async_session, tmp_path: Path) -> None:
     paths = initialize_local_runtime(
         Settings(
             animama_content_root=tmp_path / "content",
@@ -265,7 +265,7 @@ async def test_direct_save_http_route_streams_into_the_readable_local_library(as
         await async_session.commit()
 
 
-async def test_explicit_delete_rejects_a_loadout_binding_before_touching_files(async_session, tmp_path: Path) -> None:  # noqa: ANN001
+async def test_explicit_delete_rejects_a_loadout_binding_before_touching_files(async_session, tmp_path: Path) -> None:
     """An exact revision does not authorize breaking another persisted reference."""
 
     fixture = await create_loadout_fixture(async_session)

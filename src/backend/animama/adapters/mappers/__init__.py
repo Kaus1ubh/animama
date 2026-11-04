@@ -14,9 +14,8 @@ from .anima_map import (
     anima_domain_to_orm,
     anima_domain_to_schema,
     anima_orm_to_domain,
-    anima_schema_to_domain,
 )
-from .avatar_map import avatar_domain_to_orm, avatar_domain_to_schema, avatar_orm_to_domain, avatar_schema_to_domain
+from .avatar_map import avatar_domain_to_orm, avatar_domain_to_schema, avatar_orm_to_domain
 from .chat_compaction_map import chat_compaction_domain_to_orm, chat_compaction_orm_to_domain
 from .chat_map import chat_domain_to_orm, chat_orm_to_domain
 from .chat_message_map import chat_message_domain_to_orm, chat_message_orm_to_domain
@@ -51,12 +50,10 @@ __all__ = [
     "model_provider_registry_row_to_domain",
     # Avatar
     "avatar_domain_to_schema",
-    "avatar_schema_to_domain",
     "avatar_domain_to_orm",
     "avatar_orm_to_domain",
     # Anima
     "anima_domain_to_schema",
-    "anima_schema_to_domain",
     "anima_domain_to_orm",
     "anima_orm_to_domain",
     "apply_anima_chat_profile_to_orm",

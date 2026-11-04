@@ -1,0 +1,41 @@
+name: Bug report
+description: Something in Animama does not work as it should.
+body:
+  - type: markdown
+    attributes:
+      value: "Thanks for reporting. Report security problems privately, as the [security policy](https://github.com/raymond-van/animama/security/policy) describes, never here. Leave out API keys, chats, memories and other personal content."
+  - type: input
+    id: version
+    attributes:
+      label: Animama version or commit
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      description: Include the smallest known local reproduction and whether it is intermittent.
+    validations:
+      required: true
+  - type: textarea
+    id: behavior
+    attributes:
+      label: Expected and actual behavior
+      description: Explain what should happen and what you observed. State uncertainty explicitly.
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment and evidence
+      description: OS, serving mode, relevant configuration and sanitized logs or screenshots. Do not attach databases, credentials or personal content.
+  - type: textarea
+    id: assignment
+    attributes:
+      label: Scope, approach and acceptance (maintainer)
+      description: Maintainer or agent follow-up after triage. Record the bounded fix, brief approach, regression checks, review disposition and any explicit owner verification gate. Reporters may leave this blank.
+  - type: textarea
+    id: links
+    attributes:
+      label: Related work and blockers
+      description: Existing issues, PRs, confirmed investigation results or unresolved questions. Search before creating a duplicate.

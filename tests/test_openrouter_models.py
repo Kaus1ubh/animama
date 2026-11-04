@@ -274,7 +274,7 @@ class _FakeCatalog:
         )
 
 
-def _app(tmp_path, catalog: _FakeCatalog | None = None) -> FastAPI:  # noqa: ANN001
+def _app(tmp_path, catalog: _FakeCatalog | None = None) -> FastAPI:
     app = FastAPI()
     app.state.runtime_settings = Settings(
         animama_content_root=tmp_path / "content", animama_data_root=tmp_path / "data"

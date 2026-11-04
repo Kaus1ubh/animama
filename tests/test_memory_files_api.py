@@ -408,7 +408,7 @@ async def test_list_memory_entries_does_not_select_markdown_content(async_sessio
     statements: list[str] = []
     engine = async_session.bind.sync_engine
 
-    def capture_sql(conn, cursor, statement, parameters, context, executemany):  # noqa: ANN001, ARG001
+    def capture_sql(conn, cursor, statement, parameters, context, executemany):
         statements.append(statement)
 
     event.listen(engine, "before_cursor_execute", capture_sql)
@@ -1065,7 +1065,7 @@ async def test_concurrent_same_path_creates_return_one_success_and_one_409(
                     policy=TEST_POLICY,
                     user=_user(owner_id),
                 )
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 return exc
 
     results = await asyncio.gather(create_one(), create_one())

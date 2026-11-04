@@ -1,5 +1,3 @@
-"use client";
-
 import type {
   AvatarFaceLandmarksSnapshot,
   AvatarFaceTextureAnchorsSnapshot,
@@ -18,7 +16,7 @@ import {
 } from "../face-preview";
 import { formatMaybeText, formatVector3 } from "../formatting";
 import { CatalogEffectCard } from "./catalog-effect-card";
-import type { VFXCatalogDraftController } from "./use-vfx-catalog-drafts";
+import type { VFXCatalogDraftController } from "./useVFXCatalogDrafts";
 
 export function EffectsSection({
   status,

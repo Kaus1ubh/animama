@@ -178,7 +178,7 @@ class _FakeChatManager:
         self.ensure_chat_calls: list[dict[str, Any]] = []
         self.context_calls: list[dict[str, Any]] = []
 
-    async def ensure_owned_chat(self, **kwargs):  # noqa: ANN001
+    async def ensure_owned_chat(self, **kwargs):
         self.ensure_chat_calls.append(dict(kwargs))
         return SimpleNamespace(
             id=kwargs.get("chat_id"),
@@ -188,16 +188,16 @@ class _FakeChatManager:
             openai_previous_response_id=self.openai_previous_response_id,
         )
 
-    async def get_chat_context(self, **kwargs):  # noqa: ANN001
+    async def get_chat_context(self, **kwargs):
         self.context_calls.append(dict(kwargs))
         return SimpleNamespace(messages=[], blocks=[])
 
-    async def prepare_chat_context(self, **kwargs):  # noqa: ANN001
+    async def prepare_chat_context(self, **kwargs):
         chat = await self.ensure_owned_chat(**kwargs)
         context = await self.get_chat_context(chat_id=kwargs["chat_id"])
         return chat, context
 
-    async def record_turn(self, **kwargs) -> None:  # noqa: ANN001
+    async def record_turn(self, **kwargs) -> None:
         self.record_turn_calls += 1
         self.record_turn_payloads.append(dict(kwargs))
 
@@ -243,7 +243,7 @@ class _RouteModelClient:
         self.seen_specs: list[ModelClientRequest] = []
         self.close_calls = 0
 
-    async def stream(self, spec: ModelClientRequest):  # noqa: ANN201
+    async def stream(self, spec: ModelClientRequest):
         if self.on_stream_start is not None:
             self.on_stream_start()
         self.seen_specs.append(spec)
@@ -598,7 +598,7 @@ def _install_route_mocks(
         def __init__(self, **_kwargs) -> None:
             pass
 
-        async def build_context(self, **kwargs):  # noqa: ANN003
+        async def build_context(self, **kwargs):
             return SimpleNamespace(
                 anima_identity="Test anima identity.",
                 anima_name="Anima",
@@ -755,7 +755,7 @@ class _ProviderSeedOptions(TypedDict, total=False):
 
 
 async def _seed_chat_model_provider(
-    async_session,  # noqa: ANN001
+    async_session,
     model_provider_id: str,
     *,
     provider_type: str = "OpenAIResponsesHTTPAgent",
@@ -804,7 +804,7 @@ async def _seed_chat_model_provider(
 
 
 async def _seed_owner_connection(
-    async_session,  # noqa: ANN001
+    async_session,
     connection_id: str,
     *,
     preset: str,
@@ -826,7 +826,7 @@ async def _seed_owner_connection(
     await async_session.commit()
 
 
-async def _seed_default_chat_model_provider(async_session) -> None:  # noqa: ANN001
+async def _seed_default_chat_model_provider(async_session) -> None:
     await _seed_chat_model_provider(
         async_session,
         "OpenAIHTTPAgent:gpt-6-luna",
@@ -836,7 +836,7 @@ async def _seed_default_chat_model_provider(async_session) -> None:  # noqa: ANN
 
 
 async def _seed_uploaded_file_chunk(
-    async_session,  # noqa: ANN001
+    async_session,
     *,
     file_id: str,
     user_id: str = "user-1",
@@ -881,7 +881,7 @@ async def _seed_uploaded_file_chunk(
     await async_session.commit()
 
 
-async def _seed_anima_identity_file(async_session, *, anima_id: str, user_id: str = "user-1") -> None:  # noqa: ANN001
+async def _seed_anima_identity_file(async_session, *, anima_id: str, user_id: str = "user-1") -> None:
     content = f"Identity for {anima_id}."
     async_session.add(
         ORMMemoryEntry(
@@ -905,7 +905,7 @@ async def _seed_anima_identity_file(async_session, *, anima_id: str, user_id: st
     await async_session.commit()
 
 
-async def _seed_anima_memories_file(async_session, *, anima_id: str, content: str) -> str:  # noqa: ANN001
+async def _seed_anima_memories_file(async_session, *, anima_id: str, content: str) -> str:
     entry_id = f"mem-memories-{anima_id}"
     async_session.add(
         ORMMemoryEntry(
@@ -959,7 +959,7 @@ def _self_memories_patch_final() -> ModelClientFinal:
 
 
 async def _seed_user_memory_file(
-    async_session,  # noqa: ANN001
+    async_session,
     *,
     relative_path: str,
     content: str,
@@ -1008,7 +1008,7 @@ def _install_route_compaction_mocks(
     )
     runners: list[_FakePromptRunner] = []
 
-    def _fake_direct_model_prompt_runner(*_args, **_kwargs):  # noqa: ANN002, ANN003
+    def _fake_direct_model_prompt_runner(*_args, **_kwargs):
         runner = _FakePromptRunner(
             text=summary,
             usage=usage,
@@ -1041,7 +1041,7 @@ def _install_route_title_mocks(
     )
     runners: list[_FakePromptRunner] = []
 
-    def _fake_direct_model_prompt_runner(*_args, **_kwargs):  # noqa: ANN002, ANN003
+    def _fake_direct_model_prompt_runner(*_args, **_kwargs):
         runner = _FakePromptRunner(
             text=title,
             usage=usage,
@@ -2523,7 +2523,7 @@ async def test_chat_sse_revision_conflict_happens_before_model_invocation(monkey
     model_client = _RouteModelClient()
     _install_route_mocks(monkeypatch, model_client=model_client)
 
-    async def _unmounted(_self, **_kwargs):  # noqa: ANN001, ANN003
+    async def _unmounted(_self, **_kwargs):
         return None
 
     monkeypatch.setattr(_FakeRuntimeSnapshots, "get_snapshot", _unmounted)
@@ -4412,7 +4412,7 @@ class _FailingRouteModelClient(_RouteModelClient):
         super().__init__()
         self.error = error
 
-    async def stream(self, spec: ModelClientRequest):  # noqa: ANN201
+    async def stream(self, spec: ModelClientRequest):
         self.seen_specs.append(spec)
         raise self.error
         yield  # pragma: no cover

@@ -1,5 +1,3 @@
-"use client";
-
 import type { MutableRefObject } from "react";
 import ortWasmMjsUrl from "onnxruntime-web/ort-wasm-simd-threaded.mjs?url";
 import ortWasmUrl from "onnxruntime-web/ort-wasm-simd-threaded.wasm?url";

@@ -244,7 +244,7 @@ def test_legacy_neutral_catalog_stays_valid_and_projects_without_source(tmp_path
 async def test_clone_library_retains_bytes_rename_ownership_and_protected_deletion(
     async_session,
     tmp_path: Path,
-) -> None:  # noqa: ANN001
+) -> None:
     fixture = await create_loadout_fixture(async_session)
     paths = initialize_local_runtime(
         Settings(animama_content_root=tmp_path / "content", animama_data_root=tmp_path / "data")
@@ -258,7 +258,7 @@ async def test_clone_library_retains_bytes_rename_ownership_and_protected_deleti
     async def current_owner() -> RequestPrincipal:
         return RequestPrincipal(id=owner[0])
 
-    async def session_override():  # noqa: ANN202
+    async def session_override():
         yield async_session
 
     app.dependency_overrides[get_current_principal] = current_owner

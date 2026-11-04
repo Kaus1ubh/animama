@@ -16,6 +16,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
+from animama.adapters.model_clients._common import get_value
 from animama.app.model_clients import (
     MCAssistantMessageStartedEvent,
     MCEvent,
@@ -34,7 +35,6 @@ from animama.app.model_clients import (
     model_client_run_status_delta,
 )
 
-from .._common import get_value
 from .final import usage_from_anthropic, usage_iterations
 from .support import ANTHROPIC_API, ANTHROPIC_MESSAGES_HTTP_PROVIDER_TYPE, clean_str
 

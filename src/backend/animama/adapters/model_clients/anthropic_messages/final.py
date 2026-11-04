@@ -12,14 +12,13 @@ from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Any
 
+from animama.adapters.model_clients._common import get_value, jsonable
 from animama.app.model_clients import ModelClientToolCall
 from animama.app.model_clients.usage_estimate import CONTEXT_TOKENS_METADATA_KEY
 from animama.domain.usage import Usage, UsageInputDetails, UsageOutputDetails
 
-from .._common import get_value, jsonable
 from .support import ANTHROPIC_API, ANTHROPIC_MESSAGES_HTTP_PROVIDER_TYPE, clean_str, optional_int
 
-STOP_REASON_TOOL_USE = "tool_use"
 STOP_REASON_MAX_TOKENS = "max_tokens"
 STOP_REASON_REFUSAL = "refusal"
 STOP_REASON_PAUSE_TURN = "pause_turn"
@@ -358,7 +357,6 @@ __all__ = [
     "STOP_REASON_MAX_TOKENS",
     "STOP_REASON_PAUSE_TURN",
     "STOP_REASON_REFUSAL",
-    "STOP_REASON_TOOL_USE",
     "AnthropicResponse",
     "MessageFinalParts",
     "content_block_param",

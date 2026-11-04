@@ -1,5 +1,3 @@
-"use client";
-
 import { useMemo } from "react";
 
 import { linesGeometry, raysPath } from "@/lib/scene-vfx/layerGeometry";

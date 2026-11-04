@@ -19,10 +19,10 @@ from decimal import Decimal
 
 from animama.app.model_clients.context_budget import estimate_prompt_tokens
 from animama.domain.usage import Usage
+from scripts.evals.core.chat import EvalChats, StaticMemoryContext, build_executor, turn_request
+from scripts.evals.core.model_calls import CallPrice, CallRecord, UnusedModelClient
+from scripts.evals.core.pricing import TokenPrices, usage_json
 
-from ..core.chat import EvalChats, StaticMemoryContext, build_executor, turn_request
-from ..core.model_calls import CallPrice, CallRecord, UnusedModelClient
-from ..core.pricing import TokenPrices, usage_json
 from .configs import Configuration, capability_problem, first_per_row
 from .judge import BATCH_SIZES, DEFAULT_CONCURRENCY
 from .judge_items import OPEN_PROBES_ONLY, TAGGED_REPLIES_ONLY

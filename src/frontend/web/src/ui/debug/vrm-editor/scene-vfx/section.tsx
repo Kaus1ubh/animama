@@ -1,10 +1,8 @@
-"use client";
-
 import { EmptyState, KeyValueGrid, Panel } from "../controls";
 import { SceneBackgroundPanel } from "./background-panel";
 import { formatSceneVFXDuration } from "./helpers";
 import { SceneFocusLinesPanel } from "./focus-lines-panel";
-import type { SceneVFXDraftControllers } from "./use-scene-vfx-drafts";
+import type { SceneVFXDraftControllers } from "./useSceneVFXDrafts";
 
 export function SceneVFXSection({
   drafts,

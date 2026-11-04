@@ -1,5 +1,3 @@
-"use client";
-
 import { useLibrarySharingFlow } from "@/query/hooks/useLibrarySharingFlow";
 import { LibrarySharingDialog } from "./LibrarySharingDialog";
 import { LibraryBig } from "lucide-react";

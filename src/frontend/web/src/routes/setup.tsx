@@ -10,7 +10,7 @@ import {
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 
-import { useLocalRuntime } from "@web/app/local-runtime/LocalRuntimeProvider";
+import { useLocalRuntime } from "@/app/local-runtime/LocalRuntimeProvider";
 import {
   readSetupDraft,
   SETUP_STEPS,

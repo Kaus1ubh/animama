@@ -1,5 +1,3 @@
-"use client";
-
 import { useProductApiClient } from "@animama/product-ui";
 
 import { CreatorHeaderDocument } from "@/ui/content-creator/CreatorHeaderDocument";

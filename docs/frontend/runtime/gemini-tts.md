@@ -34,8 +34,8 @@ The main runtime files are:
 - `src/frontend/web/src/lib/speech/tts-provider.ts`
 - `src/frontend/web/src/lib/chat/gemini-chat-tts-dispatch.ts`
 - `src/frontend/web/src/ui/main/chat/useChatSession.ts`
-- `src/frontend/web/src/hooks/use-tts-playback.ts`
-- `src/frontend/web/src/hooks/use-finalized-tts-runtime.ts`
+- `src/frontend/web/src/hooks/useTtsPlayback.ts`
+- `src/frontend/web/src/hooks/useFinalizedTtsRuntime.ts`
 - `src/frontend/web/src/stores/avatar-lipsync-bridge-store.ts`
 
 For each TTS-enabled turn, `useChatSession.ts` sends `dispatch_options.tts`
@@ -47,7 +47,7 @@ one Gemini request and pushes its audio as `tts.audio` frames (`pcm_24000`,
 `ChatSpeechPolicy.finalizedServerAudio` is true only for Gemini, the one
 provider whose audio the server pushes, so the shared session routes
 `tts.audio`, `tts.done` and `tts.error` to playback. `useTtsPlayback` prepares
-the finalized runtime (`use-finalized-tts-runtime.ts`) when the run starts
+the finalized runtime (`useFinalizedTtsRuntime.ts`) when the run starts
 instead of streaming text, prewarming the local `AudioContext` and gain node
 before the first frame. Its audio signals report the run's own provider.
 

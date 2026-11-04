@@ -59,7 +59,7 @@ def test_every_local_product_http_route_requires_the_principal_dependency(tmp_pa
         )
     )
 
-    def resolves_principal(dependency) -> bool:  # noqa: ANN001
+    def resolves_principal(dependency) -> bool:
         return dependency.call is get_current_principal or any(
             resolves_principal(child) for child in dependency.dependencies
         )
@@ -80,10 +80,10 @@ def test_startup_admits_only_the_bootstrap_owner_without_gateway_assertions(
     principal_id = "11111111-1111-4111-8111-111111111111"
 
     class Bootstrap:
-        async def ensure(self):  # noqa: ANN202
+        async def ensure(self):
             return SimpleNamespace(principal_id=principal_id, failed_steps=(), content_ready=True)
 
-    async def no_op(*args, **kwargs) -> None:  # noqa: ANN002, ANN003
+    async def no_op(*args, **kwargs) -> None:
         return None
 
     monkeypatch.setattr(app_module, "initialize_local_runtime", lambda settings: object())

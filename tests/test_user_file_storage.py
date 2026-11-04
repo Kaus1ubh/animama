@@ -15,7 +15,7 @@ from animama.server.config import Settings
 from animama.server.local_runtime import initialize_local_runtime
 
 
-def _storage(tmp_path: Path):  # noqa: ANN202
+def _storage(tmp_path: Path):
     paths = initialize_local_runtime(
         Settings(
             animama_content_root=tmp_path / "content",

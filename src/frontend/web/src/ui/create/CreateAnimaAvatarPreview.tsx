@@ -1,5 +1,3 @@
-"use client";
-
 import { useFormatters } from "@animama/product-ui/i18n";
 import { lazy, Suspense, type ComponentProps } from "react";
 import { Upload } from "lucide-react";

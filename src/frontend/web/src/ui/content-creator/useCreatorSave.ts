@@ -1,5 +1,3 @@
-"use client";
-
 import { useNavigate, type NavigateOptions } from "@tanstack/react-router";
 import {
   useCallback,

@@ -1,10 +1,8 @@
-"use client";
-
 import { useEffect, useMemo, useState } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import { RefreshCw, RotateCcw } from "lucide-react";
 
-import { useSoundController } from "@/hooks/use-sound-controller";
+import { useSoundController } from "@/hooks/useSoundController";
 import { useVRMEditorSession } from "@/hooks/useVRMEditorSession";
 import type { AvatarVFXAppliedEffectSnapshot } from "@/lib/avatar";
 import { AppImage } from "@/platform/image/AppImage";
@@ -32,9 +30,9 @@ import {
 } from "./vrm-editor/formatting";
 import { JsonTreeNode, type JsonExpandMode } from "./vrm-editor/json-tree";
 import { EffectsSection } from "./vrm-editor/effects/section";
-import { useVFXCatalogDrafts } from "./vrm-editor/effects/use-vfx-catalog-drafts";
+import { useVFXCatalogDrafts } from "./vrm-editor/effects/useVFXCatalogDrafts";
 import { SceneVFXSection } from "./vrm-editor/scene-vfx/section";
-import { useSceneVFXDrafts } from "./vrm-editor/scene-vfx/use-scene-vfx-drafts";
+import { useSceneVFXDrafts } from "./vrm-editor/scene-vfx/useSceneVFXDrafts";
 
 const sections = [
   "Overview",

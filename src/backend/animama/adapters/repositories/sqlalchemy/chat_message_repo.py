@@ -10,19 +10,19 @@ from sqlalchemy import Select, String, and_, asc, cast, desc, exists, func, lite
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
 
-from ....app.ports.chat_message_port import ChatMessageRepository
-from ....domain.audio_tags import strip_audio_tags
-from ....domain.chat import (
+from animama.adapters.mappers.chat_message_map import chat_message_domain_to_orm, chat_message_orm_to_domain
+from animama.app.ports.chat_message_port import ChatMessageRepository
+from animama.domain.audio_tags import strip_audio_tags
+from animama.domain.chat import (
     AnimaHistoryTurn,
     AnimaHistoryTurnBatch,
     ChatHistoryPosition,
     ChatMessage,
     ChatSearchResult,
 )
-from ....domain.search_terms import snippet_terms, substring_pattern
-from ....orm.chat_messages import ORMChatMessage
-from ....orm.chats import ORMChat
-from ...mappers.chat_message_map import chat_message_domain_to_orm, chat_message_orm_to_domain
+from animama.domain.search_terms import snippet_terms, substring_pattern
+from animama.orm.chat_messages import ORMChatMessage
+from animama.orm.chats import ORMChat
 
 # An assistant reply stores this block when memory updates were off for its turn.
 _MEMORY_UPDATES_DISABLED = {"memory": {"updates_enabled": False}}

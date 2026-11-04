@@ -5,8 +5,8 @@ from __future__ import annotations
 from collections.abc import Iterable
 from dataclasses import replace
 
-from ...app.ports import AnimaRepository, UnitOfWork
-from ...domain import Anima
+from animama.app.ports import AnimaRepository, UnitOfWork
+from animama.domain import Anima
 
 
 class InMemoryUnitOfWork(UnitOfWork):

@@ -1,5 +1,3 @@
-"use client";
-
 import {
   Settings2Icon,
   Volume2Icon,

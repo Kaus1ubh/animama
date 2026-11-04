@@ -46,13 +46,13 @@ def runtime_http(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> SimpleNames
             raise HTTPException(status_code=403)
         return RequestPrincipal(id=state.owner)
 
-    async def prepare(_self, *, user_id: str, anima_id: str):  # noqa: ANN001, ANN202
+    async def prepare(_self, *, user_id: str, anima_id: str):
         state.calls.append((user_id, anima_id))
         if user_id != "owner":
             raise RuntimeSnapshotError("anima_not_found")
         return SimpleNamespace(anima_id=anima_id)
 
-    async def commit(_self, _prepared, *, user_id: str):  # noqa: ANN001, ANN202
+    async def commit(_self, _prepared, *, user_id: str):
         return {
             "loadout_revision": 1,
             "effective_revision": "same-content-revision",
@@ -69,7 +69,7 @@ def runtime_http(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> SimpleNames
     return state
 
 
-async def _wire(client: AsyncClient, encoding: str, *, etag: str | None = None):  # noqa: ANN202
+async def _wire(client: AsyncClient, encoding: str, *, etag: str | None = None):
     headers = {"Accept-Encoding": encoding}
     if etag:
         headers["If-None-Match"] = etag
@@ -158,7 +158,7 @@ async def test_runtime_private_file_does_not_use_manifest_compression(
     body = b"exact registered binary bytes" * 100
     digest = hashlib.sha256(body).hexdigest()
 
-    async def authorize(_self, **_kwargs):  # noqa: ANN001, ANN003, ANN202
+    async def authorize(_self, **_kwargs):
         return SimpleNamespace(
             source=ContentSource.LOCAL,
             source_mount_id=None,
@@ -190,7 +190,7 @@ async def test_runtime_private_file_does_not_use_manifest_compression(
 async def test_issuance_prepares_again_while_the_loadout_keeps_changing(
     runtime_http: SimpleNamespace, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    async def stale(_self, _prepared, *, user_id: str) -> None:  # noqa: ANN001
+    async def stale(_self, _prepared, *, user_id: str) -> None:
         # The loadout changed after preparation: the commit wrote nothing.
         return None
 
@@ -208,9 +208,9 @@ async def test_issuance_prepares_on_the_read_session_and_commits_on_the_write_se
     sessions = {kind: SimpleNamespace(kind=kind, commit=AsyncMock()) for kind in ("read", "write")}
     used: list[tuple[str, str]] = []
 
-    def opener(kind: str):  # noqa: ANN202
+    def opener(kind: str):
         @asynccontextmanager
-        async def session(_self, _principal):  # noqa: ANN001, ANN202
+        async def session(_self, _principal):
             used.append(("open", kind))
             yield sessions[kind]
             used.append(("close", kind))
@@ -221,11 +221,11 @@ async def test_issuance_prepares_on_the_read_session_and_commits_on_the_write_se
     monkeypatch.setattr(LocalProductPorts, "write_session", opener("write"))
     prepare, commit = AnimaRuntimeService.prepare, AnimaRuntimeService.commit
 
-    async def recorded_prepare(self, **kwargs):  # noqa: ANN001, ANN003, ANN202
+    async def recorded_prepare(self, **kwargs):
         used.append(("prepare", self.session.kind))
         return await prepare(self, **kwargs)
 
-    async def recorded_commit(self, prepared, **kwargs):  # noqa: ANN001, ANN003, ANN202
+    async def recorded_commit(self, prepared, **kwargs):
         used.append(("commit", self.session.kind))
         return await commit(self, prepared, **kwargs)
 

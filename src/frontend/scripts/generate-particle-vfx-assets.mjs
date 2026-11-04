@@ -17,9 +17,14 @@ const args = process.argv.slice(2);
 const options = new Map();
 for (let index = 0; index < args.length; index += 2) {
   const name = args[index];
-  if (!["--output-dir", "--kenney-root", "--brackeys-root"].includes(name) ||
-      !args[index + 1] || options.has(name)) {
-    throw new Error("Use --output-dir DIR --kenney-root DIR --brackeys-root DIR");
+  if (
+    !["--output-dir", "--kenney-root", "--brackeys-root"].includes(name) ||
+    !args[index + 1] ||
+    options.has(name)
+  ) {
+    throw new Error(
+      "Use --output-dir DIR --kenney-root DIR --brackeys-root DIR",
+    );
   }
   options.set(name, path.resolve(args[index + 1]));
 }
@@ -29,24 +34,69 @@ for (const required of ["--output-dir", "--kenney-root", "--brackeys-root"]) {
 const particleVfxDir = options.get("--output-dir");
 const repositoryRoot = path.resolve(workspaceRoot, "../..");
 const includedRoot = path.join(repositoryRoot, "content/included");
-if (particleVfxDir === includedRoot || particleVfxDir.startsWith(`${includedRoot}${path.sep}`)) {
-  throw new Error("Choose a staging directory outside content/included; review outputs before copying.");
+if (
+  particleVfxDir === includedRoot ||
+  particleVfxDir.startsWith(`${includedRoot}${path.sep}`)
+) {
+  throw new Error(
+    "Choose a staging directory outside content/included; review outputs before copying.",
+  );
 }
 // Refuse an existing destination to preserve prior results and unrelated files.
 await fs.mkdir(particleVfxDir, { recursive: false });
 const textureDir = path.join(particleVfxDir, "textures");
 const textureManifestPath = path.join(particleVfxDir, "textureManifest.ts");
-const kenneyTransparentDir = path.join(options.get("--kenney-root"), "PNG (Transparent)");
-const brackeysAlphaDir = path.join(options.get("--brackeys-root"), "particles/alpha");
-const brackeysFlipbookDir = path.join(options.get("--brackeys-root"), "flipbooks");
-const brackeysPredrawnDir = path.join(options.get("--brackeys-root"), "predrawn");
+const kenneyTransparentDir = path.join(
+  options.get("--kenney-root"),
+  "PNG (Transparent)",
+);
+const brackeysAlphaDir = path.join(
+  options.get("--brackeys-root"),
+  "particles/alpha",
+);
+const brackeysFlipbookDir = path.join(
+  options.get("--brackeys-root"),
+  "flipbooks",
+);
+const brackeysPredrawnDir = path.join(
+  options.get("--brackeys-root"),
+  "predrawn",
+);
 const runtimeTextureSize = 256;
 
 const TEXTURE_MANIFEST = [
-  manifestTexture("soft-dot", "Soft Dot", "soft-dot.png", "glow", "additive", 0),
-  manifestTexture("glow-soft", "Glow Soft", "glow-soft.png", "glow", "additive", 0),
-  manifestTexture("glow-sharp", "Glow Sharp", "glow-sharp.png", "glow", "additive", 0),
-  manifestTexture("flare-star", "Flare Star", "flare-star.png", "glow", "additive", 0),
+  manifestTexture(
+    "soft-dot",
+    "Soft Dot",
+    "soft-dot.png",
+    "glow",
+    "additive",
+    0,
+  ),
+  manifestTexture(
+    "glow-soft",
+    "Glow Soft",
+    "glow-soft.png",
+    "glow",
+    "additive",
+    0,
+  ),
+  manifestTexture(
+    "glow-sharp",
+    "Glow Sharp",
+    "glow-sharp.png",
+    "glow",
+    "additive",
+    0,
+  ),
+  manifestTexture(
+    "flare-star",
+    "Flare Star",
+    "flare-star.png",
+    "glow",
+    "additive",
+    0,
+  ),
   manifestTexture(
     "brackeys-flare",
     "Flare",
@@ -55,7 +105,15 @@ const TEXTURE_MANIFEST = [
     "additive",
     0,
   ),
-  manifestTexture("fire-8x8", "Fire 8x8", "fire-8x8.png", "glow", "additive", 0, atlas(8, 8, 64)),
+  manifestTexture(
+    "fire-8x8",
+    "Fire 8x8",
+    "fire-8x8.png",
+    "glow",
+    "additive",
+    0,
+    atlas(8, 8, 64),
+  ),
   manifestTexture(
     "flame-16x4",
     "Flame 16x4",
@@ -91,8 +149,22 @@ const TEXTURE_MANIFEST = [
   ),
 
   manifestTexture("sparkle", "Sparkle", "sparkle.png", "spark", "additive", 0),
-  manifestTexture("spark-cross", "Spark Cross", "spark-cross.png", "spark", "additive", 0),
-  manifestTexture("spark-dot", "Spark Dot", "spark-dot.png", "spark", "additive", 0),
+  manifestTexture(
+    "spark-cross",
+    "Spark Cross",
+    "spark-cross.png",
+    "spark",
+    "additive",
+    0,
+  ),
+  manifestTexture(
+    "spark-dot",
+    "Spark Dot",
+    "spark-dot.png",
+    "spark",
+    "additive",
+    0,
+  ),
   manifestTexture(
     "spark-streak",
     "Spark Streak",
@@ -127,9 +199,30 @@ const TEXTURE_MANIFEST = [
     1,
   ),
 
-  manifestTexture("smoke-puff", "Smoke Puff", "smoke-puff.png", "smoke", "normal", 0),
-  manifestTexture("smoke-wisp", "Smoke Wisp", "smoke-wisp.png", "smoke", "normal", 0),
-  manifestTexture("dust-soft", "Dust Soft", "dust-soft.png", "smoke", "normal", 0),
+  manifestTexture(
+    "smoke-puff",
+    "Smoke Puff",
+    "smoke-puff.png",
+    "smoke",
+    "normal",
+    0,
+  ),
+  manifestTexture(
+    "smoke-wisp",
+    "Smoke Wisp",
+    "smoke-wisp.png",
+    "smoke",
+    "normal",
+    0,
+  ),
+  manifestTexture(
+    "dust-soft",
+    "Dust Soft",
+    "dust-soft.png",
+    "smoke",
+    "normal",
+    0,
+  ),
   manifestTexture(
     "brackeys-smoke",
     "Smoke",
@@ -138,7 +231,15 @@ const TEXTURE_MANIFEST = [
     "normal",
     0,
   ),
-  manifestTexture("smoke-8x8", "Smoke 8x8", "smoke-8x8.png", "smoke", "normal", 0, atlas(8, 8, 64)),
+  manifestTexture(
+    "smoke-8x8",
+    "Smoke 8x8",
+    "smoke-8x8.png",
+    "smoke",
+    "normal",
+    0,
+    atlas(8, 8, 64),
+  ),
   manifestTexture(
     "kenney-smoke-wisp",
     "Kenney Smoke Wisp",
@@ -156,14 +257,42 @@ const TEXTURE_MANIFEST = [
     "additive",
     1,
   ),
-  manifestTexture("slash-arc", "Slash Arc", "slash-arc.png", "trail", "additive", 1),
-  manifestTexture("speed-line", "Speed Line", "speed-line.png", "trail", "additive", 1),
+  manifestTexture(
+    "slash-arc",
+    "Slash Arc",
+    "slash-arc.png",
+    "trail",
+    "additive",
+    1,
+  ),
+  manifestTexture(
+    "speed-line",
+    "Speed Line",
+    "speed-line.png",
+    "trail",
+    "additive",
+    1,
+  ),
 
   manifestTexture("heart", "Heart", "heart.png", "symbol", "additive", 0),
   manifestTexture("star", "Star", "star.png", "symbol", "additive", 0),
   manifestTexture("cloud", "Cloud", "cloud.png", "symbol", "normal", 0),
-  manifestTexture("raindrop", "Raindrop", "raindrop.png", "symbol", "normal", 0),
-  manifestTexture("question", "Question", "question.png", "symbol", "additive", 0),
+  manifestTexture(
+    "raindrop",
+    "Raindrop",
+    "raindrop.png",
+    "symbol",
+    "normal",
+    0,
+  ),
+  manifestTexture(
+    "question",
+    "Question",
+    "question.png",
+    "symbol",
+    "additive",
+    0,
+  ),
   manifestTexture(
     "exclamation",
     "Exclamation",
@@ -174,10 +303,38 @@ const TEXTURE_MANIFEST = [
   ),
   manifestTexture("zzz", "Zzz", "zzz.png", "symbol", "additive", 0),
   manifestTexture("star-v2", "Star-v2", "star-v2.png", "symbol", "additive", 0),
-  manifestTexture("heart-v2", "Heart-v2", "heart-v2.png", "symbol", "additive", 0),
-  manifestTexture("magic-ring", "Magic Ring", "magic-ring.png", "symbol", "additive", 0),
-  manifestTexture("rune-circle", "Rune Circle", "rune-circle.png", "symbol", "additive", 0),
-  manifestTexture("shock-ring", "Shock Ring", "shock-ring.png", "symbol", "additive", 0),
+  manifestTexture(
+    "heart-v2",
+    "Heart-v2",
+    "heart-v2.png",
+    "symbol",
+    "additive",
+    0,
+  ),
+  manifestTexture(
+    "magic-ring",
+    "Magic Ring",
+    "magic-ring.png",
+    "symbol",
+    "additive",
+    0,
+  ),
+  manifestTexture(
+    "rune-circle",
+    "Rune Circle",
+    "rune-circle.png",
+    "symbol",
+    "additive",
+    0,
+  ),
+  manifestTexture(
+    "shock-ring",
+    "Shock Ring",
+    "shock-ring.png",
+    "symbol",
+    "additive",
+    0,
+  ),
 ];
 
 const RUNTIME_TEXTURES = [
@@ -541,7 +698,9 @@ async function readTgaRgba(filePath) {
 function textureManifestSource() {
   return `${textureManifestHeader()}${TEXTURE_MANIFEST.map(
     formatManifestTexture,
-  ).join("")}] as const satisfies readonly ParticleVFXEditorTextureManifestEntry[];
+  ).join(
+    "",
+  )}] as const satisfies readonly ParticleVFXEditorTextureManifestEntry[];
 
 function texture(
   id: string,

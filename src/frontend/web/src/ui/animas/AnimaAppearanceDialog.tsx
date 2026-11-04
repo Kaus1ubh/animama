@@ -1,5 +1,3 @@
-"use client";
-
 import { LoaderCircle, RotateCcw, Trash2, Upload } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";

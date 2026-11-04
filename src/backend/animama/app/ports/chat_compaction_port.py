@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Protocol
 
-from ...domain.chat_compaction import ChatCompaction
+from animama.domain.chat_compaction import ChatCompaction
 
 
 class ChatCompactionRepository(Protocol):

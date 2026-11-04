@@ -15,7 +15,7 @@ from collections.abc import Iterator, Mapping
 from pathlib import Path
 from typing import Any
 
-from ..core.inputs import EvalInputError
+from scripts.evals.core.inputs import EvalInputError
 
 __all__ = ["MANIFEST", "RUN_SCHEMA", "TURNS", "RunDirectory", "read_turns", "write_json"]
 

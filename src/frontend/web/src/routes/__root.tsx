@@ -9,13 +9,13 @@ import {
   notFound,
 } from "@tanstack/react-router";
 import { getI18n, useTranslation } from "react-i18next";
-import { RouteView } from "@web/app/components/RouteView";
-import type { AppRouterContext } from "@web/app/router-context";
-import { useRuntimeAdmission } from "@web/app/runtime/RuntimeAdmissionProvider";
+import { RouteView } from "@/app/components/RouteView";
+import type { AppRouterContext } from "@/app/router-context";
+import { useRuntimeAdmission } from "@/app/runtime/RuntimeAdmissionProvider";
 import {
   unavailableReasonText,
   unavailableRouteReason,
-} from "@web/app/runtime/route-admission";
+} from "@/app/runtime/route-admission";
 
 function RootLayout() {
   const { t } = useTranslation("app");

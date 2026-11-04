@@ -21,7 +21,7 @@ FORBIDDEN = ("animama.local", "animama.server", "animama.runtime", "animama.logg
 class RejectLocalImports(importlib.abc.MetaPathFinder):
     """Make accidental local-composition imports fail even when files are installed."""
 
-    def find_spec(self, fullname, path=None, target=None):  # noqa: ANN001
+    def find_spec(self, fullname, path=None, target=None):
         if any(fullname == name or fullname.startswith(name + ".") for name in FORBIDDEN):
             raise ImportError(f"Shared consumer imported local composition: {fullname}")
         return None

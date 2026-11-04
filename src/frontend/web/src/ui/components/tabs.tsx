@@ -1,6 +1,5 @@
 // Adapted from shadcn/ui (MIT): apps/www/registry/new-york/ui/tabs.tsx.
 // See licenses/third-party/adapted-code.md.
-"use client";
 
 import * as React from "react";
 import * as TabsPrimitive from "@radix-ui/react-tabs";

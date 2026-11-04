@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
-import { useOptionalRuntimeSetupPending } from "@web/app/runtime/RuntimeAdmissionProvider";
+import { useOptionalRuntimeSetupPending } from "@/app/runtime/RuntimeAdmissionProvider";
 import { useOptionalAppShell } from "@/ui/app/AppShell";
 import { AppShellPage } from "@/ui/app/AppShellPage";
 import { Button } from "@/ui/components/button";

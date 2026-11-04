@@ -5,6 +5,7 @@ from typing import Any
 
 import httpx2
 
+from animama.adapters.model_clients._common import jsonable, openai_cache_breakpoint_text_part
 from animama.app.model_catalog import STRUCTURED_OUTPUT_TRANSPORT_JSON_OBJECT
 from animama.app.model_clients import ModelClientProviderError, ModelClientRequest
 from animama.app.model_clients.prompt import prompt_messages
@@ -16,8 +17,6 @@ from animama.domain.model_connection import (
     REASONING_MODE_OMIT,
     ModelConnectionCompatibility,
 )
-
-from .._common import jsonable, openai_cache_breakpoint_text_part
 
 # Explicit breakpoints on the latest replies in history. The previous reply
 # reads the entry the last request wrote; the latest reply writes the next one.

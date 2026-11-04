@@ -880,7 +880,7 @@ async def test_chat_manager_active_context_uses_the_last_request_footprint(async
     manager = _chat_manager(async_session)
     await manager.ensure_owned_chat(anima_id="anima-chat-context", chat_id="chat-context-1", user_id="user-1")
 
-    def _message(role: MessageRole, *, data=None, usage=None) -> ChatMessage:  # noqa: ANN001
+    def _message(role: MessageRole, *, data=None, usage=None) -> ChatMessage:
         return ChatMessage(
             id=None,
             chat_id="chat-context-1",

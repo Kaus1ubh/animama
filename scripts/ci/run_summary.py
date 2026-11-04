@@ -64,7 +64,7 @@ def render(
             lines += [f"Job wall-clock before the gate: **{wall / 60:.1f} min**.", ""]
         lines += ["| Step | Result | Seconds |", "| --- | --- | ---: |"]
         lines += [f"| {row['name']} | {row['result']} | {row['seconds']} |" for row in rows]
-    except Exception:  # noqa: BLE001 - timings are informational; never print transport details.
+    except Exception:  # Timings are informational; never print transport details.
         lines += ["Step timings unavailable; command receipts follow.", "", "| Check | Result | Seconds |"]
         lines += ["| --- | --- | ---: |"]
         lines += [f"| {check['id']} | {check['status']} | {check['duration_seconds']} |" for check in checks]

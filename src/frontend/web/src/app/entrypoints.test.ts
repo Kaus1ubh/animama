@@ -23,8 +23,8 @@ describe("application entrypoints", () => {
       "@fontsource-variable/dm-sans",
       "react",
       "react-dom/client",
-      "@web/i18n/locale-preference",
-      "@web/i18n/web-i18n",
+      "@/i18n/locale-preference",
+      "@/i18n/web-i18n",
       "./i18n/locale-preference",
       "./i18n/web-i18n",
       "@animama/product-ui/styles.css",
@@ -40,7 +40,7 @@ describe("application entrypoints", () => {
       expect(staticImports.length).toBeGreaterThan(0);
       for (const specifier of staticImports)
         expect(allowed, specifier).toContain(specifier);
-      expect(entry).toMatch(/import\("(?:@web|\.)\/app\/router"\)/);
+      expect(entry).toMatch(/import\("(?:@|\.)\/app\/router"\)/);
       // Stylesheet order matches the static graph before i18n moved first:
       // product UI, then the app's own CSS, whose utilities must win.
       expect(

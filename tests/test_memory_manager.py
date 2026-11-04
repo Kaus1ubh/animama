@@ -135,14 +135,14 @@ def _user(user_id: str) -> RequestPrincipal:
     return RequestPrincipal(id=user_id)
 
 
-def _memory_entry_service(async_session) -> MemoryEntryService:  # noqa: ANN001
+def _memory_entry_service(async_session) -> MemoryEntryService:
     return MemoryEntryService(
         memory_entries=SQLAlchemyMemoryEntryRepository(async_session),
         uow=SQLAlchemyUnitOfWork(async_session),
     )
 
 
-def _episode_service(async_session) -> MemoryEpisodeService:  # noqa: ANN001
+def _episode_service(async_session) -> MemoryEpisodeService:
     return MemoryEpisodeService(
         memory_episodes=SQLAlchemyMemoryEpisodeRepository(async_session),
         memory_entries=_memory_entry_service(async_session),
@@ -855,7 +855,7 @@ class _ChainedAutoApprovalRuntime:
     name = "chained_auto_approval_test"
     model_provider_id: str | None = None
 
-    async def for_run(self, run: MemoryManagerRun):  # noqa: ANN201
+    async def for_run(self, run: MemoryManagerRun):
         del run
         return self
 
@@ -930,7 +930,7 @@ class _TerminalMemoryManagerRuntime:
     name = "terminal_test"
     model_provider_id: str | None = None
 
-    async def for_run(self, run: MemoryManagerRun):  # noqa: ANN201
+    async def for_run(self, run: MemoryManagerRun):
         del run
         return self
 
@@ -1850,7 +1850,7 @@ async def test_undo_rolls_back_entry_and_approval_when_version_append_fails(
     )
     original_append = SQLAlchemyMemoryEntryRepository.append_version
 
-    async def fail_undo_append(self, version):  # noqa: ANN001
+    async def fail_undo_append(self, version):
         if version.operation == "undo":
             raise RuntimeError("undo version append failed")
         return await original_append(self, version)
@@ -1987,7 +1987,7 @@ async def test_revert_rolls_back_current_entry_when_version_append_fails(
     applied_description = profile.description
     original_append = repository.append_version
 
-    async def fail_revert_append(version):  # noqa: ANN001
+    async def fail_revert_append(version):
         if version.operation == "revert":
             raise RuntimeError("revert version append failed")
         return await original_append(version)
@@ -2467,7 +2467,7 @@ async def test_openai_agents_runtime_blocks_after_invalid_patch_exhaustion(
     class _State:
         rejected = 0
 
-        def reject(self, interruption, *, rejection_message: str) -> None:  # noqa: ANN001
+        def reject(self, interruption, *, rejection_message: str) -> None:
             assert interruption is invalid
             assert rejection_message
             self.rejected += 1
@@ -2487,7 +2487,7 @@ async def test_openai_agents_runtime_blocks_after_invalid_patch_exhaustion(
     class _InvalidRunner:
         calls = 0
 
-        async def resume_state(self, **kwargs):  # noqa: ANN003
+        async def resume_state(self, **kwargs):
             assert kwargs["state"] is state
             self.calls += 1
             return output
@@ -2528,7 +2528,7 @@ async def test_openai_agents_runtime_classifies_turn_exhaustion_as_blocked(
     )
 
     class _TurnLimitRunner:
-        async def run(self, **kwargs):  # noqa: ANN003
+        async def run(self, **kwargs):
             del kwargs
             raise MaxTurnsExceeded("turn limit")
 
@@ -2555,7 +2555,7 @@ async def test_openai_agents_runtime_classifies_turn_exhaustion_as_blocked(
 async def test_openai_agents_runner_forwards_responses_continuation(monkeypatch: pytest.MonkeyPatch) -> None:
     captured: dict[str, object] = {}
 
-    async def fake_run(starting_agent, input_value, **kwargs):  # noqa: ANN001, ANN003
+    async def fake_run(starting_agent, input_value, **kwargs):
         captured.update(
             {
                 "starting_agent": starting_agent,
@@ -2637,7 +2637,7 @@ class _SequencedAgentsRunner:
         self._response_ids = iter(response_ids)
         self.calls: list[dict[str, object]] = []
 
-    async def run(self, **kwargs) -> OpenAIAgentsRunOutput:  # noqa: ANN003
+    async def run(self, **kwargs) -> OpenAIAgentsRunOutput:
         self.calls.append(dict(kwargs))
         response_id = next(self._response_ids)
         return OpenAIAgentsRunOutput(
@@ -2722,7 +2722,7 @@ async def test_memory_manager_chains_only_latest_user_message_and_persists_curso
 
 
 class _ExpiredCursorRunner:
-    async def run(self, **kwargs):  # noqa: ANN003
+    async def run(self, **kwargs):
         del kwargs
         response = httpx2.Response(
             400,
@@ -2788,7 +2788,7 @@ async def test_memory_manager_expired_cursor_fails_with_recovery_code(
 
 
 class _ApprovalResumeState:
-    def __init__(self, interruption) -> None:  # noqa: ANN001
+    def __init__(self, interruption) -> None:
         self._interruption = interruption
         self.decision: str | None = None
         self.rejection_message: str | None = None
@@ -2796,11 +2796,11 @@ class _ApprovalResumeState:
     def get_interruptions(self):
         return [self._interruption]
 
-    def approve(self, interruption) -> None:  # noqa: ANN001
+    def approve(self, interruption) -> None:
         assert interruption is self._interruption
         self.decision = "approve"
 
-    def reject(self, interruption, *, rejection_message: str) -> None:  # noqa: ANN001
+    def reject(self, interruption, *, rejection_message: str) -> None:
         assert interruption is self._interruption
         assert "rejected" in rejection_message
         self.decision = "reject"
@@ -2813,12 +2813,12 @@ class _ApprovalResumeRunner:
         self.loaded_serialized_state: str | None = None
         self.resume_kwargs: dict[str, object] | None = None
 
-    async def load_state(self, **kwargs):  # noqa: ANN003
+    async def load_state(self, **kwargs):
         self.loaded_serialized_state = kwargs["serialized_state"]
         self.load_kwargs = dict(kwargs)
         return self.state
 
-    async def resume_state(self, **kwargs) -> OpenAIAgentsRunOutput:  # noqa: ANN003
+    async def resume_state(self, **kwargs) -> OpenAIAgentsRunOutput:
         self.resume_kwargs = dict(kwargs)
         return OpenAIAgentsRunOutput(
             final_output="Approval decision recorded.",
@@ -2906,7 +2906,7 @@ class _FailingMemoryManagerRuntime:
     name = "failing_test"
     model_provider_id: str | None = None
 
-    async def for_run(self, run: MemoryManagerRun):  # noqa: ANN201
+    async def for_run(self, run: MemoryManagerRun):
         del run
         return self
 
@@ -3069,7 +3069,7 @@ async def test_chat_completions_manager_replays_the_run_and_previews_function_to
     seen: dict[str, Any] = {}
 
     class _Runner:
-        async def run(self, **kwargs):  # noqa: ANN003
+        async def run(self, **kwargs):
             seen.update(kwargs)
             return OpenAIAgentsRunOutput(
                 final_output=None,
@@ -3269,7 +3269,7 @@ async def test_responses_manager_replays_the_run_when_it_has_no_cursor(
     seen: dict[str, Any] = {}
 
     class _Runner:
-        async def run(self, **kwargs):  # noqa: ANN003
+        async def run(self, **kwargs):
             seen.update(kwargs)
             return OpenAIAgentsRunOutput(
                 final_output="Noted.",
@@ -3321,22 +3321,22 @@ class _PinnedModelGoneRuntime(_ChainedAutoApprovalRuntime):
     name = "pinned_model_gone_test"
     model_provider_id = "OpenAIHTTPAgent:removed-manager"
 
-    def __init__(self, **kwargs) -> None:  # noqa: ANN003
+    def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
         self.gone = False
         self.resumed = False
 
-    async def for_run(self, run: MemoryManagerRun):  # noqa: ANN201
+    async def for_run(self, run: MemoryManagerRun):
         if self.gone and run.model_provider_id == self.model_provider_id:
             raise MemoryManagerPinnedModelUnavailableError()
         return self
 
-    async def resume_approval_decision(self, **kwargs) -> MemoryManagerRuntimeResult:  # noqa: ANN003
+    async def resume_approval_decision(self, **kwargs) -> MemoryManagerRuntimeResult:
         self.resumed = True
         return await super().resume_approval_decision(**kwargs)
 
 
-async def _pending_pinned_approval(async_session):  # noqa: ANN001, ANN202
+async def _pending_pinned_approval(async_session):
     user_id = f"user-{uuid.uuid4()}"
     memory_entries = _memory_entry_service(async_session)
     runtime = _PinnedModelGoneRuntime(user_id=user_id, memory_entries=memory_entries, total=1)
@@ -3391,7 +3391,7 @@ class _ModelProviders:
         return self._rows.get(model_provider_id)
 
 
-def _pinned_runtime(user_id: str, async_session, role_row: ModelProvider, *rows: ModelProvider):  # noqa: ANN001, ANN202
+def _pinned_runtime(user_id: str, async_session, role_row: ModelProvider, *rows: ModelProvider):
     return OpenAIAgentsMemoryManagerRuntime(
         user_id=user_id,
         memory_entries=_memory_entry_service(async_session),
@@ -3443,7 +3443,7 @@ class _RowReportingRuntime(_TerminalMemoryManagerRuntime):
     def model_provider_id(self) -> str | None:  # type: ignore[override]
         return self.row
 
-    async def run_user_message(self, **kwargs) -> MemoryManagerRuntimeResult:  # noqa: ANN003
+    async def run_user_message(self, **kwargs) -> MemoryManagerRuntimeResult:
         result = await super().run_user_message(**kwargs)
         result.metadata = {"model_provider_id": self.row}
         return result
@@ -3474,16 +3474,16 @@ class _ResumeElsewhereRuntime(_ChainedAutoApprovalRuntime):
 
     name = "resume_elsewhere_test"
 
-    def __init__(self, **kwargs) -> None:  # noqa: ANN003
+    def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
         self.resumer: _ResumeElsewhereRuntime | None = None
         self.resumed = False
 
-    async def for_run(self, run: MemoryManagerRun):  # noqa: ANN201
+    async def for_run(self, run: MemoryManagerRun):
         del run
         return self.resumer or self
 
-    async def resume_approval_decision(self, **kwargs) -> MemoryManagerRuntimeResult:  # noqa: ANN003
+    async def resume_approval_decision(self, **kwargs) -> MemoryManagerRuntimeResult:
         self.resumed = True
         return await super().resume_approval_decision(**kwargs)
 
@@ -3531,7 +3531,7 @@ async def test_a_pinned_model_without_its_key_is_reported_before_the_decision(as
 # Automatic episode processing (spec #775, R6, R7 and R10).
 
 
-def _automatic_service(async_session, *, user_id: str, runtime: Any) -> MemoryManagerService:  # noqa: ANN001
+def _automatic_service(async_session, *, user_id: str, runtime: Any) -> MemoryManagerService:
     uow = SQLAlchemyUnitOfWork(async_session)
     memory_entries = MemoryEntryService(
         memory_entries=SQLAlchemyMemoryEntryRepository(async_session),
@@ -3552,7 +3552,7 @@ def _automatic_service(async_session, *, user_id: str, runtime: Any) -> MemoryMa
     )
 
 
-async def _pending_episode(async_session, user_id: str, text: str = "Sam adopted a cat named Pickle.") -> str:  # noqa: ANN001
+async def _pending_episode(async_session, user_id: str, text: str = "Sam adopted a cat named Pickle.") -> str:
     item = await _episode_service(async_session).create_episode_item(
         user_id=user_id,
         source_chat_id=f"chat-{uuid.uuid4()}",
@@ -3966,7 +3966,7 @@ class _LockProbingRuntime(_TerminalMemoryManagerRuntime):
                     .with_for_update(nowait=True)
                 )
                 self.locked_during_resume.append(False)
-            except Exception:  # noqa: BLE001 - any lock error means the row was still held
+            except Exception:  # Any lock error means the row was still held
                 self.locked_during_resume.append(True)
             finally:
                 await probe.rollback()

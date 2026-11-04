@@ -75,8 +75,8 @@ async def run(reads: int, root: Path) -> None:
     from testcontainers.postgres import PostgresContainer
 
     import animama
-    import animama.local.installation_model  # noqa: F401 (local schema registration)
-    import animama.orm  # noqa: F401 (shared schema registration)
+    import animama.local.installation_model  # Local schema registration
+    import animama.orm  # Shared schema registration
     from animama.adapters.repositories.sqlalchemy.content_catalog_repo import SQLAlchemyContentCatalog
     from animama.app.services.content_catalog_service import ContentCatalogService
     from animama.domain.request_principal import RequestPrincipal

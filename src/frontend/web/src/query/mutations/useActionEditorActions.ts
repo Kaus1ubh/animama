@@ -1,5 +1,3 @@
-"use client";
-
 import { contentSlug } from "@/lib/content/nameIdentifiers";
 import { useProductApiClient } from "@animama/product-ui";
 

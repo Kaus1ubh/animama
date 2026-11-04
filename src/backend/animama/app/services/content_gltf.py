@@ -138,29 +138,6 @@ def canonicalize_vrma_stream(
     )
 
 
-def validate_vrma_stream(
-    *,
-    content: BinaryIO,
-    size_bytes: int,
-) -> tuple[str, dict[str, Any]]:
-    """Validate one VRMA source and return detected media type plus safe facts."""
-
-    canonical = canonicalize_vrma_stream(content=content, size_bytes=size_bytes)
-    return (
-        "model/gltf-binary",
-        {
-            "container": canonical.source_container,
-            "vrm_animation": True,
-            "spec_version": "1.0",
-            "animation_count": 1,
-            "node_count": canonical.node_count,
-            "track_count": canonical.track_count,
-            "keyframe_count": canonical.keyframe_count,
-            "duration_seconds": canonical.duration_seconds,
-        },
-    )
-
-
 def validate_vrm_stream(
     *,
     content: BinaryIO,
@@ -1055,5 +1032,4 @@ __all__ = [
     "MAX_VRMA_NODES",
     "canonicalize_vrma_stream",
     "validate_vrm_stream",
-    "validate_vrma_stream",
 ]

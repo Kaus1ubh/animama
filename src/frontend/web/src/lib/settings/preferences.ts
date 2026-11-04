@@ -6,6 +6,7 @@ import type {
   DesktopShortcut,
   DesktopShortcutAction,
 } from "@/lib/settings/desktop-shortcuts";
+import { isRecord } from "@/lib/records";
 
 export type PreferenceToggleSection = {
   disable_influence?: boolean;
@@ -182,10 +183,6 @@ export const DEFAULT_ANIMAMA_PREFERENCES: SettingsPreferences = {
     disable_vfx: false,
   },
 };
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
-}
 
 function mergeSection(
   base: Record<string, unknown>,

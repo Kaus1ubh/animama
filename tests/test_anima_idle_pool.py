@@ -30,12 +30,12 @@ CLIP = json.dumps(anima_clip(clip_id="idle", name="Idle", duration=2)).encode()
 
 
 class _Store:
-    def open_verified_file(self, **facts):  # noqa: ANN003, ANN202
+    def open_verified_file(self, **facts):
         return VerifiedContentFile(BytesIO(CLIP), len(CLIP), facts["expected_sha256"], facts["media_type"])
 
 
 async def _idle_gesture(
-    session,  # noqa: ANN001
+    session,
     fixture: LoadoutFixture,
     name: str,
     *,
@@ -98,7 +98,7 @@ async def _change(
 
 
 @pytest.mark.asyncio
-async def test_idle_pool_members_are_added_and_removed_per_cell(async_session) -> None:  # noqa: ANN001
+async def test_idle_pool_members_are_added_and_removed_per_cell(async_session) -> None:
     fixture = await create_loadout_fixture(async_session)
     breathe = await _idle_gesture(async_session, fixture, "Breathe")
     sway = await _idle_gesture(async_session, fixture, "Sway")
@@ -139,7 +139,7 @@ async def test_idle_pool_members_are_added_and_removed_per_cell(async_session) -
 
 
 @pytest.mark.asyncio
-async def test_invalid_idle_additions_are_rejected_without_a_revision(async_session) -> None:  # noqa: ANN001
+async def test_invalid_idle_additions_are_rejected_without_a_revision(async_session) -> None:
     fixture = await create_loadout_fixture(async_session)
     breathe = await _idle_gesture(async_session, fixture, "Breathe")
     endless = await _idle_gesture(async_session, fixture, "Endless", config={"loop": True})
@@ -188,7 +188,7 @@ async def test_invalid_idle_additions_are_rejected_without_a_revision(async_sess
 
 @pytest.mark.asyncio
 async def test_unavailable_member_stays_visible_and_removable_and_pooled_gestures_are_in_use(
-    async_session,  # noqa: ANN001
+    async_session,
 ) -> None:
     fixture = await create_loadout_fixture(async_session)
     breathe = await _idle_gesture(async_session, fixture, "Breathe")
@@ -242,7 +242,7 @@ def test_idle_intent_has_no_whole_pool_operation_and_needs_a_complete_target() -
 
 
 @pytest.mark.asyncio
-async def test_runtime_selects_one_idle_root_per_gesture_ahead_of_ai_gestures(async_session) -> None:  # noqa: ANN001
+async def test_runtime_selects_one_idle_root_per_gesture_ahead_of_ai_gestures(async_session) -> None:
     fixture = await create_loadout_fixture(async_session)
     breathe = await _idle_gesture(async_session, fixture, "Breathe")
     wave = await _idle_gesture(async_session, fixture, "Wave")
@@ -273,9 +273,7 @@ async def test_runtime_selects_one_idle_root_per_gesture_ahead_of_ai_gestures(as
         )
         visible = await SQLAlchemyContentCatalog(async_session).list_visible(user_id=fixture.user_id)
 
-        selected = await AnimaRuntimeService(async_session)._selections(  # noqa: SLF001
-            anima_id=fixture.anima_id, visible=visible
-        )
+        selected = await AnimaRuntimeService(async_session)._selections(anima_id=fixture.anima_id, visible=visible)
 
         # Keep only this test's Gesture roots (the Avatar has its own).
         slots = [

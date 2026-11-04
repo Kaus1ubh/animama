@@ -16,7 +16,7 @@ from tests.content_package_helpers import package_services, reviewed_export, rev
 
 async def test_import_review_is_immutable_and_copies_again_without_reusing_content(
     async_session, tmp_path: Path
-) -> None:  # noqa: ANN001
+) -> None:
     paths, catalog, content, saves, packages = package_services(async_session, tmp_path)
     try:
         saved = await save_wave(saves)
@@ -66,7 +66,7 @@ async def test_import_review_is_immutable_and_copies_again_without_reusing_conte
 
 
 @pytest.mark.parametrize("drift", ["unregistered_file", "catalog_name", "sealed_archive"])
-async def test_commit_rejects_changed_review_without_replanning(async_session, tmp_path: Path, drift: str) -> None:  # noqa: ANN001
+async def test_commit_rejects_changed_review_without_replanning(async_session, tmp_path: Path, drift: str) -> None:
     paths, catalog, content, saves, packages = package_services(async_session, tmp_path)
     try:
         saved = await save_wave(saves)

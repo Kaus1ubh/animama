@@ -23,7 +23,7 @@ from tests.product_http_support import install_local_ports
 from tests.route_support import served_routes
 
 
-def _app(session, tmp_path, *, local: bool = True) -> FastAPI:  # noqa: ANN001
+def _app(session, tmp_path, *, local: bool = True) -> FastAPI:
     app = FastAPI()
     app.state.runtime_settings = Settings(
         animama_content_root=tmp_path / "content",
@@ -48,7 +48,7 @@ def _app(session, tmp_path, *, local: bool = True) -> FastAPI:  # noqa: ANN001
 
 
 @pytest.fixture(autouse=True)
-async def _clean_settings(async_session):  # noqa: ANN001
+async def _clean_settings(async_session):
     await async_session.execute(delete(ORMWebSearchSettings))
     await async_session.commit()
     yield

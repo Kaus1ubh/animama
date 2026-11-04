@@ -13,6 +13,7 @@ import {
 } from "../../poses/animaPoseClip";
 import { getAnimaPoseClipFadeDuration } from "../../poses/animaPoseClip/playback";
 import type { PreviewEffect, PreviewMedia } from "./previewMedia";
+import { isRecord } from "@/lib/records";
 
 /**
  * Sources the motion preview tool can play: clip files, creator project
@@ -429,8 +430,4 @@ async function isFile(file: string): Promise<boolean> {
   } catch {
     return false;
   }
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }

@@ -238,7 +238,7 @@ def test_sweep_rechecks_recovery_state_after_obtaining_stage_lock(
     now += timedelta(minutes=31)
     original = service._records
 
-    def finish_while_sweeper_reads(owner: str):  # noqa: ANN202
+    def finish_while_sweeper_reads(owner: str):
         stale = original(owner)
         lease.set_state("recovery_needed")
         lease.close()

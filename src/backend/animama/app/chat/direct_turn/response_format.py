@@ -8,6 +8,7 @@ from pydantic import BaseModel
 from animama.app.chat.anthropic_instructions import anthropic_main_structured_output_guidance
 from animama.app.chat.api_standard import ANTHROPIC_MESSAGES_PROVIDER_TYPE
 from animama.app.chat.memory_context import main_structured_output_guidance
+from animama.app.chat.options import DirectChatOptions
 from animama.app.main_structured_response import (
     MAIN_STRUCTURED_RESPONSE_FORMAT,
     MAIN_STRUCTURED_RESPONSE_KIND,
@@ -18,7 +19,6 @@ from animama.app.main_structured_response import (
 from animama.app.model_catalog import STRUCTURED_OUTPUT_TRANSPORT_JSON_OBJECT, STRUCTURED_OUTPUT_TRANSPORT_JSON_SCHEMA
 from animama.domain import ModelProvider
 
-from ..options import DirectChatOptions
 from .types import RuntimeGestureDescriptor
 
 

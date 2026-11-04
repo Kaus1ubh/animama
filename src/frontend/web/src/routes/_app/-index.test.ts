@@ -38,7 +38,7 @@ vi.mock("@/query/hooks/useUserSettings", () => ({
   useUserSettings: () => fixture.settings,
 }));
 
-vi.mock("@web/app/runtime/RuntimeAdmissionProvider", () => ({
+vi.mock("@/app/runtime/RuntimeAdmissionProvider", () => ({
   useRuntimeAdmission: () => ({
     admission: {
       status: "ready",

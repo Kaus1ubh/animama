@@ -1,3 +1,7 @@
+"""Records sanitized provider stream observations as a compact per-request summary for
+logs and turn metadata.
+"""
+
 from __future__ import annotations
 
 from collections.abc import Iterable, Mapping

@@ -18,24 +18,13 @@ import json
 import logging
 import os
 from datetime import date, datetime
-from typing import Any
-
-from animama.logging import AnimaLoggerAdapter, get_logger
-
-try:  # Python 3.9+
-    from zoneinfo import ZoneInfo
-
-    def _make_zoneinfo(name: str):
-        return ZoneInfo(name)
-except Exception:  # pragma: no cover - fallback for very old Pythons
-
-    def _make_zoneinfo(name: str):
-        return None
-
-
 from logging.config import dictConfig
 from logging.handlers import BaseRotatingHandler
 from pathlib import Path
+from typing import Any
+from zoneinfo import ZoneInfo
+
+from animama.logging import AnimaLoggerAdapter, get_logger
 
 _LOG_DIRECTORY_MODE = 0o775
 _LAST_FILE_LOG_DIR: str | None = None
@@ -124,12 +113,12 @@ def _get_log_timezone_name() -> str | None:
     return None
 
 
-def _get_log_timezone():
+def _get_log_timezone() -> ZoneInfo | None:
     name = _get_log_timezone_name()
     if not name:
         return None
     try:
-        return _make_zoneinfo(name)
+        return ZoneInfo(name)
     except Exception:
         # Invalid timezone string; fall back to local time
         return None
@@ -233,7 +222,7 @@ class ContextFormatter(logging.Formatter):
         extras_json = json.dumps(extras, ensure_ascii=False, sort_keys=True, indent=2)
         return f"{base}\n{extras_json}"
 
-    def formatTime(self, record: logging.LogRecord, datefmt: str | None = None) -> str:  # noqa: N802 - match logging API
+    def formatTime(self, record: logging.LogRecord, datefmt: str | None = None) -> str:  # Match logging API
         dt = _log_datetime_from_ts(record.created)
         if datefmt:
             return dt.strftime(datefmt)
@@ -269,10 +258,7 @@ class JsonFormatter(logging.Formatter):
         except Exception:
             pass
 
-        try:
-            timestamp = dt.isoformat(timespec="milliseconds")
-        except TypeError:  # pragma: no cover - Py<3.6 fallback
-            timestamp = dt.isoformat()
+        timestamp = dt.isoformat(timespec="milliseconds")
 
         payload: dict[str, Any] = {
             "timestamp": timestamp,

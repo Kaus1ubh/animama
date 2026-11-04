@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ....app.ports import UnitOfWork
-from ....logging import get_logger
+from animama.app.ports import UnitOfWork
+from animama.logging import get_logger
 
 
 class SQLAlchemyUnitOfWork(UnitOfWork):

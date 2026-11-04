@@ -3,10 +3,9 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import TYPE_CHECKING, Any
 
+from animama.domain.usage import Usage, UsageInputDetails, UsageOutputDetails
 from animama.logging import get_logger
 from animama.utils.type_helpers import coerce_optional_int
-
-from ...domain.usage import Usage, UsageInputDetails, UsageOutputDetails
 
 # Optional type imports for static typing without forcing runtime deps
 if TYPE_CHECKING:  # pragma: no cover - typing only

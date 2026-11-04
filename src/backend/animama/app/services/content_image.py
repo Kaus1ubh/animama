@@ -136,38 +136,6 @@ def validate_appearance_image_stream(
     return ContentFileValidation(detected, {"width": width, "height": height, "frame_count": frames})
 
 
-def validate_image_stream(
-    *,
-    extension: str,
-    content: BinaryIO,
-) -> ContentFileValidation:
-    """Decode one supported still source and return bounded detected metadata."""
-
-    image, source_format, source_width, source_height, frame_count = _open_bounded_image(
-        extension=extension,
-        content=content,
-    )
-    try:
-        _require_supported_frame_policy(source_format, frame_count)
-        image.seek(0)
-        image.load()
-    except ContentFileInvalidError:
-        raise
-    except (EOFError, OSError, ValueError, Image.DecompressionBombError) as exc:
-        raise ContentFileInvalidError(field="file", reason="invalid_image") from exc
-    finally:
-        image.close()
-    return ContentFileValidation(
-        _CONTENT_TYPE_BY_FORMAT[source_format],
-        {
-            "width": source_width,
-            "height": source_height,
-            "format": _SOURCE_CONTAINER_BY_FORMAT[source_format],
-            "frame_count": frame_count,
-        },
-    )
-
-
 def canonicalize_image_stream(
     *,
     extension: str,
@@ -454,5 +422,4 @@ __all__ = [
     "canonicalize_avatar_portrait",
     "canonicalize_image_stream",
     "derive_image_thumbnail",
-    "validate_image_stream",
 ]

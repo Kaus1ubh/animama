@@ -1,3 +1,7 @@
+"""Memory Manager domain types: runs, messages, approvals and patch previews, plus the
+private task state of episode-processing and Reflection runs.
+"""
+
 from __future__ import annotations
 
 import uuid

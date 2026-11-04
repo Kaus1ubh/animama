@@ -1,3 +1,7 @@
+"""The tracked emotions, their groups and value bounds, and helpers that normalize an
+Anima's emotional state and apply bounded sparse updates.
+"""
+
 from __future__ import annotations
 
 from collections import OrderedDict
@@ -40,7 +44,6 @@ TRACKED_EMOTIONS: tuple[str, ...] = tuple(
 )
 
 TRACKED_EMOTION_SET = frozenset(TRACKED_EMOTIONS)
-SELECTABLE_EMOTION_SET = frozenset((*TRACKED_EMOTIONS, NEUTRAL_EMOTION))
 EMOTION_ORDER_INDEX = {emotion: index for index, emotion in enumerate(TRACKED_EMOTIONS)}
 EMOTION_GROUP_ORDER_INDEX = {group: index for index, group in enumerate(EMOTION_GROUPS)}
 EMOTION_GROUP_BY_EMOTION = {emotion: group for group, members in EMOTION_GROUP_MEMBERS.items() for emotion in members}
@@ -53,18 +56,6 @@ OPPOSING_EMOTION_GROUPS: dict[str, str] = {
     "alarm": "drive",
     "esteem": "revulsion",
     "revulsion": "esteem",
-}
-
-# Existing animation assets still use the older high-level manifest lanes.
-MANIFEST_LANES_BY_EMOTION_GROUP: dict[str, tuple[str, ...]] = {
-    "affection": ("neutral",),
-    "esteem": ("neutral",),
-    "delight": ("joy",),
-    "drive": ("joy", "neutral"),
-    "alarm": ("fear",),
-    "rejection": ("angry",),
-    "revulsion": ("disgust",),
-    "gloom": ("sad",),
 }
 
 
@@ -135,22 +126,6 @@ def normalize_emotion_name(value: Any, *, allow_neutral: bool = False) -> str | 
     if allow_neutral and normalized == NEUTRAL_EMOTION:
         return normalized
     return None
-
-
-def normalize_emotion_group_name(value: Any) -> str | None:
-    if not isinstance(value, str):
-        return None
-    normalized = value.strip().lower()
-    if normalized in EMOTION_GROUP_ORDER_INDEX:
-        return normalized
-    return None
-
-
-def format_emotion_group_label(group: str | None) -> str:
-    normalized = normalize_emotion_group_name(group)
-    if normalized is None:
-        return "Neutral"
-    return normalized.replace("_", " ").title()
 
 
 def normalize_emotional_state(raw: Any) -> dict[str, int]:
@@ -226,27 +201,11 @@ def sort_emotions(items: Sequence[EmotionValue], *, descending: bool = True) -> 
     )
 
 
-def top_emotions(state: Any, *, limit: int = 3, include_zero: bool = False) -> list[EmotionValue]:
-    ranked = sort_emotions(ordered_emotion_values(state))
-    if not include_zero:
-        ranked = [item for item in ranked if item.value > 0]
-    if limit < 0:
-        return ranked
-    return ranked[:limit]
-
-
 def emotion_group_for_emotion(emotion: str | None) -> str | None:
     normalized = normalize_emotion_name(emotion)
     if normalized is None:
         return None
     return EMOTION_GROUP_BY_EMOTION.get(normalized)
-
-
-def emotion_group_members(group: str) -> tuple[str, ...]:
-    normalized = normalize_emotion_group_name(group)
-    if normalized is None:
-        return ()
-    return EMOTION_GROUP_MEMBERS.get(normalized, ())
 
 
 def ordered_emotion_group_summaries(state: Any, *, include_zero: bool = False) -> list[EmotionGroupSummary]:
@@ -282,56 +241,6 @@ def top_emotion_groups(state: Any, *, limit: int = 3, include_zero: bool = False
     if limit < 0:
         return ranked
     return ranked[:limit]
-
-
-def manifest_lanes_for_emotion_group(group: str | None) -> tuple[str, ...]:
-    normalized = normalize_emotion_group_name(group)
-    if normalized is None:
-        return ("neutral",)
-    return MANIFEST_LANES_BY_EMOTION_GROUP.get(normalized, ("neutral",))
-
-
-def primary_manifest_lane_for_emotion_group(group: str | None) -> str:
-    return manifest_lanes_for_emotion_group(group)[0]
-
-
-def primary_manifest_lane_for_emotion(emotion: str | None) -> str:
-    return primary_manifest_lane_for_emotion_group(emotion_group_for_emotion(emotion))
-
-
-def summarize_emotional_state(state: Any, *, limit: int = 8) -> str:
-    ranked = top_emotions(state, limit=limit)
-    if not ranked:
-        return f"- {NEUTRAL_EMOTION}: no active tracked emotions"
-    lines = []
-    for item in ranked:
-        level = emotion_value_level(item.value)
-        group = format_emotion_group_label(emotion_group_for_emotion(item.emotion))
-        lines.append(f"- {item.emotion}: {item.value}/30 (level {level}, {group})")
-    return "\n".join(lines)
-
-
-def summarize_emotion_groups(state: Any, *, limit: int = 4) -> str:
-    ranked = top_emotion_groups(state, limit=limit)
-    if not ranked:
-        return f"- {NEUTRAL_EMOTION}: no active emotion groups"
-    lines = []
-    for item in ranked:
-        peak = item.peak.emotion if item.peak is not None else NEUTRAL_EMOTION
-        peak_value = item.peak.value if item.peak is not None else 0
-        lines.append(
-            f"- {format_emotion_group_label(item.group)}: avg {item.average:.1f}/30 (peak {peak}={peak_value})"
-        )
-    return "\n".join(lines)
-
-
-def format_full_emotional_state(state: Any) -> str:
-    normalized = normalize_emotional_state(state)
-    lines = []
-    for group in EMOTION_GROUPS:
-        members = ", ".join(f"{emotion}={normalized[emotion]}" for emotion in EMOTION_GROUP_MEMBERS[group])
-        lines.append(f"{format_emotion_group_label(group)}: {members}")
-    return "\n".join(lines)
 
 
 def _normalize_raw_updates(raw_updates: Any) -> list[EmotionDelta]:
@@ -414,34 +323,22 @@ __all__ = [
     "EmotionDelta",
     "EmotionGroupSummary",
     "EmotionValue",
-    "MANIFEST_LANES_BY_EMOTION_GROUP",
     "NEUTRAL_EMOTION",
     "OPPOSING_EMOTION_GROUPS",
-    "SELECTABLE_EMOTION_SET",
     "TRACKED_EMOTIONS",
     "TRACKED_EMOTION_SET",
     "apply_sparse_updates",
     "clamp_emotion_value",
     "default_emotional_state",
     "emotion_group_for_emotion",
-    "emotion_group_members",
     "emotion_value_level",
     "emotion_values_payload",
     "emotional_state_from_values",
-    "format_emotion_group_label",
-    "format_full_emotional_state",
-    "manifest_lanes_for_emotion_group",
-    "normalize_emotion_group_name",
     "normalize_emotion_name",
     "normalize_emotional_state",
     "normalize_sparse_updates",
     "ordered_emotion_group_summaries",
     "ordered_emotion_values",
-    "primary_manifest_lane_for_emotion",
-    "primary_manifest_lane_for_emotion_group",
     "sort_emotions",
-    "summarize_emotion_groups",
-    "summarize_emotional_state",
     "top_emotion_groups",
-    "top_emotions",
 ]

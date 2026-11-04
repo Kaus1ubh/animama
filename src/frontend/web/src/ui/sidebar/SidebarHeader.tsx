@@ -1,5 +1,3 @@
-"use client";
-
 import { Logo, LogoMark } from "@/ui/components/logo";
 import { cn } from "@/lib/utils";
 import { useSidebar } from "@/ui/sidebar/Sidebar";

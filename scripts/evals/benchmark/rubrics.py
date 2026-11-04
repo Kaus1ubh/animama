@@ -14,7 +14,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from ..core.inputs import EvalInputError, read_json, require_unique, required_text
+from scripts.evals.core.inputs import EvalInputError, read_json, require_unique, required_text
 
 __all__ = [
     "JUDGED_KINDS",

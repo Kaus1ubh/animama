@@ -25,7 +25,7 @@ and refresh it from the issue before resuming. Do not edit the snapshot as a
 competing source of requirements.
 
 For routine work, the [task form](.github/ISSUE_TEMPLATE/task.yml) or
-[bug form](.github/ISSUE_TEMPLATE/local-bug.yml) may contain the whole spec and
+[bug form](.github/ISSUE_TEMPLATE/bug.yml) may contain the whole spec and
 brief approach. Reuse an existing agreed issue when the outcome still fits it;
 no extra draft or discovery interview is required.
 
@@ -61,7 +61,7 @@ section points to the authoritative issue after publication; a parent containing
 the spec says “This issue.” Retained draft files are snapshots, not a competing
 authority. ExecPlan sections link the tracked plan at the reviewed revision, or
 state “Not required” with the reason. For an existing private plan, state “Private
-plan retained by maintainers” without a private URL or path.
+plan retained by the maintainer” without a private URL or path.
 
 Use these sections in the draft and, after publication, in the owning issue. The
 YAML parent form presents the same concepts as entry fields. Agents creating or

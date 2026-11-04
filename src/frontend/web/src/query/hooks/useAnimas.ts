@@ -1,2 +1,2 @@
 /** Shared implementation is owned by the independently packed product package. */
-export * from "@animama/product-ui/query";
+export { useAnimas } from "@animama/product-ui/query";

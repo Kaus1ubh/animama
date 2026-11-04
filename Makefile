@@ -40,7 +40,7 @@ lint: ## Check Python lint rules.
 	uv run ruff check
 
 mypy: ## Check backend and test types.
-	uv run mypy src/backend/animama tests --exclude web-ui --exclude deprecated --exclude templates
+	uv run mypy src/backend/animama tests
 
 format: ## Format backend/tests and apply safe lint fixes.
 	uv run ruff format src/backend/animama tests

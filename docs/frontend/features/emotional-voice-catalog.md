@@ -20,7 +20,7 @@ Current files:
 - `src/frontend/web/src/lib/speech/pocket/catalog-builder.ts`
 - `src/frontend/web/public/tts/workers/inference-worker.js`
 - `src/frontend/web/src/lib/speech/pocket/anima-voice-selection.ts`
-- `src/frontend/web/src/hooks/use-tts-playback.ts`
+- `src/frontend/web/src/hooks/useTtsPlayback.ts`
 - `src/backend/animama/app/services/pocket_voice_catalog.py`
 - `src/backend/animama/app/services/voice_catalog_upload_service.py`
 

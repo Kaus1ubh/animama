@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from typing import Protocol
 
-from ...domain.avatar import Avatar
-from ...domain.content_catalog import CatalogContentEntry
+from animama.domain.avatar import Avatar
+from animama.domain.content_catalog import CatalogContentEntry
 
 
 class AvatarRepository(Protocol):

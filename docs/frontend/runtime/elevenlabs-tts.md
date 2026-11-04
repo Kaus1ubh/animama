@@ -9,8 +9,8 @@ the only ElevenLabs model.
 ElevenLabs is one of the supported TTS providers alongside browser speech
 synthesis and PocketTTS. The main runtime files are:
 
-- `src/frontend/web/src/hooks/use-tts-playback.ts`
-- `src/frontend/web/src/hooks/use-elevenlabs-tts-runtime.ts`
+- `src/frontend/web/src/hooks/useTtsPlayback.ts`
+- `src/frontend/web/src/hooks/useElevenLabsTtsRuntime.ts`
 - `src/frontend/web/src/ui/main/chat/useChatSession.ts`
 - `src/frontend/web/src/stores/avatar-lipsync-bridge-store.ts`
 
@@ -50,7 +50,7 @@ transport, and `sync_alignment`. Local sessions set `sync_alignment: true`, so
 ElevenLabs returns character timing with the audio. The runtime places it on the
 run clock (see [Provider character timing](#provider-character-timing)).
 
-The direct socket protocol (`use-elevenlabs-tts-runtime.ts`):
+The direct socket protocol (`useElevenLabsTtsRuntime.ts`):
 
 - The URL carries `model_id`, `output_format`, `sync_alignment`, an optional
   `language_code` and the single-use token. The voice is not in the path.

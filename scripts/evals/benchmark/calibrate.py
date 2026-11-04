@@ -24,7 +24,8 @@ from datetime import date
 from pathlib import Path
 from typing import Any
 
-from ..core.inputs import EvalInputError, read_json
+from scripts.evals.core.inputs import EvalInputError, read_json
+
 from .intervals import agreement_table
 from .judge import (
     EFFORTS,

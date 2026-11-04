@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Protocol
 
-from ...domain.settings import AnimaSettings, UserSettings
+from animama.domain.settings import AnimaSettings, UserSettings
 
 
 class UserSettingsRepository(Protocol):

@@ -1,5 +1,3 @@
-"use client";
-
 import type { SceneBackgroundFlashLayer } from "@/lib/scene-vfx/types";
 
 /**
