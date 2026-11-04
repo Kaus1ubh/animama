@@ -10,9 +10,11 @@ Authorized scope: the whole plan (G0 approved by the owner, 2026-11-03).
 
 ## Purpose and context
 
-One branch (`fix/pre-publication-hardening`) and one PR deliver five hardening
+One branch (`fix/pre-publication-hardening`) and one PR deliver four hardening
 changes before the repository is published. The spec owns the required
-behavior (R1 to R5); this plan owns how it is built and checked. Hosted CI
+behavior (R1 to R4); this plan owns how it is built and checked. Checks on
+downloaded update artifacts (formerly R5) are out of scope: no later desktop
+build checks for updates (Decision Log, 2026-11-04). Hosted CI
 (`Portable product validation`) stays disabled, so local checks are the
 evidence.
 
@@ -80,13 +82,6 @@ Orientation, by requirement:
   that send a key in a custom header: ElevenLabs (`xi-api-key`, over an httpx
   client with `follow_redirects=True`), the Anthropic SDK (`x-api-key`),
   Gemini (`x-goog-api-key`) and Brave web search (`X-Subscription-Token`).
-- **R5, updates.** `desktop/src/main-process/updates/electron-adapter.ts`:
-  the macOS adapter's download verifier is empty and its install step hands
-  the cached ZIP to the system updater without rechecking it; the Windows
-  adapter rechecks bytes and publisher before running the installer.
-  `policy.ts` validates the feed and requires its version to be newer than the
-  running app. The electron-builder NSIS installer's `ProductVersion` string is
-  the app version; the macOS update ZIP holds `Animama.app` at its root.
 
 Boundaries: other review findings, GitHub settings, Cloud, the desktop version
 and release policy stay out (spec non-goals). Generated clients are not
@@ -107,7 +102,6 @@ hardening, not how a weakness could be used.
 - [x] Phase 3: keys bound to their provider and address (review #5 passed;
   two repair rounds plus two owner-approved rounds).
 - [ ] Phase 4: Electron fuses, debugging guard, DevTools and the smoke copy.
-- [ ] Phase 5: update-download checks.
 - [ ] Final integration review.
 - [ ] Final validation: full pre-push suite, browser journeys, packed-app
   checks (G1 for paid calls).
@@ -175,11 +169,13 @@ hardening, not how a weakness could be used.
 - Agent: the copy-based journey is a release-smoke mode, not a development
   bypass. Before a signed candidate exists, it is exercised against a local
   development pack by an uncommitted harness whose results are recorded here.
-- Agent: the real-Electron local feed check (R5.3) uses an uncommitted harness,
-  as #835 did, because it patches electron-updater's packaged-app detection;
-  the committed adapter tests cover the same decisions.
-- Agent: the update artifact checks reuse the existing
-  `update_download_invalid` code, so no new update text is needed.
+- Agent (superseded 2026-11-04, R5 dropped): the real-Electron local feed
+  check (R5.3) uses an uncommitted harness, as #835 did, because it patches
+  electron-updater's packaged-app detection; the committed adapter tests cover
+  the same decisions.
+- Agent (superseded 2026-11-04, R5 dropped): the update artifact checks reuse
+  the existing `update_download_invalid` code, so no new update text is
+  needed.
 - 2026-11-03, owner: G1 approved as planned (built-stack sweep: at most 20
   short OpenAI chat turns and three ElevenLabs replies; VM: at most three
   smoke-journey runs).
@@ -204,6 +200,12 @@ hardening, not how a weakness could be used.
   finding, failing closed: no key matches a non-ASCII host name, and owners
   write such names in their ASCII (`xn--`) form. One more independent recheck
   before committing.
+- 2026-11-04, owner: R5 (update-download checks) is dropped from #838. #837
+  builds 0.1.3 as the final release after #838 with update checks sealed off,
+  so no later desktop build checks for updates; checks on downloaded update
+  artifacts are out of scope, and a build that re-enables updates should add
+  them. Phase 5 and its acceptance items are removed; R1 to R4 and the final
+  integration review are unchanged.
 - 2026-11-04, owner: fix review #4's user-information finding with strict
   parsing and one more independent recheck before committing.
 - Agent (Phase 3 review): R4.3 covers keys that owner connections name. The
@@ -881,54 +883,9 @@ Completion: tests pass, the pack's fuse assertion passes; commit
 
 Check record: _to be filled._
 
-### Phase 5: Update-download checks
-
-Review tier: high risk (the release-critical update path).
-
-Requirements: R5.1 to R5.3.
-
-Steps:
-
-1. Tests first in `desktop/tests/desktop-updater-adapter.test.ts`: macOS
-   accepts a ZIP whose `Animama.app/Contents/Info.plist` and
-   `Contents/Resources/runtime/manifest.json` match the approved version and
-   build ID, and refuses an older or different inner version, a different
-   build ID, a missing entry or an oversized entry with
-   `update_download_invalid`; the install step rechecks size and SHA-512 and
-   refuses a changed archive before `nativeUpdater.checkForUpdates()`.
-   Windows refuses an installer whose `ProductVersion` differs, at download and
-   before it runs.
-2. `electron-adapter.ts`: read the two entries with `/usr/bin/unzip -p`
-   (bounded output, no extraction to disk), parse the version with
-   `/usr/bin/plutil` from standard input and the manifest as JSON; pass the
-   approved candidate to the download verifier; recheck bytes in the macOS
-   install step. Extend the Windows PowerShell check to return the installer's
-   `ProductVersion` with its signer.
-3. Real Electron check (uncommitted harness under the worktree's ignored
-   `.animama-drafts/`): bundle a small main script with the real adapter, serve
-   `latest-mac.yml` and fake update ZIPs from a local HTTPS server (self-signed
-   certificate trusted only by the updater session; the test host mapped to
-   loopback with `host-resolver-rules`), and run check and download with
-   electron-updater 6.8.11 under Electron 45.2.1. Cases: matching artifact
-   accepted; older inner version refused; different build ID refused; archive
-   changed after download refused before the system updater runs.
-4. Documentation: the update integrity section of
-   `docs/frontend/desktop/releases.md`.
-
-Checks: `pnpm desktop:test`; `pnpm --filter animama-desktop check`; the
-harness run, recorded here.
-
-Recovery: a refused update leaves the running app and data untouched; the
-person checks again.
-
-Completion: commit `fix(desktop-updates)[p5]: check the update artifact before
-installing`.
-
-Check record: _to be filled._
-
 ## Final integration review
 
-An independent `sdlc-reviewer` covers combined acceptance (R1 to R5), Phase 1's
+An independent `sdlc-reviewer` covers combined acceptance (R1 to R4), Phase 1's
 folded light review, public-safety of all records, and integration across the
 phases (for example, the smoke copy with the guard, the vault origin with the
 backend rule). It reuses phase evidence and runs no checks. At most two repair
