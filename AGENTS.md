@@ -283,7 +283,7 @@ startup, debugging, and reporting.
 - Backend schema/API changes should update backend docs and coordinate frontend
   client regeneration through the frontend guide.
 - During development, do not add Alembic revisions. Update ORM/database
-  definitions and `alembic/versions/0001_baseline.sql` directly as needed;
+  definitions and `src/backend/migrations/versions/0001_baseline.sql` directly as needed;
   existing development databases may be reset at the owner's discretion.
 - Local ownership uses the generated installation principal. Shared FastAPI
   routes receive a `RequestPrincipal` from the resolver installed by the local

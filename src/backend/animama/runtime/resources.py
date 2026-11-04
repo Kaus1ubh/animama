@@ -17,9 +17,9 @@ if TYPE_CHECKING:
     from alembic.config import Config
 
 RESOURCE_INPUTS = {
-    "alembic": "alembic",
-    "alembic.ini": "alembic.ini",
-    "sql": "alembic/seeds",
+    "alembic": "src/backend/migrations",
+    "alembic.ini": "src/backend/alembic.ini",
+    "sql": "src/backend/migrations/seeds",
     "animation-manifest.json": "src/frontend/web/src/assets/vrm/animations/manifest.json",
 }
 
@@ -51,9 +51,9 @@ def alembic_config() -> Config:
 def audit_resources() -> dict[str, Any]:
     """Validate resource structure without a database, HTTP listener, or provider key."""
 
+    from alembic.script import ScriptDirectory
     from fastapi.routing import iter_route_contexts
 
-    from alembic.script import ScriptDirectory
     from animama.app.services.starter_loadout_policy import starter_loadout_policy
     from animama.prompts.avatar_animation_manifest import get_manifest_gesture_inventory
     from animama.server.app import app

@@ -5,13 +5,13 @@ import sys
 from logging.config import fileConfig
 from urllib.parse import quote_plus, urlencode, urlsplit, urlunsplit
 
+from alembic import context
 from sqlalchemy import engine_from_config, pool
 
-from alembic import context
-
-# Ensure the backend package root is on sys.path so `animama` is importable.
-ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
-BACKEND_SRC_DIR = os.path.join(ROOT_DIR, "src", "backend")
+# In a source checkout or the container image, this folder's parent is the
+# backend package root; put it on sys.path so `animama` is importable. The
+# frozen desktop runtime has already imported `animama`, so the entry is unused there.
+BACKEND_SRC_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
 if BACKEND_SRC_DIR not in sys.path:
     sys.path.insert(0, BACKEND_SRC_DIR)
 
