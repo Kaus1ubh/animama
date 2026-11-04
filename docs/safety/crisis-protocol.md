@@ -93,4 +93,4 @@ card, and may log message previews. The desktop app always uses the defaults.
 ## Contact
 
 To report a safety concern or a problem with this protocol, email
-ray@animama.ai. Last updated 2026-11-03.
+ray@animama.ai. Last updated 2026-11-04.

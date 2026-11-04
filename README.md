@@ -30,7 +30,7 @@ lifecycle in which every product decision and merge stays with Raymond.
 
 | Way to run it | Runs on | Start here |
 | --- | --- | --- |
-| Desktop app | macOS 15+ on Apple silicon | Closed beta until downloads end; see the [download page](https://animama.ai/download) |
+| Desktop app | macOS 15+ on Apple silicon | Prebuilt until downloads end; see the [download page](https://animama.ai/download) |
 | Self-hosted | macOS or Linux with Docker (Windows through WSL) | [Self-host it](#self-host-it) |
 | From source | Development | [Run from source](#run-from-source) |
 

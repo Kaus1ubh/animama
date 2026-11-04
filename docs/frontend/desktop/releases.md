@@ -511,7 +511,9 @@ renderer capture cannot observe it.
 
 On a clean test Mac, check avatar animation, PocketTTS, microphone permission,
 PiP, quick chat, offline dictation after installing offline speech in Voice
-settings (with no backend restart or window reload), any active expanded content,
+settings (with no backend restart or window reload; for the final release,
+after upgrading a 0.1.2 preview that already has offline speech installed),
+any active expanded content,
 document conversion, interrupted pack installation/recovery, and an actual
 prompted upgrade preserving the principal, chats, content, provider status,
 database, and compatible pack. Confirm no unintended provider/model downloads.
@@ -721,7 +723,7 @@ new version for corrections.
 
 ### Model objects
 
-Model files that the app downloads at runtime are published once under
+Model files that earlier app versions downloaded at runtime are published once under
 `models/<model-id>/<file-sha256>/<file-name>`, independent of app versions. A
 file's key is its own SHA-256, so published objects never change and an
 unchanged file is never uploaded again. The packaged backend model-asset catalog
@@ -793,8 +795,9 @@ its own approval:
    a fresh `darwin-arm64` receipt
    ([exact artifact review](redistribution-review.md#exact-artifact-review)).
    Run the dependency audits, build the signed candidate, and run the smoke,
-   which records `sealed_update_policy` and `updates_ended`; the VM guest smoke
-   selects the R2 distribution. In native acceptance, the pack checks need no
+   which records `sealed_update_policy` and `updates_ended`. Build the
+   candidate with the default R2 distribution: the VM guest smoke selects R2,
+   so a GitHub-built candidate fails `sealed_update_policy` there. In native acceptance, the pack checks need no
    attestation while no pack is active. Check offline dictation by upgrading a
    0.1.2 preview that already has offline speech installed, which is also the
    forward upgrade. Publish stable with the feed promoted last. No Windows
@@ -815,6 +818,7 @@ its own approval:
      and a model object no longer answer `200`; purge any exact URL the edge
      still serves.
    - Revoke the R2 write token.
+   - Record the outcome on the publication tracking issue.
    - Keep `animama.ai` and the `downloads` host name registered and never point
      the name at anything else: installs that never took the final release
      keep requesting it, fail their update checks quietly and show download

@@ -82,7 +82,8 @@ Orientation, from a read-only survey on 2026-11-04:
 - [x] Phase 4: packaged notices (review #2 passed; one repair round).
 - [x] Phase 5: script defaults (review #1; trivial repairs).
 - [x] Phase 6: documentation, version and runbook (light; review folded into the final review).
-- [ ] Final integration review; full pre-push suite and fast browser journeys.
+- [x] Final integration review (one round; trivial wording repairs).
+- [ ] Full pre-push suite and fast browser journeys on the final candidate.
 - [ ] PR opened with local evidence.
 - [ ] G1 to G3 (owner-run, after merge): final release, transition, cut-off.
 
@@ -122,6 +123,11 @@ Orientation, from a read-only survey on 2026-11-04:
   composition; `product-ui` gets a notice too; no import path; keep the R2
   bucket. Approving the plan also approves the single full pre-push run and
   fast browser journeys on the final candidate.
+
+- 2026-11-04, owner (relayed by the security review session): #838 drops its
+  R5 update-download checks; it still delivers R1–R4. Its R3.6 smoke rewrite
+  and this plan's R1.5 smoke step both edit the smoke journey, so whichever
+  merges second resolves the overlap.
 
 ## Phased implementation
 
@@ -625,6 +631,40 @@ README; the crisis protocol in five languages; `model-assets.md` and
 tier: the final integration review covers it.
 
 ## Final integration review
+
+### Code Review #1 Findings (final integration)
+
+Reviewed HEAD `b75c80257` against `8ae2d1f05`, reusing each phase's recorded
+evidence and running no checks. R1, R2, R4, R5 and R7 met; R3 met pending the
+stack screenshots; the Phase 2 round-2 repairs confirmed; installed 0.1.2 sets
+stay valid in 0.1.3 (catalog and store unchanged since the 0.1.2 version
+commit); the final release contacts the download host for nothing.
+
+- FIR-F1 (blocking, wording): current documents still said packaged desktop
+  and built self-host install or download speech sets (`model-assets.md`,
+  `feature-packs.md`, `voice.md`, `content-and-workers.md`).
+- FIR-F2 (blocking, wording): the clean-Mac, platform and staging acceptance
+  steps still required a real offline speech download.
+- Optional: remaining download wording in `voice.md`, `model-assets.md`,
+  `i18n.md`, the profile and creation feature pages, `redistribution-review.md`
+  and `releases.md`; the Pocket TTS packaged notice and its license-source
+  entry naming the download URL as current; backups restored on another host
+  have no models; the crisis protocol date and two translation words; the
+  upgrade-test example version; the README's "Closed beta"; the runbook's
+  tracking-issue step and the R2 build note; ADR amendment style.
+- Follow-ups: Cloud's trial-complete "Download Animama" call to action;
+  development stacks lose the downloadable voices and encoder after the
+  cut-off; optional model assets in self-host backups; the Vite-development
+  wording of the ended dictation error.
+
+### Code Review #1 Revisions (final integration)
+
+FIR-F1 and FIR-F2 fixed as trivial wording repairs, and every optional item
+except the ADR style taken. Verified by the relative-link and anchor check over
+the 34 changed Markdown files (no broken link),
+`crisisProtocolTranslations.test.ts` (5 passed) and `runtime-packaging.test.mjs`
+(82 passed, for the notice and license-source text) and desktop
+`prettier:check`. The final review passes; the follow-ups go to the PR.
 
 One independent review of combined acceptance, including Phase 6. Then, with
 the owner's go-ahead at G0, the full pre-push suite once on the final candidate

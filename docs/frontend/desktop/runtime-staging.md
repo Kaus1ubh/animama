@@ -402,9 +402,11 @@ remain bounded errors.
 Native pack acceptance requires real download, cancellation, connection loss,
 quit/resume, installation, restart, removal and reinstallation. Verify
 catalog/ETag-bound resume and bounded `pack_download_failed` and
-`pack_cancelled` results. Offline speech acceptance repeats download,
-cancellation, interrupted resume, removal and offline dictation through Voice
-settings and confirms that the backend PID and open windows are unchanged. Expanded-content tests must check Anima references and
+`pack_cancelled` results. Offline speech acceptance, in a build that offers
+downloads, repeats download, cancellation, interrupted resume, removal and
+offline dictation through Voice settings (the final release checks removal and
+dictation after upgrading a preview that has offline speech installed) and
+confirms that the backend PID and open windows are unchanged. Expanded-content tests must check Anima references and
 live preview leases; closing a preview does not immediately revoke its lease.
 Retain the owner and chat across transitions. Fixture downloads and generated
 speech do not establish production transport or physical microphone acceptance.

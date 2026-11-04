@@ -36,8 +36,8 @@ When released, the document pack contains an independently signed worker. The
 expanded pack is data only; no pack lets the renderer execute a downloaded command.
 
 Startup deletes the directories and partial downloads of the retired
-`parakeet-stt` and `parakeet-stt-webgpu` speech packs. Install offline speech
-again from the Voice settings described below.
+`parakeet-stt` and `parakeet-stt-webgpu` speech packs; their sets cannot be
+installed again (see [Speech model downloads](#speech-model-downloads)).
 
 ## Install and retry
 

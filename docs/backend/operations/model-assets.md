@@ -94,8 +94,8 @@ docker compose -p "$COMPOSE_PROJECT_NAME" restart animama-server
 
 Acquisition is the networked setup step. The subsequent verification, startup and
 restart reuse local bytes offline. Built self-host does not use host
-speech-to-text sets; install offline speech in the app (see
-[Downloaded model assets](#downloaded-model-assets)). Docker images/dependencies must also already
+speech-to-text sets; it serves only sets its app installed before downloads
+ended (see [Downloaded model assets](#downloaded-model-assets)). Docker images/dependencies must also already
 be available for a fully offline rebuild; model reuse alone does not cache those.
 Container replacement preserves the external model directory and database volume.
 
@@ -232,7 +232,7 @@ Use the downloader for restart-free data files the running app can pick up,
 such as optional voices and the speech-to-text sets. Bundles that need a service
 switch, such as the document-processing pack, stay in Electron's pack manager.
 
-Use the app's Remove action before reinstalling. Never edit an installed file in
+Use the app's Remove action to remove an asset. Never edit an installed file in
 place. A renderer using an installed speech-to-text set holds a short use lease, and removal
 is refused while it is live.
 
@@ -245,8 +245,9 @@ set (about 1.24 GB), stored under
 
 - It pairs with the base Parakeet decoder, preprocessor and vocabulary, which
   are still required.
-- Packaged desktop and built self-host install it as the `parakeet-stt-webgpu`
-  model asset set, which requires the installed `parakeet-stt` set.
+- Packaged desktop and built self-host serve it as the `parakeet-stt-webgpu`
+  model asset set, which requires the `parakeet-stt` set, when they installed
+  both before downloads ended.
 
 Acquire it only when you want to test WebGPU speech:
 
@@ -285,8 +286,9 @@ Where each build gets it:
 
 The GPU add-on is always shown beneath the CPU model; its action is disabled,
 with a stated reason, until CPU speech is installed and a WebGPU adapter exists.
-Retained files remain removable on unsupported devices. Downloading never selects
-a provider or automatically downloads CPU speech. The browser probes the encoder
+Retained files remain removable on unsupported devices. In a build that offers
+downloads, downloading never selects a provider or automatically downloads CPU
+speech. The browser probes the encoder
 with `HEAD`; a 404 means not installed.
 
 ## SenseVoice multilingual sets
@@ -327,8 +329,8 @@ verification stops the reset. Vite serves the sets at
 `/__client-sensevoice-models/` and `/__client-sensevoice-webgpu-models/`; rerun
 `reset.sh` after acquiring them for a running stack.
 
-Packaged desktop and built self-host install both sets in the app through
-[Downloaded model assets](#downloaded-model-assets), and FastAPI serves them at
+Packaged desktop and built self-host serve only the sets the backend model-asset service installed before downloads ended (see
+[Downloaded model assets](#downloaded-model-assets)); FastAPI serves them at
 `/onnx/models/sensevoice-small/` and `/onnx/models/sensevoice-small-webgpu/`.
 Runtime capabilities report them as `offline_multilingual_speech_enabled`,
 `offline_multilingual_speech_asset_version` and

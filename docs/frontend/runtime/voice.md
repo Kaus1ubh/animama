@@ -239,7 +239,7 @@ and the Linux default used by WSL. Development verifies and serves engine inputs
 at the existing same-origin URLs; built self-host and desktop outputs contain
 independent verified copies of the 21 browser assets. The speech-to-text sets
 remain outside the web build: development serves the host store, while packaged
-desktop and built self-host download them in the app (see
+desktop and built self-host serve only sets installed before downloads ended (see
 [Optional offline speech models](#optional-offline-speech-models)).
 
 Startup and builds do not acquire models implicitly. Browsers do not receive
@@ -1287,11 +1287,10 @@ the public ORT 1.24.2 inventory does not replace those dependency versions.
   (built-in)", ElevenLabs, Gemini and the browser where offered); selecting one
   switches the provider, the provider in use is tagged "Selected", and its tab
   holds that provider's settings: the PocketTTS tab reuses the Anima cloning
-  form with the encoder download under a "Voice Clone" heading, the ElevenLabs
+  form with the encoder's state under a "Voice Clone" heading, the ElevenLabs
   tab its key, the Gemini tab its key and model. There is no chunk-streaming
   switch: ElevenLabs always streams. Setup offers
-  Speech-to-Text and Text-to-Speech choices but no voice cloning. Offline speech set downloads resume from verified
-  bytes after interruption.
+  Speech-to-Text and Text-to-Speech choices but no voice cloning.
 - Anima voice catalogs are separate user/catalog inputs; their persisted URLs
   and legacy `/onnx/models/pocket-tts/animas/{animaId}_voices.bin` reference format
   are not members of the 22-file engine inventory.
@@ -1366,9 +1365,11 @@ verify the complete engine inventory and required small TTS runtime files.
 
 - The UI Locale routes to SenseVoice, and its CPU set is not available: not
   installed, or turned off with `ANIMAMA_SENSEVOICE_STT_ENABLED=false`.
-- Install it in App Settings → Voice. On a Vite development stack, acquire it
-  on the host and rerun `reset.sh`. The app never substitutes a browser
-  recognizer for that language.
+- In a build that offers downloads, install it in App Settings → Voice. Once
+  downloads have ended the message says the model can no longer be downloaded
+  instead. On a Vite development stack, acquire it on the host and rerun
+  `reset.sh`. The app never substitutes a browser recognizer for that
+  language.
 
 ## Implementation File Map
 

@@ -172,7 +172,7 @@ same installer; see [Releases](releases.md#what-people-see).
 1. Build version N with `pnpm desktop:win:installer`, and copy
    `Animama-<N>-x64-setup.exe` out of `desktop/release`.
 2. Set a higher `version` in `desktop/package.json` locally, for example
-   `0.1.2`. Do not commit it.
+   `0.1.4`. Do not commit it.
 3. Stage, audit and build again. The runtime manifest records the app version,
    and the app refuses a runtime staged for another version.
 4. Install N, run it, then run the N+1 installer: it replaces N in place and
@@ -306,9 +306,12 @@ Test microphone permission by opening the `.app` normally (Finder or `open`):
 launching its executable directly through an automation harness can produce a
 different macOS privacy context. No application permission bypass is supported.
 
-Offline speech verification requires skipping optional speech, then real
-download, cancellation, interrupted resume, installation, removal and offline
-dictation from Voice settings, with no backend restart or window reload.
+Offline speech verification, in a build that offers downloads, requires
+skipping optional speech, then real download, cancellation, interrupted resume,
+installation, removal and offline dictation from Voice settings, with no backend
+restart or window reload. The final release checks removal and offline
+dictation after upgrading a 0.1.2 preview that already has offline speech
+installed.
 Expanded content and document processing are deferred from the first release; retain their lifecycle and
 in-use/removal regression coverage without advertising their downloads.
 Those real artifact/native tests remain gated, not passed. A
