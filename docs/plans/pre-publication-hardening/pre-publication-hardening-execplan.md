@@ -44,7 +44,7 @@ Orientation, by requirement:
   direct outside connections today are the Pocket voice-sample previews
   (`web/src/lib/speech/pocket/voice-catalog.ts`; `huggingface.co`, which
   redirects to its `*.hf.co` download CDN) and the ElevenLabs realtime socket
-  (`web/src/hooks/use-elevenlabs-tts-runtime.ts`; `wss://api.elevenlabs.io`).
+  (`web/src/hooks/useElevenLabsTtsRuntime.ts`; `wss://api.elevenlabs.io`).
   The OpenRouter model list is fetched by the backend.
 - **R3, Electron.** `src/frontend/desktop/electron-builder.yml` has no
   `electronFuses`; a packed 0.1.1 app reads RunAsNode, `NODE_OPTIONS` and
@@ -285,8 +285,8 @@ Steps:
 2. Search current documents for statements that contradict it
    (`rg -n -i "vulnerab|security@|private vulnerability" --glob '!docs/plans/**'`)
    and fix only real contradictions.
-3. Send the final wording to the open-source readiness session for its
-   `config.yml` link text, and record it in the shared notes.
+3. Check that the issue forms and contributor documents link to the policy
+   (`config.yml`, `bug.yml`, `CONTRIBUTING.md`).
 
 Checks: relative links resolve (`rg` for each new link target); no Prettier on
 Markdown; `check_source.py` if a path changed.
@@ -296,7 +296,10 @@ Completion: the policy states every R1 item; commit
 
 Check record (2026-11-03):
 
-- `SECURITY.md` at the root (`main` had not moved it). Every R1 item is
+- `SECURITY.md` at the root at the time; the merge of `main` (#845 moved it)
+  carries the same text to `.github/SECURITY.md`, with its link adjusted, and
+  `main`'s `config.yml`, `bug.yml` and `CONTRIBUTING.md` already link to
+  `.github/SECURITY.md` or `/security/policy`. Every R1 item is
   present: both routes, no public reports, report contents, best-effort
   responses, supported versions, scope, the shared-computer note.
 - Contradiction search over current documents (plans excluded): only the old
@@ -1009,6 +1012,54 @@ phases (for example, the smoke copy with the guard, the vault origin with the
 backend rule). It reuses phase evidence and runs no checks. At most two repair
 rounds; findings and revisions are recorded here.
 
+### Final integration review #1 findings
+
+Reviewed source: `bc9f0204b` (base `dacf928c4`; `origin/main` at `8ae2d1f05`),
+covering Phase 1's light review and the follow-up commits `6abc74c72`,
+`1bc674aab` and `bc9f0204b`, which no phase review covered; all three are
+correct. No public-safety problem in any record apart from FI-F8.
+
+- **FI-F1 (blocking):** the branch had to take in `main`, which moved
+  `SECURITY.md` to `.github/SECURITY.md` (#845) and added stricter ruff and
+  mypy rules; the merge conflicted in `.github/SECURITY.md` and
+  `licenses/source-review.json`.
+- **FI-F2 (blocking):** `main` removed the `@web` import alias that the local
+  entry's first import (`@web/lib/zod-runtime`) and its test used; the merge
+  reported no conflict there.
+- Non-blocking: FI-F3, `SECURITY.md`'s supported-versions and scope wording and
+  two smoke checks will need revisiting once the final desktop release turns
+  update checks off (#837); FI-F4, the validation plan did not list every R2
+  acceptance item or a browser Document PiP check; FI-F5, no live call has gone
+  through the three clients that gained the redirect hook; FI-F6, `AGENTS.md`
+  asks for the full browser journeys for export and runtime-member changes;
+  FI-F7, two doc sentences; FI-F8, Phase 1 step 3 pointed at private
+  coordination; FI-F9, no owner check for the security mailbox.
+
+### Final integration review #1 revisions
+
+- FI-F1: accepted. `origin/main` merged with an ordinary merge (`ab9de1316`):
+  `.github/SECURITY.md` carries this branch's policy with its link written
+  `../docs/architecture/deployment-topology.md`, no root `SECURITY.md` remains,
+  and both licence entries are kept in path order; the Phase 1 record and the
+  orientation path are updated.
+- FI-F2: accepted, in the merge commit: `import "@/lib/zod-runtime";` and the
+  test's allowlist and pattern.
+- FI-F3: recorded as a follow-up for #837 (Outcomes). FI-F4: accepted; the
+  validation plan lists every R2 item, records what cannot run in the VM and
+  adds a browser Document PiP check. FI-F5: accepted as an optional owner check
+  and PR evidence. FI-F6: accepted; the full `pnpm e2e:test` runs. FI-F7,
+  FI-F8 and FI-F9: accepted.
+- Checks after the merge (tree of `ab9de1316`), from the root: `uv sync
+  --frozen`, `uv run --no-sync ruff check`, `ruff format --check`, `mypy
+  src/backend/animama tests --exclude web-ui --exclude deprecated --exclude
+  templates` (891 files), the import boundary check and `check_source.py`:
+  passed. From `src/frontend`: `pnpm install --frozen-lockfile`, `pnpm check`
+  and `pnpm prettier:check` (web, desktop and workspace): passed; from
+  `src/frontend/web`, `vitest run src/app/entrypoints.test.ts
+  src/lib/zod-runtime.test.ts`: 3 passed.
+- Repair budget: one of two rounds used; a targeted recheck follows, then the
+  full pre-push suite on the final candidate.
+
 ## Validation and acceptance
 
 On the final candidate, in this order:
@@ -1017,10 +1068,12 @@ On the final candidate, in this order:
    `python3 scripts/heavy-slot.py -- make check-test` from the root, and from
    `src/frontend`: `python3 ../../scripts/heavy-slot.py -- pnpm verify`,
    `pnpm web:test:browser`, `pnpm desktop:test` and `pnpm prettier:check`.
-2. Browser journeys: `pnpm e2e:test:fast` against a disposable built stack
-   (`ANIMAMA_LLM_SKIP=1 ANIMAMA_WEB_BUILD_MODE=production ./reset.sh --name
-   pph-e2e --base-port 8600` or a free base port), through the heavy-job slot,
-   with the new CSP check active.
+2. Browser journeys: the full `pnpm e2e:test` (R2.3 changes the headers of
+   package exports and runtime members, which the `@complete-anima` journeys
+   cover) against a disposable built stack (`ANIMAMA_LLM_SKIP=1
+   ANIMAMA_WEB_BUILD_MODE=production ./reset.sh --name pph-e2e --base-port
+   8600` or a free base port), through the heavy-job slot, with the new CSP
+   check active; plus a browser Document PiP check on the built stack.
 3. Packed app: a fresh development stage, audit and pack of the final
    candidate, then, in a disposable clone of the golden VM, with an
    uncommitted variant of the VM helper that accepts a development pack:
@@ -1028,14 +1081,24 @@ On the final candidate, in this order:
    - each debugging switch refused before a window or the runtime starts;
    - the smoke copy journey with the throwaway profile (G1: the smoke key,
      two short starter chats per run, at most three runs);
-   - a CSP sweep in the packed copy: chat, Avatar render, a Gesture with
-     effects, Pocket TTS speech, a voice-sample preview, PiP, Quick Chat and
-     the Safety dialog, recording violations across every window.
-   The clone is deleted afterwards.
+   - a CSP sweep in the packed copy over the R2 acceptance list (chat, both
+     starter Avatars and VRM loading, Avatar, Particle and Scene Effects,
+     Pocket TTS speech and voice cloning, a voice-sample preview, audio
+     worklets, PiP, Quick Chat and the Safety dialog), recording violations
+     across every window, and recording each item that cannot run in the VM
+     (no microphone and no speech model sets: Parakeet and SenseVoice
+     dictation) with its reason.
+   The clone is deleted afterwards. The VM helper variant skips the signed-DMG
+   steps (DMG signature, stapling, publisher signature and sealed policy against
+   a release), which stay with the signed-candidate gate below.
 4. Owner gates that remain after the PR, recorded in it: the installed-artifact
    smoke on a signed, notarized candidate in the VM; Windows packaged
    acceptance; real-Mac checks of GPU, audio and microphone; turning on
-   private vulnerability reporting on publication day.
+   private vulnerability reporting on publication day, and checking that mail
+   to `security@animama.ai` reaches the maintainer. No live call has gone
+   through the Anthropic, Gemini and ElevenLabs clients since they gained the
+   redirect hook; mock transports cover them, and a short live call each is an
+   optional owner check.
 
 Gates:
 
@@ -1062,6 +1125,11 @@ Before any push or `gh pr create`, run `gh workflow list --all`; if
   `.github/SECURITY.md`.
 
 ## Outcomes & Retrospective
+
+- Follow-up for #837 (final desktop release with update checks off):
+  revisit `SECURITY.md`'s supported-versions and scope wording, and the
+  smoke's `copy_updates_unavailable` and `sealed_update_policy` checks, whose
+  meaning changes when no build checks for updates.
 
 Follow-ups found so far (not in this plan's scope):
 

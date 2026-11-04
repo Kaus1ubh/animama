@@ -375,8 +375,8 @@ absent `~/Applications/Animama.app`. It then checks the installed app without
 debugging it: its fuse wire, its publisher signature (the requirement its
 updater checks), its sealed `runtime/update-policy.json`, and two launches per
 debugging switch (with and without a value), each of which must exit promptly
-with a failure and leave no process running and no session, log or runtime
-state in its profile.
+with a failure and leave no process running and its profile absent or
+empty.
 
 The journey runs on a copy that the harness makes in a new private folder
 outside the checkout and the publish folders (the temporary folder on macOS, a
@@ -387,7 +387,7 @@ ad-hoc signature. A packaged app accepts the throwaway
 this copy can use it. The copy launches with a system-only PATH, its child
 executables must belong to its own resources, and its update check must report
 `unavailable`, because its signature no longer matches the publisher, and
-the installed app's profile must hold nothing the app wrote. The journey tests
+the installed app's profile must stay absent or empty. The journey tests
 setup, a provider key applied without a window or backend restart,
 provider status, local HTTP rejection, core capabilities, both starter chats,
 exact typed bytes, private upload, restart persistence, temporary-key removal,
