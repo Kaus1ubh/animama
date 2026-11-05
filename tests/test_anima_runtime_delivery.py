@@ -185,6 +185,7 @@ async def test_runtime_private_file_does_not_use_manifest_compression(
         assert int(response.headers["content-length"]) == len(body)
         # The URL names the exact revision and file, so the local policy keeps it a year.
         assert response.headers["cache-control"] == "private, max-age=31536000, immutable"
+        assert response.headers["content-security-policy"] == "sandbox; default-src 'none'"
 
 
 async def test_issuance_prepares_again_while_the_loadout_keeps_changing(

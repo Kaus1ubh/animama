@@ -116,6 +116,7 @@ const fake = vi.hoisted(() => {
 });
 
 vi.mock("electron", () => ({
+  app: { isPackaged: false },
   BrowserWindow: fake.FakeBrowserWindow,
   screen: {
     getPrimaryDisplay: () => fake.displays[0],

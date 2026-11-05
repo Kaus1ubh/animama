@@ -263,6 +263,9 @@ Turn, and set `ANIMAMA_MODEL_ROOT` to an absolute persistent root when needed.
 acquired set.
 See [model acquisition, offline reuse and recovery](model-assets.md).
 This selects build delivery, without adding accounts or network authentication.
+Only built mode serves the app's
+[Content Security Policy](../../frontend/architecture/auth-server.md#content-security-policy);
+Vite development sends none, so check policy-sensitive changes here.
 
 Apply the selection with an ordinary reset, which preserves state:
 

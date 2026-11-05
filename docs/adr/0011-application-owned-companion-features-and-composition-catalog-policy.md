@@ -13,6 +13,8 @@ catalog, provider custody and companion design remain applicable.
   decisions of 2026-09-28, including Brave as the keyed search backend; the
   result-storage rule is an agent implementation decision recorded in the
   Plan B ExecPlan)
+- Amended: 2026-11-03, each stored key is bound to its own origin (owner,
+  [issue #838](https://github.com/raymond-van/animama/issues/838)).
 
 ## Context
 
@@ -67,7 +69,13 @@ without Cloud imports.
 
 **Keys stay outside the database.** Connections store only a credential mode
 and an environment variable name. Desktop keeps the value in its encrypted
-vault; self-hosted operators set the variable themselves.
+vault; self-hosted operators set the variable themselves. A key that an owner
+connection names goes only to its own origin: a provider key to its provider's
+API, and a connection key to the origin saved with it (recorded by the vault
+when the key is entered, or set by the operator as
+`ANIMAMA_CONNECTION_<NAME>_ORIGIN`), never over plain HTTP to another
+computer. The built-in OpenAI connection keeps the operator's
+`OPENAI_BASE_URL`.
 
 ## Alternatives
 

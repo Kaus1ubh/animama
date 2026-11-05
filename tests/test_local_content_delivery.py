@@ -70,6 +70,7 @@ async def test_registered_delivery_authorizes_then_verifies_etag_and_bytes(async
         assert response.headers["etag"] == f'"{item.files[0].sha256}"'
         # A file named by its registration alone is revalidated; only an Included digest URL is kept (ADR 0033).
         assert response.headers["cache-control"] == "private, no-cache"
+        assert response.headers["content-security-policy"] == "sandbox; default-src 'none'"
 
         conditional = await client.get(
             f"/v1/content/files/{file_ref}", headers={"If-None-Match": response.headers["etag"]}

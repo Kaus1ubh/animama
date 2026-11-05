@@ -274,7 +274,11 @@ or migration behavior.
 - Only unpackaged external-stack development loads `ANIMAMA_DESKTOP_WEB_URL`
   or `http://localhost:8000`. Explicit `ANIMAMA_DESKTOP_DEV_RUNTIME_ROOT` and
   `ANIMAMA_DESKTOP_DEV_USER_DATA` support isolated supervised testing; packaged
-  builds reject web-URL, development, and sandbox overrides.
+  builds reject web-URL, development, and sandbox overrides, except a
+  throwaway `ANIMAMA_DESKTOP_DEV_USER_DATA` while their Node inspector runs,
+  which only the release smoke's inspect-enabled copy can do. Packaged builds
+  carry the reviewed fuse wire and quit on debugging switches; see
+  `../../docs/frontend/desktop/platforms.md#packaged-hardening`.
 - The version-2 preload exposes runtime actions and status-only credentials.
   Provider values travel only into main, encrypted storage, and provider child
   environments; no readback, arbitrary paths/commands, or browser persistence.

@@ -38,6 +38,34 @@ SENSEVOICE_MOUNT = "/onnx/models/sensevoice-small/"
 SENSEVOICE_WEBGPU_MOUNT = "/onnx/models/sensevoice-small-webgpu/"
 MODEL_MOUNT_PATHS = (PARAKEET_MOUNT, PARAKEET_WEBGPU_MOUNT, SENSEVOICE_MOUNT, SENSEVOICE_WEBGPU_MOUNT)
 IMMUTABLE_APP_ASSET_CACHE = "public, max-age=31536000, immutable"
+# Every built file carries the application's policy, because a worker takes its
+# policy from its own response (a worklet follows its document's). Pages fetch
+# inline `data:` clips and model data, which never leave the device; their only
+# outside connections are the public voice-sample host with the download CDN it
+# redirects to, and the realtime speech socket.
+APP_CONTENT_SECURITY_POLICY = "; ".join(
+    (
+        "default-src 'none'",
+        "script-src 'self' 'wasm-unsafe-eval'",
+        "style-src 'self' 'unsafe-inline'",
+        "img-src 'self' blob: data:",
+        "font-src 'self'",
+        "connect-src 'self' blob: data: https://huggingface.co https://*.hf.co wss://api.elevenlabs.io",
+        "media-src 'self' blob:",
+        "worker-src 'self' blob:",
+        "frame-src 'none'",
+        "frame-ancestors 'none'",
+        "object-src 'none'",
+        "base-uri 'none'",
+        "form-action 'self'",
+    )
+)
+# Pocket TTS's pinned sentencepiece binding builds call wrappers at runtime (#698),
+# so its exact worker alone may evaluate strings, as contracts/hosted-web.md specifies.
+POCKET_WORKER = "tts/workers/inference-worker.js"
+POCKET_WORKER_CONTENT_SECURITY_POLICY = APP_CONTENT_SECURITY_POLICY.replace(
+    "'wasm-unsafe-eval'", "'wasm-unsafe-eval' 'unsafe-eval'", 1
+)
 # Written by the web build beside Vite's manifest; hidden names are never served.
 BROWSER_RUNTIME_RECORD = ".vite/browser-runtime.json"
 _MAX_MANIFEST_BYTES = 4 * 1024 * 1024
@@ -404,6 +432,8 @@ class _FileStream(Response):
 class LocalAssets:
     """Serve built browser files and the optional verified model mounts.
 
+    Every built file, including the ``index.html`` fallback for app routes,
+    carries ``APP_CONTENT_SECURITY_POLICY`` (the Pocket worker its exception).
     Roots and inventories come from the local composition, never request data.
     Construct a new instance for a different application build. Model mounts
     are resolved per request from ``mount_source``; without one, no models are
@@ -484,6 +514,9 @@ class LocalAssets:
             "content-length": str(len(html) if html is not None else metadata.st_size),
             "x-content-type-options": "nosniff",
             "cache-control": IMMUTABLE_APP_ASSET_CACHE if fingerprinted else "no-cache",
+            "content-security-policy": (
+                POCKET_WORKER_CONTENT_SECURITY_POLICY if name == POCKET_WORKER else APP_CONTENT_SECURITY_POLICY
+            ),
         }
         if etag:
             headers["etag"] = etag

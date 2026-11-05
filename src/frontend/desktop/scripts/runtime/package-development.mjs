@@ -2,6 +2,7 @@ import { existsSync } from "node:fs";
 import path from "node:path";
 import { build, Platform, Arch } from "electron-builder";
 import { desktopRoot, parseTarget, readJson, writeJson } from "./common.mjs";
+import { assertFuseWire } from "./fuses.mjs";
 import { assertInventory, componentInventory } from "./inventory.mjs";
 
 /**
@@ -67,6 +68,7 @@ if (
     "Packaged development runtime differs from the audited stage",
   );
 assertInventory(runtime, manifest.files);
+assertFuseWire(windows ? path.join(app, "Animama.exe") : app);
 // Matches nsis.artifactName in electron-builder.yml.
 const installerName = `Animama-${manifest.app_version}-x64-setup.exe`;
 if (installer && !existsSync(path.join(desktopRoot, "release", installerName)))

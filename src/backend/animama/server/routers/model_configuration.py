@@ -126,13 +126,14 @@ def get_openrouter_model_catalog(request: Request) -> OpenRouterModelCatalog:
     return catalog
 
 
-def _service(session: AsyncSession) -> ModelConfigurationService:
+def _service(session: AsyncSession, credentials: ModelCredentialResolver | None = None) -> ModelConfigurationService:
     return ModelConfigurationService(
         connections=SQLAlchemyModelConnectionRepository(session),
         model_providers=SQLAlchemyModelProviderRepository(session),
         profiles=SQLAlchemyAnimaChatProfileRepository(session),
         user_settings=SQLAlchemyUserSettingsRepository(session),
         uow=SQLAlchemyUnitOfWork(session),
+        credentials=credentials,
     )
 
 
@@ -258,7 +259,7 @@ async def create_model_connection(
     credentials: Annotated[ModelCredentialResolver, Depends(get_model_credential_resolver)],
 ) -> PyModelConnection:
     try:
-        connection = await _service(session).create_connection(_connection_draft(body))
+        connection = await _service(session, credentials).create_connection(_connection_draft(body))
     except ModelConfigurationError as exc:
         raise _http_error(exc) from exc
     return _connection_view(connection, credentials, [])
@@ -273,7 +274,7 @@ async def update_model_connection(
     _principal: Annotated[RequestPrincipal, Depends(get_current_principal)],
     credentials: Annotated[ModelCredentialResolver, Depends(get_model_credential_resolver)],
 ) -> PyModelConnection:
-    service = _service(session)
+    service = _service(session, credentials)
     try:
         connection = await service.update_connection(
             connection_id,

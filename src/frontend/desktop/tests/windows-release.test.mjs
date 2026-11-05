@@ -794,6 +794,13 @@ describe("Windows update policy and publication", () => {
         first_anima_chat: true,
         temporary_provider_removed: true,
         temporary_provider_removal_persists: true,
+        exact_fuse_wire: true,
+        publisher_signature: true,
+        sealed_update_policy: true,
+        debugging_switches_refused: true,
+        copy_fuse_wire: true,
+        copy_updates_unavailable: true,
+        canonical_profile_untouched: true,
       },
     };
     const expected = {

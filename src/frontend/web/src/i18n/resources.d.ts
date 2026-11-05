@@ -3562,7 +3562,9 @@ export default interface Resources {
     "modelConfiguration": {
       "bad_request": "The server rejected the request.",
       "context_exceeded": "The request was larger than the model's context window.",
+      "credential_insecure_transport": "Keys are sent only over https, or plain http to this computer. Use https or a local server.",
       "credential_missing": "This connection needs a key before it can be used.",
+      "credential_origin_mismatch": "This key belongs to another address. A provider's key goes only to that provider's API, and a connection key only to the address saved with it.",
       "credential_rejected": "The server rejected the key.",
       "detectionNotRunning": "Nothing is running at {{baseUrl}}. Start {{server}} and try again.",
       "invalid_base_url": "The base URL is not valid.",
@@ -4595,11 +4597,14 @@ export default interface Resources {
       "editDescription": "An OpenAI-compatible server such as Ollama, LM Studio, llama.cpp or a cloud provider.",
       "env": {
         "notSet": "Not set on the server yet. Set it to your API key.",
+        "notUsable": "Not usable yet. Set this variable to your API key on the server, and add the line below.",
+        "origin": "Also set {{variable}}={{origin}} on the server, so the key is sent only to this address.",
         "set": "Set on the server.",
         "setVariable": "Set this variable to your API key on the server."
       },
       "hideAdvanced": "Hide advanced options",
-      "insecureKey": "This address uses plain http on another computer, so the key would cross the network unencrypted. Use https or a local server.",
+      "insecureKey": "Keys are sent only over https, or plain http to this computer. Use https or a local server.",
+      "keyForAnotherAddress": "The saved key was entered for another address. Enter the key again for this address, or remove it.",
       "keyNotDeleted": "The connection's saved key could not be deleted.",
       "keyNotStored": "The connection was saved, but its key was not stored. {{reason}}",
       "keyNotStoredRetry": "The connection was saved, but its key was not stored. Retry from Edit.",
