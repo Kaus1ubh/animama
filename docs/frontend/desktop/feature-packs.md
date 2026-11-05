@@ -3,17 +3,17 @@
 Feature packs add optional local capabilities that need Electron's pack
 manager: a verified archive, an atomic version switch and a service restart.
 The installation owner remains the same when a pack is installed, removed or
-reinstalled. No online Animama account is required. **No pack has been
-released, and none will be:** both current packs are deferred, and the final
-release's `"updates": "ended"` policy forbids an active pack. The producer emits
-catalog entries only for active, approved exact inputs. Archive packs download from
+reinstalled. No online Animama account is required. **No production pack release
+is available.** The producer emits catalog entries only for active, approved
+exact inputs, and both current packs are deferred. A release policy that ends
+updates, as the final release's does, forbids an active pack. Archive packs download from
 the [selected distribution](releases.md#distribution-selection), which must
 serve its pinned objects publicly before a download can succeed.
 
 Offline speech recognition (Parakeet and SenseVoice-Small), the downloadable
-Pocket voices and the voice-cloning encoder are not packs. The backend kept
-them in place, without restarting services or reloading windows, and no longer
-downloads new ones; see [Speech model downloads](#speech-model-downloads).
+Pocket voices and the voice-cloning encoder are not packs. The backend installs
+them in place, without restarting services or reloading windows; see
+[Speech model downloads](#speech-model-downloads).
 
 ## What each pack adds
 
@@ -36,8 +36,8 @@ When released, the document pack contains an independently signed worker. The
 expanded pack is data only; no pack lets the renderer execute a downloaded command.
 
 Startup deletes the directories and partial downloads of the retired
-`parakeet-stt` and `parakeet-stt-webgpu` speech packs; their sets cannot be
-installed again (see [Speech model downloads](#speech-model-downloads)).
+`parakeet-stt` and `parakeet-stt-webgpu` speech packs. Install offline speech
+again from the Voice settings described below.
 
 ## Install and retry
 
@@ -80,20 +80,19 @@ files and retry Remove.
 
 ## Speech model downloads
 
-Animama no longer offers these downloads. Sets, voices and the encoder
-installed earlier keep working and can be removed. Where a download was
-offered, the app now says that downloads have ended and that chat, Avatars and
-the built-in voices need none; dictation says a missing model can no longer be
-downloaded.
+The final release turns these downloads off: sets, voices and the encoder
+installed earlier keep working and can be removed, the app says downloads have
+ended where it offered one, and dictation says a missing model can no longer be
+downloaded. Until then they work as described below.
 
 App Settings → **Voice** → **Speech-to-Text** shows **Offline speech
 recognition** with one section per model, under the languages it understands;
 the model for the app's language comes first. Dictation and Voice Mode use the
 model for the app's language, chosen when they start. Setup's Voice step and
-the main chat's install hint show only that model; companion windows point to
+the main chat's install hint offer only that model; companion windows point to
 main-window Settings.
 
-| Languages                 | Set              | Model asset             | Size     |
+| Languages                 | Download         | Model asset             | Size     |
 | ------------------------- | ---------------- | ----------------------- | -------- |
 | English                   | CPU model        | `parakeet-stt`          | ~661 MB  |
 | English                   | GPU acceleration | `parakeet-stt-webgpu`   | ~1.24 GB |
@@ -107,31 +106,35 @@ without live previews. With Traditional Chinese as the app's language,
 recognition also understands Cantonese, and both are written in Traditional
 characters.
 
-The GPU add-on is always listed beneath the CPU model; retained GPU files stay
-removable on unsupported devices. An installed set serves dictation offline
-without a restart: FastAPI keeps running and no window reloads.
+The GPU add-on is always listed beneath the CPU model. Its action is disabled,
+with the reason, until the CPU model is installed and the device has a WebGPU
+adapter; retained GPU files stay removable on unsupported devices. Downloading
+never selects a provider, and the GPU action never installs the CPU model.
+Every download can be skipped. A finished install is available at once:
+FastAPI keeps running, no window reloads and dictation works offline.
 
-Eve, Azelma and Michael are included voices. The other 35 voices were
-downloaded individually from the compact picker in Anima voice selection; one
-that was never installed is shown as not available, and replies for an Anima
-that uses it speak with the default voice. **Voice Clone** shows the cloning
-encoder's state; App Settings reuses the Anima voice-cloning form under the
-PocketTTS tab of Text-to-Speech. Previewing changes neither the provider nor
-the selected voice.
+Eve, Azelma and Michael are included voices. The other 35 voices download individually
+from the compact picker in Anima voice selection. **Voice Clone** contains the
+cloning encoder download; App Settings reuses the Anima voice-cloning form
+under the PocketTTS tab of Text-to-Speech. Downloading or previewing changes neither the
+provider nor the selected voice.
 
-The backend model-asset service checked every downloaded file's size and
-SHA-256 and activated a set only when complete. Partial downloads left by an
-earlier version are discarded at startup, since they can no longer resume.
+These downloads use the backend model-asset service: every file is checked for
+size and SHA-256, and a set activates only when complete. **Cancel download**
+discards the incomplete bytes. An interrupted download (connection loss, app
+quit or service restart) keeps its verified bytes, and **Retry download** asks
+only for the rest. Closing the cloning dialog detaches that operation without
+cancelling a shared download.
 
 To remove a model, select its **Remove GPU acceleration** (if installed),
 then **Remove CPU model**, confirming each. A CPU model cannot be removed
 while its GPU acceleration is installed. Removal is refused with "Speech
 recognition is in use" while dictation or Voice Mode in another window still has
 the model loaded. Stop them or close that window, then retry; an idle model
-unloads after five minutes. A removed set cannot be installed again; never edit
-installed files.
+unloads after five minutes. To reinstall, remove the set and download it again;
+never edit installed files.
 Removing the encoder preserves saved clones and their original recordings, but
-no new clone can be made without it.
+creating another clone requires downloading it again.
 
 ## Offline use and app upgrades
 

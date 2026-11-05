@@ -336,7 +336,7 @@ Offline speech verification, in a build that offers downloads, requires
 skipping optional speech, then real download, cancellation, interrupted resume,
 installation, removal and offline dictation from Voice settings, with no backend
 restart or window reload. The final release checks removal and offline
-dictation after upgrading a 0.1.2 preview that already has offline speech
+dictation after upgrading the previous release with offline speech already
 installed.
 Expanded content and document processing are deferred from the first release; retain their lifecycle and
 in-use/removal regression coverage without advertising their downloads.

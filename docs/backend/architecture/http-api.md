@@ -300,14 +300,15 @@ The shared downloader manages files listed in the release's packaged catalog
 (`animama/resources/model-assets.v1.json`, schema `animama-asset-catalog/1`).
 Requests name assets by catalog ID only; the release URL is never accepted from
 or returned to the browser. All routes use the admitted installation principal.
-Animama no longer distributes model files, so the local composition downloads
-nothing new: assets installed earlier keep working and can be removed.
+The final release turns local downloads off (`MODEL_DOWNLOADS_OFFERED`):
+assets installed earlier then keep working and can be removed, and nothing new
+is downloaded.
 
 - `GET /v1/model-assets` returns
-  `{"assets": [...], "free_bytes": N, "downloads_offered": false}` for every
+  `{"assets": [...], "free_bytes": N, "downloads_offered": true}` for every
   catalog entry. `free_bytes` is the store filesystem's free space, or `null`
-  when it cannot be measured. `downloads_offered` is optional; an absent value
-  means true.
+  when it cannot be measured. `downloads_offered` is false once downloads have
+  ended; it is optional, and an absent value means true.
 - `GET /v1/model-assets/{asset_id}` returns one state: `id`, `status`
   (`not_installed`, `downloading`, `installed` or `failed`), `size_bytes` (all
   files), `required_free_bytes` (size plus 64 MiB headroom), `media_type`

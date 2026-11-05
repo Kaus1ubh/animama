@@ -139,10 +139,9 @@ export async function assertPackTransitionAllowed(
 }
 
 /**
- * Whether the runtime no longer downloads model assets. Animama stopped
- * distributing model files, so local runtimes keep installed assets and
- * refuse new installs; hosted lists omit the field (their operator provides
- * the models).
+ * Whether the runtime has stopped downloading model assets: after the final
+ * release, local runtimes keep installed assets and refuse new installs.
+ * Hosted lists omit the field (their operator provides the models).
  */
 export function modelDownloadsEnded(
   list: Pick<PyModelAssetList, "downloads_offered"> | undefined,

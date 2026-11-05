@@ -4,10 +4,10 @@ The release tools build signed macOS 15+ Apple-silicon candidates and support
 guarded updates, upgrade snapshots and installed-artifact smoke tests.
 Signed macOS preview builds 0.1.0 to 0.1.2 are published; no stable feed has
 been. Animama's prebuilt distribution ends before 2027-01-01: the final
-release, 0.1.3 for macOS, never checks for updates, and
+release will never check for updates, and
 [Ending distribution](#ending-distribution) is the owner's runbook for it and
 the cut-off. Fresh matching artifacts, inventory review, minimum-OS/native
-acceptance and a real forward upgrade remain required for it. Unit tests do not
+acceptance and a real forward upgrade remain required for each release. Unit tests do not
 approve redistribution or publication.
 Windows 11 x64 has the same tooling: a signed candidate builder
 ([Build a signed Windows candidate](#build-a-signed-windows-candidate)), guarded
@@ -42,10 +42,10 @@ distribution (see [Distribution selection](#distribution-selection)): for R2,
 only the platform's feed (`<base_url>/latest-mac.yml` on macOS,
 `<base_url>/latest.yml` on Windows) and `<base_url>/v<version>/` files; for GitHub,
 only the configured repository's releases and asset CDN. Archive packs follow
-the same rule. Builds from current source download no model assets (see
-[downloaded model assets](../../backend/operations/model-assets.md#downloaded-model-assets));
-older builds fetched them from the fixed `https://downloads.animama.ai/models/`
-origin, with no redirects. R2 app downloads
+the same rule. Backend model-asset downloads, including the speech-to-text
+sets, always use the fixed `https://downloads.animama.ai/models/` origin, with
+no redirects; the final release downloads none (see
+[downloaded model assets](../../backend/operations/model-assets.md#downloaded-model-assets)). R2 app downloads
 also follow no redirects. No Animama account or token
 is required for the installed application.
 
@@ -546,7 +546,7 @@ renderer capture cannot observe it.
 On a clean test Mac, check avatar animation, PocketTTS, microphone permission,
 PiP, quick chat, offline dictation after installing offline speech in Voice
 settings (with no backend restart or window reload; for the final release,
-after upgrading a 0.1.2 preview that already has offline speech installed),
+after upgrading the previous release with offline speech already installed),
 any active expanded content,
 document conversion, interrupted pack installation/recovery, and an actual
 prompted upgrade preserving the principal, chats, content, provider status,
@@ -757,7 +757,7 @@ new version for corrections.
 
 ### Model objects
 
-Model files that earlier app versions downloaded at runtime are published once under
+Model files that the app downloads at runtime are published once under
 `models/<model-id>/<file-sha256>/<file-name>`, independent of app versions. A
 file's key is its own SHA-256, so published objects never change and an
 unchanged file is never uploaded again. The packaged backend model-asset catalog
@@ -817,14 +817,19 @@ for the required-name smoke and network report paths.
 ## Ending distribution
 
 Animama's prebuilt desktop downloads, update feed and model objects at
-`downloads.animama.ai` end before 2027-01-01. Current source already behaves
-as the final release: `release-policy.json` seals `"updates": "ended"`, no
-pack is active, local compositions download no model assets, and the speech
-setup scripts default to Hugging Face. The owner runs these steps, each with
-its own approval:
+`downloads.animama.ai` end before 2027-01-01. Until then, current source
+offers updates and model downloads, and releases follow the usual process. The
+speech setup scripts already default to Hugging Face. The owner runs these
+steps, each with its own approval:
 
-1. **Final release, 0.1.3 for macOS.** Build from `main` once the security
-   fixes chosen for the last build have merged. Stage `darwin-arm64`, review
+1. **Final release (macOS).** In one PR, turn both switches off: set
+   `"updates": "ended"` in `desktop/runtime/release-policy.json`, set
+   `MODEL_DOWNLOADS_OFFERED` to `False` in
+   `src/backend/animama/server/model_assets.py`, and update
+   `test_local_composition_offers_downloads_until_the_final_release` in
+   `tests/test_model_assets.py`, and reword the documents that describe current
+   source as offering updates and downloads. With updates ended, staging
+   refuses an active pack. After that PR merges, build from `main`: stage `darwin-arm64`, review
    `runtime/licenses/inventory.json` and `THIRD_PARTY_NOTICES.txt`, and record
    a fresh `darwin-arm64` receipt
    ([exact artifact review](redistribution-review.md#exact-artifact-review)).
@@ -833,13 +838,13 @@ its own approval:
    policy. Build the candidate with the default R2 distribution: the VM guest
    smoke selects R2, so a GitHub-built candidate fails `sealed_update_policy`
    there. In native acceptance, the pack checks need no
-   attestation while no pack is active. Check offline dictation by upgrading a
-   0.1.2 preview that already has offline speech installed, which is also the
-   forward upgrade. Publish stable with the feed promoted last. No Windows
+   attestation while no pack is active. Check offline dictation by upgrading
+   the previous release with offline speech already installed, which is also
+   the forward upgrade. Publish stable with the feed promoted last. No Windows
    build is released.
 2. **Transition.** Keep the feed and version folders published for about four
-   weeks, ending no later than 2026-12-31, so preview installs are offered
-   0.1.3.
+   weeks, ending no later than 2026-12-31, so earlier installs are offered the
+   final release.
 3. **Cut-off.**
    - Merge a documentation change that puts the README, installation and
      release pages in the past tense, and turn off the landing site's download

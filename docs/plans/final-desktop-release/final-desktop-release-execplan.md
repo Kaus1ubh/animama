@@ -11,6 +11,10 @@ Planning baseline: `origin/main` at `6c405817b`; implementation base
 
 ## Purpose and context
 
+Refined by [#859](https://github.com/raymond-van/animama/issues/859)
+(2026-11-04): after this plan merged, `main` turned updates and model
+downloads back on until the final release, which turns both off in one PR.
+
 After this plan, every build from this source is final: a packaged desktop app
 never contacts `downloads.animama.ai`, model downloads are switched off in every
 local composition with clear wording in their place, the speech scripts default
@@ -142,6 +146,12 @@ Orientation, from a read-only survey on 2026-11-04:
   R5 update-download checks; it still delivers R1–R4. Its R3.6 smoke rewrite
   and this plan's R1.5 smoke step both edit the smoke journey, so whichever
   merges second resolves the overlap.
+- 2026-11-04, owner, after #852 merged: keep making desktop releases and keep
+  model downloads working until the final release (#859). `main` turns both
+  switches back on (`"updates": "offered"`, `MODEL_DOWNLOADS_OFFERED = True`),
+  and the final release turns both off in one PR, as the first step of the
+  Ending distribution runbook in `docs/frontend/desktop/releases.md`. The ended
+  behaviour, its wording and its tests stay.
 
 ## Phased implementation
 

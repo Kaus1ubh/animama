@@ -299,7 +299,7 @@ def test_state_rejects_record_from_another_checkout(tmp_path: Path) -> None:
 
 
 def test_restore_keeps_installed_model_assets_and_replaces_everything_else(tmp_path: Path) -> None:
-    """Model assets are not in backups and can no longer be downloaded again."""
+    """Model assets are not in backups, so a restore keeps the installed ones."""
     root = tmp_path / "data"
     (root / "internal/model-assets/parakeet-stt/v1").mkdir(parents=True)
     (root / "internal/model-assets/parakeet-stt/v1/model.onnx").write_text("installed")
