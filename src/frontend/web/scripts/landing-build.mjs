@@ -277,9 +277,42 @@ function publishProgram({
 }
 
 /**
+ * Third-party code adapted into the page's own sources (listed in
+ * `licenses/third-party/adapted-code.md`), each with the upstream licence
+ * text that must ship wherever the bundle holds it. Paths are relative to
+ * `web/`.
+ */
+export const ADAPTED_CODE = [
+  {
+    file: "scripts/landing-stage/text-shimmer.tsx",
+    title: "Motion Primitives (text-shimmer.tsx) — MIT",
+    notice: "licenses/third-party/code-motion-primitives-LICENSE.md",
+  },
+];
+
+/**
+ * The notices section for the adapted code among `moduleIds` (Rollup module
+ * ids: absolute paths, possibly with a `?query`).
+ */
+export function adaptedCodeNotices(moduleIds) {
+  const bundled = new Set([...moduleIds].map((id) => id.split("?")[0]));
+  const entries = ADAPTED_CODE.filter(({ file }) =>
+    bundled.has(path.join(webRoot, file)),
+  ).map(({ title, notice }) =>
+    [title, readFileSync(path.join(repoRoot, notice), "utf8").trim()].join(
+      "\n\n",
+    ),
+  );
+  return entries.length
+    ? `Adapted code\n\n${entries.join("\n\n")}`
+    : "Adapted code\n\nNo third-party code is adapted into the page's sources.";
+}
+
+/**
  * `notices.txt`: the page's copyright, its Avatars' credits and terms, the
- * notices for any third-party artwork among its files, and the licence of
- * every npm package with code or fonts in the bundle.
+ * notices for any third-party artwork among its files and for third-party
+ * code adapted into its sources, and the licence of every npm package with
+ * code or fonts in the bundle.
  */
 function noticesText({ site, moduleIds, published }) {
   const sections = [
@@ -328,6 +361,8 @@ function noticesText({ site, moduleIds, published }) {
         )
       : "Artwork\n\nNo third-party artwork is included.",
   );
+
+  sections.push(adaptedCodeNotices(moduleIds));
 
   // npm packages with modules in the bundle, by the last `node_modules/` in
   // each module id (Vite's own helpers come from the `vite` package).

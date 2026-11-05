@@ -86,6 +86,22 @@ const ACCEPTANCE = {
   },
 };
 
+/**
+ * The hardening checks of the installed-artifact smoke: the exact app's fuse
+ * wire, publisher signature, sealed update policy and refused debugging
+ * switches, and the journey copy's wire, unavailable updates and untouched
+ * canonical profile.
+ */
+export const hardeningSmokeChecks = [
+  "exact_fuse_wire",
+  "publisher_signature",
+  "sealed_update_policy",
+  "debugging_switches_refused",
+  "copy_fuse_wire",
+  "copy_updates_unavailable",
+  "canonical_profile_untouched",
+];
+
 /** Accept current required-name evidence only for the exact candidate artifact. */
 export function acceptsRequiredNameSmoke(
   smoke,
@@ -95,6 +111,7 @@ export function acceptsRequiredNameSmoke(
   return (
     smoke?.passed === true &&
     smoke.setup === "name" &&
+    hardeningSmokeChecks.every((check) => smoke.checks?.[check] === true) &&
     smoke.checks?.required_private_name === true &&
     smoke.checks?.empty_name_rejected === true &&
     smoke.checks?.blank_name_rejected === true &&

@@ -21,22 +21,30 @@ if (process.platform === "win32" && process.arch === "x64") {
 }
 
 /**
- * Load the addon from the packaged app's `app.asar.unpacked`, inside the
- * packaged executable, and check a real low-level hook: an injected F24 key
- * (which no keyboard has) must arrive as one down and one up. The mouse hook
- * is only started and stopped; nothing clicks on the desktop.
+ * Load the addon from the packaged app's `app.asar.unpacked` and check a real
+ * low-level hook: an injected F24 key (which no keyboard has) must arrive as
+ * one down and one up. The mouse hook is only started and stopped; nothing
+ * clicks on the desktop. The packaged executable cannot run as Node (its
+ * RunAsNode fuse is off), so Electron's own staged binary loads the addon.
  */
 function testPackagedWindowsAddon() {
   const unpacked = fileURLToPath(
     new URL("../../release/win-unpacked/", import.meta.url),
   );
-  const executable = path.join(unpacked, "Animama.exe");
+  const executable = fileURLToPath(
+    new URL(
+      "../../.desktop-runtime/win32-x64/electron/electron.exe",
+      import.meta.url,
+    ),
+  );
   const addon = path.join(
     unpacked,
     "resources/app.asar.unpacked/dist/native/animama_input_hook.node",
   );
   if (!existsSync(executable) || !existsSync(addon))
-    throw new Error("Run pnpm desktop:win first.");
+    throw new Error(
+      "Stage and audit the Windows runtime, then run pnpm desktop:win first.",
+    );
   const directory = mkdtempSync(
     path.join(tmpdir(), "animama-native-input-test-"),
   );

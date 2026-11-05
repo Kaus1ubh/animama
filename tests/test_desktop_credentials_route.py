@@ -110,6 +110,18 @@ async def test_delivery_replaces_the_store_and_acknowledges_its_generation(
     _assert_never_reflected(response, captured_logs, capsys)
 
 
+async def test_a_connection_key_arrives_with_the_origin_it_was_entered_for(client: httpx.AsyncClient) -> None:
+    credentials = {
+        "ANIMAMA_CONNECTION_C1_API_KEY": SENTINEL,
+        "ANIMAMA_CONNECTION_C1_ORIGIN": "https://lab.example.test",
+    }
+
+    response = await client.put(ROUTE, content=_body(credentials), headers=NODE_FETCH)
+
+    assert response.status_code == 200
+    assert runtime_credentials.snapshot().get("ANIMAMA_CONNECTION_C1_ORIGIN") == "https://lab.example.test"
+
+
 async def test_a_gemini_key_is_applied_and_removed_without_a_restart(client: httpx.AsyncClient) -> None:
     generation = runtime_credentials.snapshot().generation + 1
     added = await client.put(
@@ -268,6 +280,7 @@ def test_backend_rules_match_the_desktop_vault() -> None:
         MANAGED_CREDENTIAL_ENV_PATTERN,
         MAX_CONNECTION_CREDENTIALS,
         MAX_CREDENTIAL_LENGTH,
+        connection_origin_env,
         is_deliverable_credential_env,
     )
 
@@ -291,6 +304,10 @@ def test_backend_rules_match_the_desktop_vault() -> None:
     delivered = set(re.findall(r'"([A-Z_]+)"', environment.group(1)))
     assert delivered == {"OPENAI_API_KEY", "ANTHROPIC_API_KEY", "ELEVENLABS_API_KEY", "GEMINI_API_KEY"}
     assert all(is_deliverable_credential_env(name) for name in delivered)
+    # Each connection key's origin travels under the name the backend reads;
+    # the desktop vault tests pin the same name for the delivered origin.
+    assert connection_origin_env("ANIMAMA_CONNECTION_C1_API_KEY") == "ANIMAMA_CONNECTION_C1_ORIGIN"
+    assert is_deliverable_credential_env("ANIMAMA_CONNECTION_C1_ORIGIN")
 
 
 @pytest.mark.parametrize("host", ["localhost:41234", "evil.test", f"127.0.0.1:{PORT + 1}", "attacker.test:41234"])
@@ -419,6 +436,7 @@ async def test_malformed_deliveries_are_refused_without_reflecting_input(
         {"OPENAI_API_KEY": ""},
         {"OPENAI_API_KEY": "x" * 8193},
         {f"ANIMAMA_CONNECTION_C{index}_API_KEY": SENTINEL for index in range(33)},
+        {"ANIMAMA_CONNECTION_C1_ORIGIN": "https://lab.example.test/" + SENTINEL},
     ],
     ids=[
         "path",
@@ -435,6 +453,7 @@ async def test_malformed_deliveries_are_refused_without_reflecting_input(
         "empty",
         "overlong-value",
         "too-many-connections",
+        "origin-with-path",
     ],
 )
 async def test_unsafe_names_and_values_are_refused_and_never_reach_the_environment(

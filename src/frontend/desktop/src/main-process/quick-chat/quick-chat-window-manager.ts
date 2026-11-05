@@ -1,4 +1,4 @@
-import { BrowserWindow, screen, type WebContents } from "electron";
+import { app, BrowserWindow, screen, type WebContents } from "electron";
 
 import type { DesktopConfig } from "../config.js";
 import {
@@ -457,6 +457,8 @@ export class QuickChatWindowManager {
         nodeIntegration: false,
         sandbox: true,
         webSecurity: true,
+        // Packaged builds open no DevTools.
+        devTools: !app.isPackaged,
       },
     });
 

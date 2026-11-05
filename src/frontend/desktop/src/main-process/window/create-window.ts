@@ -1,4 +1,4 @@
-import { BrowserWindow, nativeTheme } from "electron";
+import { app, BrowserWindow, nativeTheme } from "electron";
 
 import type { DesktopConfig } from "../config.js";
 import { installFullscreenWindowEvents } from "../fullscreen/fullscreen-ipc.js";
@@ -75,6 +75,8 @@ export async function createWindow({
       nodeIntegration: false,
       sandbox: true,
       webSecurity: true,
+      // Packaged builds open no DevTools.
+      devTools: !app.isPackaged,
     },
   });
 

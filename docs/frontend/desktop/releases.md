@@ -359,16 +359,21 @@ Log in normally and verify that the test account has no app/profile data; do not
 impersonate its session or change HOME. A privately transferred DMG is sufficient
 for the core smoke. No public GitHub visibility or signing credential is needed
 in the test account.
-The harness refuses an existing `Animama` or `Anima` profile or installed test app.
-It never resets data, changes HOME, or sets packaged developer overrides.
+The harness refuses an existing `Animama` or `Anima` profile or installed test
+app, and on macOS an existing `Animama Safe Storage` Keychain item. It never
+resets data or changes HOME, and the installed app never runs with a developer
+override.
 Provide `ANIMAMA_SMOKE_OPENAI_KEY` explicitly for two short real starter chats;
 the harness does not load developer `.env` files. Those API calls incur provider
 usage. The key travels through the normal setup UI into the encrypted vault.
 After checking restart persistence, the harness deletes this temporary OpenAI
 credential through the normal vault API and verifies absence after another
-restart. Failure paths attempt the same cleanup before shutdown; a failed
-cleanup fails the smoke and reports the required manual removal. It never
-changes the source key or any other account's vault. Real provider calls require
+restart. Failure paths attempt the same cleanup before shutdown, and a failed
+cleanup fails the smoke. The key only ever lives in the journey copy's
+throwaway profile, which the harness deletes; the smoke reports a manual
+removal only when it cannot delete that copy folder or, on macOS, the Keychain
+item the copy created. It never changes the source key or any other account's
+vault. Real provider calls require
 explicit authorization for the scoped smoke and its temporary credential cleanup.
 
 ```sh
@@ -377,17 +382,33 @@ pnpm desktop:smoke:mac -- --artifact desktop/release/publish/Animama-<version>-a
 
 The smoke rejects empty and all-whitespace names before completing named setup.
 Required-name evidence gates publication.
-The harness checks the signed DMG and contained app, installs into the absent
-`~/Applications/Animama.app`, launches with a system-only PATH, verifies child
-executables belong to app resources, that the installed runtime seals the
-update policy the release source expects, and that its update check reports
-`unavailable` when that policy has ended updates (otherwise that it passes the
-publisher check), and tests setup, a provider key applied
-without a window or backend restart, provider status, local HTTP
-rejection, core capabilities, both starter chats, exact typed bytes, private
-upload, restart persistence, temporary-key removal, and owned shutdown. It leaves the profile and app
-intact for inspection. A missing provider or failed journey is a failure, not a
-skipped success.
+The harness checks the signed DMG and contained app and installs into the
+absent `~/Applications/Animama.app`. It then checks the installed app without
+debugging it: its fuse wire, its publisher signature (the requirement its
+updater checks), its sealed `runtime/update-policy.json` (which the final
+release's policy makes `"updates": "ended"`), and two launches per
+debugging switch (with and without a value), each of which must exit promptly
+with a failure and leave no process running and its profile absent or
+empty.
+
+The journey runs on a copy that the harness makes in a new private folder
+outside the checkout and the publish folders (the temporary folder on macOS, a
+short folder under `%LOCALAPPDATA%` on Windows): the installed app with
+only Node's inspect switches turned on (so the test driver can attach) and an
+ad-hoc signature. A packaged app accepts the throwaway
+`ANIMAMA_DESKTOP_DEV_USER_DATA` profile only while its inspector runs, so only
+this copy can use it. The copy launches with a system-only PATH, its child
+executables must belong to its own resources, and its update check must report
+`unavailable`, because its signature no longer matches the publisher, and
+the installed app's profile must stay absent or empty. The journey tests
+setup, a provider key applied without a window or backend restart,
+provider status, local HTTP rejection, core capabilities, both starter chats,
+exact typed bytes, private upload, restart persistence, temporary-key removal,
+and owned shutdown. Afterwards the harness deletes the copy and its profile, and
+on macOS the Keychain item the copy created; the installed app stays for
+inspection. Publication requires every check, the hardening ones included
+(`hardeningSmokeChecks` in `smoke-policy.mjs`). A missing provider or failed
+journey is a failure, not a skipped success.
 
 ### Fresh-account smoke in a local VM
 
@@ -470,15 +491,19 @@ override the golden VM name and key file. Do not run the helper while a stage or
 `desktop:mac` pack is running: a clone uses four cores and 8 GB of memory.
 
 This satisfies the fresh-account smoke gate. It proves the same as a host test
-account: the exact signed, notarized DMG verifies, installs and completes the
-required-name journey in a never-used macOS account. The clone is also a
+account: the exact signed, notarized DMG verifies and installs in a never-used
+macOS account, the installed app carries the expected fuse wire, publisher
+signature and update policy and refuses every debugging switch, and the
+journey copy completes the required-name journey. The clone is also a
 never-used system, apart from the golden VM's Command Line Tools, Node.js and
-guest agent; the app runs with a system-only PATH. The smoke proves nothing about real
-GPU behavior (the guest has a paravirtualized GPU), audio or microphone, physical
-displays, the quarantine/Gatekeeper first-launch path, a signed upgrade or any
-macOS version other than the golden VM's. Those remain manual acceptance on a
-real Mac. A golden VM with a macOS 15 restore image would cover the declared
-minimum OS.
+guest agent; the copy runs with a system-only PATH. The smoke proves nothing
+about the signed app running beyond its debugging-switch refusal: its hardened
+runtime and entitlements (the copy's ad-hoc signature drops both), its own
+updater's publisher self-check at run time, real GPU behavior (the guest has a
+paravirtualized GPU), audio or microphone, physical displays, the
+quarantine/Gatekeeper first-launch path, a signed upgrade or any macOS version
+other than the golden VM's. Those remain manual acceptance on a real Mac. A
+golden VM with a macOS 15 restore image would cover the declared minimum OS.
 
 On Windows, use a separate standard (non-administrator) Windows account that
 has never run Animama: no `%LOCALAPPDATA%\Animama`, no
@@ -493,11 +518,19 @@ pnpm desktop:smoke:windows -- --artifact desktop/release/publish/Animama-<versio
 ```
 
 It checks the installer's signature, installs it silently for that user,
-checks the installed `Animama.exe` signature and runtime inventory, and runs
-the same journey with a system-only PATH. Each recorded child must run from the
-installed runtime inside its process guard. After every quit, no process from
-the install folder may remain. The report binds `installer_sha256` and the
-runtime build ID.
+checks the installed `Animama.exe` signature, runtime inventory, fuse wire,
+sealed update policy and debugging-switch refusal, and runs the same journey on
+a copy with a throwaway profile and a system-only PATH. Each recorded child
+must run from the copy's runtime inside its process guard. After every quit,
+no process from the copy may remain. The copy and its profile live in a short
+`am-smoke-*` folder under `%LOCALAPPDATA%`, so the profile fits the app's
+70-character data-root limit; before installing anything the harness refuses an
+account whose profile folder name is longer than 29 characters, and it deletes
+the folder afterwards. The copy's changed `Animama.exe` carries an invalid
+Authenticode signature, so its updates are unavailable, and Smart App Control or
+an application-control policy may block it; run the smoke where neither
+applies. The report binds
+`installer_sha256` and the runtime build ID.
 
 `desktop/release/smoke-name/` contains sanitized smoke and categorical
 renderer request/response reports. They retain no URLs, principal/chat IDs,
@@ -796,9 +829,10 @@ its own approval:
    a fresh `darwin-arm64` receipt
    ([exact artifact review](redistribution-review.md#exact-artifact-review)).
    Run the dependency audits, build the signed candidate, and run the smoke,
-   which records `sealed_update_policy` and `updates_ended`. Build the
-   candidate with the default R2 distribution: the VM guest smoke selects R2,
-   so a GitHub-built candidate fails `sealed_update_policy` there. In native acceptance, the pack checks need no
+   whose `sealed_update_policy` check binds the installed app to the ended
+   policy. Build the candidate with the default R2 distribution: the VM guest
+   smoke selects R2, so a GitHub-built candidate fails `sealed_update_policy`
+   there. In native acceptance, the pack checks need no
    attestation while no pack is active. Check offline dictation by upgrading a
    0.1.2 preview that already has offline speech installed, which is also the
    forward upgrade. Publish stable with the feed promoted last. No Windows

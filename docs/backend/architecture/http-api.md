@@ -1132,6 +1132,20 @@ A connection's `credential` takes one of three modes:
 - `{"mode": "managed"}`: read the key from `ANIMAMA_CONNECTION_<ID>_API_KEY`,
   derived from the connection ID, which the desktop vault sets.
 
+A key that a connection names is sent only to its own origin (the built-in
+OpenAI connection keeps the operator's `OPENAI_BASE_URL`). A provider variable's key goes only to
+that provider's API (`PROVIDER_CREDENTIAL_ORIGINS` in
+`app/model_clients/credential_store.py`). An `ANIMAMA_CONNECTION_<NAME>_API_KEY`
+key goes only to the origin in `ANIMAMA_CONNECTION_<NAME>_ORIGIN`, which the
+desktop vault delivers with the key and a self-hosted operator sets. No such
+key is sent over plain HTTP unless the host is this computer. A connection whose key
+cannot be sent to its base URL reports `credential_state: "missing"`. Create and
+update refuse `400 credential_insecure_transport` for any key over plain HTTP to
+another computer, and `400 credential_origin_mismatch` for a provider key at
+another origin or an operator's connection key whose `_ORIGIN` differs. A
+managed key moved to another origin is accepted and reports `missing` until the
+owner enters it again.
+
 Removal is soft: rows and connections become inactive because chat profiles
 and chat history still reference them. When Animas or role preferences use the
 target, removal without `confirm=true` returns
