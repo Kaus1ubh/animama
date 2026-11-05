@@ -11,7 +11,7 @@ secret or public identity.
 On first run, `/setup` has three steps: **Welcome** → **AI** → **Voice**.
 Welcome asks “What should Animama call you?” and accepts a required nonblank
 display name up to 30 characters. Welcome has no Skip action. AI
-(model and the OpenAI or Anthropic key) and Voice (speech downloads,
+(model and the OpenAI or Anthropic key) and Voice (speech recognition,
 Text-to-Speech and the ElevenLabs key) offer "Skip for now". Finish writes changed
 Text-to-Speech preferences and opens a blocking 18+ modal on the first Anima.
 The app shell and Avatar load behind the modal and stay mounted when it closes;

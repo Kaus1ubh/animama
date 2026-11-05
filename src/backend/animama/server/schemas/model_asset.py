@@ -62,6 +62,9 @@ class PyModelAssetList(BaseModel):
     assets: list[PyModelAssetState]
     # Free bytes in the installation store; null when it cannot be measured.
     free_bytes: int | None
+    # False once assets that are not installed can no longer be downloaded;
+    # installed assets keep working and can be removed.
+    downloads_offered: bool = True
 
 
 class PyModelAssetLeaseRequest(BaseModel):

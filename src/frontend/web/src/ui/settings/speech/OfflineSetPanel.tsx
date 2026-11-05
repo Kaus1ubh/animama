@@ -13,7 +13,10 @@ import {
   HostSpeechModelsNote,
   type OfflineSpeechDownloadsViewProps,
 } from "@/ui/settings/OfflineSpeechDownloads";
-import { operatorManagedModelsNote } from "@/ui/settings/operator-managed-models";
+import {
+  modelDownloadsEndedNote,
+  operatorManagedModelsNote,
+} from "@/ui/settings/operator-managed-models";
 
 /** An offline engine's two sets: the CPU model and its GPU add-on. */
 export type SpeechSet = "cpu" | "gpu";
@@ -69,9 +72,20 @@ export function OfflineSetPanel({
     turnedOff = false,
     gpuFellBack = false,
     operatorManaged = false,
+    downloadsEnded = false,
     onChange,
   } = downloads;
   const managed = manage && operatorManaged;
+  const shown = set === "cpu" ? cpu : gpu;
+  // A set that was never installed can no longer be downloaded. Vite
+  // development explains its host sets instead.
+  const ended =
+    OFFLINE_SPEECH_DOWNLOADS_OFFERED &&
+    downloadsEnded &&
+    !managed &&
+    shown !== undefined &&
+    shown.status !== "installed" &&
+    shown.status !== "downloading";
   // The backend refuses CPU removal while the add-on is installed or downloading.
   const gpuActive =
     gpu?.status === "installed" || gpu?.status === "downloading";
@@ -112,6 +126,7 @@ export function OfflineSetPanel({
       note={blockedReason ?? null}
       error={errorFor(cpu)}
       managed={managed}
+      ended={downloadsEnded}
       onInstall={() => cpu && onChange("install", cpu.id)}
       onCancel={() => cpu && onChange("cancel", cpu.id)}
       onRemove={manage ? () => cpu && onChange("remove", cpu.id) : undefined}
@@ -139,6 +154,7 @@ export function OfflineSetPanel({
       }
       error={errorFor(gpu)}
       managed={managed}
+      ended={downloadsEnded}
       installedNote={
         manage && gpuFellBack ? tVoice("offlineSpeech.gpu.fellBack") : null
       }
@@ -165,6 +181,11 @@ export function OfflineSetPanel({
       {managed ? (
         <p className="text-muted-foreground text-sm">
           {operatorManagedModelsNote()}
+        </p>
+      ) : null}
+      {ended ? (
+        <p role="status" className="text-muted-foreground text-sm">
+          {modelDownloadsEndedNote()}
         </p>
       ) : null}
       {turnedOff && cpuInstalled ? (
@@ -225,6 +246,7 @@ function SetupModelSet({
   note,
   error,
   managed = false,
+  ended = false,
   installedNote = null,
   removeBlockedReason = null,
   onInstall,
@@ -242,6 +264,8 @@ function SetupModelSet({
   error: string | null;
   /** Provided by the operator: state only, no actions. */
   managed?: boolean;
+  /** Downloads have ended: no download action, removal and cancel remain. */
+  ended?: boolean;
   /** Shown under an installed set, such as the WebGPU fallback. */
   installedNote?: string | null;
   /** Why an installed set cannot be removed yet. */
@@ -271,9 +295,9 @@ function SetupModelSet({
     downloading && asset.total_bytes
       ? Math.min(1, (asset.bytes_downloaded ?? 0) / asset.total_bytes)
       : undefined;
+  const offered = !installed && !downloading && !ended;
   const lowSpace =
-    !installed &&
-    !downloading &&
+    offered &&
     typeof freeBytes === "number" &&
     freeBytes < asset.required_free_bytes;
   return (
@@ -321,7 +345,7 @@ function SetupModelSet({
                 : tVoice("downloads.remove")}
             </Button>
           ) : null
-        ) : (
+        ) : offered ? (
           <Button
             type="button"
             size="sm"
@@ -331,7 +355,7 @@ function SetupModelSet({
           >
             {failed ? t("voice.stt.retryDownload") : t("voice.stt.download")}
           </Button>
-        )}
+        ) : null}
       </div>
       {downloading ? (
         <progress
@@ -353,7 +377,7 @@ function SetupModelSet({
           })}
         </p>
       ) : null}
-      {!managed && !installed && !downloading && note ? (
+      {!managed && offered && note ? (
         <p role="status" className="text-muted-foreground text-xs">
           {note}
         </p>

@@ -16,7 +16,9 @@ import { useModelAssetAction } from "@/query/mutations/useModelAssetActions";
 import {
   DownloadGuardError,
   downloadGuardText,
+  modelDownloadsEnded,
 } from "@/query/model-download-coordination";
+import { modelDownloadsEndedNote } from "@/ui/settings/operator-managed-models";
 
 /**
  * Why a failed download stopped, from its stable failure code (the model-asset
@@ -63,6 +65,8 @@ export function modelChangeErrorText(error: unknown): string {
       return t("offlineSpeech.gpu.blocked.needsCpu");
     case "model_asset_busy":
       return t("offlineSpeech.refusals.busy");
+    case "model_downloads_ended":
+      return modelDownloadsEndedNote();
     default:
       return t("offlineSpeech.refusals.changeFailed");
   }
@@ -118,6 +122,8 @@ export type OfflineSpeechDownloadsViewProps = {
   turnedOff?: boolean;
   /** The operator provides the sets; show their state without actions. */
   operatorManaged?: boolean;
+  /** Sets that are not installed can no longer be downloaded. */
+  downloadsEnded?: boolean;
   onChange(change: Change, assetId: string): void;
 };
 
@@ -236,6 +242,7 @@ export function useOfflineSpeechDownloads(
     // Stale data from before an install reports no version.
     turnedOff: enabled === false && Boolean(version),
     operatorManaged,
+    downloadsEnded: modelDownloadsEnded(assets.data),
     onChange: (operation, assetId) => void change(operation, assetId),
   };
 }

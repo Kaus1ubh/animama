@@ -120,6 +120,7 @@ cleanup() {
   rm -rf -- "$work_dir"
   if [ "$status" -ne 0 ] && [ "$replacement_started" = true ]; then
     printf 'Restore did not complete. The pre-restore rollback bundle is at %s\n' "$rollback_dir" >&2
+    printf 'Installed model assets may be held at %s/.restore-model-assets; rerunning the restore puts them back.\n' "$ANIMAMA_STATE_DATA_ROOT" >&2
     printf 'Application services remain stopped so damaged or partial state is never served.\n' >&2
   fi
   exit "$status"
@@ -138,6 +139,7 @@ tar -C "$ANIMAMA_STATE_DATA_ROOT" \
   --exclude='./internal/gateway/.gateway-token.*' \
   --exclude='./internal/model-assets' \
   --exclude='./staging/model-assets' \
+  --exclude='./.restore-model-assets' \
   -czf "${rollback_dir}/data.tar.gz" .
 cp "${payload}/manifest.env" "${rollback_dir}/restored-backup-manifest.env"
 chmod -R go-rwx "$rollback_dir"
@@ -149,9 +151,8 @@ printf '  PostgreSQL: compose service postgres\n'
 replacement_started=true
 
 find "$ANIMAMA_STATE_LOCAL_ROOT" -mindepth 1 -maxdepth 1 -exec rm -rf -- {} +
-find "$ANIMAMA_STATE_DATA_ROOT" -mindepth 1 -maxdepth 1 -exec rm -rf -- {} +
 tar -xzf "${payload}/content-local.tar.gz" -C "$ANIMAMA_STATE_LOCAL_ROOT"
-tar -xzf "${payload}/data.tar.gz" -C "$ANIMAMA_STATE_DATA_ROOT"
+animama_state_replace_data_root "${payload}/data.tar.gz"
 
 animama_state_compose exec -T postgres sh -c \
   'pg_restore --clean --if-exists --exit-on-error --no-owner --no-privileges -U "$POSTGRES_USER" -d "$POSTGRES_DB"' \

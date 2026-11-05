@@ -48,7 +48,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--source",
         choices=("animama", "upstream"),
-        help="acquire from Animama objects (default), or pinned upstream inputs for publication/build producers",
+        help="acquire from the pinned upstream inputs (default), or from Animama's model objects, "
+        "which are served only until downloads.animama.ai is disconnected",
     )
     args = parser.parse_args(argv)
     if args.import_from and args.operation != "acquire":
@@ -64,7 +65,7 @@ def main(argv: list[str] | None = None) -> int:
                 root,
                 offline=args.offline,
                 import_from=args.import_from,
-                shared_base_objects=args.source != "upstream",
+                shared_base_objects=args.source == "animama",
             )
             if args.operation == "acquire"
             else store.verify(manifest, root)
@@ -80,7 +81,7 @@ def main(argv: list[str] | None = None) -> int:
         )
         print(f"SenseVoice setup failed: {detail}", file=sys.stderr)
         print(
-            "Run python3 scripts/models/sensevoice.py acquire [--source upstream] [--root ABSOLUTE_STORE_ROOT] "
+            "Run python3 scripts/models/sensevoice.py acquire [--root ABSOLUTE_STORE_ROOT] "
             "(about 240 MB). To reuse existing files, add --offline --import-from DIRECTORY.",
             file=sys.stderr,
         )

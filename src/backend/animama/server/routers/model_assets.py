@@ -2,7 +2,8 @@
 
 Requests name assets by catalog ID only; the release URL never comes from a
 request. Installation runs in the background and is polled through the state
-routes. Installed bytes are served same-origin, so the browser never contacts
+routes; a service that no longer offers downloads refuses it for an asset that
+is not installed (``model_downloads_ended``). Installed bytes are served same-origin, so the browser never contacts
 the release host: single files at ``/content``, sets by their consumer's mount
 (speech-to-text sets at ``/onnx/models/...``). A renderer that loads an installed
 asset holds a renewable use lease, which blocks removal until it is released or
@@ -74,6 +75,7 @@ async def list_model_assets(_principal: Principal, service: Service) -> PyModelA
     return PyModelAssetList(
         assets=[PyModelAssetState.from_state(state) for state in service.states()],
         free_bytes=service.free_bytes(),
+        downloads_offered=service.downloads_offered,
     )
 
 
@@ -88,8 +90,9 @@ async def get_model_asset(asset_id: str, _principal: Principal, service: Service
     status_code=status.HTTP_202_ACCEPTED,
     responses={
         409: {
-            "description": "The asset is being removed (model_asset_busy), or a required asset is not"
-            " installed (model_asset_requires, details.requires)."
+            "description": "The asset is being removed (model_asset_busy), a required asset is not"
+            " installed (model_asset_requires, details.requires), or downloads are no longer offered"
+            " (model_downloads_ended)."
         }
     },
 )

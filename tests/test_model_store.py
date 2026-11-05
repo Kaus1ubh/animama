@@ -234,8 +234,8 @@ def test_cli_root_resolves_the_store_without_acquired_models(tmp_path, monkeypat
     assert not (tmp_path / "store").exists()
 
 
-def test_cli_default_acquires_every_pinned_object_and_reuses_the_cache(inventory, monkeypatch):
-    """Ordinary setup consumes the same seven immutable objects as desktop packs."""
+def test_cli_animama_source_acquires_every_pinned_object_and_reuses_the_cache(inventory, monkeypatch):
+    """Until the host is disconnected, setup can consume the same seven immutable objects as the app."""
     i = inventory
 
     def download(url, hosts=store.DOWNLOAD_HOSTS):
@@ -243,7 +243,7 @@ def test_cli_default_acquires_every_pinned_object_and_reuses_the_cache(inventory
         return i.transport(url)
 
     monkeypatch.setattr(store, "open_download", download)
-    args = ["acquire", "--manifest", str(i.manifest_path), "--root", str(i.root)]
+    args = ["acquire", "--manifest", str(i.manifest_path), "--root", str(i.root), "--source", "animama"]
     assert store.main(args) == 0
     assert i.calls == [
         f"https://downloads.animama.ai/models/{store.MODEL_ID}/{entry['sha256']}/{entry['path']}"
@@ -254,7 +254,9 @@ def test_cli_default_acquires_every_pinned_object_and_reuses_the_cache(inventory
     assert store.main([*args, "--offline"]) == 0
 
 
-def test_cli_explicit_producer_bootstraps_without_published_objects(inventory, monkeypatch):
+@pytest.mark.parametrize("source", [[], ["--source", "upstream"]], ids=["default", "explicit"])
+def test_cli_acquires_from_pinned_upstreams_by_default(inventory, monkeypatch, source):
+    """Animama's download host is going away, so the original publishers are the default."""
     i = inventory
 
     def upstream_only(url, hosts=store.DOWNLOAD_HOSTS):
@@ -263,11 +265,11 @@ def test_cli_explicit_producer_bootstraps_without_published_objects(inventory, m
         return i.transport(url)
 
     monkeypatch.setattr(store, "open_download", upstream_only)
-    args = ["acquire", "--manifest", str(i.manifest_path), "--root", str(i.root), "--source", "upstream"]
-    assert store.main(args) == 0
+    args = ["acquire", "--manifest", str(i.manifest_path), "--root", str(i.root)]
+    assert store.main([*args, *source]) == 0
     assert len(i.calls) == 5  # Producer notices are the reviewed local copies.
     monkeypatch.setattr(store, "open_download", lambda *_: pytest.fail("consumer must reuse producer cache"))
-    assert store.main(args[:-2]) == 0
+    assert store.main([*args, "--source", "animama"]) == 0
 
 
 @pytest.mark.parametrize("failure", ["missing", "corrupt", "interrupted"])
@@ -285,7 +287,7 @@ def test_shared_acquisition_failure_has_no_upstream_fallback_or_partial_activati
         return io.BytesIO(b"corrupt")
 
     monkeypatch.setattr(store, "open_download", broken)
-    args = ["acquire", "--manifest", str(i.manifest_path), "--root", str(i.root)]
+    args = ["acquire", "--manifest", str(i.manifest_path), "--root", str(i.root), "--source", "animama"]
     assert store.main(args) == 1
     assert len(calls) == 1
     assert not (i.root / store.MODEL_ID / i.manifest["digest"]).exists()

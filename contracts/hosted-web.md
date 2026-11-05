@@ -210,10 +210,10 @@ shows that a newer sign-in replaced the one it targeted.
 ## Capabilities and requests
 
 The sole wire schema is `app/contracts/runtime_capabilities.py`, exported offline
-in `local-http` version **21.0.0** with capability `schema_version: 2`. The generated
+in `local-http` version **22.0.0** with capability `schema_version: 2`. The generated
 TypeScript `RuntimeCapabilities` and validator are the same contract.
 `ProductRuntimeCapabilities` is a derived `Pick` for the existing extracted chat
-surface, not another wire schema. `runtime-contracts` is version 0.21.0 and
+surface, not another wire schema. `runtime-contracts` is version 0.22.0 and
 `product-ui` is version 0.19.0. Consumers explicitly admit
 the new contract major before adoption.
 
@@ -250,8 +250,9 @@ validates and sanitizes every body. See
 `offline_speech_enabled` and its versions describe current Parakeet (English)
 availability, and `offline_multilingual_speech_enabled` and its versions current
 SenseVoice-Small (Japanese, Korean and Chinese) availability, not permission to
-use voice. An absent optional set does not remove browser voice, Pocket TTS,
-supported server speech, or the workflow to download a permitted set. The
+use voice. An absent optional set does not remove browser voice, Pocket TTS or
+supported server speech. A model-asset list without `downloads_offered`, as a
+hosted one is, means downloads are offered. The
 hosted capability fixture reports SenseVoice off, and the hosted build lists no
 SenseVoice lazy resource. The packaged model-asset catalog nevertheless
 contains `sensevoice-stt` and `sensevoice-stt-webgpu`, so a hosted consumer that

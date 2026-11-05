@@ -20,6 +20,7 @@ from animama.adapters.model_assets import FilesystemModelAssetStore, HttpAssetFe
 from animama.app.ports.model_assets import AssetFetchError, FetchedBody
 from animama.app.services.model_asset_service import (
     TRANSFER_RETRY_DELAYS,
+    AssetInstallRefusedError,
     ModelAssetService,
     load_packaged_asset_catalog,
 )
@@ -33,8 +34,9 @@ from animama.domain.model_assets import (
     parse_asset_catalog,
 )
 from animama.domain.request_principal import RequestPrincipal
+from animama.server.config import Settings
 from animama.server.deps import get_current_principal
-from animama.server.model_assets import get_model_asset_service
+from animama.server.model_assets import get_model_asset_service, model_asset_service_for
 from animama.server.routers import model_assets
 from tests.local_http_client import local_client
 
@@ -768,6 +770,78 @@ async def test_installed_assets_survive_restart_and_are_size_checked(data_root: 
     (installed,) = _installed(data_root)
     installed.write_bytes(PAYLOAD[:-1])
     assert _service(data_root, release).state("voice-a").status == "not_installed"
+
+
+# End of downloads
+
+
+async def test_ended_downloads_keep_installed_assets_and_refuse_new_installs(data_root: Path, release: Release) -> None:
+    offered = _service(data_root, release)
+    offered.install("voice-a")
+    await offered.wait("voice-a")
+    assert len(release.requests) == 1
+
+    ended = ModelAssetService(
+        _catalog(), FilesystemModelAssetStore(data_root), release.fetcher(), downloads_offered=False
+    )
+    async with local_client(_app(ended)) as client:
+        listed = (await client.get("/v1/model-assets")).json()
+        assert listed["downloads_offered"] is False
+        assert listed["assets"][0]["status"] == "installed"
+        # An installed asset is still served and reported as installed.
+        assert (await client.get("/v1/model-assets/voice-a/content")).content == PAYLOAD
+        again = await client.post("/v1/model-assets/voice-a:install")
+        assert again.status_code == 202 and again.json()["status"] == "installed"
+
+        removed = await client.delete("/v1/model-assets/voice-a")
+        assert removed.status_code == 200 and removed.json()["status"] == "not_installed"
+        refused = await client.post("/v1/model-assets/voice-a:install")
+        assert refused.status_code == 409
+        assert refused.json()["detail"] == {"code": "model_downloads_ended", "details": {}}
+        assert (await client.get("/v1/model-assets/voice-a")).json()["status"] == "not_installed"
+    assert len(release.requests) == 1
+    assert _installed(data_root) == []
+    assert _staged(data_root) == []
+
+
+async def test_offered_downloads_are_listed(data_root: Path, release: Release) -> None:
+    async with local_client(_app(_service(data_root, release))) as client:
+        assert (await client.get("/v1/model-assets")).json()["downloads_offered"] is True
+
+
+def test_local_composition_offers_no_downloads(tmp_path: Path) -> None:
+    application = FastAPI()
+    application.state.runtime_settings = Settings(animama_data_root=tmp_path / "data")
+    # Animama no longer distributes model files, so no local composition downloads them.
+    service = model_asset_service_for(application)
+    assert service.downloads_offered is False
+    with pytest.raises(AssetInstallRefusedError) as refused:
+        service.install("parakeet-stt")
+    assert refused.value.code == "model_downloads_ended"
+
+
+def test_ended_downloads_are_refused_before_requirements(data_root: Path, release: Release) -> None:
+    ended = ModelAssetService(
+        load_packaged_asset_catalog(), FilesystemModelAssetStore(data_root), release.fetcher(), downloads_offered=False
+    )
+    # The GPU add-on needs its CPU set; the end of downloads is the answer first.
+    with pytest.raises(AssetInstallRefusedError) as refused:
+        ended.install("parakeet-stt-webgpu")
+    assert refused.value.code == "model_downloads_ended"
+
+
+def test_ended_downloads_discard_staged_bytes(data_root: Path) -> None:
+    staged = data_root / "staging" / "model-assets" / "voice-a" / DIGEST
+    staged.mkdir(parents=True)
+    (staged / DIGEST).write_bytes(PAYLOAD[:100])  # A single file is staged under its digest.
+
+    _service(data_root, Release())
+    assert _staged(data_root), "a resumable prefix is kept while downloads are offered"
+
+    ModelAssetService(_catalog(), FilesystemModelAssetStore(data_root), Release().fetcher(), downloads_offered=False)
+
+    # A partial download can never resume, so its bytes are not kept.
+    assert _staged(data_root) == []
 
 
 def test_service_start_discards_stale_staging(data_root: Path, release: Release) -> None:

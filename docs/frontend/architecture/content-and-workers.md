@@ -37,7 +37,7 @@ tree. Production and embedded-desktop builds copy the exact inventory into
 of the developer store. These required distribution copies remain local to the
 artifact and retain their notices. The offline speech-to-text sets (Parakeet
 and SenseVoice-Small) are kept outside the web build: packaged desktop and built
-self-host download them as backend model assets. See
+self-host serve only the sets the backend model-asset service installed before downloads ended. See
 [shared model setup](../../backend/operations/model-assets.md) for acquisition,
 platform-specific storage, offline reuse and cleanup.
 

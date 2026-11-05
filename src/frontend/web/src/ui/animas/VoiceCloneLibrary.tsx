@@ -19,6 +19,7 @@ import {
 } from "@/lib/content/contentSaveErrors";
 import { failureLine } from "@/lib/errors/apiError";
 import { useOperatorManagedModelAssets } from "@/query/hooks/useModelAssets";
+import { useModelDownloadsEnded } from "@/query/hooks/useModelDownloadsEnded";
 import { useVoiceCloneActions } from "@/query/mutations/useVoiceCloneActions";
 import { useModelAssetAction } from "@/query/mutations/useModelAssetActions";
 import {
@@ -55,6 +56,9 @@ function cloneError(
       ? error.code
       : parseContentApiErrorDetail(error)?.code;
   if (code === "catalog_item_in_use") return t("voices.cloning.errors.inUse");
+  // The encoder was offered before the model-asset list said downloads ended.
+  if (code === "model_downloads_ended")
+    return t("voices.cloning.downloadsEnded");
   if (code === "catalog_revision_conflict")
     return t("voices.cloning.errors.changed");
   if (error instanceof ContentSaveApiError) return error.message;
@@ -81,6 +85,7 @@ export function VoiceCloneLibrary({
   const actions = useVoiceCloneActions();
   const modelAction = useModelAssetAction();
   const operatorManaged = useOperatorManagedModelAssets();
+  const downloadsEnded = useModelDownloadsEnded();
   const input = useRef<HTMLInputElement>(null);
   const prepared = useRef<PreparedVoiceClone | null>(null);
   const pending = useRef(false);
@@ -168,7 +173,10 @@ export function VoiceCloneLibrary({
     } catch (cause) {
       if (controller.signal.aborted) return;
       if (cause instanceof PocketVoiceEncoderDownloadRequired) {
-        if (operatorManaged) {
+        if (downloadsEnded && !operatorManaged) {
+          // The encoder was never installed and can no longer be downloaded.
+          setError(t("voices.cloning.downloadsEnded"));
+        } else if (operatorManaged) {
           // The operator provides the encoder; this runtime never downloads it.
           setError(
             t("voices.cloning.operatorManaged", {

@@ -254,9 +254,10 @@ ANIMAMA_WEB_BUILD_MODE=production
 The built Docker target compiles optimized React assets and copies them to
 `/opt/animama/web`. FastAPI serves those files and the API from the same
 loopback application origin; no Node or Vite server runs in this graph.
-This graph does not mount host speech-to-text sets: the app downloads the
-Parakeet and SenseVoice sets into its data root through the backend model-asset
-service. The browser speech set is an optional build input; run
+This graph does not mount host speech-to-text sets: it serves only the
+Parakeet and SenseVoice sets that the backend model-asset service installed in
+its data root before downloads ended, so a new built stack has no offline
+speech recognition. The browser speech set is an optional build input; run
 `python3 scripts/models/browser_speech.py acquire` to enable Pocket TTS and Smart
 Turn, and set `ANIMAMA_MODEL_ROOT` to an absolute persistent root when needed.
 `reset.sh` records that root and the exact immutable version directory of each
@@ -317,7 +318,10 @@ application services while PostgreSQL stays available, creates a custom-format
 database dump plus Local/data archives and SHA-256 inventory, then restarts only
 the services it stopped. The default output is the ignored `backups/`
 directory. Included content, browser/HTTP caches, model caches, downloaded
-model assets and environment secrets are intentionally excluded. The
+model assets and environment secrets are intentionally excluded. Model assets
+can no longer be downloaded again, so a backup restored on another host has no
+offline speech recognition or downloadable voices; an in-place restore keeps
+the installed ones. The
 PostgreSQL dump includes `installation_settings`, so restoring it preserves the
 installation principal and every existing owner ID.
 
@@ -1672,8 +1676,8 @@ Core:
 - `ANIMAMA_DESKTOP_RENDERER_CAPABILITY`, `ANIMAMA_DESKTOP_CONTROL_TOKEN`
   (paired private desktop inputs; absent in normal self-host)
 - `ANIMAMA_PARAKEET_SOURCE` (where both speech-to-text engines' sets come
-  from. `asset-store`, the default: FastAPI installs and serves Parakeet and
-  SenseVoice sets from its model-asset store; `operator`: set by the
+  from. `asset-store`, the default: FastAPI serves the Parakeet and SenseVoice
+  sets installed in its model-asset store, which no longer downloads new ones; `operator`: set by the
   development Compose override, where Vite serves the host sets that `reset.sh`
   mounts. `desktop:dev` against an external stack follows that stack.)
 - `ANIMAMA_PARAKEET_STT_ENABLED` and `ANIMAMA_SENSEVOICE_STT_ENABLED` (operator

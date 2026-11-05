@@ -9,9 +9,21 @@ vi.mock("@/lib/speech/offline-stt/clients", () => ({
   offlineSttClients: {},
   OFFLINE_SPEECH_DOWNLOADS_OFFERED: true,
 }));
-vi.mock("@/query/hooks/useModelAssets", () => ({
-  useModelAssets: () => ({ data: { assets: [] } }),
+const listing = vi.hoisted(() => ({
+  assets: [] as PyModelAssetState[],
+  downloadsOffered: true,
 }));
+vi.mock("@/query/hooks/useModelAssets", () => ({
+  useModelAssets: () => ({
+    data: {
+      assets: listing.assets,
+      downloads_offered: listing.downloadsOffered,
+    },
+  }),
+}));
+
+const ENDED_NOTE =
+  "Animama no longer offers model downloads. Anything already downloaded keeps working; chat, Avatars and the built-in voices need no downloads.";
 
 const set = (
   id: string,
@@ -43,13 +55,14 @@ const panel = (
   set: "cpu" | "gpu",
   extra: Partial<OfflineSpeechDownloadsViewProps> = {},
   engine: "parakeet" | "sensevoice" = "sensevoice",
+  manage = true,
 ) =>
   renderToStaticMarkup(
     <OfflineSetPanel
       engine={engine}
       set={set}
       downloads={downloads(extra)}
-      manage
+      manage={manage}
     />,
   );
 
@@ -88,6 +101,35 @@ describe("App Settings offline speech versions", () => {
     expect(cpu).toMatch(/<button[^>]*disabled=""[^>]*>Remove<\/button>/u);
   });
 
+  it.each([true, false])(
+    "explains that downloads have ended instead of offering them (manage: %s)",
+    (manage) => {
+      for (const which of ["cpu", "gpu"] as const) {
+        const html = panel(
+          which,
+          { downloadsEnded: true, freeBytes: 0 },
+          "sensevoice",
+          manage,
+        );
+        expect(html).toContain("Not downloaded");
+        expect(html).toContain(ENDED_NOTE);
+        expect(html).not.toContain("<button");
+        expect(html).not.toContain("Not enough free space");
+      }
+    },
+  );
+
+  it("keeps removal of an installed set once downloads have ended", () => {
+    const html = panel("cpu", {
+      downloadsEnded: true,
+      cpu: set("sensevoice-stt", { status: "installed" }),
+      gpu: set("sensevoice-stt-webgpu"),
+    });
+    expect(html).toContain("Downloaded");
+    expect(html).toMatch(/<button(?![^>]*disabled="")[^>]*>Remove<\/button>/u);
+    expect(html).not.toContain(ENDED_NOTE);
+  });
+
   it("shows operator-provided sets without actions", () => {
     const html = panel("cpu", {
       operatorManaged: true,
@@ -121,6 +163,35 @@ describe("Speech-to-Text engine tabs", () => {
     expect(html).toContain(
       'href="https://developer.mozilla.org/en-US/docs/Web/API/Web_Speech_API"',
     );
+  });
+
+  it("names download sizes only while downloads are offered or for installed sets", () => {
+    listing.assets = [
+      set("sensevoice-stt"),
+      set("sensevoice-stt-webgpu", { status: "installed" }),
+    ];
+    const variants = () =>
+      renderToStaticMarkup(
+        <SttChoiceTabs
+          choice="sensevoice_cpu"
+          choices={["browser_external", "sensevoice_cpu", "sensevoice_gpu"]}
+          recommended="sensevoice_cpu"
+          onChoiceChange={vi.fn()}
+          panel={() => null}
+          selected="sensevoice"
+        />,
+      );
+    try {
+      const offered = variants();
+      expect(offered).toMatch(/CPU \(\d/u);
+      listing.downloadsOffered = false;
+      const ended = variants();
+      expect(ended).not.toMatch(/CPU \(/u);
+      expect(ended).toMatch(/GPU \(\d/u);
+    } finally {
+      listing.assets = [];
+      listing.downloadsOffered = true;
+    }
   });
 
   it("tags only the engine in use as Selected", () => {

@@ -608,7 +608,8 @@
       "savingVoice": "正在保存语音…",
       "sectionLabel": "语音克隆",
       "title": "语音克隆",
-      "upload": "上传语音样本"
+      "upload": "上传语音样本",
+      "downloadsEnded": "语音克隆需要的模型已无法下载。已保存的克隆语音仍可继续使用。"
     },
     "elevenLabs": {
       "idLabel": "语音 ID",
@@ -676,7 +677,8 @@
       "savedUnavailable": "已保存的语音不可用",
       "sectionLabel": "PocketTTS 语音",
       "selectedUnavailable": "此已保存的语音不可用。请选择其他语音。",
-      "selectFailed": "无法选择 PocketTTS 语音。请刷新后重试。"
+      "selectFailed": "无法选择 PocketTTS 语音。请刷新后重试。",
+      "notDownloadable": "{{voice}} 已无法下载，因此回复将使用默认语音。"
     },
     "provider": {
       "active": "当前提供商",

@@ -919,8 +919,9 @@ export function ApplicationSettingsModal({
   /**
    * Save a Speech-to-Text choice: its provider, GPU preference and, for an
    * offline choice, its engine (`sttChoicePatch`). An offline choice is saved
-   * before its set is installed: its tab offers the download, and dictation
-   * says the model is missing.
+   * before its set is installed: its tab shows the set's state (and its
+   * download while downloads are offered), and dictation says the model is
+   * missing.
    */
   const handleSttChoiceChange = (choice: SttChoice) => {
     if (choice === savedSttChoice || isSaving || isInitializing) return;

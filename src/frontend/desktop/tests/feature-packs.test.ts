@@ -350,9 +350,10 @@ describe("feature-packs catalog and authority", () => {
     await writeFile(
       path.join(root, "update-policy.json"),
       JSON.stringify({
-        schema: "animama-update-policy/2",
+        schema: "animama-update-policy/3",
         distribution: r2,
         channel: "stable",
+        updates: "offered",
         team_id: "TESTTEAM01",
       }),
     );

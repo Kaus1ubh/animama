@@ -171,6 +171,9 @@
     "unavailable": "The chosen model is unavailable, so the default is used.",
     "unavailableChoice": "{{model}} (unavailable)"
   },
+  "downloadsEnded": {
+    "note": "Animama no longer offers model downloads. Anything already downloaded keeps working; chat, Avatars and the built-in voices need no downloads."
+  },
   "embeddings": {
     "current": "Stored files and archives are embedded with this model.",
     "off": "Embeddings are off; file and archive search use keywords.",

@@ -79,6 +79,9 @@ vi.mock("@/hooks/usePocketTtsRuntime", () => ({
     isEncodingVoice: false,
   }),
 }));
+vi.mock("@/query/hooks/useModelDownloadsEnded", () => ({
+  useModelDownloadsEnded: () => false,
+}));
 vi.mock("@/hooks/usePocketVoiceDownloads", () => ({
   usePocketVoiceDownloads: () => ({
     availability: () => null,

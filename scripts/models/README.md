@@ -2,7 +2,7 @@
 
 Run from the Animama checkout with Python 3.11+ on macOS, Linux or native Windows.
 On Windows, use `py -3` where these examples use `python3`. Setup uses only
-Python's standard library and Animama's public, content-addressed model objects;
+Python's standard library and the pinned public sources each manifest names;
 no account, API key or Hugging Face SDK is required.
 
 ```sh
@@ -37,23 +37,22 @@ this manifest reuse the same bytes. `--manifest PATH` selects a local reviewed
 manifest or small build/test fixture; it never accepts arbitrary upstream URLs,
 repositories, moving revisions or inventory paths.
 
-Each ordinary base download uses
+`acquire` downloads the original pinned upstream weights from Hugging Face and
+uses the checked-in notices. Until `downloads.animama.ai` is disconnected,
+`--source animama` instead fetches Animama's published objects,
 `https://downloads.animama.ai/models/parakeet-tdt-0.6b-v2/<sha256>/<filename>`,
-including both notices. The app's in-app speech downloads use the same
-verified raw objects. A missing object fails without falling back to another
-source.
-
-Build/release maintainers can explicitly acquire the original pinned upstream
-weights and checked-in notices before the first model publication:
+including both notices; a missing object fails without falling back to another
+source. After the cut-off that option only fails.
 
 ```sh
-python3 scripts/models/parakeet.py acquire --source upstream
+python3 scripts/models/parakeet.py acquire                   # pinned upstream (default)
+python3 scripts/models/parakeet.py acquire --source animama  # until the cut-off
 ```
 
 Both sources produce the same verified directory; existing valid caches and
 offline imports need no new download. The full/cold-cache Validation workflow
-uses this producer mode without publication credentials. Other model setup
-scripts retain their own manifest sources.
+names `--source upstream` explicitly. Other model setup scripts retain their own
+manifest sources.
 
 To adopt an existing model copy without downloading:
 
@@ -83,18 +82,19 @@ stack records and processes before removing unused versions. Files are made
 read-only to discourage accidental edits, but the owning user can still alter
 them; consumers verify before use.
 
-Requests and redirects use HTTPS and a fixed reviewed host list: Animama's
-download origin for normal base acquisition, or Hugging Face hosts for explicit
-upstream acquisition.
+Requests and redirects use HTTPS and a fixed reviewed host list: Hugging Face
+hosts by default, or Animama's download origin with `--source animama` until
+the cut-off.
 The downloader sends no credentials and does not inherit environment proxies.
 HTTP errors, including throttling, fail with instructions to retry later; no
 automatic retries hide repeated failures. Interrupted/failed transfers restart
 rather than attempting unvalidated byte-range resume. Serving and ordinary
 startup never download or choose a different model version.
 
-Packaged desktop and built self-host download speech-to-text sets through their
-own backend model-asset service into the application's data root. The developer
-store is a build/setup input, not the installed application's model store.
+Packaged desktop and built self-host serve only the speech-to-text sets their
+own backend model-asset service installed in the application's data root
+before downloads ended. The developer store is a build/setup input, not the
+installed application's model store.
 
 Native Windows model-store tests can be run with
 `uv run --no-project --with pytest==8.4.2 python -m pytest --noconftest -o addopts= tests/test_model_store.py -q`.
@@ -122,9 +122,9 @@ Traditional) and Cantonese offline on the CPU: the INT8 graph, its token table,
 cannot read from ONNX) and the two notices, about 240 MB under
 `<store>/sensevoice-small/<manifest-digest>`. It uses the same store, acquire
 options (`--root`, `--offline`, `--import-from`, `--source`) and exit codes as
-`parakeet.py`: the default source is Animama's published objects, and
-`--source upstream` downloads the pinned
-`csukuangfj/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17` revision.
+`parakeet.py`: the default source downloads the pinned
+`csukuangfj/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17` revision, and
+`--source animama` Animama's published objects until the cut-off.
 
 `python3 scripts/models/sensevoice_webgpu.py acquire|verify|path` manages the
 optional FP32 graph (about 940 MB) used on WebGPU, where the INT8 graph's
@@ -142,10 +142,9 @@ browser runtime. Ordinary serving and builds verify these inputs offline; they d
 require optional voices or the cloning encoder.
 
 `python3 scripts/models/pocket_cloning.py acquire|verify|path` manages the
-optional Mimi encoder and its two notices. Use explicit `acquire --source
-upstream` for release/voice-authoring preparation before its Animama objects are
-published. The installed application downloads it only after an explicit cloning
-or download action.
+optional Mimi encoder and its two notices for release and voice-authoring
+preparation; it always acquires from the reviewed upstream. The installed
+application no longer downloads it.
 
 ## Release-only bootstrap
 
@@ -164,6 +163,11 @@ the locked script environment. It requires the existing encoded hashes, never
 uses `--rehash`, rejects changes to generated tracked inventories, then imports
 the complete 36-voice set offline. Encoding drift fails the release preparation;
 do not approve new hashes to make a different platform pass.
+
+`pocket_voices.py acquire` fetches the 24 VCTK states Animama encoded from
+`downloads.animama.ai`, their only published copy, so after the cut-off it
+works only with `--offline --import-from` an existing set (or through this
+helper, which encodes them again).
 
 Add `--import-voices /absolute/import-voice-set` to reuse an existing complete
 producer inventory instead of encoding. The same size/hash checks apply. Set

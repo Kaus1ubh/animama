@@ -177,7 +177,7 @@ local server package, so any composition can return the same contract; the local
 router is a thin adapter. `runtime_kind` is presentation metadata (`desktop`,
 `self_hosted_web` or `hosted`), not an authentication mode or a feature gate;
 the local composition never reports `hosted`. Capability schema version 2 is
-exported in `local-http` contract version 21.0.0. `chat`, `model_selection` and
+exported in `local-http` contract version 22.0.0. `chat`, `model_selection` and
 `model_role_selection` admit chat and choices from the composition's catalog,
 independently of provider administration. The local adapter reports them true.
 `provider_credentials` and `local_filesystem_administration` describe owner key
@@ -296,14 +296,18 @@ closed on conflict.
 
 ## Model Assets
 
-The shared downloader installs files listed in the release's packaged catalog
+The shared downloader manages files listed in the release's packaged catalog
 (`animama/resources/model-assets.v1.json`, schema `animama-asset-catalog/1`).
 Requests name assets by catalog ID only; the release URL is never accepted from
 or returned to the browser. All routes use the admitted installation principal.
+Animama no longer distributes model files, so the local composition downloads
+nothing new: assets installed earlier keep working and can be removed.
 
-- `GET /v1/model-assets` returns `{"assets": [...], "free_bytes": N}` for every
+- `GET /v1/model-assets` returns
+  `{"assets": [...], "free_bytes": N, "downloads_offered": false}` for every
   catalog entry. `free_bytes` is the store filesystem's free space, or `null`
-  when it cannot be measured.
+  when it cannot be measured. `downloads_offered` is optional; an absent value
+  means true.
 - `GET /v1/model-assets/{asset_id}` returns one state: `id`, `status`
   (`not_installed`, `downloading`, `installed` or `failed`), `size_bytes` (all
   files), `required_free_bytes` (size plus 64 MiB headroom), `media_type`
@@ -317,7 +321,11 @@ or returned to the browser. All routes use the admitted installation principal.
   `asset_size_invalid`, `asset_hash_invalid`, `asset_store_failed` or
   `asset_insufficient_space`).
 - `POST /v1/model-assets/{asset_id}:install` returns `202` with the current
-  state. It is idempotent: concurrent calls share one download and an installed
+  state. An installed asset returns `202` as installed. While downloads are not
+  offered, an asset that is not installed returns
+  `409 {"detail": {"code": "model_downloads_ended", "details": {}}}` before
+  any requirement or free-space check, and nothing is fetched or staged. Otherwise it is
+  idempotent: concurrent calls share one download and an installed
   asset stays installed. A retry resumes from staged bytes. With less free
   space than the remaining bytes plus 64 MiB, nothing is
   fetched and the state is `failed` with `asset_insufficient_space`

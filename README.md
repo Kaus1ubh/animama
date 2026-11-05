@@ -30,20 +30,19 @@ lifecycle in which every product decision and merge stays with Raymond.
 
 | Way to run it | Runs on | Start here |
 | --- | --- | --- |
-| Desktop app | macOS 15+ on Apple silicon, Windows 11 x64 | Closed beta; see the [download page](https://animama.ai/download) |
+| Desktop app | macOS 15+ on Apple silicon | Prebuilt until downloads end; see the [download page](https://animama.ai/download) |
 | Self-hosted | macOS or Linux with Docker (Windows through WSL) | [Self-host it](#self-host-it) |
 | From source | Development | [Run from source](#run-from-source) |
 
 Prebuilt desktop downloads, the update feed and the model downloads at
-`downloads.animama.ai` end before 2027-01-01. Before then, a final desktop
-release stops checking for updates and explains what has changed. Installed
-apps and self-hosted servers keep working afterwards: chat, avatars and the
-three built-in voices need nothing from Animama's servers. What they can no
-longer do is install offline speech recognition, the 35 downloadable voices or
-the voice-cloning encoder, because the app downloads those from
-`downloads.animama.ai`. A development stack can still acquire the speech
-recognition models from their pinned Hugging Face sources (see
-[Run from source](#run-from-source)).
+`downloads.animama.ai` end before 2027-01-01. The final desktop release, 0.1.3
+for macOS, never checks for updates. Installed apps and self-hosted servers keep
+working afterwards: chat, avatars and the three built-in voices need nothing
+from Animama's servers, and models already installed keep working. The app no
+longer downloads offline speech recognition, the 35 downloadable voices or the
+voice-cloning encoder, and says so where it used to offer them. A development
+stack can still acquire the speech recognition models from their pinned Hugging
+Face sources (see [Run from source](#run-from-source)).
 
 ## Self-host it
 
@@ -64,8 +63,10 @@ only, and PostgreSQL stays private. Provider keys come from the server's
 environment: keep them in an owner-only file outside the checkout and select it
 with `COMPOSE_ENV_FILES`, as
 [preparing a workspace](docs/backend/operations/development.md#preparing-a-task-workspace)
-describes. Offline speech recognition (Parakeet, SenseVoice) and the
-downloadable voices are installed in the app, under Settings → Voice.
+describes. A built self-host serves only the offline speech recognition sets
+(Parakeet, SenseVoice) and downloadable voices installed in the app before
+downloads ended, so a new one has none; dictation and Voice Mode can use the
+browser's speech recognition where the browser offers it.
 
 Animama listens only on your own computer. To reach it from another device,
 put your own TLS and authentication, such as a VPN, tunnel or reverse proxy,
@@ -79,10 +80,9 @@ and [model setup and recovery](docs/backend/operations/model-assets.md).
 The same commands without `ANIMAMA_WEB_BUILD_MODE=production` start the
 development stack: `./reset.sh` serves the app at <http://localhost:8000>
 through Vite with hot reload. A development stack reads speech recognition
-models from the host, so acquire them before starting it. Add
-`--source upstream` to the Parakeet and SenseVoice commands to download from
-their pinned Hugging Face sources instead of `downloads.animama.ai`; the
-browser speech set always comes from Hugging Face:
+models from the host, so acquire them before starting it. Each command
+downloads from the model's pinned Hugging Face source and checks exact sizes
+and hashes:
 
 ```bash
 python3 scripts/models/parakeet.py acquire        # English dictation
@@ -109,8 +109,9 @@ vault, and a self-hosted server reads them from its own environment.
 The desktop app sends no analytics, crash reports or usage telemetry. It
 connects to other services only to:
 
-- check for updates, and download what you choose to use (updates, feature
-  packs, speech models, voices), from `downloads.animama.ai`;
+- in preview builds before the final release, check for updates and download
+  what you choose to use (updates, speech models, voices) from
+  `downloads.animama.ai`; the final release contacts it for neither;
 - play a voice's sample from huggingface.co;
 - on Windows, fetch a spell-check dictionary from Google the first time it
   needs one;

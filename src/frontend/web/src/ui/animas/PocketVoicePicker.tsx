@@ -36,7 +36,10 @@ import {
 } from "@/ui/components/popover";
 import { Checkbox } from "@/ui/components/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/ui/components/tabs";
-import { operatorManagedModelsNote } from "@/ui/settings/operator-managed-models";
+import {
+  modelDownloadsEndedNote,
+  operatorManagedModelsNote,
+} from "@/ui/settings/operator-managed-models";
 import {
   VoiceSampleButton,
   type VoiceSamplePlayback,
@@ -90,19 +93,22 @@ type PocketVoicePickerProps = {
   retryAssetIds?: ReadonlySet<string>;
   /** The runtime's operator provides voices; none is downloaded here. */
   operatorManaged?: boolean;
+  /** Downloads have ended; only installed and built-in voices can be chosen. */
+  downloadsEnded?: boolean;
 };
 
 /**
- * Whether an operator-provided voice is unavailable: the operator did not
- * provide it and this app never downloads it. A state that is still loading
- * (`unknown`) is not treated as unavailable.
+ * Whether a downloadable voice is unavailable because this app never
+ * downloads it: the operator provides voices and did not provide this one, or
+ * downloads have ended and it was never installed. A state that is still
+ * loading (`unknown`) is not treated as unavailable.
  */
 export function pocketVoiceNotProvided(
   availability: PocketVoiceAvailability | null,
-  operatorManaged: boolean,
+  noDownloads: boolean,
 ): boolean {
   return (
-    operatorManaged &&
+    noDownloads &&
     availability !== null &&
     availability.status !== "installed" &&
     availability.status !== "unknown"
@@ -207,6 +213,7 @@ export function PocketVoiceList({
   downloadError,
   retryAssetIds,
   operatorManaged = false,
+  downloadsEnded = false,
   onDeleteClone,
   onSelected,
   sample,
@@ -249,12 +256,17 @@ export function PocketVoiceList({
     : [];
   const count = voices.length + matchingClones.length + Number(showUploaded);
   const notProvided = (voiceId: string) =>
-    pocketVoiceNotProvided(availability(voiceId), operatorManaged);
+    pocketVoiceNotProvided(
+      availability(voiceId),
+      operatorManaged || downloadsEnded,
+    );
   const footer =
     downloadBlockedReason ||
     downloadError ||
     (voices.some((voice) => notProvided(voice.id))
-      ? operatorManagedModelsNote()
+      ? operatorManaged
+        ? operatorManagedModelsNote()
+        : modelDownloadsEndedNote()
       : null);
   const choose = async (id: string) => {
     try {
@@ -414,9 +426,13 @@ export function PocketVoiceList({
             const download = availability(voice.id);
             const unavailable = notProvided(voice.id);
             const downloading = download?.status === "downloading";
-            // Operator-provided voices are never downloaded here.
+            // Operator-provided voices are never downloaded here, and no
+            // voice is once downloads have ended.
             const needsDownload =
-              !operatorManaged && download && download.status !== "installed";
+              !operatorManaged &&
+              !downloadsEnded &&
+              download &&
+              download.status !== "installed";
             const retry =
               download?.status === "failed" ||
               Boolean(download && retryAssetIds?.has(download.assetId));

@@ -1,6 +1,6 @@
 # 0012: Parakeet speech models as backend model assets
 
-- Status: accepted
+- Status: accepted; amended on 2026-11-04 (downloads end, below)
 - Recorded: 2026-10-01
 - Retrospective: no
 - Original decision date: 2026-10-01 (owner decisions in issue #221)
@@ -78,6 +78,17 @@ and Mimi delivery are unchanged.
   downloaded again.
 - Development and built compositions keep different serving paths for the base
   set: a host mount in development and the asset store in built compositions.
+
+## Amendment (2026-11-04): downloads end
+
+Animama's prebuilt distribution ends before 2027-01-01 (owner decision D5 of the
+[open-source readiness plan](../plans/open-source-readiness/open-source-readiness-execplan.md);
+[issue #837](https://github.com/raymond-van/animama/issues/837)). The local
+composition no longer downloads model assets: installing an asset that is not
+installed is refused with `model_downloads_ended`, while assets installed
+earlier keep working and can be removed. The objects on `downloads.animama.ai`
+stay published only for a short transition after the final desktop release.
+The catalog and downloader are unchanged for a build that offers downloads.
 
 ## Evidence
 

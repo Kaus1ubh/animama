@@ -32,6 +32,8 @@ import {
 import { assertBundledImports } from "../scripts/runtime/js-audit.mjs";
 import {
   javascriptLicenses,
+  licenseRecordFiles,
+  readLicenseRecord,
   readStaticLicenseNotice,
 } from "../scripts/runtime/licenses.mjs";
 import { checkSizes, validateSizeReport } from "../scripts/runtime/size.mjs";
@@ -216,6 +218,59 @@ describe("desktop runtime packaging", () => {
     const notice = readStaticLicenseNotice("opencc-data-apache-2.0.txt").text;
     expect(notice).toContain("opencc-data");
     expect(notice).toContain("Apache License");
+  });
+
+  it("carries the adapted-code and Hey API records from licenses/third-party", () => {
+    const policy = JSON.parse(
+      readFileSync(
+        new URL("../runtime/license-sources.json", import.meta.url),
+        "utf8",
+      ),
+    );
+    const group = policy.groups.find((item) => item.id === "adapted-code");
+    expect(group.license_record_files).toEqual(
+      expect.arrayContaining([
+        "adapted-code.md",
+        "code-hey-api-LICENSE.md",
+        "code-shadcn-ui-LICENSE.md",
+        "code-ai-elements-LICENSE.txt",
+        "code-Apache-2.0.txt",
+        "code-letta-LICENSE.txt",
+        "code-openai-agents-LICENSE.txt",
+      ]),
+    );
+    expect(licenseRecordFiles(policy)).toEqual(
+      [...group.license_record_files].sort(),
+    );
+    for (const name of licenseRecordFiles(policy)) {
+      const record = readLicenseRecord(name);
+      expect(record.path).toBe(`licenses/third-party/${name}`);
+      expect(record.text.trim().length).toBeGreaterThan(0);
+    }
+    expect(readLicenseRecord("code-hey-api-LICENSE.md").text).toContain(
+      "Hey API",
+    );
+  });
+
+  it.each([
+    "../adapted-code.md",
+    "art-NOTICES.md",
+    "code-and-models.md",
+    "code-x-LICENSE.md/../../LICENSE",
+    "code-Hey-LICENSE.md",
+  ])("rejects licence record path %s", (name) => {
+    expect(() => readLicenseRecord(name)).toThrow(
+      "Invalid licence record path",
+    );
+  });
+
+  it("credits no excluded pack in the Included content attribution", () => {
+    const text = readStaticLicenseNotice(
+      "included-content-attribution.txt",
+    ).text;
+    expect(text).not.toMatch(/LeLu/iu);
+    // Only CC0 derivatives of these packs ship, never their licence files.
+    expect(text).not.toMatch(/packaged (?:License\.txt|LICENSE & CREDITS)/u);
   });
 
   it.each([
@@ -804,7 +859,8 @@ Load command 4
       github: { owner: "example", repo: "releases" },
     };
     const policy = {
-      schema: "animama-release-policy/3",
+      schema: "animama-release-policy/4",
+      updates: "offered",
       channel: "stable",
       distributions,
       distribution_basis: {
@@ -844,12 +900,13 @@ Load command 4
       "https://downloads.example.test/desktop/v0.1.0",
     );
     expect(r2.updatePolicy).toEqual({
-      schema: "animama-update-policy/2",
+      schema: "animama-update-policy/3",
       distribution: {
         kind: "r2",
         base_url: "https://downloads.example.test/desktop",
       },
       channel: "stable",
+      updates: "offered",
       team_id: "TESTTEAM01",
     });
     const github = validateReleasePolicy(policy, packs, "0.1.0", {
@@ -863,6 +920,36 @@ Load command 4
       owner: "example",
       repo: "releases",
     });
+    // The final release seals the end of updates and offers no pack.
+    const deferred = {
+      ...packs,
+      packs: Object.fromEntries(
+        Object.keys(packs.packs).map((id) => [
+          id,
+          { release_status: "deferred" },
+        ]),
+      ),
+    };
+    const ended = validateReleasePolicy(
+      { ...policy, updates: "ended" },
+      deferred,
+      "0.1.0",
+      { distribution: "r2" },
+    );
+    expect(ended.updatePolicy.updates).toBe("ended");
+    expect(ended.activePackIds).toEqual([]);
+    expect(() =>
+      validateReleasePolicy({ ...policy, updates: "ended" }, packs, "0.1.0"),
+    ).toThrow("no feature pack can be active");
+    const { updates: _updates, ...unsealed } = policy;
+    for (const value of [
+      unsealed,
+      { ...policy, updates: "paused" },
+      { ...policy, schema: "animama-release-policy/3" },
+    ])
+      expect(() => validateReleasePolicy(value, packs, "0.1.0")).toThrow(
+        "intended installer/update destinations",
+      );
     expect(() =>
       validateReleasePolicy({ ...policy }, { ...packs, packs: {} }, "0.1.0"),
     ).toThrow("explicit active or deferred");
@@ -1024,7 +1111,8 @@ Load command 4
       bucket: "example-releases",
     };
     json(path.join(source, "release-policy.json"), {
-      schema: "animama-release-policy/3",
+      schema: "animama-release-policy/4",
+      updates: "offered",
       distributions: { r2, github },
       channel: "stable",
       distribution_basis: {
@@ -1064,9 +1152,10 @@ Load command 4
       })),
     });
     json(path.join(runtime, "update-policy.json"), {
-      schema: "animama-update-policy/2",
+      schema: "animama-update-policy/3",
       distribution: { kind: "r2", base_url: r2.base_url },
       channel: "stable",
+      updates: "offered",
       team_id: "TESTTEAM01",
     });
     const request = vi
@@ -1456,7 +1545,8 @@ Load command 4
       bucket: "example-releases",
     };
     json(path.join(source, "release-policy.json"), {
-      schema: "animama-release-policy/3",
+      schema: "animama-release-policy/4",
+      updates: "offered",
       distributions: { r2, github: { owner: "example", repo: "releases" } },
       channel: "stable",
       distribution_basis: {
@@ -1478,9 +1568,10 @@ Load command 4
     });
     json(path.join(runtime, "licenses/inventory.json"), {});
     json(path.join(runtime, "update-policy.json"), {
-      schema: "animama-update-policy/2",
+      schema: "animama-update-policy/3",
       distribution: { kind: "r2", base_url: r2.base_url },
       channel: "stable",
+      updates: "offered",
       team_id: "TESTTEAM01",
     });
     const files = inventoryTree(runtime);
@@ -1534,7 +1625,7 @@ Load command 4
     expect(() => sealedDistribution(root)).toThrow();
     writeFileSync(
       path.join(root, "update-policy.json"),
-      JSON.stringify({ schema: "animama-update-policy/2", distribution: r2 }),
+      JSON.stringify({ schema: "animama-update-policy/3", distribution: r2 }),
     );
     expect(sealedDistribution(root)).toEqual(r2);
     writeFileSync(
@@ -1736,6 +1827,35 @@ Load command 4
         "0.1.0",
       ),
     ).toThrow();
+    // A build without active packs cannot exercise pack checks, so they are
+    // neither required nor recorded.
+    const packChecks = [
+      "document_processing",
+      "expanded_content",
+      "pack_interruption",
+    ];
+    const withoutPacks = {
+      ...accepted,
+      checks: Object.fromEntries(
+        manualMacChecks
+          .filter((name) => !packChecks.includes(name))
+          .map((name) => [name, true]),
+      ),
+    };
+    expect(() =>
+      validateManualAcceptance(withoutPacks, "a".repeat(64), "0.1.0"),
+    ).toThrow();
+    expect(
+      Object.keys(
+        validateManualAcceptance(
+          withoutPacks,
+          "a".repeat(64),
+          "0.1.0",
+          "darwin-arm64",
+          { packs: false },
+        ).checks,
+      ),
+    ).toEqual(Object.keys(withoutPacks.checks));
   });
 
   it("orders native leaves before nested bundles so runtime hashes can be sealed last", () => {

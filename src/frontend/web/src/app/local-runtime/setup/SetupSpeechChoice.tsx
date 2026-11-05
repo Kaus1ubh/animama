@@ -20,10 +20,11 @@ const offlineChoice = (choice: SetupSttChoice) => {
  * web the browser's recognizer (recommended there), then the UI Locale's
  * offline model (recommended on desktop) and the other one, each with CPU |
  * GPU variants. The selected choice, engine included, is saved at Finish. Offline variants
- * offer their set's download, which is backend-owned and keeps running after
- * setup, so while one downloads a line says setup can finish meanwhile; removal
- * and attribution live in App Settings. Vite development serves host sets
- * instead, so it shows how to acquire them.
+ * show their set's state and, while downloads are offered, its download, which
+ * is backend-owned and keeps running after setup, so while one downloads a line
+ * says setup can finish meanwhile; removal and attribution live in App
+ * Settings. Vite development serves host sets instead, so it shows how to
+ * acquire them.
  */
 export function SetupSpeechChoice({
   choice,

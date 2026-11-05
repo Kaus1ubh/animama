@@ -15,6 +15,8 @@ RUN --mount=type=cache,id=animama-pnpm-linux-${TARGETARCH}-node22-pnpm10.33.0,ta
 COPY src/frontend ./
 COPY models /models
 COPY LICENSE /LICENSE
+# Package builds write the upstream notices for third-party code they contain.
+COPY licenses/third-party /licenses/third-party
 COPY content/included /content/included
 COPY docs/safety /docs/safety
 ENV NODE_ENV=production \

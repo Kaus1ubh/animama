@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { createLogger } from "@/lib/logger";
 import { pocketVoiceAvailability } from "@/lib/speech/pocket/voice-downloads";
 import { useModelAssetAction } from "@/query/mutations/useModelAssetActions";
+import { modelDownloadsEnded } from "@/query/model-download-coordination";
 import {
   useModelAssets,
   useOperatorManagedModelAssets,
@@ -15,11 +16,14 @@ import {
  * requests for the same voice are harmless; progress polls only while one runs.
  * Where the runtime's operator provides voices (`operatorManaged`), only
  * provisioned voices are available: `install` and `remove` request nothing.
+ * Once downloads have ended (`downloadsEnded`), only installed voices are
+ * available: `install` requests nothing, and installed voices stay removable.
  */
 export function usePocketVoiceDownloads({ enabled }: { enabled: boolean }) {
   const { t } = useTranslation("app");
   const assets = useModelAssets({ enabled });
   const operatorManaged = useOperatorManagedModelAssets();
+  const downloadsEnded = modelDownloadsEnded(assets.data);
   const action = useModelAssetAction();
   const { mutate } = action;
   const availability = useMemo(
@@ -29,7 +33,7 @@ export function usePocketVoiceDownloads({ enabled }: { enabled: boolean }) {
   const logger = useMemo(() => createLogger("PocketVoiceDownloads"), []);
   const install = useCallback(
     (assetId: string) => {
-      if (operatorManaged) return;
+      if (operatorManaged || downloadsEnded) return;
       mutate(
         { action: "install", assetId },
         {
@@ -42,7 +46,7 @@ export function usePocketVoiceDownloads({ enabled }: { enabled: boolean }) {
         },
       );
     },
-    [logger, mutate, operatorManaged],
+    [downloadsEnded, logger, mutate, operatorManaged],
   );
   const remove = useCallback(
     (assetId: string) => {
@@ -69,6 +73,7 @@ export function usePocketVoiceDownloads({ enabled }: { enabled: boolean }) {
       retryAssetIds,
       error,
       operatorManaged,
+      downloadsEnded,
     }),
     [
       availability,
@@ -79,6 +84,7 @@ export function usePocketVoiceDownloads({ enabled }: { enabled: boolean }) {
       retryAssetIds,
       error,
       operatorManaged,
+      downloadsEnded,
     ],
   );
 }

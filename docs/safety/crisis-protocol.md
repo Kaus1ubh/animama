@@ -65,12 +65,14 @@ number.
 - The desktop app sends no usage data, crash reports or diagnostic traces. It
   connects to other services only for the following, and each connection
   reveals your IP address:
-  - Update checks to downloads.animama.ai, about 15 seconds after the app
-    finishes starting and when you choose Check for updates. A check also
-    shows whether you use macOS or Windows, but nothing that identifies your
-    installation.
-  - Downloads from downloads.animama.ai of what you choose to use: an update,
-    a feature pack, a speech model or a voice.
+  - Only in preview builds before the final release: update checks to
+    downloads.animama.ai, about 15 seconds after the app finishes starting and
+    when you choose Check for updates, and downloads from there of what you
+    choose to use: an update, a speech model or a voice. A preview build's
+    check also shows whether you use macOS or Windows, your system language
+    and a random ID that stays the same for each installation, so the server
+    could tell which checks came from the same installation. The final release
+    contacts downloads.animama.ai for neither.
   - On Windows, a spell-check dictionary for your system language, which the
     app downloads from Google the first time it needs one.
   - A voice's sample from huggingface.co when you play it. This request also
@@ -93,4 +95,4 @@ card, and may log message previews. The desktop app always uses the defaults.
 ## Contact
 
 To report a safety concern or a problem with this protocol, email
-ray@animama.ai. Last updated 2026-11-03.
+ray@animama.ai. Last updated 2026-11-04.
