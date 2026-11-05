@@ -83,8 +83,9 @@ Orientation, from a read-only survey on 2026-11-04:
 - [x] Phase 5: script defaults (review #1; trivial repairs).
 - [x] Phase 6: documentation, version and runbook (light; review folded into the final review).
 - [x] Final integration review (one round; trivial wording repairs).
-- [ ] Full pre-push suite and fast browser journeys on the final candidate.
-- [ ] PR opened with local evidence.
+- [x] Full pre-push suite and fast browser journeys on the final candidate
+  (results in PR #852).
+- [x] PR opened with local evidence: #852.
 - [ ] G1 to G3 (owner-run, after merge): final release, transition, cut-off.
 
 ## Surprises & Discoveries
@@ -110,6 +111,17 @@ Orientation, from a read-only survey on 2026-11-04:
   good (backups omit them and the restore wiped the data root); the restore
   now keeps them in place.
 
+- After #858 and #855 merged, `main` was merged into this branch
+  (`202a7524d`). #858's smoke already binds the installed
+  `runtime/update-policy.json` to the release source's policy
+  (`sealed_update_policy`) and runs the update check on its ad-hoc-signed
+  copy (`copy_updates_unavailable`), so this plan's own smoke steps were
+  dropped in favour of #858's: with the ended policy, `sealed_update_policy`
+  binds the artifact to `"updates": "ended"`, and `openSealedUpdates` (unit
+  tested) keeps the app from checking. The `updates_ended` evidence is retired.
+  The packed-artifact check keeps both #855's wheel licences and this plan's
+  package notices.
+
 ## Decision Log
 
 - 2026-11-02, owner (D5): final release, then cut-off; the switch is sealed into
@@ -124,6 +136,8 @@ Orientation, from a read-only survey on 2026-11-04:
   bucket. Approving the plan also approves the single full pre-push run and
   fast browser journeys on the final candidate.
 
+- 2026-11-04, owner: model downloads end as planned (asked whether to keep
+  serving model objects after the desktop cut-off).
 - 2026-11-04, owner (relayed by the security review session): #838 drops its
   R5 update-download checks; it still delivers R1–R4. Its R3.6 smoke rewrite
   and this plan's R1.5 smoke step both edit the smoke journey, so whichever
