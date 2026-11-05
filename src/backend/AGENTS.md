@@ -135,7 +135,7 @@ Some routes use ORM models directly; keep changes local there unless you
 are intentionally refactoring the route.
 
 During development, do not add Alembic revisions. Change the ORM/database
-definitions and `alembic/versions/0001_baseline.sql` together when schema changes
+definitions and `src/backend/migrations/versions/0001_baseline.sql` together when schema changes
 require it; update seeds or application defaults directly for data changes.
 The owner decides when to reset an existing development database. Keep Alembic
 baseline initialization and database bootstrap in place.
@@ -232,7 +232,7 @@ Run from the repository root.
 ```bash
 make sync
 uv run python -m animama.server.native_entrypoint
-uv run alembic upgrade head
+uv run alembic -c src/backend/alembic.ini upgrade head
 uv run pytest -q
 uv run ruff check
 make check-test

@@ -29,19 +29,23 @@ RUN --mount=from=browser_models,target=/opt/animama/browser-models \
 FROM python:3.12-slim AS base
 ARG TARGETARCH
 WORKDIR /app
+# ALEMBIC_CONFIG lets `alembic` commands run in the container find the backend's
+# migration config without `-c`.
 ENV UV_PROJECT_ENVIRONMENT=/opt/venv \
     UV_LINK_MODE=copy \
     PATH="/opt/venv/bin:/root/.local/bin:$PATH" \
-    PYTHONPATH=/app/src
+    PYTHONPATH=/app/src \
+    ALEMBIC_CONFIG=/app/src/backend/alembic.ini
 RUN apt-get update -y \
     && apt-get install -y --no-install-recommends curl build-essential \
     && rm -rf /var/lib/apt/lists/*
 RUN pip install --no-cache-dir uv==0.11.28
-COPY pyproject.toml uv.lock alembic.ini LICENSE ./
+COPY pyproject.toml uv.lock LICENSE ./
 RUN touch README.md
 
 FROM base AS source
-COPY alembic ./alembic
+COPY src/backend/alembic.ini ./src/backend/alembic.ini
+COPY src/backend/migrations ./src/backend/migrations
 COPY content/included ./content/included
 COPY src/backend/animama ./src/backend/animama
 COPY src/backend/packaging/hatch_build.py src/backend/packaging/shared_catalogs.py ./src/backend/packaging/

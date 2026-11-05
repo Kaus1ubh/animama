@@ -158,7 +158,7 @@ isort = { combine-as-imports = true, known-first-party = ["animama"] }
 flake8-tidy-imports = { ban-relative-imports = "parents" }
 
 [tool.ruff.lint.per-file-ignores]
-"alembic/**/*.py" = ["E402"]
+"src/backend/migrations/**/*.py" = ["E402"]
 
 [tool.mypy]
 python_version = "3.12"

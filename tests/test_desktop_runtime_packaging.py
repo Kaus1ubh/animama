@@ -9,8 +9,8 @@ import tarfile
 from pathlib import Path
 
 import pytest
-
 from alembic.script import ScriptDirectory
+
 from animama.runtime import cli, resources
 
 
@@ -25,7 +25,7 @@ def test_runtime_resource_audit_has_schema_and_starter_resources() -> None:
 
 def test_sql_runtime_resource_contains_product_seeds_directly() -> None:
     seed_root = resources.runtime_resource("sql")
-    assert seed_root == Path(__file__).resolve().parents[1] / "alembic/seeds"
+    assert seed_root == Path(__file__).resolve().parents[1] / "src/backend/migrations/seeds"
     assert sorted(path.name for path in seed_root.iterdir()) == [
         "01-seed-model-providers.sql",
         "02-seed-avatars.sql",
