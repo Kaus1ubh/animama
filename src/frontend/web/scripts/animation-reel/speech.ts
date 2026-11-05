@@ -162,6 +162,7 @@ export class ReelSpeech {
     avatar: Avatar,
     time: number,
     feelings: EmotionRuntimeState = NEUTRAL_FEELINGS,
+    gestureDue = false,
   ): AvatarUpdateOptions {
     const speaking = this.speaking(time);
     avatar.updateState(
@@ -171,7 +172,10 @@ export class ReelSpeech {
       },
       { nowMs: time * 1000, activeRunId: speaking ? RUN_ID : null },
     );
-    const hands = speaking && !avatar.isClipActive();
+    // Talking hands finish their current group (up to 1.5 s) before they let
+    // go, and layer over a Gesture that starts meanwhile; they also stay off
+    // while a Gesture cue is due (`gestureDue`), so it starts from rest.
+    const hands = speaking && !avatar.isClipActive() && !gestureDue;
     if (hands !== this.handsOn) {
       avatar.setProceduralAnimationLayerEnabled("talkingHands", hands);
       this.handsOn = hands;

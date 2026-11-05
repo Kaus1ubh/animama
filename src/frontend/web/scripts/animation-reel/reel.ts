@@ -695,6 +695,9 @@ async function openReelItem(request: ReelItemRequest): Promise<void> {
   }
 }
 
+/** Longest a talking-hands group keeps playing once the layer is turned off (its maxWaitSec), plus a margin. */
+const TALKING_HANDS_RELEASE_SEC = 1.6;
+
 /**
  * Start and stop cues due at take time `time`, set the face cues' overlay,
  * and feed the speech with the mood then.
@@ -736,10 +739,18 @@ function frameHook(open: NonNullable<typeof item>, time: number) {
   const mood = open.moods.findLast(
     ({ at, until }) => time >= at && time < until,
   );
+  // A Gesture cue starts within the time talking hands may take to let go.
+  const gestureDue = open.cues.some(
+    (state) =>
+      state.cue.kind === "gesture" &&
+      !state.started &&
+      state.cue.at - time <= TALKING_HANDS_RELEASE_SEC,
+  );
   return open.speech?.frame(
     session.avatar,
     time,
     mood?.feelings ?? NEUTRAL_FEELINGS,
+    gestureDue,
   );
 }
 
