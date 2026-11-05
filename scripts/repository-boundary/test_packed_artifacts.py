@@ -7,6 +7,7 @@ import sys
 import tarfile
 import tempfile
 import unittest
+import zipfile
 from pathlib import Path
 
 SPEC = importlib.util.spec_from_file_location("packed", Path(__file__).with_name("check-packed-artifacts.py"))
@@ -94,6 +95,49 @@ class PackedArtifactTests(unittest.TestCase):
             packed.run([sys.executable, "-c", "raise SystemExit(3)"], cwd=logs, logs=logs, name="broken", env={})
         self.assertEqual([phase["name"] for phase in packed.PHASES], ["quick", "broken"])
         self.assertTrue(all(phase["seconds"] >= 0 for phase in packed.PHASES))
+
+
+class WheelTests(unittest.TestCase):
+    """The wheel must carry the AGPL and the upstream texts of its adapted code."""
+
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temp.cleanup)
+        self.path = Path(self.temp.name) / "animama_backend-0.3.0-py3-none-any.whl"
+        dist_info = "animama_backend-0.3.0.dist-info/licenses/"
+        self.files = {"animama/domain/usage.py": b"class Usage: ...\n"}
+        # The real repository texts, placed where hatchling puts license-files.
+        for licence in packed.WHEEL_LICENSES:
+            self.files[dist_info + licence] = (packed.ROOT / licence).read_bytes()
+
+    def build(self):
+        with zipfile.ZipFile(self.path, "w") as archive:
+            for name, data in self.files.items():
+                archive.writestr(name, data)
+
+    def test_wheel_with_its_licence_texts_passes(self):
+        self.build()
+        self.assertEqual(packed.inspect_wheel(self.path)["name"], self.path.name)
+
+    def test_each_missing_or_empty_licence_text_is_rejected(self):
+        for licence in packed.WHEEL_LICENSES:
+            name = next(name for name in self.files if name.endswith("/licenses/" + licence))
+            with self.subTest(licence=licence):
+                original = self.files.pop(name)
+                self.build()
+                with self.assertRaisesRegex(ValueError, "missing licence text"):
+                    packed.inspect_wheel(self.path)
+                self.files[name] = b""
+                self.build()
+                with self.assertRaisesRegex(ValueError, "missing licence text"):
+                    packed.inspect_wheel(self.path)
+                self.files[name] = original
+
+    def test_editable_redirect_is_rejected(self):
+        self.files["__editable__.animama_backend-0.3.0.pth"] = b"/checkout/src/backend\n"
+        self.build()
+        with self.assertRaisesRegex(ValueError, "Editable import redirects"):
+            packed.inspect_wheel(self.path)
 
 
 if __name__ == "__main__":
