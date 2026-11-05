@@ -140,7 +140,17 @@ type ReelMood = { at: number; until: number; values: Record<string, number> };
  * the hero close-up), or a landing-style framing whose fields override the
  * hero close-up's.
  */
-type ReelCamera = string | Partial<StageCamera> | ReelFixedCamera;
+type ReelCamera =
+  | string
+  | Partial<StageCamera>
+  | ReelFixedCamera
+  | { keys: ReelCameraKey[] };
+
+/** A key of a moving camera: a fixed camera at take time `at`, eased into. */
+type ReelCameraKey = ReelFixedCamera & {
+  at: number;
+  ease?: ReelRootKey["ease"];
+};
 
 /** A camera standing still in the scene, whatever the Avatar's size. */
 type ReelFixedCamera = {
@@ -429,6 +439,8 @@ let item: {
   framing: Framing;
   /** Lens shift of a landing page framing, as shares of the frame. */
   offset: { shift: number; lift: number } | null;
+  /** A moving camera's keys, which replace `framing` and `offset` each frame. */
+  cameraKeys: ReelCameraKey[] | null;
   cues: CueState[];
   /** The Gesture, Reaction and VRMA cues playing, which their stops apply to. */
   gesture: CueState | null;
@@ -549,17 +561,10 @@ function cameraView(
   camera: ReelCamera,
   { width, height }: ReelItemRequest["size"],
 ): { framing: Framing; offset: { shift: number; lift: number } | null } {
-  if (typeof camera === "object" && "position" in camera) {
-    const fixed = camera as ReelFixedCamera;
-    return {
-      framing: {
-        position: new THREE.Vector3(...fixed.position),
-        target: new THREE.Vector3(...fixed.target),
-        fov: fixed.fov ?? 35,
-      },
-      offset: { shift: fixed.shift ?? 0, lift: fixed.lift ?? 0 },
-    };
-  }
+  if (typeof camera === "object" && "keys" in camera)
+    return fixedView(camera.keys[0]!);
+  if (typeof camera === "object" && "position" in camera)
+    return fixedView(camera as ReelFixedCamera);
   if (typeof camera === "object") {
     const hero = STAGE_STOPS.find(({ id }) => id === "hero")!;
     return landingView(avatar, {
@@ -567,6 +572,55 @@ function cameraView(
       ...(camera as Partial<StageCamera>),
     });
   }
+  return presetView(avatar, camera, { width, height });
+}
+
+/** A camera standing at `position`, looking at `target`, in metres. */
+function fixedView(fixed: ReelFixedCamera) {
+  return {
+    framing: {
+      position: new THREE.Vector3(...fixed.position),
+      target: new THREE.Vector3(...fixed.target),
+      fov: fixed.fov ?? 35,
+    },
+    offset: { shift: fixed.shift ?? 0, lift: fixed.lift ?? 0 },
+  };
+}
+
+/** A moving camera at take time `time`: eased between its keys. */
+function cameraAt(keys: readonly ReelCameraKey[], time: number) {
+  const next = keys.findIndex((key) => key.at > time);
+  if (next === -1 || next === 0)
+    return fixedView(keys[next === 0 ? 0 : keys.length - 1]!);
+  const a = fixedView(keys[next - 1]!);
+  const b = fixedView(keys[next]!);
+  const key = keys[next]!;
+  const u = ROOT_EASE[key.ease ?? "linear"](
+    (time - keys[next - 1]!.at) / (key.at - keys[next - 1]!.at),
+  );
+  // The lens zooms evenly: its scale (1 / tan of half the fov) moves linearly.
+  const zoom = (fov: number) => 1 / Math.tan(THREE.MathUtils.degToRad(fov) / 2);
+  const scale =
+    zoom(a.framing.fov) + (zoom(b.framing.fov) - zoom(a.framing.fov)) * u;
+  return {
+    framing: {
+      position: a.framing.position.clone().lerp(b.framing.position, u),
+      target: a.framing.target.clone().lerp(b.framing.target, u),
+      fov: THREE.MathUtils.radToDeg(2 * Math.atan(1 / scale)),
+    },
+    offset: {
+      shift: a.offset.shift + (b.offset.shift - a.offset.shift) * u,
+      lift: a.offset.lift + (b.offset.lift - a.offset.lift) * u,
+    },
+  };
+}
+
+/** A chat preset, `pip`, or a landing page stop. */
+function presetView(
+  avatar: Avatar,
+  camera: string,
+  { width, height }: ReelItemRequest["size"],
+): { framing: Framing; offset: { shift: number; lift: number } | null } {
   if (camera === "pip")
     return {
       framing: chatCameraFraming(avatar, DEFAULT_PIP_SCENE_CAMERA_PRESET),
@@ -757,6 +811,10 @@ async function openReelItem(request: ReelItemRequest): Promise<void> {
       rig,
       framing,
       offset,
+      cameraKeys:
+        typeof request.camera === "object" && "keys" in request.camera
+          ? request.camera.keys
+          : null,
       cues,
       gesture: null,
       reaction: null,
@@ -888,6 +946,11 @@ async function reelFrame(time: number): Promise<ReelFrame> {
   const { session, request } = current;
   await session.advanceTo(time);
 
+  if (current.cameraKeys)
+    ({ framing: current.framing, offset: current.offset } = cameraAt(
+      current.cameraKeys,
+      session.time,
+    ));
   placeCamera(stage.camera, "front", session.avatar, current.framing);
   const { width, height } = request.size;
   if (current.offset)

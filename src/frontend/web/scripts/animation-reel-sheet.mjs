@@ -29,7 +29,11 @@ import {
  * heights, `fov` (degrees), and `shift` and `lift` (lens shifts as shares of
  * the frame). A framing with `position` and `target` (metres, `[x, y, z]`)
  * stands the camera there with its `fov`, `shift` and `lift`, whatever the
- * Avatar's size, so several takes share one view.
+ * Avatar's size, so several takes share one view. A moving camera,
+ * `{ "keys": [{ "at": 0, "position": [...], "target": [...], "fov": 36 }, ...] }`,
+ * eases from key to key (each key a fixed camera with its time and `ease`,
+ * as root keys): position and target move, the lens zooms evenly between
+ * the fovs, and its shift and lift slide.
  *
  * Times are seconds on the take's clock, from the moment its Avatar stands
  * ready. A Gesture plays on the Avatar's clip player and a Reaction on its
@@ -138,6 +142,15 @@ const CAMERA_KEYS = new Set([
   "position",
   "target",
 ]);
+const CAMERA_KEY_KEYS = new Set([
+  "at",
+  "position",
+  "target",
+  "fov",
+  "shift",
+  "lift",
+  "ease",
+]);
 /** A fixed camera's fields: it stands at `position` looking at `target`. */
 const FIXED_CAMERA_KEYS = new Set([
   "position",
@@ -191,7 +204,9 @@ export function parseCueSheet(sheet, { dir, name = "sheet" }) {
     for (const key of ["title", "detail", "avatar"])
       if (take[key] !== undefined && typeof take[key] !== "string")
         fail(where, `${key} must be a string.`);
-    if (isRecord(take.camera)) {
+    if (isRecord(take.camera) && "keys" in take.camera)
+      parseCameraKeys(take.camera, `${where} camera`);
+    else if (isRecord(take.camera)) {
       const fixed = "position" in take.camera || "target" in take.camera;
       checkKeys(
         take.camera,
@@ -321,6 +336,43 @@ function cueWindow(cue, where) {
   if (until <= at)
     fail(where, `until (${until} s) must be later than at (${at} s).`);
   return { at, until };
+}
+
+/** A metre triple, `[x, y, z]`. */
+function isTriple(value) {
+  return (
+    Array.isArray(value) &&
+    value.length === 3 &&
+    value.every((v) => typeof v === "number" && Number.isFinite(v))
+  );
+}
+
+/** A moving camera: complete fixed-camera keys in time order. */
+function parseCameraKeys(camera, where) {
+  checkKeys(camera, new Set(["keys"]), where);
+  if (!Array.isArray(camera.keys) || camera.keys.length === 0)
+    fail(where, "keys is a list of camera keys.");
+  let last = -Infinity;
+  for (const [index, key] of camera.keys.entries()) {
+    const at = `${where} key ${index + 1}`;
+    if (!isRecord(key)) fail(at, "a key is an object.");
+    checkKeys(key, CAMERA_KEY_KEYS, at);
+    const time = seconds(key.at, at, "at");
+    if (time === null) fail(at, "give at.");
+    if (time < last) fail(at, "keys go in time order.");
+    last = time;
+    for (const name of ["position", "target"])
+      if (!isTriple(key[name]))
+        fail(at, `${name} must be [x, y, z] in metres.`);
+    for (const name of ["fov", "shift", "lift"])
+      if (
+        key[name] !== undefined &&
+        (typeof key[name] !== "number" || !Number.isFinite(key[name]))
+      )
+        fail(at, `${name} must be a number.`);
+    if (key.ease !== undefined && !ROOT_EASES.has(key.ease))
+      fail(at, `ease must be ${[...ROOT_EASES].join(", ")}.`);
+  }
 }
 
 /** A take's root path: keys in time order, each field held when omitted. */

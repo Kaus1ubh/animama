@@ -594,3 +594,34 @@ test("lists a looping walk with its root path and a fixed camera", async () => {
     await rm(dir, { recursive: true, force: true });
   }
 });
+
+test("checks a moving camera's keys", () => {
+  const take = (camera) =>
+    parseCueSheet(
+      { camera, cues: [{ face: { happy: 1 }, at: 0, until: 1 }] },
+      { dir: tmpdir(), name: "s" },
+    );
+  const key = (at, extra = {}) => ({
+    at,
+    position: [0, 1.4, 1],
+    target: [0, 1.4, 0],
+    fov: 36,
+    ...extra,
+  });
+  const [ok] = take({ keys: [key(0), key(1.8, { fov: 18, ease: "inOut" })] });
+  assert.equal(ok.camera.keys.length, 2);
+  assert.throws(() => take({ keys: [] }), /keys is a list of camera keys/);
+  assert.throws(
+    () => take({ keys: [key(1), key(0)] }),
+    /keys go in time order/,
+  );
+  assert.throws(
+    () => take({ keys: [{ at: 0, position: [0, 1, 1] }] }),
+    /target must be \[x, y, z\]/,
+  );
+  assert.throws(
+    () => take({ keys: [key(0, { ease: "spring" })] }),
+    /ease must be/,
+  );
+  assert.throws(() => take({ keys: [key(0)], fov: 20 }), /unknown field "fov"/);
+});
