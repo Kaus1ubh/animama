@@ -322,8 +322,9 @@ animama_state_validate_tar_paths() {
 }
 
 # Replace the private data root with a backup's data archive. Backups omit
-# installed model assets, and Animama no longer offers them for download, so
-# this installation's installed sets stay in place. Staged downloads do not.
+# installed model assets, so this installation's installed sets stay in place
+# (once downloads have ended they could not be downloaded again). Staged
+# downloads do not.
 animama_state_replace_data_root() {
   local archive="$1"
   local root="$ANIMAMA_STATE_DATA_ROOT"

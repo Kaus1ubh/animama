@@ -126,8 +126,9 @@ services:
       ANIMAMA_USER_FILE_PROCESSING_MAX_ATTEMPTS: ${ANIMAMA_USER_FILE_PROCESSING_MAX_ATTEMPTS:-3}
       ANIMAMA_PARAKEET_STT_ENABLED: ${ANIMAMA_PARAKEET_STT_ENABLED:-true}
       ANIMAMA_SENSEVOICE_STT_ENABLED: ${ANIMAMA_SENSEVOICE_STT_ENABLED:-true}
-      # Built installs serve the speech-to-text sets (Parakeet and SenseVoice)
-      # installed in their own data root; new ones can no longer be downloaded.
+      # Built installs download the speech-to-text sets (Parakeet and
+      # SenseVoice) into their own data root, until the final release turns
+      # downloads off.
       ANIMAMA_PARAKEET_SOURCE: asset-store
     volumes:
       - ./.animama-logs:/var/log/animama

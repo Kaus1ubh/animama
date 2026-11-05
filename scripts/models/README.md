@@ -91,9 +91,9 @@ automatic retries hide repeated failures. Interrupted/failed transfers restart
 rather than attempting unvalidated byte-range resume. Serving and ordinary
 startup never download or choose a different model version.
 
-Packaged desktop and built self-host serve only the speech-to-text sets their
-own backend model-asset service installed in the application's data root
-before downloads ended. The developer store is a build/setup input, not the
+Packaged desktop and built self-host download speech-to-text sets through their
+own backend model-asset service into the application's data root, until the
+final release turns downloads off. The developer store is a build/setup input, not the
 installed application's model store.
 
 Native Windows model-store tests can be run with
@@ -144,7 +144,7 @@ require optional voices or the cloning encoder.
 `python3 scripts/models/pocket_cloning.py acquire|verify|path` manages the
 optional Mimi encoder and its two notices for release and voice-authoring
 preparation; it always acquires from the reviewed upstream. The installed
-application no longer downloads it.
+application downloads it only after an explicit cloning or download action.
 
 ## Release-only bootstrap
 

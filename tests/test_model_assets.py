@@ -809,15 +809,11 @@ async def test_offered_downloads_are_listed(data_root: Path, release: Release) -
         assert (await client.get("/v1/model-assets")).json()["downloads_offered"] is True
 
 
-def test_local_composition_offers_no_downloads(tmp_path: Path) -> None:
+def test_local_composition_offers_downloads_until_the_final_release(tmp_path: Path) -> None:
     application = FastAPI()
     application.state.runtime_settings = Settings(animama_data_root=tmp_path / "data")
-    # Animama no longer distributes model files, so no local composition downloads them.
-    service = model_asset_service_for(application)
-    assert service.downloads_offered is False
-    with pytest.raises(AssetInstallRefusedError) as refused:
-        service.install("parakeet-stt")
-    assert refused.value.code == "model_downloads_ended"
+    # The final release turns this off; until then local compositions download.
+    assert model_asset_service_for(application).downloads_offered is True
 
 
 def test_ended_downloads_are_refused_before_requirements(data_root: Path, release: Release) -> None:

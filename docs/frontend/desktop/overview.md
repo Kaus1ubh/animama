@@ -303,10 +303,9 @@ manually to bypass references or leases.
 
 ## Application Updates
 
-The final release seals `"updates": "ended"` and never checks for updates; see
-[Desktop releases](releases.md#what-people-see). Before it, a signed,
-configured macOS app checks its release feed after startup and on demand in
-Settings → General. Checks never download. Download and confirmed
+A signed, configured macOS app checks its release feed after startup and on
+demand in Settings → General. The final release will seal `"updates": "ended"`
+and never check; see [Desktop releases](releases.md#what-people-see). Checks never download. Download and confirmed
 Restart are separate actions; normal Quit does not install. Offline checks do
 not prevent startup. Unpackaged and unconfigured builds hide these controls.
 

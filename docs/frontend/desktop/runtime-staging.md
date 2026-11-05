@@ -248,9 +248,9 @@ defaults.
 
 ## Release model inputs
 
-The packaged app no longer downloads the speech-to-text sets (Parakeet and
-SenseVoice), the optional Pocket voices or the cloning encoder; it serves those
-installed earlier as backend model assets, and none is a staging input or pack.
+The packaged app downloads the speech-to-text sets (Parakeet and SenseVoice),
+the optional Pocket voices and the cloning encoder at runtime as backend model
+assets until the final release; none is a staging input or pack.
 `desktop:dist:mac` copies each set named by the frozen backend catalog from the
 verified model store into publication candidates, so a signed release needs those
 sets acquired first (for example `python3 scripts/models/parakeet.py acquire`,
@@ -269,7 +269,7 @@ voice hashes without accepting changes. An ordinary web build or stage does not
 need these inputs.
 
 This developer/producer cache is not an installed app model directory. The
-installed app keeps models it downloaded earlier under its data directory
+installed app keeps downloaded models under its data directory
 (`<userData>/data/internal/model-assets/`), so clearing a developer cache never
 affects it.
 
@@ -405,7 +405,7 @@ catalog/ETag-bound resume and bounded `pack_download_failed` and
 `pack_cancelled` results. Offline speech acceptance, in a build that offers
 downloads, repeats download, cancellation, interrupted resume, removal and
 offline dictation through Voice settings (the final release checks removal and
-dictation after upgrading a preview that has offline speech installed) and
+dictation after upgrading the previous release with offline speech installed) and
 confirms that the backend PID and open windows are unchanged. Expanded-content tests must check Anima references and
 live preview leases; closing a preview does not immediately revoke its lease.
 Retain the owner and chat across transitions. Fixture downloads and generated

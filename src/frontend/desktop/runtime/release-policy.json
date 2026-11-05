@@ -11,7 +11,7 @@
     }
   },
   "channel": "stable",
-  "updates": "ended",
+  "updates": "offered",
   "distribution_basis": {
     "commercial": false,
     "pocket_tts_onnx_license": "CC-BY-4.0"

@@ -83,12 +83,15 @@ and Mimi delivery are unchanged.
 
 Animama's prebuilt distribution ends before 2027-01-01 (owner decision D5 of the
 [open-source readiness plan](../plans/open-source-readiness/open-source-readiness-execplan.md);
-[issue #837](https://github.com/raymond-van/animama/issues/837)). The local
-composition no longer downloads model assets: installing an asset that is not
-installed is refused with `model_downloads_ended`, while assets installed
-earlier keep working and can be removed. The objects on `downloads.animama.ai`
-stay published only for a short transition after the final desktop release.
-The catalog and downloader are unchanged for a build that offers downloads.
+[issue #837](https://github.com/raymond-van/animama/issues/837), refined by
+[#859](https://github.com/raymond-van/animama/issues/859)). The local
+composition keeps downloading until the final release, which turns downloads
+off (`MODEL_DOWNLOADS_OFFERED` in `src/backend/animama/server/model_assets.py`):
+installing an asset that is not installed is then refused with
+`model_downloads_ended`, while assets installed earlier keep working and can be
+removed. The objects on `downloads.animama.ai` stay published only for a short
+transition after the final desktop release. The catalog and downloader are
+unchanged.
 
 ## Evidence
 

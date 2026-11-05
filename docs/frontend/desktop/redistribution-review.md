@@ -57,8 +57,8 @@ complete and silent.
 `desktop/runtime/feature-pack-releases.json` has no active pack. Expanded
 Included content and Docling document processing are deferred: they produce no
 initial-release archive or catalog entry. Both Parakeet sets and both
-SenseVoice sets are published as shared model objects, which earlier versions
-downloaded at runtime, outside the packaged core; their attributions, the onnx-asr MIT notice and the
+SenseVoice sets are published as shared model objects and downloaded at runtime,
+outside the packaged core; their attributions, the onnx-asr MIT notice and the
 full FunASR Model License text stay in the packaged notice bundle, and each
 installed set carries its own README and attribution. Settings retains recovery/removal controls for
 installed files even when a pack has no compatible catalog entry.
@@ -86,7 +86,7 @@ fill approval fields automatically from a passing scan.
 The `darwin-arm64` receipt of 2026-11-03 predates the switch of the `animama`
 group to AGPL-3.0-only, the dependency lockfile changes of the open-source
 preparation, the `adapted-code` notice group and the corrected Included-content
-attribution, so the final release needs a fresh `darwin-arm64` review.
+attribution, so the next macOS release needs a fresh `darwin-arm64` review.
 
 The `win32-x64` receipt in `release-policy.json` predates the removal of the
 `litellm` runtime dependency and four later changes, so the next Windows stage

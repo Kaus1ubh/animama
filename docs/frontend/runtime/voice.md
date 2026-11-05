@@ -81,11 +81,11 @@ and built self-host, each offline engine has two downloadable sets:
 | Parakeet         | English                            | `parakeet-stt`   | `parakeet-stt-webgpu`   |
 | SenseVoice-Small | Japanese, Korean, Chinese, English | `sensevoice-stt` | `sensevoice-stt-webgpu` |
 
-Each set installed in place through the backend
+Each set installs in place through the backend
 [model assets](../../backend/architecture/http-api.md#model-assets) with size,
-progress, cancel, retry and removal. Animama no longer distributes model files:
-when the model-asset list reports `downloads_offered: false`, as every local
-composition does, a set that is not installed shows no download or size, the
+progress, cancel, retry and removal. When the model-asset list reports
+`downloads_offered: false`, as every local composition will after the final
+release, a set that is not installed shows no download or size, the
 panel says that downloads have ended and what still works
 (`modelDownloadsEndedNote`), installed sets keep their removal, and dictation
 says a missing model can no longer be downloaded. The rest of this section
@@ -239,7 +239,7 @@ and the Linux default used by WSL. Development verifies and serves engine inputs
 at the existing same-origin URLs; built self-host and desktop outputs contain
 independent verified copies of the 21 browser assets. The speech-to-text sets
 remain outside the web build: development serves the host store, while packaged
-desktop and built self-host serve only sets installed before downloads ended (see
+desktop and built self-host download them in the app (see
 [Optional offline speech models](#optional-offline-speech-models)).
 
 Startup and builds do not acquire models implicitly. Browsers do not receive
