@@ -2,7 +2,9 @@ import { randomBytes } from "node:crypto";
 import { existsSync, lstatSync, readFileSync } from "node:fs";
 import {
   connectionCredentialPattern,
+  connectionOriginVariable,
   credentialProviders,
+  httpOrigin,
   maxConnectionCredentials,
   maxCredentialChanges,
   type CredentialChange,
@@ -60,12 +62,14 @@ export type Encryption = {
   ): Promise<{ result: string; shouldReEncrypt: boolean }>;
 };
 type VaultEntry = { value: string; updatedAt: string };
+/** A connection key and the origin it may be sent to; entries without one stay unused. */
+type ConnectionEntry = VaultEntry & { origin?: string };
 type VaultData = {
   version: 1;
   postgresPassword: string;
   providers: Partial<Record<CredentialProvider, VaultEntry>>;
   /** Model-connection keys by environment name; absent in older vaults. */
-  connections?: Record<string, VaultEntry>;
+  connections?: Record<string, ConnectionEntry>;
   /**
    * Keys for providers an earlier release retired and this one offers again
    * (Gemini). They live apart from `providers`, where an older vault may still
@@ -101,9 +105,23 @@ export function validateConnectionCredential(value: unknown): string {
   return value;
 }
 /**
+ * Validate the origin a connection key was entered for: exactly what
+ * `URL.origin` gives for an http(s) address, with no path, credentials or
+ * default port, so the backend can compare it as a string.
+ */
+export function validateConnectionOrigin(value: unknown): string {
+  if (
+    typeof value !== "string" ||
+    value.length > 2048 ||
+    httpOrigin(value) !== value
+  )
+    throw new RuntimeError("credential_origin_invalid");
+  return value;
+}
+/**
  * Validate a renderer-supplied batch: 1..N changes, one per provider or
  * connection, each an object with exactly one of `provider` or `connection`
- * and an optional `value`.
+ * and an optional `value`; a connection change with a value may add `origin`.
  */
 export function validateCredentialChanges(value: unknown): CredentialChange[] {
   if (
@@ -118,12 +136,14 @@ export function validateCredentialChanges(value: unknown): CredentialChange[] {
       throw new RuntimeError("credential_changes_invalid");
     const keys = Object.keys(change);
     const target = keys.includes("provider") ? "provider" : "connection";
-    if (keys.some((key) => key !== target && key !== "value"))
+    const allowed = target === "connection" ? ["value", "origin"] : ["value"];
+    if (keys.some((key) => key !== target && !allowed.includes(key)))
       throw new RuntimeError("credential_changes_invalid");
     const record = change as {
       provider?: unknown;
       connection?: unknown;
       value?: unknown;
+      origin?: unknown;
     };
     const name =
       target === "provider"
@@ -137,9 +157,18 @@ export function validateCredentialChanges(value: unknown): CredentialChange[] {
       return value === undefined
         ? { provider: name as CredentialProvider }
         : { provider: name as CredentialProvider, value };
-    return value === undefined
-      ? { connection: name }
-      : { connection: name, value };
+    if (record.origin === undefined)
+      return value === undefined
+        ? { connection: name }
+        : { connection: name, value };
+    // An origin belongs only to a key being saved.
+    if (value === undefined)
+      throw new RuntimeError("credential_changes_invalid");
+    return {
+      connection: name,
+      value,
+      origin: validateConnectionOrigin(record.origin),
+    };
   });
 }
 export function validateCredential(value: unknown): string {
@@ -207,6 +236,7 @@ function parseVault(json: string): VaultData {
   for (const [name, entry] of Object.entries(connections)) {
     validateConnectionCredential(name);
     validateEntry(entry);
+    if (entry.origin !== undefined) validateConnectionOrigin(entry.origin);
   }
   delete data.restoredProviders;
   return { ...data, providers, connections };
@@ -330,6 +360,7 @@ export class CredentialVault {
   databasePassword(): string {
     return this.data.postgresPassword;
   }
+  /** Every saved key as the backend reads it, each connection key beside its origin. */
   childEnvironment(): Record<string, string> {
     return {
       ...Object.fromEntries(
@@ -339,12 +370,21 @@ export class CredentialVault {
         ]),
       ),
       ...Object.fromEntries(
-        Object.entries(this.data.connections ?? {}).map(([name, entry]) => [
-          name,
-          entry.value,
+        Object.entries(this.data.connections ?? {}).flatMap(([name, entry]) => [
+          [name, entry.value],
+          ...(entry.origin
+            ? [[connectionOriginVariable(name), entry.origin]]
+            : []),
         ]),
       ),
     };
+  }
+  /** The saved key values, for log redaction; origins are not secret. */
+  secrets(): string[] {
+    return [
+      ...Object.values(this.data.providers),
+      ...Object.values(this.data.connections ?? {}),
+    ].map((entry) => entry.value);
   }
   list(): CredentialStatus[] {
     return [
@@ -391,7 +431,14 @@ export class CredentialVault {
           else delete providers[change.provider];
         } else {
           validateConnectionCredential(change.connection);
-          if (value) connections[change.connection] = value;
+          if (value)
+            connections[change.connection] =
+              change.origin === undefined
+                ? value
+                : {
+                    ...value,
+                    origin: validateConnectionOrigin(change.origin),
+                  };
           else delete connections[change.connection];
         }
       }

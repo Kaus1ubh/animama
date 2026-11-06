@@ -25,9 +25,13 @@ export const senseVoiceSttClient = createOfflineSttClient<SenseVoiceModelUrls>({
     version: capabilities.offline_multilingual_speech_asset_version,
     gpuVersion: capabilities.offline_multilingual_speech_gpu_asset_version,
   }),
-  unavailableError: () => {
+  unavailableError: (downloadsEnded) => {
     const t = getI18n().getFixedT(null, "app");
-    return new WordedError(t("dictation.errors.languageSpeechMissing"));
+    return new WordedError(
+      downloadsEnded
+        ? t("dictation.errors.languageSpeechEnded")
+        : t("dictation.errors.languageSpeechMissing"),
+    );
   },
   assetIds: { base: SENSEVOICE_ASSET_ID, gpu: SENSEVOICE_WEBGPU_ASSET_ID },
   modelPaths: CLIENT_SENSEVOICE_MODEL_PATHS,

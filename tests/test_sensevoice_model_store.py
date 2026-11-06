@@ -108,8 +108,11 @@ def test_upstream_acquisition_reads_pinned_files_and_local_notices(cpu):
     assert store.acquire(cpu.manifest, cpu.root, offline=True, transport=lambda _: pytest.fail("network")) == result
 
 
-def test_default_acquisition_reads_animama_objects_for_every_file(cpu):
-    result = store.acquire(cpu.manifest, cpu.root, shared_base_objects=True, transport=cpu.transport)
+def test_animama_source_reads_animama_objects_for_every_file(cpu, monkeypatch):
+    monkeypatch.setattr(store, "open_download", lambda url, hosts=store.DOWNLOAD_HOSTS: cpu.transport(url))
+    args = ["acquire", "--manifest", str(cpu.path), "--root", str(cpu.root), "--source", "animama"]
+    assert base.main(args) == 0
+    result = cpu.root / "sensevoice-small" / cpu.manifest["digest"]
     assert {p.name for p in result.iterdir()} == set(cpu.content)
     assert cpu.calls == [
         f"https://downloads.animama.ai/models/sensevoice-small/{entry['sha256']}/{entry['path']}"
@@ -155,6 +158,19 @@ def test_each_script_rejects_the_other_set():
         webgpu.load_manifest(base.DEFAULT_MANIFEST)
     with pytest.raises(store.ModelStoreError, match="unsupported"):
         base.load_manifest(webgpu.DEFAULT_MANIFEST)
+
+
+def test_cli_acquires_from_pinned_upstreams_by_default(cpu, monkeypatch):
+    """Animama's download host is going away, so the original publisher is the default."""
+
+    def upstream_only(url, hosts=store.DOWNLOAD_HOSTS):
+        assert url.startswith(UPSTREAM)
+        return cpu.transport(url)
+
+    monkeypatch.setattr(store, "open_download", upstream_only)
+    args = ["acquire", "--manifest", str(cpu.path), "--root", str(cpu.root)]
+    assert base.main(args) == 0
+    assert cpu.calls == [UPSTREAM + "model.int8.onnx", UPSTREAM + "tokens.txt"]
 
 
 @pytest.mark.parametrize("script", [base, webgpu])

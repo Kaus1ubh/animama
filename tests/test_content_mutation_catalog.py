@@ -9,13 +9,13 @@ from uuid import uuid4
 
 import pytest
 import pytest_asyncio
+from alembic import command
+from alembic.config import Config
 from sqlalchemy import create_engine, delete, inspect, text
 from sqlalchemy.engine import make_url
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from alembic import command
-from alembic.config import Config
 from animama.adapters.repositories.sqlalchemy.content_catalog_repo import SQLAlchemyContentCatalog
 from animama.domain.content_catalog import (
     ContentConflictError,
@@ -218,7 +218,7 @@ def test_fresh_baseline_receipt_has_no_item_foreign_key_and_survives_repeated_up
         connection.exec_driver_sql(f'CREATE SCHEMA "{schema}"')
     migration_url = base_url.update_query_dict({"options": f"-csearch_path={schema},public"})
     monkeypatch.setenv("ANIMAMA_DATABASE_URL", migration_url.render_as_string(hide_password=False))
-    config = Config(str(Path(__file__).parents[1] / "alembic.ini"))
+    config = Config(str(Path(__file__).parents[1] / "src/backend/alembic.ini"))
     engine = create_engine(migration_url)
     try:
         command.upgrade(config, "head")

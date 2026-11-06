@@ -12,6 +12,7 @@ const fixture = vi.hoisted(() => ({
   failLoads: false,
   webgpu: "unsupported" as string,
   releaseDelayMs: 0,
+  downloadsEnded: false,
   capabilities: {
     offline_speech_enabled: true,
     offline_speech_asset_version: "base-version",
@@ -21,6 +22,12 @@ const fixture = vi.hoisted(() => ({
 
 vi.mock("@/query/runtime-capabilities", () => ({
   fetchRuntimeCapabilities: async () => fixture.capabilities,
+}));
+vi.mock("@/query/model-download-coordination", async (importOriginal) => ({
+  ...(await importOriginal<
+    typeof import("@/query/model-download-coordination")
+  >()),
+  fetchModelDownloadsEnded: async () => fixture.downloadsEnded,
 }));
 vi.mock("@/lib/speech/offline-stt/lease", async (original) => ({
   ...(await original<typeof import("@/lib/speech/offline-stt/lease")>()),
@@ -102,10 +109,33 @@ beforeEach(() => {
   fixture.failLoads = false;
   fixture.webgpu = "unsupported";
   fixture.releaseDelayMs = 0;
+  fixture.downloadsEnded = false;
 });
 afterEach(() => {
   vi.useRealTimers();
   vi.unstubAllGlobals();
+});
+
+describe("a missing Parakeet set", () => {
+  it.each([
+    [false, "Install offline speech recognition in Settings"],
+    [true, "can no longer be downloaded"],
+  ])(
+    "explains it in the dictation error (downloads ended: %s)",
+    async (ended, text) => {
+      const capabilities = fixture.capabilities;
+      fixture.capabilities = { ...capabilities, offline_speech_enabled: false };
+      fixture.downloadsEnded = ended;
+      const parakeet = await client();
+      try {
+        await expect(
+          parakeet.parakeetSttClient.load(testApiClient),
+        ).rejects.toThrow(text);
+      } finally {
+        fixture.capabilities = capabilities;
+      }
+    },
+  );
 });
 
 describe("client Parakeet set leases", () => {

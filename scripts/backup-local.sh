@@ -100,6 +100,7 @@ tar -C "$ANIMAMA_STATE_DATA_ROOT" \
   --exclude='./internal/gateway/.gateway-token.*' \
   --exclude='./internal/model-assets' \
   --exclude='./staging/model-assets' \
+  --exclude='./.restore-model-assets' \
   -czf "${payload}/data.tar.gz" .
 
 git_revision="unknown"

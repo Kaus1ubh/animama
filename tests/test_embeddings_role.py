@@ -400,7 +400,9 @@ async def test_connection_embedder_reports_neutral_error_categories(scripted_emb
     )
     keyed = ConnectionEmbedder(
         _embedding_row(local),
-        credential_resolver=static_credential_resolver({"ANIMAMA_CONNECTION_C1_API_KEY": "sk-local"}),
+        credential_resolver=static_credential_resolver(
+            {"ANIMAMA_CONNECTION_C1_API_KEY": "sk-local", "ANIMAMA_CONNECTION_C1_ORIGIN": "http://127.0.0.1:8080"}
+        ),
         openai_base_url="http://127.0.0.1:9/v1",
         default_timeout_seconds=5.0,
     )

@@ -7,9 +7,13 @@ import {
   useOperatorManagedModelAssets,
 } from "@/query/hooks/useModelAssets";
 import { useModelAssetAction } from "@/query/mutations/useModelAssetActions";
+import { modelDownloadsEnded } from "@/query/model-download-coordination";
 import { VoiceCloneLibrary } from "@/ui/animas/VoiceCloneLibrary";
 import { Button } from "@/ui/components/button";
-import { operatorManagedModelsNote } from "./operator-managed-models";
+import {
+  modelDownloadsEndedNote,
+  operatorManagedModelsNote,
+} from "./operator-managed-models";
 
 /** Reuse the Anima voice-cloning form without tying creation to a selected Anima. */
 export function VoiceCloneSettings() {
@@ -30,7 +34,8 @@ export function VoiceCloneSettings() {
 
 /**
  * Managing the encoder never changes or deletes a saved clone or its original
- * sample. An operator-provided encoder shows only its state.
+ * sample. An operator-provided encoder shows only its state; once downloads
+ * have ended, an encoder that was never installed is explained, not offered.
  */
 function VoiceCloningStatus({ busy = false }: { busy?: boolean }) {
   const { t } = useTranslation("voice");
@@ -39,6 +44,7 @@ function VoiceCloningStatus({ busy = false }: { busy?: boolean }) {
   const operatorManaged = useOperatorManagedModelAssets();
   const action = useModelAssetAction();
   const [confirmRemove, setConfirmRemove] = useState(false);
+  const downloadsEnded = modelDownloadsEnded(assets.data);
   const asset = assets.data?.assets.find(
     (item) => item.id === POCKET_VOICE_ENCODER_ASSET_ID,
   );
@@ -68,7 +74,7 @@ function VoiceCloningStatus({ busy = false }: { busy?: boolean }) {
         </div>
         {operatorManaged ? null : (
           <>
-            {asset && !installed && !downloading ? (
+            {asset && !installed && !downloading && !downloadsEnded ? (
               <Button
                 type="button"
                 size="sm"
@@ -130,7 +136,7 @@ function VoiceCloningStatus({ busy = false }: { busy?: boolean }) {
                   }),
                 })
             : asset
-              ? operatorManaged
+              ? operatorManaged || downloadsEnded
                 ? t("downloads.notAvailable")
                 : retry
                   ? t("downloads.sizeRetry", { size })
@@ -142,6 +148,10 @@ function VoiceCloningStatus({ busy = false }: { busy?: boolean }) {
       {operatorManaged ? (
         <p className="text-muted-foreground text-xs">
           {operatorManagedModelsNote()}
+        </p>
+      ) : downloadsEnded && asset && !installed && !downloading ? (
+        <p className="text-muted-foreground text-xs">
+          {modelDownloadsEndedNote()}
         </p>
       ) : null}
       {downloading ? (

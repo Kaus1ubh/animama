@@ -99,13 +99,17 @@ def _cached_values(client: OpenAIChatCompletionsModelClient) -> str:
     )
 
 
+# The vLLM preset runs on this computer; its key was saved for that origin.
+C1_ORIGIN = {"ANIMAMA_CONNECTION_C1_ORIGIN": "http://127.0.0.1:8000"}
+
+
 async def test_chat_completions_uses_a_replaced_key_on_the_next_request(recording_server: _RecordingServer) -> None:
-    store = RuntimeCredentialStore({"ANIMAMA_CONNECTION_C1_API_KEY": OLD})
+    store = RuntimeCredentialStore({"ANIMAMA_CONNECTION_C1_API_KEY": OLD, **C1_ORIGIN})
     client = _chat_client(store)
     connection = _owner_connection("vllm", credential_env="ANIMAMA_CONNECTION_C1_API_KEY")
 
     await _collect(client.stream(_spec(connection=connection, structured_output_transport=None)))
-    store.replace({"ANIMAMA_CONNECTION_C1_API_KEY": NEW}, generation=1)
+    store.replace({"ANIMAMA_CONNECTION_C1_API_KEY": NEW, **C1_ORIGIN}, generation=1)
     await _collect(client.stream(_spec(connection=connection, structured_output_transport=None)))
 
     assert recording_server.authorizations == [f"Bearer {OLD}", f"Bearer {NEW}"]
@@ -187,7 +191,7 @@ async def test_responses_client_resolves_the_key_per_stream(monkeypatch: pytest.
 
 
 async def test_embedder_follows_replacement_and_removal(recording_server: _RecordingServer) -> None:
-    store = RuntimeCredentialStore({"ANIMAMA_CONNECTION_C1_API_KEY": OLD})
+    store = RuntimeCredentialStore({"ANIMAMA_CONNECTION_C1_API_KEY": OLD, **C1_ORIGIN})
     connection = _owner_connection("vllm", credential_env="ANIMAMA_CONNECTION_C1_API_KEY")
     row = _spec(connection=connection).model_provider
     embedder = ConnectionEmbedder(
@@ -198,7 +202,7 @@ async def test_embedder_follows_replacement_and_removal(recording_server: _Recor
     )
 
     await embedder.embed_texts(["a"])
-    store.replace({"ANIMAMA_CONNECTION_C1_API_KEY": NEW}, generation=1)
+    store.replace({"ANIMAMA_CONNECTION_C1_API_KEY": NEW, **C1_ORIGIN}, generation=1)
     await embedder.embed_texts(["a"])
     store.replace({}, generation=2)
     with pytest.raises(ModelClientProviderError):

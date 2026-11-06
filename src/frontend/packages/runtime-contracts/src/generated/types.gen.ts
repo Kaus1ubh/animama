@@ -6628,6 +6628,10 @@ export type PyModelAssetList = {
      */
     assets: Array<PyModelAssetState>;
     /**
+     * Downloads Offered
+     */
+    downloads_offered?: boolean;
+    /**
      * Free Bytes
      */
     free_bytes: number | null;
@@ -14277,7 +14281,7 @@ export type InstallModelAssetV1ModelAssetsAssetIdInstallPostData = {
 
 export type InstallModelAssetV1ModelAssetsAssetIdInstallPostErrors = {
     /**
-     * The asset is being removed (model_asset_busy), or a required asset is not installed (model_asset_requires, details.requires).
+     * The asset is being removed (model_asset_busy), a required asset is not installed (model_asset_requires, details.requires), or downloads are no longer offered (model_downloads_ended).
      */
     409: unknown;
     /**

@@ -145,11 +145,13 @@ def test_python_route_tests_do_not_restore_header_authentication_fixtures() -> N
     # the resolver ignores them and the collector never receives them. They do
     # not grant route-unit ownership through headers or introduce an auth mode.
     # Model-store tests send a synthetic upstream credential only to verify
-    # that cross-host download redirects strip it; model-connection credential
-    # tests, OpenRouter connection tests and live-credential tests assert which
-    # synthetic upstream key each request sends. None of them calls local routes
-    # with it.
+    # that cross-host download redirects strip it, and key-redirect tests that
+    # provider clients drop or refuse it on a cross-origin redirect;
+    # model-connection credential tests, OpenRouter connection tests and
+    # live-credential tests assert which synthetic upstream key each request
+    # sends. None of them calls local routes with it.
     credential_rejection_tests = {
+        "test_key_redirects.py",
         "test_live_credentials.py",
         "test_local_http_lifecycle.py",
         "test_local_http_telemetry.py",

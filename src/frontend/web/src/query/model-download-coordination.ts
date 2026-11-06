@@ -1,7 +1,10 @@
 import type { Client } from "@animama/runtime-contracts/sdk";
 import type { QueryClient } from "@tanstack/react-query";
 import { getI18n } from "react-i18next";
-import type { PyModelAssetState } from "@animama/runtime-contracts/api-types";
+import type {
+  PyModelAssetList,
+  PyModelAssetState,
+} from "@animama/runtime-contracts/api-types";
 import { listModelAssetsV1ModelAssetsGet } from "@animama/runtime-contracts/sdk";
 import type { FeaturePackStatus } from "../../../shared/desktop-runtime";
 import type { AnimamaDesktopBridge } from "@/platform/runtime-platform";
@@ -133,6 +136,36 @@ export async function assertPackTransitionAllowed(
     client.isMutating({ mutationKey: modelAssetActionKey(owner) })
   )
     throw new DownloadGuardError(ASSET_WORK_BLOCKS_PACK);
+}
+
+/**
+ * Whether the runtime has stopped downloading model assets: after the final
+ * release, local runtimes keep installed assets and refuse new installs.
+ * Hosted lists omit the field (their operator provides the models).
+ */
+export function modelDownloadsEnded(
+  list: Pick<PyModelAssetList, "downloads_offered"> | undefined,
+): boolean {
+  return list?.downloads_offered === false;
+}
+
+/**
+ * Ask the runtime whether downloads have ended, for a failure that would
+ * otherwise tell the person to download a model. An unreadable list keeps the
+ * download wording.
+ */
+export async function fetchModelDownloadsEnded(
+  apiClient: Client,
+): Promise<boolean> {
+  try {
+    const { data } = await listModelAssetsV1ModelAssetsGet({
+      client: apiClient,
+      throwOnError: true,
+    });
+    return modelDownloadsEnded(data);
+  } catch {
+    return false;
+  }
 }
 
 /** Every offline speech set: each engine's base set and its GPU add-on. */

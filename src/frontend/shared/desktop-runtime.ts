@@ -17,6 +17,28 @@ export type CredentialProvider = (typeof credentialProviders)[number];
 export const connectionCredentialPattern =
   /^ANIMAMA_CONNECTION_[A-Z0-9_]{1,64}_API_KEY$/u;
 export const maxConnectionCredentials = 32;
+/**
+ * The variable a connection key's origin travels under, beside the key:
+ * `ANIMAMA_CONNECTION_<NAME>_ORIGIN` for `ANIMAMA_CONNECTION_<NAME>_API_KEY`.
+ */
+export function connectionOriginVariable(connection: string): string {
+  return connection.replace(/_API_KEY$/u, "_ORIGIN");
+}
+/**
+ * The origin (`scheme://host[:port]`) of an http(s) URL as `URL.origin` gives
+ * it, or `null` for anything else. A connection key is saved with the origin
+ * of its address, and the backend sends it nowhere else.
+ */
+export function httpOrigin(value: string): string | null {
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" || url.protocol === "http:"
+      ? url.origin
+      : null;
+  } catch {
+    return null;
+  }
+}
 /** Largest renderer batch: every provider plus several connection keys. */
 export const maxCredentialChanges = 8;
 type CredentialState = {
@@ -66,11 +88,13 @@ export type RuntimeBridge = {
 };
 /**
  * One key change in a batch, for a built-in provider or a model connection;
- * an omitted value removes the saved key.
+ * an omitted value removes the saved key. A connection key is saved with the
+ * origin (`scheme://host[:port]`) of the address it was entered for; the
+ * backend sends it nowhere else.
  */
 export type CredentialChange =
   | { provider: CredentialProvider; value?: string }
-  | { connection: string; value?: string };
+  | { connection: string; value?: string; origin?: string };
 /** The provider name or connection variable a change or status refers to. */
 export function credentialTarget(
   item: CredentialChange | CredentialStatus,

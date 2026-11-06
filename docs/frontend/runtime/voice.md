@@ -83,7 +83,13 @@ and built self-host, each offline engine has two downloadable sets:
 
 Each set installs in place through the backend
 [model assets](../../backend/architecture/http-api.md#model-assets) with size,
-progress, cancel, retry and removal. The add-on is always shown; when it cannot
+progress, cancel, retry and removal. When the model-asset list reports
+`downloads_offered: false`, as every local composition will after the final
+release, a set that is not installed shows no download or size, the
+panel says that downloads have ended and what still works
+(`modelDownloadsEndedNote`), installed sets keep their removal, and dictation
+says a missing model can no longer be downloaded. The rest of this section
+describes a runtime that offers downloads. The add-on is always shown; when it cannot
 be installed (CPU model missing, no WebGPU adapter, or not in this build) its
 action is disabled with the reason. A loaded asset list without an engine's
 sets shows them as not available, for example on a runtime whose operator does
@@ -1265,6 +1271,11 @@ the public ORT 1.24.2 inventory does not replace those dependency versions.
     installed starts its install on the next reply.
   - A failed download shows one notice per session, and the next reply or pick
     retries it.
+  - Once downloads have ended (`downloadsEnded` from the model-asset list), a
+    voice that is not installed shows as not available and cannot be picked;
+    a reply that would have installed it speaks with the default voice and
+    shows one notice per session. Without an installed encoder, cloning says
+    it can no longer be downloaded instead of offering the encoder.
 - Anima voice selection keeps a compact picker with search, All/Female/Male tabs,
   Recommended only and Custom filters, previews and inline download/retry/cancel
   actions. Custom shows saved clones and uploaded voices; preset filters pause
@@ -1276,11 +1287,10 @@ the public ORT 1.24.2 inventory does not replace those dependency versions.
   (built-in)", ElevenLabs, Gemini and the browser where offered); selecting one
   switches the provider, the provider in use is tagged "Selected", and its tab
   holds that provider's settings: the PocketTTS tab reuses the Anima cloning
-  form with the encoder download under a "Voice Clone" heading, the ElevenLabs
+  form with the encoder's state under a "Voice Clone" heading, the ElevenLabs
   tab its key, the Gemini tab its key and model. There is no chunk-streaming
   switch: ElevenLabs always streams. Setup offers
-  Speech-to-Text and Text-to-Speech choices but no voice cloning. Offline speech set downloads resume from verified
-  bytes after interruption.
+  Speech-to-Text and Text-to-Speech choices but no voice cloning.
 - Anima voice catalogs are separate user/catalog inputs; their persisted URLs
   and legacy `/onnx/models/pocket-tts/animas/{animaId}_voices.bin` reference format
   are not members of the 22-file engine inventory.
@@ -1355,9 +1365,11 @@ verify the complete engine inventory and required small TTS runtime files.
 
 - The UI Locale routes to SenseVoice, and its CPU set is not available: not
   installed, or turned off with `ANIMAMA_SENSEVOICE_STT_ENABLED=false`.
-- Install it in App Settings → Voice. On a Vite development stack, acquire it
-  on the host and rerun `reset.sh`. The app never substitutes a browser
-  recognizer for that language.
+- In a build that offers downloads, install it in App Settings → Voice. Once
+  downloads have ended the message says the model can no longer be downloaded
+  instead. On a Vite development stack, acquire it on the host and rerun
+  `reset.sh`. The app never substitutes a browser recognizer for that
+  language.
 
 ## Implementation File Map
 

@@ -152,8 +152,10 @@ class ModelAssetService:
         *,
         clock: Callable[[], float] = time.monotonic,
         sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
+        downloads_offered: bool = True,
     ) -> None:
         self._catalog = catalog
+        self._downloads_offered = downloads_offered
         self._store = store
         self._fetcher = fetcher
         self._clock = clock
@@ -169,10 +171,23 @@ class ModelAssetService:
         # No install can be running yet. Keep resumable staging; drop the rest,
         # including stored data for IDs this release no longer catalogs.
         store.prune(catalog)
+        if not downloads_offered:
+            # Staged bytes could only resume a download that can no longer run.
+            for asset in catalog.assets:
+                try:
+                    store.discard_staged(asset)
+                except OSError as error:
+                    logger.warning("Staged model asset bytes could not be discarded: %s", error)
 
     @property
     def catalog(self) -> AssetCatalog:
         return self._catalog
+
+    @property
+    def downloads_offered(self) -> bool:
+        """Whether assets that are not installed can still be downloaded."""
+
+        return self._downloads_offered
 
     def register_removal_guard(self, guard: RemovalGuard) -> None:
         """Let a consumer veto removal, for example while an asset is in use."""
@@ -228,8 +243,9 @@ class ModelAssetService:
         Idempotent: an installed asset stays installed and an in-flight
         download is shared rather than restarted. Raises ``AssetBusyError``
         while the asset is being removed, so a new download never races the
-        deletion of its directory, and ``AssetInstallRefusedError``
-        (``model_asset_requires``) until every required asset is installed.
+        deletion of its directory, and ``AssetInstallRefusedError``:
+        ``model_downloads_ended`` when the service offers no downloads, and
+        ``model_asset_requires`` until every required asset is installed.
         Without enough free space for the remaining bytes plus headroom
         nothing is fetched, and the state reports ``asset_insufficient_space``
         (``asset_store_failed`` if free space cannot be measured).
@@ -240,6 +256,8 @@ class ModelAssetService:
             raise AssetBusyError(asset.id)
         if asset.id in self._tasks or self._store.is_installed(asset):
             return self._state(asset)
+        if not self._downloads_offered:
+            raise AssetInstallRefusedError("model_downloads_ended", {})
         # A requirement being removed counts as missing: its deletion may
         # already have passed the dependency guard.
         missing = [

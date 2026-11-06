@@ -108,6 +108,7 @@ async def test_a_release_that_changes_an_included_files_bytes_changes_its_url(
         assert kept.content == (paths.included_root / "appearances/shipped.png").read_bytes()
         assert kept.headers["cache-control"] == IMMUTABLE
         assert kept.headers["etag"] == f'"{first["sha256"]}"'
+        assert kept.headers["content-security-policy"] == "sandbox; default-src 'none'"
         # A Library thumbnail of the exact source digest is kept as immutable too.
         thumbnail = await client.get(first["url"], params={"variant": "thumbnail"})
         assert thumbnail.status_code == 200

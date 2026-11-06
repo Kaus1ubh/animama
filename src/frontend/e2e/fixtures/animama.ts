@@ -12,6 +12,7 @@ import {
   type Request,
   type Response,
   type TestInfo,
+  type Worker,
 } from "playwright/test";
 
 import {
@@ -655,6 +656,22 @@ export const test = base.extend<AnimamaFixtures>({
       const pendingWrites = new Set<Promise<void>>();
       const writeErrors: Error[] = [];
       const pageErrors: Error[] = [];
+      // Chromium logs a refused load or connection on the page's console. A
+      // refused evaluation, and any refusal inside a worker, reach Playwright
+      // only as `securitypolicyviolation` events, which these listeners repeat
+      // on the console. A refusal while a worker is still starting shows only
+      // in DevTools.
+      const policyViolations: string[] = [];
+      const repeatPolicyViolations = () =>
+        addEventListener("securitypolicyviolation", (event) =>
+          console.error(
+            `Content Security Policy violation: ${event.violatedDirective} ${event.blockedURI}`,
+          ),
+        );
+      await page.addInitScript(repeatPolicyViolations);
+      const onWorker = (worker: Worker) => {
+        void worker.evaluate(repeatPolicyViolations).catch(() => undefined);
+      };
 
       const record = (filename: string, value: unknown) => {
         const pending = appendEvidenceJsonLine(
@@ -672,6 +689,8 @@ export const test = base.extend<AnimamaFixtures>({
       };
 
       const onConsole = (message: ConsoleMessage) => {
+        if (message.text().includes("Content Security Policy"))
+          policyViolations.push(message.text());
         record("browser-console.jsonl", {
           ...eventBase(testInfo),
           type: message.type(),
@@ -706,11 +725,13 @@ export const test = base.extend<AnimamaFixtures>({
       };
 
       page.on("console", onConsole);
+      page.on("worker", onWorker);
       page.on("pageerror", onPageError);
       page.on("requestfailed", onRequestFailed);
       page.on("response", onResponse);
       await use();
       page.off("console", onConsole);
+      page.off("worker", onWorker);
       page.off("pageerror", onPageError);
       page.off("requestfailed", onRequestFailed);
       page.off("response", onResponse);
@@ -720,6 +741,10 @@ export const test = base.extend<AnimamaFixtures>({
         pageErrors.map((error) => error.message),
         "Unexpected browser page errors",
       ).toEqual([]);
+      // Built stacks serve the app's policy; development servers send none.
+      expect(policyViolations, "Content Security Policy violations").toEqual(
+        [],
+      );
       if (writeErrors.length > 0) {
         throw new Error(
           `Browser evidence capture failed ${writeErrors.length} time(s); inspect the private runner log.`,

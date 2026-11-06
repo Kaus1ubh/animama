@@ -150,7 +150,8 @@
     "fallback": {
       "customMissing": "已选择自定义 PocketTTS 语音，但尚未上传自定义语音。",
       "downloadFailed": "无法下载语音“{{voice}}”，因此使用默认语音。下次回复时或你再次选择该语音时会重试下载。",
-      "unknownVoice": "已保存的语音“{{voice}}”已不可用，因此使用默认语音。请在“行为 → 语音”中选择其他语音。"
+      "unknownVoice": "已保存的语音“{{voice}}”已不可用，因此使用默认语音。请在“行为 → 语音”中选择其他语音。",
+      "downloadsEnded": "语音“{{voice}}”已无法下载，因此使用默认语音。"
     },
     "sample": {
       "playFailed": "无法播放 {{name}} 的样本。请检查网络连接后重试。"
@@ -248,6 +249,8 @@
     "speechToTextModel": "要使用 SenseVoice，请下载其模型。",
     "speechToTextModelUnavailable": "此服务器不提供 SenseVoice。",
     "textToSpeech": "Pocket TTS 仅支持英语。要让 Anima 用{{language}}说话，请选择 ElevenLabs 或 Gemini。",
-    "speechToTextUnavailable": "此服务器不提供{{language}}的离线语音识别。"
+    "speechToTextUnavailable": "此服务器不提供{{language}}的离线语音识别。",
+    "speechToTextEnded": "以{{language}}进行离线语音识别需要的模型已无法下载。",
+    "speechToTextModelEnded": "SenseVoice 需要的模型已无法下载。"
   }
 }

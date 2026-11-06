@@ -100,22 +100,31 @@ Keys depend on where the app runs:
   `desktopCredentials` query cache, so a save in any panel updates the others.
   Other connections take a write-only key field. The connection is saved first
   with a managed key; the key is then stored in the encrypted vault under
-  `ANIMAMA_CONNECTION_<ID>_API_KEY` through `credentials.apply` and applies
-  immediately, without a reload. Removing a connection with a saved key asks
-  for confirmation, because the key is deleted too. At most 32 connection keys
-  can be stored.
+  `ANIMAMA_CONNECTION_<ID>_API_KEY`, with the origin of the connection's
+  address, through `credentials.apply` and applies immediately, without a
+  reload. The backend sends the key only to that origin, so moving the address
+  to another origin keeps Save disabled until the key is entered again or
+  removed. Removing a connection deletes its vault key, and asks for
+  confirmation first when the key is in use, because it cannot be recovered. At
+  most 32 connection keys can be stored.
 - **Self-hosted web (and the external development stack):** the OpenAI card
   says it uses the server's `OPENAI_API_KEY` (the base URL still comes from
   `OPENAI_BASE_URL`), and the Anthropic card says it uses `ANTHROPIC_API_KEY`,
   sent only to Anthropic's API.
   For other connections the owner names the environment variable that holds the
   key (`DEEPSEEK_API_KEY`, `HF_TOKEN`, `OPENROUTER_API_KEY` or
-  `ANIMAMA_CONNECTION_<NAME>_API_KEY`); the card shows whether it is set in the
-  backend environment. Under Compose, the `ANIMAMA_CONNECTION_*` variables come
-  from the file named by `ANIMAMA_CONNECTION_KEYS_FILE`. Keys never reach the
+  `ANIMAMA_CONNECTION_<NAME>_API_KEY`); the card shows whether the backend can
+  use it. A connection key is used only beside
+  `ANIMAMA_CONNECTION_<NAME>_ORIGIN` set to the origin of the base URL, and the
+  form shows that line to add. A provider variable's key works only at its
+  provider's API. Under Compose, the `ANIMAMA_CONNECTION_*` variables come from
+  the file named by `ANIMAMA_CONNECTION_KEYS_FILE`. Keys never reach the
   database.
 
-A key that would travel over plain `http` to another computer shows a warning.
+A connection whose key would travel over plain `http` to another computer
+cannot be saved: keys go only over `https`, or plain `http` to this computer. A
+key is never sent to a host name written in non-ASCII characters; write such a
+name in its ASCII (`xn--…`) form.
 
 ## Models
 

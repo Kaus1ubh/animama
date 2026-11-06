@@ -6,6 +6,7 @@ import { usePocketVoiceDownloads } from "./usePocketVoiceDownloads";
 const fixture = vi.hoisted(() => ({
   mutate: vi.fn(),
   capabilities: {} as Record<string, unknown>,
+  downloadsOffered: true,
 }));
 
 vi.mock("@/query/hooks/useModelAssets", async (importOriginal) => ({
@@ -17,6 +18,7 @@ vi.mock("@/query/hooks/useModelAssets", async (importOriginal) => ({
         { id: "pocket-voice-anna", status: "not_installed" },
         { id: "pocket-voice-clara", status: "installed" },
       ],
+      downloads_offered: fixture.downloadsOffered,
     },
     retryAssetIds: new Set(),
   }),
@@ -47,6 +49,7 @@ function downloads() {
 describe("Pocket voice downloads", () => {
   beforeEach(() => {
     fixture.mutate.mockReset();
+    fixture.downloadsOffered = true;
   });
 
   it("installs and removes voices where the owner administers models", () => {
@@ -75,4 +78,17 @@ describe("Pocket voice downloads", () => {
       expect(result.availability("anna")?.status).toBe("not_installed");
     },
   );
+
+  it("installs nothing once downloads have ended, but still removes", () => {
+    fixture.capabilities = { local_filesystem_administration: true };
+    fixture.downloadsOffered = false;
+    const result = downloads();
+    expect(result.downloadsEnded).toBe(true);
+    expect(result.operatorManaged).toBe(false);
+    result.install("pocket-voice-anna");
+    result.remove("pocket-voice-clara");
+    expect(fixture.mutate.mock.calls.map(([request]) => request)).toEqual([
+      { action: "remove", assetId: "pocket-voice-clara" },
+    ]);
+  });
 });

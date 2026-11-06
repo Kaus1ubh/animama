@@ -6,18 +6,17 @@ from contextlib import contextmanager
 from pathlib import Path
 
 import pytest
-from sqlalchemy import create_engine, inspect, text
-from sqlalchemy.engine import make_url
-from sqlalchemy.exc import IntegrityError
-
 from alembic import command
 from alembic.config import Config
 from alembic.script import ScriptDirectory
 from alembic.util import CommandError
+from sqlalchemy import create_engine, inspect, text
+from sqlalchemy.engine import make_url
+from sqlalchemy.exc import IntegrityError
 
 ROOT = Path(__file__).parents[1]
-BASELINE_MIGRATION = ROOT / "alembic" / "versions" / "0001_baseline.py"
-BASELINE_SQL = ROOT / "alembic" / "versions" / "0001_baseline.sql"
+BASELINE_MIGRATION = ROOT / "src" / "backend" / "migrations" / "versions" / "0001_baseline.py"
+BASELINE_SQL = ROOT / "src" / "backend" / "migrations" / "versions" / "0001_baseline.sql"
 BASELINE_SHA256 = "438446a4a68e40391786337c6f0acd68e7398cf32dc9b82416bc59c975af1ad6"
 
 
@@ -38,7 +37,7 @@ def test_baseline_artifact_has_the_reviewed_schema_fingerprint() -> None:
 
 
 def test_current_schema_is_the_single_root_and_head() -> None:
-    scripts = ScriptDirectory.from_config(Config(str(ROOT / "alembic.ini")))
+    scripts = ScriptDirectory.from_config(Config(str(ROOT / "src/backend/alembic.ini")))
     assert scripts.get_heads() == ["baseline_20260908"]
     revisions = list(scripts.walk_revisions())
     assert len(revisions) == 1
@@ -57,7 +56,7 @@ def test_fresh_database_migrates_to_head(db_url: str, monkeypatch) -> None:
     migration_url = base_url.update_query_dict({"options": f"-csearch_path={schema},public"})
     rendered_url = migration_url.render_as_string(hide_password=False)
     monkeypatch.setenv("ANIMAMA_DATABASE_URL", rendered_url)
-    config = Config(str(ROOT / "alembic.ini"))
+    config = Config(str(ROOT / "src/backend/alembic.ini"))
     second_schema = f"migration_fresh_{uuid.uuid4().hex}"
     with admin_engine.begin() as connection:
         connection.exec_driver_sql(f'CREATE SCHEMA "{second_schema}"')
@@ -173,7 +172,7 @@ def test_fresh_database_migrates_to_head(db_url: str, monkeypatch) -> None:
 
         second_url = base_url.update_query_dict({"options": f"-csearch_path={second_schema},public"})
         monkeypatch.setenv("ANIMAMA_DATABASE_URL", second_url.render_as_string(hide_password=False))
-        command.upgrade(Config(str(ROOT / "alembic.ini")), "head")
+        command.upgrade(Config(str(ROOT / "src/backend/alembic.ini")), "head")
         second_engine = create_engine(second_url)
         try:
             with second_engine.connect() as connection:
@@ -204,7 +203,7 @@ def migration_schema(db_url: str, monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setenv("ANIMAMA_DATABASE_URL", url.render_as_string(hide_password=False))
     engine = create_engine(url)
     try:
-        yield Config(str(ROOT / "alembic.ini")), engine
+        yield Config(str(ROOT / "src/backend/alembic.ini")), engine
     finally:
         engine.dispose()
         with admin.begin() as connection:

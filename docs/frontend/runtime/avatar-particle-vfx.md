@@ -304,9 +304,10 @@ without `immediate`. `clearEffect(id, { finish: true })` stops its systems
 looping, ends emission and keeps the particles until none are alive or 3 s
 pass; a second finish leaves it finishing. Finishing effects are not active
 (they leave the budgets) but appear in the snapshot's `finishingCount`, and
-`Avatar.isMotionActive()` counts them. A Gesture stopped without a fade,
-immediate clears, `resetAnimations`, turning clip effects off, `clearAll` and
-disposal remove particles at once, finishing ones included.
+`Avatar.isMotionActive()` counts them. A Gesture stopped without a fade and
+other immediate clears remove that clip's particles at once (and an id's
+finishing tail); `resetAnimations`, turning clip effects off, `clearAll` and
+disposal remove every finishing tail too.
 
 The planner selects Reaction clips through the mounted motion catalog
 using the equipped emotion/intensity mapping. Particle playback comes from

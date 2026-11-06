@@ -856,6 +856,7 @@ export function useTtsPlayback(
           pocketHasCustomVoice,
           DEFAULT_POCKET_VOICE,
           downloads.availability,
+          downloads.downloadsEnded,
         );
         // A missing downloadable voice installs in the background; this reply
         // uses the default voice and later replies use the installed voice.

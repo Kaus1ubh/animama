@@ -139,6 +139,40 @@ export function readStaticLicenseNotice(name) {
   };
 }
 
+const LICENSE_RECORD =
+  /^(?:adapted-code\.md|code-[a-z0-9-]+-LICENSE\.(?:md|txt)|code-Apache-2\.0\.txt)$/u;
+
+/**
+ * Read a licence record kept in `licenses/third-party` by basename. Bundles
+ * carry these records unchanged rather than copies that could drift.
+ */
+export function readLicenseRecord(name) {
+  if (!LICENSE_RECORD.test(name))
+    throw new Error(`Invalid licence record path: ${name}`);
+  return {
+    path: `licenses/third-party/${name}`,
+    text: readFileSync(
+      path.join(repoRoot, "licenses/third-party", name),
+      "utf8",
+    ),
+  };
+}
+
+/** Every licence record a license-sources group names, checked as `readLicenseRecord` checks them. */
+export function licenseRecordFiles(
+  policy = readJson(path.join(sourceRoot, "license-sources.json")),
+) {
+  const names = [
+    ...new Set(
+      policy.groups.flatMap((group) => group.license_record_files ?? []),
+    ),
+  ].sort();
+  for (const name of names)
+    if (!LICENSE_RECORD.test(name))
+      throw new Error(`Invalid licence record path: ${name}`);
+  return names;
+}
+
 /** Every staged file gets an attribution group, with unresolved provenance visible. */
 export function writeLicenses(target, contentInventory) {
   const directory = path.join(target.runtime, "licenses");
@@ -154,7 +188,10 @@ export function writeLicenses(target, contentInventory) {
   const policy = readJson(path.join(sourceRoot, "license-sources.json"));
   const policyRecords = policy.groups.map((group) => ({
     ...group,
-    notices: (group.notice_files ?? []).map(readStaticLicenseNotice),
+    notices: [
+      ...(group.notice_files ?? []).map(readStaticLicenseNotice),
+      ...(group.license_record_files ?? []).map(readLicenseRecord),
+    ],
   }));
   const native = readJson(nativeLockFile(target));
   const records = [...policyRecords, ...python, ...js.records];

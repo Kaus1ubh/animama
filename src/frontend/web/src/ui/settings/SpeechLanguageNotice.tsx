@@ -13,15 +13,17 @@ import {
   type SpeechDirection,
 } from "@/lib/speech/speech-language";
 import { useOperatorManagedModelAssets } from "@/query/hooks/useModelAssets";
+import { useModelDownloadsEnded } from "@/query/hooks/useModelDownloadsEnded";
 import { useRuntimeCapabilities } from "@/query/hooks/useRuntimeCapabilities";
 
 /**
  * Speech that does not cover the language Animas speak (ADR 0024): Pocket TTS
- * and Parakeet work in English only, so the notice names the alternatives;
- * SenseVoice needs its model, so the notice asks for its download (or says
- * the server does not provide it, where the operator manages models or
- * turned the installed set off). Renders nothing for an engine that covers
- * the language and is available, or while the runtime is unknown.
+ * and Parakeet work in English only, so the notice names the alternatives.
+ * SenseVoice needs its model, so the notice asks for its download, says that
+ * it can no longer be downloaded, or says the server does not provide it
+ * (where the operator manages models or turned the installed set off).
+ * Renders nothing for an engine that covers the language and is available, or
+ * while the runtime is unknown.
  */
 export function SpeechLanguageNotice({
   direction,
@@ -36,6 +38,7 @@ export function SpeechLanguageNotice({
   const { t, i18n } = useTranslation("voice");
   const capabilities = useRuntimeCapabilities().data;
   const operatorManaged = useOperatorManagedModelAssets();
+  const downloadsEnded = useModelDownloadsEnded();
   // Read through `i18n` so the notice follows a language switch.
   const locale = conversationLocale(i18n.resolvedLanguage);
   const language = locale ? localeNativeName(locale) : null;
@@ -65,10 +68,14 @@ export function SpeechLanguageNotice({
       {language
         ? unavailable
           ? t("languageNotice.speechToTextUnavailable", { language })
-          : t("languageNotice.speechToText", { language })
+          : downloadsEnded
+            ? t("languageNotice.speechToTextEnded", { language })
+            : t("languageNotice.speechToText", { language })
         : unavailable
           ? t("languageNotice.speechToTextModelUnavailable")
-          : t("languageNotice.speechToTextModel")}
+          : downloadsEnded
+            ? t("languageNotice.speechToTextModelEnded")
+            : t("languageNotice.speechToTextModel")}
     </p>
   );
 }

@@ -90,7 +90,12 @@ closed because its database password cannot be silently regenerated.
 
 Besides the OpenAI, Anthropic, ElevenLabs and Gemini keys, the vault holds a `connections` map of
 model-connection keys under their managed names, `ANIMAMA_CONNECTION_<ID>_API_KEY`
-derived from the connection id. It stores at most 32 connection keys in a file
+derived from the connection id. Each model-connection key keeps the origin of
+the address it was entered for (the web-search key has none), and main delivers
+it beside the key as `ANIMAMA_CONNECTION_<ID>_ORIGIN`; the backend sends the
+key only to that origin, so a connection moved to another address needs its key
+entered again. The origin is not a secret and is not added to log redaction.
+The vault stores at most 32 connection keys in a file
 of at most 512 KiB, and one batch changes at most eight keys, one per provider
 or connection. A vault beyond those bounds is `vault_unreadable`. Provider
 entries for `deepseek`, `huggingface` and `gemini` that earlier builds wrote

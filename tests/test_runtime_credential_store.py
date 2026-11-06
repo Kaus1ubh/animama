@@ -25,7 +25,12 @@ SENTINEL = "sk-SENTINEL-" + "x" * 40
 
 def _connection(env: str | None) -> ModelConnection:
     return ModelConnection(
-        id="c1", name="Local", preset="openai_compatible", source="owner", base_url="http://x/v1", credential_env=env
+        id="c1",
+        name="Local",
+        preset="openai_compatible",
+        source="owner",
+        base_url="http://127.0.0.1:8080/v1",
+        credential_env=env,
     )
 
 
@@ -193,7 +198,13 @@ async def test_tasks_started_by_a_pinned_request_inherit_its_snapshot() -> None:
 
 
 def test_resolver_reads_the_current_snapshot_per_call() -> None:
-    store = RuntimeCredentialStore({"OPENAI_API_KEY": "sk-old", "ANIMAMA_CONNECTION_C1_API_KEY": "c1"})
+    store = RuntimeCredentialStore(
+        {
+            "OPENAI_API_KEY": "sk-old",
+            "ANIMAMA_CONNECTION_C1_API_KEY": "c1",
+            "ANIMAMA_CONNECTION_C1_ORIGIN": "http://127.0.0.1:8080",
+        }
+    )
     resolver = StoreModelCredentialResolver(store)
     owner = _connection("ANIMAMA_CONNECTION_C1_API_KEY")
 

@@ -252,6 +252,29 @@ describe("application menu", () => {
     ]);
   });
 
+  it.each(["darwin", "win32"] as const)(
+    "drops the DevTools item from a packaged build's View menu on %s",
+    (platform) => {
+      const view = (packaged: boolean) =>
+        outline(
+          applicationMenuTemplate(
+            shellStrings("en"),
+            platform,
+            "Animama",
+            packaged,
+          ),
+        ).find((menu) => (menu as { role?: string }).role === "viewMenu") as {
+          submenu: unknown[];
+        };
+      const roles = (packaged: boolean) =>
+        view(packaged).submenu.map((item) => (item as { role?: string }).role);
+
+      expect(roles(false)).toContain("toggleDevTools");
+      expect(roles(true)).not.toContain("toggleDevTools");
+      expect(roles(true)).toContain("reload");
+    },
+  );
+
   it("keeps the Windows menu bar's items, with Exit, and localizes every label", () => {
     const english = applicationMenuTemplate(
       shellStrings("en"),

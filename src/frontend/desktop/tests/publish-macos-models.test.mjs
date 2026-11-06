@@ -68,6 +68,7 @@ async function runCandidate({
       policy: {},
       distribution: { name: kind, ...built, bucket: "app-bucket" },
       updatePolicy: { distribution: built },
+      activePackIds: [],
     }),
   }));
   vi.doMock("../scripts/runtime/release-artifacts.mjs", () => ({

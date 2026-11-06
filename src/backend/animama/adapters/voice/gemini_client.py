@@ -8,7 +8,9 @@ also retries on its own and, under ``GOOGLE_GENAI_DEBUG``, logs request
 headers, including the key. The builder below fixes every one of these, so the
 owner's key goes only to Google's Gemini API, once per call. Voice requests use
 the Interactions API, whose audio output exists only on ``v1beta``
-(docs/plans/gemini-tts).
+(docs/plans/gemini-tts). It sends through the SDK's httpx client, which follows
+redirects and would keep the ``x-goog-api-key`` header on one, so that client
+refuses a redirect to another origin.
 """
 
 from __future__ import annotations
@@ -19,6 +21,8 @@ import httpx
 from google import genai
 from google.genai.client import DebugConfig
 from google.genai.types import HttpOptions
+
+from animama.adapters.key_redirects import refuse_cross_origin_redirect_async
 
 GEMINI_API_HOST = "generativelanguage.googleapis.com"
 GEMINI_API_BASE_URL = f"https://{GEMINI_API_HOST}/"
@@ -38,17 +42,22 @@ def gemini_sdk_client(
     *,
     api_key: str,
     timeout_ms: int | None = None,
-    httpx_async_client: httpx.AsyncClient | None = None,
+    transport: httpx.AsyncBaseTransport | None = None,
 ) -> genai.Client:
     """Return a client that sends ``api_key`` only to the Gemini API, with no retries.
 
-    ``httpx_async_client`` exists for tests that supply a mock transport.
+    ``transport`` exists for tests that supply a mock transport.
     """
 
     key = api_key.strip()
     if not key:
         # An empty key would make the SDK fall back to GOOGLE_API_KEY.
         raise ValueError("A Gemini API key is required")
+    # The SDK builds its httpx client from these arguments and closes it once
+    # nothing references it.
+    client_args: dict[str, Any] = {"event_hooks": {"response": [refuse_cross_origin_redirect_async]}}
+    if transport is not None:
+        client_args["transport"] = transport
     client = genai.Client(
         vertexai=False,
         api_key=key,
@@ -57,7 +66,7 @@ def gemini_sdk_client(
             base_url=GEMINI_API_BASE_URL,
             api_version=GEMINI_API_VERSION,
             timeout=timeout_ms,
-            httpx_async_client=httpx_async_client,
+            async_client_args=client_args,
         ),
     )
     _quiet_interactions(client)

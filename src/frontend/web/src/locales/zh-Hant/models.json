@@ -58,11 +58,14 @@
     "editDescription": "OpenAI 相容的伺服器，例如 Ollama、LM Studio、llama.cpp 或雲端供應商。",
     "env": {
       "notSet": "尚未在伺服器上設定。請將它設為你的 API 金鑰。",
+      "notUsable": "尚無法使用。請在伺服器上將此變數設為你的 API 金鑰，並加入下面這一行。",
+      "origin": "另請在伺服器上設定 {{variable}}={{origin}}，讓金鑰只傳送到此位址。",
       "set": "已在伺服器上設定。",
       "setVariable": "請在伺服器上將此變數設為你的 API 金鑰。"
     },
     "hideAdvanced": "隱藏進階選項",
-    "insecureKey": "此位址透過未加密的 http 連線到另一台電腦，金鑰將以未加密的形式在網路上傳輸。請使用 https 或本機伺服器。",
+    "insecureKey": "金鑰只透過 https 或傳往這台電腦的 http 傳輸。請使用 https 或本機伺服器。",
+    "keyForAnotherAddress": "已儲存的金鑰是為另一個位址輸入的。請為此位址重新輸入金鑰，或將它移除。",
     "keyNotDeleted": "無法刪除此連線儲存的金鑰。",
     "keyNotStored": "連線已儲存，但其金鑰未能儲存。{{reason}}",
     "keyNotStoredRetry": "連線已儲存，但其金鑰未能儲存。請透過「編輯」重試。",
@@ -364,5 +367,8 @@
       "stopsSearching": "模型將停止搜尋網頁。",
       "turningOff": "正在關閉…"
     }
+  },
+  "downloadsEnded": {
+    "note": "Animama 已不再提供模型下載。已下載的內容仍可繼續使用；聊天、虛擬形象和內建語音無需下載。"
   }
 }

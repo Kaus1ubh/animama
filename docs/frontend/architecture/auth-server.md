@@ -80,6 +80,42 @@ Runtime manifests retain scoped gzip, representation ETags and fresh lease
 issuance on each authorized read. The development proxy preserves encoded bytes;
 there is no second production proxy. See [Local content runtime](local-content-runtime.md).
 
+## Content Security Policy
+
+In built mode and in the desktop app, every file of the built application,
+including the SPA fallback, carries one enforcing policy
+(`APP_CONTENT_SECURITY_POLICY` in `local/http/assets.py`). Scripts carry it too,
+because a worker takes its policy from its own response; a worklet follows its
+document's. It allows:
+
+- scripts from the application origin plus WebAssembly compilation
+  (`'wasm-unsafe-eval'`), with no inline script and no string evaluation;
+- styles from the origin and inline styles; images from the origin, `blob:` and
+  `data:`; fonts from the origin; media and workers from the origin and `blob:`;
+- connections to the origin, `blob:` and `data:` (inline Pose and Action preview
+  clips and data embedded in model files, which never leave the device), plus the
+  two outside services the pages contact directly: Pocket voice-sample previews
+  (`https://huggingface.co` and its `https://*.hf.co` download CDN) and the
+  ElevenLabs realtime socket (`wss://api.elevenlabs.io`);
+- no plugins, frames, framing by other pages or `<base>`; forms post only to the
+  origin.
+
+The exact Pocket TTS worker, `/tts/workers/inference-worker.js`, also allows
+`'unsafe-eval'`, because its pinned SentencePiece binding builds call wrappers at
+runtime (#698). Stored bytes (registered content files, previews, runtime members
+and package exports) carry `sandbox; default-src 'none'`, so they never run as a
+document in the application origin; images, media, models and fetches that load
+them are unaffected.
+
+A feature that needs another source adds exactly that source; prefer reaching an
+outside service through FastAPI instead. Fingerprinted scripts are cached for a
+year with their headers, so a changed policy reaches an already cached worker
+only when its file name changes. Development pages come from Vite, which sends
+no policy, so check policy-sensitive changes in a built stack
+(`ANIMAMA_WEB_BUILD_MODE=production ./reset.sh`) or the desktop app. Browser
+journeys run on built stacks and fail on any violation that the page or a
+running worker reports.
+
 ## Readiness, recovery and desktop controls
 
 FastAPI prepares the installation at startup. React reads `/v1/runtime-context`
