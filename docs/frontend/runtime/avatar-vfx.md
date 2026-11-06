@@ -654,9 +654,8 @@ parts and face cleanup switch on and off at half intensity, so a fading eye
 effect never shows bare eye sockets under faint art. The Gesture and Reaction
 creator's preview samples the envelope too, while playing and when paused.
 Events that end **With Action** have no envelope of their own. Every Avatar
-Effect in a Reaction also fades with the Reaction's fade-out, or with the
-fade-in of a Reaction that replaces it; With Action effects in a Gesture end
-without a fade. Parameter
+Effect in a Gesture or Reaction also fades with its fade-out, and a Reaction's
+with the fade-in of a Reaction that replaces it. Parameter
 keyframes are not supported for Avatar Effects.
 
 An event's optional `override` changes the effect for that use only

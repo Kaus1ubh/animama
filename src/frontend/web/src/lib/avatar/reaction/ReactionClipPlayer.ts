@@ -245,15 +245,19 @@ export class ReactionClipPlayer {
       return false;
     }
 
-    this._clearImmediately();
+    this._clearImmediately(options.immediate !== true);
     return true;
   }
 
-  private _clearImmediately(): void {
+  /**
+   * End the playing Reaction now. `finish` (a normal end, not a reset) lets
+   * its Particle Effects' particles live out their life.
+   */
+  private _clearImmediately(finish = false): void {
     const state = this._state;
     if (!state) return;
 
-    this._clearAllEventEffects();
+    this._clearAllEventEffects(finish);
     this._finishAllRetiringEffects();
     this._expressionSink.clearExpressionOverlay(state.ownerId);
     this._state = null;
@@ -278,7 +282,7 @@ export class ReactionClipPlayer {
     for (const activeEffect of Array.from(state.activeEventEffects.values())) {
       const { event, context } = activeEffect;
       if (!canFade || event.kind !== "avatar_vfx") {
-        this._clearEventEffect(context.appliedId);
+        this._clearEventEffect(context.appliedId, canFade);
         continue;
       }
       state.activeEventEffects.delete(context.appliedId);
@@ -354,7 +358,7 @@ export class ReactionClipPlayer {
     if (state.phase === "fadeOut") {
       this._sampleEventEnvelopes(nextElapsedSec);
       if (this._isCurrentFadeComplete(state.fadeOutDurationSec)) {
-        this.clear(state.ownerId, { immediate: true });
+        this._clearImmediately(true);
       }
       return;
     }
@@ -644,21 +648,22 @@ export class ReactionClipPlayer {
         activeEffect.clearAtPlaybackTime !== null &&
         activeEffect.clearAtPlaybackTime <= playbackTimeSec
       ) {
-        this._clearEventEffect(activeEffect.context.appliedId);
+        this._clearEventEffect(activeEffect.context.appliedId, true);
       }
     }
   }
 
-  private _clearAllEventEffects(): void {
+  private _clearAllEventEffects(finish = false): void {
     const state = this._state;
     if (!state) return;
 
     for (const appliedId of Array.from(state.activeEventEffects.keys())) {
-      this._clearEventEffect(appliedId);
+      this._clearEventEffect(appliedId, finish);
     }
   }
 
-  private _clearEventEffect(appliedId: string): void {
+  /** `finish` lets a Particle Effect's particles live out their life. */
+  private _clearEventEffect(appliedId: string, finish = false): void {
     const state = this._state;
     if (!state) return;
 
@@ -675,7 +680,11 @@ export class ReactionClipPlayer {
     }
     if (event.kind === "particle_vfx") {
       this._invokeEventHandler(event, context, () =>
-        this._eventSink?.clearParticleVFX?.(event, context),
+        finish
+          ? this._eventSink?.clearParticleVFX?.(event, context, {
+              finish: true,
+            })
+          : this._eventSink?.clearParticleVFX?.(event, context),
       );
       return;
     }
