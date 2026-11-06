@@ -6,7 +6,9 @@
    hues so a solid focus ring reaches 3:1 and red text and button labels
    reach 4.5:1 on the page, card and sidebar surfaces.
    Status colours (success, warning, info) are text and icon hues; use /10
-   for tinted backgrounds and /30 for borders. */
+   for tinted backgrounds and /30 for borders.
+   The palette was inspired by tweakcn's "Candyland" preset
+   (https://tweakcn.com); no tweakcn code is included. */
 :root {
   --background: hsl(48 33.3333% 97.0588%);
   --foreground: hsl(0 0% 20%);

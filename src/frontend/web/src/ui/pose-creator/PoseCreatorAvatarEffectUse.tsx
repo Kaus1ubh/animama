@@ -1,5 +1,3 @@
-"use client";
-
 import { RotateCcwIcon } from "lucide-react";
 import { useCallback, useId, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";

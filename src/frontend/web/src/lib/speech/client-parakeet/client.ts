@@ -22,9 +22,16 @@ const parakeet = createOfflineSttClient<ClientParakeetModelUrls>({
     version: capabilities.offline_speech_asset_version,
     gpuVersion: capabilities.offline_speech_gpu_asset_version,
   }),
-  unavailableError: () =>
+  unavailableError: (downloadsEnded) =>
     new WordedError(
-      getI18n().getFixedT(null, "app")("dictation.errors.offlineSpeechMissing"),
+      getI18n().getFixedT(
+        null,
+        "app",
+      )(
+        downloadsEnded
+          ? "dictation.errors.offlineSpeechEnded"
+          : "dictation.errors.offlineSpeechMissing",
+      ),
     ),
   assetIds: { base: PARAKEET_ASSET_ID, gpu: PARAKEET_WEBGPU_ASSET_ID },
   modelPaths: {

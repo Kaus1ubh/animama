@@ -4,9 +4,11 @@
 The set holds the 35 voices the app downloads on demand, plus ATTRIBUTION.md and
 README.md. Eve, Azelma and Michael belong to the separate core browser-speech set.
 Maintainers acquire it to stage
-publication (`models:stage`); the app itself installs downloadable voices through
-`/v1/model-assets`. Uses the stdlib-only Parakeet storage primitives; verify/path
-never contact upstream services.
+publication (`models:stage`). Its 24 VCTK states come only from
+downloads.animama.ai, so after that host is disconnected acquire works only with
+`--offline --import-from` (or `release_inputs.py`, which encodes them again).
+Uses the stdlib-only Parakeet storage primitives; verify/path never contact
+upstream services.
 """
 
 from __future__ import annotations

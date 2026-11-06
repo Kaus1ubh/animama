@@ -1,2 +1,9 @@
 /** Shared presentation implementation. */
-export * from "@animama/product-ui/components";
+export {
+  Tooltip,
+  TooltipContent,
+  TooltipDetails,
+  TooltipLabel,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@animama/product-ui/components";

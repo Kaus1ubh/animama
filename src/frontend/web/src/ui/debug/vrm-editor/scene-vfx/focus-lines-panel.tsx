@@ -1,5 +1,3 @@
-"use client";
-
 import {
   DEFAULT_SCENE_FOCUS_LINES_FACE_PADDING_X_PX,
   DEFAULT_SCENE_FOCUS_LINES_FACE_PADDING_Y_PX,
@@ -16,7 +14,7 @@ import {
   Panel,
   SelectControl,
 } from "../controls";
-import type { SceneFocusLinesDraftController } from "./use-scene-vfx-drafts";
+import type { SceneFocusLinesDraftController } from "./useSceneVFXDrafts";
 
 export function SceneFocusLinesPanel({
   controller,

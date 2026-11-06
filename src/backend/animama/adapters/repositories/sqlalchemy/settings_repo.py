@@ -4,10 +4,7 @@ from __future__ import annotations
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ....app.ports.settings_port import AnimaSettingsRepository, UserSettingsRepository
-from ....domain.settings import AnimaSettings, UserSettings
-from ....orm.settings import ORMAnimaSettings, ORMUserSettings
-from ...mappers.settings_map import (
+from animama.adapters.mappers.settings_map import (
     anima_settings_domain_to_orm,
     anima_settings_orm_to_domain,
     apply_anima_settings_to_orm,
@@ -15,6 +12,9 @@ from ...mappers.settings_map import (
     user_settings_domain_to_orm,
     user_settings_orm_to_domain,
 )
+from animama.app.ports.settings_port import AnimaSettingsRepository, UserSettingsRepository
+from animama.domain.settings import AnimaSettings, UserSettings
+from animama.orm.settings import ORMAnimaSettings, ORMUserSettings
 
 
 class SQLAlchemyUserSettingsRepository(UserSettingsRepository):

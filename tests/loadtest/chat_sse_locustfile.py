@@ -75,7 +75,7 @@ class AnimaChatSseUser(AccountlessAnimaUser):
         max_chars = int(os.getenv("LOADTEST_SSE_LOG_MAX_CHARS", "2000"))
         events: list[tuple[str, str]] = []
 
-        def on_event(event_type: str, event_data, event_data_raw) -> None:  # noqa: ANN001
+        def on_event(event_type: str, event_data, event_data_raw) -> None:
             if not log_sse or len(events) >= max_events:
                 return
             data = json.dumps(event_data, ensure_ascii=True) if event_data is not None else (event_data_raw or "")

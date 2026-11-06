@@ -13,6 +13,8 @@
   (Decision Log D2, D4, D7, D10, D19, D20 and D21)
 - Amended: 2026-10-25, the turn context no longer ends with the guardrails
   (see [ADR 0008](0008-non-overridable-companion-guardrail.md)).
+- Amended: 2026-11-01, a composition may close the moderation gap with an
+  operator check (owner, [issue #811](https://github.com/raymond-van/animama/issues/811)).
 
 ## Context
 
@@ -118,7 +120,10 @@ Consequences:
 
 - **Moderation gap.** Anthropic offers no moderation endpoint, so Anthropic
   turns show no crisis card and rely on the Companion Guardrails alone, as
-  Chat Completions turns do. The owner accepted this.
+  Chat Completions turns do. The owner accepted this. Since 2026-11-01 a
+  composition may supply an operator moderation check for Anthropic turns
+  (Animama Cloud chose OpenAI's moderation endpoint); the local composition
+  supplies none.
 - **Fence and refusals.** Moving a chat between Anthropic and OpenAI models
   needs a new chat. A refusal ends the turn with `model_refused`; no other
   model is tried.

@@ -1,5 +1,3 @@
-"use client";
-
 import { useDocumentPiP } from "@/hooks/useDocumentPiP";
 import { useDesktopPiP } from "@/hooks/useDesktopPiP";
 import type { CanvasMode } from "@/ui/main/canvas/CanvasControls";

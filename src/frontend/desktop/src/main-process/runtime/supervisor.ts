@@ -166,10 +166,7 @@ export class RuntimeSupervisor {
       throw new RuntimeError("runtime_not_initialized");
     const providerEnv = this.vault.childEnvironment();
     const buildId = this.manifest.build_id;
-    runtimeRedactor.add(
-      this.vault.databasePassword(),
-      ...Object.values(providerEnv),
-    );
+    runtimeRedactor.add(this.vault.databasePassword(), ...this.vault.secrets());
     return {
       ...this.databaseEnv,
       ...providerEnv,
@@ -226,6 +223,9 @@ export class RuntimeSupervisor {
       ANIMAMA_LOG_TO_CONSOLE: "1",
       ANIMAMA_DISABLE_WEBUI_TELEMETRY: "1",
       OTEL_SDK_DISABLED: "true",
+      // Memory Manager runs on the built-in OpenAI connection would otherwise
+      // upload Agents SDK traces to OpenAI; this overrides each run's setting.
+      OPENAI_AGENTS_DISABLE_TRACING: "1",
       PYTHONUNBUFFERED: "1",
     };
   }
@@ -333,7 +333,7 @@ export class RuntimeSupervisor {
         );
         runtimeRedactor.add(
           this.vault.databasePassword(),
-          ...Object.values(this.vault.childEnvironment()),
+          ...this.vault.secrets(),
         );
         this.owned ??= new OwnedProcesses(this.options.paths.processes);
         this.stage("application");
@@ -953,7 +953,7 @@ export class RuntimeSupervisor {
     )
       throw new RuntimeError("runtime_not_ready");
     const credentials = this.vault.childEnvironment();
-    runtimeRedactor.add(...Object.values(credentials));
+    runtimeRedactor.add(...this.vault.secrets());
     const generation = ++this.credentialGeneration;
     let response: Response;
     let result: { schema_version?: unknown; generation?: unknown };

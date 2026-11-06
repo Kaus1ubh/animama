@@ -179,10 +179,17 @@ export function r2Writer({ bucket, credentials, fetch: fetchImpl = fetch }) {
 }
 
 /**
- * Download an object anonymously and compare its SHA-256. A fresh object can
- * take a moment to reach the public domain, so a 404 is retried. `identity`
- * additionally requires the exact uncompressed bytes a pinned downloader will
- * accept.
+ * Retries of an anonymous 404: 5 minutes at the default 5 s delay. Cloudflare
+ * caches a 404 at the edge for 3 minutes, so a URL that anyone read before its
+ * object existed can keep answering 404 that long after the upload.
+ */
+const MISSING_RETRIES = 60;
+
+/**
+ * Download an object anonymously from its exact public URL and compare its
+ * SHA-256. A 404 may be a miss the edge cached before the upload, so it is
+ * retried for longer than that cache lasts. `identity` additionally requires
+ * the exact uncompressed bytes a pinned downloader will accept.
  */
 export async function verifyPublicObject({
   url,
@@ -218,7 +225,7 @@ export async function verifyPublicObject({
         );
       return;
     }
-    if (response.status !== 404 || attempt >= 3)
+    if (response.status !== 404 || attempt >= MISSING_RETRIES)
       throw new PublicationError(unreadable);
     await sleep(retryDelayMs);
   }

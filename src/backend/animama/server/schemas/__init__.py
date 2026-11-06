@@ -36,7 +36,6 @@ from .chat_history import (
 )
 from .dispatch import (
     PyAnimaDispatchOptions,
-    PyAnimaEventPublishRequest,
 )
 from .elevenlabs import (
     PyElevenLabsAnimaVoiceProfileInput,
@@ -88,7 +87,6 @@ __all__ = [
     "PyChatSearchResult",
     "PyAvatarUploadInitRequest",
     "PyAvatarUploadInitResponse",
-    "PyAnimaEventPublishRequest",
     "PyAnimaDispatchOptions",
     "PyElevenLabsVoice",
     "PyElevenLabsVoiceSettings",

@@ -1,3 +1,5 @@
+// Adapted from Motion Primitives (MIT): components/core/text-effect.tsx.
+// See licenses/third-party/adapted-code.md.
 import { cn } from "../lib/utils";
 import { AnimatePresence, motion } from "motion/react";
 import type {

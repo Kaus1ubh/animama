@@ -1,9 +1,14 @@
+"""Builds the prompt, history and persisted chat messages of a direct turn, including
+provider-shaped tool-call and tool-result items.
+"""
+
 from __future__ import annotations
 
 import json
 from collections.abc import Mapping
 from typing import Any, cast
 
+from animama.app.chat.memory_cue import MESSAGE_DATA_MEMORY_KEY
 from animama.app.model_clients import (
     ANTHROPIC_TOOL_RESULT_ITEM_TYPE,
     ANTHROPIC_TOOL_USE_ITEM_TYPE,
@@ -19,7 +24,6 @@ from animama.domain import ModelProvider
 from animama.domain.chat import ChatMessage, MessageRole
 from animama.domain.usage import Usage
 
-from ..memory_cue import MESSAGE_DATA_MEMORY_KEY
 from .constants import ANTHROPIC_MESSAGES_PROVIDER, OPENAI_RESPONSES_PROVIDER
 from .types import DirectChatTurnRequest
 

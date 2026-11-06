@@ -45,7 +45,6 @@ async function startServer(allProviders) {
     resolve: {
       alias: {
         "@": path.join(webRoot, "src"),
-        "@web": path.join(webRoot, "src"),
       },
     },
     server: { host: "127.0.0.1", port: 0 },

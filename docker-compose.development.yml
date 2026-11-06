@@ -76,7 +76,6 @@ services:
       - XDG_CACHE_HOME=/tmp/animama-web-cache
       - XDG_STATE_HOME=/tmp/animama-web-state
       - NPM_CONFIG_STORE_DIR=/pnpm/store
-      - VITE_APP_ENV=development
       - VITE_APP_VERSION=local
       - VITE_WEB_BASE_URL=${ANIMAMA_PUBLIC_ORIGIN:-http://localhost:8000}
       - VITE_FRONTEND_SERVER_BASE_URL=${ANIMAMA_PUBLIC_ORIGIN:-http://localhost:8000}

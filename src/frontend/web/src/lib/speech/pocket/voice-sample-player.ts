@@ -90,7 +90,8 @@ export function createVoiceSamplePlayer(
     };
     try {
       // Local samples use the app's admitted byte transport. Public recordings
-      // remain anonymous and never receive local request headers or credentials.
+      // get no credentials or Referer; the cross-origin request still sends
+      // Origin, which on desktop carries the installation's fixed loopback port.
       let blob: Blob;
       if ("loadSample" in voice) {
         blob = await voice.loadSample(request.signal);

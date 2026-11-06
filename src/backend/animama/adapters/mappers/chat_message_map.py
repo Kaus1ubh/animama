@@ -6,10 +6,10 @@ from collections.abc import Mapping
 from datetime import datetime
 from typing import Any
 
-from ...app.util.json_values import json_safe_dict
-from ...domain.chat import ChatMessage, MessageRole
-from ...domain.usage import Usage, UsageInputDetails, UsageOutputDetails
-from ...orm.chat_messages import ORMChatMessage
+from animama.app.util.json_values import json_safe_dict
+from animama.domain.chat import ChatMessage, MessageRole
+from animama.domain.usage import Usage, UsageInputDetails, UsageOutputDetails
+from animama.orm.chat_messages import ORMChatMessage
 
 
 def _usage_from_message_orm(orm: ORMChatMessage) -> Usage | None:

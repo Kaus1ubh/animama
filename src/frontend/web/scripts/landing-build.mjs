@@ -15,11 +15,15 @@ import { build, createServer } from "vite";
 
 import { javascriptLicenses } from "../../desktop/scripts/runtime/licenses.mjs";
 import {
+  CRISIS_PROTOCOL_FILE,
   MEDIA_ROUTE,
   pagePlugin,
   programPlugin,
+  renderCrisisProtocol,
   renderPageHtml,
+  renderSiteHeaders,
   resolveStageProgram,
+  siteChromePlugin,
   siteIcons,
   stageDir,
   stageViteConfig,
@@ -36,7 +40,10 @@ import {
  * definitions bundled into the JavaScript and their files (textures, Avatars,
  * portraits) copied under content-hashed names; the emotion mascots and
  * brand marks; the page's `static/` files (including the `_headers` the host
- * applies); icons, `robots.txt`, `sitemap.xml` and `notices.txt`. Nothing in
+ * applies); icons, `robots.txt`, `sitemap.xml` and `notices.txt`; and the
+ * site header for Animama Cloud's pages (`site-chrome.json`, its script and
+ * styles) and the crisis protocol for its `/safety/` page
+ * (`crisis-protocol.json`). Nothing in
  * it calls the stage server. The build fails if a source does not resolve or
  * the output holds a local path or a source map.
  */
@@ -73,10 +80,12 @@ export async function buildLanding({
   });
   let content;
   let page;
+  let headers;
   let site;
   try {
     content = await resolveStageProgram(server);
     page = await renderPageHtml(server);
+    headers = await renderSiteHeaders(server);
     site = await server.ssrLoadModule("/scripts/landing-stage/stops.ts");
   } finally {
     await server.close();
@@ -124,6 +133,34 @@ export async function buildLanding({
       },
     ],
   });
+  // The site header Animama Cloud's pages load, as its own build so it
+  // carries only the header's code rather than chunks shared with the stage.
+  await build({
+    ...stageViteConfig({ root: stageDir }),
+    mode: "production",
+    publicDir: false,
+    base: "/",
+    logLevel: "warn",
+    build: {
+      outDir,
+      emptyOutDir: false,
+      sourcemap: false,
+      assetsInlineLimit: 0,
+      reportCompressedSize: false,
+      rollupOptions: {
+        input: { "site-chrome": path.join(stageDir, "site-chrome.tsx") },
+      },
+    },
+    plugins: [
+      siteChromePlugin(() => headers),
+      {
+        name: "animama-site-chrome-modules",
+        generateBundle() {
+          moduleIds.push(...this.getModuleIds());
+        },
+      },
+    ],
+  });
 
   const write = (relative, data) => {
     const target = path.join(outDir, relative);
@@ -155,6 +192,7 @@ export async function buildLanding({
       "",
     ].join("\n"),
   );
+  write(CRISIS_PROTOCOL_FILE, await renderCrisisProtocol());
   write(
     site.SITE.notices.replace(/^\//, ""),
     noticesText({ site, moduleIds, published: [...copies.values()] }),
@@ -239,9 +277,42 @@ function publishProgram({
 }
 
 /**
+ * Third-party code adapted into the page's own sources (listed in
+ * `licenses/third-party/adapted-code.md`), each with the upstream licence
+ * text that must ship wherever the bundle holds it. Paths are relative to
+ * `web/`.
+ */
+export const ADAPTED_CODE = [
+  {
+    file: "scripts/landing-stage/text-shimmer.tsx",
+    title: "Motion Primitives (text-shimmer.tsx) — MIT",
+    notice: "licenses/third-party/code-motion-primitives-LICENSE.md",
+  },
+];
+
+/**
+ * The notices section for the adapted code among `moduleIds` (Rollup module
+ * ids: absolute paths, possibly with a `?query`).
+ */
+export function adaptedCodeNotices(moduleIds) {
+  const bundled = new Set([...moduleIds].map((id) => id.split("?")[0]));
+  const entries = ADAPTED_CODE.filter(({ file }) =>
+    bundled.has(path.join(webRoot, file)),
+  ).map(({ title, notice }) =>
+    [title, readFileSync(path.join(repoRoot, notice), "utf8").trim()].join(
+      "\n\n",
+    ),
+  );
+  return entries.length
+    ? `Adapted code\n\n${entries.join("\n\n")}`
+    : "Adapted code\n\nNo third-party code is adapted into the page's sources.";
+}
+
+/**
  * `notices.txt`: the page's copyright, its Avatars' credits and terms, the
- * notices for any third-party artwork among its files, and the licence of
- * every npm package with code or fonts in the bundle.
+ * notices for any third-party artwork among its files and for third-party
+ * code adapted into its sources, and the licence of every npm package with
+ * code or fonts in the bundle.
  */
 function noticesText({ site, moduleIds, published }) {
   const sections = [
@@ -290,6 +361,8 @@ function noticesText({ site, moduleIds, published }) {
         )
       : "Artwork\n\nNo third-party artwork is included.",
   );
+
+  sections.push(adaptedCodeNotices(moduleIds));
 
   // npm packages with modules in the bundle, by the last `node_modules/` in
   // each module id (Vite's own helpers come from the `vite` package).

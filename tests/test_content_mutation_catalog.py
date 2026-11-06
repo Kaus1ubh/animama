@@ -9,13 +9,13 @@ from uuid import uuid4
 
 import pytest
 import pytest_asyncio
+from alembic import command
+from alembic.config import Config
 from sqlalchemy import create_engine, delete, inspect, text
 from sqlalchemy.engine import make_url
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from alembic import command
-from alembic.config import Config
 from animama.adapters.repositories.sqlalchemy.content_catalog_repo import SQLAlchemyContentCatalog
 from animama.domain.content_catalog import (
     ContentConflictError,
@@ -69,7 +69,7 @@ class _Scenario:
 
 
 @pytest_asyncio.fixture
-async def scenario(async_session_factory):  # noqa: ANN001, ANN201
+async def scenario(async_session_factory):
     async with async_session_factory() as writer, async_session_factory() as reader:
         owner = f"mutation-{uuid4().hex}"
         value = _Scenario(owner, writer, SQLAlchemyContentCatalog(writer), SQLAlchemyContentCatalog(reader))
@@ -118,7 +118,7 @@ async def test_mutation_hides_catalog_owner_provenance_and_receipt_until_commit(
 
 
 @pytest.mark.parametrize("failure", [RuntimeError, asyncio.CancelledError])
-async def test_failure_or_cancellation_rolls_back_catalog_and_receipt(scenario: _Scenario, failure) -> None:  # noqa: ANN001
+async def test_failure_or_cancellation_rolls_back_catalog_and_receipt(scenario: _Scenario, failure) -> None:
     with pytest.raises(failure):
         async with scenario.catalog.mutation_transaction():
             item_id = await scenario.reconcile()
@@ -218,7 +218,7 @@ def test_fresh_baseline_receipt_has_no_item_foreign_key_and_survives_repeated_up
         connection.exec_driver_sql(f'CREATE SCHEMA "{schema}"')
     migration_url = base_url.update_query_dict({"options": f"-csearch_path={schema},public"})
     monkeypatch.setenv("ANIMAMA_DATABASE_URL", migration_url.render_as_string(hide_password=False))
-    config = Config(str(Path(__file__).parents[1] / "alembic.ini"))
+    config = Config(str(Path(__file__).parents[1] / "src/backend/alembic.ini"))
     engine = create_engine(migration_url)
     try:
         command.upgrade(config, "head")

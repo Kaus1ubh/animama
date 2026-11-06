@@ -13,6 +13,11 @@ human review; stored receipts apply only to their exact inputs.
   modifications.
 - [Artwork notices](../../../licenses/third-party/art-NOTICES.md) identify
   retained textures, particle derivatives, models and portraits.
+- [Adapted code](../../../licenses/third-party/adapted-code.md) names UI and
+  backend files adapted from MIT, Apache-2.0 and ISC projects, and the
+  generated client's Hey API runtime. The `adapted-code` license-source group
+  copies it and the upstream texts for the code that ships into
+  `THIRD_PARTY_NOTICES.txt`.
 - `content/included/licenses/inventory.json` records Included-content provenance
   and distribution rules. Required excluded or untracked inputs fail staging.
 - [Source review inventory](../../../licenses/README.md) describes the broader
@@ -78,26 +83,22 @@ and source metadata are bound into the inventory, so changing either invalidates
 an approval for different bytes. Resolve unclassified or unclear records; do not
 fill approval fields automatically from a passing scan.
 
-The approved core inventory in `release-policy.json` predates the removal of
-the `google-genai` and `litellm` runtime dependencies, so the next stage needs a
-fresh inventory review. Allowlist entries in `release-scan.gitleaks.toml` that
-only covered `litellm` can be dropped once that scan passes without them; keep
-any that the returned `google-genai` package still needs. The inventory also predates four
-later changes that the owner must re-review before the next desktop release:
+The `darwin-arm64` receipt of 2026-11-03 predates the switch of the `animama`
+group to AGPL-3.0-only, the dependency lockfile changes of the open-source
+preparation, the `adapted-code` notice group and the corrected Included-content
+attribution, so the next macOS release needs a fresh `darwin-arm64` review.
+
+The `win32-x64` receipt in `release-policy.json` predates the removal of the
+`litellm` runtime dependency and four later changes, so the next Windows stage
+needs a fresh inventory review that covers them:
 
 - the Python license inventory gains the `anthropic` client SDK and its new
   dependencies (`httpx2`, `httpcore2`, `truststore` and `docstring-parser`;
-  `idna` moves to 3.20). `httpx2` verifies TLS through the operating system's
-  trust store (`truststore`) rather than certifi. `openai` 3 and `openai-agents`
-  0.24 use `httpx2` too, so release acceptance should include an Anthropic and
-  an OpenAI request from the frozen runtime on each target;
+  `idna` moves to 3.20);
 - the `google-genai` stack returns at new versions for
-  [Gemini voices](../runtime/gemini-tts.md): `google-genai` 2.29.0
-  (Apache-2.0), `google-auth` 2.61.0, `pyasn1` 0.6.4 and `pyasn1-modules`
-  0.4.2; `cachetools` and `rsa` are no longer present. Release
-  acceptance should include one Gemini voice request from the frozen runtime on
-  each target, confirming that the SDK's lazily imported modules were bundled
-  and that TLS succeeds;
+  [Gemini voices](../runtime/gemini-tts.md): `google-genai` 2.33.0
+  (Apache-2.0), `google-auth` 2.62.0, `pyasn1` 0.6.4 and `pyasn1-modules`
+  0.4.2; `cachetools` and `rsa` are no longer present;
 - the notice inventory changes because the `model-provider-logos` group in
   `runtime/license-sources.json` now covers ten logos, including the
   Anthropic mark from models.dev;
@@ -108,6 +109,17 @@ later changes that the owner must re-review before the next desktop release:
   (`opencc-data-apache-2.0.txt`). The JavaScript inventory gains `opencc-js`
   1.4.2 (MIT), whose bundled `cn2t` tables come from opencc-data
   (Apache-2.0). The SenseVoice weights stay runtime downloads.
+
+Allowlist entries in `release-scan.gitleaks.toml` that only covered `litellm`
+can be dropped once that scan passes without them; keep any that the returned
+`google-genai` package still needs.
+
+`httpx2`, which `anthropic`, `openai` 3 and `openai-agents` 0.24 use, verifies
+TLS through the operating system's trust store (`truststore`) rather than
+certifi, and the Gemini SDK imports some modules lazily. Release acceptance on
+each target therefore includes an Anthropic, an OpenAI and a Gemini voice
+request from the frozen runtime, confirming that TLS succeeds and that the
+lazily imported modules were bundled.
 
 The generated `desktop/release/review/redistribution-review.md` packet links the
 current local artifacts for the target last staged. Keep the reviewer's

@@ -113,28 +113,6 @@ class UserResponsePayload:
 
 
 @dataclass(slots=True)
-class SttTranscriptPayload:
-    text: str
-    is_final: bool
-    run_id: str | None = None
-
-
-@dataclass(slots=True)
-class AvatarBlendshapeFramePayload:
-    run_id: str | None
-    frame_index: int
-    time_sec: float
-    values: list[float]
-    job_id: str | None = None
-    segment_id: str | None = None
-
-
-@dataclass(slots=True)
-class RunStartedPayload:
-    run_id: str
-
-
-@dataclass(slots=True)
 class RunCompletedPayload:
     run_id: str
 

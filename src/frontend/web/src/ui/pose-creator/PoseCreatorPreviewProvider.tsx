@@ -1,5 +1,3 @@
-"use client";
-
 import {
   createContext,
   useContext,
@@ -11,7 +9,7 @@ import {
 
 import type { PyAnimaListItem } from "@/lib/content/catalogTypes";
 import { useStrictModeSafeDestroy } from "@/hooks/useStrictModeSafeDestroy";
-import { useOptionalSoundController } from "@/hooks/use-sound-controller";
+import { useOptionalSoundController } from "@/hooks/useSoundController";
 import { AnimaRuntimeCatalog } from "@/lib/runtime-content/AnimaRuntimeCatalog";
 import {
   withActionComponentSandbox,

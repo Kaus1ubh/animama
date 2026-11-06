@@ -14,6 +14,9 @@ from animama.app.ports.uow_port import UnitOfWork
 from animama.app.services.memory_entry_service import MemoryEntryService
 from animama.domain.memory_entry import MEMORY_ENTRY_TYPE_FILE
 from animama.domain.settings import UserSettings
+from animama.logging import get_logger
+
+_log = get_logger("app.services.owner_bootstrap")
 
 PROFILE_MEMORY_PATH = "PROFILE.md"
 PROFILE_MEMORY_KIND = "user_profile"
@@ -102,6 +105,8 @@ class OwnerBootstrapService:
             await operation
             await self._uow.commit()
         except Exception:
+            # The step is reported as failed (repair_required); keep its cause in the log.
+            _log.warning("Owner bootstrap step failed", step=name, exc_info=True)
             await self._uow.rollback()
             failed.append(name)
 

@@ -1,5 +1,3 @@
-"use client";
-
 import { ChevronDownIcon, XIcon } from "lucide-react";
 import { useEffect, useId } from "react";
 import { useTranslation } from "react-i18next";

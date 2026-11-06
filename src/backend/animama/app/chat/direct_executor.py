@@ -1,3 +1,11 @@
+"""Request-local orchestration of one direct chat turn.
+
+``DirectChatTurnExecutor`` prepares the turn, streams the selected model client
+through any memory-tool rounds, and turns the main structured reply into speech,
+emotion and Gesture events. Stream collection, persistence payloads and provider
+state live in ``direct_turn``.
+"""
+
 from __future__ import annotations
 
 import asyncio
@@ -28,6 +36,7 @@ from animama.app.model_clients import (
     DirectChatPrompt,
     ModelClientDelta,
     ModelClientError,
+    ModelClientModeration,
     ModelClientRegistry,
     ModelClientRequest,
     model_client_preview_log_context,
@@ -42,7 +51,12 @@ from animama.app.model_clients.context_budget import (
 from animama.app.model_clients.prompt import ChatCompletionResponseFormat, copy_direct_chat_prompt
 from animama.app.ports import ModelProviderRepository
 from animama.app.primary_emotion_update import build_primary_emotion_update_event
-from animama.app.safety.moderation import moderation_indicates_crisis
+from animama.app.safety.moderation import (
+    CrisisModerator,
+    discard_operator_moderation,
+    moderation_indicates_crisis,
+    settle_operator_moderation,
+)
 from animama.app.services import AnimaChatProfileService, ChatManager
 from animama.app.web_search import WebSearchToolService, web_search_tool_spec
 from animama.domain import ModelProvider
@@ -360,6 +374,7 @@ class DirectChatTurnExecutor:
         pre_send_compaction_timeout_seconds: float = 90.0,
         web_search_tool: WebSearchToolService | None = None,
         episodic_memory_arm: EpisodicMemoryArm = DEFAULT_EPISODIC_MEMORY_ARM,
+        crisis_moderator: CrisisModerator | None = None,
     ) -> None:
         self._registry = registry
         self._profile_service = profile_service
@@ -375,6 +390,7 @@ class DirectChatTurnExecutor:
         self._web_search_tool = web_search_tool
         # Only the model benchmark chooses an arm (app/chat/memory_arm.py); production keeps the default.
         self._episodic_memory_arm = episodic_memory_arm
+        self._crisis_moderator = crisis_moderator
 
     async def stream(self, model_request: ModelClientRequest) -> AsyncIterator[ModelClientDelta]:
         """Proxy one provider-neutral request to the registered shared model client."""
@@ -693,6 +709,7 @@ class DirectChatTurnExecutor:
                     )
                 await early_event_queue.put(None)
 
+        operator_moderation_task = self._start_operator_moderation(prepared)
         collector_task = asyncio.create_task(
             collect_model_stream(),
             name=f"direct-chat-model-stream-{prepared.request.run_id}",
@@ -706,6 +723,11 @@ class DirectChatTurnExecutor:
                     break
                 yield event
             final, internal_tool_messages = await collector_task
+            operator_moderation = (
+                await settle_operator_moderation(operator_moderation_task)
+                if operator_moderation_task is not None and final is not None
+                else None
+            )
         except DirectChatTurnStreamError as exc:
             _log.warning(
                 "Direct chat model stream failed",
@@ -730,17 +752,24 @@ class DirectChatTurnExecutor:
                 collector_task.cancel()
                 with suppress(asyncio.CancelledError):
                     await collector_task
-        if final is not None and prepared.model_request.provider_options.moderation_model is not None:
-            # Provider moderation arrives with the completed response, after the
-            # reply text. It can only add a crisis card; it never alters the turn.
-            if moderation_indicates_crisis(final.input_moderation):
+            # An operator check still running when the turn ends shows no card.
+            if operator_moderation_task is not None:
+                await discard_operator_moderation(operator_moderation_task)
+        inline_moderation = prepared.model_request.provider_options.moderation_model is not None
+        if final is not None and (inline_moderation or operator_moderation_task is not None):
+            # Moderation arrives after the reply text, inline with the completed
+            # response or from the operator check. It can only add a crisis card;
+            # it never alters the turn.
+            moderation = final.input_moderation if inline_moderation else operator_moderation
+            if moderation_indicates_crisis(moderation):
                 yield crisis_support_event(prepared.request, source="moderation")
-            elif final.input_moderation is None or final.input_moderation.status == "error":
+            elif moderation is None or moderation.status == "error":
                 _log.warning(
                     "Direct chat provider moderation unavailable",
                     anima_id=prepared.request.anima_id,
                     run_id=prepared.request.run_id,
-                    status=None if final.input_moderation is None else final.input_moderation.status,
+                    source="inline" if inline_moderation else "operator",
+                    status=None if moderation is None else moderation.status,
                 )
         if final is None:
             _log.warning(
@@ -1005,6 +1034,28 @@ class DirectChatTurnExecutor:
             reason=reason,
         )
         return False
+
+    def _start_operator_moderation(
+        self, prepared: PreparedDirectChatTurn
+    ) -> asyncio.Task[ModelClientModeration] | None:
+        """Start the operator crisis check of the user's message alongside the reply.
+
+        Only Anthropic Messages turns use it, since they have no inline
+        moderation, and only while crisis detection is on for the turn.
+        """
+
+        request = prepared.request
+        if (
+            self._crisis_moderator is None
+            or not request.provider_moderation
+            or prepared.model_request.model_provider.provider_type != ANTHROPIC_MESSAGES_PROVIDER_TYPE
+            or not request.user_message.strip()
+        ):
+            return None
+        return asyncio.create_task(
+            self._crisis_moderator.moderate(request.user_message),
+            name=f"direct-chat-crisis-moderation-{request.run_id}",
+        )
 
     def _context_budget(self, prepared: PreparedDirectChatTurn) -> ContextBudget | None:
         """Return the window budget for models the application must keep within it.

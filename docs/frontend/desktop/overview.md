@@ -171,7 +171,9 @@ stores each under the connection's
 managed variable `ANIMAMA_CONNECTION_<ID>_API_KEY`, at most 32 of them. Keys are never read back
 or saved to browser storage. A save applies one change or a batch
 (`credentials.apply`, validated as at most eight changes and one per provider
-or connection). Main encrypts the vault through Electron `safeStorage`, then
+or connection). A connection key is saved with the origin of its connection's
+address (`origin`, only beside a value), and main delivers it as
+`ANIMAMA_CONNECTION_<ID>_ORIGIN`; the backend sends the key nowhere else. Main encrypts the vault through Electron `safeStorage`, then
 sends the whole saved set to the running FastAPI, which replaces its in-memory
 keys ([desktop runtime](../../backend/operations/desktop-runtime.md)). No window
 or backend restarts; only the installed document worker restarts, because it
@@ -301,8 +303,9 @@ manually to bypass references or leases.
 
 ## Application Updates
 
-A signed, configured macOS app checks its release feed after startup and
-on demand in Settings → General. Checks never download. Download and confirmed
+A signed, configured macOS app checks its release feed after startup and on
+demand in Settings → General. The final release will seal `"updates": "ended"`
+and never check; see [Desktop releases](releases.md#what-people-see). Checks never download. Download and confirmed
 Restart are separate actions; normal Quit does not install. Offline checks do
 not prevent startup. Unpackaged and unconfigured builds hide these controls.
 
@@ -479,8 +482,10 @@ pnpm desktop:build
 pnpm web:check
 ```
 
-Renderer DevTools are available with `Ctrl+Shift+I`. Use
-`pnpm desktop:dev_inspect` to debug the Electron main process on port `9229`.
+In unpackaged development, renderer DevTools are available with
+`Ctrl+Shift+I`, and `pnpm desktop:dev_inspect` debugs the Electron main process
+on port `9229`. Packaged builds offer neither
+([packaged hardening](platforms.md#packaged-hardening)).
 
 ## Packaging
 

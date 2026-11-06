@@ -8,7 +8,7 @@ from __future__ import annotations
 from collections.abc import Iterable
 from typing import Protocol
 
-from ...domain.anima import Anima
+from animama.domain.anima import Anima
 
 
 class AnimaRepository(Protocol):

@@ -6,21 +6,20 @@ import hashlib
 import json
 import math
 import re
-import unicodedata
 from dataclasses import dataclass
 
-from ...domain.anima_presentation import (
+from animama.app.ports.anima_presentation_port import AnimaPresentationRepository
+from animama.domain.anima_presentation import (
     AnimaPresentation,
     AnimaPresentationImageCandidate,
     AnimaPresentationRecord,
     RuntimeImagePresentation,
     RuntimeImageReference,
 )
-from ..ports.anima_presentation_port import AnimaPresentationRepository
+
 from .content_file_urls import content_file_url
 
 PRESENTATION_REVISION_VERSION = 6
-_WHITESPACE = re.compile(r"\s+")
 _SHA256 = re.compile(r"^[0-9a-f]{64}$")
 
 
@@ -52,13 +51,6 @@ class _SelectedPresentationImage:
     content_revision: str
     presentation: RuntimeImagePresentation
     url: str
-
-
-def normalize_anima_display_name(value: str, *, fallback: str) -> str:
-    """Return a bounded, stable display name suitable for revision hashing."""
-
-    normalized = _WHITESPACE.sub(" ", unicodedata.normalize("NFKC", value).strip())
-    return (normalized or fallback)[:120]
 
 
 class AnimaPresentationService:
@@ -194,5 +186,4 @@ class AnimaPresentationService:
 __all__ = [
     "AnimaPresentationService",
     "normalize_runtime_image_presentation",
-    "normalize_anima_display_name",
 ]

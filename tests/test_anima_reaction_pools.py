@@ -65,11 +65,11 @@ from tests.typed_loadout_support import (
 REACTION_METADATA = {"implementation": {"kind": "anima_clip", "file_role": "sequence"}}
 
 
-async def _reaction(session, fixture: LoadoutFixture, name: str) -> ORMContentCatalogItem:  # noqa: ANN001
+async def _reaction(session, fixture: LoadoutFixture, name: str) -> ORMContentCatalogItem:
     return await add_typed_item(session, fixture, kind="reaction", name=name, metadata=REACTION_METADATA)
 
 
-async def _included_reaction(session, content_id: str, name: str) -> ORMContentCatalogItem:  # noqa: ANN001
+async def _included_reaction(session, content_id: str, name: str) -> ORMContentCatalogItem:
     """An Included Reaction with a starter policy logical key; tests delete it themselves."""
 
     item_id = f"reaction-{uuid4().hex}"
@@ -131,7 +131,7 @@ def _add(item: ORMContentCatalogItem, emotion: str, intensity: int) -> dict[str,
     return {"operation": "add", "emotion": emotion, "intensity": intensity, "source": catalog_source(item)}
 
 
-async def _revision(session, fixture: LoadoutFixture) -> int:  # noqa: ANN001
+async def _revision(session, fixture: LoadoutFixture) -> int:
     root = await session.scalar(
         select(ORMAnimaLoadout)
         .where(ORMAnimaLoadout.anima_id == fixture.anima_id)
@@ -191,7 +191,7 @@ def test_reaction_intent_has_only_pool_operations_and_complete_targets() -> None
 
 
 @pytest.mark.asyncio
-async def test_reaction_pool_members_are_added_removed_and_restored_per_cell(async_session) -> None:  # noqa: ANN001
+async def test_reaction_pool_members_are_added_removed_and_restored_per_cell(async_session) -> None:
     fixture = await create_loadout_fixture(async_session)
     # The starter policy puts builtin:reaction:joy-2 (and joy-2-b, absent here) in the joy-2 pool.
     starter = await _included_reaction(async_session, "builtin:reaction:joy-2", "Joy Starter")
@@ -297,7 +297,7 @@ async def test_reaction_pool_members_are_added_removed_and_restored_per_cell(asy
 
 
 @pytest.mark.asyncio
-async def test_restore_skips_an_unavailable_starter_with_a_warning(async_session) -> None:  # noqa: ANN001
+async def test_restore_skips_an_unavailable_starter_with_a_warning(async_session) -> None:
     fixture = await create_loadout_fixture(async_session)
     # The starter policy puts builtin:reaction:joy-2 (and joy-2-b, absent here) in the joy-2 pool.
     starter = await _included_reaction(async_session, "builtin:reaction:joy-2", "Joy Starter")
@@ -328,7 +328,7 @@ async def test_restore_skips_an_unavailable_starter_with_a_warning(async_session
 
 
 @pytest.mark.asyncio
-async def test_starting_a_loadout_leaves_out_an_unavailable_starter_reaction(async_session) -> None:  # noqa: ANN001
+async def test_starting_a_loadout_leaves_out_an_unavailable_starter_reaction(async_session) -> None:
     """The shared starter step seeds each cell's available starter Reactions, like restore_starter."""
 
     fixture = await create_loadout_fixture(async_session)
@@ -356,7 +356,7 @@ async def test_starting_a_loadout_leaves_out_an_unavailable_starter_reaction(asy
 
 
 @pytest.mark.asyncio
-async def test_invalid_reaction_changes_are_rejected_without_a_revision(async_session) -> None:  # noqa: ANN001
+async def test_invalid_reaction_changes_are_rejected_without_a_revision(async_session) -> None:
     fixture = await create_loadout_fixture(async_session)
     reactions = [await _reaction(async_session, fixture, f"Reaction {index}") for index in range(5)]
     gesture = await add_typed_item(
@@ -437,7 +437,7 @@ async def test_invalid_reaction_changes_are_rejected_without_a_revision(async_se
 
 @pytest.mark.asyncio
 async def test_unavailable_member_stays_removable_and_a_pooled_reaction_cannot_be_deleted(
-    async_session,  # noqa: ANN001
+    async_session,
 ) -> None:
     fixture = await create_loadout_fixture(async_session)
     cheer = await _reaction(async_session, fixture, "Cheer")
@@ -475,7 +475,7 @@ async def test_unavailable_member_stays_removable_and_a_pooled_reaction_cannot_b
 
 
 @pytest.mark.asyncio
-async def test_runtime_selects_one_root_per_reaction_with_all_its_cells(async_session) -> None:  # noqa: ANN001
+async def test_runtime_selects_one_root_per_reaction_with_all_its_cells(async_session) -> None:
     fixture = await create_loadout_fixture(async_session)
     cheer = await _reaction(async_session, fixture, "Cheer")
     sigh = await _reaction(async_session, fixture, "Sigh")
@@ -486,9 +486,7 @@ async def test_runtime_selects_one_root_per_reaction_with_all_its_cells(async_se
             await _change(service, fixture, revision=revision, intent=intent, key=f"r-{revision}")
         visible = await SQLAlchemyContentCatalog(async_session).list_visible(user_id=fixture.user_id)
 
-        selected = await AnimaRuntimeService(async_session)._selections(  # noqa: SLF001
-            anima_id=fixture.anima_id, visible=visible
-        )
+        selected = await AnimaRuntimeService(async_session)._selections(anima_id=fixture.anima_id, visible=visible)
 
         reaction_roots = [value for value in selected.roots if value.kind is ContentKind.REACTION]
         # One root per Reaction, ordered by its lowest cell: intensity first, then emotion.
@@ -552,14 +550,14 @@ async def test_every_pool_member_is_projected_once_and_a_missing_member_is_skipp
     class Catalog:
         entries = [cheer, sigh]
 
-        async def list_visible(self, *, user_id: str):  # noqa: ANN202
+        async def list_visible(self, *, user_id: str):
             return self.entries
 
-        async def mark_scan_required(self, *, source, relative_paths):  # noqa: ANN001, ANN202
+        async def mark_scan_required(self, *, source, relative_paths):
             return None
 
     class Store:
-        def open_verified_file(self, **facts):  # noqa: ANN003, ANN202
+        def open_verified_file(self, **facts):
             return VerifiedContentFile(BytesIO(clip), len(clip), facts["expected_sha256"], facts["media_type"])
 
     def root(item_id: str, cells: list[str]) -> RuntimeContentRootSelection:
@@ -592,7 +590,7 @@ def _empty_pools() -> dict[str, dict[str, list[dict[str, str]]]]:
     return {emotion: {str(level): [] for level in REACTION_INTENSITIES} for emotion in TRACKED_EMOTIONS}
 
 
-async def _write_clip_reaction(fixture, name: str) -> None:  # noqa: ANN001
+async def _write_clip_reaction(fixture, name: str) -> None:
     root = fixture.paths.local_root / f"reactions/{name}"
     write_json(
         root / f"{name}.meta.json",
@@ -610,9 +608,9 @@ async def _write_clip_reaction(fixture, name: str) -> None:  # noqa: ANN001
 
 @pytest.mark.asyncio
 async def test_created_anima_reads_back_its_pools_and_round_trips_them_through_a_package(
-    async_session,  # noqa: ANN001
-    tmp_path,  # noqa: ANN001
-    monkeypatch,  # noqa: ANN001
+    async_session,
+    tmp_path,
+    monkeypatch,
 ) -> None:
     # Starter Reactions are installed, so an import that refilled starter pools would show it.
     async with anima_creation_fixture(async_session, tmp_path, full_starter=True) as fixture:
@@ -721,8 +719,8 @@ async def test_created_anima_reads_back_its_pools_and_round_trips_them_through_a
 
 @pytest.mark.asyncio
 async def test_new_anima_from_the_recommended_pools_reads_96_starter_cells(
-    async_session,  # noqa: ANN001
-    tmp_path,  # noqa: ANN001
+    async_session,
+    tmp_path,
 ) -> None:
     async with anima_creation_fixture(async_session, tmp_path, full_starter=True) as fixture:
         service = fixture.service(async_session)

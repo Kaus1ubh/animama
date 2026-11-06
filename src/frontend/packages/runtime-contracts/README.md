@@ -31,5 +31,6 @@ Never hand-edit generated files or copy them into a private consumer.
 `pnpm packages:build` emits JavaScript and declarations. `pnpm packages:pack`
 creates unpublished tarballs under `.artifacts/public-packages`; use
 `--destination DIRECTORY` for another location. The packed package contains
-`dist`, including the existing proprietary notice, and no application source.
+`dist`, including the repository's licence and `THIRD_PARTY_NOTICES.md` for the
+generated client's Hey API runtime (MIT), and no application source.
 A consumer needs only the packed artifacts and declared dependencies.

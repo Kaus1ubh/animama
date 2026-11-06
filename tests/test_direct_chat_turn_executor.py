@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 import asyncio
+import functools
 import json
+import logging
 from collections.abc import AsyncGenerator, AsyncIterator, Mapping, Sequence
+from contextlib import aclosing
 from types import SimpleNamespace
 from typing import Any, cast
 
@@ -17,8 +20,10 @@ from animama.app.chat import (
     DirectChatTurnRequest,
     DirectChatTurnSetupError,
     RuntimeGestureDescriptor,
+    direct_executor as direct_executor_module,
 )
 from animama.app.chat.api_standard import (
+    ANTHROPIC_MESSAGES_PROVIDER_TYPE,
     CHAT_API_STANDARD_CHAT_COMPLETIONS,
     CHAT_API_STANDARD_RESPONSES,
     MODEL_CLIENT_OPENAI_CHAT_COMPLETIONS,
@@ -64,11 +69,12 @@ from animama.app.model_clients import (
 )
 from animama.app.model_clients.event_types import MCResponseStartedEvent
 from animama.app.model_clients.prompt import prompt_instruction_text
-from animama.app.safety.moderation import RESPONSES_MODERATION_MODEL
+from animama.app.safety.moderation import OPENAI_MODERATION_MODEL, settle_operator_moderation
 from animama.app.safety.prompts import COMPANION_GUARDRAILS
 from animama.domain import AnimaChatProfile, ModelConnection, ModelProvider, ModelProviderCapabilities
 from animama.domain.chat import ChatMessage, MessageRole
 from animama.domain.events import EventType
+from animama.domain.model_connection import BUILTIN_ANTHROPIC_CONNECTION_ID
 from animama.domain.usage import Usage
 from animama.domain.user_file_processing import UserFileOutlineItem
 from animama.product_http.chat.sse_events import SseTextState, format_user_response_event
@@ -161,7 +167,7 @@ class _FakeChatManager:
         self.context_calls: list[dict[str, Any]] = []
         self.record_turn_calls: list[dict[str, Any]] = []
 
-    async def ensure_owned_chat(self, **kwargs):  # noqa: ANN003
+    async def ensure_owned_chat(self, **kwargs):
         self.ensure_calls.append(dict(kwargs))
         return SimpleNamespace(
             id=kwargs["chat_id"],
@@ -172,16 +178,16 @@ class _FakeChatManager:
             openai_previous_response_id=self.openai_previous_response_id,
         )
 
-    async def get_chat_context(self, **kwargs):  # noqa: ANN003
+    async def get_chat_context(self, **kwargs):
         self.context_calls.append(dict(kwargs))
         return SimpleNamespace(messages=list(self.history), blocks=[], active_compaction=self.active_compaction)
 
-    async def prepare_chat_context(self, **kwargs):  # noqa: ANN003
+    async def prepare_chat_context(self, **kwargs):
         chat = await self.ensure_owned_chat(**kwargs)
         context = await self.get_chat_context(chat_id=kwargs["chat_id"])
         return chat, context
 
-    async def record_turn(self, **kwargs):  # noqa: ANN003
+    async def record_turn(self, **kwargs):
         self.record_turn_calls.append(dict(kwargs))
         user_msg = kwargs.get("user_msg")
         assistant_msg = kwargs.get("assistant_msg")
@@ -281,7 +287,7 @@ class _FakeMemoryContextService:
         self.anima_memories_version = anima_memories_version
         self.calls: list[dict[str, Any]] = []
 
-    async def build_context(self, **kwargs):  # noqa: ANN003
+    async def build_context(self, **kwargs):
         self.calls.append(dict(kwargs))
         memory_map = None
         if not kwargs["request_options"].disable_memory_influence:
@@ -413,11 +419,11 @@ class _FakeMemoryToolService:
             allow_uploaded_file_tools=allow_uploaded_file_tools,
         )
 
-    async def execute(self, **kwargs):  # noqa: ANN003
+    async def execute(self, **kwargs):
         self.calls.append(dict(kwargs))
         return json.dumps(self.result, ensure_ascii=True, separators=(",", ":"))
 
-    async def execute_native_patch(self, **kwargs):  # noqa: ANN003
+    async def execute_native_patch(self, **kwargs):
         self.native_patch_calls.append(dict(kwargs))
         return json.dumps(self.result, ensure_ascii=True, separators=(",", ":"))
 
@@ -427,7 +433,7 @@ class _FakeMemoryEpisodeRecorder:
         self.fail = fail
         self.calls: list[dict[str, Any]] = []
 
-    async def record_episode_item(self, **kwargs):  # noqa: ANN003
+    async def record_episode_item(self, **kwargs):
         self.calls.append(dict(kwargs))
         if self.fail:
             raise RuntimeError("episode capture failed")
@@ -441,7 +447,7 @@ class _SelfMemoriesWritingToolService(_FakeMemoryToolService):
         super().__init__(result={"ok": True, "path": "[self]/MEMORIES.md", "replacements_applied": 1})
         self.contexts: list[Any] = []
 
-    async def execute(self, **kwargs):  # noqa: ANN003
+    async def execute(self, **kwargs):
         context = kwargs["context"]
         self.contexts.append(context)
         if context.anima_memories is not None:
@@ -564,6 +570,7 @@ def _executor(
     anima_memories_version: int | None = None,
     pre_send_compactor: Any | None = None,
     episodic_memory_arm: EpisodicMemoryArm = DEFAULT_EPISODIC_MEMORY_ARM,
+    crisis_moderator: Any | None = None,
 ) -> tuple[DirectChatTurnExecutor, _FakeChatManager]:
     resolved_provider = _provider() if provider is _DEFAULT else provider
     resolved_profile: AnimaChatProfile | None
@@ -598,6 +605,7 @@ def _executor(
             memory_episode_recorder=memory_episode_recorder,
             pre_send_compactor=pre_send_compactor,
             episodic_memory_arm=episodic_memory_arm,
+            crisis_moderator=crisis_moderator,
         ),
         chats,
     )
@@ -2858,7 +2866,7 @@ async def test_moderation_survives_the_stream_event_summary_and_emits_crisis_sup
 
     crisis = [event for event in events if event.type == EventType.CRISIS_SUPPORT]
     assert len(crisis) == 1 and crisis[0].payload.source == "moderation"
-    assert model_client.seen_specs[0].provider_options.moderation_model == RESPONSES_MODERATION_MODEL
+    assert model_client.seen_specs[0].provider_options.moderation_model == OPENAI_MODERATION_MODEL
 
 
 @pytest.mark.asyncio
@@ -2884,7 +2892,7 @@ async def test_moderation_uses_round_zero_and_is_requested_only_there() -> None:
     events = await _collect(executor.stream_turn(_request(provider_moderation=True)))
 
     assert [event.type for event in events].count(EventType.CRISIS_SUPPORT) == 1
-    assert model_client.seen_specs[0].provider_options.moderation_model == RESPONSES_MODERATION_MODEL
+    assert model_client.seen_specs[0].provider_options.moderation_model == OPENAI_MODERATION_MODEL
     assert model_client.seen_specs[1].provider_options.moderation_model is None
 
 
@@ -2899,6 +2907,172 @@ async def test_moderation_is_ignored_when_not_requested() -> None:
 
     assert EventType.CRISIS_SUPPORT not in [event.type for event in events]
     assert model_client.seen_specs[0].provider_options.moderation_model is None
+
+
+class _StubModerator:
+    """An operator crisis moderator that records the text it was given."""
+
+    def __init__(self, result: ModelClientModeration | Exception = _FLAGGED, *, block: bool = False) -> None:
+        self.result = result
+        self.block = block
+        self.seen: list[str] = []
+
+    async def moderate(self, text: str) -> ModelClientModeration:
+        self.seen.append(text)
+        if self.block:
+            await asyncio.Event().wait()
+        if isinstance(self.result, Exception):
+            raise self.result
+        return self.result
+
+
+def _logged(caplog: pytest.LogCaptureFixture) -> str:
+    """Every captured record with its structured fields, which `caplog.text` leaves out."""
+
+    return "\n".join(str(vars(record)) for record in caplog.records)
+
+
+def _operator_moderation_tasks() -> list[asyncio.Task[Any]]:
+    return [task for task in asyncio.all_tasks() if task.get_name().startswith("direct-chat-crisis-moderation-")]
+
+
+def _provider_on_its_connection(provider_type: str) -> ModelProvider:
+    provider = _provider(provider_type=provider_type)
+    if provider_type == ANTHROPIC_MESSAGES_PROVIDER_TYPE:
+        provider.connection_id = BUILTIN_ANTHROPIC_CONNECTION_ID
+    return provider
+
+
+def _anthropic_reply_executor(moderator: _StubModerator, client: Any | None = None) -> DirectChatTurnExecutor:
+    executor, _chats = _executor(
+        client=client or _ScriptedModelClient([ModelClientFinal(text=_structured_response(), usage=Usage())]),
+        provider=_provider_on_its_connection(ANTHROPIC_MESSAGES_PROVIDER_TYPE),
+        crisis_moderator=moderator,
+    )
+    return executor
+
+
+@pytest.mark.asyncio
+async def test_operator_moderation_adds_the_crisis_card_after_an_anthropic_reply() -> None:
+    moderator = _StubModerator(_FLAGGED)
+    model_client = _ScriptedModelClient([ModelClientFinal(text=_structured_response(), usage=Usage())])
+    executor = _anthropic_reply_executor(moderator, model_client)
+
+    events = await _collect(executor.stream_turn(_request(user_message="I want to die", provider_moderation=True)))
+
+    types = [event.type for event in events]
+    assert types.count(EventType.CRISIS_SUPPORT) == 1
+    assert types.index(EventType.USER_RESPONSE) < types.index(EventType.CRISIS_SUPPORT)
+    assert events[types.index(EventType.CRISIS_SUPPORT)].payload.source == "moderation"
+    # Only the user's message is checked, and the chat request asks for no inline moderation.
+    assert moderator.seen == ["I want to die"]
+    assert model_client.seen_specs[0].provider_options.moderation_model is None
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("provider_type", "provider_moderation"),
+    [
+        ("OpenAIResponsesHTTPAgent", True),
+        ("OpenAIHTTPAgent", True),
+        (ANTHROPIC_MESSAGES_PROVIDER_TYPE, False),
+    ],
+)
+async def test_operator_moderation_runs_only_on_anthropic_turns_with_detection_on(
+    provider_type: str, provider_moderation: bool
+) -> None:
+    moderator = _StubModerator(_FLAGGED)
+    executor, _chats = _executor(
+        client=_ScriptedModelClient([ModelClientFinal(text=_structured_response(), usage=Usage())]),
+        provider=_provider_on_its_connection(provider_type),
+        crisis_moderator=moderator,
+    )
+
+    events = await _collect(executor.stream_turn(_request(provider_moderation=provider_moderation)))
+
+    assert moderator.seen == []
+    assert EventType.CRISIS_SUPPORT not in [event.type for event in events]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "result",
+    [ModelClientModeration(status="result"), ModelClientModeration(status="error"), RuntimeError("down")],
+)
+async def test_unflagged_or_failed_operator_checks_leave_the_reply_unchanged(
+    result: ModelClientModeration | Exception, caplog: pytest.LogCaptureFixture
+) -> None:
+    caplog.set_level(logging.WARNING)
+    executor = _anthropic_reply_executor(_StubModerator(result))
+
+    events = await _collect(executor.stream_turn(_request(user_message="I want to die", provider_moderation=True)))
+
+    types = [event.type for event in events]
+    assert EventType.CRISIS_SUPPORT not in types
+    assert EventType.ERROR not in types
+    assert EventType.USER_RESPONSE in types
+    assert "I want to die" not in _logged(caplog)
+
+
+@pytest.mark.asyncio
+async def test_an_operator_check_still_pending_after_the_grace_period_is_cancelled(monkeypatch) -> None:
+    monkeypatch.setattr(
+        direct_executor_module,
+        "settle_operator_moderation",
+        functools.partial(settle_operator_moderation, timeout=0.01),
+    )
+    executor = _anthropic_reply_executor(_StubModerator(_FLAGGED, block=True))
+
+    events = await _collect(executor.stream_turn(_request(provider_moderation=True)))
+
+    types = [event.type for event in events]
+    assert EventType.CRISIS_SUPPORT not in types
+    assert EventType.USER_RESPONSE in types
+    assert _operator_moderation_tasks() == []
+
+
+@pytest.mark.asyncio
+async def test_a_failed_anthropic_reply_cancels_the_operator_check_without_a_card() -> None:
+    executor = _anthropic_reply_executor(_StubModerator(_FLAGGED, block=True), _FailingModelClient())
+
+    events = await _collect(executor.stream_turn(_request(provider_moderation=True)))
+
+    assert [event.type for event in events] == [EventType.ERROR]
+    assert _operator_moderation_tasks() == []
+
+
+@pytest.mark.asyncio
+async def test_closing_the_stream_mid_reply_cancels_the_operator_check() -> None:
+    model_client = _ChunkedModelClient(chunks=[_structured_response()], final_text="", wait_before_final=True)
+    moderator = _StubModerator(_FLAGGED, block=True)
+    executor = _anthropic_reply_executor(moderator, model_client)
+    prepared = await executor.prepare_turn(_request(provider_moderation=True))
+
+    async with aclosing(executor.stream_prepared_turn(prepared)) as stream:
+        async for event in stream:
+            assert event.type != EventType.CRISIS_SUPPORT
+            break
+
+    assert moderator.seen == ["Hi"]
+    assert _operator_moderation_tasks() == []
+
+
+async def _cancels_itself() -> ModelClientModeration:
+    raise asyncio.CancelledError
+
+
+@pytest.mark.asyncio
+async def test_settling_an_operator_check_waits_only_for_its_grace_period() -> None:
+    pending = asyncio.create_task(asyncio.Event().wait())
+    try:
+        assert await settle_operator_moderation(pending, timeout=0.01) is None  # type: ignore[arg-type]
+    finally:
+        pending.cancel()
+    finished = asyncio.create_task(_StubModerator(_FLAGGED).moderate("text"))
+    assert await settle_operator_moderation(finished) == _FLAGGED
+    # A check that cancelled itself is a failed check, never an aborted turn.
+    self_cancelled = asyncio.create_task(_cancels_itself())
+    assert await settle_operator_moderation(self_cancelled) == ModelClientModeration(status="error")
 
 
 def _tool_names(spec: ModelClientRequest) -> list[str]:

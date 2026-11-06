@@ -90,7 +90,12 @@ closed because its database password cannot be silently regenerated.
 
 Besides the OpenAI, Anthropic, ElevenLabs and Gemini keys, the vault holds a `connections` map of
 model-connection keys under their managed names, `ANIMAMA_CONNECTION_<ID>_API_KEY`
-derived from the connection id. It stores at most 32 connection keys in a file
+derived from the connection id. Each model-connection key keeps the origin of
+the address it was entered for (the web-search key has none), and main delivers
+it beside the key as `ANIMAMA_CONNECTION_<ID>_ORIGIN`; the backend sends the
+key only to that origin, so a connection moved to another address needs its key
+entered again. The origin is not a secret and is not added to log redaction.
+The vault stores at most 32 connection keys in a file
 of at most 512 KiB, and one batch changes at most eight keys, one per provider
 or connection. A vault beyond those bounds is `vault_unreadable`. Provider
 entries for `deepseek`, `huggingface` and `gemini` that earlier builds wrote
@@ -126,6 +131,7 @@ These are private composition inputs, not end-user configuration switches:
 | `ANIMAMA_DOCUMENT_WORKER_INSTANCE_ID`, `ANIMAMA_DOCUMENT_PACK_VERSION`                                            | Expected heartbeat instance and active version for lifecycle checks.                                     |
 | `ANIMAMA_DOCUMENT_WORKER_EXECUTABLE`, `ANIMAMA_DOCUMENT_WORKER_ROOT`, `ANIMAMA_DOCUMENT_WORKER_EXECUTABLE_SHA256` | Fixed, verified helper delegation inputs; not browser-supplied.                                          |
 | `ANIMAMA_DOCLING_ARTIFACTS_PATH`                                                                                  | Worker-only bundled model location.                                                                      |
+| `ANIMAMA_DISABLE_WEBUI_TELEMETRY`, `OTEL_SDK_DISABLED`, `OPENAI_AGENTS_DISABLE_TRACING` | Always set: no telemetry export, and no Agents SDK traces from any Memory Manager run, whatever its connection. |
 
 Desktop does not set `ANIMAMA_LOCAL_MODEL_HOST`, so the Ollama, LM Studio,
 llama.cpp and vLLM connection presets use `127.0.0.1`. See

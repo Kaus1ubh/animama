@@ -24,7 +24,7 @@ from animama.app.services.avatar_effect_conversion import avatar_effect_validati
 from animama.domain.content_documents import ContentDocumentError
 
 
-def parse_avatar_effect_override(value: Any, *, code: str, field: str) -> AvatarEffectEventOverride:  # noqa: ANN401
+def parse_avatar_effect_override(value: Any, *, code: str, field: str) -> AvatarEffectEventOverride:
     """Validate an event's ``override`` shape; ``field`` is its JSON path."""
     try:
         return AvatarEffectEventOverride.model_validate(value)

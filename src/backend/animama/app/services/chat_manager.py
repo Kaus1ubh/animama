@@ -5,15 +5,15 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from typing import Any
 
-from ...domain.chat import Chat, ChatContext, ChatMessage, MessageRole
-from ...domain.usage import Usage
-from ...logging import get_logger
-from ..model_clients.usage_estimate import CONTEXT_TOKENS_METADATA_KEY, context_tokens_from_usage
-from ..ports import UnitOfWork
-from ..ports.chat_compaction_port import ChatCompactionRepository
-from ..ports.chat_message_port import ChatMessageRepository
-from ..ports.chat_port import ChatRepository
-from ..util.json_values import json_safe_copy
+from animama.app.model_clients.usage_estimate import CONTEXT_TOKENS_METADATA_KEY, context_tokens_from_usage
+from animama.app.ports import UnitOfWork
+from animama.app.ports.chat_compaction_port import ChatCompactionRepository
+from animama.app.ports.chat_message_port import ChatMessageRepository
+from animama.app.ports.chat_port import ChatRepository
+from animama.app.util.json_values import json_safe_copy
+from animama.domain.chat import Chat, ChatContext, ChatMessage, MessageRole
+from animama.domain.usage import Usage
+from animama.logging import get_logger
 
 
 def _active_context_tokens(message: ChatMessage | None) -> int:

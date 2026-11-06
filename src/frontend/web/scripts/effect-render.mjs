@@ -179,7 +179,6 @@ export async function withRendererPage(
     resolve: {
       alias: {
         "@": path.join(webRoot, "src"),
-        "@web": path.join(webRoot, "src"),
       },
     },
     optimizeDeps: {

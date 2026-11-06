@@ -10,6 +10,7 @@ from typing import Any
 
 import anthropic
 
+from animama.adapters.model_clients._common import close_maybe_async
 from animama.app.model_clients import (
     MCTerminalIncompleteEvent,
     ModelClientDelta,
@@ -27,7 +28,6 @@ from animama.domain.events import RunStatusKind
 from animama.domain.model_connection import BUILTIN_ANTHROPIC_CONNECTION_ID
 from animama.logging import get_logger
 
-from .._common import close_maybe_async
 from .errors import (
     classify_anthropic_exception,
     model_client_error_from_anthropic_info,

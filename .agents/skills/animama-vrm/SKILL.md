@@ -17,7 +17,7 @@ Keep three kinds of evidence distinct:
 - **Library:** what the installed three-vrm implementation does.
 - **Animama:** our pose basis, controller ownership, content contracts, and material/landmark heuristics.
 
-Reference baseline: researched 2026-09-24; Animama revision `f09d5d7c63fb17f943497f66d4125168af1c9874`; lockfile resolves `@pixiv/three-vrm` and `@pixiv/three-vrm-animation` **3.5.2**, Three.js **0.182.0**. Recheck `src/frontend/pnpm-lock.yaml` and the named source symbols when they differ. Repository paths below are relative to the active Animama Git root, never to this skill or a particular worktree. Follow that checkout's agent guides for code changes.
+Reference baseline: researched 2026-09-24; Animama revision `f09d5d7c63fb17f943497f66d4125168af1c9874`; the lockfile then resolved `@pixiv/three-vrm` and `@pixiv/three-vrm-animation` **3.5.2** (3.5.5 by 2026-11-03), Three.js **0.182.0**. Recheck `src/frontend/pnpm-lock.yaml` and the named source symbols when they differ. Repository paths below are relative to the active Animama Git root, never to this skill or a particular worktree. Follow that checkout's agent guides for code changes.
 
 ## Read the relevant reference
 

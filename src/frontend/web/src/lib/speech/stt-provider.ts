@@ -1,5 +1,3 @@
-"use client";
-
 import { getI18n } from "react-i18next";
 
 import type { SttProviderPreference } from "@/lib/settings/preferences";
@@ -166,8 +164,7 @@ export function offlineSttModelName(engine: OfflineSttEngine): string {
  * The provider choices on this platform. The offline choice (`parakeet`) is
  * served by `engine`, the offline engine that runs (by default the UI
  * Locale's), and `parakeetAvailable` reports that engine's sets. A missing
- * SenseVoice set has no reason here: `SpeechLanguageNotice` asks for its
- * download.
+ * SenseVoice set has no reason here: `SpeechLanguageNotice` explains it.
  */
 export function getSttProviderOptions(
   parakeetAvailable: boolean | null = null,

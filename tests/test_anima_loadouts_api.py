@@ -18,7 +18,7 @@ from tests.typed_loadout_support import (
 
 
 @pytest.mark.asyncio
-async def test_typed_gesture_plan_commit_and_loadout_http_contract(async_session) -> None:  # noqa: ANN001
+async def test_typed_gesture_plan_commit_and_loadout_http_contract(async_session) -> None:
     fixture = await create_loadout_fixture(async_session)
     gesture = await add_typed_item(
         async_session,

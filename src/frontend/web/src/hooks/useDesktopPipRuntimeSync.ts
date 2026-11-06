@@ -1,12 +1,13 @@
-"use client";
-
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "@tanstack/react-router";
 
 import {
+  applyDesktopPipPlannerEventsConsumed,
   applyDesktopPipVisualState,
   captureDesktopPipVisualState,
   isDesktopPipVisualState,
+  watchDesktopPipPlannerEventConsumption,
+  type DesktopPipPlannerEventsConsumed,
   type DesktopPipVisualState,
 } from "@/lib/desktop-pip/visual-state";
 import { useRuntimePlatform } from "@/platform/RuntimePlatformProvider";
@@ -45,6 +46,7 @@ const DEFAULT_PIP_SIZE_SCALE = 0.5;
 function createRuntimeMessage(args: {
   payload:
     | DesktopPipVisualState
+    | DesktopPipPlannerEventsConsumed
     | { kind: "ready" }
     | { kind: "camera-preset"; preset: SceneCameraPreset };
   animaId: string;
@@ -133,6 +135,10 @@ export function useDesktopPipRuntimeProducer({
       if (message.animaId !== animaId) return;
       if (message.type === "ready") {
         publishSnapshot("snapshot");
+        return;
+      }
+      if (message.type === "planner-events-consumed") {
+        applyDesktopPipPlannerEventsConsumed(message.payload);
         return;
       }
       if (message.type !== "camera-preset") return;
@@ -232,6 +238,23 @@ export function useDesktopPipRuntimeConsumer(): UseDesktopPipRuntimeConsumerResu
       setVisualState(message.payload);
       setBackgroundMode(message.payload.backgroundMode);
     });
+    // The owner's scene is suspended, so only this window's Avatar consumes
+    // planner events; tell the owner, or its snapshots replay them.
+    const stopWatchingPlannerEvents = watchDesktopPipPlannerEventConsumption(
+      (eventIds) => {
+        // Like `ready`, a report is outside the owner's snapshot sequence.
+        void pipBridge
+          .publishRuntimeMessage(
+            createRuntimeMessage({
+              payload: { kind: "planner-events-consumed", eventIds },
+              animaId,
+              sequence: 0,
+              type: "planner-events-consumed",
+            }),
+          )
+          .catch(() => {});
+      },
+    );
     const unsubscribeState = pipBridge.onStateChange((state) => {
       if (state.animaId === animaId) {
         setBackgroundMode(state.backgroundMode);
@@ -266,6 +289,7 @@ export function useDesktopPipRuntimeConsumer(): UseDesktopPipRuntimeConsumerResu
     return () => {
       unsubscribeRuntime();
       unsubscribeState();
+      stopWatchingPlannerEvents();
     };
   }, [animaId, pipBridge]);
 

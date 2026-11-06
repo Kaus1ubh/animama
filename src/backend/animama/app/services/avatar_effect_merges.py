@@ -110,15 +110,15 @@ def rewrite_action_effect_merges(
     return new_descriptor, new_clip
 
 
-def _is_effect(dependency: Any) -> bool:  # noqa: ANN401
+def _is_effect(dependency: Any) -> bool:
     return isinstance(dependency, dict) and dependency.get("content_type") == "avatar_effect"
 
 
-def _merged(dependency: Any, merges: Mapping[str, AvatarEffectMerge]) -> AvatarEffectMerge | None:  # noqa: ANN401
+def _merged(dependency: Any, merges: Mapping[str, AvatarEffectMerge]) -> AvatarEffectMerge | None:
     return merges.get(dependency["ref"]) if _is_effect(dependency) and isinstance(dependency.get("ref"), str) else None
 
 
-def _selector(dependency: Any) -> str:  # noqa: ANN401
+def _selector(dependency: Any) -> str:
     """The name clip events use for a dependency: its alias, else its ref."""
     if isinstance(dependency, dict):
         return str(dependency.get("alias") or dependency.get("ref") or "")

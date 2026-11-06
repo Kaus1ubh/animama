@@ -3,8 +3,9 @@
 Animama owns the local desktop and self-host application, reusable product code,
 public artifact contracts, tests and contributor documentation. It builds and
 runs without a private Cloud checkout, hosted credentials or private plans.
-The working source remains proprietary. Repository ownership does not grant
-permission to publish or redistribute a file.
+Original work is licensed AGPL-3.0-only; third-party material keeps its own
+terms. Repository ownership does not grant permission to publish or
+redistribute a file.
 
 ## Code and data ownership
 
@@ -82,24 +83,22 @@ publication authority.
 ## Source review and licensing
 
 Preserve third-party licenses, notices and attribution alongside their source.
-[Source-candidate preparation](../../scripts/public-release/README.md) freezes
-Git-tracked working files in an external hash-bound inventory and requires exact
-coverage in [the source-license review](../../licenses/source-review.json) before
-preparing a candidate. Review and refresh that release-only evidence for the
-selected candidate; it is not an ordinary development inventory gate.
+Every tracked file has one entry in
+[the source-license review](../../licenses/source-review.json);
+[the coverage check](../../scripts/public-release/README.md) lists files without
+an entry and entries for removed files. Update the entries in the same change
+that adds, moves or deletes files.
 
 Secret scans, license detection and successful builds do not grant redistribution
-permission. Pending rights questions must be resolved before accepting a public
-candidate. Raw-asset permission and embedded-product distribution permission are
+permission. Pending rights questions must be resolved before the files that carry them
+are published. Raw-asset permission and embedded-product distribution permission are
 distinct. Required starter content must retain its behavior through verified
 permission or an explicitly approved equivalent replacement.
 
-The working repository retains its proprietary [LICENSE](../../LICENSE). The
-planned public release uses AGPL-3.0-only for project-owned material, with
-third-party terms preserved. The choice to preserve Git history or publish a
-clean snapshot is deferred until final source review. The current repository
-and history remain private and intact. Outside contributions are initially
-deferred; the proposed license does not grant rights to the current tree.
+Project-owned material is licensed AGPL-3.0-only under the root
+[LICENSE](../../LICENSE), with third-party terms preserved. The repository is
+published as it is, including its Git history. Outside code contributions are
+not accepted for now.
 
 ## Verification
 
@@ -112,7 +111,7 @@ git diff --check
 ```
 
 Use the [boundary-tool guide](../../scripts/repository-boundary/README.md) for
-import checks and independent consumers. Never include ignored runtime state in
-a source candidate. Preserve databases, Local content, vaults, installed packs and
+import checks and independent consumers. Never commit ignored runtime state.
+Preserve databases, Local content, vaults, installed packs and
 backups when relocating or cleaning source. Publication and release uploads require
 their own exact-candidate review and explicit authorization.

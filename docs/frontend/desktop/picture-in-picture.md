@@ -88,10 +88,10 @@ by `--animama-window-role=pip` at window creation.
 
 Web hooks use the role to keep PiP controls and runtime producers active only
 in the main window. The main process routes runtime messages by sender: PiP may
-send `ready`, `camera-preset` and `voice-command`; only the window that opened
-PiP may send Avatar `snapshot`/`incremental` state and `voice` state. Only
-Avatar state counts toward the readiness that shows the window, so voice state
-cannot make PiP visible early.
+send `ready`, `camera-preset`, `planner-events-consumed` and `voice-command`;
+only the window that opened PiP may send Avatar `snapshot`/`incremental` state
+and `voice` state. Only Avatar state counts toward the readiness that shows the
+window, so voice state cannot make PiP visible early.
 
 ## IPC Surface
 
@@ -170,6 +170,13 @@ PiP, and their Avatar, particle and scene effects apply to the PiP renderer's
 own Avatar and scene VFX store. Scene effect state is therefore not mirrored:
 the main scene is suspended during PiP, and replacing PiP's store with its
 empty one cleared a Reaction's scene background about 100 ms after it began.
+
+The suspended main scene consumes no planner events either, so PiP reports
+each event its Avatar consumes to its owner as a `planner-events-consumed`
+runtime message, and the owner removes it from its queue. Until that report
+arrives, PiP drops the event from incoming snapshots. Otherwise each snapshot
+sent while a Gesture plays queues it again, and closing PiP replays it in the
+main window.
 
 PiP has its own camera preset, Portrait (close) by default and saved as the
 user preference `presentation.pip_camera_preset`, separately from the main

@@ -15,8 +15,7 @@ from dataclasses import dataclass
 
 from animama.app.chat.conversation_language import ConversationLanguage, conversation_language, with_speech_language
 from animama.app.chat.options import DirectChatOptions, DirectChatTtsOptions
-
-from ..core.chat import incognito_turn_options
+from scripts.evals.core.chat import incognito_turn_options
 
 __all__ = ["ELEVENLABS_VOICE", "PROVIDER_MODERATION", "TurnLanguage", "core_turn_options", "memory_turn_options"]
 

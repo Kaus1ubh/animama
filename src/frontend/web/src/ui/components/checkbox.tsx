@@ -1,4 +1,5 @@
-"use client";
+// Adapted from shadcn/ui (MIT): apps/www/registry/new-york/ui/checkbox.tsx.
+// See licenses/third-party/adapted-code.md.
 
 import * as React from "react";
 import * as CheckboxPrimitive from "@radix-ui/react-checkbox";

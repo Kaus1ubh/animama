@@ -1,4 +1,5 @@
-"use client";
+// Adapted from shadcn/ui (MIT): apps/v4/registry/new-york-v4/ui/sonner.tsx.
+// See licenses/third-party/adapted-code.md.
 
 import {
   CircleCheckIcon,

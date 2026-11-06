@@ -89,7 +89,7 @@ def test_immutable_included_roots_are_never_created_or_write_probed(
     )
     original_mkdir = Path.mkdir
 
-    def guarded_mkdir(directory: Path, *args, **kwargs) -> None:  # noqa: ANN002, ANN003
+    def guarded_mkdir(directory: Path, *args, **kwargs) -> None:
         assert not directory.is_relative_to(core)
         original_mkdir(directory, *args, **kwargs)
 

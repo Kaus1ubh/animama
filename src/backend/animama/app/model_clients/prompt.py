@@ -15,26 +15,9 @@ from openai.types.chat import (
 )
 from openai.types.shared.reasoning_effort import ReasoningEffort as ChatCompletionReasoningEffort
 
+from .frozen import frozen_mapping
+
 ChatCompletionResponseFormat = completion_create_params.ResponseFormat
-
-
-def _freeze_value(value: Any) -> Any:
-    if isinstance(value, Mapping):
-        return MappingProxyType({str(key): _freeze_value(item) for key, item in value.items()})
-    if isinstance(value, list | tuple):
-        return tuple(_freeze_value(item) for item in value)
-    if isinstance(value, set | frozenset):
-        return frozenset(_freeze_value(item) for item in value)
-    return value
-
-
-def _frozen_mapping(value: Mapping[str, Any] | None) -> Mapping[str, Any]:
-    if value is None:
-        return MappingProxyType({})
-    frozen = _freeze_value(value)
-    if not isinstance(frozen, Mapping):
-        return MappingProxyType({})
-    return frozen
 
 
 def _copy_jsonish(value: Any) -> Any:
@@ -72,7 +55,7 @@ class DirectChatPrompt:
             "tools",
             tuple(cast(ChatCompletionToolUnionParam, _copy_jsonish(tool)) for tool in self.tools),
         )
-        object.__setattr__(self, "metadata", _frozen_mapping(self.metadata))
+        object.__setattr__(self, "metadata", frozen_mapping(self.metadata))
 
 
 def direct_model_prompt(
@@ -160,18 +143,6 @@ def prompt_instruction_text(prompt: DirectChatPrompt) -> str | None:
     return "\n\n".join(sections) if sections else None
 
 
-def prompt_conversation_messages(prompt: DirectChatPrompt) -> list[dict[str, str]]:
-    out: list[dict[str, str]] = []
-    for message in prompt.messages:
-        role = _message_role(message)
-        if role in {"system", "developer"}:
-            continue
-        content = _message_content_text(message)
-        if role and content:
-            out.append({"role": role, "content": content})
-    return out
-
-
 def prompt_messages(prompt: DirectChatPrompt) -> list[dict[str, Any]]:
     return cast(list[dict[str, Any]], _copy_jsonish(prompt.messages))
 
@@ -207,7 +178,6 @@ __all__ = [
     "DirectChatPrompt",
     "copy_direct_chat_prompt",
     "direct_model_prompt",
-    "prompt_conversation_messages",
     "prompt_instruction_text",
     "prompt_last_user_message",
     "prompt_messages",

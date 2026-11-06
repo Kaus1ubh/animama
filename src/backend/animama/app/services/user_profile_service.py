@@ -4,15 +4,14 @@ from __future__ import annotations
 
 from dataclasses import replace
 
+from animama.app.ports.uow_port import UnitOfWork
+from animama.app.ports.user_profile_port import UserProfileRepository, UserProfileRepositoryConflictError
 from animama.domain.user_profile import (
     UserProfile,
     UserProfileInvalidError,
     UserProfileNotFoundError,
     UserProfilePatch,
 )
-
-from ..ports.uow_port import UnitOfWork
-from ..ports.user_profile_port import UserProfileRepository, UserProfileRepositoryConflictError
 
 DISPLAY_NAME_MAX_LENGTH = 30
 

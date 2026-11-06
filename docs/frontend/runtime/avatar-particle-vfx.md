@@ -297,6 +297,18 @@ handles those sink callbacks by calling `particleVFXController.playEffect(...)`
 with the clip `appliedId`, then clears the same id when the event duration
 expires or the clip stops.
 
+An effect finishes rather than vanishing when its own duration runs out, or
+when its Gesture or Reaction ends normally: a fade-out completes, the clip
+reaches its end, a clip with a fade-in replaces it, or a Reaction is cleared
+without `immediate`. `clearEffect(id, { finish: true })` stops its systems
+looping, ends emission and keeps the particles until none are alive or 3 s
+pass; a second finish leaves it finishing. Finishing effects are not active
+(they leave the budgets) but appear in the snapshot's `finishingCount`, and
+`Avatar.isMotionActive()` counts them. A Gesture stopped without a fade and
+other immediate clears remove that clip's particles at once (and an id's
+finishing tail); `resetAnimations`, turning clip effects off, `clearAll` and
+disposal remove every finishing tail too.
+
 The planner selects Reaction clips through the mounted motion catalog
 using the equipped emotion/intensity mapping. Particle playback comes from
 those clips' `particle_vfx` events. There is no direct `AvatarPlanner`

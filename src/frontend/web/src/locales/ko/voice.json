@@ -150,7 +150,8 @@
     "fallback": {
       "customMissing": "사용자 지정 PocketTTS 음성이 선택되었지만 업로드된 사용자 지정 음성이 없습니다.",
       "downloadFailed": "음성 \"{{voice}}\"을(를) 다운로드할 수 없어 기본 음성을 사용합니다. 다음 답변 때나 음성을 다시 선택할 때 다운로드를 다시 시도합니다.",
-      "unknownVoice": "저장된 음성 \"{{voice}}\"을(를) 더 이상 사용할 수 없어 기본 음성을 사용합니다. 행동 → 음성에서 다른 음성을 선택하세요."
+      "unknownVoice": "저장된 음성 \"{{voice}}\"을(를) 더 이상 사용할 수 없어 기본 음성을 사용합니다. 행동 → 음성에서 다른 음성을 선택하세요.",
+      "downloadsEnded": "음성 \"{{voice}}\"은(는) 더 이상 다운로드할 수 없어 기본 음성을 사용합니다."
     },
     "sample": {
       "playFailed": "{{name}} 샘플을 재생할 수 없습니다. 연결을 확인하고 다시 시도하세요."
@@ -248,6 +249,8 @@
     "speechToTextModel": "SenseVoice를 사용하려면 해당 모델을 다운로드하세요.",
     "speechToTextModelUnavailable": "이 서버에서는 SenseVoice를 사용할 수 없습니다.",
     "textToSpeech": "Pocket TTS는 영어만 말할 수 있습니다. Anima가 {{language}}로 말하게 하려면 ElevenLabs 또는 Gemini를 선택하세요.",
-    "speechToTextUnavailable": "이 서버에서는 {{language}} 오프라인 음성 인식을 사용할 수 없습니다."
+    "speechToTextUnavailable": "이 서버에서는 {{language}} 오프라인 음성 인식을 사용할 수 없습니다.",
+    "speechToTextEnded": "{{language}} 오프라인 음성 인식에는 더 이상 다운로드할 수 없는 모델이 필요합니다.",
+    "speechToTextModelEnded": "SenseVoice에는 더 이상 다운로드할 수 없는 모델이 필요합니다."
   }
 }

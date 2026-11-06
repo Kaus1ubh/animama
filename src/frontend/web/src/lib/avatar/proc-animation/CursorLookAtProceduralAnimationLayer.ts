@@ -10,6 +10,11 @@ import {
   type ProceduralAnimationRuntimeContext,
   type ProceduralAnimationTransitionState,
 } from "./types";
+import {
+  randomRange,
+  sanitizeActivationWeight,
+  sanitizeNonNegativeNumber,
+} from "./layerParams";
 
 const DEFAULT_LAYER_WEIGHT = 1;
 const TARGET_DISTANCE = 2;
@@ -788,29 +793,11 @@ function sortedPair(left: number, right: number): [number, number] {
   return left <= right ? [left, right] : [right, left];
 }
 
-function randomRange(min: number, max: number): number {
-  if (max <= min) return min;
-  return min + Math.random() * (max - min);
-}
-
-function sanitizeNonNegativeNumber(
-  value: number | undefined,
-  fallback: number,
-): number {
-  if (typeof value !== "number" || !Number.isFinite(value)) return fallback;
-  return Math.max(0, value);
-}
-
 function sanitizeUnitInterval(
   value: number | undefined,
   fallback: number,
 ): number {
   if (typeof value !== "number" || !Number.isFinite(value)) return fallback;
-  return THREE.MathUtils.clamp(value, 0, 1);
-}
-
-function sanitizeActivationWeight(value: number | undefined): number {
-  if (typeof value !== "number" || !Number.isFinite(value)) return 1;
   return THREE.MathUtils.clamp(value, 0, 1);
 }
 

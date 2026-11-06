@@ -53,7 +53,6 @@ before(async () => {
           replacement: path.join(fixture, "boundaries.ts"),
         },
         { find: "@", replacement: path.join(webRoot, "src") },
-        { find: "@web", replacement: path.join(webRoot, "src") },
       ],
     },
     server: { host: "127.0.0.1", port: 0, strictPort: false },
@@ -361,6 +360,11 @@ async function mount() {
     // Self-hosted administers its own speech models; hosted shows them as operator-managed.
     if (pathname === "/v1/runtime-capabilities")
       return route.fulfill({ json: selfHostedRuntimeCapabilities() });
+    // The library asks whether downloads are still offered; this one offers them.
+    if (pathname === "/v1/model-assets" && request.method() === "GET")
+      return route.fulfill({
+        json: { assets: [asset], free_bytes: null, downloads_offered: true },
+      });
     requests.push({ method: request.method(), pathname });
     assert.ok(pathname.startsWith(encoderPath), `Unexpected API: ${pathname}`);
     if (request.method() === "POST") await installReply;

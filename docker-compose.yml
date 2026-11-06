@@ -9,7 +9,6 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-animama}
       POSTGRES_HOST_AUTH_METHOD: md5
     volumes:
-      # - ./db/data:/var/lib/postgresql/data
       - postgres-data:/var/lib/postgresql/data
     networks:
       - animama-network
@@ -35,7 +34,7 @@ services:
       - "127.0.0.1:${PGADMIN_PORT:-5050}:80"
     volumes:
       - pgadmin-data:/var/lib/pgadmin
-      - ./alembic/pgadmin-servers.json:/pgadmin4/servers.json:ro
+      - ./scripts/dev-tools/pgadmin-servers.json:/pgadmin4/servers.json:ro
     networks:
       - animama-network
     depends_on:
@@ -58,7 +57,8 @@ services:
       - "host.docker.internal:host-gateway"
     # Keys for owner-added model connections: an optional owner-only file of
     # ANIMAMA_CONNECTION_<NAME>_API_KEY=... lines that connections name in App
-    # Settings → Models. reset.sh verifies its permissions.
+    # Settings → Models, each with the ANIMAMA_CONNECTION_<NAME>_ORIGIN=... it
+    # may be sent to. reset.sh verifies its permissions.
     env_file:
       - path: ${ANIMAMA_CONNECTION_KEYS_FILE:-/dev/null}
         required: false
@@ -121,31 +121,15 @@ services:
       ANIMAMA_PUBLIC_ORIGIN: ${ANIMAMA_PUBLIC_ORIGIN:-http://localhost:8000}
       ANIMAMA_WEB_ROOT: /opt/animama/web
       ANIMAMA_DISABLE_WEBUI_TELEMETRY: ${ANIMAMA_DISABLE_WEBUI_TELEMETRY:-true}
-      ANIMAMA_STT_MODE: ${ANIMAMA_STT_MODE:-parakeet}
-      ANIMAMA_STT_URL: ${ANIMAMA_STT_URL:-http://parakeet:8000}
-      ANIMAMA_STT_AUTH_TOKEN: ${ANIMAMA_STT_AUTH_TOKEN:-}
-      ANIMAMA_VOICE_SAMPLE_RATE: ${ANIMAMA_VOICE_SAMPLE_RATE:-16000}
-      ANIMAMA_VOICE_CHANNELS: ${ANIMAMA_VOICE_CHANNELS:-1}
-      ANIMAMA_TTS_MODE: ${ANIMAMA_TTS_MODE:-kokoro}
-      ANIMAMA_TTS_URL: ${ANIMAMA_TTS_URL:-http://kokoro:8880}
-      ANIMAMA_TTS_AUTH_TOKEN: ${ANIMAMA_TTS_AUTH_TOKEN:-}
-      ANIMAMA_TTS_FORMAT: ${ANIMAMA_TTS_FORMAT:-pcm}
-      ANIMAMA_TTS_SAMPLE_RATE: ${ANIMAMA_TTS_SAMPLE_RATE:-24000}
-      ANIMAMA_MOTION_URL: ${ANIMAMA_MOTION_URL:-http://gesture:8000}
       ANIMAMA_USER_FILE_MAX_UPLOAD_BYTES: ${ANIMAMA_USER_FILE_MAX_UPLOAD_BYTES:-26214400}
       ANIMAMA_USER_FILE_PROCESSING_ENABLED: ${ANIMAMA_USER_FILE_PROCESSING_ENABLED:-true}
       ANIMAMA_USER_FILE_PROCESSING_MAX_ATTEMPTS: ${ANIMAMA_USER_FILE_PROCESSING_MAX_ATTEMPTS:-3}
       ANIMAMA_PARAKEET_STT_ENABLED: ${ANIMAMA_PARAKEET_STT_ENABLED:-true}
       ANIMAMA_SENSEVOICE_STT_ENABLED: ${ANIMAMA_SENSEVOICE_STT_ENABLED:-true}
       # Built installs download the speech-to-text sets (Parakeet and
-      # SenseVoice) into their own data root.
+      # SenseVoice) into their own data root, until the final release turns
+      # downloads off.
       ANIMAMA_PARAKEET_SOURCE: asset-store
-      # LiveKit configuration
-      LIVEKIT_API_KEY: ${LIVEKIT_API_KEY}
-      LIVEKIT_API_SECRET: ${LIVEKIT_API_SECRET}
-      LIVEKIT_WS_URL: ${LIVEKIT_WS_URL}
-      DEEPGRAM_API_KEY: ${DEEPGRAM_API_KEY}
-      CARTESIA_API_KEY: ${CARTESIA_API_KEY}
     volumes:
       - ./.animama-logs:/var/log/animama
       - type: bind
@@ -174,10 +158,6 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-        # parakeet:
-        #   condition: service_started
-        # kokoro:
-        #   condition: service_started
 
   # animama-file-worker:
   #   build:
@@ -262,115 +242,6 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
     networks:
       - animama-network
-
-  parakeet:
-    profiles:
-      - voice
-    build:
-      context: ./src/parakeet-tdt-0.6b-v2-fastapi
-    container_name: "${ANIMAMA_CONTAINER_NAME_PREFIX:-}parakeet"
-    restart: unless-stopped
-    environment:
-      MODEL_NAME: ${PARAKEET_MODEL_NAME:-stt_en_fastconformer_transducer_large}
-      MODEL_PRECISION: ${PARAKEET_MODEL_PRECISION:-fp16}
-      DEVICE: ${PARAKEET_DEVICE:-cuda}
-    volumes:
-      - ./cache/parakeet/hf:/root/.cache/huggingface
-      - ./cache/parakeet/torch:/root/.cache/torch
-      - ./src/parakeet-tdt-0.6b-v2-fastapi/parakeet_service:/app/parakeet_service
-    expose:
-      - "8000"
-    networks:
-      - animama-network
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - capabilities: [ gpu ]
-    healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost:8000/healthz" ]
-      interval: 30s
-      timeout: 5s
-      retries: 5
-
-  # kokoro:
-  #   build:
-  #     context: ./src/Kokoro-FastAPI
-  #     dockerfile: docker/gpu/Dockerfile
-  #   container_name: kokoro
-  #   restart: unless-stopped
-  #   environment:
-  #     API_LOG_LEVEL: ${KOKORO_LOG_LEVEL:-INFO}
-  #     HOST: 0.0.0.0
-  #     PORT: 9002
-  #     CUDA_VISIBLE_DEVICES: 0
-  #     VOICE: af_sarah
-  #   volumes:
-  #     - ./cache/kokoro/models:/app/api/src/models
-  #     - ./cache/kokoro/voices:/app/api/src/voices/v1_0
-  #     - ./cache/kokoro/temp:/app/api/temp_files
-  #   ports:
-  #     - "${KOKORO_PORT:-9002}:8880"
-  #   networks:
-  #     - animama-network
-  #   healthcheck:
-  #     test: [ "CMD", "curl", "-f", "http://localhost:8880/health" ]
-  #     interval: 30s
-  #     timeout: 5s
-  #     retries: 5
-  #   deploy:
-  #     resources:
-  #       reservations:
-  #         devices:
-  #           - driver: nvidia
-  #             count: 1
-  #             capabilities: [ gpu ]
-
-  # gesture:
-  #   build:
-  #     context: ./src/motion/gesture
-  #     dockerfile: Dockerfile.buildkit
-  #     target: development
-  #   container_name: gesture
-  #   # profiles:
-  #   # - gesture
-  #   labels:
-  #     - "app.component=gesture"
-  #     - "app.version=2.0.0"
-  #   ports:
-  #     - "8002:8000"
-  #   volumes:
-  #     - ./src/shared:/src/shared:rw
-  #     - ./src/motion/gesture/app:/app/app:ro
-  #     - ./src/motion/gesture/models:/app/models:ro
-  #     - ./src/motion/gesture/emage_utils:/app/emage_utils:ro
-  #     - ./src/motion/gesture/datasets:/app/datasets:ro
-  #     - ./src/motion/gesture/configs:/app/configs:ro
-  #     - ./src/motion/gesture/translate:/app/translate:ro
-  #     - ./src/motion/gesture/.cache:/app/.cache:rw
-  #     - ./src/motion/gesture/app/emage_evaltools:/app/emage_evaltools:ro
-  #     - type: tmpfs
-  #       target: /app/temp
-  #       tmpfs:
-  #         size: 1G
-  #   networks:
-  #     - animama-network
-  #   healthcheck:
-  #     test: [ "CMD", "curl", "-f", "http://localhost:8000/health" ]
-  #     interval: 30s
-  #     timeout: 30s
-  #     retries: 3
-  #     start_period: 300s
-  #   deploy:
-  #     resources:
-  #       reservations:
-  #         devices:
-  #           - driver: nvidia
-  #             count: 1
-  #             capabilities: [ gpu ]
-  #   env_file:
-  #     - .env
-  #     - ./src/motion/gesture/.env
 
 networks:
   animama-network:

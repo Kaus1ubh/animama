@@ -44,7 +44,7 @@ def _entry(locator: str, *, revision: str, file_digest: str, logical_key: str | 
     )
 
 
-async def test_catalog_preserves_ids_references_and_reconciles_rename_delete(async_session) -> None:  # noqa: ANN001
+async def test_catalog_preserves_ids_references_and_reconciles_rename_delete(async_session) -> None:
     token = uuid.uuid4().hex
     first_locator = f"gestures/{token}-wave.vrma"
     renamed_locator = f"gestures/{token}-hello.vrma"
@@ -106,7 +106,7 @@ async def test_catalog_preserves_ids_references_and_reconciles_rename_delete(asy
     await async_session.commit()
 
 
-async def test_missing_included_tombstones_are_not_user_visible(async_session) -> None:  # noqa: ANN001
+async def test_missing_included_tombstones_are_not_user_visible(async_session) -> None:
     token = uuid.uuid4().hex
     locator = f"gestures/{token}-retired.vrma"
     repository = SQLAlchemyContentCatalog(async_session)
@@ -136,7 +136,7 @@ async def test_missing_included_tombstones_are_not_user_visible(async_session) -
     await async_session.commit()
 
 
-async def test_catalog_resolves_declared_logical_dependencies(async_session) -> None:  # noqa: ANN001
+async def test_catalog_resolves_declared_logical_dependencies(async_session) -> None:
     token = uuid.uuid4().hex
     target = _entry(
         f"gestures/{token}-target.vrma",
@@ -179,7 +179,7 @@ async def test_catalog_resolves_declared_logical_dependencies(async_session) -> 
     await async_session.commit()
 
 
-async def test_catalog_invalidates_dependents_of_invalid_entries(async_session) -> None:  # noqa: ANN001
+async def test_catalog_invalidates_dependents_of_invalid_entries(async_session) -> None:
     token = uuid.uuid4().hex
     invalid_target = ScannedContentEntry(
         source=ContentSource.LOCAL,
@@ -217,7 +217,7 @@ async def test_catalog_invalidates_dependents_of_invalid_entries(async_session) 
     await async_session.commit()
 
 
-async def test_supplied_included_projection_persists_with_resolved_dependencies(async_session, tmp_path: Path) -> None:  # noqa: ANN001
+async def test_supplied_included_projection_persists_with_resolved_dependencies(async_session, tmp_path: Path) -> None:
     scanned = FilesystemContentStore(
         included_root=write_supplied_animation_fixture(tmp_path / "included"),
         local_root=tmp_path / "local",
@@ -244,7 +244,7 @@ async def test_supplied_included_projection_persists_with_resolved_dependencies(
     await async_session.commit()
 
 
-async def test_included_mount_versions_keep_identity_and_unmounted_packs_withdraw_atomically(async_session) -> None:  # noqa: ANN001
+async def test_included_mount_versions_keep_identity_and_unmounted_packs_withdraw_atomically(async_session) -> None:
     token = uuid.uuid4().hex
     core = replace(
         _entry(f"gestures/{token}-core.vrma", revision="a" * 64, file_digest="b" * 64),
@@ -293,7 +293,7 @@ async def test_included_mount_versions_keep_identity_and_unmounted_packs_withdra
     await async_session.commit()
 
 
-async def test_same_bytes_cannot_transfer_catalog_identity_between_included_sources(async_session) -> None:  # noqa: ANN001
+async def test_same_bytes_cannot_transfer_catalog_identity_between_included_sources(async_session) -> None:
     token = uuid.uuid4().hex
     core = replace(
         _entry(f"gestures/{token}-old.vrma", revision="a" * 64, file_digest="b" * 64),

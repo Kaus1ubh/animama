@@ -17,8 +17,9 @@ from collections.abc import Callable, Iterable, Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
-from ..core.inputs import EvalInputError
-from ..core.stats import TOKEN_STAT_KEYS
+from scripts.evals.core.inputs import EvalInputError
+from scripts.evals.core.stats import TOKEN_STAT_KEYS
+
 from .calibrate import CALIBRATION_DIR
 from .intervals import MIN_GROUPS, Interval, bootstrap_mean, bootstrap_paired, comparable, distinguishable
 from .judge import JUDGE_NAME

@@ -96,7 +96,7 @@ def test_backup_keeps_legacy_exclusions_without_recreating_gateway_credentials()
         "ANIMAMA_BACKUP_EXCLUDED=content-included,browser-cache,model-cache,downloaded-model-assets,secrets,gateway-token"
         in backup
     )
-    # Downloaded model assets are large and re-downloadable in the app.
+    # Downloaded model assets are large; a restore keeps the installed ones.
     for script in (backup, restore):
         assert "--exclude='./internal/model-assets'" in script
         assert "--exclude='./staging/model-assets'" in script
@@ -296,3 +296,41 @@ def test_state_rejects_record_from_another_checkout(tmp_path: Path) -> None:
     )
     assert result.returncode == 2
     assert "sourced stack belongs to another checkout" in result.stderr
+
+
+def test_restore_keeps_installed_model_assets_and_replaces_everything_else(tmp_path: Path) -> None:
+    """Model assets are not in backups, so a restore keeps the installed ones."""
+    root = tmp_path / "data"
+    (root / "internal/model-assets/parakeet-stt/v1").mkdir(parents=True)
+    (root / "internal/model-assets/parakeet-stt/v1/model.onnx").write_text("installed")
+    (root / "internal/gateway").mkdir(parents=True)
+    (root / "internal/gateway/live").write_text("live")
+    (root / "staging/model-assets/voice").mkdir(parents=True)
+    (root / "staging/model-assets/voice/part").write_text("partial")
+    (root / "live-only").write_text("live")
+    backup = tmp_path / "backup"
+    (backup / "internal/gateway").mkdir(parents=True)
+    (backup / "internal/gateway/restored").write_text("restored")
+    (backup / "restored-only").write_text("restored")
+    archive = tmp_path / "data.tar.gz"
+    subprocess.run(["tar", "-C", str(backup), "-czf", str(archive), "."], check=True)
+
+    subprocess.run(
+        [
+            "bash",
+            "-c",
+            'source "$1"; animama_state_replace_data_root "$2"',
+            "restore",
+            str(REPO_ROOT / "scripts/local-stack-state-common.sh"),
+            str(archive),
+        ],
+        env={**os.environ, "ANIMAMA_STATE_DATA_ROOT": str(root)},
+        check=True,
+    )
+
+    files = sorted(str(path.relative_to(root)) for path in root.rglob("*") if path.is_file())
+    assert files == [
+        "internal/gateway/restored",
+        "internal/model-assets/parakeet-stt/v1/model.onnx",
+        "restored-only",
+    ]

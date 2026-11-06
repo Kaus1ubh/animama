@@ -1,7 +1,4 @@
-"use client";
-
 import * as React from "react";
-import type { FieldError as RhfFieldError } from "react-hook-form";
 
 import { Label } from "@/ui/components/label";
 import { cn } from "@/lib/utils";
@@ -51,8 +48,11 @@ export function FieldDescription({
   );
 }
 
+/** A validation error; only its message is shown. */
+type FieldErrorEntry = { message?: string };
+
 type FieldErrorProps = {
-  errors: Array<RhfFieldError | undefined | null>;
+  errors: Array<FieldErrorEntry | undefined | null>;
   className?: string;
 };
 

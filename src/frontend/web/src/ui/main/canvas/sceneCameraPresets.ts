@@ -1,5 +1,3 @@
-"use client";
-
 import type { Avatar } from "@/lib/avatar";
 import type {
   PresentationPreferences,

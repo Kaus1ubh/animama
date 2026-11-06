@@ -56,8 +56,10 @@
   },
   "languageNotice": {
     "speechToText": "To use offline speech recognition in {{language}}, download its model.",
+    "speechToTextEnded": "Offline speech recognition in {{language}} needs a model that can no longer be downloaded.",
     "speechToTextEnglishOnly": "Parakeet recognizes English only. To speak to your Animas in {{language}}, choose SenseVoice.",
     "speechToTextModel": "To use SenseVoice, download its model.",
+    "speechToTextModelEnded": "SenseVoice needs a model that can no longer be downloaded.",
     "speechToTextModelUnavailable": "SenseVoice is not available on this server.",
     "speechToTextUnavailable": "Offline speech recognition in {{language}} is not available on this server.",
     "textToSpeech": "Pocket TTS speaks English only. To hear your Animas in {{language}}, choose ElevenLabs or Gemini."
@@ -184,6 +186,7 @@
     "fallback": {
       "customMissing": "Custom PocketTTS voice is selected but no custom voice has been uploaded.",
       "downloadFailed": "The voice \"{{voice}}\" could not be downloaded, so the default voice is used. The download is retried on the next reply or when you pick the voice again.",
+      "downloadsEnded": "The voice \"{{voice}}\" can no longer be downloaded, so the default voice is used.",
       "unknownVoice": "The saved voice \"{{voice}}\" is no longer available, so the default voice is used. Choose another voice in Behavior → Voices."
     },
     "sample": {

@@ -1,3 +1,5 @@
+// Adapted from ElevenLabs UI and Vercel AI Elements (MIT AND Apache-2.0): apps/www/registry/elevenlabs-ui/ui/conversation.tsx; modified for Animama.
+// See licenses/third-party/adapted-code.md.
 import type { ComponentProps } from "react";
 import { useCallback } from "react";
 import { ArrowDownIcon } from "lucide-react";

@@ -15,13 +15,12 @@ from animama.app.services.content_transition_service import ContentTransitionSer
 from animama.domain.request_principal import RequestPrincipal
 from animama.product_http.ports import WriteContent, WriteSession
 from animama.product_http.routes.content import catalog_response
+from animama.server.deps import get_current_principal
 from animama.server.local_runtime import LocalRuntimePaths, local_content_store
 from animama.server.schemas.content import (
     PyContentRescan,
     PyContentScanSummary,
 )
-
-from ..deps import get_current_principal
 
 router = APIRouter(prefix="/v1/content", tags=["content"])
 

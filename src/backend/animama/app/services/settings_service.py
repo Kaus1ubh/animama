@@ -5,9 +5,9 @@ from __future__ import annotations
 from enum import Enum
 from typing import Any, cast
 
-from ...domain.settings import AnimaSettings, UiLocale, UserSettings
-from ...logging import get_logger
-from ..ports import AnimaSettingsRepository, UnitOfWork, UserSettingsRepository
+from animama.app.ports import AnimaSettingsRepository, UnitOfWork, UserSettingsRepository
+from animama.domain.settings import AnimaSettings, UiLocale, UserSettings
+from animama.logging import get_logger
 
 
 class _Unset(Enum):

@@ -1052,7 +1052,10 @@ describe("particle VFX editor helpers", () => {
       "/effects/vfx/particle-vfx/textures/heart.png";
     expect(
       validateParticleVFXEditorDraft(
-        createParticleVFXEditorDraftFromCatalog("heart-burst", rootRelativeJson),
+        createParticleVFXEditorDraftFromCatalog(
+          "heart-burst",
+          rootRelativeJson,
+        ),
       ),
     ).not.toEqual(
       expect.arrayContaining([

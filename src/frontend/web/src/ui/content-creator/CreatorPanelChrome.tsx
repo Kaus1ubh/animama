@@ -1,5 +1,3 @@
-"use client";
-
 import { ChevronDownIcon, ChevronUpIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";

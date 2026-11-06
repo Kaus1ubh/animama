@@ -60,7 +60,6 @@ describe("one-document Identity", () => {
         value={
           "# Identity\n\n![external](https://example.test/track.png)\n\n<script>alert(1)</script>"
         }
-        allowImages={false}
       />,
     );
     expect(html).not.toContain("<img");

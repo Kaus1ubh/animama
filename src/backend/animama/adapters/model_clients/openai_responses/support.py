@@ -13,7 +13,7 @@ from openai.types.responses import (
     ResponseOutputText,
 )
 
-from .._common import get_value
+from animama.adapters.model_clients._common import get_value
 
 OPENAI_RESPONSES_HTTP_PROVIDER_TYPE = "OpenAIResponsesHTTPAgent"
 OPENAI_API = "responses"

@@ -1,4 +1,5 @@
-"use client";
+// Adapted from shadcn/ui (MIT): apps/www/registry/new-york/ui/context-menu.tsx.
+// See licenses/third-party/adapted-code.md.
 
 import * as ContextMenuPrimitive from "@radix-ui/react-context-menu";
 import * as React from "react";

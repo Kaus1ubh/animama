@@ -1,3 +1,7 @@
+"""Maps OpenAI Responses stream events to provider-neutral ``MC*`` observations and
+deltas, and extracts the terminal response.
+"""
+
 from __future__ import annotations
 
 from collections.abc import Callable
@@ -42,6 +46,7 @@ from openai.types.responses import (
     ResponseWebSearchCallSearchingEvent,
 )
 
+from animama.adapters.model_clients._common import get_value, jsonable
 from animama.app.model_clients import (
     MCAssistantMessageDoneEvent,
     MCAssistantMessageStartedEvent,
@@ -65,7 +70,6 @@ from animama.app.model_clients import (
 )
 from animama.domain.usage import Usage
 
-from .._common import get_value, jsonable
 from .final import usage_from_openai_responses
 from .support import (
     KNOWN_OUTPUT_ITEM_TYPES,

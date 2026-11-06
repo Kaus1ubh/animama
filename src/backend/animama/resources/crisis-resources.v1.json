@@ -17,7 +17,7 @@
         }
       ],
       "source_url": "https://988lifeline.org/get-help/",
-      "verified_on": "2026-09-25"
+      "verified_on": "2026-11-01"
     },
     {
       "code": "CA",
@@ -34,7 +34,7 @@
         }
       ],
       "source_url": "https://988.ca/get-help",
-      "verified_on": "2026-09-25"
+      "verified_on": "2026-11-01"
     },
     {
       "code": "GB",
@@ -48,7 +48,7 @@
         }
       ],
       "source_url": "https://www.samaritans.org/how-we-can-help/contact-samaritan/",
-      "verified_on": "2026-09-25"
+      "verified_on": "2026-11-01"
     },
     {
       "code": "IE",
@@ -62,7 +62,7 @@
         }
       ],
       "source_url": "https://www.samaritans.org/ireland/how-we-can-help/contact-samaritan/",
-      "verified_on": "2026-09-25"
+      "verified_on": "2026-11-01"
     },
     {
       "code": "AU",
@@ -80,7 +80,7 @@
         }
       ],
       "source_url": "https://www.lifeline.org.au/",
-      "verified_on": "2026-09-25"
+      "verified_on": "2026-11-01"
     },
     {
       "code": "NZ",
@@ -97,7 +97,7 @@
         }
       ],
       "source_url": "https://1737.org.nz/",
-      "verified_on": "2026-09-25"
+      "verified_on": "2026-11-01"
     }
   ],
   "fallback": {

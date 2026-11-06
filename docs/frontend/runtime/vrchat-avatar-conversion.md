@@ -2,7 +2,13 @@
 
 Animama loads VRM files. An Avatar sold for VRChat (a Unity Avatar 3.0 prefab)
 reaches it through a VRM 1.0 export with
-[Mochiya Avatar Tools](https://github.com/mochiya-labs/unity-avatar-tools). The
+[Mochiya Avatar Tools](https://github.com/mochiya-labs/unity-avatar-tools),
+run by the Animama Avatar Converter Unity package. Users install it from its
+repository,
+[raymond-van/animama-avatar-converter](https://github.com/raymond-van/animama-avatar-converter),
+whose README is the end-user guide (a Unity menu, or `npx
+animama-avatar-converter` in the project's folder). This
+page covers the developer workflow in this repository. The
 export keeps the humanoid rig, approximates PhysBones as VRM spring bones, maps
 the VRChat visemes, blink and look-at, and carries the lilToon material settings
 in a `MOCHIYA_materials_liltoon` extension. Face shapes keep their names, so
@@ -20,8 +26,9 @@ or edited versions.
 - Keep the Unity project, the downloaded packages and every exported `.vrm`
   outside any repository. Never add them to tests, content packages, Animama
   Cloud or shared review evidence.
-- Never use Mochiya's "Upload to Mochiya" feature on a licensed Avatar. The batch
-  script below calls only Detect, Validate and Export.
+- Never use Mochiya's "Upload to Mochiya" feature on a licensed Avatar. The
+  Animama package calls only Detect, Validate and Export, and contains no
+  network code.
 
 ## Tools
 
@@ -31,9 +38,10 @@ Use these versions together; they match three-liltoon's compatibility table.
 | --- | --- |
 | Unity | 2022.3 LTS (verified with 2022.3.62f3 on Apple Silicon) |
 | VRChat SDK | The Avatars template from VRChat Creator Companion |
-| lilToon | 2.3.4 or later (`jp.lilxyzw.liltoon`) |
+| lilToon | 2.3.4 or later within 2.x (`jp.lilxyzw.liltoon`) |
 | UniGLTF and VRM10 (UniVRM) | `v0.131.2` |
-| Mochiya Avatar Tools | 0.1.4 (commit `d98e9091`; the repository has no tags) |
+| Mochiya Avatar Tools | 0.1.6 (commit `0826f6e3`; the repository has no tags) |
+| Animama Avatar Converter | the release pinned in `vrm-convert-vrchat.mjs` (`EXPORTER_RELEASE`) |
 
 Mochiya rejects lilToon's Lite, Multi, FurOnly and tessellation variants.
 Avatars that ship an older lilToon (for example 1.4.0) must be upgraded to 2.3.4
@@ -57,32 +65,27 @@ change.
    author's setup guide says. Batch mode works:
    `Unity -batchmode -quit -projectPath <project> -importPackage <file>.unitypackage`.
    Take reference screenshots of the prefab.
-3. Replace lilToon with 2.3.4 or later: delete `Assets/lilToon` and add
+3. Replace lilToon with 2.3.4 or later within 2.x: delete `Assets/lilToon` and add
    `jp.lilxyzw.liltoon` from the lilToon VPM repository
    (`https://lilxyzw.github.io/vpm-repos/vpm.json`).
-4. Add the converter packages to `Packages/manifest.json`:
 
-   ```json
-   "com.vrmc.gltf": "https://github.com/vrm-c/UniVRM.git?path=/Packages/UniGLTF#v0.131.2",
-   "com.vrmc.vrm": "https://github.com/vrm-c/UniVRM.git?path=/Packages/VRM10#v0.131.2",
-   "org.mochiya.avatar-tools": "https://github.com/mochiya-labs/unity-avatar-tools.git#d98e9091ab22c305a2661be78911b275a1cd3092"
-   ```
-
-5. Copy `scripts/avatars/unity/AnimamaBatchExport.cs` and
-   `Animama.BatchExport.asmdef` from this repository into the project's
-   `Assets/AnimamaExport/Editor/`. The assembly definition gives the script
-   access to the Mochiya and VRM editor assemblies.
+The converter packages need no manual setup: `vrm:convert-vrchat` adds the
+Animama package, UniGLTF and UniVRM 1.0 0.131.2 and Mochiya at its tested
+commit to `Packages/manifest.json` when they are missing. It stops if the
+manifest pins other versions of them; change those entries first. A project
+set up for the earlier copied batch script also needs its
+`Assets/AnimamaExport/` folder deleted.
 
 ## Validate and export
 
 Pick the prefab the Avatar should look like. Many Avatars ship variants, such
 as a prefab variant without the jacket; each export captures one prefab.
 Variants usually hide a garment by tagging it `EditorOnly`, which VRChat strips
-when it builds the Avatar but Mochiya exports. The script strips those objects
+when it builds the Avatar but Mochiya exports. The export strips those objects
 first, as a build would, and logs `Stripped EditorOnly object <name>` for each.
 
-Close the project in the Unity editor first; batch mode cannot open a project
-that is already open. Then, from `src/frontend/web`, convert:
+Close the project in the Unity editor first; the command refuses a project
+that is open. Then, from `src/frontend/web`, convert:
 
 ```bash
 pnpm -s vrm:convert-vrchat --project <project> \
@@ -93,19 +96,30 @@ pnpm -s vrm:convert-vrchat --project <project> \
 
 The command:
 
-1. checks that the project's `AnimamaBatchExport.cs` matches the repository's;
-2. runs Unity in batch mode: the editor version in
-   `ProjectSettings/ProjectVersion.txt` from the Unity Hub folder, or
-   `--unity <editor>` or `ANIMAMA_UNITY_EDITOR`;
-3. runs `vrm:optimize` on the export (see [VRM optimization](vrm-optimization.md)),
+1. runs the Animama Avatar Converter command at its pinned npm version through
+   `pnpm dlx`, which adds the packages to the project if needed and runs Unity
+   in batch mode: the editor version in `ProjectSettings/ProjectVersion.txt`
+   from Unity Hub's folders, or `--unity <editor>` or `ANIMAMA_UNITY_EDITOR`;
+2. runs `vrm:optimize` on the export (see [VRM optimization](vrm-optimization.md)),
    keeping the unoptimized file beside the result as `<Avatar>.raw.vrm`;
-4. runs `vrm:inspect` on the result.
+3. runs `vrm:inspect` on the result.
 
-The Unity log goes to `<Avatar>.export.log`, and the command prints its
-`[Animama]` lines with Mochiya's full validation report. `--validate` stops
-after validation and writes no VRM. `--no-optimize` writes the raw export to
-`--out`; keep it when comparing against Unity pixel for pixel, since the
-optimized colour textures are lossy WebP. The command never overwrites a file.
+Unity's log goes to `<Avatar>.export.log` (a requirement check after a failed
+compile logs to `<Avatar>.export.requirements.log`), and the command prints its
+`[Animama]` lines: Mochiya's full validation report, then the same
+plain-language notes as the Unity window. `--validate` stops after validation
+and writes no VRM. `--no-optimize` writes the raw export to `--out`; keep it
+when comparing against Unity pixel for pixel, since the optimized colour
+textures are lossy WebP. The command never overwrites a file. In a fresh
+worktree, build the workspace packages first (`pnpm --dir .. packages:build`
+from `src/frontend/web`), or the final `vrm:inspect` step fails.
+
+To test unreleased exporter changes, set `ANIMAMA_AVATAR_CONVERTER` to the
+absolute path of a local checkout of the package repository; the command then
+runs that checkout and installs its Unity package as a `file:` dependency.
+Switching between a checkout and the pinned release leaves the other
+`com.animama.avatar-converter` entry in `Packages/manifest.json`, which stops the
+command; remove that entry first.
 
 Errors in the report stop the export. Expect these warnings:
 
@@ -121,15 +135,16 @@ Errors in the report stop the export. Expect these warnings:
 Unity runs with graphics, never `-nographics`: the exporter reads compressed
 textures back through the GPU, and without one it writes flat grey
 placeholders (19 of one Avatar's 26 textures, including the hair colour). To
-run the export by hand, pass the same values to
-`Unity -batchmode -quit -projectPath <project> -logFile <log>
--executeMethod AnimamaBatchExport.Export -animamaPrefab <prefab>
+run the export by hand in a project that has the package, pass the same values
+to `Unity -batchmode -quit -projectPath <project> -logFile <log>
+-executeMethod Animama.AvatarConverter.BatchExport.Export -animamaPrefab <prefab>
 -animamaOut <file>` with `-animamaName`, `-animamaVersion`, `-animamaAuthor`
-and `-animamaCopyright` (`AnimamaBatchExport.Validate` without `-animamaOut`
-only validates).
+and `-animamaCopyright` (`Animama.AvatarConverter.BatchExport.Validate` without
+`-animamaOut` only validates). `Animama.AvatarConverter.BatchRequirements.Check`
+lists missing or unsupported dependencies.
 
 VRM 1.0 requires a T-pose rest pose, and VRChat Avatars are often modelled in
-an A-pose. The script therefore poses the instance from its Unity humanoid
+an A-pose. The export therefore poses the instance from its Unity humanoid
 T-pose first, like UniVRM's "T-Pose (unity internal)" button, and logs
 `Applied the humanoid T-pose`. Pass `-animamaKeepPose` to export the modelled
 pose instead (`--keep-pose` in the command). Animama normalizes arms that rest
@@ -190,7 +205,7 @@ Animama found (required extensions, face parts, ARKit coverage, springs and
 warnings); their copied report holds no paths or names, so it can be shared
 for a private Avatar.
 
-Known limits of a Mochiya 0.1.4 export:
+Known limits of a Mochiya 0.1.6 export:
 
 - Materials render with the authored lilToon settings through three-liltoon
   ([Authored lilToon materials](avatar-animation.md#authored-liltoon-materials)).
@@ -249,8 +264,9 @@ same views in both:
    light and white ambient light, no tone mapping, on SwiftShader. It writes
    `animama-<view>.png` and `views.json` (cameras and lights in three.js
    coordinates).
-2. Copy `scripts/avatars/unity/AnimamaReferenceRender.cs` beside the batch
-   export script in the Unity project and run, with graphics,
+2. Copy `scripts/avatars/unity/AnimamaReferenceRender.cs` and
+   `Animama.ReferenceRender.asmdef` into the Unity project's
+   `Assets/AnimamaReferenceRender/Editor/` and run, with graphics,
    `Unity -batchmode -quit -projectPath <project> -logFile render.log
    -executeMethod AnimamaReferenceRender.Render -animamaPrefab
    Assets/.../Avatar.prefab -animamaViews <private-dir>/parity/views.json
@@ -279,7 +295,8 @@ accept both mesh compressions an optimizer may add
 - `EXT_meshopt_compression` (gltfpack, gltf-transform `meshopt`) loads: every
   Avatar loader imports three's meshopt decoder when a file uses it
   (`configureAvatarGltfLoader`). Its WebAssembly is embedded in the module, so
-  the page's CSP must allow `'wasm-unsafe-eval'` (the app's does).
+  the page's Content Security Policy must allow `'wasm-unsafe-eval'`, as the
+  [app's policy](../architecture/auth-server.md#content-security-policy) does.
 - `KHR_draco_mesh_compression` imports, but Animama does not serve the Draco
   decoder yet, so the Avatar does not load. The import review says so before
   the import, and its Diagnostics name the extension

@@ -1,3 +1,5 @@
+// First: Zod schemas read this when they are created.
+import "./lib/zod-runtime";
 import "@fontsource-variable/dm-sans";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";

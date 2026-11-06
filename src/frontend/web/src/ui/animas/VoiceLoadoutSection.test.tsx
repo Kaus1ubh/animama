@@ -23,6 +23,7 @@ const fixtures = vi.hoisted(() => ({
   clones: [] as PyVoiceContent[],
   availability: (() => null) as (id: string) => PocketVoiceAvailability | null,
   operatorManaged: false,
+  downloadsEnded: false,
   install: vi.fn(),
   geminiTts: null as null | {
     models: string[];
@@ -83,7 +84,7 @@ vi.mock("@/ui/settings/SettingsProvider", () => ({
     isUpdating: false,
   }),
 }));
-vi.mock("@/hooks/use-pocket-tts-runtime", () => ({
+vi.mock("@/hooks/usePocketTtsRuntime", () => ({
   usePocketTtsRuntime: () => ({
     hasCustomVoice: false,
     isEncodingVoice: false,
@@ -91,11 +92,15 @@ vi.mock("@/hooks/use-pocket-tts-runtime", () => ({
     setVoice: fixtures.setVoice,
   }),
 }));
-vi.mock("@/hooks/use-pocket-voice-downloads", () => ({
+vi.mock("@/query/hooks/useModelDownloadsEnded", () => ({
+  useModelDownloadsEnded: () => false,
+}));
+vi.mock("@/hooks/usePocketVoiceDownloads", () => ({
   usePocketVoiceDownloads: () => ({
     availability: fixtures.availability,
     install: fixtures.install,
     operatorManaged: fixtures.operatorManaged,
+    downloadsEnded: fixtures.downloadsEnded,
   }),
 }));
 vi.mock("@/ui/app/AppShell", () => ({ useOptionalAppShell: () => null }));
@@ -110,6 +115,7 @@ describe("Anima voice configuration", () => {
     fixtures.speech.tts_pocket_anima_voice = "eve";
     fixtures.availability = () => null;
     fixtures.operatorManaged = false;
+    fixtures.downloadsEnded = false;
     fixtures.install.mockReset();
     fixtures.geminiTts = null;
     delete (fixtures.speech as Record<string, unknown>).gemini;
@@ -379,7 +385,7 @@ describe("operator-provided Pocket voices", () => {
       : id === "clara"
         ? { assetId: "pocket-voice-clara", status: "installed" }
         : null;
-  const renderList = (operatorManaged: boolean) =>
+  const renderList = (operatorManaged: boolean, downloadsEnded = false) =>
     renderToStaticMarkup(
       <PocketVoiceList
         value="eve"
@@ -389,6 +395,7 @@ describe("operator-provided Pocket voices", () => {
         availability={managedAvailability}
         onDownload={() => undefined}
         operatorManaged={operatorManaged}
+        downloadsEnded={downloadsEnded}
         onSelected={() => undefined}
         sample={IDLE_VOICE_SAMPLE}
         player={{ play: vi.fn(), stop: vi.fn(), dispose: vi.fn() }}
@@ -420,6 +427,32 @@ describe("operator-provided Pocket voices", () => {
     expect(html).toContain('aria-label="Clara downloaded"');
     expect(html).not.toContain("Not available");
     expect(html).not.toContain("managed by the hosted operator");
+  });
+
+  it("shows voices that were never downloaded as not available once downloads have ended", () => {
+    const html = renderList(false, true);
+    expect(html).not.toContain("Download Anna");
+    expect(html).toMatch(
+      /<button[^>]*disabled=""[^>]*aria-label="Select Anna"/,
+    );
+    expect(html).toContain('aria-label="Clara downloaded"');
+    expect(html).toContain('aria-label="Eve included"');
+    expect(html).toContain(
+      "Animama no longer offers model downloads. Anything already downloaded keeps working; chat, Avatars and the built-in voices need no downloads.",
+    );
+    expect(html).not.toContain("managed by the hosted operator");
+  });
+
+  it("says when the saved voice can no longer be downloaded, without starting an install", () => {
+    fixtures.speech.tts_provider = "pocket_tts";
+    fixtures.speech.tts_pocket_anima_voice = "anna";
+    fixtures.availability = managedAvailability;
+    fixtures.downloadsEnded = true;
+    const html = renderToStaticMarkup(<AnimaVoicesEditor />);
+    expect(html).toContain(
+      "Anna can no longer be downloaded, so replies use the default voice.",
+    );
+    expect(fixtures.install).not.toHaveBeenCalled();
   });
 
   it("says when the saved voice is not provided, without starting an install", () => {

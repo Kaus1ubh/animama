@@ -148,6 +148,40 @@ describe("resolvePocketFallbackVoice with downloadable voices", () => {
       key: "pocket_voice_download_failed:harriet",
     });
   });
+
+  it.each(["not_installed", "failed"] as const)(
+    "speaks with the default and installs nothing once downloads have ended (%s)",
+    (status) => {
+      const result = resolvePocketFallbackVoice(
+        "harriet",
+        listed,
+        false,
+        "eve",
+        availability({ harriet: status }),
+        true,
+      );
+      expect(result.voice).toBe("eve");
+      expect(result.install).toBeUndefined();
+      expect(result.notice).toMatchObject({
+        scope: "session",
+        key: "pocket_voice_downloads_ended:harriet",
+      });
+      expect(result.notice?.message).toContain("harriet");
+    },
+  );
+
+  it("keeps an installed voice once downloads have ended", () => {
+    expect(
+      resolvePocketFallbackVoice(
+        "anna",
+        listed,
+        false,
+        "eve",
+        availability({ anna: "installed" }),
+        true,
+      ),
+    ).toEqual({ voice: "anna" });
+  });
 });
 
 describe("resolveOncePerRun", () => {

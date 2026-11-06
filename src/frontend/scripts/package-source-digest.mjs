@@ -12,9 +12,18 @@ export const SOURCE_DIGEST_FILE = ".source-digest";
  * detect a build made from other source.
  */
 export async function packageSourceDigest(packageRoot) {
-  const sourceFiles = (await readdir(join(packageRoot, "src"), { recursive: true, withFileTypes: true }))
+  const sourceFiles = (
+    await readdir(join(packageRoot, "src"), {
+      recursive: true,
+      withFileTypes: true,
+    })
+  )
     .filter((entry) => entry.isFile() && !entry.name.startsWith("."))
-    .map((entry) => relative(packageRoot, join(entry.parentPath, entry.name)).split(sep).join("/"));
+    .map((entry) =>
+      relative(packageRoot, join(entry.parentPath, entry.name))
+        .split(sep)
+        .join("/"),
+    );
   const hash = createHash("sha256");
   for (const file of ["package.json", ...sourceFiles.sort()]) {
     const contents = await readFile(join(packageRoot, file));

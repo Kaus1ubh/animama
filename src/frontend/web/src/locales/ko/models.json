@@ -58,11 +58,14 @@
     "editDescription": "Ollama, LM Studio, llama.cpp 또는 클라우드 제공자 같은 OpenAI 호환 서버입니다.",
     "env": {
       "notSet": "아직 서버에 설정되지 않았습니다. API 키로 설정하세요.",
+      "notUsable": "아직 사용할 수 없습니다. 서버에서 이 변수를 API 키로 설정하고 아래 줄도 추가하세요.",
+      "origin": "키가 이 주소로만 전송되도록 서버에서 {{variable}}={{origin}}도 설정하세요.",
       "set": "서버에 설정되어 있습니다.",
       "setVariable": "서버에서 이 변수를 API 키로 설정하세요."
     },
     "hideAdvanced": "고급 옵션 숨기기",
-    "insecureKey": "이 주소는 다른 컴퓨터로 암호화되지 않은 http를 사용하므로 키가 암호화되지 않은 상태로 네트워크를 통과합니다. https나 로컬 서버를 사용하세요.",
+    "insecureKey": "키는 https 또는 이 컴퓨터로의 http로만 전송됩니다. https나 로컬 서버를 사용하세요.",
+    "keyForAnotherAddress": "저장된 키는 다른 주소용으로 입력되었습니다. 이 주소용으로 키를 다시 입력하거나 삭제하세요.",
     "keyNotDeleted": "연결에 저장된 키를 삭제할 수 없습니다.",
     "keyNotStored": "연결은 저장되었지만 키는 저장되지 않았습니다. {{reason}}",
     "keyNotStoredRetry": "연결은 저장되었지만 키는 저장되지 않았습니다. 편집에서 다시 시도하세요.",
@@ -364,5 +367,8 @@
       "stopsSearching": "모델이 더 이상 웹을 검색하지 않습니다.",
       "turningOff": "끄는 중…"
     }
+  },
+  "downloadsEnded": {
+    "note": "Animama는 더 이상 모델 다운로드를 제공하지 않습니다. 이미 다운로드한 항목은 계속 작동하며, 채팅, 아바타, 기본 제공 음성에는 다운로드가 필요하지 않습니다."
   }
 }

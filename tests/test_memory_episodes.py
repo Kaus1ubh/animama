@@ -43,14 +43,14 @@ async def clean_memory_episode_rows(async_session):
     await async_session.commit()
 
 
-def _memory_entry_service(async_session) -> MemoryEntryService:  # noqa: ANN001
+def _memory_entry_service(async_session) -> MemoryEntryService:
     return MemoryEntryService(
         memory_entries=SQLAlchemyMemoryEntryRepository(async_session),
         uow=SQLAlchemyUnitOfWork(async_session),
     )
 
 
-def _episode_service(async_session) -> MemoryEpisodeService:  # noqa: ANN001
+def _episode_service(async_session) -> MemoryEpisodeService:
     return MemoryEpisodeService(
         memory_episodes=SQLAlchemyMemoryEpisodeRepository(async_session),
         memory_entries=_memory_entry_service(async_session),

@@ -116,6 +116,7 @@ const fake = vi.hoisted(() => {
 });
 
 vi.mock("electron", () => ({
+  app: { isPackaged: false },
   BrowserWindow: fake.FakeBrowserWindow,
   screen: {
     getPrimaryDisplay: () => fake.displays[0],
@@ -252,6 +253,34 @@ describe("PipWindowManager", () => {
     // The owner sets the preset itself; it never asks PiP for one.
     pipContents.send.mockClear();
     pip.publishRuntimeMessage(owner as unknown as WebContents, request);
+    expect(pipContents.send).not.toHaveBeenCalled();
+  });
+
+  it("passes the planner events PiP consumed to its owner only", async () => {
+    const pip = manager();
+    const owner = new fake.FakeWebContents();
+    await pip.open(owner as unknown as WebContents, { animaId: "annie" });
+    const pipContents = pipWindowOf(pip).webContents;
+    const report = {
+      type: "planner-events-consumed",
+      sequence: 0,
+      sentAtMs: 1,
+      animaId: "annie",
+      payload: {
+        kind: "planner-events-consumed",
+        eventIds: ["motion-gesture-1"],
+      },
+    };
+
+    pip.publishRuntimeMessage(pipContents as unknown as WebContents, report);
+    expect(owner.send).toHaveBeenCalledWith(
+      "pip:runtime",
+      expect.objectContaining({ type: "planner-events-consumed" }),
+    );
+
+    // Only PiP's Avatar consumes planner events while PiP is open.
+    pipContents.send.mockClear();
+    pip.publishRuntimeMessage(owner as unknown as WebContents, report);
     expect(pipContents.send).not.toHaveBeenCalled();
   });
 

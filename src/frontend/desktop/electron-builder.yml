@@ -1,6 +1,6 @@
 appId: com.animama.desktop
 productName: Animama
-copyright: Copyright (c) 2026 Raymond Van. All rights reserved.
+copyright: Copyright (c) 2026 Raymond Van. AGPL-3.0-only; third-party terms apply.
 directories:
   output: release
 beforeBuild: ./scripts/before-build.mjs
@@ -15,6 +15,19 @@ files:
       - LICENSE
 asarUnpack:
   - dist/native/*.node
+# Every packed app carries this fuse wire; scripts/runtime/fuses.mjs checks it
+# after packing. Fuses not named here keep Electron's defaults.
+electronFuses:
+  runAsNode: false
+  enableCookieEncryption: true
+  enableNodeOptionsEnvironmentVariable: false
+  enableNodeCliInspectArguments: false
+  enableEmbeddedAsarIntegrityValidation: true
+  onlyLoadAppFromAsar: true
+  grantFileProtocolExtraPrivileges: false
+  # An unsigned development pack needs a valid ad-hoc signature after the flip;
+  # signed builds are signed afterwards anyway.
+  resetAdHocDarwinSignature: true
 extraMetadata:
   main: dist/main.js
 # App icons come from the brand mark; regenerate them with `pnpm desktop:icons`.

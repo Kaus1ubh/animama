@@ -80,7 +80,8 @@ const review = {
   reviewed_on: "2026-09-01",
 };
 const policy = {
-  schema: "animama-release-policy/3",
+  schema: "animama-release-policy/4",
+  updates: "offered",
   channel: "stable",
   distributions: {
     r2: {
@@ -477,7 +478,7 @@ describe("Windows release candidate", () => {
         ...options.config,
         extends: null,
         productName: "Animama",
-        electronVersion: "45.0.0",
+        electronVersion: "45.2.1",
         electronDist: path.join(root, "electron"),
         npmRebuild: false,
         directories: { output: "release" },
@@ -624,12 +625,13 @@ describe("Windows update policy and publication", () => {
       target: "win32-x64",
     }).updatePolicy;
     expect(windows).toEqual({
-      schema: "animama-update-policy/2",
+      schema: "animama-update-policy/3",
       distribution: {
         kind: "r2",
         base_url: "https://downloads.example.test/desktop",
       },
       channel: "stable",
+      updates: "offered",
       windows_publisher: {
         certificate_subject: publisher.certificate_subject,
         identity_validation_eku: publisher.identity_validation_eku,
@@ -794,6 +796,13 @@ describe("Windows update policy and publication", () => {
         first_anima_chat: true,
         temporary_provider_removed: true,
         temporary_provider_removal_persists: true,
+        exact_fuse_wire: true,
+        publisher_signature: true,
+        sealed_update_policy: true,
+        debugging_switches_refused: true,
+        copy_fuse_wire: true,
+        copy_updates_unavailable: true,
+        canonical_profile_untouched: true,
       },
     };
     const expected = {

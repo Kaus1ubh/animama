@@ -5,7 +5,7 @@ import {
   completeLocalRuntimeOnboarding,
   loadLocalRuntimeContext,
   type LocalRuntimeApi,
-} from "@web/app/local-runtime/LocalRuntimeProvider";
+} from "@/app/local-runtime/LocalRuntimeProvider";
 
 const incompleteContext: PyRuntimeContext = {
   schema_version: 1,

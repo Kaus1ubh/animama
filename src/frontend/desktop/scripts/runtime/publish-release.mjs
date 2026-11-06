@@ -106,6 +106,7 @@ export async function publishRelease(target, args) {
         artifactSha256,
         release.version,
         target,
+        { packs: release.activePackIds.length > 0 },
       );
   const names = index.files.map((file) => file.name);
   const folder = path.join(desktopRoot, "release/smoke-name");

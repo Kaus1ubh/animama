@@ -3,10 +3,10 @@ from __future__ import annotations
 from sqlalchemy import inspect
 
 
-async def test_orm_schema_has_one_neutral_typed_content_catalog(async_session) -> None:  # noqa: ANN001
+async def test_orm_schema_has_one_neutral_typed_content_catalog(async_session) -> None:
     connection = await async_session.connection()
 
-    def inspect_schema(sync_connection):  # noqa: ANN001, ANN202
+    def inspect_schema(sync_connection):
         inspector = inspect(sync_connection)
         return set(inspector.get_table_names())
 
@@ -47,11 +47,11 @@ async def test_orm_schema_has_one_neutral_typed_content_catalog(async_session) -
     }.isdisjoint(tables)
 
 
-async def test_pose_is_catalog_content_but_not_an_equippable_loadout_kind(async_session) -> None:  # noqa: ANN001
+async def test_pose_is_catalog_content_but_not_an_equippable_loadout_kind(async_session) -> None:
     """The database admits poses only in the content catalog, never an Anima slot."""
     connection = await async_session.connection()
 
-    def inspect_constraints(sync_connection):  # noqa: ANN001, ANN202
+    def inspect_constraints(sync_connection):
         inspector = inspect(sync_connection)
         return (
             inspector.get_check_constraints("content_catalog_items"),

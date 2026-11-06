@@ -1,8 +1,14 @@
 import { describe, expect, it } from "vitest";
 
-import { isChatMemoryUpdated, parseMemoryCue } from "@animama/product-ui/chat";
-import { isRuntimeRemountRequired } from "@/lib/runtime-content/errors";
-import { ChatSseHttpError, matchesRuntimeContentRevision } from "./useChatSse";
+import {
+  isChatMemoryUpdated,
+  isRuntimeRemountRequired,
+  parseMemoryCue,
+} from "@animama/product-ui/chat";
+import {
+  ChatSseHttpError,
+  matchesRuntimeContentRevision,
+} from "@animama/product-ui/query";
 
 describe("chat runtime Asset revision fencing", () => {
   it("accepts only the mounted revision when a chat request is fenced", () => {

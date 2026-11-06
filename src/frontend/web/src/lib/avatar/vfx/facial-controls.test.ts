@@ -425,6 +425,73 @@ describe("authored facial behavior", () => {
     expect(meshes.face.material).toBe(originalFaceMaterial);
   });
 
+  /** The skin cards behind an applied effect's eye art. */
+  const backdropMaterials = () => {
+    const materials: THREE.Material[] = [];
+    anchor.traverse((object) => {
+      if (object instanceof THREE.Mesh && object.name.endsWith(":backdrop")) {
+        materials.push(object.material as THREE.Material);
+      }
+    });
+    return materials;
+  };
+
+  /** Replace the face material and rebuild the controller around it. */
+  const useFaceMaterial = (material: THREE.Material) => {
+    material.name = "Face Skin";
+    meshes.face.material = material;
+    controller = new AvatarVFXController(avatar);
+    controllers.push(controller);
+  };
+
+  const faceTexture = () =>
+    new THREE.Texture(originalTexture as unknown as HTMLCanvasElement);
+
+  it("backs a custom-shader face's eye art with a plain skin card", async () => {
+    // Like three-liltoon's material: a raw shader that skins and blends its
+    // own way, so a clone on the unskinned card renders as an opaque dark box.
+    // The guard keys on "a shader other than MToon", not on this flag.
+    class FakeLilToonMaterial extends THREE.RawShaderMaterial {
+      readonly isLilToonMaterial = true;
+      map: THREE.Texture | null = faceTexture();
+    }
+    useFaceMaterial(new FakeLilToonMaterial());
+
+    await apply({ ...eyeEffect(), skinBackdrop: true });
+
+    const materials = backdropMaterials();
+    expect(materials.length).toBeGreaterThan(0);
+    for (const material of materials) {
+      expect(material).toBeInstanceOf(THREE.MeshBasicMaterial);
+      expect(material.name).toBe("");
+      expect(material.transparent).toBe(true);
+      expect(material.depthWrite).toBe(false);
+      // The mirrored eye's card is scaled by -1 in x.
+      expect(material.side).toBe(THREE.DoubleSide);
+      expect((material as THREE.MeshBasicMaterial).map).toBeInstanceOf(
+        THREE.CanvasTexture,
+      );
+    }
+  });
+
+  it("lights an MToon face's skin card like the face", async () => {
+    class FakeMToonMaterial extends THREE.ShaderMaterial {
+      readonly isMToonMaterial = true;
+      map: THREE.Texture | null = faceTexture();
+    }
+    useFaceMaterial(new FakeMToonMaterial());
+
+    await apply({ ...eyeEffect(), skinBackdrop: true });
+
+    const materials = backdropMaterials();
+    expect(materials.length).toBeGreaterThan(0);
+    for (const material of materials) {
+      // A clone of the face's material, carrying its name.
+      expect(material).toBeInstanceOf(FakeMToonMaterial);
+      expect(material.name).toBe("Face Skin");
+    }
+  });
+
   it("fades the face changes with the event envelope", async () => {
     const findBackdrop = () => {
       let found: THREE.Mesh | null = null;

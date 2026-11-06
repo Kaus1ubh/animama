@@ -13,7 +13,7 @@ from tests.anima_creation_service_support import anima_creation_fixture
 from tests.local_http_client import local_client
 
 
-def _catalog_root(item) -> dict[str, Any]:  # noqa: ANN001
+def _catalog_root(item) -> dict[str, Any]:
     return {
         "kind": item.kind.value,
         "source": {"type": "catalog", "catalog_item_id": item.id},
@@ -23,7 +23,7 @@ def _catalog_root(item) -> dict[str, Any]:  # noqa: ANN001
 async def test_preview_batch_deduplicates_overlapping_catalog_and_builtin_closures(
     async_session,
     tmp_path,
-    monkeypatch,  # noqa: ANN001
+    monkeypatch,
 ) -> None:
     async with anima_creation_fixture(async_session, tmp_path) as fixture:
         await fixture.add_action_support(async_session)
@@ -102,7 +102,7 @@ async def test_preview_batch_deduplicates_overlapping_catalog_and_builtin_closur
 async def test_preview_batch_issues_no_lease_when_every_root_fails(
     async_session,
     tmp_path,
-    monkeypatch,  # noqa: ANN001
+    monkeypatch,
 ) -> None:
     async with anima_creation_fixture(async_session, tmp_path) as fixture:
         app = fixture.app(async_session, monkeypatch)

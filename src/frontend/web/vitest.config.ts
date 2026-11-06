@@ -28,7 +28,6 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": webSrc,
-      "@web": webSrc,
     },
   },
   test: {

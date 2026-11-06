@@ -1,4 +1,4 @@
-import { readdirSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -80,7 +80,6 @@ export function stageViteConfig({ root = webRoot } = {}) {
     resolve: {
       alias: {
         "@": path.join(webRoot, "src"),
-        "@web": path.join(webRoot, "src"),
       },
     },
   };
@@ -242,33 +241,41 @@ function icoFrom(png, size) {
 }
 
 /**
- * The page's `<head>` additions and its text for `#overlay`, from `stops.ts`:
- * title, description, canonical URL, sharing tags, icons, theme colours and
- * schema.org data; then the header links, each stop's heading, line and
- * links, the scene's description and the copyright line. The overlay
- * replaces the text when it mounts; until then (and without JavaScript)
- * search engines, link previews and readers have it.
+ * The page's `<head>` additions and its text for `#overlay`, from `stops.ts`
+ * and the English catalog (`locales/en.json`): title, description, canonical
+ * URL, sharing tags, icons, theme colours and schema.org data; then the
+ * header links, each stop's heading, line and links, the scene's description
+ * and the footer's links and copyright line. The overlay replaces the text,
+ * in the visitor's language, when it mounts; until then (and without
+ * JavaScript) search engines, link previews and readers have it in English.
  */
 export async function renderPageHtml(server) {
   const {
     STAGE_STOPS,
     STAGE_AVATARS,
     SITE,
+    FOOTER_LINKS,
     CLOSED_BETA,
     BETA_ACCESS_URL,
+    stopCopy,
     voice,
   } = await server.ssrLoadModule("/scripts/landing-stage/stops.ts");
+  const { englishT } = await server.ssrLoadModule(
+    "/scripts/landing-stage/i18n.ts",
+  );
+  const t = englishT();
   const avatar = STAGE_AVATARS[0];
-  const text = (value) =>
-    escapeHtml(voice(value ?? "", avatar).replaceAll("**", ""));
+  const copy = (stop) => stopCopy(stop, avatar, t);
+  const text = (value) => escapeHtml(value.replaceAll("**", ""));
   const [hero, ...stops] = STAGE_STOPS;
   const last = STAGE_STOPS.at(-1);
-  const description = `${voice(hero.body, avatar)} ${voice(last.body ?? "", avatar)}`;
+  const title = t("site.title");
+  const description = `${copy(hero).body} ${copy(last).body}`;
   const image = new URL(SITE.shareImage, SITE.url).href;
   const logo = new URL("brand/animama-mark.png", SITE.url).href;
   const action = CLOSED_BETA
-    ? { label: "Request Beta Access", href: BETA_ACCESS_URL }
-    : { label: "Download", href: `#stop-${last.id}` };
+    ? { label: t("header.requestBetaAccess"), href: BETA_ACCESS_URL }
+    : { label: t("header.download"), href: SITE.download };
   const link = ({ label, href }) =>
     `<a href="${escapeHtml(href)}">${escapeHtml(label)}</a>`;
 
@@ -281,6 +288,8 @@ export async function renderPageHtml(server) {
         name: "Animama",
         url: SITE.url,
         logo,
+        email: SITE.contactEmail,
+        sameAs: SITE.social.map(({ href }) => href),
       },
       {
         "@type": "SoftwareApplication",
@@ -298,7 +307,7 @@ export async function renderPageHtml(server) {
   const meta = (attribute, name, content) =>
     `<meta ${attribute}="${name}" content="${escapeHtml(content)}" />`;
   const head = [
-    `<title>${escapeHtml(SITE.title)}</title>`,
+    `<title>${escapeHtml(title)}</title>`,
     meta("name", "description", description),
     `<link rel="canonical" href="${SITE.url}" />`,
     `<meta name="theme-color" content="${THEME_COLORS.light}" media="(prefers-color-scheme: light)" />`,
@@ -309,14 +318,14 @@ export async function renderPageHtml(server) {
     meta("property", "og:type", "website"),
     meta("property", "og:site_name", "Animama"),
     meta("property", "og:url", SITE.url),
-    meta("property", "og:title", SITE.title),
+    meta("property", "og:title", title),
     meta("property", "og:description", description),
     meta("property", "og:image", image),
     meta("property", "og:image:width", "1200"),
     meta("property", "og:image:height", "630"),
     meta("property", "og:image:alt", SITE.shareImageAlt),
     meta("name", "twitter:card", "summary_large_image"),
-    meta("name", "twitter:title", SITE.title),
+    meta("name", "twitter:title", title),
     meta("name", "twitter:description", description),
     meta("name", "twitter:image", image),
     meta("name", "twitter:image:alt", SITE.shareImageAlt),
@@ -326,8 +335,8 @@ export async function renderPageHtml(server) {
   ].join("\n    ");
 
   // The hero's line, its feature words linking to their stops.
-  let heroLine = text(hero.body);
-  for (const { word, stop } of hero.links ?? [])
+  let heroLine = text(copy(hero).body);
+  for (const { word, stop } of copy(hero).links)
     heroLine = heroLine.replace(
       new RegExp(`\\b${word}\\b`),
       `<a href="#stop-${stop}">${word}</a>`,
@@ -335,24 +344,39 @@ export async function renderPageHtml(server) {
   const sections = stops.map((stop) => {
     const actions =
       stop.id === last.id
-        ? `<p class="actions">${link(action)} ${link({ label: "Read the docs", href: SITE.docsUrl })}</p>`
+        ? `<p class="actions">${link(action)} ${link({ label: t("page.readDocs"), href: SITE.docsUrl })}</p>`
         : "";
-    return `<section id="stop-${stop.id}"><h2>${text(stop.title)}</h2><p>${text(stop.body)}</p>${actions}</section>`;
+    const { title, body } = copy(stop);
+    return `<section id="stop-${stop.id}"><h2>${text(title)}</h2><p>${text(body)}</p>${actions}</section>`;
   });
   const content = [
     `<div class="prerender">`,
     `<header><p><a href="/">Animama</a></p><nav aria-label="Site">${[
-      { label: "Home", href: `#stop-${hero.id}` },
-      { label: "About", href: `#stop-${stops[0].id}` },
-      { label: "Docs", href: SITE.docsUrl },
+      { label: t("header.home"), href: `#stop-${hero.id}` },
+      { label: t("header.about"), href: SITE.about },
+      { label: t("header.docs"), href: SITE.docsUrl },
+      ...(CLOSED_BETA
+        ? []
+        : [
+            { label: t("header.logIn"), href: SITE.signIn },
+            { label: t("header.signUp"), href: SITE.signUp },
+          ]),
       action,
     ]
       .map(link)
       .join(" ")}</nav></header>`,
-    `<main><section id="stop-${hero.id}"><h1>${text(hero.title)}</h1><p>${heroLine}</p><p class="scene">${text(SITE.sceneDescription)}</p></section>`,
+    `<main><section id="stop-${hero.id}"><h1>${text(copy(hero).title)}</h1><p>${heroLine}</p><p class="scene">${text(voice(t("site.sceneDescription"), avatar, t))}</p></section>`,
     ...sections,
     `</main>`,
-    `<footer><p>${escapeHtml(SITE.copyright)} ${link({ label: "Third-party notices", href: SITE.notices })}</p></footer>`,
+    `<footer><nav aria-label="Footer">${[
+      ...FOOTER_LINKS.map(({ key, href }) => ({
+        label: t(`footer.${key}`),
+        href,
+      })),
+      ...SITE.social,
+    ]
+      .map(link)
+      .join(" ")}</nav><p>${escapeHtml(SITE.copyright)}</p></footer>`,
     `</div>`,
   ].join("");
   return { head, content };
@@ -368,6 +392,129 @@ export function pagePlugin(getPage) {
       return html
         .replace("<!--landing:head-->", () => head)
         .replace("<!--landing:content-->", () => content);
+    },
+  };
+}
+
+/** The file Animama Cloud reads to publish the crisis protocol at `/safety/`. */
+export const CRISIS_PROTOCOL_FILE = "crisis-protocol.json";
+
+/**
+ * The safety and crisis protocol (`docs/safety/crisis-protocol.md`, the
+ * document the app's Safety dialog shows), rendered once to HTML for Animama
+ * Cloud's `/safety/` page, as `crisis-protocol.json`: the authoritative
+ * English in `html`, and the app's machine translations
+ * (`crisis-protocol.<locale>.md`, each of which says so) in `translations`,
+ * by UI Locale.
+ */
+export async function renderCrisisProtocol() {
+  const [
+    { createElement },
+    { renderToStaticMarkup },
+    { default: Markdown },
+    { default: remarkGfm },
+  ] = await Promise.all([
+    import("react"),
+    import("react-dom/server"),
+    import("react-markdown"),
+    import("remark-gfm"),
+  ]);
+  const safetyDir = path.join(repoRoot, "docs/safety");
+  const render = (name) =>
+    renderToStaticMarkup(
+      createElement(
+        Markdown,
+        { remarkPlugins: [remarkGfm] },
+        readFileSync(path.join(safetyDir, name), "utf8"),
+      ),
+    );
+  // Sorted by file name, so the output is the same on every file system.
+  const translations = Object.fromEntries(
+    readdirSync(safetyDir)
+      .sort()
+      .map((name) => /^crisis-protocol\.([\w-]+)\.md$/.exec(name))
+      .filter(Boolean)
+      .map(([name, locale]) => [locale, render(name)]),
+  );
+  return `${JSON.stringify(
+    { schema_version: 2, html: render("crisis-protocol.md"), translations },
+    null,
+    2,
+  )}\n`;
+}
+
+/** The file Animama Cloud reads to put the site header on its pages. */
+const SITE_CHROME_FILE = "site-chrome.json";
+
+/**
+ * The site header (`site-header.tsx`) prerendered for Animama Cloud's pages:
+ * one copy each marking About and Download as the current page, and one for
+ * every other page.
+ * `site-chrome.tsx` renders the same component over it once it loads.
+ */
+export async function renderSiteHeaders(server) {
+  // Node loads React (CommonJS, which the module runner cannot evaluate);
+  // the header's own React imports resolve to the same copy.
+  const [{ createElement }, { renderToStaticMarkup }, { SiteHeader }] =
+    await Promise.all([
+      import("react"),
+      import("react-dom/server"),
+      server.ssrLoadModule("/scripts/landing-stage/site-header.tsx"),
+    ]);
+  // React hoists a preload link for the logo ahead of the header; the page
+  // loads it from the header itself.
+  const render = (current) =>
+    renderToStaticMarkup(createElement(SiteHeader, { current })).replace(
+      /^(?:<link [^>]*>)+/,
+      "",
+    );
+  return {
+    default: render(undefined),
+    about: render("about"),
+    download: render("download"),
+  };
+}
+
+/**
+ * Writes `site-chrome.json` beside the build: the header's entry script, every
+ * stylesheet it loads, and its prerendered markup (`renderSiteHeaders`).
+ * Animama Cloud wraps each of its pages' `#site-header` around that markup and
+ * links the styles and script (see the hosted contract's landing site archive).
+ */
+export function siteChromePlugin(getHeaders) {
+  return {
+    name: "animama-site-chrome",
+    generateBundle(_, bundle) {
+      const entry = Object.values(bundle).find(
+        (file) =>
+          file.type === "chunk" && file.isEntry && file.name === "site-chrome",
+      );
+      if (!entry) this.error("The site header entry was not built.");
+      // Its own stylesheets and those of every chunk it imports.
+      const styles = new Set();
+      const seen = new Set();
+      const visit = (chunk) => {
+        if (seen.has(chunk.fileName)) return;
+        seen.add(chunk.fileName);
+        for (const css of chunk.viteMetadata?.importedCss ?? [])
+          styles.add(`/${css}`);
+        for (const name of chunk.imports) visit(bundle[name]);
+      };
+      visit(entry);
+      this.emitFile({
+        type: "asset",
+        fileName: SITE_CHROME_FILE,
+        source: `${JSON.stringify(
+          {
+            schema_version: 1,
+            script: `/${entry.fileName}`,
+            styles: [...styles],
+            headers: getHeaders(),
+          },
+          null,
+          2,
+        )}\n`,
+      });
     },
   };
 }

@@ -148,6 +148,13 @@ Markdown" (saved as `presentation.render_markdown`) can turn this off, which
 falls back to the plaintext renderer and sparkle animation path. User bubbles always
 render as plaintext.
 
+Markdown replies, here and in the Memory Manager, show only images from the
+app's own origin. Any other image shows as text instead: its alt text, or
+Streamdown's `[Image blocked: …]` label for sources Streamdown itself rejects,
+such as `data:` and `blob:` URLs. HTML in a reply shows as text, and a link
+opens only after Streamdown's dialog shows its destination. Product-ui's
+`StreamdownResponse` applies these rules, and callers cannot override them.
+
 ### Model selector behavior
 
 `ChatInputModelSelector` controls the anima's explicit direct-chat profile
@@ -536,7 +543,8 @@ the chat panel. It renders:
 
 `SafetyProtocolDialog` opens `docs/safety/crisis-protocol.md`, bundled with
 Vite's `?raw` import, in place so reading it never interrupts the turn. The
-same document is the `/safety` route, reachable before first run. Under a beta
+same document is the `/safety` route, reachable before first run, and the
+landing build publishes it at animama.ai/safety/ ([landing page](../landing-page.md)). Under a beta
 UI Locale, `useCrisisProtocol` loads `crisis-protocol.<locale>.md` (a machine
 translation; English is authoritative) and shows English until it loads. Vite's
 `server.fs.allow`, the production `Dockerfile`, and the development Compose

@@ -1,5 +1,3 @@
-"use client";
-
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getI18n } from "react-i18next";
 import { toast } from "sonner";
@@ -9,6 +7,7 @@ import type { PyChatResponse } from "@/lib/content/catalogTypes";
 import type { ChatMessage } from "@/ui/main/chat/useChatSession";
 import type { ChatCrisisSupport } from "@animama/product-ui/chat";
 import type { AiNoticeKind } from "@/lib/safety/aiNotice";
+import { isRecord } from "@/lib/records";
 
 const QUICK_CHAT_RENDER_READY_FALLBACK_MS = 150;
 const QUICK_CHAT_BASE_HEIGHT_PX = 760;
@@ -109,10 +108,6 @@ type DesktopQuickChatConsumerControls = {
   sendCommand: (command: DesktopQuickChatCommand) => void;
   snapshot: DesktopQuickChatSnapshot | null;
 };
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
-}
 
 function createQuickChatRuntimeMessage(
   type: DesktopQuickChatRuntimeMessage["type"],

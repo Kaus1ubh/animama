@@ -41,7 +41,7 @@ def strip_optional_refs(projection: Mapping[str, Any], refs: Collection[str]) ->
     return result
 
 
-def strip_sound_events(value: Any, aliases: Collection[str]) -> Any:  # noqa: ANN401
+def strip_sound_events(value: Any, aliases: Collection[str]) -> Any:
     """Drop a clip's ``sfx`` events whose cue names one of ``aliases``.
 
     Any other JSON document is returned unchanged.

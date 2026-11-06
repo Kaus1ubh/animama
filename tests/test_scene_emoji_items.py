@@ -49,7 +49,7 @@ REPOSITORY = Path(__file__).parents[1]
 EMOJI = {"id": "sparkle", "kind": "emoji", "label": "Sparkles", "emoji": "✨", "provider": "twemoji"}
 
 
-def _definition(*, marquee: list[dict[str, Any]] | None = None, scatter: list[dict[str, Any]] | None = None):  # noqa: ANN202
+def _definition(*, marquee: list[dict[str, Any]] | None = None, scatter: list[dict[str, Any]] | None = None):
     """A background with a marquee and one scatter layer holding ``marquee``/``scatter`` items."""
 
     definition = {
@@ -171,21 +171,21 @@ def test_an_included_scene_with_an_emoji_item_is_invalid(tmp_path: Path) -> None
 
 
 @pytest.fixture
-async def _cleanup(async_session):  # noqa: ANN001, ANN202
+async def _cleanup(async_session):
     yield
     await async_session.rollback()
     await async_session.execute(delete(ORMContentCatalogItem).where(ORMContentCatalogItem.owner_user_id == OWNER))
     await async_session.commit()
 
 
-async def _scene(catalog: Any) -> CatalogContentEntry:  # noqa: ANN401
+async def _scene(catalog: Any) -> CatalogContentEntry:
     scene: CatalogContentEntry
     [scene] = [item for item in await catalog.list_visible(user_id=OWNER) if item.kind is ContentKind.SCENE_EFFECT]
     return scene
 
 
 @pytest.mark.usefixtures("_cleanup")
-async def test_save_refuses_an_emoji_item_by_field(async_session, tmp_path) -> None:  # noqa: ANN001
+async def test_save_refuses_an_emoji_item_by_field(async_session, tmp_path) -> None:
     _, catalog, _, saves, _ = package_services(async_session, tmp_path)
     with pytest.raises(ContentConflictError) as refused:
         await saves.save_descriptor(
@@ -204,7 +204,7 @@ async def test_save_refuses_an_emoji_item_by_field(async_session, tmp_path) -> N
 
 
 @pytest.mark.usefixtures("_cleanup")
-async def test_a_local_scene_with_emoji_stays_valid_until_replaced(async_session, tmp_path) -> None:  # noqa: ANN001
+async def test_a_local_scene_with_emoji_stays_valid_until_replaced(async_session, tmp_path) -> None:
     paths, catalog, content, saves, packages = package_services(async_session, tmp_path)
     _write_scene(paths.local_root, _definition())
     await content.rescan(user_id=OWNER)

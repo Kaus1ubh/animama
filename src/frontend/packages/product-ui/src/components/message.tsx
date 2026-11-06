@@ -1,3 +1,5 @@
+// Adapted from ElevenLabs UI and Vercel AI Elements (MIT AND Apache-2.0): apps/www/registry/elevenlabs-ui/ui/message.tsx; modified for Animama.
+// See licenses/third-party/adapted-code.md.
 import {
   useState,
   type ComponentProps,
@@ -153,16 +155,10 @@ export const MessageContent = ({
     >
       <motion.div
         aria-hidden="true"
-        initial={
-          entering ? { opacity: 0.72, scaleX: 0, scaleY: 0 } : false
-        }
-        animate={
-          entering ? { opacity: 1, scaleX: 1, scaleY: 1 } : undefined
-        }
+        initial={entering ? { opacity: 0.72, scaleX: 0, scaleY: 0 } : false}
+        animate={entering ? { opacity: 1, scaleX: 1, scaleY: 1 } : undefined}
         transition={
-          entering
-            ? { duration: 0.42, ease: [0.16, 1, 0.3, 1] }
-            : undefined
+          entering ? { duration: 0.42, ease: [0.16, 1, 0.3, 1] } : undefined
         }
         className={cn(messageContentBackgroundVariants({ variant }))}
         style={{ transformOrigin }}

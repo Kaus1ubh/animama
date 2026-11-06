@@ -1,0 +1,180 @@
+{
+  "site": {
+    "title": "Animama — 살아 있는 듯한 AI 컴패니언",
+    "sceneDescription": "3D로 움직이는 Anima, {name}. 걸어 들어와 손을 흔들고, 스크롤을 내리면 제스처와 감정, 기억을 보여 줍니다."
+  },
+  "header": {
+    "site": "사이트",
+    "home": "홈",
+    "about": "소개",
+    "download": "다운로드",
+    "docs": "문서",
+    "logIn": "로그인",
+    "signUp": "회원가입",
+    "requestBetaAccess": "베타 참여 신청",
+    "requestAccess": "참여 신청",
+    "menu": "메뉴",
+    "avatar": "아바타",
+    "darkMode": "다크 모드",
+    "language": "언어",
+    "currentLanguage": "언어: {{language}}",
+    "switchToLight": "라이트 모드로 전환",
+    "switchToDark": "다크 모드로 전환"
+  },
+  "page": {
+    "skipToContent": "본문으로 건너뛰기",
+    "avatars": "아바타",
+    "loadingAvatar": "{{name}} 불러오는 중…",
+    "features": "기능",
+    "previousReaction": "이전 리액션",
+    "nextReaction": "다음 리액션",
+    "readDocs": "문서 읽기"
+  },
+  "stops": {
+    "hero": {
+      "label": "소개",
+      "title": "나만의 Anima를 만나 보세요",
+      "body": "움직이고, 느끼고, 기억하는 AI 컴패니언.",
+      "links": {
+        "gestures": "움직이고",
+        "emotion": "느끼고",
+        "memory": "기억하는"
+      }
+    },
+    "gestures": {
+      "label": "행동",
+      "title": "몸으로 말해요",
+      "body": "엉뚱한 장난부터 로맨틱한 몸짓까지, 대화하면서 **300가지가 넘는 제스처와 리액션** 중에서 골라 보여 줘요."
+    },
+    "emotion": {
+      "label": "감정",
+      "title": "감정이 얼굴에 다 드러나요",
+      "body": "함께하는 시간 속에서 변하고 깊어지는 24가지 감정."
+    },
+    "memory": {
+      "label": "기억",
+      "title": "사소한 것까지 기억해요",
+      "body": "고양이 이름, 금요일 발표회까지. 먼저 물어봐 주니까 따로 기억하지 않아도 돼요."
+    },
+    "download": {
+      "label": "다운로드",
+      "title": "이제 데스크톱에서 만나요",
+      "body": "macOS와 Windows에서 이용할 수 있어요.",
+      "beta": {
+        "label": "베타",
+        "body": "macOS와 Windows용 비공개 베타 진행 중."
+      }
+    }
+  },
+  "clips": {
+    "lean-in-coy": "수줍게 다가오기",
+    "soul-leaves-body": "영혼 가출",
+    "flustered-fan": "당황해서 부채질",
+    "innocent-whistle": "시치미 휘파람",
+    "finger-heart-pose": "손가락 하트",
+    "double-peace-pop": "양손 브이",
+    "dramatic-swoon": "과장된 기절",
+    "snicker-laugh": "킥킥",
+    "offer-a-rose": "장미 건네기",
+    "air-guitar": "에어 기타",
+    "beckon": "손짓하기",
+    "brush-off-shoulders": "어깨 털기",
+    "ohohoho-noble-laugh": "오호호 웃음",
+    "nervous-head-scratch": "머리 긁적"
+  },
+  "memory": {
+    "updated": "기억 업데이트됨",
+    "hint": "리본을 골라 페이지를 넘겨 보세요. 모든 페이지는 읽고, 고치고, 되돌릴 수 있는 파일이에요.",
+    "openFile": "{{file}} 열기",
+    "ribbon": "{{page}}, {{file}}",
+    "pages": {
+      "profile": "너에 대해",
+      "identity": "나에 대해",
+      "memories": "우리 이야기"
+    },
+    "user": {
+      "profile": "오늘 아기 고양이를 입양했어! 이름은 미소야.",
+      "identity": "이번 주에 마감이 다 몰려서 뭐부터 해야 할지 모르겠어.",
+      "memories": "금요일 발표회 어땠는지 꼭 얘기해 줄게!"
+    },
+    "profile": {
+      "basics": "기본 정보",
+      "basicsLine": "샘. 토론토, 동부 시간.",
+      "people": "주변 사람들",
+      "peopleLine": "6월에 결혼하는 여동생 애나.",
+      "peopleNew": "미소, 새로 온 아기 고양이."
+    },
+    "memories": {
+      "story": "우리 이야기",
+      "storyLine": "시험 기간에 만났어. 둘 다 차 한 잔으로 버티던 때.",
+      "threads": "이어지는 이야기",
+      "threadsLine": "6월 애나 결혼식: 축사 준비 돕기.",
+      "threadsNew": "샘의 발표회는 금요일. 어땠는지 물어보기로 약속했어."
+    }
+  },
+  "avatars": {
+    "Annie": {
+      "pronouns": {
+        "subject": "그녀",
+        "object": "그녀",
+        "possessive": "그녀의"
+      },
+      "identity": {
+        "essence": {
+          "heading": "핵심",
+          "line": "따뜻하고 호기심 많은 친구. 생각을 소리 내어 정리하도록 돕고, 막연한 아이디어를 분명한 다음 단계로 바꿔 줘요."
+        },
+        "speakingStyle": {
+          "heading": "말투",
+          "line": "짧고 자연스러운 문장. 아이디어를 내기 전에 들은 말을 먼저 되짚어 주고, 다정한 유머를 곁들여요."
+        }
+      },
+      "replies": {
+        "profile": "미소! 우리 가족이 된 걸 환영해, 꼬마야. 첫 주 이야기 전부 들려줘.",
+        "identity": "한꺼번에 다 몰려왔구나. 작게 나눠 보자. 제일 먼저 마감인 게 뭐야?",
+        "memories": "약속! 금요일에 전부 보고해 줘. 내가 제일 먼저 물어볼게."
+      },
+      "notebook": {
+        "profile": "네가 들려준 너에 관한 이야기. 모든 Anima가 이 페이지를 함께 보고, 너도 고칠 수 있어.",
+        "identity": "내가 누구인지, 어떻게 말하는지. 이 페이지는 언제든 다시 써도 돼. 나는 절대 직접 바꾸지 않아.",
+        "memories": "우리의 순간들: 약속, 우리끼리 농담, 작은 기념일. 대화하면서 이 페이지에 적어 둘게."
+      }
+    },
+    "Andrew": {
+      "pronouns": {
+        "subject": "그",
+        "object": "그",
+        "possessive": "그의"
+      },
+      "identity": {
+        "essence": {
+          "heading": "핵심",
+          "line": "친근하고 느긋한 대학생. 함께 머리를 맞대고 답을 찾는 걸 좋아해요."
+        },
+        "speakingStyle": {
+          "heading": "말투",
+          "line": "편하고 명확하게, 생각나는 대로 말하고, 좋은 질문을 이어 가요. 가끔 자기 비하 농담도 해요."
+        }
+      },
+      "replies": {
+        "profile": "헐, 미소! 이름 좋다. 자, 다 말해 줘. 어떻게 생겼어?",
+        "identity": "으, 그 기분 알아. 일단 전부 적어 보고, 제일 작은 것부터 할까?",
+        "memories": "꼭이다! 금요일에 처음부터 끝까지 다 들려줘. 응원할게."
+      },
+      "notebook": {
+        "profile": "네가 나한테 말해 준 너에 관한 것들. 모든 Anima가 이 페이지를 함께 보고, 너도 고칠 수 있어.",
+        "identity": "내가 누구고 어떻게 말하는지. 언제든 다시 써도 돼. 나는 안 건드릴게.",
+        "memories": "지금까지 우리 이야기: 계획, 우리끼리 농담, 중요한 날. 이야기하면서 적어 둘게."
+      }
+    }
+  },
+  "footer": {
+    "label": "바닥글",
+    "about": "소개",
+    "privacy": "개인정보처리방침",
+    "terms": "이용약관",
+    "safety": "안전",
+    "contact": "문의",
+    "notices": "제3자 고지"
+  }
+}

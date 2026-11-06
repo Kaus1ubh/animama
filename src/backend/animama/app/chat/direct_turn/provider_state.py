@@ -1,9 +1,14 @@
+"""Per-turn provider decisions for direct chat: model validation, memory-tool and native-tool
+access, reasoning effort, compacted history and Responses continuation cursors.
+"""
+
 from __future__ import annotations
 
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, replace
 from typing import Any, cast
 
+from animama.app.chat.options import DirectChatOptions
 from animama.app.model_clients import (
     ModelClientContinuation,
     ModelClientError,
@@ -15,7 +20,7 @@ from animama.app.model_provider_native_tools import (
     normalized_native_tool_support,
     requestable_native_tool_support,
 )
-from animama.app.safety.moderation import RESPONSES_MODERATION_MODEL
+from animama.app.safety.moderation import OPENAI_MODERATION_MODEL
 from animama.app.util.json_values import json_safe_copy
 from animama.domain import ModelProvider
 from animama.domain.chat import Chat
@@ -26,7 +31,6 @@ from animama.domain.model_connection import (
     MODEL_SOURCE_OWNER,
 )
 
-from ..options import DirectChatOptions
 from .constants import (
     ANTHROPIC_MESSAGES_PROVIDER,
     DIRECT_MEMORY_TOOL_SUPPORT_BY_PROVIDER,
@@ -225,7 +229,7 @@ def build_model_client_provider_options(
     """
 
     return ModelClientProviderOptions(
-        moderation_model=RESPONSES_MODERATION_MODEL
+        moderation_model=OPENAI_MODERATION_MODEL
         if provider_moderation and model_provider.provider_type == OPENAI_RESPONSES_PROVIDER
         else None,
         native_tools=hosted_native_tools(model_provider, request_options),

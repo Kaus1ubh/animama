@@ -1,4 +1,4 @@
-import { BrowserWindow, screen, type WebContents } from "electron";
+import { app, BrowserWindow, screen, type WebContents } from "electron";
 
 import type { DesktopConfig } from "../config.js";
 import {
@@ -48,8 +48,8 @@ export type DesktopPipCursorSnapshot = {
 
 /**
  * Messages between the owner window and PiP. PiP sends `ready`,
- * `camera-preset` and `voice-command`; the owner sends Avatar `snapshot` /
- * `incremental` state and `voice` state.
+ * `camera-preset`, `planner-events-consumed` and `voice-command`; the owner
+ * sends Avatar `snapshot` / `incremental` state and `voice` state.
  */
 export type DesktopPipRuntimeMessage = {
   type:
@@ -57,6 +57,7 @@ export type DesktopPipRuntimeMessage = {
     | "snapshot"
     | "incremental"
     | "camera-preset"
+    | "planner-events-consumed"
     | "voice"
     | "voice-command";
   sequence: number;
@@ -345,6 +346,7 @@ function normalizeRuntimeMessage(value: unknown): DesktopPipRuntimeMessage {
     message.type !== "snapshot" &&
     message.type !== "incremental" &&
     message.type !== "camera-preset" &&
+    message.type !== "planner-events-consumed" &&
     message.type !== "voice" &&
     message.type !== "voice-command"
   ) {
@@ -484,6 +486,8 @@ export class PipWindowManager {
         nodeIntegration: false,
         sandbox: true,
         webSecurity: true,
+        // Packaged builds open no DevTools.
+        devTools: !app.isPackaged,
       },
     });
     this.pipWindow = pipWindow;
@@ -670,11 +674,12 @@ export class PipWindowManager {
     if (!isOwnerSender && !isPipSender) {
       throw new Error("PiP runtime message came from an unknown renderer");
     }
-    // PiP sends readiness, camera preset requests and voice commands; the
-    // owner sends state.
+    // PiP sends readiness, camera preset requests, the planner events its
+    // Avatar consumed and voice commands; the owner sends state.
     const fromPipOnly =
       message.type === "ready" ||
       message.type === "camera-preset" ||
+      message.type === "planner-events-consumed" ||
       message.type === "voice-command";
     if (fromPipOnly && !isPipSender) {
       writeLog(

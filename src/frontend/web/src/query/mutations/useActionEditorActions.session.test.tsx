@@ -4,8 +4,8 @@ import { createRoot, type Root } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { RuntimeOwnerProvider } from "@web/app/runtime/RuntimeOwnerContext";
-import { privateStateResets } from "@web/app/runtime/private-module-state";
+import { RuntimeOwnerProvider } from "@/app/runtime/RuntimeOwnerContext";
+import { privateStateResets } from "@/app/runtime/private-module-state";
 import { createActionDocument } from "@/ui/action-editor/actionDocument";
 import { useActionEditorActions } from "./useActionEditorActions";
 

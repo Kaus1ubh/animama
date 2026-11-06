@@ -11,12 +11,15 @@ import json
 import sys
 from importlib.resources import files
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from alembic.config import Config
 
 RESOURCE_INPUTS = {
-    "alembic": "alembic",
-    "alembic.ini": "alembic.ini",
-    "sql": "alembic/seeds",
+    "alembic": "src/backend/migrations",
+    "alembic.ini": "src/backend/alembic.ini",
+    "sql": "src/backend/migrations/seeds",
     "animation-manifest.json": "src/frontend/web/src/assets/vrm/animations/manifest.json",
 }
 
@@ -35,7 +38,7 @@ def runtime_resource(name: str) -> Path:
     return Path(__file__).resolve().parents[4] / RESOURCE_INPUTS[name]
 
 
-def alembic_config():  # noqa: ANN201
+def alembic_config() -> Config:
     """Use packaged migration scripts without invoking an external executable."""
 
     from alembic.config import Config
@@ -48,9 +51,9 @@ def alembic_config():  # noqa: ANN201
 def audit_resources() -> dict[str, Any]:
     """Validate resource structure without a database, HTTP listener, or provider key."""
 
+    from alembic.script import ScriptDirectory
     from fastapi.routing import iter_route_contexts
 
-    from alembic.script import ScriptDirectory
     from animama.app.services.starter_loadout_policy import starter_loadout_policy
     from animama.prompts.avatar_animation_manifest import get_manifest_gesture_inventory
     from animama.server.app import app

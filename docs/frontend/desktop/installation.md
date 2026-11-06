@@ -1,28 +1,30 @@
 # Install and use Animama Desktop
 
-**No signed public release is available.** This guide describes the implemented
-desktop flow and the intended installer. Fresh-source staging, complete starter
-inputs, signed/native tests and publication approval remain pending. Local
-signed candidates can be transferred privately after signing and input review.
-Developers should use [Platform builds](platforms.md).
+Signed macOS preview builds 0.1.0 to 0.1.2 have been published for testing.
+Animama's prebuilt downloads, update feed and model downloads end before
+2027-01-01; before then, a final release stops checking for updates and
+explains what has changed. Installed apps keep working afterwards: chat,
+Avatars and the three built-in voices need nothing from Animama's servers. No
+Windows installer is published. Developers should use
+[Platform builds](platforms.md).
 
 ## Supported target
 
 | Platform                                     | Current position                                                                                  |
 | -------------------------------------------- | ------------------------------------------------------------------------------------------------- |
-| Apple silicon Mac, macOS 15 or later         | Declared minimum; fresh build, macOS 15 testing, clean-machine and signed acceptance remain open. |
-| Windows 11 x64 (build 22000 or later)        | Per-user installer; signed candidates build, and clean-machine acceptance and a real signed upgrade remain open. |
+| Apple silicon Mac, macOS 15 or later         | Signed previews published. macOS 15 and clean-machine testing are part of each release's acceptance. |
+| Windows 11 x64 (build 22000 or later)        | Per-user installer built from source; no installer is published, and clean-machine acceptance and a real signed upgrade remain open. |
 | Intel Mac, universal Mac, Windows ARM, Linux | No supported self-contained release.                                                              |
 
 The installed app contains its own local services and database. It does not
 require Docker, Python, Node.js, PostgreSQL, Homebrew or a source checkout.
 
-## First launch, once an approved installer is available
+## First launch
 
-1. Download the installer for your computer from the announced Animama release
-   page: the macOS arm64 DMG, or `Animama-<version>-x64-setup.exe` for Windows.
-   Use its release notes and checksums; do not substitute an unsigned
-   development build.
+1. Until downloads end, download the macOS arm64 DMG from the announced
+   Animama release page, using its release notes and checksums; do not
+   substitute an unsigned development build. A Windows installer, built from
+   source as `Animama-<version>-x64-setup.exe`, installs as described below.
 2. **macOS:** open the DMG, copy **Animama.app** to Applications, and open it
    through Finder. If macOS reports a damaged or unverified app, stop and use
    [Troubleshooting](troubleshooting.md). Do not disable Gatekeeper or strip
@@ -55,9 +57,9 @@ require Docker, Python, Node.js, PostgreSQL, Homebrew or a source checkout.
    for Japanese, Korean and Chinese, Parakeet for English), and each version
    offers its download. It also offers the Text-to-Speech provider: built-in
    PocketTTS, on by default, or ElevenLabs with its key. Both choices are
-   saved at **Finish**. Nothing downloads
-   unless you choose it,
-   and downloads keep going after you finish. Choose **Finish**, then confirm
+   saved at **Finish**. Nothing downloads unless you choose it, and downloads
+   keep going after you finish. After the final release, a version that is not
+   installed stays unavailable instead. Choose **Finish**, then confirm
    that you are 18 or older and agree to the
    [Terms of Service](https://animama.ai/terms/) in the short modal before
    Annie's chat opens; it also links the
@@ -100,7 +102,9 @@ re-enter a key merely to repair it.
 PocketTTS and microphone permission do not require a speech recognition model.
 Offline dictation and Voice Mode require the offline speech recognition CPU
 model for the app's language, downloaded in setup's Voice step or App Settings
-→ Voice without restarting the app. Open the app
+→ Voice without restarting the app. It cannot be downloaded after the final
+release; an installation that downloaded it earlier keeps it, and can remove it
+in App Settings → Voice. Open the app
 normally through Finder for microphone permission tests and allow Animama in
 macOS Privacy & Security when prompted. On Windows, microphone access follows
 Settings → Privacy & security → Microphone, including **Let desktop apps access
@@ -116,8 +120,8 @@ content you create/import belongs in the writable Local library. The app uses
 private loopback services and is not a shared LAN application.
 
 Local content, history and installed local speech assets remain on the computer.
-Downloading speech models, a pack or an app update needs Internet access, as do
-configured remote AI/voice providers. An installed offline speech model
+Downloading speech models or an app update needs Internet access, as do
+configured remote AI/voice providers; the final release downloads neither. An installed offline speech model
 transcribes offline; that does not make
 remote chat work offline. Desktop does not need an Animama account for local use.
 
@@ -130,10 +134,15 @@ can be imported. Complete starter animation acquisition remains a release gate. 
 
 ## Updates, backup and removal
 
-A configured release checks for updates without blocking startup. Settings →
-General offers **Check for updates**. **Download update** and **Restart to
+A configured release checks for updates without blocking startup, and
+Settings → General offers **Check for updates**. The final release never checks
+and offers none; after downloads end, older builds' checks fail quietly. The
+preview builds 0.1.0 to 0.1.2 also send your system language and a random ID
+that stays the same for each installation; the
+[safety and crisis protocol](../../safety/crisis-protocol.md#your-data) lists
+what the desktop app sends and when. **Download update** and **Restart to
 install** are separate decisions; ordinary Quit never installs an update.
-Current unconfigured development builds do not have a working update feed.
+Unconfigured development builds do not have a working update feed.
 An update can refuse to proceed while a pack is busy or in-use content would
 become unavailable. Keep using the current version until the issue is resolved.
 

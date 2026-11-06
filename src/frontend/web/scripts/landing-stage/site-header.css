@@ -1,0 +1,88 @@
+/*
+ * The site header's glass (`site-header.tsx`), shared by the landing page
+ * (`stage.css`) and the header Animama Cloud's pages load (`site-chrome.css`).
+ */
+
+/*
+ * Liquid glass for the header: a clear, slightly brightening pane with a
+ * bright top edge and a soft shadow, so the page shows through it.
+ */
+.liquid-glass {
+  background: linear-gradient(
+    180deg,
+    rgb(255 255 255 / 0.42),
+    rgb(255 255 255 / 0.14)
+  );
+  backdrop-filter: blur(14px) saturate(180%);
+  border: 1px solid rgb(255 255 255 / 0.65);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.9),
+    inset 0 -1px 0 rgb(0 0 0 / 0.03),
+    0 1px 2px rgb(0 0 0 / 0.04),
+    0 8px 24px -10px rgb(60 50 120 / 0.18);
+  transition:
+    background 500ms,
+    border-color 500ms;
+}
+.liquid-glass[data-ink="light"],
+.dark .liquid-glass {
+  backdrop-filter: blur(14px) saturate(110%);
+  background: linear-gradient(
+    180deg,
+    rgb(255 255 255 / 0.2),
+    rgb(255 255 255 / 0.06)
+  );
+  border-color: rgb(255 255 255 / 0.28);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.35),
+    0 8px 24px -10px rgb(0 0 0 / 0.3);
+}
+
+/*
+ * The header pill's hover highlight: one soft glass bubble that glides and
+ * resizes to the item under the pointer, then fades when the pointer leaves.
+ */
+.pill-glow {
+  background: rgb(255 255 255 / 0.75);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.9),
+    0 1px 3px rgb(60 50 120 / 0.12);
+  transition:
+    translate 260ms cubic-bezier(0.22, 1, 0.36, 1),
+    width 260ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 180ms ease;
+}
+.liquid-glass[data-ink="light"] .pill-glow,
+.dark .pill-glow {
+  background: rgb(255 255 255 / 0.16);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.25);
+}
+@media (prefers-reduced-motion: reduce) {
+  .pill-glow {
+    transition: opacity 120ms ease;
+  }
+}
+
+/* The wordmark, a mask over the text colour (`Wordmark`). */
+.wordmark-mask {
+  mask: url(/brand/animama-wordmark.png) center / contain no-repeat;
+}
+
+/*
+ * On Animama Cloud's pages, a header for a visitor in another language stays
+ * hidden while `site-chrome.tsx` rewords its English prerender (`theme.js`
+ * marks the page), and so does each part of the page it swaps for a
+ * translation (`data-localized`); after two seconds they show regardless,
+ * in case the script cannot load. Only a page whose header has the language
+ * picker waits: during the closed beta it stays English.
+ */
+[data-locale-pending] #site-header:has([data-locale-picker]),
+[data-locale-pending]:has(#site-header [data-locale-picker]) [data-localized] {
+  visibility: hidden;
+  animation: site-header-reveal 0s 2s forwards;
+}
+@keyframes site-header-reveal {
+  to {
+    visibility: visible;
+  }
+}

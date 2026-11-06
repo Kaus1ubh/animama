@@ -23,10 +23,39 @@ import {
  * A camera: a chat preset, `pip` (the desktop PiP window's default preset),
  * `face` (a face close-up that follows the head, as review sheets draw it),
  * `landing` / `landing:<stop>` (a landing page stop's framing; `landing` is
- * the hero close-up), or a landing-style framing whose fields override the
- * hero close-up's.
+ * the hero close-up), a landing-style framing whose fields override the
+ * hero close-up's, a fixed camera, or a moving camera's keys.
  */
-export type ReelCamera = string | Partial<StageCamera>;
+export type ReelCamera =
+  | string
+  | Partial<StageCamera>
+  | ReelFixedCamera
+  | { keys: ReelCameraKey[] };
+
+/** How a root or camera key is eased into from the key before. */
+export type ReelEase = "linear" | "in" | "out" | "inOut";
+
+export const REEL_EASE: Record<ReelEase, (u: number) => number> = {
+  linear: (u) => u,
+  in: (u) => u * u * u,
+  out: (u) => 1 - (1 - u) ** 3,
+  inOut: (u) => (u < 0.5 ? 4 * u * u * u : 1 - (-2 * u + 2) ** 3 / 2),
+};
+
+/** A key of a moving camera: a fixed camera at take time `at`, eased into. */
+export type ReelCameraKey = ReelFixedCamera & {
+  at: number;
+  ease?: ReelEase;
+};
+
+/** A camera standing still in the scene, whatever the Avatar's size. */
+export type ReelFixedCamera = {
+  position: [number, number, number];
+  target: [number, number, number];
+  fov?: number;
+  shift?: number;
+  lift?: number;
+};
 
 /** Where a camera stands, plus a landing framing's lens shift (frame shares). */
 export type ReelCameraView = {
@@ -46,19 +75,26 @@ function headHeight(avatar: Avatar): number {
 }
 
 /**
- * Where the camera stands for `camera`: a chat preset, `pip`, or a landing
+ * Where the camera stands for `camera`: a chat preset, `pip`, a landing
  * page stop placed as `landing-stage/stage.ts` places it (orbit, aim and
  * distance in head heights, the stop's tall framing on a tall frame) with
- * its lens shift.
+ * its lens shift, a fixed camera, or a moving camera's first key.
  */
 export function cameraView(
   avatar: Avatar,
   camera: ReelCamera,
   { width, height }: Size,
 ): ReelCameraView {
+  if (typeof camera === "object" && "keys" in camera)
+    return fixedView(camera.keys[0]!);
+  if (typeof camera === "object" && "position" in camera)
+    return fixedView(camera as ReelFixedCamera);
   if (typeof camera === "object") {
     const hero = STAGE_STOPS.find(({ id }) => id === "hero")!;
-    return landingView(avatar, { ...hero.camera, ...camera });
+    return landingView(avatar, {
+      ...hero.camera,
+      ...(camera as Partial<StageCamera>),
+    });
   }
   if (camera === "face")
     return {
@@ -104,6 +140,49 @@ function landingView(avatar: Avatar, view: StageCamera): ReelCameraView {
       fov: view.fov,
     },
     offset: { shift: view.shift, lift: view.lift },
+  };
+}
+
+/** A camera standing at `position`, looking at `target`, in metres. */
+function fixedView(fixed: ReelFixedCamera) {
+  return {
+    framing: {
+      position: new THREE.Vector3(...fixed.position),
+      target: new THREE.Vector3(...fixed.target),
+      fov: fixed.fov ?? 35,
+    },
+    offset: { shift: fixed.shift ?? 0, lift: fixed.lift ?? 0 },
+  };
+}
+
+/** A moving camera at take time `time`: eased between its keys. */
+export function cameraAt(
+  keys: readonly ReelCameraKey[],
+  time: number,
+): ReelCameraView {
+  const next = keys.findIndex((key) => key.at > time);
+  if (next === -1 || next === 0)
+    return fixedView(keys[next === 0 ? 0 : keys.length - 1]!);
+  const a = fixedView(keys[next - 1]!);
+  const b = fixedView(keys[next]!);
+  const key = keys[next]!;
+  const u = REEL_EASE[key.ease ?? "linear"](
+    (time - keys[next - 1]!.at) / (key.at - keys[next - 1]!.at),
+  );
+  // The lens zooms evenly: its scale (1 / tan of half the fov) moves linearly.
+  const zoom = (fov: number) => 1 / Math.tan(THREE.MathUtils.degToRad(fov) / 2);
+  const scale =
+    zoom(a.framing.fov) + (zoom(b.framing.fov) - zoom(a.framing.fov)) * u;
+  return {
+    framing: {
+      position: a.framing.position.clone().lerp(b.framing.position, u),
+      target: a.framing.target.clone().lerp(b.framing.target, u),
+      fov: THREE.MathUtils.radToDeg(2 * Math.atan(1 / scale)),
+    },
+    offset: {
+      shift: a.offset.shift + (b.offset.shift - a.offset.shift) * u,
+      lift: a.offset.lift + (b.offset.lift - a.offset.lift) * u,
+    },
   };
 }
 

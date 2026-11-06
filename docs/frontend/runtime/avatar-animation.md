@@ -92,7 +92,7 @@ The avatar runtime is split into four layers:
 4. **Chat/SSE integration layer**  
    Files:
    - `src/frontend/web/src/ui/main/chat/useChatSession.ts`
-   - `src/frontend/web/src/query/mutations/useChatSse.ts`
+   - `src/frontend/packages/product-ui/src/query/mutations/useChatSse.ts`
    - `src/frontend/web/src/ui/main/chat/ChatInterface.tsx`  
      Converts chat lifecycle + SSE events into avatar store updates.
 
@@ -261,7 +261,9 @@ Important behavior:
 - Clips can define optional `fadeIn` and `fadeOut` playback envelopes. Fade-in
   blends from the current normalized avatar pose into the sampled clip, while
   fade-out blends sampled clip output back to the app default pose path
-  (`relaxedRest` today) before automatic playback resumes. Pose clip events are
+  (`relaxedRest` today) before automatic playback resumes. A bone position the
+  fade's target leaves out (usually the hips) fades to rest rather than holding
+  its offset, so a clip ends without a jump. Pose clip events are
   not newly dispatched during fade-out; active VFX events remain owned by the
   clip and clear when their event duration expires or when the clip fully
   stops.
@@ -816,6 +818,11 @@ from `src/frontend/web`:
     weights over the face for a window, ramping in and out, and `mood` cues
     set the feelings chat would report, which drive the emotion face and
     posture. A take can set its own `avatar`, `camera` and `duration`.
+    `enter` replaces a Gesture cue's own fade-in. A `vrma` cue plays a VRM
+    Animation file as the app plays a VRMA Gesture, and a take's `root` keys
+    move the Avatar on the floor. A camera can also stand still at a
+    `position` and `target` in metres, or ease between timed `keys`, so
+    several takes share one scene and their layers stack.
   - `--avatar-file <file.vrm>` reads a local VRM in place (lilToon included);
     keep third-party Avatars and their reels out of the repository.
   - `--camera pip` frames the desktop PiP window's default preset (record at
@@ -1960,7 +1967,7 @@ about 75% → 45% of a core idle, and about 26% at the idle rate.
 
 The Avatar is idle when the interaction phase is `idle` and
 `avatar.isMotionActive()` is false: an `idle` animation state, no reaction clip
-and no Avatar or particle effect. `AvatarCanvasActor` writes this into the
+and no Avatar or particle effect (finishing particles included). `AvatarCanvasActor` writes this into the
 scene's `SceneFrameDemand` after each update. Window pointer, wheel and key
 input, and in PiP the desktop cursor feed, keep the full rate for
 `SCENE_INPUT_ACTIVE_MS` (1.5 s) so cursor look-at stays smooth. Scenes with a

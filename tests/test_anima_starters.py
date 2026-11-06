@@ -578,7 +578,7 @@ async def test_supplied_fixture_content_can_materialize_both_starters(async_sess
         assert removed.semantic_key not in {gesture.semantic_key for gesture in loadout.gestures}
 
 
-def assert_starter_reaction_pools(loadout) -> None:  # noqa: ANN001
+def assert_starter_reaction_pools(loadout) -> None:
     """All 96 cells hold exactly their Included starter Reactions: one at intensity 1, two at 2-4 (D16)."""
 
     pools = starter_reaction_pools()
@@ -689,7 +689,7 @@ async def test_tracked_checkout_materializes_both_starters_without_optional_loca
         assert sorted(map(tuple, bindings)) == sorted({row[0]: row for row in expected}.values())
         applied = await service.read_model(user_id=fixture.owner, anima_id=bare.id)
 
-        def idle_pool(value) -> dict[str, list[str]]:  # noqa: ANN001
+        def idle_pool(value) -> dict[str, list[str]]:
             pool = {"default": sorted(idle_keys(value.idle.default_pool))}
             pool.update(
                 (f"{cell.emotion}-{cell.intensity}", sorted(idle_keys(cell.gestures))) for cell in value.idle.cells

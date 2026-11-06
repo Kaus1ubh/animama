@@ -16,6 +16,8 @@ import {
   embeddingsStatusText,
   formatContextWindow,
   isPrivateNetworkUrl,
+  keyOrigin,
+  keyOriginVariable,
   keyWouldTravelInsecurely,
   defaultLocationProvider,
   locationProviderGroups,
@@ -226,6 +228,26 @@ describe("connection safety and errors", () => {
     ["not a url", false],
   ])("warns about keys sent over plain http to %s: %s", (url, expected) => {
     expect(keyWouldTravelInsecurely(url)).toBe(expected);
+  });
+
+  it.each([
+    ["https://LAB.example.test:443/v1", "https://lab.example.test"],
+    ["http://127.0.0.1:8000/v1", "http://127.0.0.1:8000"],
+    ["http://[::1]:8080/v1", "http://[::1]:8080"],
+    [" https://lab.example.test:8443/v1 ", "https://lab.example.test:8443"],
+    ["ftp://lab.example.test", null],
+    ["not a url", null],
+    [null, null],
+  ])("saves a key for the origin of %s", (url, expected) => {
+    expect(keyOrigin(url)).toBe(expected);
+  });
+
+  it("names the origin variable only for a connection key", () => {
+    expect(keyOriginVariable(" ANIMAMA_CONNECTION_LAB_API_KEY ")).toBe(
+      "ANIMAMA_CONNECTION_LAB_ORIGIN",
+    );
+    expect(keyOriginVariable("OPENAI_API_KEY")).toBeNull();
+    expect(keyOriginVariable("MY_SERVER_API_KEY")).toBeNull();
   });
 
   it("uses category copy for connection failures and never echoes server text", () => {

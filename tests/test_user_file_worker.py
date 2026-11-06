@@ -23,7 +23,7 @@ from animama.orm.user_file_processing_job import ORMUserFileProcessingJob
 from animama.workers.user_file_processing import UserFileProcessingWorker
 
 
-async def _resolve_fake_embedder(_session, _user_id):  # noqa: ANN001
+async def _resolve_fake_embedder(_session, _user_id):
     return _FakeEmbedder()
 
 
@@ -337,7 +337,7 @@ def test_worker_reads_exact_bytes_through_private_storage_port() -> None:
 
     class FakePrivateStorage:
         @contextmanager
-        def open_bounded(self, locator: str, *, expected_size_bytes: int):  # noqa: ANN202
+        def open_bounded(self, locator: str, *, expected_size_bytes: int):
             assert locator == "user-files/user-1/file-1/original"
             assert expected_size_bytes == len(payload)
             yield SimpleNamespace(

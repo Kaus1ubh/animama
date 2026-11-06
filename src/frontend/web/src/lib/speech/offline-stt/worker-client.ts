@@ -8,6 +8,7 @@
 import type { Client } from "@animama/runtime-contracts/sdk";
 import { createLogger } from "@/lib/logger";
 import { fetchRuntimeCapabilities } from "@/query/runtime-capabilities";
+import { fetchModelDownloadsEnded } from "@/query/model-download-coordination";
 import {
   createModelAssetLeaseApi,
   holdModelAssetLease,
@@ -50,7 +51,8 @@ export type OfflineSttEngineConfig<Urls extends OfflineSttModelUrls> = {
   createWorker: () => Worker;
   availability: (capabilities: RuntimeCapabilities) => OfflineSttAvailability;
   /** The error a start shows when the engine is unavailable, worded for the user. */
-  unavailableError: () => Error;
+  /** The set is not available; `downloadsEnded` says it can no longer be downloaded. */
+  unavailableError: (downloadsEnded: boolean) => Error;
   /** Backend model-asset ids of the CPU set and the optional GPU set. */
   assetIds: { base: string; gpu: string };
   /** The CPU set's files by role, as same-origin paths. */
@@ -504,7 +506,8 @@ export function createOfflineSttClient<Urls extends OfflineSttModelUrls>(
       await fetchRuntimeCapabilities(apiClient),
     );
     // Dictation shows this message; worker and transport failures stay English.
-    if (!availability.enabled) throw engine.unavailableError();
+    if (!availability.enabled)
+      throw engine.unavailableError(await fetchModelDownloadsEnded(apiClient));
     await cancelIdleDispose("load");
 
     const plan: ReturnType<typeof resolveSpeechBackend> = !preferWebgpu

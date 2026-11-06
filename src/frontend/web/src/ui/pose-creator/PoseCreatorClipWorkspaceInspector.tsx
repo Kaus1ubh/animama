@@ -1,5 +1,3 @@
-"use client";
-
 import { SlidersHorizontalIcon, Trash2Icon, XIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";

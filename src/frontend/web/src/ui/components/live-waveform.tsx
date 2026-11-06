@@ -1,4 +1,5 @@
-"use client";
+// Adapted from ElevenLabs UI (MIT): apps/www/registry/elevenlabs-ui/ui/live-waveform.tsx.
+// See licenses/third-party/adapted-code.md.
 
 import {
   useEffect,

@@ -136,7 +136,7 @@ def anima_clip(
     }
 
 
-def package_services(async_session, tmp_path: Path):  # noqa: ANN001, ANN202
+def package_services(async_session, tmp_path: Path):
     """Create the real filesystem/catalog/package service graph for a test."""
 
     paths = initialize_local_runtime(
@@ -164,7 +164,7 @@ def package_services(async_session, tmp_path: Path):  # noqa: ANN001, ANN202
     return paths, catalog, content, saves, packages
 
 
-async def save_wave(saves: ContentSaveService, *, label: str = "original"):  # noqa: ANN202
+async def save_wave(saves: ContentSaveService, *, label: str = "original"):
     """Save one self-describing standalone Gesture through the public service."""
 
     return await saves.save_standalone(

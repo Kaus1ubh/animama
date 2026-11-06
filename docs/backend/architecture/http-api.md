@@ -177,7 +177,7 @@ local server package, so any composition can return the same contract; the local
 router is a thin adapter. `runtime_kind` is presentation metadata (`desktop`,
 `self_hosted_web` or `hosted`), not an authentication mode or a feature gate;
 the local composition never reports `hosted`. Capability schema version 2 is
-exported in `local-http` contract version 21.0.0. `chat`, `model_selection` and
+exported in `local-http` contract version 22.0.0. `chat`, `model_selection` and
 `model_role_selection` admit chat and choices from the composition's catalog,
 independently of provider administration. The local adapter reports them true.
 `provider_credentials` and `local_filesystem_administration` describe owner key
@@ -296,14 +296,19 @@ closed on conflict.
 
 ## Model Assets
 
-The shared downloader installs files listed in the release's packaged catalog
+The shared downloader manages files listed in the release's packaged catalog
 (`animama/resources/model-assets.v1.json`, schema `animama-asset-catalog/1`).
 Requests name assets by catalog ID only; the release URL is never accepted from
 or returned to the browser. All routes use the admitted installation principal.
+The final release turns local downloads off (`MODEL_DOWNLOADS_OFFERED`):
+assets installed earlier then keep working and can be removed, and nothing new
+is downloaded.
 
-- `GET /v1/model-assets` returns `{"assets": [...], "free_bytes": N}` for every
+- `GET /v1/model-assets` returns
+  `{"assets": [...], "free_bytes": N, "downloads_offered": true}` for every
   catalog entry. `free_bytes` is the store filesystem's free space, or `null`
-  when it cannot be measured.
+  when it cannot be measured. `downloads_offered` is false once downloads have
+  ended; it is optional, and an absent value means true.
 - `GET /v1/model-assets/{asset_id}` returns one state: `id`, `status`
   (`not_installed`, `downloading`, `installed` or `failed`), `size_bytes` (all
   files), `required_free_bytes` (size plus 64 MiB headroom), `media_type`
@@ -317,7 +322,11 @@ or returned to the browser. All routes use the admitted installation principal.
   `asset_size_invalid`, `asset_hash_invalid`, `asset_store_failed` or
   `asset_insufficient_space`).
 - `POST /v1/model-assets/{asset_id}:install` returns `202` with the current
-  state. It is idempotent: concurrent calls share one download and an installed
+  state. An installed asset returns `202` as installed. While downloads are not
+  offered, an asset that is not installed returns
+  `409 {"detail": {"code": "model_downloads_ended", "details": {}}}` before
+  any requirement or free-space check, and nothing is fetched or staged. Otherwise it is
+  idempotent: concurrent calls share one download and an installed
   asset stays installed. A retry resumes from staged bytes. With less free
   space than the remaining bytes plus 64 MiB, nothing is
   fetched and the state is `failed` with `asset_insufficient_space`
@@ -1123,6 +1132,20 @@ A connection's `credential` takes one of three modes:
   built-in Anthropic connection reads it;
 - `{"mode": "managed"}`: read the key from `ANIMAMA_CONNECTION_<ID>_API_KEY`,
   derived from the connection ID, which the desktop vault sets.
+
+A key that a connection names is sent only to its own origin (the built-in
+OpenAI connection keeps the operator's `OPENAI_BASE_URL`). A provider variable's key goes only to
+that provider's API (`PROVIDER_CREDENTIAL_ORIGINS` in
+`app/model_clients/credential_store.py`). An `ANIMAMA_CONNECTION_<NAME>_API_KEY`
+key goes only to the origin in `ANIMAMA_CONNECTION_<NAME>_ORIGIN`, which the
+desktop vault delivers with the key and a self-hosted operator sets. No such
+key is sent over plain HTTP unless the host is this computer. A connection whose key
+cannot be sent to its base URL reports `credential_state: "missing"`. Create and
+update refuse `400 credential_insecure_transport` for any key over plain HTTP to
+another computer, and `400 credential_origin_mismatch` for a provider key at
+another origin or an operator's connection key whose `_ORIGIN` differs. A
+managed key moved to another origin is accepted and reports `missing` until the
+owner enters it again.
 
 Removal is soft: rows and connections become inactive because chat profiles
 and chat history still reference them. When Animas or role preferences use the

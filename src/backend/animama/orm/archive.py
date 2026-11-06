@@ -1,3 +1,5 @@
+# Adapted from Letta (Apache-2.0): letta/orm/archive.py; modified for Animama.
+# See licenses/third-party/adapted-code.md.
 import uuid
 from typing import TYPE_CHECKING, Any
 

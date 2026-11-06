@@ -108,7 +108,6 @@ export function CreateAnimaReviewStep({
         </div>
         <MemoryMarkdownPreview
           value={spec?.identity_markdown ?? draft.identity_markdown}
-          allowImages={false}
           className="mt-3 text-sm break-words"
         />
       </section>

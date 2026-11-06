@@ -1,5 +1,3 @@
-"use client";
-
 import * as THREE from "three";
 
 import {
@@ -1054,6 +1052,21 @@ function createHoverSkinBackdropMaterial(args: {
     height,
     templateTexture: templateSlot.texture,
   });
+
+  // A custom shader other than MToon (three-liltoon's, say) skins and blends
+  // its own way and draws an opaque dark box on the unskinned card, so the
+  // card gets a plain skin-coloured material instead of the face's clone.
+  const cloneable =
+    !(sourceMaterial instanceof THREE.ShaderMaterial) ||
+    (sourceMaterial as { isMToonMaterial?: boolean }).isMToonMaterial === true;
+  if (!cloneable) {
+    return new THREE.MeshBasicMaterial({
+      map: generatedTexture,
+      transparent: true,
+      depthWrite: false,
+      side: THREE.DoubleSide,
+    });
+  }
 
   const materialClone = sourceMaterial.clone();
   const materialRecord = materialClone as THREE.Material &

@@ -35,13 +35,13 @@ class _FakeProbe:
         self.calls: list[tuple[str, str, str]] = []
         self.listed: list[Any] = []
 
-    async def list_models(self, connection):  # noqa: ANN001
+    async def list_models(self, connection):
         self.listed.append(connection)
         if self.fail:
             raise ModelConnectionProbeError("Probe failed", category=self.fail_category)
         return ["qwen3:8b", "gemma4:e4b"]
 
-    async def probe_chat_model(self, connection, *, model):  # noqa: ANN001
+    async def probe_chat_model(self, connection, *, model):
         self.calls.append(("chat", connection.id, model))
         return ModelProbeReport(
             model=model,
@@ -52,16 +52,16 @@ class _FakeProbe:
             context_window_tokens=8192,
         )
 
-    async def probe_responses_model(self, connection, *, model):  # noqa: ANN001
+    async def probe_responses_model(self, connection, *, model):
         self.calls.append(("responses", connection.id, model))
         return ModelProbeReport(model=model, steps=(ModelProbeStep(name="available", ok=True),))
 
-    async def probe_embedding_model(self, connection, *, model):  # noqa: ANN001
+    async def probe_embedding_model(self, connection, *, model):
         self.calls.append(("embedding", connection.id, model))
         return ModelProbeReport(model=model, embedding_dimensions=768)
 
 
-def _app(session, tmp_path, owner_id: str, probe: _FakeProbe | None = None, **settings) -> FastAPI:  # noqa: ANN001, ANN003
+def _app(session, tmp_path, owner_id: str, probe: _FakeProbe | None = None, **settings) -> FastAPI:
     app = FastAPI()
     app.state.runtime_settings = Settings(
         animama_content_root=tmp_path / "content",
@@ -87,7 +87,7 @@ def _app(session, tmp_path, owner_id: str, probe: _FakeProbe | None = None, **se
     return app
 
 
-async def _seed_builtins(session) -> None:  # noqa: ANN001
+async def _seed_builtins(session) -> None:
     await ModelProviderCatalogService(
         model_providers=SQLAlchemyModelProviderRepository(session),
         uow=SQLAlchemyUnitOfWork(session),
@@ -515,7 +515,7 @@ async def test_detect_lists_a_real_server_without_a_key_and_bounds_the_models(
 
     original_init = AsyncOpenAI.__init__
 
-    def _init(self, *args, **kwargs):  # noqa: ANN001, ANN002, ANN003
+    def _init(self, *args, **kwargs):
         kwargs["http_client"] = httpx2.AsyncClient(transport=httpx2.MockTransport(server))
         original_init(self, *args, **kwargs)
 
@@ -592,7 +592,7 @@ async def test_connection_updates_keep_omitted_fields_and_relabel_their_models(a
                 json=_connection_body(
                     name="Workstation",
                     preset="custom",
-                    base_url="http://192.168.1.20:8000/v1",
+                    base_url="https://192.168.1.20:8443/v1",
                     credential={"mode": "env", "env": "ANIMAMA_CONNECTION_WORKSTATION_API_KEY"},
                     compatibility={"fold_developer_role": False, "send_openai_extensions": True},
                     timeout_seconds=120,
@@ -610,7 +610,7 @@ async def test_connection_updates_keep_omitted_fields_and_relabel_their_models(a
     view = renamed.json()
     assert view["name"] == "Workstation vLLM"
     assert view["preset"] == "vllm"
-    assert view["base_url"] == "http://192.168.1.20:8000/v1"
+    assert view["base_url"] == "https://192.168.1.20:8443/v1"
     assert view["credential_env"] == "ANIMAMA_CONNECTION_WORKSTATION_API_KEY"
     assert view["compatibility"]["fold_developer_role"] is False
     assert view["timeout_seconds"] == 120
@@ -667,7 +667,7 @@ async def test_templates_describe_chat_models_only(async_session, tmp_path, owne
 
 
 class _UnavailableSession:
-    async def execute(self, *_args, **_kwargs):  # noqa: ANN002, ANN003
+    async def execute(self, *_args, **_kwargs):
         from sqlalchemy.exc import OperationalError
 
         raise OperationalError("SELECT", {}, Exception("database is down"))

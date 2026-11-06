@@ -1,5 +1,6 @@
 import type { SettingsPreferences } from "@/lib/settings/preferences";
 import type { AvatarBackgroundOption } from "./backgroundOptions";
+import { isRecord } from "@/lib/records";
 
 const DEFAULT_FOCAL_X = 0.5;
 const DEFAULT_FOCAL_Y = 0.5;
@@ -38,10 +39,6 @@ type AvatarBackgroundDragParams = AvatarBackgroundLayoutParams & {
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
 function normalizeBackgroundId(

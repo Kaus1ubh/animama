@@ -35,7 +35,7 @@ Prepare a Markdown body file from the appropriate template's fields; a YAML issu
 form is not an issue body. Parent issues and PRs have distinct **Spec** and
 **ExecPlan** sections. Link the authoritative spec, or say “This issue” when the
 parent owns it. Identify a linked file snapshot with its captured revision. Link
-an ExecPlan only when access and privacy permit; otherwise state “Retained privately”
+an ExecPlan only when access and privacy permit; otherwise state “Private plan retained by the maintainer”
 or “Not required” and keep the public record independently understandable.
 
 ## Inspect and create issues
@@ -191,15 +191,21 @@ With approval for `task_approved_head` and required checks satisfied, perform an
 ordinary merge with a server-side head match:
 
 ```bash
-task_pr_number="$(gh pr view "$task_pr" --repo "$task_repo" --json number --jq .number)"
-gh api --method PUT "repos/$task_repo/pulls/$task_pr_number/merge" \
-  -f merge_method=merge -f sha="$task_approved_head"
+gh pr merge "$task_pr" --repo "$task_repo" --merge --match-head-commit "$task_approved_head"
 gh pr view "$task_pr" --repo "$task_repo" --json state,mergedAt,mergeCommit
 ```
 
-The [merge endpoint](https://docs.github.com/en/rest/pulls/pulls#merge-a-pull-request)
-rejects a changed head. Check the response's `merged` value and read back the result
-before reporting success. A queue requirement or rejected merge returns to the
+Where `gh pr merge` is unavailable, the REST call is equivalent:
+
+```bash
+task_pr_number="$(gh pr view "$task_pr" --repo "$task_repo" --json number --jq .number)"
+gh api --method PUT "repos/$task_repo/pulls/$task_pr_number/merge" \
+  -f merge_method=merge -f sha="$task_approved_head"
+```
+
+Both reject a changed head (see the
+[merge endpoint](https://docs.github.com/en/rest/pulls/pulls#merge-a-pull-request)).
+Read back the result before reporting success. A queue requirement or rejected merge returns to the
 configured procedure; do not enable auto-merge or bypass protections. Squash/rebase
 requires an approved exception. Report main-branch checks separately from PR checks.
 

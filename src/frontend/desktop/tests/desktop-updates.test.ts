@@ -5,6 +5,7 @@ import {
 } from "../src/main-process/updates/controller.js";
 import {
   allowedUpdateUrl,
+  openSealedUpdates,
   updateFreeBytes,
   updatePlatform,
   validateUpdateCandidate,
@@ -13,13 +14,14 @@ import {
 import { RuntimeError } from "../src/main-process/runtime/errors.js";
 
 const policy = {
-  schema: "animama-update-policy/2" as const,
+  schema: "animama-update-policy/3" as const,
   distribution: {
     kind: "github" as const,
     owner: "example",
     repo: "animama-releases",
   },
   channel: "stable" as const,
+  updates: "offered" as const,
   team_id: "ABCDE12345",
 };
 const r2Policy = {
@@ -73,6 +75,49 @@ function controller() {
 }
 afterEach(() => vi.useRealTimers());
 
+describe("opening a packaged build's updates", () => {
+  const open = (sealed: unknown, cancelled = false) => {
+    const calls: string[] = [];
+    const result = openSealedUpdates({
+      platform: "darwin",
+      readPolicy: async () => sealed,
+      verifyPublisher: async () => {
+        calls.push("verify");
+      },
+      cancelled: () => cancelled,
+      create: () => {
+        calls.push("create");
+        return "controller";
+      },
+    });
+    return { calls, result };
+  };
+
+  it("never checks the publisher or creates an updater when updates have ended", async () => {
+    const { calls, result } = open({ ...policy, updates: "ended" });
+    await expect(result).resolves.toBeUndefined();
+    expect(calls).toEqual([]);
+  });
+
+  it("checks the publisher before creating the updater when updates are offered", async () => {
+    const { calls, result } = open(policy);
+    await expect(result).resolves.toBe("controller");
+    expect(calls).toEqual(["verify", "create"]);
+  });
+
+  it("creates nothing when the app quits during the publisher check", async () => {
+    const { calls, result } = open(policy, true);
+    await expect(result).resolves.toBeUndefined();
+    expect(calls).toEqual(["verify"]);
+  });
+
+  it("refuses an invalid sealed policy before anything else", async () => {
+    const { calls, result } = open({ ...policy, updates: undefined });
+    await expect(result).rejects.toThrow("updates_not_configured");
+    expect(calls).toEqual([]);
+  });
+});
+
 describe("public stable macOS update policy", () => {
   it("rejects credentials, alternate channels, targets, paths and unbounded feed sizes", () => {
     expect(validateUpdatePolicy(policy)).toEqual(policy);
@@ -106,6 +151,19 @@ describe("public stable macOS update policy", () => {
     expect(() =>
       validateUpdatePolicy({ ...policy, token: "never-embedded" }),
     ).toThrow();
+    // The final release seals updates off; nothing else is a valid state.
+    const ended = { ...r2Policy, updates: "ended" as const };
+    expect(validateUpdatePolicy(ended)).toEqual(ended);
+    const { updates: _updates, ...unsealed } = policy;
+    for (const value of [
+      unsealed,
+      { ...policy, updates: "paused" },
+      { ...policy, updates: null },
+      { ...policy, schema: "animama-update-policy/2" },
+    ])
+      expect(() => validateUpdatePolicy(value)).toThrow(
+        "updates_not_configured",
+      );
     for (const version of ["0.1.0", "0.0.9", "0.2.0-beta.1", "1.02.0"])
       expect(() =>
         validateUpdateCandidate(
@@ -237,6 +295,8 @@ describe("public stable Windows update policy", () => {
 
   it("names an Authenticode publisher instead of a Team ID", () => {
     expect(validateUpdatePolicy(windowsPolicy, "win32")).toEqual(windowsPolicy);
+    const ended = { ...windowsPolicy, updates: "ended" as const };
+    expect(validateUpdatePolicy(ended, "win32")).toEqual(ended);
     expect(updatePlatform(windowsPolicy)).toBe("win32");
     expect(updatePlatform(policy)).toBe("darwin");
     // Each platform reads only its own publisher shape.

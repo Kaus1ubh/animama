@@ -1,4 +1,5 @@
-"use client";
+// Adapted from shadcn/ui (MIT): apps/www/registry/new-york/ui/dropdown-menu.tsx.
+// See licenses/third-party/adapted-code.md.
 
 import * as React from "react";
 import * as DropdownMenuPrimitive from "@radix-ui/react-dropdown-menu";

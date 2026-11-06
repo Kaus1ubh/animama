@@ -1,8 +1,6 @@
-src/letta/
 
 # The production image builds React once; only its static output crosses into
 # Python. Keep desktop/native assets and installed dependencies out of context.
-src/legacy/
 src/frontend/**
 !src/frontend/
 !src/frontend/package.json
@@ -49,7 +47,6 @@ venv/
 ENV/
 env/
 .venv/
-src/agents/.venv/
 
 # IDE files
 .idea/
@@ -70,7 +67,7 @@ Thumbs.db
 docker-compose.override.yml
 .dockerignore
 
-# Node modules (for web-ui)
+# Node modules
 node_modules/
 .next/
 npm-debug.log*
@@ -109,7 +106,6 @@ content/local/
 
 # CDK output (prevents recursive asset staging when building DockerImageAssets)
 cloud/cdk.out*/
-
 
 # sst
 .sst

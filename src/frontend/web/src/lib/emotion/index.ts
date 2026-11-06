@@ -1,2 +1,30 @@
 /** Shared implementation is owned by the independently packed product package. */
-export * from "@animama/product-ui/emotion";
+export {
+  EMOTION_GROUPS,
+  EMOTION_GROUP_MEMBERS,
+  EMOTION_MAX_VALUE,
+  EMOTION_MIN_VALUE,
+  TRACKED_EMOTIONS,
+  buildEmotionRuntimeState,
+  createEmptyEmotionStateMap,
+  emotionStateFromValues,
+  formatEmotionGroupLabel,
+  formatTrackedEmotionLabel,
+  groupForEmotion,
+  intensityFromEmotionValue,
+  isTrackedEmotion,
+  normalizeEmotionStateMap,
+  voiceEmotionForGroup,
+} from "@animama/product-ui/emotion";
+export type {
+  EmotionGroup,
+  EmotionGroupSummary,
+  EmotionIntensity,
+  EmotionRuntimeState,
+  EmotionStateMap,
+  EmotionValue,
+  RankedEmotion,
+  ResolvedEmotionGroup,
+  TrackedEmotion,
+  VoiceEmotionKey,
+} from "@animama/product-ui/emotion";

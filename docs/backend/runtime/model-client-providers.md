@@ -168,6 +168,20 @@ from its environment, and Electron main replaces the store while it runs.
   `ANIMAMA_CONNECTION_<ID>_API_KEY`. `ANTHROPIC_API_KEY` is reserved for the
   built-in Anthropic connection. An owner connection never falls back to a
   built-in connection's key.
+- **Key origins.** `key_refusal` in `credentials.py` sends a provider variable's
+  key only to its provider's origin (`PROVIDER_CREDENTIAL_ORIGINS`) and a
+  connection key only to the origin in `ANIMAMA_CONNECTION_<NAME>_ORIGIN`
+  (`key_origins.py` compares canonical origins). No such key goes over plain
+  HTTP unless the host is this computer; the built-in OpenAI connection keeps
+  the operator's `OPENAI_BASE_URL`. A refused key resolves as missing, with the
+  reason in `ModelCredential.refusal`. A delivered origin that matches no
+  address leaves only its own key unused.
+- **Redirects.** httpx drops `Authorization` when a redirect leaves the origin,
+  so the OpenAI SDK clients need nothing more. Clients that send a custom key
+  header and follow redirects (Anthropic, Gemini and ElevenLabs) add the
+  response hook in `adapters/key_redirects.py`, which refuses a redirect to
+  another origin. The other keyed clients, such as web search, follow no
+  redirects.
 - **Isolation.** Owner-connection SDK clients omit the process
   `OpenAI-Organization` and `OpenAI-Project` headers and every header listed in
   `OPENAI_CUSTOM_HEADERS`, and set `Authorization` from the connection's own
@@ -580,10 +594,11 @@ content-free `ModelClientFinal.input_moderation` (`status` `result` or `error`,
 flagged categories and scores). Moderation is report-only: it never blocks or
 alters the reply, and the executor only uses a self-harm signal to add a
 [crisis card](chat.md#sse-events). Chat Completions and Anthropic Messages
-rows do not support moderation and never receive the option. Anthropic offers
-no moderation endpoint, so Anthropic turns rely on the Companion Guardrails
-alone and never show a crisis card; that gap is accepted
-([ADR 0023](../../adr/0023-native-anthropic-messages-provider.md)).
+rows never receive the option. Anthropic offers no moderation endpoint, so a
+composition may check Anthropic turns with an operator
+[crisis moderator](chat.md#companion-safety). Without one, as in the local
+composition, Anthropic and Chat Completions turns rely on the Companion
+Guardrails alone ([ADR 0023](../../adr/0023-native-anthropic-messages-provider.md)).
 
 The Anthropic adapter classifies SDK errors and stream `error` events by
 Anthropic's `error.type`, then the HTTP status, into `anthropic_authentication_error`,

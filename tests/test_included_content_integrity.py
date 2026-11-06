@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import fnmatch
 import json
+import re
+import subprocess
 from itertools import pairwise
 from pathlib import Path
 from typing import Any
@@ -13,7 +16,12 @@ from tests.anima_creation_service_support import copy_tracked_included
 ROOT = Path(__file__).parents[1]
 
 
-def test_included_license_inventory_records_the_release_gate() -> None:
+# The owner's dated redistribution clearance. The repository is published as it
+# is, so no rule for shipped content may stay pending.
+CLEARED = re.compile(r"cleared-\d{4}-\d{2}-\d{2}")
+
+
+def test_included_license_inventory_records_redistribution_clearance() -> None:
     inventory = json.loads((ROOT / "content/included/licenses/inventory.json").read_text(encoding="utf-8"))
 
     assert inventory["schema_version"] == 1
@@ -21,7 +29,11 @@ def test_included_license_inventory_records_the_release_gate() -> None:
     assert rules
     assert all(rule["creator"] for rule in rules)
     assert all(rule["license_id"] for rule in rules)
-    assert all(rule["redistribution_review"] == "pending" for rule in rules)
+    for rule in rules:
+        if rule.get("distribution") == "excluded":
+            assert rule["redistribution_review"] == "excluded", rule["glob"]
+        else:
+            assert CLEARED.fullmatch(rule["redistribution_review"]), rule["glob"]
     assert rules[-1]["glob"] == "**/*"
     assert rules[-1]["creator"] == "Animama project owner"
     by_glob = {rule["glob"]: rule for rule in rules}
@@ -130,6 +142,21 @@ def test_included_license_inventory_records_the_release_gate() -> None:
         for rule in rules
         if rule["glob"].startswith("vfx/particle/quark/") and not rule["glob"].endswith("/**")
     } == reused_texture_terms
+
+
+def test_the_fallback_licence_rule_covers_only_the_inventory() -> None:
+    """Every shipped Included file has a narrower rule; the `**/*` fallback is a guard."""
+    rules = json.loads((ROOT / "content/included/licenses/inventory.json").read_text(encoding="utf-8"))["rules"]
+    tracked = subprocess.check_output(["git", "ls-files", "-z", "--", "content/included"], cwd=ROOT).decode()
+    locators = [name.removeprefix("content/included/") for name in tracked.split("\0") if name]
+
+    def first_rule(locator: str) -> dict[str, Any] | None:
+        return next((rule for rule in rules if fnmatch.fnmatch(locator, rule["glob"])), None)
+
+    # The folder's own README is documentation, not content, so no rule covers it.
+    assert [locator for locator in locators if first_rule(locator) is None] == ["README.md"]
+    fallback = [locator for locator in locators if (rule := first_rule(locator)) and rule["glob"] == "**/*"]
+    assert fallback == ["licenses/inventory.json"]
 
 
 @pytest.mark.parametrize(

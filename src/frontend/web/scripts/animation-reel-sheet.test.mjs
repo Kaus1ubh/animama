@@ -30,7 +30,12 @@ test("parses a cue sheet's takes and rejects invalid ones", () => {
       camera: "landing",
       duration: 3,
       cues: [
-        { gesture: "library:gesture/double-peace-pop", beat: "pop", beatAt: 1 },
+        {
+          gesture: "library:gesture/double-peace-pop",
+          beat: "pop",
+          beatAt: 1,
+          enter: 0.35,
+        },
         { reaction: "library:reaction/joy-3-b", at: 0.3, until: 2.5 },
       ],
       speech: { alignment: "take.json", audio: "take.mp3", at: 0.5 },
@@ -48,12 +53,13 @@ test("parses a cue sheet's takes and rejects invalid ones", () => {
   );
   assert.equal(take.duration, 3);
   assert.deepEqual(
-    take.cues.map(({ kind, spec, at, beat, beatAt, until }) => ({
+    take.cues.map(({ kind, spec, at, beat, beatAt, enter, until }) => ({
       kind,
       spec,
       at,
       beat,
       beatAt,
+      enter,
       until,
     })),
     [
@@ -63,6 +69,7 @@ test("parses a cue sheet's takes and rejects invalid ones", () => {
         at: null,
         beat: "pop",
         beatAt: 1,
+        enter: 0.35,
         until: null,
       },
       {
@@ -71,6 +78,7 @@ test("parses a cue sheet's takes and rejects invalid ones", () => {
         at: 0.3,
         beat: null,
         beatAt: null,
+        enter: null,
         until: 2.5,
       },
     ],
@@ -97,12 +105,14 @@ test("parses a cue sheet's takes and rejects invalid ones", () => {
     [{ takes: [] }, /no takes/],
     [{ takes: [{ cues: [] }], fps: 30 }, /no other fields/],
     [{ cues: [] }, /at least one cue or speech/],
-    [{ cues: [{ wave: "a" }] }, /"reaction", "face" or "mood"/],
+    [{ cues: [{ wave: "a" }] }, /"reaction", "vrma", "face" or "mood"/],
     [
       { cues: [{ gesture: "a", reaction: "b" }] },
-      /"reaction", "face" or "mood"/,
+      /"reaction", "vrma", "face" or "mood"/,
     ],
     [{ cues: [{ reaction: "a", from: 1 }] }, /unknown field "from"/],
+    [{ cues: [{ reaction: "a", enter: 1 }] }, /unknown field "enter"/],
+    [{ cues: [{ gesture: "a", enter: -1 }] }, /enter must be/],
     [{ cues: [{ gesture: "a", at: -1 }] }, /at must be/],
     [{ cues: [{ gesture: "a", beat: "pop" }] }, /go together/],
     [
@@ -465,4 +475,153 @@ test("rejects a cue stopped before it starts and a missing Avatar file", async (
   } finally {
     await rm(dir, { recursive: true, force: true });
   }
+});
+
+test("lists a VRMA cue with its file, start, speed and fade", async () => {
+  const dir = await mkdtemp(path.join(tmpdir(), "animama-sheet-"));
+  try {
+    await writeFile(path.join(dir, "cheer.vrma"), "glTF");
+    const sheet = path.join(dir, "takes.json");
+    await writeFile(
+      sheet,
+      JSON.stringify({
+        duration: 4,
+        cues: [
+          { vrma: "cheer.vrma", at: 0.5, from: 0.45, speed: 0.95, enter: 0 },
+          { face: { happy: 0.3 }, at: 0, until: 4 },
+        ],
+      }),
+    );
+    const [item] = await listSheetItems(sheet);
+    assert.equal(item.cues.length, 1);
+    const [cue] = item.cues;
+    assert.equal(cue.kind, "vrma");
+    assert.equal(cue.at, 0.5);
+    assert.equal(cue.from, 0.45);
+    assert.equal(cue.speed, 0.95);
+    assert.equal(cue.enter, 0);
+    assert.equal(cue.until, null);
+    assert.equal(path.basename(cue.file), "cheer.vrma");
+    assert.equal(item.description, "cheer");
+
+    const bad = (cue) => parseCueSheet({ cues: [cue] }, { dir, name: "s" });
+    assert.throws(
+      () => bad({ vrma: "cheer.glb" }),
+      /vrma must name a \.vrma file/,
+    );
+    assert.throws(
+      () => bad({ vrma: "cheer.vrma", speed: 0 }),
+      /speed must be more than 0/,
+    );
+    assert.throws(
+      () => bad({ vrma: "cheer.vrma", beat: "x" }),
+      /unknown field "beat"/,
+    );
+    await writeFile(
+      sheet,
+      JSON.stringify({ cues: [{ vrma: "missing.vrma" }] }),
+    );
+    await assert.rejects(listSheetItems(sheet), /cannot read the VRMA file/);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("lists a looping walk with its root path and a fixed camera", async () => {
+  const dir = await mkdtemp(path.join(tmpdir(), "animama-sheet-"));
+  try {
+    await writeFile(path.join(dir, "walk.vrma"), "glTF");
+    const sheet = path.join(dir, "takes.json");
+    const camera = {
+      position: [0, 1.05, 6.2],
+      target: [0, 0.78, 0],
+      fov: 22.5,
+    };
+    await writeFile(
+      sheet,
+      JSON.stringify({
+        duration: 4,
+        camera,
+        root: [
+          { at: 0, x: -3, z: -1, yaw: 90 },
+          { at: 2, x: 0 },
+          { at: 2.5, yaw: 0, ease: "inOut" },
+        ],
+        cues: [{ vrma: "walk.vrma", at: 0, speed: 1.02, loop: true, until: 2 }],
+      }),
+    );
+    const [item] = await listSheetItems(sheet);
+    assert.equal(item.cues[0].loop, true);
+    assert.deepEqual(item.camera, camera);
+    // Each key holds the fields it omits from the key before.
+    assert.deepEqual(item.root, [
+      { at: 0, x: -3, z: -1, yaw: 90, ease: "linear" },
+      { at: 2, x: 0, z: -1, yaw: 90, ease: "linear" },
+      { at: 2.5, x: 0, z: -1, yaw: 0, ease: "inOut" },
+    ]);
+
+    const bad = (take) =>
+      parseCueSheet(
+        { cues: [{ face: { happy: 1 }, at: 0, until: 1 }], ...take },
+        { dir, name: "s" },
+      );
+    assert.throws(
+      () => bad({ cues: [{ vrma: "walk.vrma", loop: true }] }),
+      /a looping VRMA cue needs until/,
+    );
+    assert.throws(
+      () => bad({ root: [{ at: 1 }, { at: 0 }] }),
+      /keys go in time order/,
+    );
+    assert.throws(
+      () => bad({ root: [{ at: 0, ease: "bounce" }] }),
+      /ease must be/,
+    );
+    assert.throws(
+      () => bad({ camera: { position: [0, 1, 6] } }),
+      /a fixed camera gives position and target/,
+    );
+    assert.throws(
+      () => bad({ camera: { position: [0, 1], target: [0, 1, 0] } }),
+      /position must be \[x, y, z\]/,
+    );
+    assert.throws(
+      () =>
+        bad({ camera: { position: [0, 1, 6], target: [0, 1, 0], yaw: 20 } }),
+      /unknown field "yaw"/,
+    );
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("checks a moving camera's keys", () => {
+  const take = (camera) =>
+    parseCueSheet(
+      { camera, cues: [{ face: { happy: 1 }, at: 0, until: 1 }] },
+      { dir: tmpdir(), name: "s" },
+    );
+  const key = (at, extra = {}) => ({
+    at,
+    position: [0, 1.4, 1],
+    target: [0, 1.4, 0],
+    fov: 36,
+    ...extra,
+  });
+  const [ok] = take({ keys: [key(0), key(1.8, { fov: 18, ease: "inOut" })] });
+  assert.equal(ok.camera.keys.length, 2);
+  assert.throws(() => take({ keys: [] }), /keys is a list of camera keys/);
+  assert.throws(
+    () => take({ keys: [key(1), key(0)] }),
+    /keys go in time order/,
+  );
+  assert.throws(
+    () => take({ keys: [{ at: 0, position: [0, 1, 1] }] }),
+    /target must be \[x, y, z\]/,
+  );
+  assert.throws(
+    () => take({ keys: [key(0, { ease: "spring" })] }),
+    /ease must be/,
+  );
+  assert.throws(() => take({ keys: [key(0)], fov: 20 }), /unknown field "fov"/);
 });

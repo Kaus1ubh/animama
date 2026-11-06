@@ -5,7 +5,7 @@ import {
   getStructuredAssistantTexts,
   reduceStructuredResponseStream,
   selectStructuredSpeechTtsPayload,
-} from "./structured-response-stream";
+} from "@animama/product-ui/chat";
 
 describe("structured response stream", () => {
   it("accumulates multiple speech deltas into one assistant speech text", () => {

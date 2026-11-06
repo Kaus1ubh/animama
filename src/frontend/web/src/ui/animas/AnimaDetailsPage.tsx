@@ -1,5 +1,3 @@
-"use client";
-
 import { buildEmotionPresentation } from "@/lib/emotion/presentation";
 import {
   Tooltip,

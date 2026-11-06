@@ -34,7 +34,7 @@ from tests.content_package_helpers import vrma
     ],
 )
 async def test_bootstrap_recovers_before_catalog_admission(
-    async_session_factory,  # noqa: ANN001
+    async_session_factory,
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     operation: str,
@@ -57,7 +57,7 @@ async def test_bootstrap_recovers_before_catalog_admission(
     class ObservingOwnerDefaults:
         """Use the real catalog at the point starter/default creation would run."""
 
-        async def ensure(self, *, owner_id: str, policy) -> OwnerBootstrapResult:  # noqa: ANN001
+        async def ensure(self, *, owner_id: str, policy) -> OwnerBootstrapResult:
             async with async_session_factory() as session:
                 items = await SQLAlchemyContentCatalog(session).list_visible(user_id=owner_id)
                 digests = tuple(file.sha256 for item in items for file in item.files)

@@ -20,14 +20,12 @@ improve machine-learning systems.
 Terms: https://wowsound.com/terms/
 
 Kenney Particle Pack 1.1
-By Kenney Vleugels, with filter-template contributors named in the packaged
-License.txt. Dedicated under Creative Commons Zero 1.0.
+Particle textures derived from the pack by Kenney Vleugels, with
+filter-template contributors named in its License.txt. Dedicated under
+Creative Commons Zero 1.0.
 Source: https://kenney.nl/assets/particle-pack
 
 Brackeys VFX bundle
-The packaged LICENSE & CREDITS.txt declares the bundle CC0 and credits Picster,
-Kenney, Thomas Iche, and CodeManu for its source assets.
-
-LeLu's Noise Pack
-The packaged readme by LeLu VFX permits use of its textures in hobby and
-commercial games without attribution.
+Particle textures derived from the bundle, whose LICENSE & CREDITS.txt
+declares it CC0 and credits Picster, Kenney, Thomas Iche, and CodeManu for its
+source assets.

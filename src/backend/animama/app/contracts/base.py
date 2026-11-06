@@ -1,9 +1,12 @@
+# Adapted from Letta (Apache-2.0): letta/schemas/letta_base.py; modified for Animama.
+# See licenses/third-party/adapted-code.md.
 import uuid
 from datetime import datetime
 from logging import getLogger
+from typing import Any
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, field_validator
 
 logger = getLogger(__name__)
 
@@ -18,7 +21,7 @@ class Base(BaseModel):
     )
 
     @classmethod
-    def generate_id_field(cls, prefix: str | None = None):
+    def generate_id_field(cls, prefix: str | None = None) -> Any:
         resolved_prefix = prefix or getattr(cls, "__id_prefix__", "item")
         assert isinstance(resolved_prefix, str)
         return Field(
@@ -34,25 +37,20 @@ class Base(BaseModel):
         return f"{prefix}-{uuid.uuid4()}"
 
     @classmethod
-    def _id_regex_pattern(cls, prefix: str):
-        if cls.__name__ in ("JobBase", "Job", "Run", "RunBase"):
-            prefix_pattern = "(job|run)"
-        else:
-            prefix_pattern = prefix
-
-        return r"^" + prefix_pattern + r"-" r"[a-fA-F0-9]{8}"
+    def _id_regex_pattern(cls, prefix: str) -> str:
+        return r"^" + prefix + r"-" r"[a-fA-F0-9]{8}"
 
     @classmethod
-    def _id_example(cls, prefix: str):
+    def _id_example(cls, prefix: str) -> str:
         return f"{prefix}-123e4567-e89b-12d3-a456-426614174000"
 
     @classmethod
-    def _id_description(cls, prefix: str):
+    def _id_description(cls, prefix: str) -> str:
         return f"The human-friendly ID of the {prefix.capitalize()}"
 
     @field_validator("id", check_fields=False, mode="before")
     @classmethod
-    def allow_bare_uuids(cls, v, values):
+    def allow_bare_uuids(cls, v: Any, values: ValidationInfo) -> Any:
         _ = values
         if isinstance(v, UUID):
             prefix = getattr(cls, "__id_prefix__", "item")
@@ -60,7 +58,7 @@ class Base(BaseModel):
             return f"{prefix}-{v}"
         return v
 
-    def model_dump(self, to_orm: bool = False, **kwargs):
+    def model_dump(self, to_orm: bool = False, **kwargs: Any) -> dict[str, Any]:
         data = super().model_dump(**kwargs)
         if to_orm and "metadata" in data:
             data["metadata_"] = data.pop("metadata")

@@ -434,4 +434,213 @@ describe("ReactionClipPlayer", () => {
 
     expect(player.getSnapshot().firedEventIds).toEqual(["admiration-sparkle"]);
   });
+
+  describe("replacing and fading out", () => {
+    const reaction = (
+      id: string,
+      expression: string,
+      fade: { fadeIn?: number; fadeOut?: number } = {},
+      events: AnimaPoseClipV2["events"] = [],
+    ): AnimaPoseClipV2 => ({
+      schema: "animaPoseClip/2.0",
+      id,
+      name: id,
+      role: "reaction",
+      duration: 4,
+      beats: [{ id: "start", label: "Start", time: 0 }],
+      ...(fade.fadeIn === undefined
+        ? {}
+        : { fadeIn: { duration: fade.fadeIn, easing: "linear" as const } }),
+      ...(fade.fadeOut === undefined
+        ? {}
+        : { fadeOut: { duration: fade.fadeOut, easing: "linear" as const } }),
+      expressions: { [expression]: [{ beat: "start", v: 1 }] },
+      events,
+    });
+    const vein = {
+      id: "vein",
+      time: 0,
+      kind: "avatar_vfx" as const,
+      effectId: "vein",
+    };
+    const play = (player: ReactionClipPlayer, clip: AnimaPoseClipV2) =>
+      player.play({
+        ownerId: "owner",
+        runId: "run",
+        sourceEventId: clip.id,
+        emotionEventId: null,
+        clip,
+      });
+    const recordingPlayer = () => {
+      const faces: Record<string, number>[] = [];
+      const intensities: number[] = [];
+      const cleared: string[] = [];
+      const particleClears: string[] = [];
+      const player = new ReactionClipPlayer(
+        {
+          setExpressionOverlay: (_ownerId, expressions) => {
+            faces.push(
+              Object.fromEntries(
+                Object.entries(expressions).map(([k, v]) => [
+                  k,
+                  Number(v.toFixed(3)),
+                ]),
+              ),
+            );
+            return true;
+          },
+          clearExpressionOverlay: () => true,
+        },
+        {
+          eventSink: {
+            applyAvatarVFX: () => undefined,
+            clearAvatarVFX: (event) => {
+              cleared.push(event.id);
+            },
+            setAvatarVFXIntensity: (_event, _context, intensity) => {
+              intensities.push(Number(intensity.toFixed(3)));
+            },
+            applyParticleVFX: () => undefined,
+            clearParticleVFX: (event, _context, options) => {
+              particleClears.push(
+                `${event.id}:${options?.finish ? "finish" : "now"}`,
+              );
+            },
+          },
+        },
+      );
+      return { player, faces, intensities, cleared, particleClears };
+    };
+
+    it("fades a Reaction in from the face the one it replaces shows", () => {
+      const { player, faces } = recordingPlayer();
+      play(player, reaction("anger", "angry"));
+      player.update(0.5);
+      play(player, reaction("worry", "surprised", { fadeIn: 0.2 }));
+      expect(faces.at(-1)).toEqual({ angry: 1, surprised: 0 });
+      player.update(0.1);
+      expect(faces.at(-1)).toEqual({ angry: 0.5, surprised: 0.5 });
+      player.update(0.1);
+      expect(faces.at(-1)).toEqual({ angry: 0, surprised: 1 });
+    });
+
+    it("crossfades from where a fading-out Reaction has got to", () => {
+      const { player, faces } = recordingPlayer();
+      play(player, reaction("anger", "angry", { fadeOut: 0.4 }));
+      player.update(0.5);
+      player.clear("owner");
+      player.update(0.2);
+      expect(faces.at(-1)).toEqual({ angry: 0.5 });
+      play(player, reaction("worry", "surprised", { fadeIn: 0.2 }));
+      expect(faces.at(-1)).toEqual({ angry: 0.5, surprised: 0 });
+      player.update(0.1);
+      expect(faces.at(-1)).toEqual({ angry: 0.25, surprised: 0.5 });
+    });
+
+    it("fades the replaced Reaction's Avatar Effects over the new fade-in, then removes them", () => {
+      const { player, intensities, cleared } = recordingPlayer();
+      play(player, reaction("anger", "angry", {}, [vein]));
+      player.update(0.5);
+      play(player, reaction("worry", "surprised", { fadeIn: 0.2 }));
+      expect(cleared).toEqual([]);
+      player.update(0.1);
+      expect(intensities).toEqual([0.5]);
+      expect(cleared).toEqual([]);
+      player.update(0.1);
+      expect(cleared).toEqual(["vein"]);
+    });
+
+    it("fades a Reaction's Avatar Effects with its face as it fades out", () => {
+      const { player, intensities, cleared } = recordingPlayer();
+      play(player, reaction("anger", "angry", { fadeOut: 0.4 }, [vein]));
+      player.update(0.5);
+      player.clear("owner");
+      player.update(0.2);
+      expect(intensities.at(-1)).toBe(0.5);
+      expect(cleared).toEqual([]);
+      player.update(0.2);
+      expect(cleared).toEqual(["vein"]);
+    });
+
+    it("removes effects still fading from a replaced Reaction on an immediate clear", () => {
+      const { player, cleared } = recordingPlayer();
+      play(player, reaction("anger", "angry", {}, [vein]));
+      play(player, reaction("worry", "surprised", { fadeIn: 0.2 }));
+      player.clear("owner", { immediate: true });
+      expect(cleared).toEqual(["vein"]);
+    });
+
+    it("keeps a replaying Reaction's effect when an earlier copy of it fades out", () => {
+      const log: string[] = [];
+      const player = new ReactionClipPlayer(
+        {
+          setExpressionOverlay: () => true,
+          clearExpressionOverlay: () => true,
+        },
+        {
+          eventSink: {
+            applyAvatarVFX: (event) => {
+              log.push(`apply ${event.id}`);
+            },
+            clearAvatarVFX: (event) => {
+              log.push(`clear ${event.id}`);
+            },
+            setAvatarVFXIntensity: () => undefined,
+          },
+        },
+      );
+      const clip = reaction("anger", "angry", { fadeIn: 0.2 }, [vein]);
+      play(player, clip);
+      play(player, clip);
+      player.update(0.3);
+      expect(log).toEqual(["apply vein", "clear vein", "apply vein"]);
+    });
+
+    const hearts = {
+      id: "hearts",
+      time: 0,
+      kind: "particle_vfx" as const,
+      effectId: "hearts",
+    };
+
+    it("lets a fading-out Reaction's particles finish", () => {
+      const { player, particleClears } = recordingPlayer();
+      play(player, reaction("love", "happy", { fadeOut: 0.2 }, [hearts]));
+      player.clear("owner");
+      player.update(0.2);
+      expect(particleClears).toEqual(["hearts:finish"]);
+    });
+
+    it("lets a replaced Reaction's particles finish under the new fade-in", () => {
+      const { player, particleClears } = recordingPlayer();
+      play(player, reaction("love", "happy", {}, [hearts]));
+      play(player, reaction("worry", "surprised", { fadeIn: 0.2 }));
+      expect(particleClears).toEqual(["hearts:finish"]);
+    });
+
+    it("removes a Reaction's particles at once on an immediate clear or a cut", () => {
+      const { player, particleClears } = recordingPlayer();
+      play(player, reaction("love", "happy", {}, [hearts]));
+      player.clear("owner", { immediate: true });
+      play(player, reaction("love", "happy", {}, [hearts]));
+      play(player, reaction("calm", "relaxed", { fadeIn: 0 }));
+      expect(particleClears).toEqual(["hearts:now", "hearts:now"]);
+    });
+
+    it("cuts to the new Reaction when it has no fade-in", () => {
+      const { player, faces, cleared } = recordingPlayer();
+      play(player, reaction("anger", "angry", {}, [vein]));
+      play(player, reaction("worry", "surprised", { fadeIn: 0 }));
+      expect(cleared).toEqual(["vein"]);
+      expect(faces.at(-1)).toEqual({ surprised: 1 });
+    });
+
+    it("ends an earlier crossfade's effects when a Reaction cuts in", () => {
+      const { player, cleared } = recordingPlayer();
+      play(player, reaction("anger", "angry", {}, [vein]));
+      play(player, reaction("worry", "surprised", { fadeIn: 0.2 }));
+      play(player, reaction("calm", "relaxed", { fadeIn: 0 }));
+      expect(cleared).toEqual(["vein"]);
+    });
+  });
 });

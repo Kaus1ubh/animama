@@ -13,7 +13,6 @@ from animama.logging import get_logger
 
 from .direct_model_prompt_runner import DirectModelPromptRequest, DirectModelPromptRunner
 
-CHAT_TITLE_AGENT_ID = "backend-chat-title-generator"
 DEFAULT_CHAT_TITLE_MAX_CHARS = 48
 DEFAULT_CHAT_TITLE_TIMEOUT_SECONDS = 10.0
 DEFAULT_CHAT_TITLE_REASONING_EFFORT = "minimal"
@@ -188,7 +187,6 @@ def _title_request_options(settings: ChatTitleGenerationSettings) -> dict[str, o
 
 
 __all__ = [
-    "CHAT_TITLE_AGENT_ID",
     "DEFAULT_CHAT_TITLE_REASONING_EFFORT",
     "DEFAULT_CHAT_TITLE_MAX_CHARS",
     "DEFAULT_CHAT_TITLE_TIMEOUT_SECONDS",

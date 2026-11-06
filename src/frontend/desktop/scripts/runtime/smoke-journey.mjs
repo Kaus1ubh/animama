@@ -4,10 +4,17 @@ import {
   mkdirSync,
   readFileSync,
   readdirSync,
+  rmSync,
 } from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
 import { desktopRoot, frontendRoot, readJson, writeJson } from "./common.mjs";
+import { packedFuseWire, readFuseWire, smokeCopyFuseWire } from "./fuses.mjs";
+import {
+  debuggingLaunchesRefused,
+  eventually,
+  profileUnused,
+} from "./smoke-hardening.mjs";
 import { classifySmokeRequest } from "./smoke-policy.mjs";
 
 /** Runs in the renderer; verify the temporary key is gone from status only. */
@@ -37,30 +44,48 @@ export function assertFreshProfile(paths, account) {
       );
 }
 
+/** Join a cleanup instruction to any already reported. */
+export function addCleanup(current, instruction) {
+  return current ? `${current} ${instruction}` : instruction;
+}
+
 /**
- * The fresh-profile, required-name journey through the real installed app.
- * Each platform supplies what differs:
+ * The installed-artifact smoke. The exact installed app is checked without
+ * being debugged: its fuse wire, its sealed update policy, and a prompt exit
+ * with no runtime for each debugging switch. The fresh-profile, required-name
+ * journey then runs on a copy of it that only the smoke makes, with Node's
+ * inspect switches turned on so the test driver can attach, and a throwaway
+ * profile; both are deleted afterwards. Each platform supplies what differs:
  *
- * - `userData`: the canonical profile the app creates;
+ * - `userData`: the canonical profile the installed app would create;
  * - `installed`, `executable` and `env`: the installed app and its minimal
  *   launch environment, whose `PATH` the app must keep;
+ * - `fuseApp` and `runtime`: where the installed app's fuse wire and sealed
+ *   runtime are; `updatePolicy`: the policy the runtime must carry;
  * - `install()`: verifies and installs the exact artifact, recording its
- *   runtime build ID in the report;
- * - `ownedChild(child)`: whether a recorded child runs the installed runtime;
- * - `noInstalledProcesses()` (optional): checked after each quit;
+ *   runtime build ID and publisher signature in the report;
+ * - `noInstalledProcesses()`: whether nothing runs from the installed app;
+ * - `copyLocation()`: a new private `directory` outside the checkout for the
+ *   copy, and the throwaway `profile` inside it;
+ * - `copy(directory)`: makes the journey copy in `directory` and returns its
+ *   `installed`, `executable`, `fuseApp`, `ownedChild(child)` (whether a
+ *   recorded child runs the copy's runtime) and `noInstalledProcesses()`;
  * - `cleanup()` (optional): releases artifact resources, returning a failed
- *   step name or null.
+ *   step name or null; it may add to `report.cleanup_required`.
  *
  * Writes the sanitized smoke and network reports to `release/smoke-name`.
  */
 export async function runSmokeJourney({ report, provider, platform }) {
-  const { userData, installed } = platform;
   const output = path.join(desktopRoot, `release/smoke-${report.setup}`);
   mkdirSync(output, { recursive: true });
   let application;
   let providerMayBeSaved = false;
   let step = "artifact-verification";
   let origin;
+  // The journey copy, its private directory and its throwaway profile.
+  let work;
+  let journey;
+  let copyRemoved = false;
   const trace = [];
   const traceFailures = new Set();
   const evidence = (name, condition) => {
@@ -71,13 +96,14 @@ export async function runSmokeJourney({ report, provider, platform }) {
   const { _electron } = require("playwright");
   const launch = async () => {
     const app = await _electron.launch({
-      executablePath: platform.executable,
-      env: platform.env,
+      executablePath: journey.executable,
+      env: journey.env,
       timeout: 120_000,
     });
+    const state = path.join(journey.userData, "runtime/state.json");
     const recordNetwork = (url, method, phase, status) => {
-      if (!origin && existsSync(path.join(userData, "runtime/state.json")))
-        origin = `http://127.0.0.1:${readJson(path.join(userData, "runtime/state.json")).gatewayPort}`;
+      if (!origin && existsSync(state))
+        origin = `http://127.0.0.1:${readJson(state).gatewayPort}`;
       if (!origin || trace.length >= 20_000) {
         if (trace.length >= 20_000) traceFailures.add("trace_limit");
         return;
@@ -159,30 +185,37 @@ export async function runSmokeJourney({ report, provider, platform }) {
       { url, options },
     );
   const observeChildren = () => {
-    const record = readJson(path.join(userData, "runtime/processes.json"));
+    const record = readJson(
+      path.join(journey.userData, "runtime/processes.json"),
+    );
     evidence(
       "owned_child_paths",
       record.children.length >= 3 &&
-        record.children.every((child) => platform.ownedChild(child)),
+        record.children.every((child) => journey.ownedChild(child)),
     );
     report.children = record.children.map((child) => ({
       role: child.name,
-      executable: path.relative(installed, child.executable),
+      executable: path.relative(journey.installed, child.executable),
     }));
   };
   const close = async () => {
     await application.close();
     application = undefined;
-    const record = readJson(path.join(userData, "runtime/processes.json"));
+    const record = readJson(
+      path.join(journey.userData, "runtime/processes.json"),
+    );
     evidence("owned_children_stopped", record.children.length === 0);
-    if (platform.noInstalledProcesses)
-      evidence("no_owned_process_remains", platform.noInstalledProcesses());
+    // Chromium's helper processes finish exiting shortly after the app.
+    evidence(
+      "no_owned_process_remains",
+      eventually(journey.noInstalledProcesses),
+    );
   };
   /** The owned FastAPI PID; a key change must apply without replacing it. */
   const fastapiPid = () =>
-    readJson(path.join(userData, "runtime/processes.json")).children.find(
-      (child) => child.name === "fastapi",
-    )?.pid;
+    readJson(
+      path.join(journey.userData, "runtime/processes.json"),
+    ).children.find((child) => child.name === "fastapi")?.pid;
   const cleanupProvider = async () => {
     if (!providerMayBeSaved) return;
     if (!application) application = await launch();
@@ -199,9 +232,47 @@ export async function runSmokeJourney({ report, provider, platform }) {
   };
   try {
     await platform.install(evidence);
+    step = "exact-artifact";
+    evidence(
+      "exact_fuse_wire",
+      readFuseWire(platform.fuseApp) === packedFuseWire,
+    );
+    evidence(
+      "sealed_update_policy",
+      JSON.stringify(
+        readJson(path.join(platform.runtime, "update-policy.json")),
+      ) === JSON.stringify(platform.updatePolicy),
+    );
+    step = "debugging-switches";
+    evidence(
+      "debugging_switches_refused",
+      debuggingLaunchesRefused({
+        executable: platform.executable,
+        env: platform.env,
+        userData: platform.userData,
+        noInstalledProcesses: platform.noInstalledProcesses,
+      }),
+    );
+    step = "journey-copy";
+    const location = platform.copyLocation();
+    work = location.directory;
+    const copy = platform.copy(work);
+    evidence(
+      "copy_fuse_wire",
+      readFuseWire(copy.fuseApp) === smokeCopyFuseWire(),
+    );
+    const userData = location.profile;
+    // A packaged app accepts this override only while its inspector runs.
+    journey = {
+      ...copy,
+      userData,
+      env: { ...platform.env, ANIMAMA_DESKTOP_DEV_USER_DATA: userData },
+    };
     step = "fresh-launch";
     application = await launch();
     let page = await readyPage();
+    // The copy runs from its throwaway profile, never the installed app's.
+    evidence("canonical_profile_untouched", profileUnused(platform.userData));
     await page
       .getByRole("heading", { name: "What should Animama call you?" })
       .waitFor({ timeout: 60_000 });
@@ -221,16 +292,13 @@ export async function runSmokeJourney({ report, provider, platform }) {
     );
     observeChildren();
     // A packaged app offers updates only after its own signature matched the
-    // sealed publisher; otherwise it reports "unavailable". Before the first
-    // release the feed itself may be missing, which is an error state.
-    step = "update-publisher";
+    // sealed publisher. The copy's ad-hoc signature does not, so it must
+    // report "unavailable" and never contact the feed.
+    step = "copy-updates";
     const update = await page.evaluate(() =>
       window.animamaDesktop.updates.check(),
     );
-    evidence(
-      "update_publisher_verified",
-      typeof update?.state === "string" && update.state !== "unavailable",
-    );
+    evidence("copy_updates_unavailable", update?.state === "unavailable");
     // Setup is three steps: Welcome (required name) → AI → Voice, then age confirmation.
     step = "setup-welcome";
     const continueButton = page.getByRole("button", {
@@ -307,7 +375,7 @@ export async function runSmokeJourney({ report, provider, platform }) {
       (await request(page, "/v1/runtime-context")).first_run_complete === false,
     );
     await page
-      .getByRole("button", { name: "I am 18 or older", exact: true })
+      .getByRole("button", { name: "I am 18 or older and agree", exact: true })
       .click();
     await page
       .getByRole("dialog", { name: "Before you start" })
@@ -561,10 +629,9 @@ export async function runSmokeJourney({ report, provider, platform }) {
       ) && traceFailures.size === 0,
     );
     let scanned = 0;
-    for (const name of readdirSync(path.join(userData, "runtime/logs"), {
-      recursive: true,
-    })) {
-      const file = path.join(userData, "runtime/logs", String(name));
+    const logs = path.join(journey.userData, "runtime/logs");
+    for (const name of readdirSync(logs, { recursive: true })) {
+      const file = path.join(logs, String(name));
       if (!lstatSync(file).isFile()) continue;
       scanned++;
       evidence(
@@ -584,22 +651,35 @@ export async function runSmokeJourney({ report, provider, platform }) {
         String(error?.stack ?? error).replaceAll(provider, "[provider key]"),
       );
   } finally {
+    // The key lives only in the copy's throwaway vault, which is deleted
+    // below; a failed removal through the app still fails the smoke.
     await cleanupProvider().catch(() => {
       report.passed = false;
-      report.cleanup_required =
-        "Remove the temporary OpenAI credential from this test account in Animama settings.";
       // Keep the step that failed first; cleanup failure is reported separately.
       report.failed_step ??= "temporary-provider-cleanup";
     });
     if (application)
       await close().catch(() => {
         report.passed = false;
-        report.failed_step = "owned-child-shutdown";
+        report.failed_step ??= "owned-child-shutdown";
       });
+    // The copy and its throwaway profile never outlive the run.
+    if (work)
+      try {
+        rmSync(work, { recursive: true, force: true });
+        copyRemoved = true;
+      } catch {
+        report.passed = false;
+        report.failed_step ??= "journey-copy-removal";
+        report.cleanup_required = addCleanup(
+          report.cleanup_required,
+          "Delete the smoke's journey copy folder (an `animama-smoke` or `am-smoke` folder in the temporary or local app data folder); it holds the copy and its throwaway profile, including the temporary OpenAI key.",
+        );
+      }
     const cleanupFailure = platform.cleanup?.() ?? null;
     if (cleanupFailure) {
       report.passed = false;
-      report.failed_step = cleanupFailure;
+      report.failed_step ??= cleanupFailure;
     }
     writeJson(path.join(output, "smoke-report.json"), report);
     writeJson(path.join(output, "network-report.json"), {
@@ -611,9 +691,9 @@ export async function runSmokeJourney({ report, provider, platform }) {
   }
   if (!report.passed)
     throw new Error(
-      `Native artifact smoke did not pass (${report.failed_step}); inspect the sanitized smoke report. Existing test data has been preserved.${report.cleanup_required ? ` ${report.cleanup_required}` : ""}`,
+      `Native artifact smoke did not pass (${report.failed_step}); inspect the sanitized smoke report. The installed app is preserved${copyRemoved ? "; the journey copy and its profile were deleted" : ""}.${report.cleanup_required ? ` ${report.cleanup_required}` : ""}`,
     );
   console.log(
-    `Signed artifact smoke passed (${report.setup}); the temporary OpenAI key was removed. Manual native/update acceptance is still required. Profile and app are preserved for inspection.`,
+    `Signed artifact smoke passed (${report.setup}); the temporary OpenAI key was removed. Manual native/update acceptance is still required. The installed app is preserved; the journey copy and its profile were deleted.`,
   );
 }

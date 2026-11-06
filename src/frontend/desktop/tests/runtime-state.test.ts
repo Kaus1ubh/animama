@@ -24,6 +24,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   awaitDurableEncryptionKey,
   CredentialVault,
+  validateConnectionOrigin,
   validateCredential,
   validateProvider,
   type Encryption,
@@ -467,6 +468,87 @@ describe("private local state and vault", () => {
     ).not.toHaveProperty("GEMINI_API_KEY");
   });
 
+  it("delivers a connection key with the origin it was entered for, never as a secret", async () => {
+    const file = path.join(fixture(), "vault.bin");
+    const crypto = encryption();
+    const vault = await CredentialVault.open(file, crypto, false);
+    const connection = "ANIMAMA_CONNECTION_C_0123456789AB_API_KEY";
+    const origin = "ANIMAMA_CONNECTION_C_0123456789AB_ORIGIN";
+    await vault.apply([
+      { provider: "openai", value: "fixture-openai" },
+      {
+        connection,
+        value: "fixture-connection",
+        origin: "https://lab.example.test",
+      },
+    ]);
+    const delivered = {
+      OPENAI_API_KEY: "fixture-openai",
+      [connection]: "fixture-connection",
+      [origin]: "https://lab.example.test",
+    };
+    expect(vault.childEnvironment()).toEqual(delivered);
+    expect(
+      (await CredentialVault.open(file, crypto, true)).childEnvironment(),
+    ).toEqual(delivered);
+    expect(vault.secrets().sort()).toEqual([
+      "fixture-connection",
+      "fixture-openai",
+    ]);
+    expect(JSON.stringify(vault.list())).not.toContain("lab.example.test");
+
+    // A key entered again without an origin replaces the whole entry.
+    await vault.apply([{ connection, value: "fixture-replaced" }]);
+    expect(vault.childEnvironment()).not.toHaveProperty(origin);
+    await vault.apply([
+      { connection, value: "fixture-connection", origin: "http://[::1]:8080" },
+    ]);
+    expect(vault.childEnvironment()[origin]).toBe("http://[::1]:8080");
+    await vault.apply([{ connection }]);
+    expect(vault.childEnvironment()).toEqual({
+      OPENAI_API_KEY: "fixture-openai",
+    });
+
+    for (const stored of ["https://lab.example.test/", "lab.example.test"]) {
+      const bad = path.join(fixture(), "bad.bin");
+      atomicWrite(
+        bad,
+        crypto.seal(
+          JSON.stringify({
+            version: 1,
+            postgresPassword: vault.databasePassword(),
+            providers: {},
+            connections: {
+              [connection]: {
+                value: "fixture",
+                updatedAt: new Date().toISOString(),
+                origin: stored,
+              },
+            },
+          }),
+        ),
+      );
+      await expect(CredentialVault.open(bad, crypto, true)).rejects.toThrow(
+        "vault_unreadable",
+      );
+    }
+  });
+
+  it.each([
+    "https://lab.example.test/",
+    "HTTPS://lab.example.test",
+    "https://lab.example.test:443",
+    "https://lab.example.test/v1",
+    "https://user:secret@lab.example.test",
+    "ftp://lab.example.test",
+    "lab.example.test",
+    42,
+  ])("refuses a connection origin that is not canonical: %s", (value) => {
+    expect(() => validateConnectionOrigin(value)).toThrow(
+      "credential_origin_invalid",
+    );
+  });
+
   it("stores a Gemini key apart from an earlier release's retired Gemini entry", async () => {
     const file = path.join(fixture(), "vault.bin");
     const crypto = encryption();
@@ -642,6 +724,35 @@ describe("private local state and vault", () => {
     );
     expect(setName).toHaveBeenCalledWith("Animama");
     expect(setPath).not.toHaveBeenCalled();
+  });
+
+  it("lets a packaged app take a throwaway profile only while its inspector runs", () => {
+    const appData = fixture("a-");
+    const legacy = path.join(appData, "Anima");
+    mkdirSync(legacy);
+    writeFileSync(path.join(legacy, "keep"), "legacy profile");
+    const base = path.join(fixture("a-"), "smoke-profile");
+    vi.stubEnv("ANIMAMA_DESKTOP_DEV_USER_DATA", base);
+    const app = () =>
+      ({
+        isPackaged: true,
+        setName: vi.fn(),
+        setPath: vi.fn(),
+        getPath: (name: string) => (name === "home" ? fixture() : appData),
+      }) as unknown as App;
+
+    expect(() => prepareDesktopIdentity(app(), false)).toThrow(
+      "packaged_runtime_override_rejected",
+    );
+    expect(prepareDesktopIdentity(app(), true).base).toBe(base);
+    // The legacy profile stays where it is; only the canonical root adopts it.
+    expect(readFileSync(path.join(legacy, "keep"), "utf8")).toBe(
+      "legacy profile",
+    );
+    vi.stubEnv("ANIMAMA_DESKTOP_DEV_RUNTIME_ROOT", fixture());
+    expect(() => prepareDesktopIdentity(app(), true)).toThrow(
+      "packaged_runtime_override_rejected",
+    );
   });
 
   it("creates the selected userData directory before Electron setPath", () => {

@@ -1,5 +1,3 @@
-"use client";
-
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import { useParams } from "@tanstack/react-router";
@@ -14,7 +12,7 @@ import {
 } from "@/lib/avatar";
 import { buildAnimationPreloadPlan } from "@/lib/avatar/animationPreloadPlan";
 import { useEnhancedRenderingStore } from "@/lib/avatar/enhanced-rendering/enhancedRendering";
-import { useOptionalSoundController } from "@/hooks/use-sound-controller";
+import { useOptionalSoundController } from "@/hooks/useSoundController";
 import type { SceneVFXKind } from "@/lib/scene-vfx/types";
 import { createLogger } from "@/lib/logger";
 import { runtimeContentEntryLoadKey } from "@/lib/runtime-content/animaRuntimeSnapshot";

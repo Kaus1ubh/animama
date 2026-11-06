@@ -4,7 +4,10 @@ The manual release process builds and reviews exact artifacts from `main`, then
 uses separate preview and stable publication commands. `raymond-van` is the
 configured maintainer. CI publication is not configured as the release path.
 
-No public release is accepted. A local signed candidate can be built before the
+Signed macOS previews 0.1.0 to 0.1.2 are published; no stable release is.
+Before distribution ends, a final release turns update checks and model
+downloads off; [Ending distribution](releases.md#ending-distribution) covers it
+and the cut-off. A local signed candidate can be built before the
 selected distribution serves anything: its builder does not contact the
 destination or upload release assets. Signing, notarization, complete
 starter inputs and exact inventory review are still required. Public preview and
@@ -19,12 +22,12 @@ remain pending for the exact current candidate.
 | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Inputs                        | Apple Team ID, Developer ID identity and local notarization Keychain profile are configured; content/dependency terms and notices are reviewed. Keep credentials out of source and chat.                                                                                                                                                                                        |
 | Candidate coordinates         | Select the app distribution with `ANIMAMA_RELEASE_DISTRIBUTION` (default `r2`) and keep it identical for stage, audit and `desktop:dist:mac`. Archive-pack and update URLs derive from it; model objects always use `downloads.animama.ai/models/`. No token, visibility check or upload is needed to build.                                                                    |
-| Reviewed packs                | No pack is active: expanded content and document processing are explicitly deferred from the first release. Preserve the signed/notarized worker as future review input without advertising or approving it. The required model objects, including both Parakeet and both SenseVoice sets, are scanned with the candidate.                                                      |
+| Reviewed packs                | No pack is active: expanded content and document processing are deferred, and a policy that ends updates (the final release) forbids activating one. Preserve the signed/notarized worker without advertising or approving it. The required model objects, including both Parakeet and both SenseVoice sets, are scanned with the candidate.                                       |
 | Dependency audit              | On each build host, `pnpm audit --prod`, the full audit's `desktop>electron` entries and `pip-audit` of the frozen backend's locked packages report no advisory, except ones accepted as unreachable and listed in `desktop/release/dependency-audit/`. Electron is on the latest release of a supported stable major.                                                          |
 | Candidate                     | From reviewed release inputs on `main`, stage, audit and build the local signed DMG/ZIP. Check sizes, hashes, signatures, notarization and notices. A build never uploads to GitHub; notarization sends the binaries to Apple.                                                                                                                                                  |
-| Automated acceptance          | Run the required-name setup smoke on a fresh macOS account/runner. It rejects blank input before named completion. Explicit provider-key approval is needed for real chat calls. Never reset the maintainer's normal desktop profile.                                                                                                                                           |
+| Automated acceptance          | Run the required-name setup smoke on a fresh macOS account, local VM clone or runner. It rejects blank input before named completion. Explicit provider-key approval is needed for real chat calls. Never reset the maintainer's normal desktop profile.                                                                                                                        |
 | Distribution / public preview | Currently not authorized. The publisher requires the selected destination to serve anonymously (a public GitHub repository or the R2 custom domain), a passing release scan and separate approval of the exact candidate/packs. A private destination cannot serve installed-app downloads; a different private testing transport would require a separate design and approval. |
-| Native acceptance             | Check physical microphone/audio, windows/shortcuts, in-place offline speech install/removal and offline dictation, packs/document conversion, failures/recovery and a real forward signed upgrade. Record supported OS and compatible app/pack versions actually exercised.                                                                                                     |
+| Native acceptance             | Check physical microphone/audio, windows/shortcuts, in-place offline speech install/removal and offline dictation (for the final release, removal and dictation after upgrading the previous release with offline speech installed), packs/document conversion when a pack is active, failures/recovery and a real forward signed upgrade. Record supported OS and compatible app/pack versions actually exercised. |
 | Stable promotion              | `raymond-van` reviews the exact DMG-bound manual receipt, required-name smoke/network reports and a rerun dependency audit, then runs the final publisher command.                                                                                                                                                                                                              |
 
 Windows 11 x64 passes the same gates with its own commands; see
@@ -33,11 +36,13 @@ the declared minimums; actual minimum-OS, clean-machine and signed acceptance
 require separate evidence. Run native audits against matching current inputs
 and preserve their receipts.
 
-Use a separate macOS test account, log in normally and verify that no Animama or
-`Anima` profile or test app exists before running smoke. Do not fake HOME, reset
-another profile or copy signing private keys into the test account. A locally
-transferred DMG can test fresh-profile installation without a public URL; this
-does not prove a clean machine or minimum-OS compatibility.
+Use a separate macOS test account, or a disposable clone of the golden smoke VM
+([local VM smoke](releases.md#fresh-account-smoke-in-a-local-vm)), whose user
+is logged in normally, and verify that no Animama or `Anima` profile or test app
+exists before running smoke. Do not fake HOME, reset another profile or copy
+signing private keys into the test account. A locally transferred DMG can test
+fresh-profile installation without a public URL; this does not prove a clean
+physical machine or minimum-OS compatibility.
 
 ## Commands and inputs
 
@@ -124,18 +129,26 @@ input change invalidates its old hashes and receipts. Preserve
 outputs before starting another candidate; `desktop:dist:mac` replaces its derived
 candidate directory, not user data.
 
-Use the exact candidate DMG on a fresh test account:
+Smoke the exact candidate DMG in a disposable clone of the golden smoke VM,
+from the candidate's `src/frontend`:
+
+```sh
+python3 ../../scripts/heavy-slot.py -- pnpm desktop:smoke:mac:vm -- --artifact desktop/release/publish/Animama-<version>-arm64.dmg
+```
+
+It writes `desktop/release/smoke-name` beside the candidate and deletes the
+clone. Without the golden VM, run the same smoke in a fresh test account:
 
 ```sh
 pnpm desktop:smoke:mac -- --artifact desktop/release/publish/Animama-<version>-arm64.dmg --setup name
 ```
 
-Collect the resulting `desktop/release/smoke-name` directory alongside
+Then collect the resulting `desktop/release/smoke-name` directory alongside
 the unchanged candidate on the publishing Mac. Reports must agree on the DMG
 hash and runtime build ID. `<version>` is a placeholder, not a literal filename.
 The smoke removes its temporary OpenAI credential and verifies that removal
 survives restart. If its sanitized report asks for manual cleanup, remove that
-test-account copy before continuing; do not clear the maintainer's normal vault
+test-account copy before continuing (a VM clone's copy is deleted with the clone); do not clear the maintainer's normal vault
 or change the original provider key.
 
 Scan the exact candidate for secrets and private text before any upload. Use

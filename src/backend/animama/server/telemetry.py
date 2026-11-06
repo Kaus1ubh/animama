@@ -1,14 +1,26 @@
+"""Optional OpenTelemetry wiring for the local server: exporters, FastAPI, HTTP-client,
+database, logging and WebSocket instrumentation, and process metrics.
+
+Every part is best-effort, so missing exporters or packages never block start-up.
+"""
+
 from __future__ import annotations
 
 import logging
 import os
 import time
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
+    from opentelemetry.metrics import CallbackOptions, Observation
     from opentelemetry.sdk.metrics.export import MetricExporter
     from opentelemetry.sdk.trace.export import SpanExporter
+    from sqlalchemy.engine import Engine
+    from sqlalchemy.ext.asyncio import AsyncEngine
+    from starlette.middleware.base import RequestResponseEndpoint
+    from starlette.responses import Response
+    from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from fastapi import FastAPI, Request
 
@@ -114,7 +126,7 @@ def _ws_metrics_excluded(path: str) -> bool:
     return path in excludes
 
 
-def _route_for_scope(scope: dict[str, Any], fallback: str) -> str:
+def _route_for_scope(scope: Mapping[str, Any], fallback: str) -> str:
     route = scope.get("route")
     route_path = getattr(route, "path", None)
     return route_path or fallback
@@ -154,7 +166,7 @@ def _setup_http_metrics(app: FastAPI) -> None:
         return
 
     @app.middleware("http")
-    async def _otel_http_metrics(request: Request, call_next):
+    async def _otel_http_metrics(request: Request, call_next: RequestResponseEndpoint) -> Response:
         raw_path = request.url.path
         if _http_metrics_excluded(raw_path):
             return await call_next(request)
@@ -194,10 +206,10 @@ def _setup_http_metrics(app: FastAPI) -> None:
 
 
 class WebSocketMetricsMiddleware:
-    def __init__(self, app):
+    def __init__(self, app: ASGIApp) -> None:
         self.app = app
 
-    async def __call__(self, scope, receive, send):
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         if scope.get("type") != "websocket":
             return await self.app(scope, receive, send)
 
@@ -214,13 +226,13 @@ class WebSocketMetricsMiddleware:
         close_code = None
         exc_raised = False
 
-        async def wrapped_receive():
+        async def wrapped_receive() -> Message:
             message = await receive()
             if message.get("type") == "websocket.receive" and _ws_message_counter is not None:
                 _ws_message_counter.add(1, {"ws.route": route, "ws.direction": "in"})
             return message
 
-        async def wrapped_send(message):
+        async def wrapped_send(message: Message) -> None:
             nonlocal close_code
             msg_type = message.get("type")
             if msg_type == "websocket.send" and _ws_message_counter is not None:
@@ -353,7 +365,7 @@ def _instrument_asyncpg() -> None:
     try:
         from opentelemetry.instrumentation.asyncpg import AsyncPGInstrumentor
 
-        AsyncPGInstrumentor().instrument()
+        AsyncPGInstrumentor().instrument()  # type: ignore[no-untyped-call]
         _instrumented.add("asyncpg")
     except Exception as exc:
         _log.warning("asyncpg instrumentation failed: %s", exc)
@@ -373,25 +385,25 @@ def _instrument_process_metrics() -> None:
         proc.cpu_percent(interval=None)
         meter = metrics.get_meter("anima.process")
 
-        def cpu_callback(_):
+        def cpu_callback(_: CallbackOptions) -> list[Observation]:
             try:
                 return [Observation(proc.cpu_percent(interval=None))]
             except Exception:
                 return []
 
-        def rss_callback(_):
+        def rss_callback(_: CallbackOptions) -> list[Observation]:
             try:
                 return [Observation(proc.memory_info().rss)]
             except Exception:
                 return []
 
-        def vms_callback(_):
+        def vms_callback(_: CallbackOptions) -> list[Observation]:
             try:
                 return [Observation(proc.memory_info().vms)]
             except Exception:
                 return []
 
-        def threads_callback(_):
+        def threads_callback(_: CallbackOptions) -> list[Observation]:
             try:
                 return [Observation(proc.num_threads())]
             except Exception:
@@ -455,7 +467,7 @@ def _instrument_logging() -> None:
         _log.warning("Logging instrumentation failed: %s", exc)
 
 
-def instrument_sqlalchemy(engine) -> None:
+def instrument_sqlalchemy(engine: AsyncEngine | Engine) -> None:
     if _is_disabled("sqlalchemy"):
         return
     if "sqlalchemy" in _instrumented:

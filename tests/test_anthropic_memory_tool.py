@@ -56,7 +56,7 @@ async def clean_entries(async_session):
     await _clean()
 
 
-def _entries(async_session) -> MemoryEntryService:  # noqa: ANN001
+def _entries(async_session) -> MemoryEntryService:
     return MemoryEntryService(
         memory_entries=SQLAlchemyMemoryEntryRepository(async_session),
         uow=SQLAlchemyUnitOfWork(async_session),
@@ -64,7 +64,7 @@ def _entries(async_session) -> MemoryEntryService:  # noqa: ANN001
     )
 
 
-def _handler(async_session, user_id: str, access: ManagerFileAccess = GENERAL_MANAGER_FILE_ACCESS):  # noqa: ANN001, ANN202
+def _handler(async_session, user_id: str, access: ManagerFileAccess = GENERAL_MANAGER_FILE_ACCESS):
     return AnthropicMemoryToolHandler(
         user_id=user_id,
         memory_entries=_entries(async_session),
@@ -73,7 +73,7 @@ def _handler(async_session, user_id: str, access: ManagerFileAccess = GENERAL_MA
     )
 
 
-async def _seed(async_session, user_id: str) -> None:  # noqa: ANN001
+async def _seed(async_session, user_id: str) -> None:
     entries = _entries(async_session)
     await entries.put_file_by_path(
         user_id=user_id, path="PROFILE.md", content=PROFILE, kind="user_memory", description="Who the user is"
@@ -103,7 +103,7 @@ async def _seed(async_session, user_id: str) -> None:  # noqa: ANN001
     )
 
 
-async def _anima(async_session, user_id: str, name: str) -> str:  # noqa: ANN001
+async def _anima(async_session, user_id: str, name: str) -> str:
     anima_id = f"anima-{uuid.uuid4().hex}"
     async_session.add(ORMAnima(id=anima_id, user_id=user_id, display_name=name))
     await async_session.flush()
@@ -247,7 +247,7 @@ async def test_viewing_a_file_shows_its_description_header_and_body_with_line_nu
     ]
 
 
-async def test_a_file_view_reads_only_that_file(async_session, clean_entries, monkeypatch) -> None:  # noqa: ANN001
+async def test_a_file_view_reads_only_that_file(async_session, clean_entries, monkeypatch) -> None:
     user_id = _user()
     await _seed(async_session, user_id)
     handler = _handler(async_session, user_id)

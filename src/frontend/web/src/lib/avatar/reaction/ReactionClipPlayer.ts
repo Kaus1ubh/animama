@@ -9,6 +9,7 @@ import {
   shouldAnimaPoseClipAutoComplete,
   type AnimaPoseClipV2,
   type AnimaPoseClipDueEvent,
+  type AnimaPoseClipEasing,
   type AnimaPoseClipEventKindCounts,
   type AnimaPoseClipEvent,
   type AnimaPoseClipParticleVFXEvent,
@@ -91,6 +92,20 @@ type ReactionClipActiveEffect = {
   intensity?: number;
 };
 
+/**
+ * An Avatar Effect of a replaced Reaction, fading out over the fade-in of the
+ * Reaction that replaced it before it is removed.
+ */
+type ReactionClipRetiringEffect = {
+  event: Extract<AnimaPoseClipEvent, { kind: "avatar_vfx" }>;
+  context: AnimaPoseClipEventContext;
+  /** Intensity it had when its Reaction was replaced. */
+  fromIntensity: number;
+  elapsedSec: number;
+  durationSec: number;
+  easing: AnimaPoseClipEasing;
+};
+
 type ReactionClipRuntimeState = {
   clip: AnimaPoseClipV2;
   /** Samples the clip's expression lane (2.0 clips are prepared once). */
@@ -120,6 +135,7 @@ export class ReactionClipPlayer {
   private _eventSink: AnimaPoseClipEventSink | null;
   private _resolvePoseRef: AnimaPoseClipPoseResolver;
   private _state: ReactionClipRuntimeState | null = null;
+  private _retiringEffects = new Map<string, ReactionClipRetiringEffect>();
   private _nextPlaybackId = 1;
 
   constructor(
@@ -175,10 +191,17 @@ export class ReactionClipPlayer {
     const program = createAnimaPoseClipProgram(clip, {
       resolvePose: this._resolvePoseRef,
     });
-    this.clear(null, { immediate: true });
     const fadeInDurationSec = resolveAnimaPoseClipFadeDuration(
       clip.fadeIn,
       null,
+    );
+    // A Reaction that replaces one still showing fades in from the face that
+    // one shows now, and its Avatar Effects fade out over this fade-in,
+    // instead of both cutting to neutral on this frame.
+    const shownSample = this._state?.lastExpressionSample ?? null;
+    this._replaceState(
+      fadeInDurationSec,
+      resolveAnimaPoseClipFadeTransition(clip.fadeIn).easing,
     );
     this._state = {
       clip,
@@ -192,7 +215,7 @@ export class ReactionClipPlayer {
       phase: fadeInDurationSec > 0 ? "fadeIn" : "playing",
       fadeInDurationSec,
       fadeOutDurationSec: 0,
-      fadeInSourceSample: fadeInDurationSec > 0 ? {} : null,
+      fadeInSourceSample: fadeInDurationSec > 0 ? (shownSample ?? {}) : null,
       fadeOutSourceSample: null,
       lastExpressionSample: null,
       playbackId: this._nextPlaybackId,
@@ -213,23 +236,101 @@ export class ReactionClipPlayer {
     options: ReactionClipClearOptions = {},
   ): boolean {
     const state = this._state;
-    if (!state) return false;
+    if (!state) {
+      if (options.immediate === true) this._finishAllRetiringEffects();
+      return false;
+    }
     if (ownerId && state.ownerId !== ownerId) return false;
     if (options.immediate !== true && this._beginFadeOutIfAvailable()) {
       return false;
     }
 
-    this._clearImmediately();
+    this._clearImmediately(options.immediate !== true);
     return true;
   }
 
-  private _clearImmediately(): void {
+  /**
+   * End the playing Reaction now. `finish` (a normal end, not a reset) lets
+   * its Particle Effects' particles live out their life.
+   */
+  private _clearImmediately(finish = false): void {
     const state = this._state;
     if (!state) return;
 
-    this._clearAllEventEffects();
+    this._clearAllEventEffects(finish);
+    this._finishAllRetiringEffects();
     this._expressionSink.clearExpressionOverlay(state.ownerId);
     this._state = null;
+  }
+
+  /**
+   * End the playing Reaction for a new one with a fade-in of `durationSec`:
+   * its Avatar Effects keep fading out over that time (`_updateRetiringEffects`)
+   * where the sink can fade them; its other effects and its overlay go now.
+   */
+  private _replaceState(
+    durationSec: number,
+    easing: AnimaPoseClipEasing,
+  ): void {
+    const state = this._state;
+    if (!state) return;
+
+    const canFade =
+      durationSec > 0 && Boolean(this._eventSink?.setAvatarVFXIntensity);
+    // A cut ends everything at once, including any earlier crossfade.
+    if (!canFade) this._finishAllRetiringEffects();
+    for (const activeEffect of Array.from(state.activeEventEffects.values())) {
+      const { event, context } = activeEffect;
+      if (!canFade || event.kind !== "avatar_vfx") {
+        this._clearEventEffect(context.appliedId, canFade);
+        continue;
+      }
+      state.activeEventEffects.delete(context.appliedId);
+      this._retiringEffects.set(context.appliedId, {
+        event,
+        context,
+        fromIntensity: activeEffect.intensity ?? 1,
+        elapsedSec: 0,
+        durationSec,
+        easing,
+      });
+    }
+    this._expressionSink.clearExpressionOverlay(state.ownerId);
+    this._state = null;
+  }
+
+  private _updateRetiringEffects(deltaSec: number): void {
+    const handler = this._eventSink?.setAvatarVFXIntensity;
+    for (const [appliedId, retiring] of Array.from(this._retiringEffects)) {
+      retiring.elapsedSec += deltaSec;
+      const progress = retiring.elapsedSec / retiring.durationSec;
+      if (progress >= 1 || !handler) {
+        this._finishRetiringEffect(appliedId);
+        continue;
+      }
+      const { event, context } = retiring;
+      const intensity =
+        retiring.fromIntensity * (1 - easeProgress(progress, retiring.easing));
+      this._invokeEventHandler(event, context, () =>
+        handler(event, context, intensity),
+      );
+    }
+  }
+
+  private _finishRetiringEffect(appliedId: string): void {
+    const retiring = this._retiringEffects.get(appliedId);
+    if (!retiring) return;
+    this._retiringEffects.delete(appliedId);
+    const { event, context } = retiring;
+    this._invokeEventHandler(event, context, () =>
+      this._eventSink?.clearAvatarVFX?.(event, context),
+    );
+  }
+
+  private _finishAllRetiringEffects(): void {
+    for (const appliedId of Array.from(this._retiringEffects.keys())) {
+      this._finishRetiringEffect(appliedId);
+    }
   }
 
   isActive(ownerId?: string): boolean {
@@ -239,10 +340,11 @@ export class ReactionClipPlayer {
   }
 
   update(deltaSec: number): void {
+    const delta = Number.isFinite(deltaSec) ? Math.max(0, deltaSec) : 0;
+    this._updateRetiringEffects(delta);
     const state = this._state;
     if (!state) return;
 
-    const delta = Number.isFinite(deltaSec) ? Math.max(0, deltaSec) : 0;
     const previousElapsedSec = state.elapsedSec;
     const nextElapsedSec = state.elapsedSec + delta;
     state.elapsedSec = nextElapsedSec;
@@ -256,7 +358,7 @@ export class ReactionClipPlayer {
     if (state.phase === "fadeOut") {
       this._sampleEventEnvelopes(nextElapsedSec);
       if (this._isCurrentFadeComplete(state.fadeOutDurationSec)) {
-        this.clear(state.ownerId, { immediate: true });
+        this._clearImmediately(true);
       }
       return;
     }
@@ -493,6 +595,7 @@ export class ReactionClipPlayer {
       }
     }
     this._clearEventEffect(context.appliedId);
+    this._finishRetiringEffect(context.appliedId);
     state.activeEventEffects.set(context.appliedId, {
       event,
       context,
@@ -503,18 +606,31 @@ export class ReactionClipPlayer {
     });
   }
 
-  /** Send each fading Avatar Effect event's envelope value to the sink. */
+  /**
+   * Send each fading Avatar Effect event's envelope value to the sink; while
+   * the Reaction fades out, its Avatar Effects fade with its face.
+   */
   private _sampleEventEnvelopes(playbackTimeSec: number): void {
     const state = this._state;
     const handler = this._eventSink?.setAvatarVFXIntensity;
     if (!state || !handler) return;
+    const fadeOutScale =
+      state.phase === "fadeOut"
+        ? 1 -
+          easeProgress(
+            this._getCurrentFadeProgress(state.fadeOutDurationSec),
+            resolveAnimaPoseClipFadeTransition(state.clip.fadeOut).easing,
+          )
+        : 1;
     for (const activeEffect of state.activeEventEffects.values()) {
       const { event, context } = activeEffect;
       if (event.kind !== "avatar_vfx") continue;
-      const intensity = sampleAnimaPoseClipAvatarVFXIntensity(
+      const envelope = sampleAnimaPoseClipAvatarVFXIntensity(
         event,
         playbackTimeSec - context.playbackTime,
       );
+      const intensity =
+        state.phase === "fadeOut" ? (envelope ?? 1) * fadeOutScale : envelope;
       if (intensity === undefined || intensity === activeEffect.intensity) {
         continue;
       }
@@ -532,21 +648,22 @@ export class ReactionClipPlayer {
         activeEffect.clearAtPlaybackTime !== null &&
         activeEffect.clearAtPlaybackTime <= playbackTimeSec
       ) {
-        this._clearEventEffect(activeEffect.context.appliedId);
+        this._clearEventEffect(activeEffect.context.appliedId, true);
       }
     }
   }
 
-  private _clearAllEventEffects(): void {
+  private _clearAllEventEffects(finish = false): void {
     const state = this._state;
     if (!state) return;
 
     for (const appliedId of Array.from(state.activeEventEffects.keys())) {
-      this._clearEventEffect(appliedId);
+      this._clearEventEffect(appliedId, finish);
     }
   }
 
-  private _clearEventEffect(appliedId: string): void {
+  /** `finish` lets a Particle Effect's particles live out their life. */
+  private _clearEventEffect(appliedId: string, finish = false): void {
     const state = this._state;
     if (!state) return;
 
@@ -563,7 +680,11 @@ export class ReactionClipPlayer {
     }
     if (event.kind === "particle_vfx") {
       this._invokeEventHandler(event, context, () =>
-        this._eventSink?.clearParticleVFX?.(event, context),
+        finish
+          ? this._eventSink?.clearParticleVFX?.(event, context, {
+              finish: true,
+            })
+          : this._eventSink?.clearParticleVFX?.(event, context),
       );
       return;
     }

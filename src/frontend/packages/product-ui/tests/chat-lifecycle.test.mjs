@@ -89,8 +89,11 @@ after(async () => {
   if (temporary) await rm(temporary, { recursive: true, force: true });
 });
 
-/** Each test owns a fresh DOM, hook instance, transport and event transcript. */
-async function consumer(t) {
+/**
+ * Each test owns a fresh DOM, hook instance, transport and event transcript.
+ * With `origin`, the page is served from that origin instead of `about:blank`.
+ */
+async function consumer(t, { origin } = {}) {
   const page = await browser.newPage();
   // Generous for two-core CI runners.
   page.setDefaultTimeout(30_000);
@@ -100,7 +103,17 @@ async function consumer(t) {
     await page.close();
     assert.deepEqual(errors, []);
   });
-  await page.setContent('<div id="root"></div>');
+  if (origin) {
+    await page.route(`${origin}/`, (route) =>
+      route.fulfill({
+        contentType: "text/html",
+        body: '<div id="root"></div>',
+      }),
+    );
+    await page.goto(`${origin}/`);
+  } else {
+    await page.setContent('<div id="root"></div>');
+  }
   await page.addScriptTag({ content: bundle });
   await page.waitForSelector("#start");
   return page;
@@ -487,8 +500,8 @@ test("known error guidance is specific and unknown payloads never become display
   assert.match(values.network.title, /connect/);
 });
 
-async function sessionConsumer(t) {
-  const page = await consumer(t);
+async function sessionConsumer(t, options) {
+  const page = await consumer(t, options);
   await page.evaluate(() => window.fixture.mountSession());
   await page.waitForFunction(
     () => document.querySelector("#submit")?.disabled === false,
@@ -1381,4 +1394,56 @@ test("a streamed memory cue stays on the reply's last bubble after completion an
   });
   await page.getByText("Persisted display", { exact: true }).waitFor();
   assert.deepEqual(await cues(), [["run-run-old-assistant-1", "Has a cat"]]);
+});
+
+test("a markdown reply loads only the images the app serves", async (t) => {
+  const origin = "http://app.fixture.invalid";
+  const page = await sessionConsumer(t, { origin });
+  const requested = [];
+  page.on("request", (request) => requested.push(request.url()));
+  // A 1×1 PNG for the app's own image; any other host is refused if asked.
+  const pixel = Buffer.from(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=",
+    "base64",
+  );
+  await page.route(`${origin}/v1/content/files/portrait.png`, (route) =>
+    route.fulfill({ contentType: "image/png", body: pixel }),
+  );
+  await page.route("https://images.fixture.invalid/**", (route) =>
+    route.abort(),
+  );
+  await submitSession(page, "Show me");
+  const runId = await page.evaluate(() => {
+    window.fixture.respond(0);
+    return window.fixture.requests()[0].body.run_id;
+  });
+  // The remote image arrives split across frames, as streamed markdown does.
+  for (const text of [
+    "Here: ![portrait](/v1/content/files/portrait.png) and ![chart](https://images.fix",
+    "ture.invalid/chart.png?d=1) and ![](https://images.fixture.invalid/x.png)",
+  ])
+    await page.evaluate(
+      ({ text, run_id }) => window.fixture.send(0, [{ text, run_id }]),
+      { text, run_id: runId },
+    );
+  await page.evaluate((run_id) => {
+    window.fixture.send(0, [{ run_id, chat_id: "chat-fixture" }]);
+    window.fixture.close(0);
+  }, runId);
+  await sessionIdle(page);
+  await page.waitForFunction(
+    () => document.querySelector('img[alt="portrait"]')?.naturalWidth === 1,
+  );
+  assert.deepEqual(
+    await page.evaluate(() =>
+      [...document.querySelectorAll("img")].map((image) => image.src),
+    ),
+    [`${origin}/v1/content/files/portrait.png`],
+  );
+  assert.deepEqual(
+    requested.filter((url) => !url.startsWith(`${origin}/`)),
+    [],
+  );
+  await page.getByText("[Image: chart]", { exact: true }).waitFor();
+  await page.getByText("[Image: not loaded]", { exact: true }).waitFor();
 });

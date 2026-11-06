@@ -1,5 +1,3 @@
-"use client";
-
 import type { CSSProperties } from "react";
 
 import type { AvatarBackgroundOption } from "@/lib/avatar/backgroundOptions";

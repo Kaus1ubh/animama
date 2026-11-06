@@ -251,7 +251,7 @@ async function annieWithInnerParts(): Promise<Avatar> {
     uv: HOLE_UV,
   });
   for (const eye of eyes) {
-    addBlinkStrand(avatar, face, eye, 0.01, 0.012, OTHER_HOLE_UV);
+    addBlinkStrand(avatar, face, eye, 0.01, { uv: OTHER_HOLE_UV });
   }
   await avatar.setFacePartCorrections(null);
   return avatar;

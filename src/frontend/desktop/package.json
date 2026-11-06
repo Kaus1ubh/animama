@@ -1,8 +1,8 @@
 {
   "name": "animama-desktop",
   "private": true,
-  "license": "UNLICENSED",
-  "version": "0.1.1",
+  "license": "AGPL-3.0-only",
+  "version": "0.1.3",
   "description": "Animama private desktop runtime",
   "author": "Animama",
   "type": "module",
@@ -45,6 +45,7 @@
     "models:publish": "node scripts/runtime/publish-models-r2.mjs publish",
     "release:windows": "node scripts/runtime/release-gate.mjs windows",
     "smoke:mac": "node scripts/runtime/release-gate.mjs smoke-mac",
+    "smoke:mac:vm": "bash scripts/vm/smoke-macos-vm.sh",
     "smoke:windows": "node scripts/runtime/release-gate.mjs smoke-windows",
     "reset:mac": "node scripts/reset-macos-profile.mjs",
     "reset:mac:build": "pnpm build:mac && pnpm reset:mac"
@@ -61,7 +62,7 @@
     "@types/node": "^24.19.2",
     "@types/tar-stream": "3.1.5",
     "aws4fetch": "1.0.20",
-    "electron": "45.0.0",
+    "electron": "45.2.1",
     "electron-builder": "26.18.0",
     "esbuild": "0.27.7",
     "node-gyp": "12.4.0",

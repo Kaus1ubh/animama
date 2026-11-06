@@ -1,5 +1,3 @@
-"use client";
-
 import { Settings } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -23,7 +21,7 @@ import { useCloseMobileSidebar, useSidebar } from "@/ui/sidebar/Sidebar";
 import {
   useOptionalAccountAffordances,
   useOptionalRuntimeController,
-} from "@web/app/runtime/RuntimeAdmissionProvider";
+} from "@/app/runtime/RuntimeAdmissionProvider";
 import { AccountUsage } from "./AccountUsage";
 
 function initials(name: string): string {

@@ -118,11 +118,11 @@ uv run python -m animama.server.db_bootstrap
 For a schema-only operation, run migrations directly:
 
 ```bash
-uv run alembic upgrade head
+uv run alembic -c src/backend/alembic.ini upgrade head
 ```
 
 During development, do not add Alembic revisions. Update ORM/database
-definitions and `alembic/versions/0001_baseline.sql` directly when changing the
+definitions and `src/backend/migrations/versions/0001_baseline.sql` directly when changing the
 schema; change seeds or application defaults directly for data changes. The
 owner decides when to reset existing development data. Running bootstrap or
 `alembic upgrade head` against a database already at the baseline does not
@@ -149,7 +149,7 @@ schema and contains no hosted identity tables. Animama Cloud uses a separate
 migration history and app composition.
 
 Alembic revision `baseline_20260908` creates the current local schema from
-`alembic/versions/0001_baseline.sql`. The baseline creates installation settings
+`src/backend/migrations/versions/0001_baseline.sql`. The baseline creates installation settings
 and generates one UUIDv4 owner; it never imports live ORM metadata. Keep its SQL
 consistent with the ORM while retaining this single development baseline.
 
@@ -170,9 +170,9 @@ the new installation owner; private upload bytes alone do not restore their
 removed database records. Preserve a coordinated backup with the old checkout
 whenever any of that state is worth retaining.
 
-Post-schema SQL seeds live under `alembic/seeds/`; they are separate from the
-one-time revisions in `alembic/versions/`. The optional pgAdmin service reads
-its server registration from `alembic/pgadmin-servers.json`.
+Post-schema SQL seeds live under `src/backend/migrations/seeds/`; they are separate from the
+one-time revisions in `src/backend/migrations/versions/`. The optional pgAdmin service reads
+its server registration from `scripts/dev-tools/pgadmin-servers.json`.
 `01-seed-model-providers.sql` idempotently upserts the built-in model-provider
 catalog after Alembic creates its table; `02-seed-avatars.sql` retains the
 idempotent avatar seed policy. `reset.sh` invokes
@@ -256,13 +256,16 @@ The built Docker target compiles optimized React assets and copies them to
 loopback application origin; no Node or Vite server runs in this graph.
 This graph does not mount host speech-to-text sets: the app downloads the
 Parakeet and SenseVoice sets into its data root through the backend model-asset
-service. The browser speech set is an optional build input; run
+service, until the final release turns downloads off. The browser speech set is an optional build input; run
 `python3 scripts/models/browser_speech.py acquire` to enable Pocket TTS and Smart
 Turn, and set `ANIMAMA_MODEL_ROOT` to an absolute persistent root when needed.
 `reset.sh` records that root and the exact immutable version directory of each
 acquired set.
 See [model acquisition, offline reuse and recovery](model-assets.md).
 This selects build delivery, without adding accounts or network authentication.
+Only built mode serves the app's
+[Content Security Policy](../../frontend/architecture/auth-server.md#content-security-policy);
+Vite development sends none, so check policy-sensitive changes here.
 
 Apply the selection with an ordinary reset, which preserves state:
 
@@ -314,7 +317,10 @@ application services while PostgreSQL stays available, creates a custom-format
 database dump plus Local/data archives and SHA-256 inventory, then restarts only
 the services it stopped. The default output is the ignored `backups/`
 directory. Included content, browser/HTTP caches, model caches, downloaded
-model assets and environment secrets are intentionally excluded. The
+model assets and environment secrets are intentionally excluded. An in-place
+restore keeps the installed model assets; once downloads have ended, a backup
+restored on another host has no offline speech recognition or downloadable
+voices. The
 PostgreSQL dump includes `installation_settings`, so restoring it preserves the
 installation principal and every existing owner ID.
 
@@ -477,6 +483,9 @@ the SDK's native global opt-out before starting the API:
 ```bash
 export OPENAI_AGENTS_DISABLE_TRACING=1
 ```
+
+The desktop supervisor always sets it for its runtime children, so desktop
+Memory Manager runs send no traces.
 
 Organizations operating under OpenAI Zero Data Retention must keep tracing
 disabled because the Agents SDK tracing service is unavailable under ZDR.
@@ -692,9 +701,9 @@ is not owner acceptance of the coverage or budget tradeoff.
 The selector owns the exact allowlists. Backend production eligibility initially
 contains only `src/backend/animama/app/services/memory_entry_diff.py`; ordinary
 root-level `tests/test_*.py` files exclude shared guards and fixture/helper code.
-Web eligibility is confined to eight existing presentation controls under
-`web/src/ui/components`: `button`, `card`, `checkbox`, `input`, `label`, `textarea`,
-`radio-group` and `switch` (all `.tsx`). Other UI paths contain runtime, settings,
+Web eligibility is confined to seven existing presentation controls under
+`web/src/ui/components`: `button`, `card`, `checkbox`, `input`, `label`, `textarea`
+and `switch` (all `.tsx`). Other UI paths contain runtime, settings,
 persistence and avatar logic and remain full scope. Directory location alone is
 not permission to reduce checks. Changed imports or unsupported dependency syntax
 automatically select full validation. This does not prove functional purity;
@@ -1042,7 +1051,7 @@ API's re-embedding adds its vectors once the connection works.
 ## Docker Compose
 
 `docker-compose.yml` supplies the built application and private PostgreSQL, with
-optional voice/profile services and local administration tools. The development
+optional local administration tools (the `dev-tools` profile). The development
 override adds Vite/HMR and keeps FastAPI private. HMR covers the web app's own
 source only: the `web` service builds the workspace packages, including the
 generated API client, once at start. After changing a package or running
@@ -1101,10 +1110,10 @@ To disable all optional profiles explicitly on the main stack:
 COMPOSE_PROFILES= ./reset.sh
 ```
 
-If other profiles should remain, remove only `dev-tools`, for example
-`COMPOSE_PROFILES=voice ./reset.sh`. Omitting the CLI flag alone does not disable
-an inherited or `.env` profile. Also remove the persisted selection if future
-fresh-shell starts should stay disabled. Reset stops this project's old tools
+If the selection also names other profiles, remove only `dev-tools` from it.
+Omitting the CLI flag alone does not disable an inherited or `.env` profile.
+Also remove the persisted selection if future fresh-shell starts should stay
+disabled. Reset stops this project's old tools
 even when their profile is no longer active, closes their host listeners, and
 preserves volumes, the principal, chats and files. Re-enabling restores
 pgAdmin's saved state. Neither direction requires `--purge`, nor changes the
@@ -1421,7 +1430,7 @@ Useful examples:
 ```bash
 ./reset.sh --name avatar --base-port 8200
 ./reset.sh --name runtime --base-port 8300 --build animama-server
-COMPOSE_PROFILES=memory ./reset.sh --name memory --base-port 8400
+./reset.sh --name tools --base-port 8400 --profile dev-tools
 ```
 
 Use project-scoped Docker commands after startup. Do not use bare
@@ -1761,7 +1770,6 @@ Voice:
   forwards it to `animama-server`, empty when unset; keep it in the owner-only
   credentials file selected through `COMPOSE_ENV_FILES`, never in a worktree
   `.env`. See [voice and speech](../integrations/voice-and-speech.md#gemini-tts))
-- `ANIMAMA_ENABLE_VOICE`
 - realtime TTS intermediary settings
 
 Check `server/config.py` for exact names and defaults before adding new
