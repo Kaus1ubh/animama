@@ -818,6 +818,11 @@ from `src/frontend/web`:
     weights over the face for a window, ramping in and out, and `mood` cues
     set the feelings chat would report, which drive the emotion face and
     posture. A take can set its own `avatar`, `camera` and `duration`.
+    `enter` replaces a Gesture cue's own fade-in. A `vrma` cue plays a VRM
+    Animation file as the app plays a VRMA Gesture, and a take's `root` keys
+    move the Avatar on the floor. A camera can also stand still at a
+    `position` and `target` in metres, or ease between timed `keys`, so
+    several takes share one scene and their layers stack.
   - `--avatar-file <file.vrm>` reads a local VRM in place (lilToon included);
     keep third-party Avatars and their reels out of the repository.
   - `--camera pip` frames the desktop PiP window's default preset (record at
