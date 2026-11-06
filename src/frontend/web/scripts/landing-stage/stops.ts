@@ -73,6 +73,12 @@ export function voice(text: string, avatar: StageAvatar, t: LandingT): string {
 }
 
 /**
+ * Width-to-height ratio below which a viewport is tall (a phone held
+ * upright) and stops use their `tall` framing.
+ */
+export const TALL_ASPECT = 0.8;
+
+/**
  * Where the camera stands for a stop, in head heights (the rest height of
  * the head bone). `aim` uses the Avatar on stage, so the camera finds its
  * face and body; `distance` and `rise` use the first Avatar, so a taller one

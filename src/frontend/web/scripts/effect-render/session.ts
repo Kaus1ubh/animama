@@ -1,6 +1,7 @@
 import * as THREE from "three";
 
 import { Avatar } from "@/lib/avatar";
+import type { AvatarUpdateOptions } from "@/lib/avatar/Avatar";
 import type { AvatarMaterialMode } from "@/lib/avatar/avatarSettings";
 import { applyCanonicalPose } from "@/lib/avatar/motion-authoring/kinematics";
 import {
@@ -48,8 +49,9 @@ export type SessionRequest = {
   particles?: PreviewParticleEffect[];
   /**
    * `auto` (default) samples a clip without effect events as the Gesture
-   * creator previews it; `avatar` always plays the clip through the Avatar's
-   * own clip player, as chat does.
+   * creator previews it; `avatar` always advances the Avatar as chat does and
+   * plays the clip (if any) through its own clip player. With `avatar` and no
+   * clip, the caller plays clips itself (`playGesture`, `playReaction`).
    */
   clipPlayback?: "auto" | "avatar";
   /** Called for each sound the clip plays, at its session time. */
@@ -67,7 +69,17 @@ export type AvatarDiagnostics = {
   missingPoseRefs: string[];
 };
 
+/**
+ * Called before each frame the Avatar advances (`clipPlayback: "avatar"`),
+ * with the session time the frame starts at, so a clip started there shows
+ * its first frame one step later, as when it starts between frames; what it
+ * returns is passed to `Avatar.update`.
+ */
+export type SessionFrameHook = (time: number) => AvatarUpdateOptions | void;
+
 export const FRAME_SEC = 1 / 60;
+/** Owner of the Reactions a session plays (`playReaction`). */
+const REACTION_OWNER = "review-reaction";
 /** Longest wait for the effect loads one frame's events started. */
 const EVENT_LOAD_TIMEOUT_MS = 10_000;
 /** Frames run before applying so spring bones settle from the load pose. */
@@ -187,6 +199,7 @@ export class EffectSession {
   private requested = 0;
   private appliedCount = 0;
   private particleIds: string[] = [];
+  private frameHook: SessionFrameHook | null = null;
 
   private constructor(
     avatar: Avatar,
@@ -200,11 +213,10 @@ export class EffectSession {
     this.onSound = request.onSound;
     // Without the effects it plays, a Reaction's clip is sampled like a Gesture.
     this.playsEvents =
-      request.clipPlayback === "avatar"
-        ? Boolean(request.clip)
-        : Boolean(
-            request.clip && request.clipMedia && clipPlaysEffects(request.clip),
-          );
+      request.clipPlayback === "avatar" ||
+      Boolean(
+        request.clip && request.clipMedia && clipPlaysEffects(request.clip),
+      );
     this.stage = stage;
   }
 
@@ -309,31 +321,90 @@ export class EffectSession {
       this.stage.bands.showScene(previewSceneEntry(scene), this.time);
       this.appliedCount += 1;
     }
-    if (this.playsEvents && this.clip) {
-      const scenes = this.stage?.bands.clipSceneSink(
-        (kind, alias) => this.media.resolveSceneVFX(kind, alias),
-        () => this.time,
-        (alias, kind) => this.problems.push(missingSceneMessage(alias, kind)),
-      );
-      const onSound = this.onSound;
-      this.avatar.setPoseClipExternalEventSink({
-        ...scenes,
-        ...(onSound
-          ? {
-              playSfx: (event) =>
-                onSound({
-                  cueId: event.cueId,
-                  volume: event.volume ?? 1,
-                  time: this.time,
-                }),
-            }
-          : {}),
-      });
-      this.avatar.playAnimaPoseClip(
-        this.clip as Parameters<Avatar["playAnimaPoseClip"]>[0],
-        { preserveProceduralOffsets: true },
-      );
-    }
+    if (!this.playsEvents) return;
+    this.avatar.setPoseClipExternalEventSink(this.clipEventSink());
+    this.avatar.setReactionClipExternalEventSink(this.clipEventSink());
+    if (this.clip) this.playGesture(this.clip);
+  }
+
+  /** Scene and sound events of a clip the Avatar plays, routed to the stage. */
+  private clipEventSink(): Parameters<
+    Avatar["setPoseClipExternalEventSink"]
+  >[0] {
+    const scenes = this.stage?.bands.clipSceneSink(
+      (kind, alias) => this.media.resolveSceneVFX(kind, alias),
+      () => this.time,
+      (alias, kind) => this.problems.push(missingSceneMessage(alias, kind)),
+    );
+    const onSound = this.onSound;
+    return {
+      ...scenes,
+      ...(onSound
+        ? {
+            playSfx: (event) =>
+              onSound({
+                cueId: event.cueId,
+                volume: event.volume ?? 1,
+                time: this.time,
+              }),
+          }
+        : {}),
+    };
+  }
+
+  /**
+   * Play `clip` on the Avatar's clip player, as chat plays a Gesture,
+   * replacing any clip playing; `fromSec` starts it part-way through
+   * (`Avatar.seekPoseClip`: events before that time do not fire). Needs
+   * `clipPlayback: "avatar"` and `apply` first. `enterSec` replaces the
+   * clip's fade-in, as chat's planner does with its enter policy.
+   */
+  playGesture(
+    clip: unknown,
+    fromSec = 0,
+    enterSec: number | null = null,
+  ): void {
+    this.avatar.playAnimaPoseClip(
+      clip as Parameters<Avatar["playAnimaPoseClip"]>[0],
+      {
+        preserveProceduralOffsets: true,
+        ...(enterSec === null
+          ? {}
+          : { transition: { mode: "fadeIn", durationSec: enterSec } }),
+      },
+    );
+    if (fromSec > 0) this.avatar.seekPoseClip(fromSec);
+  }
+
+  /**
+   * Play `clip` as chat plays a Reaction: its expressions and effect events
+   * on the Avatar's reaction layer, beside any Gesture. A Reaction replaces
+   * the one playing. Needs `clipPlayback: "avatar"` and `apply` first.
+   */
+  playReaction(clip: unknown, sourceId: string): void {
+    const played = this.avatar.reactionClipPlayer?.play({
+      ownerId: REACTION_OWNER,
+      runId: "review",
+      sourceEventId: sourceId,
+      emotionEventId: null,
+      clip: parseAnimaPoseClip(clip),
+    });
+    if (!played) throw new Error(`The Avatar could not play ${sourceId}.`);
+  }
+
+  /** Stop the Reaction playing, with its fade-out. */
+  stopReaction(): void {
+    this.avatar.reactionClipPlayer?.clear(REACTION_OWNER);
+  }
+
+  /** Whether a Reaction (`playReaction`) is still playing or fading out. */
+  isReactionActive(): boolean {
+    return this.avatar.reactionClipPlayer?.isActive(REACTION_OWNER) ?? false;
+  }
+
+  /** Run `hook` before each frame from now on (`clipPlayback: "avatar"`). */
+  setFrameHook(hook: SessionFrameHook | null): void {
+    this.frameHook = hook;
   }
 
   /** Pose the Avatar from the clip at `time`, as the Gesture creator previews it. */
@@ -358,9 +429,10 @@ export class EffectSession {
   async advanceTo(time: number): Promise<void> {
     const target = Math.round(time / FRAME_SEC);
     while (this.frame < target) {
+      const options = this.frameHook?.(this.frame * FRAME_SEC) ?? {};
       this.frame += 1;
       if (this.playsEvents) {
-        this.avatar.update(FRAME_SEC);
+        this.avatar.update(FRAME_SEC, options);
         await this.loads.settle();
       } else {
         this.poseAt(this.frame * FRAME_SEC);
@@ -411,7 +483,9 @@ export class EffectSession {
   }
 
   dispose(): void {
+    this.frameHook = null;
     this.avatar.setPoseClipExternalEventSink(null);
+    this.avatar.setReactionClipExternalEventSink(null);
     this.avatar.dispose();
   }
 }

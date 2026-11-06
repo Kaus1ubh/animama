@@ -50,6 +50,7 @@ import {
   PUZZLE_EFFECT_SOURCES,
   STAGE_AVATARS,
   STAGE_STOPS,
+  TALL_ASPECT,
   type StageCamera,
   type StageStop,
   stopClips,
@@ -77,8 +78,6 @@ import {
 
 /** How quickly the camera catches up with the scroll position (per second). */
 const CAMERA_FOLLOW = 5;
-/** Viewports narrower than this aspect ratio use each stop's `tall` framing. */
-const TALL_ASPECT = 0.8;
 /** Least space between the hero's text and the top of her head, in pixels. */
 const HERO_TEXT_GAP_PX = 14;
 /** Pause before a stop's first clip, in seconds; the next clip follows at once. */

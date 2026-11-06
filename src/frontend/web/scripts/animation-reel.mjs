@@ -1,6 +1,7 @@
 import { spawn } from "node:child_process";
 import { once } from "node:events";
 import {
+  mkdir,
   mkdtemp,
   readFile,
   readdir,
@@ -25,30 +26,43 @@ import {
   scanLibrary,
 } from "./effect-render-sources.mjs";
 import {
-  avatarFileUrl,
+  AVATAR_ALIASES,
+  includedAvatarFile,
+  listSheetItems,
+  resolveAvatarFile,
+} from "./animation-reel-sheet.mjs";
+import {
   pageClipMedia,
   sourceRoots,
   withRendererPage,
 } from "./effect-render.mjs";
 
 /**
- * Record a video reel of Gestures, Reactions or effects on an Included Avatar.
+ * Record a video reel of Gestures, Reactions, effects or scripted takes on an
+ * Avatar.
  *
  *   pnpm -s animation:reel --gestures|--reactions|--effects [<source>...] --out <file.mp4>
+ *   pnpm -s animation:reel --sheet <takes.json> --out <file.mp4|file.mov|folder>
  *
  * Every Included Gesture (by stem), Reaction (by emotion, then intensity) or
  * Avatar, Particle and Scene Effect (by kind, then stem), or the named
  * sources, plays one at a time through the Avatar's own clip player on the
  * review stage (`effect-render/`): the chat's lighting, camera preset and
  * Scene layers, with its Avatar, Particle and Scene Effects. An effect plays
- * from a one-event clip, as a Gesture or Reaction event would play it. A
- * corner label names the item and its effects, lighting each while active,
- * and lists the Avatar's live expression weights.
+ * from a one-event clip, as a Gesture or Reaction event would play it. A cue
+ * sheet (`animation-reel-sheet.mjs`) adds scripted takes: Gestures and
+ * Reactions together on a timeline, and a recorded voice take spoken with
+ * the app's lip-sync and talking hands. A corner label names the item and
+ * its effects, lighting each while active, and lists the Avatar's live
+ * expression weights.
  * Frames advance in fixed steps and are captured from a headless browser, so
- * the reel does not depend on capture speed. The sounds clip events play are
- * mixed into the audio afterwards from local sound files (by default the
- * private comedy sound pack under `build-inputs/`); the video has one chapter
- * per item. Requires `ffmpeg` with libx264 on PATH.
+ * the reel does not depend on capture speed. The sounds clip events play
+ * (and the voice) are mixed into the audio afterwards from local sound files
+ * (by default the private comedy sound pack under `build-inputs/`); the video
+ * has one chapter per item. An `.mp4` is H.264 with the label; a `.mov`
+ * (ProRes 4444) or a folder of PNG frames has a transparent background and
+ * no label, for compositing. Requires `ffmpeg` on PATH, with libx264 or
+ * prores_ks for those formats.
  */
 const SOUND_EXTENSIONS = [".ogg", ".mp3", ".wav", ".m4a", ".flac", ".opus"];
 /** The licensed comedy sound pack, when this checkout has it. */
@@ -56,11 +70,24 @@ const DEFAULT_SOUND_ROOTS = [
   path.join(REPO_ROOT, "build-inputs/wow-comedy-sfx"),
   path.join(INCLUDED_CONTENT_ROOT, "sfx"),
 ];
-const AVATAR_ALIASES = {
-  annie: "Annie",
-  andrew: "Andrew",
+/** Chat camera presets, plus `pip` and the landing page stops. */
+const CAMERAS = [
+  "portrait",
+  "portrait-close",
+  "full-body",
+  "full-body-close",
+  "pip",
+  "landing",
+];
+/** A camera the page can place: `CAMERAS`, or `landing:<stop id>`. */
+const isCamera = (value) =>
+  CAMERAS.includes(value) || /^landing:[a-z0-9-]+$/.test(value);
+/** Output formats by `--out`: H.264, ProRes 4444 with alpha, PNG frames. */
+const FORMATS = {
+  mp4: { encoder: "libx264", alpha: false },
+  mov: { encoder: "prores_ks", alpha: true },
+  png: { encoder: null, alpha: true },
 };
-const CAMERAS = ["portrait", "portrait-close", "full-body", "full-body-close"];
 const EFFECT_KINDS = {
   avatar_effect: "Avatar Effect",
   particle_effect: "Particle Effect",
@@ -75,6 +102,7 @@ const EFFECT_SOURCES = [
 const ITEM_KIND_NAMES = {
   gesture: "Gesture",
   reaction: "Reaction",
+  take: "Take",
   "avatar-effect": EFFECT_KINDS.avatar_effect,
   "particle-effect": EFFECT_KINDS.particle_effect,
   "scene-effect": EFFECT_KINDS.scene_effect,
@@ -120,6 +148,7 @@ export const DEFAULTS = {
 const USAGE = [
   "Usage:",
   "  pnpm -s animation:reel --gestures|--reactions|--effects [<source>...] --out <file.mp4> [options]",
+  "  pnpm -s animation:reel --sheet <takes.json> --out <file.mp4|file.mov|folder> [options]",
   "",
   "Records one video of every Included Gesture (--gestures, by stem), every",
   "Included Reaction (--reactions, by emotion then intensity), every Included",
@@ -133,10 +162,25 @@ const USAGE = [
   "video has a chapter per item.",
   "Reactions are talking-scoped: each is held for --talk seconds, then stopped.",
   "An effect plays for --hold seconds from a one-event clip, with its sound.",
+  "--sheet (repeatable) adds the takes of a cue sheet: Gestures and Reactions",
+  "playing together on a timeline, a Gesture optionally from part-way through,",
+  "and a recorded voice take with ElevenLabs timing spoken with the app's",
+  "lip-sync and talking hands (format in scripts/animation-reel-sheet.mjs).",
+  "",
+  "--out picks the format: .mp4 (H.264, labelled), .mov (ProRes 4444 with",
+  "alpha) or a folder (PNG frames with alpha, audio.wav and takes.json). The",
+  "alpha formats have a transparent background and no label.",
   "",
   "Options:",
   "  --avatar annie|andrew|<id>   Included Avatar (default annie)",
-  `  --camera ${CAMERAS.join("|")}  chat camera preset (default portrait)`,
+  "  --avatar-file <file.vrm>     a local VRM file instead (read in place)",
+  `  --camera ${CAMERAS.join("|")}|landing:<stop>`,
+  "                               chat camera preset, the desktop PiP window's",
+  "                               framing, or a landing page stop's (landing is",
+  "                               the hero close-up; default portrait)",
+  "  --background <css>            background behind the Avatar (default review",
+  "                               grey; transparent for .mov and folders)",
+  "  --no-label                    leave out the corner label",
   "  --size 1920x1080              video size in pixels",
   "  --fps 30                      frames per second (1-60)",
   "  --lead 0.5 --tail 0.5         seconds of rest before and after each item",
@@ -159,7 +203,10 @@ const USAGE = [
 
 const VALUE_OPTIONS = new Set([
   "--out",
+  "--sheet",
   "--avatar",
+  "--avatar-file",
+  "--background",
   "--camera",
   "--size",
   "--fps",
@@ -178,6 +225,7 @@ const FLAG_OPTIONS = new Set([
   "--effects",
   ...EFFECT_SOURCES.map(({ flag }) => flag),
   "--software",
+  "--no-label",
   "--help",
 ]);
 
@@ -196,9 +244,21 @@ function number(value, flag, { min, max, integer = false }) {
   return parsed;
 }
 
+/** The output format `--out` names: `mp4`, `mov` or `png` (a folder). */
+export function outputFormat(out) {
+  const extension = path.extname(out).toLowerCase();
+  if (extension === ".mp4") return "mp4";
+  if (extension === ".mov") return "mov";
+  if (extension === "" || /[\\/]$/.test(out)) return "png";
+  throw new EffectSourceError(
+    "--out must name an .mp4 or .mov file, or a folder for PNG frames.",
+  );
+}
+
 /** Parse argv into reel options; throws `EffectSourceError` on bad input. */
 export function parseReelArgs(argv) {
   const sources = [];
+  const sheets = [];
   const values = {};
   const soundRoots = [];
   const flags = new Set();
@@ -210,6 +270,7 @@ export function parseReelArgs(argv) {
       if (value === undefined || value.startsWith("--"))
         throw new EffectSourceError(`${arg} needs a value.`);
       if (arg === "--sounds") soundRoots.push(value);
+      else if (arg === "--sheet") sheets.push(value);
       else values[arg] = value;
       index += 1;
     } else if (arg.startsWith("--"))
@@ -226,9 +287,14 @@ export function parseReelArgs(argv) {
       ({ flag }) => flags.has("--effects") || flags.has(flag),
     ).map(({ kind }) => kind),
     sources,
+    sheets,
     out: values["--out"] ?? null,
+    format: null,
     avatar: DEFAULTS.avatar,
+    avatarFile: values["--avatar-file"] ?? null,
     camera: values["--camera"] ?? DEFAULTS.camera,
+    background: values["--background"] ?? null,
+    label: !flags.has("--no-label"),
     size: DEFAULTS.size,
     fps: DEFAULTS.fps,
     lead: DEFAULTS.lead,
@@ -245,23 +311,30 @@ export function parseReelArgs(argv) {
     !options.gestures &&
     !options.reactions &&
     options.effectKinds.length === 0 &&
-    sources.length === 0
+    sources.length === 0 &&
+    sheets.length === 0
   )
     throw new EffectSourceError(
-      "Choose --gestures, --reactions, --effects or name sources.",
+      "Choose --gestures, --reactions, --effects, --sheet or name sources.",
     );
   if (!options.out) throw new EffectSourceError("--out is required.");
-  if (!options.out.toLowerCase().endsWith(".mp4"))
-    throw new EffectSourceError("--out must name an .mp4 file.");
+  options.format = outputFormat(options.out);
+  // Alpha formats are layers for compositing: transparent and unlabelled.
+  if (FORMATS[options.format].alpha) {
+    options.label = false;
+    options.background ??= "transparent";
+  }
+  if (values["--avatar"] !== undefined && options.avatarFile)
+    throw new EffectSourceError("Give --avatar or --avatar-file, not both.");
   if (values["--avatar"] !== undefined) {
     const avatar = values["--avatar"];
     options.avatar = AVATAR_ALIASES[avatar.toLowerCase()] ?? avatar;
     if (!/^[A-Za-z0-9_-]+$/.test(options.avatar))
       throw new EffectSourceError(`Invalid --avatar ${avatar}.`);
   }
-  if (!CAMERAS.includes(options.camera))
+  if (!isCamera(options.camera))
     throw new EffectSourceError(
-      `Invalid --camera ${options.camera}; use ${CAMERAS.join(", ")}.`,
+      `Invalid --camera ${options.camera}; use ${CAMERAS.join(", ")} or landing:<stop>.`,
     );
   if (values["--size"] !== undefined) {
     const match = /^(\d{3,4})x(\d{3,4})$/.exec(values["--size"]);
@@ -409,13 +482,15 @@ export function compareReactions(a, b) {
 /**
  * The items to record: Included Gestures (by stem), then Included Reactions
  * (by emotion and intensity), then Included Avatar, Particle and Scene
- * Effects of `effectKinds` (by stem), then each named source in order.
+ * Effects of `effectKinds` (by stem), then each named source in order, then
+ * the takes of each cue sheet.
  */
 export async function listReelItems({
   gestures,
   reactions,
   effectKinds = [],
   sources,
+  sheets = [],
   cwd,
   localContent,
   hold = DEFAULTS.hold,
@@ -464,7 +539,31 @@ export async function listReelItems({
       : null;
     items.push(reelItem(source, stem));
   }
+  for (const sheet of sheets)
+    items.push(
+      ...(await listSheetItems(path.resolve(cwd, sheet), { localContent })),
+    );
   return items;
+}
+
+/**
+ * The clips an item plays, on its own clock: a take's cues, or one clip
+ * started after `lead` seconds on the Avatar's clip player.
+ */
+export function itemCues(item, lead) {
+  return (
+    item.cues ?? [
+      {
+        kind: "gesture",
+        id: item.stem,
+        at: lead,
+        from: 0,
+        enter: null,
+        until: null,
+        clip: item.clip,
+      },
+    ]
+  );
 }
 
 async function soundSidecars(folder, depth) {
@@ -594,7 +693,9 @@ function avatarEffectCues(events, avatarEffects) {
  */
 export function describeItem(item, { index, total, media, catalog }) {
   const kindName = ITEM_KIND_NAMES[item.kind] ?? "Gesture";
-  const events = Array.isArray(item.clip?.events) ? item.clip.events : [];
+  const events = itemCues(item, 0).flatMap(({ clip }) =>
+    Array.isArray(clip?.events) ? clip.events : [],
+  );
   const avatarCues = avatarEffectCues(events, media?.avatarEffects ?? []);
   const effects = [
     ...(media?.avatarEffects ?? []).map(({ alias, effect }) => ({
@@ -686,9 +787,9 @@ export function chapterMetadata(chapters) {
 
 /**
  * The audio inputs and filter graph that mix `sounds` (`{ file, time,
- * volume }`, time in seconds) over `inputOffset` (the silent base track's
- * input index; sound inputs follow it). Each distinct file is one input,
- * split once per use.
+ * volume, maxDuration? }`, times in seconds; `maxDuration` cuts a sound off)
+ * over `inputOffset` (the silent base track's input index; sound inputs
+ * follow it). Each distinct file is one input, split once per use.
  */
 export function audioMixGraph(sounds, inputOffset) {
   const files = [...new Set(sounds.map((sound) => sound.file))];
@@ -707,8 +808,12 @@ export function audioMixGraph(sounds, inputOffset) {
     for (const { sound, index } of list) {
       const source = list.length > 1 ? `[s${index}]` : `[${input}:a]`;
       const delay = Math.max(0, Math.round(sound.time * 1000));
+      const trim =
+        sound.maxDuration === undefined
+          ? ""
+          : `atrim=end=${Math.max(0, sound.maxDuration).toFixed(3)},`;
       filters.push(
-        `${source}aformat=sample_rates=${AUDIO_RATE}:channel_layouts=stereo,adelay=${delay}:all=1,volume=${sound.volume}[e${index}]`,
+        `${source}${trim}aformat=sample_rates=${AUDIO_RATE}:channel_layouts=stereo,adelay=${delay}:all=1,volume=${sound.volume}[e${index}]`,
       );
       mixed.push(`[e${index}]`);
     }
@@ -734,7 +839,7 @@ async function runFfmpeg(args) {
   if (code !== 0) throw new Error(`ffmpeg exited ${code}: ${errors.trim()}`);
 }
 
-async function checkFfmpeg() {
+async function checkFfmpeg(encoder) {
   const child = spawn("ffmpeg", ["-hide_banner", "-encoders"], {
     stdio: ["ignore", "pipe", "ignore"],
   });
@@ -749,17 +854,42 @@ async function checkFfmpeg() {
     throw new Error(
       "ffmpeg was not found on PATH; install it to record reels.",
     );
-  if (!/\blibx264\b/.test(output))
+  if (encoder && !new RegExp(`\\b${encoder}\\b`).test(output))
     throw new Error(
-      "This ffmpeg has no libx264 encoder; install an ffmpeg built with it.",
+      `This ffmpeg has no ${encoder} encoder; install an ffmpeg built with it.`,
     );
 }
 
+/** ffmpeg video encoding for each container format. */
+const VIDEO_CODECS = {
+  mp4: ({ crf }) => [
+    "-c:v",
+    "libx264",
+    "-preset",
+    "medium",
+    "-crf",
+    String(crf),
+    "-pix_fmt",
+    "yuv420p",
+  ],
+  mov: () => [
+    "-c:v",
+    "prores_ks",
+    "-profile:v",
+    "4444",
+    "-pix_fmt",
+    "yuva444p10le",
+    "-vendor",
+    "apl0",
+  ],
+};
+
 /**
- * An H.264 encoder fed JPEG frames on stdin. `write` respects back-pressure;
- * `finish` closes the stream and waits for the file.
+ * A video encoder fed JPEG (H.264) or PNG (ProRes 4444) frames on stdin.
+ * `write` respects back-pressure; `finish` closes the stream and waits for
+ * the file.
  */
-function startEncoder({ file, fps, crf }) {
+function startEncoder({ file, fps, crf, format }) {
   const child = spawn(
     "ffmpeg",
     [
@@ -770,19 +900,12 @@ function startEncoder({ file, fps, crf }) {
       "-f",
       "image2pipe",
       "-c:v",
-      "mjpeg",
+      format === "mp4" ? "mjpeg" : "png",
       "-framerate",
       String(fps),
       "-i",
       "-",
-      "-c:v",
-      "libx264",
-      "-preset",
-      "medium",
-      "-crf",
-      String(crf),
-      "-pix_fmt",
-      "yuv420p",
+      ...VIDEO_CODECS[format]({ crf }),
       file,
     ],
     { stdio: ["pipe", "ignore", "pipe"] },
@@ -809,6 +932,60 @@ function startEncoder({ file, fps, crf }) {
   };
 }
 
+/** Writes PNG frames into an empty (or new) folder as `frame-000001.png`. */
+async function startFrameFolder(folder) {
+  await mkdir(folder, { recursive: true });
+  if ((await readdir(folder)).some((name) => /^frame-\d+\.png$/.test(name)))
+    throw new EffectSourceError(
+      `${folder} already holds frames; choose an empty folder.`,
+    );
+  let count = 0;
+  return {
+    async write(frame) {
+      count += 1;
+      await writeFile(
+        path.join(folder, `frame-${String(count).padStart(6, "0")}.png`),
+        frame,
+      );
+    },
+    async finish() {},
+    kill() {},
+  };
+}
+
+/** Sample rate of the voice PCM the page plans lip-sync from. */
+const SPEECH_RATE = 24_000;
+
+/** 16-bit mono PCM of an audio file at `SPEECH_RATE`, decoded by ffmpeg. */
+async function decodeSpeech(file) {
+  const child = spawn(
+    "ffmpeg",
+    [
+      "-hide_banner",
+      "-loglevel",
+      "error",
+      "-i",
+      file,
+      "-ac",
+      "1",
+      "-ar",
+      String(SPEECH_RATE),
+      "-f",
+      "s16le",
+      "-",
+    ],
+    { stdio: ["ignore", "pipe", "pipe"] },
+  );
+  const chunks = [];
+  let errors = "";
+  child.stdout.on("data", (chunk) => chunks.push(chunk));
+  child.stderr.on("data", (chunk) => (errors += chunk));
+  const [code] = await once(child, "close");
+  if (code !== 0)
+    throw new Error(`Cannot decode the speech audio ${file}: ${errors.trim()}`);
+  return Buffer.concat(chunks);
+}
+
 /** The page's WebGL renderer name, to say whether frames use the GPU. */
 function webglRenderer(page) {
   return page.evaluate(() => {
@@ -820,15 +997,24 @@ function webglRenderer(page) {
   });
 }
 
+/** The id a page reports an Avatar file's diagnostics under. */
+const avatarId = (file) => path.basename(file).replace(/\.vrm$/i, "");
+
 /**
- * Record `items` to `out`. Returns per-item results (`{ stem, start, end,
- * warnings, failure }`); a failed item keeps any frames already recorded.
+ * Record `items` to `out` (`format` mp4, mov or a png folder). Returns
+ * per-item results (`{ stem, start, end, warnings, failure }`); a failed item
+ * keeps any frames already recorded. An item may bring its own Avatar file,
+ * camera, length and voice take (a cue sheet's takes).
  */
 export async function recordReel({
   items,
   out,
+  format = "mp4",
   avatar,
+  avatarFile = null,
   camera,
+  label = true,
+  background = null,
   size,
   fps,
   lead,
@@ -841,9 +1027,16 @@ export async function recordReel({
   software,
   log = console.log,
 }) {
-  await checkFfmpeg();
+  await checkFfmpeg(FORMATS[format].encoder);
+  const alpha = FORMATS[format].alpha;
+  const defaultAvatar = avatarFile ?? includedAvatarFile(avatar);
+  for (const item of items)
+    if (typeof item.camera === "string" && !isCamera(item.camera))
+      throw new EffectSourceError(
+        `Invalid camera ${item.camera} in ${item.stem}; use ${CAMERAS.join(", ")} or landing:<stop>.`,
+      );
   const work = await mkdtemp(path.join(tmpdir(), "animama-reel-"));
-  const video = path.join(work, "video.mp4");
+  const video = path.join(work, `video.${format}`);
   const results = [];
   const sounds = [];
   let frames = 0;
@@ -860,13 +1053,25 @@ export async function recordReel({
       medias.push(media);
     }
     const extraRoots = [
-      ...new Set(
-        (
+      ...new Set([
+        ...(
           await Promise.all(medias.map((media) => sourceRoots([], media)))
         ).flat(),
-      ),
+        // Vite allows single files, so only the Avatar and VRMA files themselves are served.
+        ...[defaultAvatar, ...items.map((item) => item.avatarFile)].filter(
+          Boolean,
+        ),
+        ...items.flatMap((item) =>
+          (item.cues ?? [])
+            .filter((cue) => cue.kind === "vrma")
+            .map((cue) => cue.file),
+        ),
+      ]),
     ];
-    const encoder = startEncoder({ file: video, fps, crf });
+    const writer =
+      format === "png"
+        ? await startFrameFolder(out)
+        : startEncoder({ file: video, fps, crf, format });
     try {
       await withRendererPage(
         {
@@ -887,21 +1092,26 @@ export async function recordReel({
         async ({ page, fsUrl, imageUrl }) => {
           log(`WebGL renderer: ${await webglRenderer(page)}`);
           const cdp = await page.context().newCDPSession(page);
+          if (alpha)
+            await cdp.send("Emulation.setDefaultBackgroundColorOverride", {
+              color: { r: 0, g: 0, b: 0, a: 0 },
+            });
           const capture = async () =>
             Buffer.from(
               (
-                await cdp.send("Page.captureScreenshot", {
-                  format: "jpeg",
-                  quality: 95,
-                  optimizeForSpeed: true,
-                })
+                await cdp.send(
+                  "Page.captureScreenshot",
+                  alpha
+                    ? { format: "png", optimizeForSpeed: true }
+                    : { format: "jpeg", quality: 95, optimizeForSpeed: true },
+                )
               ).data,
               "base64",
             );
           const started = performance.now();
           for (const [index, item] of items.entries()) {
             const media = medias[index];
-            const { label, cues } = describeItem(item, {
+            const { label: itemLabel, cues } = describeItem(item, {
               index,
               total: items.length,
               media,
@@ -909,7 +1119,7 @@ export async function recordReel({
             });
             const result = {
               stem: item.stem,
-              title: `${label.kicker} · ${label.title}${label.detail ? ` (${label.detail})` : ""}`,
+              title: `${itemLabel.kicker} · ${itemLabel.title}${itemLabel.detail ? ` (${itemLabel.detail})` : ""}`,
               start: frames / fps,
               end: frames / fps,
               warnings: [],
@@ -921,40 +1131,78 @@ export async function recordReel({
               .map((cue) => cue.ref);
             if (missing.length)
               result.warnings.push(`no sound file for ${missing.join(", ")}`);
+            const itemSounds = [];
             try {
+              let speech = null;
+              if (item.speech) {
+                let audio = item.speech.audio;
+                if (!audio) {
+                  audio = path.join(work, `speech-${index + 1}.audio`);
+                  await writeFile(
+                    audio,
+                    Buffer.from(item.speech.audioBase64, "base64"),
+                  );
+                }
+                const pcm = await decodeSpeech(audio);
+                speech = {
+                  at: item.speech.at,
+                  sampleRate: SPEECH_RATE,
+                  pcm: pcm.toString("base64"),
+                  text: item.speech.text,
+                  alignment: item.speech.alignment,
+                  shaping: item.speech.shaping,
+                  lead: item.speech.lead,
+                  gain: item.speech.gain,
+                };
+                itemSounds.push({
+                  file: audio,
+                  volume: item.speech.volume,
+                  time: result.start + item.speech.at,
+                });
+              }
+              const file = item.avatarFile ?? defaultAvatar;
               await page.evaluate((request) => window.openReelItem(request), {
-                avatar: {
-                  id: avatar,
-                  url: avatarFileUrl(fsUrl, avatar),
-                },
+                avatar: { id: avatarId(file), url: fsUrl(file) },
                 size,
-                camera,
-                clip: item.clip,
+                camera: item.camera ?? camera,
+                // A VRMA cue's file is served to the page by URL.
+                cues: itemCues(item, lead).map(({ file, ...cue }) =>
+                  cue.kind === "vrma" ? { ...cue, url: fsUrl(file) } : cue,
+                ),
+                faces: item.faces ?? [],
+                moods: item.moods ?? [],
+                root: item.root ?? [],
                 clipMedia: await pageClipMedia(media, { fsUrl, imageUrl }),
-                label,
+                label: label ? itemLabel : null,
                 sounds: Object.fromEntries(
                   Object.entries(cues).map(([cueId, cue]) => [
                     cueId,
                     { name: cue.name, duration: cue.duration },
                   ]),
                 ),
-                lead,
+                speech,
+                background,
+                duration: item.duration ?? null,
                 tail,
                 talk,
                 maxSec,
               });
+              // A take of fixed length has exactly that many seconds of frames.
+              const frameLimit = item.duration
+                ? Math.max(1, Math.round(item.duration * fps))
+                : Infinity;
               for (let frame = 0; ; frame += 1) {
                 const state = await page.evaluate(
                   (time) => window.reelFrame(time),
                   frame / fps,
                 );
-                await encoder.write(await capture());
+                await writer.write(await capture());
                 for (const sound of state.sounds) {
                   const ref = cues[sound.cueId]?.ref ?? sound.cueId;
                   const file = catalog.get(ref)?.file;
                   // Sound times are seconds since the item opened.
                   if (file)
-                    sounds.push({
+                    itemSounds.push({
                       file,
                       volume: sound.volume,
                       time: result.start + sound.time,
@@ -964,7 +1212,7 @@ export async function recordReel({
                 result.warnings = [
                   ...new Set([...result.warnings, ...state.warnings]),
                 ];
-                if (state.done) break;
+                if (state.done || frame + 1 >= frameLimit) break;
                 if (state.timedOut) {
                   result.warnings.push(
                     `still active ${maxSec} s after starting; cut`,
@@ -979,6 +1227,15 @@ export async function recordReel({
               await page.evaluate(() => window.closeReelItem());
             }
             result.end = frames / fps;
+            // The voice and sounds play only while the item's frames do.
+            sounds.push(
+              ...itemSounds
+                .filter((sound) => sound.time < result.end)
+                .map((sound) => ({
+                  ...sound,
+                  maxDuration: result.end - sound.time,
+                })),
+            );
             const wall = (performance.now() - started) / 1000;
             log(
               `${result.failure ? "FAILED" : "Recorded"} [${index + 1}/${items.length}] ${item.stem} at ${formatTime(result.start)} (${(result.end - result.start).toFixed(1)} s; ${formatTime(wall)} elapsed)${result.failure ? `: ${result.failure}` : ""}`,
@@ -987,28 +1244,16 @@ export async function recordReel({
           }
         },
       );
-      await encoder.finish();
+      await writer.finish();
     } catch (error) {
-      encoder.kill();
+      writer.kill();
       throw error;
     }
     if (frames === 0) throw new Error("No frames were recorded.");
     const duration = frames / fps;
-    const chapters = path.join(work, "chapters.txt");
-    await writeFile(
-      chapters,
-      chapterMetadata(
-        results
-          .filter((result) => result.end > result.start)
-          .map(({ start, end, title }) => ({ start, end, title })),
-      ),
-    );
-    const { files, graph } = audioMixGraph(sounds, 1);
-    const metadataInput = 2 + files.length;
-    await runFfmpeg([
-      "-y",
-      "-i",
-      video,
+    const recorded = results.filter((result) => result.end > result.start);
+    const { files, graph } = audioMixGraph(sounds, 0);
+    const audioInputs = [
       "-f",
       "lavfi",
       "-t",
@@ -1016,22 +1261,62 @@ export async function recordReel({
       "-i",
       `anullsrc=r=${AUDIO_RATE}:cl=stereo`,
       ...files.flatMap((file) => ["-i", file]),
+    ];
+    if (format === "png") {
+      await runFfmpeg([
+        "-y",
+        ...audioInputs,
+        "-filter_complex",
+        graph,
+        "-map",
+        "[aout]",
+        "-c:a",
+        "pcm_s16le",
+        path.join(out, "audio.wav"),
+      ]);
+      await writeFile(
+        path.join(out, "takes.json"),
+        `${JSON.stringify(
+          {
+            fps,
+            frames,
+            takes: recorded.map(({ start, end, title }) => ({
+              title,
+              start,
+              end,
+              firstFrame: Math.round(start * fps) + 1,
+              lastFrame: Math.round(end * fps),
+            })),
+          },
+          null,
+          2,
+        )}\n`,
+      );
+      return { results, duration, soundCount: sounds.length };
+    }
+    const chapters = path.join(work, "chapters.txt");
+    await writeFile(chapters, chapterMetadata(recorded));
+    const { graph: videoGraph } = audioMixGraph(sounds, 1);
+    await runFfmpeg([
+      "-y",
+      "-i",
+      video,
+      ...audioInputs,
       "-i",
       chapters,
       "-filter_complex",
-      graph,
+      videoGraph,
       "-map",
       "0:v",
       "-map",
       "[aout]",
       "-map_chapters",
-      String(metadataInput),
+      String(2 + files.length),
       "-c:v",
       "copy",
-      "-c:a",
-      "aac",
-      "-b:a",
-      "192k",
+      ...(format === "mov"
+        ? ["-c:a", "pcm_s16le"]
+        : ["-c:a", "aac", "-b:a", "192k"]),
       "-movflags",
       "+faststart",
       out,
@@ -1059,13 +1344,12 @@ async function main(argv) {
     const localContent = options.localContent
       ? await realpath(path.resolve(cwd, options.localContent))
       : null;
-    const avatarFile = path.join(
-      INCLUDED_CONTENT_ROOT,
-      "avatars",
-      `${options.avatar}.vrm`,
+    const avatarFile = await resolveAvatarFile(
+      options.avatarFile ?? options.avatar,
+      cwd,
+      options.avatarFile ? "--avatar-file" : "--avatar",
+      { file: Boolean(options.avatarFile) },
     );
-    if (!(await stat(avatarFile).catch(() => null)))
-      throw new EffectSourceError(`No Included Avatar ${options.avatar}.`);
     const items = await listReelItems({ ...options, cwd, localContent });
     if (items.length === 0) throw new EffectSourceError("No items to record.");
     const soundRoots = options.soundRoots.length
@@ -1079,10 +1363,11 @@ async function main(argv) {
     else console.log(`Sounds: ${catalog.size} from ${soundRoots.join(", ")}`);
     const out = path.resolve(cwd, options.out);
     console.log(
-      `Recording ${items.length} item(s) on ${options.avatar} at ${options.size.width}x${options.size.height}, ${options.fps} fps.`,
+      `Recording ${items.length} item(s) on ${avatarId(avatarFile)} at ${options.size.width}x${options.size.height}, ${options.fps} fps, as ${options.format === "png" ? "PNG frames" : options.format}.`,
     );
     const { results, duration, soundCount } = await recordReel({
       ...options,
+      avatarFile,
       items,
       out,
       catalog,

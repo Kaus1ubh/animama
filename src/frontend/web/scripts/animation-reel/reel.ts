@@ -2,9 +2,23 @@ import * as THREE from "three";
 
 import type { Avatar } from "@/lib/avatar";
 import { parseAnimaPoseClip } from "@/lib/avatar/poses/animaPoseClip";
-import type { SceneCameraPreset } from "@/ui/main/canvas/sceneCameraPresets";
+import {
+  buildEmotionRuntimeState,
+  createEmptyEmotionStateMap,
+  isTrackedEmotion,
+  type EmotionRuntimeState,
+} from "@/lib/emotion";
+import {
+  DEFAULT_PIP_SCENE_CAMERA_PRESET,
+  isSceneCameraPreset,
+} from "@/ui/main/canvas/sceneCameraPresets";
 
-import { ReviewStage } from "../effect-render/reviewStage";
+import {
+  STAGE_STOPS,
+  TALL_ASPECT,
+  type StageCamera,
+} from "../landing-stage/stops";
+import { ReviewStage, TILE_BACKDROP } from "../effect-render/reviewStage";
 import {
   EffectSession,
   placeCamera,
@@ -17,27 +31,34 @@ import {
   createStage,
   type Framing,
 } from "../effect-render/stage";
+import { NEUTRAL_FEELINGS, ReelSpeech, type ReelSpeechRequest } from "./speech";
 
 /**
- * Action reel page (driven by `scripts/animation-reel.mjs`): plays one
- * Gesture or Reaction at a time on an Included Avatar and draws each video
- * frame on demand.
+ * Action reel page (driven by `scripts/animation-reel.mjs`): plays one take
+ * at a time on an Avatar and draws each video frame on demand.
  *
- * Each item opens a fresh `Avatar` on the review stage (`../effect-render`):
- * the chat's colour pipeline, lights, camera preset and Scene layers. Its
- * clip always plays through the Avatar's own clip player, so its Avatar,
- * Particle and Scene Effects and its sounds start when chat would start
+ * Each take opens a fresh `Avatar` on the review stage (`../effect-render`):
+ * the chat's colour pipeline, lights, camera preset and Scene layers. A take
+ * is a list of cues on its own clock. A Gesture cue plays through the
+ * Avatar's clip player, optionally from part-way through; a Reaction cue on
+ * its reaction layer beside it, as chat plays them together. Either one's
+ * Avatar, Particle and Scene Effects and sounds start when chat would start
  * them. A looping clip is stopped (with its fade) after one pass, and a
- * talking-scoped one after the request's talking time, as chat stops it
- * when the reply ends. Frames advance in fixed 60 Hz steps, so a reel is the
- * same on every run whatever the capture speed. Sounds are not played here:
- * each one a clip event plays is reported with its time, and Node mixes them
- * into the video's audio. A label panel in the top-left corner names the
- * item, its effects (lit while active) and their sounds (lit while playing),
- * and shows the Avatar's live expression weights.
+ * talking-scoped one after the request's talking time or, in a take that
+ * speaks, once the speech ends, as chat stops it when the reply ends, unless
+ * the cue says when to stop. A take may also speak a
+ * recorded voice take (`./speech.ts`): lip-sync, tag expressions and talking
+ * hands as chat drives them, with the feelings its mood cues set. Face cues
+ * add expression weights over the face, ramping in and out. Frames advance in fixed 60 Hz steps, so a reel
+ * is the same on every run whatever the capture speed. Sounds are not played
+ * here: each one a clip event plays is reported with its time, and Node
+ * mixes them (and the voice) into the video's audio. An optional label panel
+ * in the top-left corner names the take, its effects (lit while active) and
+ * their sounds (lit while playing), and shows the Avatar's live expression
+ * weights.
  */
 
-/** One effect the item's clip can start, as the label lists it. */
+/** One effect the take's clips can start, as the label lists it. */
 type ReelEffect = {
   alias: string;
   /** Display kind, such as "Avatar Effect". */
@@ -54,40 +75,128 @@ type ReelLabel = {
   /** Second line, such as a Reaction's emotion and intensity, or null. */
   detail: string | null;
   effects: ReelEffect[];
-  /** Sounds the clip plays through its own sound events. */
+  /** Sounds the clips play through their own sound events. */
   sounds: string[];
 };
 
 /** A sound cue's display name and length; 0 s for a cue with no file. */
 type ReelSoundInfo = { name: string; duration: number };
 
+/** A clip a take plays, on the take's clock (seconds since it opened). */
+type ReelCue = {
+  /**
+   * `gesture` plays on the Avatar's clip player (chat's Gestures, and every
+   * single-item reel); `reaction` on its reaction layer, beside a Gesture;
+   * `vrma` a VRM Animation file on the Avatar's animation mixer, as the app
+   * plays a VRMA Gesture.
+   */
+  kind: "gesture" | "reaction" | "vrma";
+  /** Names the cue in errors, such as its source. */
+  id: string;
+  at: number;
+  /** Clip time (s) a Gesture starts at. */
+  from: number;
+  /** A Gesture's fade-in (s) in place of its own, or null for its own. */
+  enter: number | null;
+  /** Take time the clip is stopped (with its fade), or null for the default. */
+  until: number | null;
+  /** The Anima Pose Clip of a Gesture or Reaction (none for a VRMA cue). */
+  clip?: unknown;
+  /** A VRMA cue's file URL and playback speed. */
+  url?: string;
+  speed?: number;
+  /** A VRMA cue repeats until `until`. */
+  loop?: boolean;
+};
+
+/**
+ * A key of the take's root path: where the Avatar stands on the floor
+ * (metres) and which way it faces (degrees about the vertical axis), eased
+ * into from the key before.
+ */
+type ReelRootKey = {
+  at: number;
+  x: number;
+  z: number;
+  yaw: number;
+  ease: "linear" | "in" | "out" | "inOut";
+};
+
+/** Expression weights added over the face from `at` to `until`. */
+type ReelFace = {
+  at: number;
+  until: number;
+  /** Seconds it ramps in from `at` and out from `until`. */
+  fade: number;
+  weights: Record<string, number>;
+};
+
+/** The feelings chat would report from `at` to `until` (0 to 30 each). */
+type ReelMood = { at: number; until: number; values: Record<string, number> };
+
+/**
+ * A camera: a chat preset, `pip` (the desktop PiP window's default preset),
+ * `landing` / `landing:<stop>` (a landing page stop's framing; `landing` is
+ * the hero close-up), or a landing-style framing whose fields override the
+ * hero close-up's.
+ */
+type ReelCamera =
+  | string
+  | Partial<StageCamera>
+  | ReelFixedCamera
+  | { keys: ReelCameraKey[] };
+
+/** A key of a moving camera: a fixed camera at take time `at`, eased into. */
+type ReelCameraKey = ReelFixedCamera & {
+  at: number;
+  ease?: ReelRootKey["ease"];
+};
+
+/** A camera standing still in the scene, whatever the Avatar's size. */
+type ReelFixedCamera = {
+  position: [number, number, number];
+  target: [number, number, number];
+  fov?: number;
+  shift?: number;
+  lift?: number;
+};
+
 type ReelItemRequest = {
   avatar: { id: string; url: string };
   size: { width: number; height: number };
-  camera: SceneCameraPreset;
-  clip: unknown;
+  camera: ReelCamera;
+  cues: ReelCue[];
+  faces: ReelFace[];
+  moods: ReelMood[];
+  /** The Avatar's path on the floor; empty keeps it at the origin. */
+  root: ReelRootKey[];
+  /** The effects the cues' events play, by (take-unique) alias. */
   clipMedia: PageClipMedia | null;
-  label: ReelLabel;
-  /** Every cue the item may play, by cue id. */
+  /** The corner label, or null for none. */
+  label: ReelLabel | null;
+  /** Every cue the take may play, by cue id. */
   sounds: Record<string, ReelSoundInfo>;
-  /** Seconds of rest before the clip starts. */
-  lead: number;
+  speech: ReelSpeechRequest | null;
+  /** CSS background behind the Avatar; null keeps the review grey. */
+  background: string | null;
+  /** Fixed take length (s), or null to end `tail` seconds after it goes idle. */
+  duration: number | null;
   /**
    * Seconds a talking-scoped clip (a Reaction, which chat holds while the
    * Anima speaks) is held before it is stopped, at least until its timed
-   * effect events end.
+   * effect events end, when its cue does not say.
    */
   talk: number;
-  /** Seconds kept after the clip, its effects and its sounds have ended. */
+  /** Seconds kept after the clips, their effects, sounds and speech have ended. */
   tail: number;
-  /** Longest an item runs after its clip starts before it is cut. */
+  /** Longest a take runs after its first cue starts before it is cut. */
   maxSec: number;
 };
 
 type ReelFrame = {
-  /** The item ended: everything finished and the tail was shown. */
+  /** The take ended: its duration, or everything finished and the tail shown. */
   done: boolean;
-  /** The item ran for `maxSec` without ending and should be cut. */
+  /** The take ran for `maxSec` without ending and should be cut. */
   timedOut: boolean;
   /** Sounds clip events started since the previous frame. */
   sounds: SessionSound[];
@@ -300,7 +409,7 @@ class LabelPanel {
   }
 }
 
-/** The page's stage, kept across items of the same size. */
+/** The page's stage, kept across takes of the same size. */
 let stage: {
   review: ReviewStage;
   renderer: THREE.WebGLRenderer;
@@ -312,16 +421,38 @@ let stage: {
   height: number;
 } | null = null;
 
-/** The open item. */
+/** A cue's playback state in the open take. */
+type CueState = {
+  cue: ReelCue;
+  /** Take time it is stopped, or null when it ends by itself. */
+  stopAt: number | null;
+  started: boolean;
+  stopped: boolean;
+};
+
+/** The open take. */
 let item: {
   request: ReelItemRequest;
   session: EffectSession;
+  /** The Avatar's parent on the stage, which the root path moves. */
+  rig: THREE.Group;
   framing: Framing;
-  /** Seconds after starting that the clip is stopped, or null when it ends. */
-  stopAfter: number | null;
-  /** Session time the clip started, or null during the lead. */
-  startedAt: number | null;
-  stopped: boolean;
+  /** Lens shift of a landing page framing, as shares of the frame. */
+  offset: { shift: number; lift: number } | null;
+  /** A moving camera's keys, which replace `framing` and `offset` each frame. */
+  cameraKeys: ReelCameraKey[] | null;
+  cues: CueState[];
+  /** The Gesture, Reaction and VRMA cues playing, which their stops apply to. */
+  gesture: CueState | null;
+  reaction: CueState | null;
+  vrma: CueState | null;
+  speech: ReelSpeech | null;
+  /** The mood cues' feelings, in cue order. */
+  moods: { at: number; until: number; feelings: EmotionRuntimeState }[];
+  /** Whether the face cues' overlay is set. */
+  faceShown: boolean;
+  /** Take time of the first cue: `maxSec` counts from it. */
+  firstAt: number;
   /** Session time since which everything has been idle, or null. */
   idleSince: number | null;
   sounds: SessionSound[];
@@ -353,12 +484,12 @@ function ensureStage({ width, height }: ReelItemRequest["size"]) {
   return stage;
 }
 
-/** Close the open item, keeping the stage for the next one. */
+/** Close the open take, keeping the stage for the next one. */
 function closeReelItem(): void {
   if (!item || !stage) return;
-  const { session } = item;
+  const { session, rig } = item;
   item = null;
-  if (session.avatar.scene) stage.scene.remove(session.avatar.scene);
+  stage.scene.remove(rig);
   session.dispose();
   stage.review.bands.clearScenes();
   stage.review.bands.setAvatar(null);
@@ -374,9 +505,9 @@ function expressionWeights(avatar: Avatar): [string, number][] {
 }
 
 /**
- * When to stop a clip that does not end by itself: a talking-scoped clip
- * after `talk` seconds and its timed events, a loop after one pass; null for
- * a clip that completes on its own.
+ * When to stop a clip that does not end by itself, in seconds after it
+ * starts: a talking-scoped clip after `talk` seconds and its timed events, a
+ * loop after one pass; null for a clip that completes on its own.
  */
 function stopAfter(
   clip: ReturnType<typeof parseAnimaPoseClip>,
@@ -395,19 +526,254 @@ function stopAfter(
   return clip.loop === true ? clip.duration : null;
 }
 
-/** Open one item: a fresh Avatar at rest, its label shown, its clip not started. */
+/** A cue's stop time: its own, else its clip's default from where it starts. */
+function cueStopAt(
+  cue: ReelCue,
+  talk: number,
+  speechEnd: number,
+): number | null {
+  if (cue.until !== null) return cue.until;
+  // A VRMA cue plays once and ends by itself.
+  if (cue.kind === "vrma") return null;
+  const clip = parseAnimaPoseClip(cue.clip);
+  const after = stopAfter(clip, talk);
+  if (after === null) return null;
+  const stop = cue.at + Math.max(0, after - cue.from);
+  // Chat holds a talking-scoped clip until the reply has been spoken.
+  return clip.playback ? Math.max(stop, speechEnd) : stop;
+}
+
+/** Head bone height of the Avatar as it stands: the landing camera's unit. */
+function headHeight(avatar: Avatar): number {
+  const head = avatar.vrm?.humanoid.getRawBoneNode("head");
+  if (!head) throw new Error("The Avatar has no head bone to frame.");
+  return head.getWorldPosition(new THREE.Vector3()).y;
+}
+
+/**
+ * Where the camera stands for `camera`: a chat preset, `pip`, or a landing
+ * page stop placed as `landing-stage/stage.ts` places it (orbit, aim and
+ * distance in head heights, the stop's tall framing on a tall frame) with
+ * its lens shift.
+ */
+function cameraView(
+  avatar: Avatar,
+  camera: ReelCamera,
+  { width, height }: ReelItemRequest["size"],
+): { framing: Framing; offset: { shift: number; lift: number } | null } {
+  if (typeof camera === "object" && "keys" in camera)
+    return fixedView(camera.keys[0]!);
+  if (typeof camera === "object" && "position" in camera)
+    return fixedView(camera as ReelFixedCamera);
+  if (typeof camera === "object") {
+    const hero = STAGE_STOPS.find(({ id }) => id === "hero")!;
+    return landingView(avatar, {
+      ...hero.camera,
+      ...(camera as Partial<StageCamera>),
+    });
+  }
+  return presetView(avatar, camera, { width, height });
+}
+
+/** A camera standing at `position`, looking at `target`, in metres. */
+function fixedView(fixed: ReelFixedCamera) {
+  return {
+    framing: {
+      position: new THREE.Vector3(...fixed.position),
+      target: new THREE.Vector3(...fixed.target),
+      fov: fixed.fov ?? 35,
+    },
+    offset: { shift: fixed.shift ?? 0, lift: fixed.lift ?? 0 },
+  };
+}
+
+/** A moving camera at take time `time`: eased between its keys. */
+function cameraAt(keys: readonly ReelCameraKey[], time: number) {
+  const next = keys.findIndex((key) => key.at > time);
+  if (next === -1 || next === 0)
+    return fixedView(keys[next === 0 ? 0 : keys.length - 1]!);
+  const a = fixedView(keys[next - 1]!);
+  const b = fixedView(keys[next]!);
+  const key = keys[next]!;
+  const u = ROOT_EASE[key.ease ?? "linear"](
+    (time - keys[next - 1]!.at) / (key.at - keys[next - 1]!.at),
+  );
+  // The lens zooms evenly: its scale (1 / tan of half the fov) moves linearly.
+  const zoom = (fov: number) => 1 / Math.tan(THREE.MathUtils.degToRad(fov) / 2);
+  const scale =
+    zoom(a.framing.fov) + (zoom(b.framing.fov) - zoom(a.framing.fov)) * u;
+  return {
+    framing: {
+      position: a.framing.position.clone().lerp(b.framing.position, u),
+      target: a.framing.target.clone().lerp(b.framing.target, u),
+      fov: THREE.MathUtils.radToDeg(2 * Math.atan(1 / scale)),
+    },
+    offset: {
+      shift: a.offset.shift + (b.offset.shift - a.offset.shift) * u,
+      lift: a.offset.lift + (b.offset.lift - a.offset.lift) * u,
+    },
+  };
+}
+
+/** A chat preset, `pip`, or a landing page stop. */
+function presetView(
+  avatar: Avatar,
+  camera: string,
+  { width, height }: ReelItemRequest["size"],
+): { framing: Framing; offset: { shift: number; lift: number } | null } {
+  if (camera === "pip")
+    return {
+      framing: chatCameraFraming(avatar, DEFAULT_PIP_SCENE_CAMERA_PRESET),
+      offset: null,
+    };
+  if (isSceneCameraPreset(camera))
+    return { framing: chatCameraFraming(avatar, camera), offset: null };
+  const stopId = /^landing(?::(.+))?$/.exec(camera);
+  const stop =
+    stopId && STAGE_STOPS.find(({ id }) => id === (stopId[1] ?? "hero"));
+  if (!stop)
+    throw new Error(
+      `Unknown camera ${camera}; landing stops are ${STAGE_STOPS.map(({ id }) => id).join(", ")}.`,
+    );
+  return landingView(
+    avatar,
+    width / height < TALL_ASPECT
+      ? { ...stop.camera, ...stop.tall }
+      : stop.camera,
+  );
+}
+
+/** A landing-style framing: orbit, aim and distance in head heights. */
+function landingView(avatar: Avatar, view: StageCamera) {
+  const unit = headHeight(avatar);
+  const yaw = THREE.MathUtils.degToRad(view.yaw);
+  const target = new THREE.Vector3(0, view.aim * unit, 0);
+  return {
+    framing: {
+      position: new THREE.Vector3(
+        Math.sin(yaw) * view.distance * unit,
+        target.y + view.rise * unit,
+        Math.cos(yaw) * view.distance * unit,
+      ),
+      target,
+      fov: view.fov,
+    },
+    offset: { shift: view.shift, lift: view.lift },
+  };
+}
+
+/** The frame step of the session's clock (`EffectSession`: 60 Hz). */
+const FRAME_SEC = 1 / 60;
+
+const ROOT_EASE: Record<ReelRootKey["ease"], (u: number) => number> = {
+  linear: (u) => u,
+  in: (u) => u * u * u,
+  out: (u) => 1 - (1 - u) ** 3,
+  inOut: (u) => (u < 0.5 ? 4 * u * u * u : 1 - (-2 * u + 2) ** 3 / 2),
+};
+
+/** Stand the rig where the root path has it at take time `time`. */
+function placeRoot(
+  rig: THREE.Group,
+  keys: readonly ReelRootKey[],
+  time: number,
+) {
+  if (keys.length === 0) return;
+  const next = keys.findIndex((key) => key.at > time);
+  let x: number, z: number, yaw: number;
+  if (next === -1 || next === 0) {
+    const key = keys[next === 0 ? 0 : keys.length - 1]!;
+    ({ x, z, yaw } = key);
+  } else {
+    const a = keys[next - 1]!;
+    const b = keys[next]!;
+    const u = ROOT_EASE[b.ease]((time - a.at) / (b.at - a.at));
+    x = a.x + (b.x - a.x) * u;
+    z = a.z + (b.z - a.z) * u;
+    yaw = a.yaw + (b.yaw - a.yaw) * u;
+  }
+  rig.position.set(x, 0, z);
+  rig.rotation.set(0, THREE.MathUtils.degToRad(yaw), 0);
+  rig.updateMatrixWorld(true);
+}
+
+/** The expression overlay owner face cues use. */
+const FACE_OVERLAY_OWNER = "reel-face";
+/** A VRMA cue's default fade-in (s), as the app's Gesture preview plays one. */
+const VRMA_ENTER_SEC = 0.25;
+
+/** A VRMA cue's absolute URL (the motion catalog admits URLs with a scheme). */
+const vrmaUrl = (cue: ReelCue) => new URL(cue.url!, location.href).href;
+/** A VRMA cue's clip name on the mixer. */
+const vrmaName = (cue: ReelCue) => `reel-vrma:${cue.id}`;
+
+/** The face cues' summed weights at take time `time`. */
+function faceWeights(
+  faces: readonly ReelFace[],
+  time: number,
+): Record<string, number> {
+  const weights: Record<string, number> = {};
+  for (const face of faces) {
+    if (time < face.at || time > face.until + face.fade) continue;
+    const ramp = (t: number) =>
+      face.fade > 0 ? THREE.MathUtils.smoothstep(t, 0, face.fade) : 1;
+    const envelope = Math.min(
+      ramp(time - face.at),
+      1 - (time > face.until ? ramp(time - face.until) : 0),
+    );
+    for (const [name, weight] of Object.entries(face.weights))
+      weights[name] = (weights[name] ?? 0) + weight * envelope;
+  }
+  return weights;
+}
+
+/** A mood cue's feelings; throws on a name chat does not track. */
+function moodFeelings(mood: ReelMood): EmotionRuntimeState {
+  const values = createEmptyEmotionStateMap();
+  for (const [emotion, value] of Object.entries(mood.values)) {
+    if (!isTrackedEmotion(emotion))
+      throw new Error(
+        `Mood cue at ${mood.at} s: ${emotion} is not a tracked emotion.`,
+      );
+    values[emotion] = value;
+  }
+  return buildEmotionRuntimeState(values);
+}
+
+/**
+ * Open one take: a fresh Avatar at rest, its label shown, its speech
+ * planned, no cue started.
+ */
 async function openReelItem(request: ReelItemRequest): Promise<void> {
   closeReelItem();
-  const parsed = parseAnimaPoseClip(request.clip);
   seedRandom(0x5eed);
   const current = ensureStage(request.size);
+  const transparent = request.background === "transparent";
+  document.body.style.background = transparent ? "transparent" : "#000";
+  current.review.element.style.background = request.background ?? TILE_BACKDROP;
+  const speech = request.speech ? ReelSpeech.plan(request.speech) : null;
+  const moods = request.moods.map((mood) => ({
+    at: mood.at,
+    until: mood.until,
+    feelings: moodFeelings(mood),
+  }));
+  // Clips are parsed before the Avatar loads, so a bad one fails cleanly.
+  const speechEnd = speech ? speech.at + speech.durationSec : 0;
+  const cues = request.cues
+    .map((cue) => ({
+      cue,
+      stopAt: cueStopAt(cue, request.talk, speechEnd),
+      started: false,
+      stopped: false,
+    }))
+    .sort((a, b) => a.cue.at - b.cue.at);
   const sounds: SessionSound[] = [];
   const session = await EffectSession.open(
     request.avatar.url,
     current.camera,
     current.renderer.domElement,
     {
-      clip: request.clip,
+      clip: null,
       clipMedia: request.clipMedia,
       expression: null,
       clipPlayback: "avatar",
@@ -416,47 +782,188 @@ async function openReelItem(request: ReelItemRequest): Promise<void> {
     current.review,
   );
   current.review.attachCanvas(current.renderer.domElement, session.avatar);
-  current.scene.add(session.avatar.scene!);
-  current.label.show(request.label, request.sounds);
-  item = {
-    request,
-    session,
-    framing: chatCameraFraming(session.avatar, request.camera),
-    stopAfter: stopAfter(parsed, request.talk),
-    startedAt: null,
-    stopped: false,
-    idleSince: null,
-    sounds,
-    reported: 0,
-    warnings: new Set(),
-  };
+  // The root path moves this parent, so the Avatar's own scene keeps the
+  // transform its loader gave it (a VRM 0 model is turned to face +z).
+  const rig = new THREE.Group();
+  rig.add(session.avatar.scene!);
+  current.scene.add(rig);
+  placeRoot(rig, request.root, 0);
+  // Until the take is open, a failure must take its Avatar off the stage.
+  try {
+    if (request.label) current.label.show(request.label, request.sounds);
+    current.label.element.hidden = !request.label;
+    // Event sinks and effect loads, before any cue plays.
+    await session.apply({ effects: [] });
+    // VRMA files are decoded before the first frame, so each starts on time.
+    for (const { cue } of cues)
+      if (cue.kind === "vrma")
+        await session.avatar.loadAnimationClip(vrmaUrl(cue), {
+          clipName: vrmaName(cue),
+        });
+    const { framing, offset } = cameraView(
+      session.avatar,
+      request.camera,
+      request.size,
+    );
+    const open: NonNullable<typeof item> = {
+      request,
+      session,
+      rig,
+      framing,
+      offset,
+      cameraKeys:
+        typeof request.camera === "object" && "keys" in request.camera
+          ? request.camera.keys
+          : null,
+      cues,
+      gesture: null,
+      reaction: null,
+      vrma: null,
+      speech,
+      moods,
+      faceShown: false,
+      firstAt: Math.min(
+        ...request.cues.map(({ at }) => at),
+        speech?.at ?? Infinity,
+      ),
+      idleSince: null,
+      sounds,
+      reported: 0,
+      warnings: new Set(),
+    };
+    if (speech) {
+      if (speech.fallback)
+        open.warnings.add(
+          `speech lip-sync follows the audio alone (${speech.fallback})`,
+        );
+      // The voice's clock is the session's frame clock.
+      const shaping = speech.attach(session.avatar, {
+        get currentTime() {
+          return session.time;
+        },
+      });
+      if (shaping !== speech.shaping)
+        open.warnings.add(
+          `the Avatar lacks the shapes for ${speech.shaping} lip-sync; it uses ${shaping}`,
+        );
+    }
+    session.setFrameHook((time) => frameHook(open, time));
+    item = open;
+  } catch (error) {
+    current.scene.remove(rig);
+    session.dispose();
+    current.review.bands.clearScenes();
+    current.review.bands.setAvatar(null);
+    current.label.clear();
+    throw error;
+  }
 }
 
-/** Draw the open item at `time` seconds after opening it. */
+/** Longest a talking-hands group keeps playing once the layer is turned off (its maxWaitSec), plus a margin. */
+const TALKING_HANDS_RELEASE_SEC = 1.6;
+
+/**
+ * Start and stop cues due at take time `time`, set the face cues' overlay,
+ * and feed the speech with the mood then.
+ */
+function frameHook(open: NonNullable<typeof item>, time: number) {
+  const { session } = open;
+  // The step after this hook draws at `time` + one frame: the root is placed
+  // there, so spring bones and the drawn frame see it where the cues have it.
+  placeRoot(open.rig, open.request.root, time + FRAME_SEC);
+  // Within half a frame, so a cue on a frame boundary is not a frame late.
+  const due = time + 1e-6;
+  for (const state of open.cues) {
+    if (state.started || state.cue.at > due) continue;
+    state.started = true;
+    if (state.cue.kind === "gesture") {
+      session.playGesture(state.cue.clip, state.cue.from, state.cue.enter);
+      open.gesture = state;
+    } else if (state.cue.kind === "vrma") {
+      // Decoded already, so it starts within this frame's update.
+      const { cue } = state;
+      void session.avatar
+        .playAnimationWithName(vrmaUrl(cue), vrmaName(cue), {
+          loopType: cue.loop ? "repeat" : "once",
+          loopCount: cue.loop ? Infinity : 1,
+          timeScale: cue.speed ?? 1,
+          keepExisting: false,
+          fadeDuration: cue.enter ?? VRMA_ENTER_SEC,
+          startTimeSec: cue.from,
+        })
+        .catch((error: unknown) =>
+          open.warnings.add(`${cue.id} did not play: ${String(error)}`),
+        );
+      open.vrma = state;
+    } else {
+      session.playReaction(state.cue.clip, state.cue.id);
+      open.reaction = state;
+    }
+  }
+  for (const state of [open.gesture, open.reaction, open.vrma]) {
+    if (!state || state.stopped || state.stopAt === null) continue;
+    if (state.stopAt > due) continue;
+    state.stopped = true;
+    if (state.cue.kind === "gesture") session.avatar.stopClip();
+    else if (state.cue.kind === "vrma")
+      session.avatar.stopAnimation(vrmaName(state.cue));
+    else session.stopReaction();
+  }
+  const controller = session.avatar.expressionController;
+  if (controller && open.request.faces.length) {
+    const weights = faceWeights(open.request.faces, time);
+    if (Object.keys(weights).length) {
+      controller.setExpressionOverlay(FACE_OVERLAY_OWNER, weights);
+      open.faceShown = true;
+    } else if (open.faceShown) {
+      controller.clearExpressionOverlay(FACE_OVERLAY_OWNER);
+      open.faceShown = false;
+    }
+  }
+  // The latest mood cue covering `time` wins.
+  const mood = open.moods.findLast(
+    ({ at, until }) => time >= at && time < until,
+  );
+  // A Gesture cue starts within the time talking hands may take to let go.
+  const gestureDue = open.cues.some(
+    (state) =>
+      state.cue.kind === "gesture" &&
+      !state.started &&
+      state.cue.at - time <= TALKING_HANDS_RELEASE_SEC,
+  );
+  return open.speech?.frame(
+    session.avatar,
+    time,
+    mood?.feelings ?? NEUTRAL_FEELINGS,
+    gestureDue,
+  );
+}
+
+/** Draw the open take at `time` seconds after opening it. */
 async function reelFrame(time: number): Promise<ReelFrame> {
   if (!item || !stage) throw new Error("No reel item is open.");
   const current = item;
   const { session, request } = current;
-  if (current.startedAt === null) {
-    await session.advanceTo(Math.min(time, request.lead));
-    if (time >= request.lead) {
-      await session.apply({ effects: [] });
-      current.startedAt = session.time;
-    }
-  }
   await session.advanceTo(time);
-  const elapsed =
-    current.startedAt === null ? 0 : session.time - current.startedAt;
-  if (
-    current.stopAfter !== null &&
-    !current.stopped &&
-    elapsed >= current.stopAfter
-  ) {
-    session.avatar.stopClip();
-    current.stopped = true;
-  }
 
+  if (current.cameraKeys)
+    ({ framing: current.framing, offset: current.offset } = cameraAt(
+      current.cameraKeys,
+      session.time,
+    ));
   placeCamera(stage.camera, "front", session.avatar, current.framing);
+  const { width, height } = request.size;
+  if (current.offset)
+    // A negative x offset moves the subject right; a positive y offset, up.
+    stage.camera.setViewOffset(
+      width,
+      height,
+      -current.offset.shift * width,
+      current.offset.lift * height,
+      width,
+      height,
+    );
+  else stage.camera.clearViewOffset();
   stage.renderer.render(stage.scene, stage.camera);
   await stage.review.seek(session.time);
 
@@ -470,25 +977,35 @@ async function reelFrame(time: number): Promise<ReelFrame> {
     if (session.time >= sound.time && session.time < end)
       playing.add(sound.cueId);
   }
-  stage.label.update(
-    new Set(diagnostics.activeEffectIds),
-    playing,
-    expressionWeights(session.avatar),
-  );
+  if (request.label)
+    stage.label.update(
+      new Set(diagnostics.activeEffectIds),
+      playing,
+      expressionWeights(session.avatar),
+    );
 
+  const speechEnd = current.speech
+    ? current.speech.at + current.speech.durationSec
+    : 0;
   const idle =
-    current.startedAt !== null &&
+    current.cues.every(({ started }) => started) &&
     !session.avatar.isClipActive() &&
+    !session.isReactionActive() &&
     diagnostics.activeEffectIds.length === 0 &&
-    session.time >= soundsEnd;
+    session.time >= soundsEnd &&
+    session.time >= speechEnd;
   current.idleSince = idle ? (current.idleSince ?? session.time) : null;
   const sounds = current.sounds.slice(current.reported);
   current.reported = current.sounds.length;
   return {
     done:
-      current.idleSince !== null &&
-      session.time - current.idleSince >= request.tail,
-    timedOut: current.startedAt !== null && elapsed >= request.maxSec,
+      request.duration !== null
+        ? session.time >= request.duration - 1e-6
+        : current.idleSince !== null &&
+          session.time - current.idleSince >= request.tail,
+    timedOut:
+      request.duration === null &&
+      session.time - current.firstAt >= request.maxSec,
     sounds,
     warnings: [...current.warnings],
   };
