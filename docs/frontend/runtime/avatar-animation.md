@@ -826,7 +826,8 @@ from `src/frontend/web`:
   - `--avatar-file <file.vrm>` reads a local VRM in place (lilToon included);
     keep third-party Avatars and their reels out of the repository.
   - `--camera pip` frames the desktop PiP window's default preset (record at
-    its 3:4 shape, such as `--size 1080x1440`); `--camera landing` the landing
+    its 3:4 shape, such as `--size 1080x1440`), `--camera face` a face
+    close-up that follows the head; `--camera landing` the landing
     page hero close-up and `landing:<stop>` any landing stop, using its tall
     framing when the frame is narrower than 4:5.
   - `--out` picks the format: `.mp4` (H.264 with the label, `--no-label` to
@@ -835,6 +836,19 @@ from `src/frontend/web`:
     have no label and a transparent background (Scene Effects still draw);
     `--background <css>` sets one for any format. ProRes needs `ffmpeg` with
     `prores_ks`.
+- `pnpm -s animation:combo [--avatar-file <file.vrm>]... [--avatar annie|andrew]... [--port <n>] [--no-open]`
+  (both Included Avatars by default) opens a live page for trying combinations before recording them: pick any
+  Included Gesture (optionally from a beat) and Reaction, with start delays
+  and a Reaction hold, and play them together on the chosen Avatar as chat
+  does, with their effects but no sounds. Ticked Included Avatar Effects stay
+  on over them and ticked Particle Effects replay whenever they end; both
+  share the app's effect limits with the clips' own effects, so the page can
+  drop a clip particle the recording would keep. The expression panel lists every
+  expression and ARKit shape the Avatar has with its live weight, and its
+  sliders add weight over the face. "Copy cue sheet" gives the setup as an
+  `animation:reel --sheet` take (Gesture, Reaction and face cues, the Avatar
+  file and camera; ticked effects are not part of it). Avatar files are read in place, and the page writes
+  nothing.
 - `pnpm -s content:tune` opens the owner's tuning page for Included Gestures
   and the Reaction ladder (see [Tuning Included content](#tuning-included-content)).
 - `pnpm -s animation:save <items.json>` saves clips as Local Gestures through

@@ -2,9 +2,9 @@ import { spawn } from "node:child_process";
 
 /**
  * Request helpers shared by the owner's local review pages
- * (`animation-preview.mjs`, `content-tune.mjs`, `landing-stage.mjs`): Vite
- * servers on 127.0.0.1 with a small JSON API. Keeping the origin check in one
- * place keeps every page equally strict.
+ * (`animation-preview.mjs`, `animation-combo.mjs`, `content-tune.mjs`,
+ * `landing-stage.mjs`): Vite servers on 127.0.0.1 with a small JSON API.
+ * Keeping the origin check in one place keeps every page equally strict.
  */
 
 /**

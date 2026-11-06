@@ -77,6 +77,7 @@ const CAMERAS = [
   "full-body",
   "full-body-close",
   "pip",
+  "face",
   "landing",
 ];
 /** A camera the page can place: `CAMERAS`, or `landing:<stop id>`. */
@@ -176,8 +177,9 @@ const USAGE = [
   "  --avatar-file <file.vrm>     a local VRM file instead (read in place)",
   `  --camera ${CAMERAS.join("|")}|landing:<stop>`,
   "                               chat camera preset, the desktop PiP window's",
-  "                               framing, or a landing page stop's (landing is",
-  "                               the hero close-up; default portrait)",
+  "                               framing, a face close-up that follows the head,",
+  "                               or a landing page stop's (landing is the hero",
+  "                               close-up; default portrait)",
   "  --background <css>            background behind the Avatar (default review",
   "                               grey; transparent for .mov and folders)",
   "  --no-label                    leave out the corner label",
