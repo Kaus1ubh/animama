@@ -313,11 +313,14 @@ def select_suites(changes: object, excluded_paths: Iterable[str] = ()) -> set[st
 
 
 # Backend inputs the frontend also reads: Included resources and contracts
-# (web and desktop tests, effect and content tools) and desktop packaging.
+# (web and desktop tests, effect and content tools), desktop packaging, and
+# the migrations and Alembic config that the desktop runtime bundles.
 BACKEND_SHARED_PREFIXES = (
     "src/backend/animama/resources/",
     "src/backend/animama/app/contracts/",
     "src/backend/packaging/",
+    "src/backend/migrations/",
+    "src/backend/alembic.ini",
 )
 FRONTEND_SOURCES = ("src/frontend/web/src/", "src/frontend/desktop/src/")
 # Frontend sources that backend tests, or the backend and script code they run,

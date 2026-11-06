@@ -15,7 +15,6 @@ from pathlib import Path
 from uuid import uuid4
 
 import sqlalchemy as sa
-
 from alembic import op
 
 revision: str = "baseline_20260908"

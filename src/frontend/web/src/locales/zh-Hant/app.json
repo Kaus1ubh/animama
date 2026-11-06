@@ -98,7 +98,9 @@
       "offlineSpeechMissing": "請在設定中安裝離線語音辨識，以使用聽寫和語音模式。",
       "transcriptionFailed": "離線轉錄失敗",
       "unmuteFailed": "無法取消語音模式靜音",
-      "webSpeechUnsupported": "此瀏覽器不支援 Web Speech API"
+      "webSpeechUnsupported": "此瀏覽器不支援 Web Speech API",
+      "offlineSpeechEnded": "離線語音辨識未安裝且已無法下載，因此聽寫和語音模式無法使用它。",
+      "languageSpeechEnded": "此語言的離線語音辨識未安裝且已無法下載，因此聽寫和語音模式無法使用它。"
     }
   },
   "featurePacks": {
@@ -214,7 +216,7 @@
     "originalSavedNotQueued": "已儲存原始檔案，但處理未加入佇列。",
     "processingNotQueuedAfterUpload": "上傳已完成，但無法將處理加入佇列。",
     "processingUnavailable": "處理未加入佇列。文件處理可用後，你可以在資源庫中處理原始檔案。",
-    "processingUnavailableDesktop": "無法使用文件處理。請在設定中安裝功能包，然後在資源庫中處理該檔案。",
+    "processingUnavailableDesktop": "此應用程式不提供文件處理。",
     "queuedForProcessing": "檔案已上傳並加入處理佇列。",
     "rejected": "無法上傳此檔案。",
     "restrictions": {

@@ -168,6 +168,20 @@ from its environment, and Electron main replaces the store while it runs.
   `ANIMAMA_CONNECTION_<ID>_API_KEY`. `ANTHROPIC_API_KEY` is reserved for the
   built-in Anthropic connection. An owner connection never falls back to a
   built-in connection's key.
+- **Key origins.** `key_refusal` in `credentials.py` sends a provider variable's
+  key only to its provider's origin (`PROVIDER_CREDENTIAL_ORIGINS`) and a
+  connection key only to the origin in `ANIMAMA_CONNECTION_<NAME>_ORIGIN`
+  (`key_origins.py` compares canonical origins). No such key goes over plain
+  HTTP unless the host is this computer; the built-in OpenAI connection keeps
+  the operator's `OPENAI_BASE_URL`. A refused key resolves as missing, with the
+  reason in `ModelCredential.refusal`. A delivered origin that matches no
+  address leaves only its own key unused.
+- **Redirects.** httpx drops `Authorization` when a redirect leaves the origin,
+  so the OpenAI SDK clients need nothing more. Clients that send a custom key
+  header and follow redirects (Anthropic, Gemini and ElevenLabs) add the
+  response hook in `adapters/key_redirects.py`, which refuses a redirect to
+  another origin. The other keyed clients, such as web search, follow no
+  redirects.
 - **Isolation.** Owner-connection SDK clients omit the process
   `OpenAI-Organization` and `OpenAI-Project` headers and every header listed in
   `OPENAI_CUSTOM_HEADERS`, and set `Authorization` from the connection's own

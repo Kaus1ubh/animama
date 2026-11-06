@@ -4,8 +4,10 @@ from __future__ import annotations
 
 from typing import Any
 
-from anthropic import AsyncAnthropic
+import httpx2
+from anthropic import AsyncAnthropic, DefaultAsyncHttpxClient
 
+from animama.adapters.key_redirects import refuse_cross_origin_redirect_async
 from animama.app.model_provider_native_tools import ANTHROPIC_MESSAGES_PROVIDER_TYPE
 
 ANTHROPIC_API_BASE_URL = "https://api.anthropic.com"
@@ -37,21 +39,35 @@ def optional_int(value: Any) -> int:
     return max(0, int(value))
 
 
-def anthropic_sdk_client(*, api_key: str, timeout: float | None, max_retries: int = 0) -> AsyncAnthropic:
+def anthropic_sdk_client(
+    *,
+    api_key: str,
+    timeout: float | None,
+    max_retries: int = 0,
+    transport: httpx2.AsyncBaseTransport | None = None,
+) -> AsyncAnthropic:
     """Return an SDK client that sends ``api_key`` only to Anthropic's API.
 
     The key and base URL are always explicit, so the SDK never falls back to
     ``ANTHROPIC_BASE_URL``, ``ANTHROPIC_AUTH_TOKEN``, a stored profile or other
     credential sources in the environment. (The SDK still adds any
     ``ANTHROPIC_CUSTOM_HEADERS`` from the process environment; Animama never sets
-    it.) Retries are off unless the caller asks for them.
+    it.) The key travels in ``x-api-key``, which a followed redirect would keep,
+    so a redirect to another origin is refused. Retries are off unless the
+    caller asks for them. ``transport`` is for tests.
     """
 
+    client_args: dict[str, Any] = {"event_hooks": {"response": [refuse_cross_origin_redirect_async]}}
+    # The SDK builds its own keepalive transport and proxy mounts only when
+    # none is passed.
+    if transport is not None:
+        client_args["transport"] = transport
     return AsyncAnthropic(
         api_key=api_key,
         base_url=ANTHROPIC_API_BASE_URL,
         timeout=timeout,
         max_retries=max_retries,
+        http_client=DefaultAsyncHttpxClient(**client_args),
     )
 
 

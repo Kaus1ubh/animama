@@ -356,14 +356,22 @@ export function AnimaVoicesEditor() {
             downloadError={downloads.error}
             retryAssetIds={downloads.retryAssetIds}
             operatorManaged={downloads.operatorManaged}
+            downloadsEnded={downloads.downloadsEnded}
           />
           {!selectedCloneId &&
-          pocketVoiceNotProvided(download, downloads.operatorManaged) ? (
+          pocketVoiceNotProvided(
+            download,
+            downloads.operatorManaged || downloads.downloadsEnded,
+          ) ? (
             // Speech falls back to the default voice; nothing installs it here.
             <p role="status" className="text-muted-foreground text-xs">
-              {t("voices.pocket.notProvided", {
-                voice: pocketVoiceLabel(pocketVoice),
-              })}
+              {downloads.operatorManaged
+                ? t("voices.pocket.notProvided", {
+                    voice: pocketVoiceLabel(pocketVoice),
+                  })
+                : t("voices.pocket.notDownloadable", {
+                    voice: pocketVoiceLabel(pocketVoice),
+                  })}
             </p>
           ) : !selectedCloneId && download?.status === "downloading" ? (
             <p role="status" className="text-muted-foreground text-xs">

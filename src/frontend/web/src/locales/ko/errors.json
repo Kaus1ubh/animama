@@ -158,7 +158,9 @@
   "modelConfiguration": {
     "bad_request": "서버가 요청을 거부했습니다.",
     "context_exceeded": "요청이 모델의 컨텍스트 창보다 컸습니다.",
+    "credential_insecure_transport": "키는 https 또는 이 컴퓨터로의 http로만 전송됩니다. https나 로컬 서버를 사용하세요.",
     "credential_missing": "이 연결을 사용하려면 키가 필요합니다.",
+    "credential_origin_mismatch": "이 키는 다른 주소용입니다. 제공자 키는 해당 제공자의 API로만, 연결 키는 함께 저장된 주소로만 전송됩니다.",
     "credential_rejected": "서버가 키를 거부했습니다.",
     "detectionNotRunning": "{{baseUrl}}에서 실행 중인 서버가 없습니다. {{server}}을(를) 시작한 후 다시 시도하세요.",
     "invalid_base_url": "기본 URL이 올바르지 않습니다.",

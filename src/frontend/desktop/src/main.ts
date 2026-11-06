@@ -1,3 +1,6 @@
+// First: a packaged app started with a debugging switch quits here, before
+// any other start-up code runs.
+import "./main-process/security/debugging-guard.js";
 import {
   app,
   BrowserWindow,
@@ -63,7 +66,11 @@ import {
 import type { RuntimeStatus } from "../../shared/desktop-runtime.js";
 import { readBoundedJson } from "./main-process/feature-packs/catalog.js";
 import { DesktopUpdateController } from "./main-process/updates/controller.js";
-import { validateUpdatePolicy } from "./main-process/updates/policy.js";
+import {
+  openSealedUpdates,
+  type UpdatePlatform,
+  type UpdatePolicy,
+} from "./main-process/updates/policy.js";
 import {
   createMacUpdateAdapter,
   createWindowsUpdateAdapter,
@@ -162,59 +169,72 @@ else {
           : undefined;
     if (!app.isPackaged || !platform || !supervisor) return Promise.resolve();
     updateInitialization ??= (async () => {
-      const policy = validateUpdatePolicy(
-        await readBoundedJson(
-          join(process.resourcesPath, "runtime/update-policy.json"),
-          4096,
-        ),
+      // A build that seals updates off (the final release) opens nothing, so
+      // the status stays "unavailable".
+      const controller = await openSealedUpdates({
         platform,
-      );
-      // The signed app bundle on macOS; the signed Animama.exe on Windows.
-      await verifyUpdaterPublisher(
-        platform === "darwin"
-          ? resolve(process.resourcesPath, "../..")
-          : process.execPath,
-        policy,
-      );
-      if (quitting) return;
-      const permitQuit = () => {
-        allowQuit = true;
-        quitting = true;
-      };
-      const adapter =
-        platform === "darwin"
-          ? createMacUpdateAdapter(policy, app.getVersion(), permitQuit)
-          : createWindowsUpdateAdapter(policy, app.getVersion(), permitQuit);
-      updates = new DesktopUpdateController({
-        version: app.getVersion(),
-        distribution: policy.distribution,
-        platform,
-        adapter,
-        disk: () => supervisor!.updateDisk(),
-        preflight: (candidate) => supervisor!.preflightUpdate(candidate),
-        stopAndInstall: async (candidate, install) => {
-          await supervisor!.stopForUpdate(candidate);
-          try {
-            await install();
-          } catch (error) {
-            if (
-              error instanceof RuntimeError &&
-              error.code === "update_install_failed"
-            )
-              await supervisor!.recoverFailedUpdate();
-            else
-              updateStatus({ state: "error", code: runtimeErrorCode(error) });
-            throw error;
-          }
-        },
-        onStatus: (status) => callers.broadcastUpdate(status),
+        readPolicy: () =>
+          readBoundedJson(
+            join(process.resourcesPath, "runtime/update-policy.json"),
+            4096,
+          ),
+        // The signed app bundle on macOS; the signed Animama.exe on Windows.
+        verifyPublisher: (policy) =>
+          verifyUpdaterPublisher(
+            platform === "darwin"
+              ? resolve(process.resourcesPath, "../..")
+              : process.execPath,
+            policy,
+          ),
+        cancelled: () => quitting,
+        create: (policy) => createUpdateController(policy, platform),
       });
+      if (!controller) return;
+      updates = controller;
       callers.broadcastUpdate(updates.status());
       updates.start();
     })().catch(() => {
       callers.broadcastUpdate({ state: "unavailable" });
     });
     return updateInitialization;
+  }
+
+  /** The update transaction for a build whose sealed policy offers updates. */
+  function createUpdateController(
+    policy: UpdatePolicy,
+    platform: UpdatePlatform,
+  ): DesktopUpdateController {
+    const permitQuit = () => {
+      allowQuit = true;
+      quitting = true;
+    };
+    const adapter =
+      platform === "darwin"
+        ? createMacUpdateAdapter(policy, app.getVersion(), permitQuit)
+        : createWindowsUpdateAdapter(policy, app.getVersion(), permitQuit);
+    return new DesktopUpdateController({
+      version: app.getVersion(),
+      distribution: policy.distribution,
+      platform,
+      adapter,
+      disk: () => supervisor!.updateDisk(),
+      preflight: (candidate) => supervisor!.preflightUpdate(candidate),
+      stopAndInstall: async (candidate, install) => {
+        await supervisor!.stopForUpdate(candidate);
+        try {
+          await install();
+        } catch (error) {
+          if (
+            error instanceof RuntimeError &&
+            error.code === "update_install_failed"
+          )
+            await supervisor!.recoverFailedUpdate();
+          else updateStatus({ state: "error", code: runtimeErrorCode(error) });
+          throw error;
+        }
+      },
+      onStatus: (status) => callers.broadcastUpdate(status),
+    });
   }
 
   /** A single independent recovery window survives even when no HTTP listener exists. */
@@ -454,7 +474,7 @@ else {
   /** A menu failure must never block startup or recovery. */
   function applyApplicationMenu(strings: ShellStrings): void {
     try {
-      installApplicationMenu(strings, app.name);
+      installApplicationMenu(strings, app.name, app.isPackaged);
     } catch {
       writeLog("error", "application_menu_failed");
     }

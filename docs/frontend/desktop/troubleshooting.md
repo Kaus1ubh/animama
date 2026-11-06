@@ -99,8 +99,8 @@ for native hook permissions.
 Offline speech installs in place from Voice settings; see
 [Speech model downloads](feature-packs.md#speech-model-downloads). An
 interrupted download resumes with **Retry download**. To reinstall, remove GPU
-acceleration first, then the CPU model, and download again. "Speech recognition
-is in use" means another window still has the model loaded for dictation or
+acceleration first, then the CPU model, and download again; after the final
+release a removed set cannot be installed again. "Speech recognition is in use" means another window still has the model loaded for dictation or
 Voice Mode: stop it or close that window and retry. Directories left by the
 retired `parakeet-stt*` speech packs are deleted automatically at startup; do
 not move model files into `packs/` or the data directory by hand.
@@ -110,12 +110,12 @@ not move model files into `packs/` or the data directory by hand.
 A failed turn shows a notice beside your message naming the connection that
 failed. Connection key changes report their failures in App Settings → Models.
 
-| Error or symptom                                                   | Safe next action                                                                                                                                                                                                                         |
-| ------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| "Animama couldn't reach … Is … running at …?"                      | Start the server and load the model, or correct the connection's base URL in App Settings → Models. The app reaches local servers at `127.0.0.1`.                                                                                        |
-| "The conversation is too long for …" (category `context_exceeded`) | Send a shorter message, choose a model with a larger context window, or have the server load the model with a larger window and record that window on the model.                                                                         |
-| `connection_credentials_full` (the 32-key limit)                   | Remove the key from a connection you no longer use, then retry. Nothing was saved or sent.                                                                                                                                              |
-| `credential_connection_invalid`, `credential_changes_invalid`      | Main refused a malformed key change (a variable outside `ANIMAMA_CONNECTION_<ID>_API_KEY`, more than eight changes, or one target twice). Nothing changed; reopen Settings and retry, and report repeated failures with the app version. |
+| Error or symptom                                                                           | Safe next action                                                                                                                                                                                                                                                                               |
+| ------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| "Animama couldn't reach … Is … running at …?"                                              | Start the server and load the model, or correct the connection's base URL in App Settings → Models. The app reaches local servers at `127.0.0.1`.                                                                                                                                              |
+| "The conversation is too long for …" (category `context_exceeded`)                         | Send a shorter message, choose a model with a larger context window, or have the server load the model with a larger window and record that window on the model.                                                                                                                               |
+| `connection_credentials_full` (the 32-key limit)                                           | Remove the key from a connection you no longer use, then retry. Nothing was saved or sent.                                                                                                                                                                                                     |
+| `credential_connection_invalid`, `credential_changes_invalid`, `credential_origin_invalid` | Main refused a malformed key change (a variable outside `ANIMAMA_CONNECTION_<ID>_API_KEY`, an origin that is not a plain `scheme://host[:port]`, more than eight changes, or one target twice). Nothing changed; reopen Settings and retry, and report repeated failures with the app version. |
 
 DeepSeek, Hugging Face and Gemini keys saved by earlier builds are dropped when
 the vault loads; they never make it `vault_unreadable`. Re-enter a DeepSeek or
@@ -128,7 +128,9 @@ checks.
 
 ## Update failures
 
-A failed check or download leaves the current app available. Retry the offered
+The final release never checks for updates, so it shows none of these
+failures. In other builds, a failed check or download leaves the current app
+available. Retry the offered
 action after resolving network or disk problems. A changed candidate requires
 a fresh check. An active pack operation or incompatible in-use content can
 block an update; do not clear those guards by deleting files.

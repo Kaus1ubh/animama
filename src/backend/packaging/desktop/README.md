@@ -63,7 +63,7 @@ only inventoried regular files after containment/size/hash checks. It is not a
 runtime extractor; Electron's bounded zstd/USTAR pipeline owns installation.
 
 `animama.runtime.resources.RESOURCE_INPUTS` is the single map for migrations,
-the data-only SQL seeds in `alembic/seeds/`, and frontend-owned manifest inputs.
+the data-only SQL seeds in `src/backend/migrations/seeds/`, and frontend-owned manifest inputs.
 Source execution knows the checkout layout; frozen execution resolves package resources and fails if one
 is missing. Prompt code ships in the backend package, and versioned starter
 policy uses package resources. The spec includes the complete Alembic tree: the

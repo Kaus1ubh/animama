@@ -343,12 +343,15 @@ def test_local_files_are_revalidated_or_never_stored() -> None:
     assert (revalidated.status_code, revalidated.headers["cache-control"]) == (200, "private, no-cache")
     assert revalidated.headers["content-length"] == "3"
     assert revalidated.headers["x-content-type-options"] == "nosniff"
+    # Stored bytes never run as a document in the app's origin, whatever their type.
+    assert revalidated.headers["content-security-policy"] == "sandbox; default-src 'none'"
     etag = revalidated.headers["etag"]
     assert etag == f'"{hashlib.sha256(b"abc").hexdigest()}"'
 
     file = verified(b"abc")
     unchanged = local_file_response(file, if_none_match=etag, revalidate=True)
     assert unchanged.status_code == 304 and "content-length" not in unchanged.headers
+    assert unchanged.headers["content-security-policy"] == "sandbox; default-src 'none'"
 
     kept = local_file_response(verified(b"abc"), if_none_match=None, revalidate=True, immutable=True)
     assert (kept.status_code, kept.headers["cache-control"]) == (200, "private, max-age=31536000, immutable")
@@ -413,6 +416,19 @@ async def test_a_download_releases_its_lease_before_the_last_chunk_is_sent() -> 
         "body 7 more=True",
         "body 0 more=False",
     ]
+
+
+def test_package_downloads_are_sandboxed_attachments() -> None:
+    class Download:
+        handle = io.BytesIO(b"zip")
+        review = SimpleNamespace(filename="wave.zip", size_bytes=3, package_sha256="0" * 64)
+
+        def close(self, *, reclaimable: bool = False) -> None:
+            pass
+
+    response = PackageDownloadResponse(Download())  # type: ignore[arg-type]
+    assert response.headers["content-disposition"].startswith("attachment;")
+    assert response.headers["content-security-policy"] == "sandbox; default-src 'none'"
 
 
 async def test_a_failed_lease_release_still_delivers_the_whole_archive() -> None:

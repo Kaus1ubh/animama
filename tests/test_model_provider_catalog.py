@@ -55,7 +55,7 @@ PRICE_COLUMNS = (
 )
 # Retired built-ins are chat rows, so only chat-model roles can name them.
 CHAT_ROLE_PREFERENCE_PATHS = tuple(path for role, path in ROLE_PREFERENCE_PATHS.items() if role != ROLE_EMBEDDINGS)
-SEED_SQL_PATH = Path("alembic/seeds/01-seed-model-providers.sql")
+SEED_SQL_PATH = Path("src/backend/migrations/seeds/01-seed-model-providers.sql")
 SEED_COLUMNS = (
     "id",
     "model",

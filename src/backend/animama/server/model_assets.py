@@ -2,7 +2,10 @@
 
 One service per application owns the packaged catalog, the store beneath the
 installation data root (desktop ``<userData>/data``, Compose
-``/var/lib/animama/data``) and the production-only release fetcher. Consumers
+``/var/lib/animama/data``) and the production-only release fetcher. The final
+release, made when Animama stops distributing model files, sets
+``MODEL_DOWNLOADS_OFFERED`` to False: the service then keeps installed assets
+and downloads nothing new. Consumers
 that must veto removal register guards in ``_build_service``. Tests inject a
 fixture service with a dependency override on ``get_model_asset_service`` (or
 ``application.state.model_asset_service``).
@@ -41,6 +44,10 @@ PARAKEET_ASSET_ID: Final = "parakeet-stt"
 PARAKEET_WEBGPU_ASSET_ID: Final = "parakeet-stt-webgpu"
 SENSEVOICE_ASSET_ID: Final = "sensevoice-stt"
 SENSEVOICE_WEBGPU_ASSET_ID: Final = "sensevoice-stt-webgpu"
+# Whether local compositions still download model assets. The final release sets
+# it to False, together with `"updates": "ended"` in the desktop release policy
+# (docs/frontend/desktop/releases.md#ending-distribution).
+MODEL_DOWNLOADS_OFFERED: Final = True
 _SPEECH_MOUNT_ASSETS: Final = {
     PARAKEET_MOUNT: PARAKEET_ASSET_ID,
     PARAKEET_WEBGPU_MOUNT: PARAKEET_WEBGPU_ASSET_ID,
@@ -61,6 +68,7 @@ def _build_service(application: FastAPI) -> ModelAssetService:
         load_packaged_asset_catalog(),
         FilesystemModelAssetStore(_data_root(application)),
         HttpAssetFetcher(),
+        downloads_offered=MODEL_DOWNLOADS_OFFERED,
     )
 
 

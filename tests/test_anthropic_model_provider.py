@@ -96,7 +96,7 @@ from tests.test_model_provider_catalog import _apply_seed_sql, _clear_model_prov
 
 HAIKU_ID = "AnthropicMessagesHTTPAgent:claude-haiku-5-5"
 LUNA_ID = "OpenAIResponsesHTTPAgent:gpt-6-luna"
-BASELINE_SQL = Path(__file__).parents[1] / "alembic" / "versions" / "0001_baseline.sql"
+BASELINE_SQL = Path(__file__).parents[1] / "src" / "backend" / "migrations" / "versions" / "0001_baseline.sql"
 
 
 def _rows_by_id() -> dict[str, dict[str, Any]]:

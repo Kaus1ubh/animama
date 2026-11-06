@@ -501,7 +501,9 @@ declares a same-run `talking` playback lifetime: it fades in, holds its final
 expression/VFX sample while the avatar remains talking for that run, and fades
 out when talking ends or the run changes. VFX events without `duration` hold
 until the reaction clears; SFX events fire once and do not replay during the
-hold.
+hold. A Reaction that replaces one still showing fades in from the face that
+one shows, and the replaced Reaction's Avatar Effects fade out over the new
+fade-in before they are removed (Scene and Particle Effects end at once).
 
 Because Reactions play over lip-sync, Included Reactions shape the face with
 VRoid's per-feature morphs instead of whole-face presets: brows and eyes

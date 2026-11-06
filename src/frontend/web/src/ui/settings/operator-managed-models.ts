@@ -8,3 +8,12 @@ export function operatorManagedModelsNote(): string {
   const t = getI18n().getFixedT(null, "models");
   return t("operatorManaged.note");
 }
+
+/**
+ * Shown instead of a download once model downloads have ended (see
+ * `modelDownloadsEnded`): what still works without them.
+ */
+export function modelDownloadsEndedNote(): string {
+  const t = getI18n().getFixedT(null, "models");
+  return t("downloadsEnded.note");
+}

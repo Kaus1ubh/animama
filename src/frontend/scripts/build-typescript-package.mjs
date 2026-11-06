@@ -20,6 +20,22 @@ const frontendRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const packageRoot = process.cwd();
 const outputRoot = join(packageRoot, "dist");
 const entries = process.argv.slice(2);
+/**
+ * Upstream licence texts in `licenses/third-party` for third-party code a
+ * package contains, which `adapted-code.md` there lists file by file. They
+ * ship beside the AGPL `LICENSE` as `THIRD_PARTY_NOTICES.md`.
+ */
+const THIRD_PARTY_NOTICES = {
+  "@animama/runtime-contracts": ["code-hey-api-LICENSE.md"],
+  "@animama/product-ui": [
+    "code-shadcn-ui-LICENSE.md",
+    "code-magic-ui-LICENSE.md",
+    "code-motion-primitives-LICENSE.md",
+    "code-elevenlabs-ui-LICENSE.md",
+    "code-ai-elements-LICENSE.txt",
+    "code-Apache-2.0.txt",
+  ],
+};
 if (entries.length === 0)
   throw new Error("Supply the package's public entry files.");
 
@@ -143,5 +159,29 @@ await copyFile(
   resolve(frontendRoot, "../../LICENSE"),
   join(outputRoot, "LICENSE"),
 );
+const { name: packageName } = JSON.parse(
+  await readFile(join(packageRoot, "package.json"), "utf8"),
+);
+const notices = THIRD_PARTY_NOTICES[packageName];
+if (notices) {
+  const records = resolve(frontendRoot, "../../licenses/third-party");
+  const texts = await Promise.all(
+    notices.map(async (name) => {
+      const text = await readFile(join(records, name), "utf8");
+      return `## ${name}\n\n${text.trim()}\n`;
+    }),
+  );
+  await writeFile(
+    join(outputRoot, "THIRD_PARTY_NOTICES.md"),
+    [
+      `# Third-party notices for ${packageName}\n`,
+      "This package contains code from other open-source projects, which keeps",
+      "its upstream licence; Animama's own code is AGPL-3.0-only (see LICENSE).",
+      "The Animama repository's licenses/third-party/adapted-code.md lists each",
+      "file. The upstream licence texts follow.\n",
+      ...texts,
+    ].join("\n"),
+  );
+}
 // Written after the bundle, so a failed or interrupted bundle leaves no digest and never reads as current.
 await writeFile(join(outputRoot, SOURCE_DIGEST_FILE), `${sourceDigest}\n`);

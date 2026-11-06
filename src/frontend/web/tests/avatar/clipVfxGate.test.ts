@@ -82,6 +82,7 @@ describe("clip-owned VFX preference gate", () => {
     avatar.vfxController = { removeEffect } as never;
     avatar.particleVFXController = {
       clearEffect,
+      clearFinishingEffects: vi.fn(),
       playEffect,
     } as never;
 
@@ -99,8 +100,12 @@ describe("clip-owned VFX preference gate", () => {
     const internals = avatar as unknown as AvatarClipVFXInternals;
     const removeEffect = vi.fn();
     const clearEffect = vi.fn();
+    const clearFinishingEffects = vi.fn();
     avatar.vfxController = { removeEffect } as never;
-    avatar.particleVFXController = { clearEffect } as never;
+    avatar.particleVFXController = {
+      clearEffect,
+      clearFinishingEffects,
+    } as never;
     internals._clipOwnedAvatarVFXIds.add("reaction:run:emotion:joy-3:avatar");
     internals._clipOwnedParticleVFXIds.add(
       "reaction:run:emotion:joy-3:particle",
@@ -111,6 +116,8 @@ describe("clip-owned VFX preference gate", () => {
     expect(removeEffect).toHaveBeenCalledWith(
       "reaction:run:emotion:joy-3:avatar",
     );
+    // Particles still finishing from earlier clips go too.
+    expect(clearFinishingEffects).toHaveBeenCalled();
     expect(clearEffect).toHaveBeenCalledWith(
       "reaction:run:emotion:joy-3:particle",
     );

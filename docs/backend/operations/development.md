@@ -118,11 +118,11 @@ uv run python -m animama.server.db_bootstrap
 For a schema-only operation, run migrations directly:
 
 ```bash
-uv run alembic upgrade head
+uv run alembic -c src/backend/alembic.ini upgrade head
 ```
 
 During development, do not add Alembic revisions. Update ORM/database
-definitions and `alembic/versions/0001_baseline.sql` directly when changing the
+definitions and `src/backend/migrations/versions/0001_baseline.sql` directly when changing the
 schema; change seeds or application defaults directly for data changes. The
 owner decides when to reset existing development data. Running bootstrap or
 `alembic upgrade head` against a database already at the baseline does not
@@ -149,7 +149,7 @@ schema and contains no hosted identity tables. Animama Cloud uses a separate
 migration history and app composition.
 
 Alembic revision `baseline_20260908` creates the current local schema from
-`alembic/versions/0001_baseline.sql`. The baseline creates installation settings
+`src/backend/migrations/versions/0001_baseline.sql`. The baseline creates installation settings
 and generates one UUIDv4 owner; it never imports live ORM metadata. Keep its SQL
 consistent with the ORM while retaining this single development baseline.
 
@@ -170,9 +170,9 @@ the new installation owner; private upload bytes alone do not restore their
 removed database records. Preserve a coordinated backup with the old checkout
 whenever any of that state is worth retaining.
 
-Post-schema SQL seeds live under `alembic/seeds/`; they are separate from the
-one-time revisions in `alembic/versions/`. The optional pgAdmin service reads
-its server registration from `alembic/pgadmin-servers.json`.
+Post-schema SQL seeds live under `src/backend/migrations/seeds/`; they are separate from the
+one-time revisions in `src/backend/migrations/versions/`. The optional pgAdmin service reads
+its server registration from `scripts/dev-tools/pgadmin-servers.json`.
 `01-seed-model-providers.sql` idempotently upserts the built-in model-provider
 catalog after Alembic creates its table; `02-seed-avatars.sql` retains the
 idempotent avatar seed policy. `reset.sh` invokes
@@ -256,13 +256,16 @@ The built Docker target compiles optimized React assets and copies them to
 loopback application origin; no Node or Vite server runs in this graph.
 This graph does not mount host speech-to-text sets: the app downloads the
 Parakeet and SenseVoice sets into its data root through the backend model-asset
-service. The browser speech set is an optional build input; run
+service, until the final release turns downloads off. The browser speech set is an optional build input; run
 `python3 scripts/models/browser_speech.py acquire` to enable Pocket TTS and Smart
 Turn, and set `ANIMAMA_MODEL_ROOT` to an absolute persistent root when needed.
 `reset.sh` records that root and the exact immutable version directory of each
 acquired set.
 See [model acquisition, offline reuse and recovery](model-assets.md).
 This selects build delivery, without adding accounts or network authentication.
+Only built mode serves the app's
+[Content Security Policy](../../frontend/architecture/auth-server.md#content-security-policy);
+Vite development sends none, so check policy-sensitive changes here.
 
 Apply the selection with an ordinary reset, which preserves state:
 
@@ -314,7 +317,10 @@ application services while PostgreSQL stays available, creates a custom-format
 database dump plus Local/data archives and SHA-256 inventory, then restarts only
 the services it stopped. The default output is the ignored `backups/`
 directory. Included content, browser/HTTP caches, model caches, downloaded
-model assets and environment secrets are intentionally excluded. The
+model assets and environment secrets are intentionally excluded. An in-place
+restore keeps the installed model assets; once downloads have ended, a backup
+restored on another host has no offline speech recognition or downloadable
+voices. The
 PostgreSQL dump includes `installation_settings`, so restoring it preserves the
 installation principal and every existing owner ID.
 

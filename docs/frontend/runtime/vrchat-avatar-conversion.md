@@ -295,7 +295,8 @@ accept both mesh compressions an optimizer may add
 - `EXT_meshopt_compression` (gltfpack, gltf-transform `meshopt`) loads: every
   Avatar loader imports three's meshopt decoder when a file uses it
   (`configureAvatarGltfLoader`). Its WebAssembly is embedded in the module, so
-  the page's CSP must allow `'wasm-unsafe-eval'` (the app's does).
+  the page's Content Security Policy must allow `'wasm-unsafe-eval'`, as the
+  [app's policy](../architecture/auth-server.md#content-security-policy) does.
 - `KHR_draco_mesh_compression` imports, but Animama does not serve the Draco
   decoder yet, so the Avatar does not load. The import review says so before
   the import, and its Diagnostics name the extension

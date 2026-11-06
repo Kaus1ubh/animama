@@ -69,6 +69,7 @@ async def test_http_export_reviews_then_streams_the_same_package(async_session: 
             assert downloaded.headers["x-content-sha256"] == reviewed["package_sha256"]
             assert hashlib.sha256(downloaded.content).hexdigest() == reviewed["package_sha256"]
             assert downloaded.headers["cache-control"] == "private, no-store"
+            assert downloaded.headers["content-security-policy"] == "sandbox; default-src 'none'"
             assert downloaded.headers["content-disposition"] == (
                 f"attachment; filename*=utf-8''{quote(reviewed['filename'], safe='')}"
             )

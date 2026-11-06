@@ -192,7 +192,9 @@
   "modelConfiguration": [
     "bad_request",
     "context_exceeded",
+    "credential_insecure_transport",
     "credential_missing",
+    "credential_origin_mismatch",
     "credential_rejected",
     "invalid_base_url",
     "model_not_found",

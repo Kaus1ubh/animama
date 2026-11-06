@@ -250,7 +250,7 @@ defaults.
 
 The packaged app downloads the speech-to-text sets (Parakeet and SenseVoice),
 the optional Pocket voices and the cloning encoder at runtime as backend model
-assets; none is a staging input or pack.
+assets until the final release; none is a staging input or pack.
 `desktop:dist:mac` copies each set named by the frozen backend catalog from the
 verified model store into publication candidates, so a signed release needs those
 sets acquired first (for example `python3 scripts/models/parakeet.py acquire`,
@@ -402,9 +402,11 @@ remain bounded errors.
 Native pack acceptance requires real download, cancellation, connection loss,
 quit/resume, installation, restart, removal and reinstallation. Verify
 catalog/ETag-bound resume and bounded `pack_download_failed` and
-`pack_cancelled` results. Offline speech acceptance repeats download,
-cancellation, interrupted resume, removal and offline dictation through Voice
-settings and confirms that the backend PID and open windows are unchanged. Expanded-content tests must check Anima references and
+`pack_cancelled` results. Offline speech acceptance, in a build that offers
+downloads, repeats download, cancellation, interrupted resume, removal and
+offline dictation through Voice settings (the final release checks removal and
+dictation after upgrading the previous release with offline speech installed) and
+confirms that the backend PID and open windows are unchanged. Expanded-content tests must check Anima references and
 live preview leases; closing a preview does not immediately revoke its lease.
 Retain the owner and chat across transitions. Fixture downloads and generated
 speech do not establish production transport or physical microphone acceptance.

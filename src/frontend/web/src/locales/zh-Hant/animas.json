@@ -608,7 +608,8 @@
       "savingVoice": "正在儲存語音…",
       "sectionLabel": "語音複製",
       "title": "語音複製",
-      "upload": "上傳語音樣本"
+      "upload": "上傳語音樣本",
+      "downloadsEnded": "語音複製所需的模型已無法下載。已儲存的複製語音仍可繼續使用。"
     },
     "elevenLabs": {
       "idLabel": "語音 ID",
@@ -676,7 +677,8 @@
       "savedUnavailable": "已儲存的語音無法使用",
       "sectionLabel": "PocketTTS 語音",
       "selectedUnavailable": "此已儲存的語音無法使用。請選擇其他語音。",
-      "selectFailed": "無法選擇 PocketTTS 語音。請重新整理後再試一次。"
+      "selectFailed": "無法選擇 PocketTTS 語音。請重新整理後再試一次。",
+      "notDownloadable": "{{voice}} 已無法下載，因此回覆將使用預設語音。"
     },
     "provider": {
       "active": "目前的供應商",

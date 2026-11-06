@@ -1080,6 +1080,7 @@ export default interface Resources {
           "verifying": "Download complete. Verifying voice cloning…"
         },
         "downloading": "Downloading voice cloning…",
+        "downloadsEnded": "Voice cloning needs a model that can no longer be downloaded. Saved clones keep working.",
         "errors": {
           "cancelFailed": "The download could not be cancelled. Try again.",
           "cancelled": "Download cancelled. Your sample is ready to retry.",
@@ -1173,6 +1174,7 @@ export default interface Resources {
         "downloadFailed": "{{voice}} could not be downloaded. Open the voice list to retry.",
         "downloading": "Downloading {{voice}}… {{percent}}",
         "libraryFailed": "Saved voices could not be loaded.",
+        "notDownloadable": "{{voice}} can no longer be downloaded, so replies use the default voice.",
         "notProvided": "{{voice}} is not available here, so replies use the default voice.",
         "savedUnavailable": "Saved voice unavailable",
         "sectionLabel": "PocketTTS voice",
@@ -1286,9 +1288,11 @@ export default interface Resources {
         },
         "browserStartFailed": "Failed to start browser dictation",
         "failed": "Dictation failed",
+        "languageSpeechEnded": "Offline speech recognition for this language is not installed and can no longer be downloaded, so dictation and Voice Mode cannot use it.",
         "languageSpeechMissing": "Install offline speech recognition for this language in Settings to use dictation and Voice Mode.",
         "localWebSpeechNotEnabled": "Local browser speech recognition could not be enabled",
         "localWebSpeechUnsupported": "Local-only browser speech recognition is not supported",
+        "offlineSpeechEnded": "Offline speech recognition is not installed and can no longer be downloaded, so dictation and Voice Mode cannot use it.",
         "offlineSpeechFailed": "Offline speech recognition failed",
         "offlineSpeechMissing": "Install offline speech recognition in Settings to use dictation and Voice Mode.",
         "transcriptionFailed": "Offline transcription failed",
@@ -1409,7 +1413,7 @@ export default interface Resources {
       "originalSavedNotQueued": "Original saved; processing was not queued.",
       "processingNotQueuedAfterUpload": "Upload completed, but processing could not be queued.",
       "processingUnavailable": "Processing was not queued. You can process the original from Library once document processing is available.",
-      "processingUnavailableDesktop": "Document processing is unavailable. Install the pack in Settings, then process the file from Library.",
+      "processingUnavailableDesktop": "Document processing is not available in this app.",
       "queuedForProcessing": "File uploaded and queued for processing.",
       "rejected": "File cannot be uploaded.",
       "restrictions": {
@@ -3562,7 +3566,9 @@ export default interface Resources {
     "modelConfiguration": {
       "bad_request": "The server rejected the request.",
       "context_exceeded": "The request was larger than the model's context window.",
+      "credential_insecure_transport": "Keys are sent only over https, or plain http to this computer. Use https or a local server.",
       "credential_missing": "This connection needs a key before it can be used.",
+      "credential_origin_mismatch": "This key belongs to another address. A provider's key goes only to that provider's API, and a connection key only to the address saved with it.",
       "credential_rejected": "The server rejected the key.",
       "detectionNotRunning": "Nothing is running at {{baseUrl}}. Start {{server}} and try again.",
       "invalid_base_url": "The base URL is not valid.",
@@ -4595,11 +4601,14 @@ export default interface Resources {
       "editDescription": "An OpenAI-compatible server such as Ollama, LM Studio, llama.cpp or a cloud provider.",
       "env": {
         "notSet": "Not set on the server yet. Set it to your API key.",
+        "notUsable": "Not usable yet. Set this variable to your API key on the server, and add the line below.",
+        "origin": "Also set {{variable}}={{origin}} on the server, so the key is sent only to this address.",
         "set": "Set on the server.",
         "setVariable": "Set this variable to your API key on the server."
       },
       "hideAdvanced": "Hide advanced options",
-      "insecureKey": "This address uses plain http on another computer, so the key would cross the network unencrypted. Use https or a local server.",
+      "insecureKey": "Keys are sent only over https, or plain http to this computer. Use https or a local server.",
+      "keyForAnotherAddress": "The saved key was entered for another address. Enter the key again for this address, or remove it.",
       "keyNotDeleted": "The connection's saved key could not be deleted.",
       "keyNotStored": "The connection was saved, but its key was not stored. {{reason}}",
       "keyNotStoredRetry": "The connection was saved, but its key was not stored. Retry from Edit.",
@@ -4703,6 +4712,9 @@ export default interface Resources {
       "saveFailed": "The {{role}} model could not be saved.",
       "unavailable": "The chosen model is unavailable, so the default is used.",
       "unavailableChoice": "{{model}} (unavailable)"
+    },
+    "downloadsEnded": {
+      "note": "Animama no longer offers model downloads. Anything already downloaded keeps working; chat, Avatars and the built-in voices need no downloads."
     },
     "embeddings": {
       "current": "Stored files and archives are embedded with this model.",
@@ -6830,8 +6842,10 @@ export default interface Resources {
     },
     "languageNotice": {
       "speechToText": "To use offline speech recognition in {{language}}, download its model.",
+      "speechToTextEnded": "Offline speech recognition in {{language}} needs a model that can no longer be downloaded.",
       "speechToTextEnglishOnly": "Parakeet recognizes English only. To speak to your Animas in {{language}}, choose SenseVoice.",
       "speechToTextModel": "To use SenseVoice, download its model.",
+      "speechToTextModelEnded": "SenseVoice needs a model that can no longer be downloaded.",
       "speechToTextModelUnavailable": "SenseVoice is not available on this server.",
       "speechToTextUnavailable": "Offline speech recognition in {{language}} is not available on this server.",
       "textToSpeech": "Pocket TTS speaks English only. To hear your Animas in {{language}}, choose ElevenLabs or Gemini."
@@ -6958,6 +6972,7 @@ export default interface Resources {
       "fallback": {
         "customMissing": "Custom PocketTTS voice is selected but no custom voice has been uploaded.",
         "downloadFailed": "The voice \"{{voice}}\" could not be downloaded, so the default voice is used. The download is retried on the next reply or when you pick the voice again.",
+        "downloadsEnded": "The voice \"{{voice}}\" can no longer be downloaded, so the default voice is used.",
         "unknownVoice": "The saved voice \"{{voice}}\" is no longer available, so the default voice is used. Choose another voice in Behavior → Voices."
       },
       "sample": {

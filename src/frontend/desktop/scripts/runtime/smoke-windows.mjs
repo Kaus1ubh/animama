@@ -1,8 +1,13 @@
 import { execFileSync } from "node:child_process";
-import { lstatSync, realpathSync } from "node:fs";
+import { cpSync, lstatSync, realpathSync } from "node:fs";
 import path from "node:path";
 import { frontendRoot, parseTarget, readJson, sha256 } from "./common.mjs";
+import { smokeCopyFuseWire, writeFuseWire } from "./fuses.mjs";
 import { assertInventory, inventoryId } from "./inventory.mjs";
+import {
+  MAX_WINDOWS_DATA_ROOT,
+  smokeCopyDirectory,
+} from "./smoke-hardening.mjs";
 import { loadReleasePolicy } from "./release-policy.mjs";
 import {
   assertFreshProfile,
@@ -70,6 +75,52 @@ export function ownedWindowsChild(child, runtime, images) {
     folded(images.get(child.servicePid) ?? "") === folded(child.executable) &&
     folded(images.get(child.pid) ?? "") ===
       folded(win.join(runtime, "bin", "animama-process-guard.exe"))
+  );
+}
+
+/**
+ * Fail before anything is installed when the journey copy's throwaway profile
+ * (`<%LOCALAPPDATA%>\am-smoke-XXXXXX\p`) would not fit the packaged app's
+ * data-root budget: profile folder names of at most 29 characters fit.
+ */
+export function assertWindowsCopyFits(
+  localAppData,
+  resolve = realpathSync.native,
+) {
+  if (!localAppData)
+    throw new Error("Run smoke from a normal Windows user session");
+  const base = resolve(localAppData);
+  // mkdtemp adds six characters to the prefix.
+  const length = win.join(base, "am-smoke-XXXXXX", "p").length;
+  if (length > MAX_WINDOWS_DATA_ROOT)
+    throw new Error(
+      `The smoke profile path would be ${length} characters; the app accepts at most ${MAX_WINDOWS_DATA_ROOT}. Use a test account with a shorter profile folder name.`,
+    );
+  return base;
+}
+
+/**
+ * A short private folder under the long-form `%LOCALAPPDATA%` for the journey
+ * copy (`a`) and its throwaway profile (`p`). The profile fits the packaged
+ * app's data-root budget, and the copy's runtime paths are at most one
+ * character longer than the installed ones.
+ */
+export function windowsCopyLocation(
+  localAppData,
+  { make = smokeCopyDirectory, resolve = realpathSync.native } = {},
+) {
+  const directory = make(
+    assertWindowsCopyFits(localAppData, resolve),
+    "am-smoke-",
+  );
+  return { directory, profile: win.join(directory, "p") };
+}
+
+/** Whether no process of this account runs an executable inside `root`. */
+function noProcessesUnder(root) {
+  const prefix = `${folded(realpathSync(root))}\\`;
+  return [...processImages().values()].every(
+    (image) => !folded(image).startsWith(prefix),
   );
 }
 
@@ -147,6 +198,8 @@ export async function smokeWindows(args) {
     throw new Error(`Smoke input must be ${installerName}`);
   const { userData, installed, existing } = windowsProfile();
   assertFreshProfile(existing, "Windows");
+  // Before the installer runs, so a refusal leaves the account fresh.
+  assertWindowsCopyFits(process.env.LOCALAPPDATA);
   const provider = smokeProviderKey();
   const runtime = path.join(installed, "resources", "runtime");
   const verifySigned = (directory, name) =>
@@ -165,7 +218,7 @@ export async function smokeWindows(args) {
     passed: false,
     checks: {},
     scope:
-      "Real signed installer, per-user install into a fresh account, minimal app PATH. Renderer network events and owned process observations only; manual native/audio/update checks remain separate.",
+      "Exact signed installer, per-user install into a fresh account: fuse wire, publisher signature, sealed update policy and refused debugging switches. Journey: a smoke-made copy with Node's inspect switches on, a throwaway profile and a minimal app PATH. Renderer network events and owned process observations only; manual native/audio/update checks remain separate.",
     manual_checks: "required-separately",
   };
   await runSmokeJourney({
@@ -176,11 +229,17 @@ export async function smokeWindows(args) {
       installed,
       executable: path.join(installed, "Animama.exe"),
       env: windowsLaunchEnvironment(),
+      fuseApp: path.join(installed, "Animama.exe"),
+      runtime,
+      updatePolicy: release.updatePolicy,
+      noInstalledProcesses: () => noProcessesUnder(installed),
       async install(evidence) {
         verifySigned(path.dirname(artifact), path.basename(artifact));
         // The one-click installer waits until the per-user install completes.
         runMinimal(artifact, ["/S"]);
+        // The publisher requirement the installed app's updater checks.
         verifySigned(installed, "Animama.exe");
+        evidence("publisher_signature", true);
         const manifest = readJson(path.join(runtime, "manifest.json"));
         evidence(
           "runtime_inventory",
@@ -190,13 +249,26 @@ export async function smokeWindows(args) {
         assertInventory(runtime, manifest.files);
         report.runtime_build_id = manifest.build_id;
       },
-      ownedChild: (child) =>
-        ownedWindowsChild(child, realpathSync(runtime), processImages()),
-      noInstalledProcesses() {
-        const root = `${folded(realpathSync(installed))}\\`;
-        return [...processImages().values()].every(
-          (image) => !folded(image).startsWith(root),
-        );
+      copyLocation: () => windowsCopyLocation(process.env.LOCALAPPDATA),
+      copy(directory) {
+        const app = win.join(directory, "a");
+        cpSync(installed, app, { recursive: true });
+        // The changed executable no longer carries the publisher signature,
+        // so its updater refuses to update.
+        writeFuseWire(win.join(app, "Animama.exe"), smokeCopyFuseWire());
+        const copyRuntime = win.join(app, "resources", "runtime");
+        return {
+          installed: app,
+          executable: win.join(app, "Animama.exe"),
+          fuseApp: win.join(app, "Animama.exe"),
+          ownedChild: (child) =>
+            ownedWindowsChild(
+              child,
+              realpathSync(copyRuntime),
+              processImages(),
+            ),
+          noInstalledProcesses: () => noProcessesUnder(app),
+        };
       },
     },
   });

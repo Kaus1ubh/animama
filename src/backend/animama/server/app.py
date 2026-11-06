@@ -124,6 +124,7 @@ def create_local_app(
             if state is None or not lifecycle.ready:
                 raise HTTPException(status_code=503, detail="runtime_starting")
             from alembic.script import ScriptDirectory
+
             from animama.runtime.resources import alembic_config
 
             return {

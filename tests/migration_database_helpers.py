@@ -85,7 +85,7 @@ def migrated_database(migration_postgres: str) -> Iterator[str]:
         }
         environment["ANIMAMA_DATABASE_URL"] = target.render_as_string(hide_password=False)
         result = subprocess.run(
-            [sys.executable, "-m", "alembic", "upgrade", "head"],
+            [sys.executable, "-m", "alembic", "-c", "src/backend/alembic.ini", "upgrade", "head"],
             cwd=Path(__file__).resolve().parents[1],
             env=environment,
             capture_output=True,

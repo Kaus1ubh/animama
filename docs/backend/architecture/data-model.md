@@ -54,7 +54,7 @@ workers.
 ## Development schema and initialization
 
 Alembic revision `baseline_20260908` creates the complete current accountless
-local schema from `alembic/versions/0001_baseline.sql`. The SQL creates
+local schema from `src/backend/migrations/versions/0001_baseline.sql`. The SQL creates
 the tables, constraints, indexes, runtime-worker heartbeats and content mutation
 receipts directly.
 It does not import live ORM metadata. During development, update ORM/database
@@ -66,7 +66,7 @@ baseline; ordinary startup does not reapply edited baseline SQL.
 The baseline creates and seeds the singleton installation settings row with a
 new UUIDv4 principal in the same migration transaction. The principal is not a
 fixed seed identity. Alembic ensures extensions before product DDL. The data-only
-SQL seeds in `alembic/seeds/` run after migrations through the shared database
+SQL seeds in `src/backend/migrations/seeds/` run after migrations through the shared database
 bootstrap service used by Compose reset and desktop. Catalog seeds and
 application owner/default/starter bootstrap
 retain their separate responsibilities and idempotence.

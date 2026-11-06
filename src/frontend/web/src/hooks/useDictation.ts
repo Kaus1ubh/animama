@@ -6,6 +6,7 @@ import { getI18n } from "react-i18next";
 import { createLogger } from "@/lib/logger";
 import { publicResourceUrl } from "@/lib/resource-urls";
 import { fetchRuntimeCapabilities } from "@/query/runtime-capabilities";
+import { fetchModelDownloadsEnded } from "@/query/model-download-coordination";
 import {
   getSpeechRecognitionConstructor,
   resolveRoutedSttProvider,
@@ -223,6 +224,8 @@ type DictationFailure =
   | "localWebSpeechUnsupported"
   | "offlineSpeechMissing"
   | "languageSpeechMissing"
+  | "offlineSpeechEnded"
+  | "languageSpeechEnded"
   | "offlineSpeechFailed"
   | "transcriptionFailed"
   | "unmuteFailed"
@@ -248,6 +251,10 @@ function dictationErrorText(failure: DictationFailure): string {
       return t("dictation.errors.offlineSpeechMissing");
     case "languageSpeechMissing":
       return t("dictation.errors.languageSpeechMissing");
+    case "offlineSpeechEnded":
+      return t("dictation.errors.offlineSpeechEnded");
+    case "languageSpeechEnded":
+      return t("dictation.errors.languageSpeechEnded");
     case "offlineSpeechFailed":
       return t("dictation.errors.offlineSpeechFailed");
     case "transcriptionFailed":
@@ -3051,13 +3058,20 @@ export function useDictation(options: UseDictationOptions = {}) {
           resolved.languageMissing ||
           (resolved.provider === "parakeet" && !resolved.parakeetAvailable)
         ) {
+          // Once downloads have ended, Settings cannot install the model.
+          const ended = await fetchModelDownloadsEnded(apiClient);
+          // SenseVoice chosen under English is missing a model, not a language.
+          const model =
+            route.engine === "parakeet" || route.language === "auto";
           throw new WordedError(
             dictationErrorText(
-              // SenseVoice chosen under English is missing a model, not a
-              // language.
-              route.engine === "parakeet" || route.language === "auto"
-                ? "offlineSpeechMissing"
-                : "languageSpeechMissing",
+              model
+                ? ended
+                  ? "offlineSpeechEnded"
+                  : "offlineSpeechMissing"
+                : ended
+                  ? "languageSpeechEnded"
+                  : "languageSpeechMissing",
             ),
           );
         }

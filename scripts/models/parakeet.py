@@ -49,9 +49,9 @@ DOWNLOAD_HOSTS = {
     "us.aws.cdn.hf.co",
 }
 # Animama's own release distribution: explicit release sources and the base
-# CLIs' normal shared-object projection. Upstream provenance stays in manifests.
+# CLIs' `--source animama` projection. Upstream provenance stays in manifests.
 RELEASE_HOSTS = {"downloads.animama.ai"}
-# Base sets whose CLIs acquire Animama's published objects by default.
+# Base sets whose CLIs may acquire Animama's published objects (`--source animama`).
 SHARED_MODEL_IDS = {MODEL_ID, "sensevoice-small"}
 CHUNK_SIZE = 1024 * 1024
 
@@ -507,7 +507,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--source",
         choices=("animama", "upstream"),
-        help="acquire from Animama objects (default), or pinned upstream inputs for publication/build producers",
+        help="acquire from the pinned upstream inputs (default), or from Animama's model objects, "
+        "which are served only until downloads.animama.ai is disconnected",
     )
     args = parser.parse_args(argv)
     if args.import_from and args.operation != "acquire":
@@ -527,7 +528,7 @@ def main(argv: list[str] | None = None) -> int:
                 root,
                 offline=args.offline,
                 import_from=args.import_from,
-                shared_base_objects=args.source != "upstream",
+                shared_base_objects=args.source == "animama",
             )
             if args.operation == "acquire"
             else verify(manifest, root)

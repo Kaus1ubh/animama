@@ -33,7 +33,13 @@ from animama.app.model_catalog import (
     early_compaction_available,
 )
 from animama.app.model_clients.credential_store import KNOWN_PROVIDER_CREDENTIAL_ENVS
-from animama.app.model_clients.credentials import is_allowed_credential_env, managed_credential_env
+from animama.app.model_clients.credentials import (
+    CREDENTIAL_INSECURE_TRANSPORT,
+    CREDENTIAL_ORIGIN_MISMATCH,
+    ModelCredentialResolver,
+    is_allowed_credential_env,
+    managed_credential_env,
+)
 from animama.app.model_clients.probe import ModelConnectionProbe, ModelConnectionProbeError
 from animama.app.model_connection_presets import MODEL_CONNECTION_PRESETS, model_connection_preset
 from animama.app.model_provider_native_tools import requestable_native_tool_support
@@ -222,12 +228,16 @@ class ModelConfigurationService:
         uow: UnitOfWork,
         connection_id_factory: Callable[[], str] | None = None,
         model_id_factory: Callable[[], str] | None = None,
+        credentials: ModelCredentialResolver | None = None,
     ) -> None:
+        """``credentials``, when given, lets saving refuse a key that could never reach the connection's address."""
+
         self._connections = connections
         self._model_providers = model_providers
         self._profiles = profiles
         self._user_settings = user_settings
         self._uow = uow
+        self._credentials = credentials
         self._new_connection_id = connection_id_factory or (lambda: f"c_{uuid.uuid4().hex[:12]}")
         self._new_model_id = model_id_factory or (lambda: f"owner:{uuid.uuid4().hex}")
         self._log = get_logger("app.services.model_configuration")
@@ -298,7 +308,7 @@ class ModelConfigurationService:
         timeout = draft.timeout_seconds if draft.timeout_seconds is not None else preset.timeout_seconds
         if not _MIN_TIMEOUT_SECONDS <= timeout <= _MAX_TIMEOUT_SECONDS:
             raise ModelConfigurationError("The timeout must be between 1 and 1800 seconds", code="invalid_timeout")
-        return ModelConnection(
+        connection = ModelConnection(
             id=connection_id,
             name=name,
             preset=preset.id,
@@ -308,6 +318,23 @@ class ModelConfigurationService:
             compatibility=draft.compatibility or preset.compatibility,
             timeout_seconds=timeout,
         )
+        self._check_key_destination(connection, managed=draft.credential.mode == CREDENTIAL_MODE_MANAGED)
+        return connection
+
+    def _check_key_destination(self, connection: ModelConnection, *, managed: bool) -> None:
+        """Refuse a key that could never be sent to the connection's base URL.
+
+        A desktop key saved for another address is allowed: the owner enters it
+        again for the new address, and until then it is not sent.
+        """
+
+        if connection.credential_env is None or self._credentials is None:
+            return
+        refusal = self._credentials.resolve(connection).refusal
+        if refusal == CREDENTIAL_INSECURE_TRANSPORT:
+            raise ModelConfigurationError("A key travels only over HTTPS, or plain HTTP to this computer", code=refusal)
+        if refusal == CREDENTIAL_ORIGIN_MISMATCH and not managed:
+            raise ModelConfigurationError("This key belongs to another address", code=refusal)
 
     # --------------------------------------------------------------------- models
 

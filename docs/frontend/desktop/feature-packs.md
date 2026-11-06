@@ -5,7 +5,8 @@ manager: a verified archive, an atomic version switch and a service restart.
 The installation owner remains the same when a pack is installed, removed or
 reinstalled. No online Animama account is required. **No production pack release
 is available.** The producer emits catalog entries only for active, approved
-exact inputs, and both current packs are deferred. Archive packs download from
+exact inputs, and both current packs are deferred. A release policy that ends
+updates, as the final release's does, forbids an active pack. Archive packs download from
 the [selected distribution](releases.md#distribution-selection), which must
 serve its pinned objects publicly before a download can succeed.
 
@@ -78,6 +79,11 @@ inactive but some files could not be removed; close applications using those
 files and retry Remove.
 
 ## Speech model downloads
+
+The final release turns these downloads off: sets, voices and the encoder
+installed earlier keep working and can be removed, the app says downloads have
+ended where it offered one, and dictation says a missing model can no longer be
+downloaded. Until then they work as described below.
 
 App Settings → **Voice** → **Speech-to-Text** shows **Offline speech
 recognition** with one section per model, under the languages it understands;

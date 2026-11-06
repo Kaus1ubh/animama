@@ -15,6 +15,7 @@ import { VoiceCloneLibrary } from "./VoiceCloneLibrary";
 
 const fixture = vi.hoisted(() => ({
   capabilities: {} as Record<string, unknown>,
+  downloadsEnded: false,
   prepare: vi.fn(),
   modelAction: vi.fn(),
   remove: vi.fn(),
@@ -22,6 +23,9 @@ const fixture = vi.hoisted(() => ({
 
 vi.mock("@/query/hooks/useRuntimeCapabilities", () => ({
   useRuntimeCapabilities: () => ({ data: fixture.capabilities }),
+}));
+vi.mock("@/query/hooks/useModelDownloadsEnded", () => ({
+  useModelDownloadsEnded: () => fixture.downloadsEnded,
 }));
 vi.mock("@/lib/speech/pocket/voice-clones", async (importOriginal) => ({
   ...(await importOriginal<
@@ -100,6 +104,7 @@ describe("voice cloning without the encoder", () => {
       new PocketVoiceEncoderDownloadRequired(encoder),
     );
     fixture.modelAction.mockReset();
+    fixture.downloadsEnded = false;
   });
   afterEach(async () => {
     await act(async () => root?.unmount());
@@ -116,6 +121,19 @@ describe("voice cloning without the encoder", () => {
     expect(text).not.toContain("Download and clone");
     expect(text).toContain(
       "Voice cloning is not available here. Speech models are managed by the hosted operator.",
+    );
+    expect(fixture.modelAction).not.toHaveBeenCalled();
+  });
+
+  it("explains that voice cloning can no longer be downloaded once downloads have ended", async () => {
+    fixture.capabilities = { local_filesystem_administration: true };
+    fixture.downloadsEnded = true;
+    await cloneWithoutEncoder();
+    const text = document.body.textContent ?? "";
+    expect(text).not.toContain("Download voice cloning?");
+    expect(text).not.toContain("Download and clone");
+    expect(text).toContain(
+      "Voice cloning needs a model that can no longer be downloaded. Saved clones keep working.",
     );
     expect(fixture.modelAction).not.toHaveBeenCalled();
   });

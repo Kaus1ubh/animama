@@ -17,9 +17,15 @@ export type WindowsPublisher = {
   identity_validation_eku: string;
 };
 type PolicyBase = {
-  schema: "animama-update-policy/2";
+  schema: "animama-update-policy/3";
   distribution: ReleaseDistribution;
   channel: "stable";
+  /**
+   * Whether this build checks for updates. The final release seals `ended`:
+   * it never contacts its distribution, which stays recorded because the pack
+   * catalog and release tooling read it.
+   */
+  updates: "offered" | "ended";
 };
 /** macOS builds name their Apple Team ID; Windows builds their Authenticode publisher. */
 export type UpdatePolicy =
@@ -145,19 +151,49 @@ export function validateUpdatePolicy(
   const publisher = platform === "darwin" ? "team_id" : "windows_publisher";
   if (
     !policy ||
-    policy.schema !== "animama-update-policy/2" ||
+    policy.schema !== "animama-update-policy/3" ||
     policy.channel !== "stable" ||
+    !["offered", "ended"].includes(policy.updates as string) ||
     !isReleaseDistribution(policy.distribution) ||
     !(platform === "darwin"
       ? typeof policy.team_id === "string" &&
         /^[A-Z0-9]{10}$/u.test(policy.team_id)
       : isWindowsPublisher(policy.windows_publisher)) ||
     Object.keys(policy).sort().join(",") !==
-      `channel,distribution,schema,${publisher}`
+      ["channel", "distribution", "schema", "updates", publisher]
+        .sort()
+        .join(",")
   ) {
     throw new RuntimeError("updates_not_configured");
   }
   return policy as UpdatePolicy;
+}
+
+/**
+ * Open a packaged build's updates from its sealed policy: check the app's own
+ * publisher, then create the controller. A build that seals updates off (the
+ * final release) returns nothing before either step, so it never creates an
+ * updater session or contacts its distribution.
+ */
+export async function openSealedUpdates<T>({
+  platform,
+  readPolicy,
+  verifyPublisher,
+  cancelled,
+  create,
+}: {
+  platform: UpdatePlatform;
+  readPolicy(): Promise<unknown>;
+  verifyPublisher(policy: UpdatePolicy): Promise<void>;
+  /** Whether the app began quitting while the publisher was checked. */
+  cancelled(): boolean;
+  create(policy: UpdatePolicy): T;
+}): Promise<T | undefined> {
+  const policy = validateUpdatePolicy(await readPolicy(), platform);
+  if (policy.updates === "ended") return undefined;
+  await verifyPublisher(policy);
+  if (cancelled()) return undefined;
+  return create(policy);
 }
 
 /** Gate untrusted feed data before disk estimates, downloads, or pack preflight. */

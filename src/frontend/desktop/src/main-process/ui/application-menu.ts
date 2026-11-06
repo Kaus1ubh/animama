@@ -16,12 +16,14 @@ const item = (role: MenuRole, label: string): MenuItemConstructorOptions => ({
  * the shell catalog. Roles, and with them each item's behavior, accelerator
  * and native macOS action, stay exactly as Electron defines them. Packaged
  * builds always had an empty Help menu; unpackaged runs drop Electron's own
- * documentation links from it.
+ * documentation links from it. Packaged builds also leave out the View menu's
+ * DevTools item.
  */
 export function applicationMenuTemplate(
   { text }: ShellStrings,
   platform: NodeJS.Platform,
   appName: string,
+  packaged = false,
 ): MenuItemConstructorOptions[] {
   const mac = platform === "darwin";
   const name = { name: appName };
@@ -102,7 +104,10 @@ export function applicationMenuTemplate(
       submenu: [
         item("reload", text("menu.reload")),
         item("forceReload", text("menu.forceReload")),
-        item("toggleDevTools", text("menu.toggleDevTools")),
+        // Packaged builds open no DevTools, so they offer no item for it.
+        ...(packaged
+          ? []
+          : [item("toggleDevTools", text("menu.toggleDevTools"))]),
         separator,
         item("resetZoom", text("menu.actualSize")),
         item("zoomIn", text("menu.zoomIn")),
@@ -132,10 +137,11 @@ export function applicationMenuTemplate(
 export function installApplicationMenu(
   strings: ShellStrings,
   appName: string,
+  packaged: boolean,
 ): void {
   Menu.setApplicationMenu(
     Menu.buildFromTemplate(
-      applicationMenuTemplate(strings, process.platform, appName),
+      applicationMenuTemplate(strings, process.platform, appName, packaged),
     ),
   );
 }

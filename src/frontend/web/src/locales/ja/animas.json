@@ -608,7 +608,8 @@
       "savingVoice": "音声を保存しています…",
       "sectionLabel": "音声クローン",
       "title": "音声クローン",
-      "upload": "音声サンプルをアップロード"
+      "upload": "音声サンプルをアップロード",
+      "downloadsEnded": "音声クローンには、ダウンロードできなくなったモデルが必要です。保存したクローンは引き続き使えます。"
     },
     "elevenLabs": {
       "idLabel": "音声 ID",
@@ -676,7 +677,8 @@
       "savedUnavailable": "保存された音声は利用できません",
       "sectionLabel": "PocketTTS の音声",
       "selectedUnavailable": "この保存された音声は利用できません。別の音声を選んでください。",
-      "selectFailed": "PocketTTS の音声を選択できませんでした。更新してからもう一度お試しください。"
+      "selectFailed": "PocketTTS の音声を選択できませんでした。更新してからもう一度お試しください。",
+      "notDownloadable": "{{voice}} はダウンロードできなくなったため、返信にはデフォルトの音声が使われます。"
     },
     "provider": {
       "active": "使用中のプロバイダー",

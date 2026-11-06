@@ -17,6 +17,7 @@ import { useFormatters } from "@animama/product-ui/i18n";
 import { offlineSpeechAssetIds } from "@/lib/speech/offline-stt/asset-ids";
 import { OFFLINE_SPEECH_DOWNLOADS_OFFERED } from "@/lib/speech/offline-stt/clients";
 import { useModelAssets } from "@/query/hooks/useModelAssets";
+import { modelDownloadsEnded } from "@/query/model-download-coordination";
 import { useOfflineSpeechDownloads } from "@/ui/settings/OfflineSpeechDownloads";
 import { OfflineSetPanel, type SpeechSet } from "./OfflineSetPanel";
 
@@ -68,7 +69,9 @@ export function SttChoiceTabs({
       ? t("providers.stt.browserLabel")
       : offlineSttShortName(engine);
   const { fileSize } = useFormatters();
-  const assets = useModelAssets({ enabled: true }).data?.assets;
+  const listing = useModelAssets({ enabled: true }).data;
+  const assets = listing?.assets;
+  const ended = modelDownloadsEnded(listing);
   /** An offline variant's label, "CPU (228.5 MB)" once its size is known. */
   const labelOf = (option: SttChoice) => {
     const [engine, set] = option.split("_") as [
@@ -79,7 +82,8 @@ export function SttChoiceTabs({
     const asset = OFFLINE_SPEECH_DOWNLOADS_OFFERED
       ? assets?.find((item) => item.id === id)
       : undefined;
-    if (!asset)
+    // Once downloads have ended, a size describes only an installed set.
+    if (!asset || (ended && asset.status !== "installed"))
       return set === "gpu"
         ? t("providers.stt.variants.gpu")
         : t("providers.stt.variants.cpu");

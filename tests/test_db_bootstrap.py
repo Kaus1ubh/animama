@@ -7,11 +7,11 @@ from unittest.mock import MagicMock
 
 import psycopg
 import pytest
+from alembic.script import ScriptDirectory
+from alembic.util import CommandError
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import make_url
 
-from alembic.script import ScriptDirectory
-from alembic.util import CommandError
 from animama.runtime.resources import alembic_config
 from animama.server import db_bootstrap
 
