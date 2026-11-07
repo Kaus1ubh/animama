@@ -1,3 +1,9 @@
+import {
+  humanBoneNodes,
+  nodesMovingTheMesh,
+  planHumanoidBoneRepair,
+  type SkinAccessor,
+} from "../humanoidBoneRepair";
 import { LILTOON_MATERIALS_EXTENSION } from "../liltoon/lilToon";
 import { resolveMeshTargetNames } from "../primitiveTargetNames";
 import { unloadableGltfExtensions } from "./avatarGltfExtensions";
@@ -36,6 +42,14 @@ export type AvatarFileFacts = {
    * mesh-level names), so their targets load unnamed (`primitiveTargetNames.ts`).
    */
   mismatchedMorphNameMeshCount: number;
+  /**
+   * Checked humanoid bones that name bones moving no part of the model: those
+   * the loader moves to the bones the mesh follows, and those without such a
+   * counterpart (`humanoidBoneRepair.ts`). Null for a file that is not a VRM
+   * or whose skin weights this reader leaves to three (Draco or meshopt
+   * compressed, sparse or outside the file).
+   */
+  humanoidBones: { remapped: number; unweighted: number } | null;
   materialCount: number;
   materialKinds: Record<AvatarMaterialKind, number>;
   textures: AvatarTextureFacts[];
@@ -175,6 +189,89 @@ function readImageBytes(
   return null;
 }
 
+const ACCESSOR_COMPONENTS: Record<
+  number,
+  readonly [bytes: number, read: (view: DataView, at: number) => number]
+> = {
+  5121: [1, (view, at) => view.getUint8(at)],
+  5123: [2, (view, at) => view.getUint16(at, true)],
+  5125: [4, (view, at) => view.getUint32(at, true)],
+  5126: [4, (view, at) => view.getFloat32(at, true)],
+};
+
+const ACCESSOR_ITEM_SIZES: Record<string, number> = {
+  SCALAR: 1,
+  VEC2: 2,
+  VEC3: 3,
+  VEC4: 4,
+};
+
+/**
+ * An accessor read from the GLB binary chunk, or null for one this reader
+ * leaves to three: sparse, in a compressed or outside buffer view, or out of
+ * range. An accessor without a buffer view holds zeros.
+ */
+function readBinAccessor(
+  json: JsonRecord,
+  bin: Uint8Array | null,
+  index: number,
+): SkinAccessor | null {
+  const accessor = asRecord(asArray(json.accessors)[index]);
+  const component = ACCESSOR_COMPONENTS[Number(accessor?.componentType)];
+  const itemSize = ACCESSOR_ITEM_SIZES[String(accessor?.type)];
+  const count = Number(accessor?.count);
+  if (!accessor || !component || !itemSize || accessor.sparse) return null;
+  if (!Number.isInteger(count) || count < 0) return null;
+  if (accessor.bufferView === undefined)
+    return { count, itemSize, get: () => 0 };
+  const view = asRecord(asArray(json.bufferViews)[Number(accessor.bufferView)]);
+  if (!bin || !view || (view.buffer ?? 0) !== 0 || view.extensions) return null;
+  const [bytes, read] = component;
+  const viewStart = Number(view.byteOffset ?? 0);
+  const viewEnd = viewStart + Number(view.byteLength ?? 0);
+  const start = viewStart + Number(accessor.byteOffset ?? 0);
+  const stride = Number(view.byteStride ?? bytes * itemSize);
+  const end = start + Math.max(0, count - 1) * stride + bytes * itemSize;
+  const valid =
+    [start, stride, viewEnd].every(Number.isInteger) &&
+    start >= 0 &&
+    stride > 0 &&
+    end <= viewEnd &&
+    viewEnd <= bin.byteLength;
+  if (!valid) return null;
+  const data = new DataView(bin.buffer, bin.byteOffset, bin.byteLength);
+  return {
+    count,
+    itemSize,
+    get: (vertex, item) => read(data, start + vertex * stride + item * bytes),
+  };
+}
+
+/**
+ * The humanoid repair the loader plans for this file, as counts. Null for a
+ * Draco-compressed file: its skin accessors carry no buffer view (the data is
+ * in the compressed stream), which this reader would take for zeros.
+ */
+function readHumanoidBones(
+  json: JsonRecord,
+  bin: Uint8Array | null,
+): AvatarFileFacts["humanoidBones"] {
+  if (humanBoneNodes(json).size === 0) return null;
+  const draco = asArray(json.meshes).some((mesh) =>
+    asArray(asRecord(mesh)?.primitives).some(
+      (primitive) =>
+        asRecord(asRecord(primitive)?.extensions)?.KHR_draco_mesh_compression,
+    ),
+  );
+  if (draco) return null;
+  const carries = nodesMovingTheMesh(json, (index) =>
+    readBinAccessor(json, bin, index),
+  );
+  if (!carries) return null;
+  const plan = planHumanoidBoneRepair(json, carries);
+  return { remapped: plan.remaps.length, unweighted: plan.unweighted.length };
+}
+
 function readTextures(
   json: JsonRecord,
   bin: Uint8Array | null,
@@ -283,6 +380,7 @@ export function readAvatarFileFacts(
     mismatchedMorphNameMeshCount: meshDefs.filter(
       (mesh) => resolveMeshTargetNames(mesh).source === "mismatched",
     ).length,
+    humanoidBones: readHumanoidBones(json, bin),
     materialCount: asArray(json.materials).length,
     materialKinds: readMaterialKinds(json),
     textures: readTextures(json, bin),
@@ -292,9 +390,10 @@ export function readAvatarFileFacts(
 /**
  * What an Avatar file's facts report before any load: an unreadable file,
  * each glTF extension it needs that the runtime cannot load (the load then
- * fails rather than drawing the file without it), and meshes whose morph
+ * fails rather than drawing the file without it), meshes whose morph
  * targets load unnamed because their per-primitive names disagree with each
- * other or with the targets.
+ * other or with the targets, and humanoid bones that name bones moving
+ * nothing, whether the loader repairs them or not.
  */
 export function avatarFileIssues(facts: AvatarFileFacts | null): AvatarIssue[] {
   if (!facts) return [{ code: "file_unreadable" }];
@@ -308,6 +407,16 @@ export function avatarFileIssues(facts: AvatarFileFacts | null): AvatarIssue[] {
     issues.push({
       code: "morph_target_names_mismatched",
       params: { count: facts.mismatchedMorphNameMeshCount },
+    });
+  if (facts.humanoidBones?.remapped)
+    issues.push({
+      code: "humanoid_bones_remapped",
+      params: { count: facts.humanoidBones.remapped },
+    });
+  if (facts.humanoidBones?.unweighted)
+    issues.push({
+      code: "humanoid_bones_unweighted",
+      params: { count: facts.humanoidBones.unweighted },
     });
   return issues;
 }

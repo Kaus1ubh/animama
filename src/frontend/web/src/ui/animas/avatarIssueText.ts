@@ -33,6 +33,10 @@ export function avatarIssueText(
       }),
     morph_target_names_mismatched: () =>
       t("avatarDiagnostics.issues.morph_target_names_mismatched", { count }),
+    humanoid_bones_remapped: () =>
+      t("avatarDiagnostics.issues.humanoid_bones_remapped", { count }),
+    humanoid_bones_unweighted: () =>
+      t("avatarDiagnostics.issues.humanoid_bones_unweighted", { count }),
     avatar_load_failed: () => t("avatarDiagnostics.issues.avatar_load_failed"),
     scene_bindings_unavailable: () =>
       t("avatarDiagnostics.issues.scene_bindings_unavailable"),

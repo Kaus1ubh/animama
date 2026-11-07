@@ -189,6 +189,8 @@
       "face_parts_whole_body_head_missing": "一個網格部件包含整個身體，但其中蒙皮到頭部骨骼、朝向前方的部分在眨眼或張嘴時都不會移動，因此無法找到臉部，臉部的形象特效將被略過。",
       "file_unavailable": "無法下載虛擬形象檔案。",
       "file_unreadable": "虛擬形象檔案不是可讀取的 glTF 或 VRM 檔案。",
+      "humanoid_bones_remapped_other": "有 {{count}} 個人形骨骼指向不移動模型任何部分的骨骼，因此改用旁邊網格所跟隨的骨骼。",
+      "humanoid_bones_unweighted_other": "有 {{count}} 個人形骨骼不移動模型的任何部分，旁邊也沒有可替代的、網格所跟隨的骨骼，因此這些骨骼上的動作不會顯示。",
       "landmarks_anchor_missing": "找不到用來固定臉部特徵點的頭部。",
       "landmarks_eyes_missing": "臉部找不到眼睛，因此眼部特效無法使用。",
       "landmarks_face_bounds_failed": "無法測量臉部皮膚。",

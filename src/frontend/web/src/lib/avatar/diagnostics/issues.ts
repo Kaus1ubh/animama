@@ -17,6 +17,11 @@ export const AVATAR_ISSUE_CODES = [
   // Meshes whose primitives name their morph targets differently, which load
   // unnamed (`primitiveTargetNames.ts`); read from the file, before any load.
   "morph_target_names_mismatched",
+  // Humanoid bones naming bones that move nothing: moved to the bones the mesh
+  // follows at load, or left without a counterpart (`humanoidBoneRepair.ts`);
+  // read from the file, before any load.
+  "humanoid_bones_remapped",
+  "humanoid_bones_unweighted",
   "avatar_load_failed",
   // The live scene's primitives could not be listed.
   "scene_bindings_unavailable",
