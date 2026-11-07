@@ -29,7 +29,7 @@ import { fileURLToPath } from "node:url";
  * The exporter release this command runs (npm versions are immutable); its
  * version also selects the Unity package it installs.
  */
-export const EXPORTER_RELEASE = "animama-avatar-converter@0.1.0";
+export const EXPORTER_RELEASE = "animama-avatar-converter@0.1.1";
 
 const webRoot = fileURLToPath(new URL("..", import.meta.url));
 const USAGE = [
