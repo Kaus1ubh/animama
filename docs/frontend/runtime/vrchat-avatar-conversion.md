@@ -192,7 +192,7 @@ Some Avatars map humanoid bones to helper ("dummy") bones that skin nothing,
 while the mesh follows a chain beside them, for example humanoid thumbs on
 `Thumb1Dummy`–`Thumb3Dummy` beside `Thumb1`–`Thumb3`. The mapping comes from
 the Avatar's Unity humanoid setup, so any tool that converts it keeps it
-unless it repairs it. Converter releases after 0.1.0 move those humanoid bones
+unless it repairs it. Converter 0.1.1 and later move those humanoid bones
 to the chain the mesh follows before export. Every Avatar loader applies the
 same repair to VRMs from other tools, such as a direct UniVRM export or another
 converter (`humanoidBoneRepair.ts`): a humanoid bone that moves nothing
