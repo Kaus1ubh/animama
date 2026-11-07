@@ -190,17 +190,20 @@ rig lacks](avatar-animation.md#optional-bones-a-rig-lacks)).
 
 Some Avatars map humanoid bones to helper ("dummy") bones that skin nothing,
 while the mesh follows a chain beside them, for example humanoid thumbs on
-`Thumb1Dummy`–`Thumb3Dummy` beside `Thumb1`–`Thumb3`. Converter releases after
-0.1.0 move those humanoid bones to the chain the mesh follows before export.
-Every Avatar loader repairs older exports too (`humanoidBoneRepair.ts`): a
-humanoid bone that moves nothing (neither it nor any bone below it carries skin
-weight or a mesh, or is the source of a VRM 1.0 node constraint) moves, with
-the humanoid bones below it, to the nearest sibling chain that does. That chain
-must lie within a quarter of the bone's offset from its parent and have at
-least as many bones below it. Avatar Diagnostics
-reports repaired bones (`humanoid_bones_remapped`) and those without such a
-chain (`humanoid_bones_unweighted`), whose motion does not show. Eyes, jaw and
-toes are not checked, since models often leave them unweighted on purpose.
+`Thumb1Dummy`–`Thumb3Dummy` beside `Thumb1`–`Thumb3`. The mapping comes from
+the Avatar's Unity humanoid setup, so any tool that converts it keeps it
+unless it repairs it. Converter releases after 0.1.0 move those humanoid bones
+to the chain the mesh follows before export. Every Avatar loader applies the
+same repair to VRMs from other tools, such as a direct UniVRM export or another
+converter (`humanoidBoneRepair.ts`): a humanoid bone that moves nothing
+(neither it nor any bone below it carries skin weight or a mesh, or is the
+source of a VRM 1.0 node constraint) moves, with the humanoid bones below it,
+to the nearest sibling chain that does. That chain must lie within a quarter of
+the bone's offset from its parent and have at least as many bones below it.
+Avatar Diagnostics reports repaired bones (`humanoid_bones_remapped`) and those
+without such a chain (`humanoid_bones_unweighted`), whose motion does not show.
+That warning also covers hand-authored VRMs with unweighted bones. Eyes, jaw
+and toes are not checked, since models often leave them unweighted on purpose.
 
 `pnpm -s animation:render <gesture.json> --out <private-dir> --avatar-file
 <private-dir>/<Avatar>.vrm` draws Gesture review sheets on it, and
