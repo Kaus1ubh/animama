@@ -14,12 +14,13 @@ const logger = createLogger("AvatarLoader");
  * Some VRChat Avatars map Unity humanoid bones to helper ("dummy") bones that
  * skin no vertices while the mesh follows a chain beside them, for example
  * humanoid thumbs on `Thumb1Dummy`–`Thumb3Dummy` while the thumb mesh follows
- * `Thumb1`–`Thumb3`. Their VRMs inherit the mapping, so no motion on those
- * humanoid bones shows. Every Avatar loader repairs the mapping before
- * three-vrm reads it (`HumanoidBoneRepairPlugin`), and Diagnostics reports
- * the same plan from the file's facts (`humanoid_bones_remapped`,
- * `humanoid_bones_unweighted`). The converter applies the same rules before
- * export (raymond-van/animama-avatar-converter).
+ * `Thumb1`–`Thumb3`. VRMs from tools that keep the mapping (a direct UniVRM
+ * export, other converters) inherit it, so no motion on those humanoid bones
+ * shows. Every Avatar loader repairs the mapping before three-vrm reads it
+ * (`HumanoidBoneRepairPlugin`), and Diagnostics reports the same plan from
+ * the file's facts (`humanoid_bones_remapped`, `humanoid_bones_unweighted`).
+ * Animama's own converter applies the same rules before export
+ * (raymond-van/animama-avatar-converter).
  */
 
 type JsonRecord = Record<string, unknown>;
