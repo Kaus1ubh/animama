@@ -189,6 +189,8 @@
       "face_parts_whole_body_head_missing": "1つのメッシュパーツが体全体を含んでいますが、頭のボーンにスキンされた前向きの部分に、まばたきや口の開きで動く箇所がないため、顔を見つけられず、顔のアバターエフェクトはスキップされます。",
       "file_unavailable": "アバターのファイルをダウンロードできませんでした。",
       "file_unreadable": "アバターのファイルは読み取り可能な glTF または VRM ファイルではありません。",
+      "humanoid_bones_remapped_other": "{{count}} 個のヒューマノイドのボーンがモデルのどこも動かさないボーンを指していたため、メッシュが従う隣のボーンを代わりに使います。",
+      "humanoid_bones_unweighted_other": "{{count}} 個のヒューマノイドのボーンはモデルのどこも動かさず、代わりに使えるメッシュが従う隣のボーンもないため、それらの動きは表示されません。",
       "landmarks_anchor_missing": "顔のランドマークを固定する頭が見つかりませんでした。",
       "landmarks_eyes_missing": "顔に目が見つからないため、目のエフェクトは利用できません。",
       "landmarks_face_bounds_failed": "顔の肌の大きさを測れませんでした。",

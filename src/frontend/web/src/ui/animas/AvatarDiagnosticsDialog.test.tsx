@@ -151,6 +151,7 @@ const report = buildAvatarDiagnosticsReport({
     primitiveCount: 17,
     morphedPrimitiveCount: 2,
     mismatchedMorphNameMeshCount: 0,
+    humanoidBones: { remapped: 0, unweighted: 0 },
     materialCount: 12,
     materialKinds: { mtoon: 10, liltoon: 2, unlit: 0, pbr: 0 },
     textures: [
