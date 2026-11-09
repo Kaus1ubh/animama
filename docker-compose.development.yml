@@ -111,6 +111,8 @@ services:
           create_host_path: false
       # The package builder carries the existing project notice into tarballs.
       - ./LICENSE:/LICENSE:ro
+      # Package builds also ship third-party notices from the licence records.
+      - ./licenses:/licenses:ro
       # The Safety page bundles the canonical crisis protocol from the repository.
       - ./docs/safety:/docs/safety:ro
       # Vite's compatibility middleware reads legacy public URLs from the one
