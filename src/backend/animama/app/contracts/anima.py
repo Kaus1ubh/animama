@@ -102,6 +102,13 @@ class PyAnimaUpdateRequest(BaseModel):
 class PyAnimaChatProfileResponse(BaseModel):
     anima_id: str
     default_model_provider_id: str
+    reasoning_effort: str | None = Field(
+        None,
+        description=(
+            "Reasoning effort the owner chose for the default model; null means the model's "
+            "default_reasoning_effort, else its first supported effort."
+        ),
+    )
     metadata: dict[str, Any] = Field(default_factory=dict)
     created_at: datetime | None = None
     updated_at: datetime | None = None
@@ -116,6 +123,16 @@ class PyAnimaChatProfileUpdateRequest(BaseModel):
         description="Active model-provider catalog row id to use for this anima's direct chat profile.",
     )
 
+    reasoning_effort: str | None = Field(
+        None,
+        max_length=16,
+        description=(
+            "Reasoning effort to save for this model; it must be one of the model's "
+            "supported_reasoning_efforts. Null clears it. Omitted keeps the saved effort "
+            "when the model is unchanged and clears it when the model changes."
+        ),
+    )
+
     @field_validator("default_model_provider_id")
     @classmethod
     def trim_default_model_provider_id(cls, value: str) -> str:
@@ -123,6 +140,11 @@ class PyAnimaChatProfileUpdateRequest(BaseModel):
         if trimmed is None:
             raise ValueError("default_model_provider_id must not be blank")
         return trimmed
+
+    @field_validator("reasoning_effort")
+    @classmethod
+    def trim_reasoning_effort(cls, value: str | None) -> str | None:
+        return None if value is None else _trim_nonblank_required_text(value, field_name="reasoning_effort")
 
 
 class PyAnimaResponse(BaseModel):

@@ -179,6 +179,19 @@ export function defaultReasoningEffort(
   return efforts[0] ?? null;
 }
 
+/**
+ * The effort a chat turn uses for a row: the Anima's saved effort
+ * (`chat_profile.reasoning_effort`) while the row offers it, else the row's
+ * default preselection. `null` for rows without efforts.
+ */
+export function effectiveReasoningEffort(
+  item: PyModelProviderCatalogItem | null | undefined,
+  saved: string | null | undefined,
+): string | null {
+  if (saved && supportedReasoningEfforts(item).includes(saved)) return saved;
+  return defaultReasoningEffort(item);
+}
+
 /** Chat rows; rows from before model kinds existed count as chat. */
 export function isChatModelRow(item: PyModelProviderCatalogItem): boolean {
   return (item.model_kind ?? "chat") === "chat";

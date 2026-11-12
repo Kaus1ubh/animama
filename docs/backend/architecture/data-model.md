@@ -344,7 +344,10 @@ to `model_providers.id` such as `OpenAIHTTPAgent:gpt-6-luna` or an owner row's
 retired rather than deleted. Normal
 `chat:sse` uses this row when a request does not pass an explicit
 `model_provider_id`, and the frontend model selector updates it through
-`PATCH /v1/animas/{anima_id}/chat-profile`.
+`PATCH /v1/animas/{anima_id}/chat-profile`. The nullable `reasoning_effort`
+stores the owner's effort for that model (null for the model's default); the
+composer reads it and sends the effort with each turn, and a model change
+clears it.
 
 ### Model Providers
 

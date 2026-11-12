@@ -10,6 +10,7 @@ def _domain_values(profile: AnimaChatProfile) -> dict[str, Any]:
     return {
         "anima_id": profile.anima_id,
         "default_model_provider_id": profile.default_model_provider_id,
+        "reasoning_effort": profile.reasoning_effort,
         "metadata_": dict(profile.metadata or {}),
     }
 
@@ -37,6 +38,7 @@ def anima_chat_profile_orm_to_domain(orm: ORMAnimaChatProfile) -> AnimaChatProfi
     return AnimaChatProfile(
         anima_id=orm.anima_id,
         default_model_provider_id=orm.default_model_provider_id,
+        reasoning_effort=orm.reasoning_effort,
         metadata=dict(orm.metadata_ or {}),
         created_at=orm.created_at,
         updated_at=orm.updated_at,

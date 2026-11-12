@@ -17,7 +17,7 @@ from sqlalchemy.exc import IntegrityError
 ROOT = Path(__file__).parents[1]
 BASELINE_MIGRATION = ROOT / "src" / "backend" / "migrations" / "versions" / "0001_baseline.py"
 BASELINE_SQL = ROOT / "src" / "backend" / "migrations" / "versions" / "0001_baseline.sql"
-BASELINE_SHA256 = "438446a4a68e40391786337c6f0acd68e7398cf32dc9b82416bc59c975af1ad6"
+BASELINE_SHA256 = "48aa7b305c34a21e88cda4d5487941c63636c7797c59768f2db7d4b612b6a689"
 
 
 def test_baseline_does_not_import_live_metadata() -> None:

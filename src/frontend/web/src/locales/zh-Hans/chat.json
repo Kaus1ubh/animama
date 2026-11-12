@@ -136,6 +136,7 @@
       },
       "select": "选择模型",
       "toasts": {
+        "effortUpdateFailed": "无法保存推理强度",
         "selectFirst": "请先选择模型再聊天。",
         "unsupported": "此模型暂不支持直接聊天。",
         "updateFailed": "无法更新模型"
