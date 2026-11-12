@@ -4,8 +4,10 @@ Revision ID: baseline_20260908
 Revises:
 Create Date: 2026-09-08
 
-During development, update the companion SQL artifact alongside ORM changes
-instead of adding revisions. Keep initialization independent of live ORM imports.
+The companion SQL artifact is frozen at the schema released in desktop 0.1.2:
+installed profiles carry this revision, so editing it would change their schema
+without a migration. Change the schema with a new revision instead. Keep
+initialization independent of live ORM imports.
 """
 
 from __future__ import annotations

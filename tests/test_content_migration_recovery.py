@@ -15,10 +15,12 @@ from typing import Any
 from zipfile import ZipFile
 
 import pytest
+from alembic.script import ScriptDirectory
 from sqlalchemy import text
 
 from animama.domain.content_catalog import ContentConflictError, ContentKind, ContentNotFoundError, ContentSource
 from animama.local.database import LocalDatabase
+from animama.runtime.resources import alembic_config
 from animama.server.config import Settings
 from animama.server.local_installation_bootstrap import create_local_installation_bootstrap_service
 from animama.server.local_runtime import initialize_local_runtime
@@ -27,6 +29,12 @@ from tests.migration_database_helpers import (
     migrated_database as migrated_database,
     migration_postgres as migration_postgres,
 )
+
+
+def _alembic_head() -> str:
+    """The revision a bootstrapped database reaches."""
+
+    return ScriptDirectory.from_config(alembic_config()).get_current_head()
 
 
 def _settings(url: str, root: Path) -> Settings:
@@ -78,7 +86,7 @@ async def test_reviewed_package_replay_after_fresh_bootstrap_preserves_later_cha
         assert state.content_ready
         owner = state.principal_id
         async with first.session_factory()() as session:
-            assert await session.scalar(text("SELECT version_num FROM alembic_version")) == "baseline_20260908"
+            assert await session.scalar(text("SELECT version_num FROM alembic_version")) == _alembic_head()
             paths, catalog, content, saves, packages = package_services(session, tmp_path)
             saved = await saves.save_standalone(**_command(owner))
             exported = await reviewed_export(packages, user_id=owner, root_item_id=saved.item.id)
