@@ -17,7 +17,7 @@ make sync
 ```
 
 This uses
-`uv sync --extra voice --extra viz --extra realtime --extra encrypt --all-packages --group dev`.
+`uv sync --extra voice --extra viz --extra realtime --extra encrypt --extra documents --all-packages --group dev`.
 It intentionally excludes the file-worker parser stack. The file-worker extra
 conflicts with the default `dev` group: run the worker with
 `--no-dev --extra file-worker` when testing the parser directly on the host;
@@ -31,7 +31,7 @@ importing the OpenAI Agents SDK fails with `ImportError: cannot import name
 'Docstring' from 'griffe'`. Reinstall griffelib once with the same extras:
 
 ```bash
-uv sync --extra voice --extra viz --extra realtime --extra encrypt --all-packages --group dev --reinstall-package griffelib
+uv sync --extra voice --extra viz --extra realtime --extra encrypt --extra documents --all-packages --group dev --reinstall-package griffelib
 ```
 
 A new `.venv` is unaffected.
@@ -1364,7 +1364,7 @@ For the supported host backend development extras, use the frozen equivalent of
 `make sync`:
 
 ```bash
-uv sync --frozen --extra voice --extra viz --extra realtime --extra encrypt --all-packages --group dev
+uv sync --frozen --extra voice --extra viz --extra realtime --extra encrypt --extra documents --all-packages --group dev
 ```
 
 Choose narrower existing extras when appropriate; file-worker parsing is

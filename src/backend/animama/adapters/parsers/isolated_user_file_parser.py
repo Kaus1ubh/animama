@@ -35,7 +35,8 @@ from animama.logging import get_logger
 
 DEFAULT_PARSE_TIMEOUT_SECONDS = 120.0
 DEFAULT_PARSE_MEMORY_MB = 1024
-MEMORY_SAMPLE_SECONDS = 0.1
+MEMORY_SAMPLE_SECONDS = 0.01
+"""How often the child's resident memory is sampled: native code can inflate gigabytes a second."""
 # After a kill the child's pipes close at once; this only bounds a pathological wait.
 _STOP_WAIT_SECONDS = 5.0
 

@@ -229,3 +229,33 @@ async def test_avatar_cleanup_shutdown_wakes_an_idle_owned_worker() -> None:
     waiting = asyncio.create_task(worker._wait_for_next_cleanup())
     await worker.stop()
     await asyncio.wait_for(waiting, timeout=1)
+
+
+def test_python_licence_notices_carry_every_declared_licence_file() -> None:
+    """The upload parsers' notices reach the packaged inventory, including PDFium's bundled components.
+
+    pypdfium2 declares PDFium's component licences as PEP 639 licence files
+    under names such as ``freetype.txt``, openpyxl spells its file ``LICENCE``,
+    and FreeType's notice is Latin-1 text.
+    """
+
+    licenses = runpy.run_path(
+        str(Path(__file__).resolve().parents[1] / "src/backend/packaging/desktop/python_licenses.py")
+    )["dependency_licenses"]()
+    records = {str(record["name"]).lower().replace("_", "-"): record for record in licenses}
+
+    for name in (
+        "python-docx",
+        "python-pptx",
+        "openpyxl",
+        "pypdfium2",
+        "defusedxml",
+        "lxml",
+        "et-xmlfile",
+        "xlsxwriter",
+    ):
+        assert records[name]["notices"], f"{name} has no packaged licence notice"
+    pdfium = {Path(notice["path"]).name: notice["text"] for notice in records["pypdfium2"]["notices"]}
+    assert {"Apache-2.0.txt", "BSD-3-Clause.txt", "pdfium.txt", "freetype.txt", "libpng.txt", "zlib.txt"} <= set(pdfium)
+    assert "Portions of this software are copyright ©" in pdfium["freetype.txt"]
+    assert {Path(notice["path"]).name for notice in records["openpyxl"]["notices"]} == {"LICENCE.rst"}

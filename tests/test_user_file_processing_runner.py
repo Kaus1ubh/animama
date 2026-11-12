@@ -49,6 +49,7 @@ from animama.server.user_file_processing import (
     stop_user_file_processing,
 )
 from tests.local_http_client import local_client
+from tests.user_file_fixtures import simple_docx
 
 OWNER = "runner-owner"
 
@@ -222,7 +223,8 @@ async def _eventually(check: Callable[[], Awaitable[bool]], *, timeout: float = 
     [
         (".txt", b"The runner read this upload.", STATUS_READY, JOB_STATUS_SUCCEEDED, None),
         (".json", b'{"topic": "budget"}', STATUS_READY, JOB_STATUS_SUCCEEDED, None),
-        (".docx", b"PK\x03\x04 office", STATUS_FAILED, JOB_STATUS_FAILED, "This file type is not supported yet."),
+        (".docx", simple_docx("The runner read this Word document."), STATUS_READY, JOB_STATUS_SUCCEEDED, None),
+        (".docx", b"PK\x03\x04 office", STATUS_FAILED, JOB_STATUS_FAILED, "The .docx file is damaged or incomplete."),
     ],
 )
 async def test_runner_processes_uploads_through_the_parse_child(

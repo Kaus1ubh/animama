@@ -40,13 +40,13 @@ def main(argv: list[str] | None = None) -> int:
     root = configure_resources()
     if args.audit_resources:
         from animama.adapters.parsers.docling_user_file_parser import DoclingUserFileParser
-        from animama.adapters.parsers.text_user_file_parser import parse_lightweight_user_file
+        from animama.adapters.parsers.text_user_file_parser import parse_text_user_file
 
         # Local conversion exercises Docling's native imports and packaged model
         # weights under HF offline mode, without a database or provider key.
         parser = DoclingUserFileParser(artifacts_path=root / "docling")
         asyncio.run(parser.warm_up())
-        assert parse_lightweight_user_file(payload=b"fixture", filename="fixture.txt", extension=".txt").text
+        assert parse_text_user_file(payload=b"fixture", filename="fixture.txt", extension=".txt").text
         import tiktoken
 
         assert tiktoken.get_encoding("cl100k_base").encode("fixture")

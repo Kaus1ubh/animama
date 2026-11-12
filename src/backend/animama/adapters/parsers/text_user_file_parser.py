@@ -1,7 +1,8 @@
-"""Read plain-text uploads with the standard library: text, JSON, TSV and XML.
+"""Read plain-text uploads: text, Markdown, JSON, CSV, TSV and XML.
 
-This module imports only the standard library, the domain types and the parser
-port, so the parse child that runs it starts quickly and small.
+Everything here uses the standard library except XML, which is checked with
+defusedxml, imported only for ``.xml`` files. That keeps the parse child that
+runs this module quick to start and small.
 """
 
 from __future__ import annotations
@@ -10,19 +11,25 @@ import csv
 import json
 from io import StringIO
 from typing import Any
-from xml.etree import ElementTree
+from xml.etree.ElementTree import ParseError
 
+from animama.adapters.parsers.rejections import xml_entities
 from animama.app.ports.user_file_parser_port import UserFileParseRejectedError
-from animama.domain.user_file_processing import ParsedUserFileDocument, markdown_table
+from animama.domain.user_file_processing import ParsedUserFileDocument, markdown_outline, markdown_table
 
-LIGHTWEIGHT_EXTENSIONS = frozenset({".txt", ".rst", ".org", ".json", ".tsv", ".xml"})
-"""Formats :func:`parse_lightweight_user_file` reads."""
+TEXT_EXTENSIONS = frozenset({".txt", ".md", ".rst", ".org", ".json", ".csv", ".tsv", ".xml"})
+"""Formats :func:`parse_text_user_file` reads."""
+
+_TABLE_DELIMITERS = {".csv": ",", ".tsv": "\t"}
 
 
-def parse_lightweight_user_file(*, payload: bytes, filename: str, extension: str) -> ParsedUserFileDocument:
-    """Read a plain-text format with standard-library checks.
+def parse_text_user_file(*, payload: bytes, filename: str, extension: str) -> ParsedUserFileDocument:
+    """Read a plain-text format.
 
-    Raises :class:`UserFileParseRejectedError` for JSON or XML that does not parse.
+    Text keeps its content. Markdown also gives its ATX headings as the outline.
+    JSON is reformatted, CSV and TSV become a Markdown table, and XML keeps its
+    text once it parses. Raises :class:`UserFileParseRejectedError` for JSON,
+    CSV, TSV or XML that does not parse, and for XML that declares entities.
     """
 
     text = _decode_text_payload(payload)
@@ -45,37 +52,60 @@ def parse_lightweight_user_file(*, payload: bytes, filename: str, extension: str
         )
 
     if normalized_extension == ".xml":
-        try:
-            ElementTree.fromstring(text)
-        except ElementTree.ParseError as exc:
-            raise UserFileParseRejectedError("Invalid XML document") from exc
+        _check_xml(text)
         return ParsedUserFileDocument(
             text=text.strip(),
             parser_name="stdlib-xml",
             metadata={**metadata, "format": "xml"},
         )
 
-    if normalized_extension == ".tsv":
-        rows = list(csv.reader(StringIO(text), delimiter="\t"))
+    if normalized_extension in _TABLE_DELIMITERS:
+        table_format = normalized_extension[1:]
+        try:
+            rows = list(csv.reader(StringIO(text), delimiter=_TABLE_DELIMITERS[normalized_extension]))
+        except csv.Error as exc:
+            raise UserFileParseRejectedError(f"Invalid {table_format.upper()} document: {exc}") from exc
         return ParsedUserFileDocument(
             text=markdown_table(rows),
-            parser_name="stdlib-tsv",
-            metadata={**metadata, "format": "tsv", "table_only": True, "row_count": len(rows)},
-            tables=[{"table_index": 0, "rows": rows, "source": "tsv"}],
+            parser_name=f"stdlib-{table_format}",
+            metadata={**metadata, "format": table_format, "table_only": True, "row_count": len(rows)},
+            tables=[{"table_index": 0, "rows": rows, "source": table_format}],
         )
 
+    stripped = text.strip()
     return ParsedUserFileDocument(
-        text=text.strip(),
+        text=stripped,
         parser_name="stdlib-text",
         metadata={**metadata, "format": normalized_extension.lstrip(".") or "text"},
+        source_outline=markdown_outline(stripped) if normalized_extension == ".md" else (),
     )
 
 
-def _decode_text_payload(payload: bytes) -> str:
+def _check_xml(text: str) -> None:
+    """Refuse XML that does not parse, or that declares entities or loads external content (spec R3.3).
+
+    The text itself is kept as written; parsing only proves it is XML. With
+    entity declarations refused there is nothing to expand and nothing to fetch.
+    """
+
+    from defusedxml import DefusedXmlException
+    from defusedxml.ElementTree import fromstring
+
     try:
-        return payload.decode("utf-8")
+        fromstring(text)
+    except DefusedXmlException as exc:
+        raise xml_entities() from exc
+    except ParseError as exc:
+        raise UserFileParseRejectedError("Invalid XML document") from exc
+
+
+def _decode_text_payload(payload: bytes) -> str:
+    """Decode UTF-8 text without its byte-order mark, which Excel's "CSV UTF-8" and Windows editors write."""
+
+    try:
+        return payload.decode("utf-8-sig")
     except UnicodeDecodeError:
-        return payload.decode("utf-8", errors="replace")
+        return payload.decode("utf-8-sig", errors="replace")
 
 
-__all__ = ["LIGHTWEIGHT_EXTENSIONS", "parse_lightweight_user_file"]
+__all__ = ["TEXT_EXTENSIONS", "parse_text_user_file"]

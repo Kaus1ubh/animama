@@ -1994,6 +1994,56 @@ Load command 4
       /does not satisfy.*pnpm install --frozen-lockfile/su,
     );
   });
+  it("syncs the build interpreter with the core dependencies, the upload parsers and PyInstaller", async () => {
+    const spawn = vi.fn(() => ({ status: 0, stdout: "", stderr: "" }));
+    vi.resetModules();
+    vi.doMock("node:child_process", async () => ({
+      ...(await vi.importActual("node:child_process")),
+      spawnSync: spawn,
+    }));
+    // The private-interpreter check would otherwise create the shared build root.
+    vi.doMock("node:fs", async () => ({
+      ...(await vi.importActual("node:fs")),
+      mkdirSync: vi.fn(),
+      lstatSync: () => ({
+        isDirectory: () => true,
+        uid: process.getuid?.(),
+        mode: 0o40755,
+      }),
+    }));
+    vi.doMock("../scripts/runtime/windows-acl.mjs", async () => ({
+      ...(await vi.importActual("../scripts/runtime/windows-acl.mjs")),
+      assertPrivateWindowsDirectory: vi.fn(),
+    }));
+    try {
+      const { readJson, sourceRoot, syncBuildEnvironment } =
+        await import("../scripts/runtime/common.mjs");
+      syncBuildEnvironment();
+      expect(spawn).toHaveBeenCalledOnce();
+      expect(spawn.mock.calls[0].slice(0, 2)).toEqual([
+        "uv",
+        [
+          "sync",
+          "--python",
+          readJson(path.join(sourceRoot, "source-manifest.json")).python,
+          "--frozen",
+          "--no-default-groups",
+          "--extra",
+          "documents",
+          "--group",
+          "desktop-build",
+        ],
+      ]);
+    } finally {
+      for (const module of [
+        "node:child_process",
+        "node:fs",
+        "../scripts/runtime/windows-acl.mjs",
+      ])
+        vi.doUnmock(module);
+      vi.resetModules();
+    }
+  });
 });
 
 describe("size gates", () => {

@@ -32,6 +32,7 @@ from animama.domain.user_file import (
 from animama.domain.user_file_processing import (
     JOB_STATUS_SUCCEEDED,
     JOB_TYPE_PROCESS_FILE,
+    NO_SEARCHABLE_TEXT_ERROR,
     SEARCH_MODE_HYBRID,
     SEARCH_MODE_KEYWORD,
     SEARCH_MODE_SEMANTIC,
@@ -465,7 +466,7 @@ class UserFileProcessingService:
                 duration_seconds=round(time.perf_counter() - chunk_started, 3),
             )
         if not chunks:
-            raise UserFileProcessingValidationError("No searchable text was extracted from the uploaded file")
+            raise UserFileProcessingValidationError(NO_SEARCHABLE_TEXT_ERROR)
 
         overview_warning: str | None = None
         try:

@@ -11,11 +11,14 @@ from collections.abc import Mapping, Sequence
 from xml.etree import ElementTree
 
 from animama.domain.user_file_processing import (
+    MARKDOWN_ATX_HEADING_RE,
+    MARKDOWN_FENCE_RE,
     ParsedUserFileDocument,
     UserFileChunkDraft,
     UserFileOutlineItem,
     UserFileOverview,
     UserFileOverviewMethod,
+    markdown_outline,
 )
 
 USER_FILE_OVERVIEW_VERSION = 1
@@ -24,12 +27,13 @@ MAX_OVERVIEW_TITLE_CHARS = 200
 MAX_OVERVIEW_OUTLINE_CHARS = 16_000
 MAX_OVERVIEW_DESCRIPTION_CHARS = 400
 MAX_OVERVIEW_HEADING_LEVEL = 6
+# A title is cut to this many characters before it is normalized: enough for the
+# link markup and spacing normalization removes, and a bound on that work.
+_MAX_RAW_TITLE_CHARS = 4 * MAX_OVERVIEW_TITLE_CHARS
 MAX_SUMMARY_SAMPLE_CHARS = 12_000
 SUMMARY_SEGMENT_CHARS = MAX_SUMMARY_SAMPLE_CHARS // 3
 
 _METHODS = frozenset({"structured", "extractive", "table", "json", "xml", "fallback_excerpt"})
-_ATX_HEADING_RE = re.compile(r"^\s{0,3}(#{1,6})\s+(.+?)\s*#*\s*$")
-_FENCE_RE = re.compile(r"^\s*(`{3,}|~{3,})")
 _MARKDOWN_LINK_RE = re.compile(r"\[([^\]]+)\]\([^)]*\)")
 _SENTENCE_RE = re.compile(r"[^.!?\n]+[.!?]+(?:[\"')\]]*)")
 _WORD_RE = re.compile(r"[^\W_]+(?:['’-][^\W_]+)*", re.UNICODE)
@@ -110,7 +114,7 @@ def build_user_file_overview(
         outline, bounded = _bound_outline(document.source_outline)
         outline_truncated = outline_truncated or bounded
     elif _supports_markdown_outline(document):
-        outline, bounded = _bound_outline(_extract_markdown_outline(document.text))
+        outline, bounded = _bound_outline(markdown_outline(document.text))
         outline_truncated = outline_truncated or bounded
     else:
         outline = ()
@@ -255,26 +259,6 @@ def _supports_markdown_outline(document: ParsedUserFileDocument) -> bool:
     return document.parser_name == "docling" or _document_format(document) in {"md", "markdown", "html", "htm"}
 
 
-def _extract_markdown_outline(text: str) -> tuple[UserFileOutlineItem, ...]:
-    items: list[UserFileOutlineItem] = []
-    fence_marker: str | None = None
-    for line in text.replace("\r\n", "\n").replace("\r", "\n").split("\n"):
-        fence = _FENCE_RE.match(line)
-        if fence is not None:
-            marker = fence.group(1)[0]
-            if fence_marker is None:
-                fence_marker = marker
-            elif fence_marker == marker:
-                fence_marker = None
-            continue
-        if fence_marker is not None:
-            continue
-        match = _ATX_HEADING_RE.match(line)
-        if match is not None:
-            items.append(UserFileOutlineItem(level=len(match.group(1)), title=match.group(2)))
-    return tuple(items)
-
-
 def _bound_outline(
     items: Sequence[UserFileOutlineItem],
 ) -> tuple[tuple[UserFileOutlineItem, ...], bool]:
@@ -284,7 +268,7 @@ def _bound_outline(
     previous: tuple[int, str] | None = None
     for item in items:
         level = min(MAX_OVERVIEW_HEADING_LEVEL, max(1, int(item.level)))
-        normalized_title = _normalize_heading(item.title)
+        normalized_title = _normalize_heading(str(item.title)[:_MAX_RAW_TITLE_CHARS])
         if not normalized_title:
             continue
         clipped_title = _clip_text(normalized_title, MAX_OVERVIEW_TITLE_CHARS)
@@ -473,7 +457,7 @@ def _prose_for_sentences(text: str) -> str:
             current.clear()
 
     for line in text.split("\n"):
-        fence = _FENCE_RE.match(line)
+        fence = MARKDOWN_FENCE_RE.match(line)
         if fence is not None:
             flush_paragraph()
             marker = fence.group(1)[0]
@@ -487,7 +471,7 @@ def _prose_for_sentences(text: str) -> str:
             flush_paragraph()
             continue
         if (
-            _ATX_HEADING_RE.match(line)
+            MARKDOWN_ATX_HEADING_RE.match(line)
             or _LIST_LINE_RE.match(line)
             or stripped.startswith("<!--")
             or (stripped.startswith("|") and stripped.endswith("|"))

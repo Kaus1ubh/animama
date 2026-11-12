@@ -23,7 +23,8 @@ from animama.adapters.content_store.private_file_store import (
 from animama.adapters.parsers import docling_user_file_parser as docling_parser_module
 from animama.adapters.parsers.docling_user_file_parser import DoclingUserFileParser, DoclingUserFileParserError
 from animama.adapters.parsers.isolated_user_file_parser import UserFileParseChildError
-from animama.adapters.parsers.text_user_file_parser import parse_lightweight_user_file
+from animama.adapters.parsers.rejections import ENCRYPTED_DOCUMENT_REASON
+from animama.adapters.parsers.text_user_file_parser import parse_text_user_file
 from animama.adapters.repositories.sqlalchemy.runtime_worker_repo import record_document_heartbeat
 from animama.adapters.repositories.sqlalchemy.uow import SQLAlchemyUnitOfWork
 from animama.adapters.repositories.sqlalchemy.user_file_processing_repo import SQLAlchemyUserFileProcessingRepository
@@ -991,7 +992,7 @@ def test_only_unexpected_failures_are_retried() -> None:
     assert is_retryable_processing_failure(RuntimeError("database restarted")) is True
     assert is_retryable_processing_failure(UserFileParseChildError("The file could not be read.")) is True
     assert is_retryable_processing_failure(UserFileProcessingValidationError("Uploaded object is empty")) is False
-    assert is_retryable_processing_failure(UserFileParseRejectedError("This file type is not supported yet.")) is False
+    assert is_retryable_processing_failure(UserFileParseRejectedError(ENCRYPTED_DOCUMENT_REASON)) is False
 
 
 def _claimed_upload_from(storage: object) -> bytes | None:
@@ -1402,7 +1403,7 @@ def test_chunking_uses_overlap_and_deterministic_indexes() -> None:
 
 
 def test_chunking_groups_table_rows() -> None:
-    parsed = parse_lightweight_user_file(
+    parsed = parse_text_user_file(
         payload=b"name\tvalue\nalpha\t1\nbeta\t2\ngamma\t3\n",
         filename="sheet.tsv",
         extension=".tsv",
@@ -1415,9 +1416,9 @@ def test_chunking_groups_table_rows() -> None:
     assert chunks[0].metadata["row_start"] == 1
 
 
-def test_lightweight_parsers_validate_json_and_xml() -> None:
-    parsed_json = parse_lightweight_user_file(payload=b'{"b": 2, "a": 1}', filename="data.json", extension=".json")
-    parsed_xml = parse_lightweight_user_file(payload=b"<root><item /></root>", filename="data.xml", extension=".xml")
+def test_text_parsers_validate_json_and_xml() -> None:
+    parsed_json = parse_text_user_file(payload=b'{"b": 2, "a": 1}', filename="data.json", extension=".json")
+    parsed_xml = parse_text_user_file(payload=b"<root><item /></root>", filename="data.xml", extension=".xml")
 
     assert '"a": 1' in parsed_json.text
     assert parsed_xml.text.startswith("<root>")

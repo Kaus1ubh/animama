@@ -119,7 +119,9 @@ Cloud refreshes its package inventories at its next repin, outside this plan.
   `triage:ready-for-agent`, environment installed, plan committed (p0).
 - [x] Phase 1: The core server processes uploads (review passed after two
   repair rounds; the stack check moved to Phase 2).
-- [ ] Phase 2: Every accepted format is read.
+- [x] Phase 2: Every accepted format is read (review passed after one repair
+  round; the stack check passed for Phases 1, 2 and 4, except the
+  skipped-pages note, which is Phase 3 work).
 - [ ] Phase 3: Chunks follow headings.
 - [x] Phase 4: The composer holds sends until attachments are readable
   (review passed after two repair rounds; the browser-pane checks moved to the
@@ -205,6 +207,17 @@ From planning research on 2026-11-12:
   `worker_state`. The runner records the existing heartbeat row with its own
   instance id, and the enqueue route wakes it so jobs start at once.
 - 2026-11-12, agent: desktop retires the pack id through `RETIRED_PACK_IDS`.
+- 2026-11-12, agent (Phase 2): a PDF with only an owner (permissions)
+  password is read, because it opens without a password, as in viewers and
+  the retired Docling path. Its copy restriction is not enforced. Only PDFs
+  that need a password to open get the encrypted reason. Reported to the
+  owner.
+- 2026-11-12, agent (Phase 2): `.xml` files, and the XML inside Office
+  packages, are refused if they declare any entity, which is stricter than
+  before and allowed by R3.3.
+- 2026-11-12, agent (Phase 2): lxml is new to the desktop app and statically
+  links GNU libiconv (LGPL-2.1). This is reported to the owner and recorded in
+  the redistribution-review doc (Phase 6).
 - 2026-11-12, agent (implementation): Phase 4 ran in parallel with Phase 1
   because they touch separate files. It is committed after Phase 1, and Phases
   2 and 3 follow. The text parser moved to `adapters/parsers/` in Phase 1
@@ -569,7 +582,221 @@ Checks:
 
 Completion: commit `feat(uploads)[p2]: read Office, HTML and PDF uploads without Docling`.
 
-Check record: not started.
+Stack check (2026-11-12). Stack `cup`: development build, base port 8900,
+application at `http://animama-cup.localhost:8900`, with the uncommitted
+Phase 2 tree `64fe2856` on `2e3e3e1bf`. Only the web service is published, on
+loopback; the server and PostgreSQL are private, and there is no worker
+service. The server image has the parser libraries and no Docling. The browser
+pane was hidden, and clicks, typing and DOM checks worked.
+
+- **Formats.** One file of each of the 14 formats, plus a partly scanned PDF,
+  reached Ready within about 6 s. Annie answered every file's code word
+  correctly over four turns: the existing per-turn file-reading limit stopped
+  the first turn after four reads. Annie could not name the partly scanned
+  PDF's skipped pages, because the overview note is Phase 3 work.
+- **Large file.** A 9 MiB text file reached Ready in about 2.7 s, and Annie
+  answered from it.
+- **Hold.**
+  - While the file processed, the send control read "Waiting for files to be
+    ready" (`aria-disabled`).
+  - A real Enter showed "Attached files are not ready yet.", kept the text and
+    sent nothing.
+  - The control returned to "Send message" at Ready.
+- **Failures.** All three failed on attempt 1, and the server logged their
+  error types:
+  - An image-only PDF failed with "This PDF has no selectable text; it may be
+    scanned." (`NoSelectableText`).
+  - An encrypted PDF and an encrypted DOCX failed with "Encrypted or
+    password-protected documents are not supported" (`EncryptedDocument`).
+
+  The control read "Remove unreadable files to send". Enter showed "Remove
+  unreadable files before sending.", and removing the files restored "Send
+  message".
+- **Concurrency.** In a second tab, a chat reply streamed to completion while
+  three unique 9 MiB files parsed: 0.17–0.25 s per parse, 1.7–1.9 s per job,
+  between 16:11:25 and 16:11:30. Byte-identical re-uploads skip parsing
+  through content reuse. Timing inside the hidden pane is throttled, so the
+  quantitative bound rests on Phase 1's loop-gap tests.
+- **Restart.** Restarting `animama-server` while four unique 9 MiB files
+  processed lost nothing. One job finished during the graceful shutdown, the
+  rest after startup, and all four were Ready about 7 s after the restart. The
+  requeue-on-cancel path was not reached live; tests cover it.
+- **Not checked live:** Voice Mode (no microphone in the pane; tests cover
+  it) and desktop Quick Chat (moved to the packaged-app check).
+
+Implementation notes (2026-11-12):
+
+- **New modules.** `adapters/parsers/` gains `dispatch.py` (its set equals
+  `ALLOWED_USER_FILE_EXTENSIONS`, tested), `markdown_builder.py`,
+  `rejections.py`, `office_package.py`, and one module per format for HTML,
+  DOCX, PPTX, XLSX and PDF. Each imports its library inside the parse
+  function. The text parser is now `parse_text_user_file`/`TEXT_EXTENSIONS`,
+  with a `.md` outline, `.csv`, and `.xml` through defusedxml. The child
+  dispatches every format and blocks numpy.
+- **Office package checks.** An OLE header gets the encrypted reason. The ZIP
+  guard allows up to 10,000 parts, 256 MiB expanded, and a ratio of 100 for
+  parts over 1 MiB. XML entities in `.xml`, XLSX, DOCX and PPTX share one
+  reason.
+- **DOCX.** Title is level 1 and Heading N is level N+1. Tracked insertions
+  and content controls are read; deletions, TOC paragraphs, text boxes,
+  headers and footers are skipped.
+- **PPTX.** Placeholders become list items, and date, footer and number
+  placeholders are skipped.
+- **XLSX.** Leading and trailing empty rows and columns are trimmed. A
+  workbook or deck with no text gets the no-text reason.
+- **PDF.** Bookmarks become the outline, up to 1,000.
+- **HTML.** Legacy charsets decode with browser superset encodings.
+- **Restriction-only PDFs.** A PDF with only an owner (permissions) password
+  opens without a password and is read. Only PDFs that need a password to open
+  get the encrypted reason. This is a reading of R2.7, reported to the owner.
+- **Install.** `--extra documents` is in the Makefile, the CI `uv-sync` step,
+  `scripts/ci/local_validate.py`, both Dockerfile server syncs, `common.mjs`
+  (with a new arguments test) and the `development.md` sync commands. Compose
+  and `.env.example` gain the five user-file settings.
+- **Licences.** `python_licenses.py` now includes declared licence files, the
+  `LICENCE` spelling and a Latin-1 fallback. Before, it dropped pypdfium2's 18
+  PDFium-component notices and openpyxl's, et_xmlfile's and FreeType's notices.
+  As a side effect, PyJWT, Pygments, SQLAlchemy, asyncpg, nltk, sse-starlette,
+  tqdm and animama-backend gain notices. lxml's notice says its wheels bundle
+  LGPL-2.1 iconv, which goes to the owner's redistribution review.
+- **Freezing.** No spec change was needed: pyinstaller-hooks-contrib covers
+  pypdfium2_raw, the docx and pptx templates, openpyxl and lxml. A frozen
+  PyInstaller 6.22.2 probe read every format. Minimum macOS versions are 13.0
+  (PDFium) and 11.0 (lxml).
+- **Size.** 32.4 MB in the macOS venv (lxml 19.9 MB of it) and 25.3 MB on
+  Linux aarch64.
+- **Memory limit.** On Linux, the child read every format under a 1 GiB limit
+  and a 256 MB limit. Without the numpy block, XLSX crashed in OpenBLAS at 256
+  MB.
+- **Speed.** A 50-page PDF took 0.17 s and a 0.71 MB DOCX 0.89 s through the
+  real child.
+
+Check record (uncommitted tree `64fe2856` on `2e3e3e1bf`; all exit 0):
+
+- `timeout 1500 uv run --no-sync pytest -q tests/test_user_file_parsers.py
+  tests/test_user_file_parse_child.py tests/test_user_file_processing.py
+  tests/test_user_file_processing_runner.py tests/test_user_file_uploads.py
+  tests/test_desktop_runtime_packaging.py`: 201 passed, 1 skipped.
+- `uv lock --check` (lock diff: only the extra's metadata, no version
+  changes); `ruff check`; `ruff format --check src/backend tests`.
+- `UV_NO_SYNC=1 make mypy`: no issues in 908 files. Boundary checker: 0 edges.
+- `pnpm --filter animama-desktop check`; `runtime-packaging.test.mjs`: 83
+  passed.
+- Both `docker compose ... config --quiet` selections.
+- Neighbouring backend tests: 200 passed. `scripts/ci` unit tests: 143 OK.
+
+#### Code Review #1 Findings
+
+The review covered tree `64fe2856` (rebuilt and matched) at high risk. The
+reviewer reran:
+
+- The pytest command (201 passed, 1 skipped), `uv lock --check`,
+  `ruff check`, `make mypy` and the boundary checker.
+- `runtime-packaging.test.mjs` (83 passed) and the `scripts/ci` unit tests
+  (143 OK).
+- Both Compose config checks, and `check-repository-dependencies.py` (0
+  private dependencies).
+- `check_source.py`, which fails only on `main`'s 14 missing entries.
+
+Probes are in the session scratchpad.
+
+- P2-R1-F1 (blocking): the ZIP guard trusted declared sizes. A 408 KB DOCX
+  whose part declared 1,000 bytes passed and added 809 MiB before being
+  refused. Through the child, deflate and bzip2 variants were stopped only by
+  the memory limit.
+- P2-R1-F2 (blocking): `MARKDOWN_ATX_HEADING_RE` backtracked cubically. A
+  6 KB `.txt` made the server-side overview take 14.5 s on the single runner,
+  though the event loop stayed responsive. Long `.md` lines exceeded the
+  child's time limit. `\s` also let U+3000 and the no-break space form
+  headings.
+- P2-R1-F3 (blocking): the eleven new files had no source-review entry.
+- Non-blocking:
+  - lxml statically links LGPL-2.1 GNU libiconv, for the redistribution
+    review.
+  - The `python_licenses.py` side effects are sound (198 records, no binary
+    text), but the test list misses XlsxWriter.
+  - R3.4 has no test: a 1.5 MB Flate-bomb PDF hits the memory limit, and deep
+    nesting and huge page counts parse normally.
+  - A non-text `<meta charset>` such as `base64` failed the file.
+  - A legacy OLE `.doc` renamed `.docx` got the encrypted reason instead of
+    the mismatch reason.
+  - A UTF-8 BOM stayed in the first CSV cell.
+  - Refusing every XML entity declaration is stricter than before.
+  - Reading owner-password-only PDFs fits R2.7's intent but ignores their copy
+    restriction.
+  - A 4M-cell XLSX answer cost the server 12.1 s and 272 MiB to decode.
+  - A venv without `--extra documents` failed Office and PDF files with a
+    vague reason.
+
+  The reviewer found the dependencies, CI and hosted-wheel exclusion correct.
+
+#### Code Review #1 Revisions
+
+All findings were accepted.
+
+- F3: entries are added with the Phase 2 commit.
+- The lxml licence note goes to the Phase 6 redistribution-review doc and the
+  owner's report.
+- The stricter XML entity rule and the owner-password reading are recorded in
+  the Decision Log.
+- The XLSX answer cost moves to Phase 3, which owns how tables travel.
+- F1, F2, XlsxWriter, an R3.4 Flate-bomb test, charset fallback, telling
+  encrypted packages from legacy OLE files, BOM handling and the
+  missing-extra reason went back to the implementer as repair round 1.
+
+Repair round 1 results:
+
+- **F1.** Entries that are neither stored nor deflated are refused. Every
+  part is inflated once, 64 KiB at a time, and refused if it grows past its
+  recorded size, so the real total stays within the cap. Tests cover lying
+  parts in all three formats, bzip2 and LZMA refusals, a corrupt stream and an
+  honest part.
+- **F2.** The heading pattern is `^ {0,3}(#{1,6})(?:[ \t]+(.*))?$`, with the
+  closing run stripped in Python and `[ \t]` in the fence pattern too. The
+  builder's escape matches it exactly. Overview titles are cut before
+  normalising, which fixes a related quadratic path.
+- **Other repairs.** XlsxWriter joins the notice test. A Flate-bomb test was
+  added. A non-text or unknown HTML charset falls back to UTF-8. An OLE file
+  holding an `EncryptedPackage` stream gets the encrypted reason, and any
+  other OLE file the mismatch reason. Text formats decode as `utf-8-sig`. A
+  missing documents extra gives "This installation cannot read .docx files:
+  the documents extra is not installed." (`DocumentsExtraMissing`).
+- **Memory backstop.** The Linux `RLIMIT_AS` backstop equalled the memory
+  limit, so PDFium aborted first and a bomb failed as retryable. The backstop
+  is now twice the memory limit plus 512 MB, and the parent samples resident
+  memory every 10 ms.
+
+Implementer's checks: the Phase 2 pytest command passed 226 with 1 skipped,
+and the lock, Ruff, mypy and boundary checks were clean.
+
+#### Code Review #2 Findings
+
+The targeted recheck covered tree `c84de78e` (rebuilt and matched; diffed
+against `64fe2856`) at high risk. It confirmed every fix:
+
+- **F1.** Through the real child, a lying deflate part was refused at a 33 MiB
+  peak (was 1,131), and bzip2 and LZMA parts at 31–32 MiB.
+- **F2.** A 20,000-character hostile line takes 0.003 ms, and server-side
+  overviews 0.001 s.
+- **Flate bomb.** It now stops at a 1,102 MiB peak under 1,024 MB, and 306 MiB
+  under 256 MB.
+- **Other repairs.** The charset fallbacks, BOM handling and missing-extra
+  reason were verified.
+
+The reviewer answered three follow-up questions:
+
+- **Sampling.** Sampling every 10 ms costs about 0.9% of a core. A burst can
+  overshoot by about 180 MB at most; 50–78 MiB was measured.
+- **Inflation cost.** It stays within the parse time limit. The worst case,
+  10,000 entries sharing one part, extrapolates to about 55 s, and `zipfile`
+  then refuses overlapped entries. A one-pass cap is optional and not taken.
+- **OLE check.** It can be fooled only into the other refusal reason, and
+  never opens the file.
+
+There were no regressions. The reviewer reran the Phase 2 pytest command (226
+passed, 1 skipped), the overview tests (16 passed), Ruff, mypy, the boundary
+checker and the lock check. No blocking finding remains; F3 lands with this
+commit, and Phase 2 passes review.
 
 #### Code Review #1 Findings
 

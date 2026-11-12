@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import time
 from typing import Any
 
 import pytest
@@ -213,6 +214,22 @@ def test_tsv_and_docling_table_only_documents_receive_table_overviews() -> None:
     assert "2 data rows" in tsv.description
     assert docling.method == "table"
     assert [item.title for item in docling.outline] == ["Table 1", "Table 2"]
+
+
+def test_overview_of_hostile_heading_lines_takes_linear_time() -> None:
+    """Lines built to make a backtracking heading pattern slow keep the server responsive (spec R1.6)."""
+
+    prose = "This report explains the budget for the coming year in plain words. " * 8
+    hostile = "\n".join(
+        ("# a" + " " * 20_000 + "x", "## " + "a " * 10_000 + "#", "# " + "[" * 20_000, "```" + " " * 20_000 + "x")
+    )
+    text = f"{prose}\n\n{hostile}\n\n{prose}"
+
+    started = time.monotonic()
+    for document in (_document(text), _document(text, metadata={"format": "md"})):
+        build_user_file_overview(filename="hostile.txt", document=document, chunks=[_chunk(text)])
+
+    assert time.monotonic() - started < 1
 
 
 def test_empty_document_uses_chunk_then_filename_fallback() -> None:

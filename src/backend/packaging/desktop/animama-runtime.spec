@@ -1,5 +1,11 @@
 # -*- mode: python ; coding: utf-8 -*-
-"""Python 3.12 onedir core. Document parsing is a separate optional artifact."""
+"""Python 3.12 onedir core, including the upload parsers (the ``documents`` extra).
+
+The parse child imports each parser library only for its format; the analysis
+still follows those imports, and pyinstaller-hooks-contrib collects their native
+and data files (PDFium's library and version files, lxml, the python-docx and
+python-pptx templates). Docling remains a separate optional artifact.
+"""
 import importlib.metadata
 import re
 import sys

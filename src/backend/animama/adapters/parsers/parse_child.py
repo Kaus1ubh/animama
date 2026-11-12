@@ -12,10 +12,11 @@ from its standard output:
   "error_type": "<failure name for logs>"}``.
 
 Before any parser code runs, the child refuses outbound connections and name
-lookups, disables core dumps, bounds its CPU time (and its address space on
-Linux), and points tiktoken at the encodings bundled with llama-index, so reading
-a file never downloads anything (spec R1.5). The parent enforces the wall-clock
-and resident-memory limits on every platform (spec R3.1).
+lookups, disables core dumps, bounds its CPU time (and, as a backstop, its
+address space on Linux), keeps libraries it never needs from loading, and points
+tiktoken at the encodings bundled with llama-index, so reading a file never
+downloads anything (spec R1.5). The parent enforces the wall-clock and
+resident-memory limits on every platform (spec R3.1).
 """
 
 from __future__ import annotations
@@ -27,7 +28,8 @@ import os
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, BinaryIO
+from types import ModuleType
+from typing import Any, BinaryIO, cast
 
 from animama.app.ports.user_file_parser_port import UserFileParseRejectedError
 from animama.domain.user_file_processing import ParsedUserFileDocument, UserFileChunkDraft, UserFileOutlineItem
@@ -37,11 +39,16 @@ PARSE_UPLOAD_COMMAND = "parse-upload"
 
 MAX_HEADER_BYTES = 64 * 1024
 UNREADABLE_REASON = "The file could not be read."
-UNSUPPORTED_REASON = "This file type is not supported yet."
+
+# Libraries no parser uses that a parser library imports when installed. openpyxl
+# imports numpy, whose OpenBLAS start costs about a second and reserves address
+# space per CPU, enough to crash a child under a tight Linux RLIMIT_AS.
+_UNNEEDED_MODULES = ("numpy",)
 
 # The kernel's CPU-time limit only matters for a child whose parent died; while
 # the parent lives, its wall-clock limit ends the child much earlier.
 _CPU_LIMIT_MARGIN_SECONDS = 30
+_ADDRESS_SPACE_HEADROOM_MB = 512
 
 # Python raises these audit events for every connection, datagram and name
 # lookup made through the socket module, including from C extensions.
@@ -87,12 +94,26 @@ def install_network_guard() -> None:
     sys.addaudithook(refuse)
 
 
+def address_space_limit_bytes(memory_limit_mb: int) -> int:
+    """The child's address-space backstop on Linux: twice the memory limit plus 512 MB.
+
+    The parent stops a child whose resident memory passes the limit and reports
+    the limit. Native code (PDFium, for one) aborts when an allocation fails, so
+    a backstop at the limit itself would crash a growing child before the parent
+    saw it, and the file would fail as unreadable instead. The headroom covers
+    the interpreter's own address space and one sampling interval of growth.
+    """
+
+    return (2 * memory_limit_mb + _ADDRESS_SPACE_HEADROOM_MB) * 1024 * 1024
+
+
 def apply_resource_limits(*, memory_limit_mb: int, timeout_seconds: float) -> None:
     """Bound this process where the kernel can, so the bounds hold even if the parent dies.
 
     Core dumps are disabled because the process holds a private document. The
-    address-space limit applies on Linux only (macOS ignores ``RLIMIT_AS``), and
-    Windows has no ``resource`` module; there the parent's limits are the only ones.
+    address-space backstop (:func:`address_space_limit_bytes`) applies on Linux
+    only (macOS ignores ``RLIMIT_AS``), and Windows has no ``resource`` module;
+    there the parent's limits are the only ones.
     """
 
     if sys.platform == "win32":
@@ -113,8 +134,19 @@ def apply_resource_limits(*, memory_limit_mb: int, timeout_seconds: float) -> No
     cpu_seconds = math.ceil(timeout_seconds) + _CPU_LIMIT_MARGIN_SECONDS
     lower(resource.RLIMIT_CPU, cpu_seconds, cpu_seconds + 5)
     if sys.platform.startswith("linux"):
-        memory_bytes = memory_limit_mb * 1024 * 1024
-        lower(resource.RLIMIT_AS, memory_bytes, memory_bytes)
+        address_space = address_space_limit_bytes(memory_limit_mb)
+        lower(resource.RLIMIT_AS, address_space, address_space)
+
+
+def block_unneeded_imports() -> None:
+    """Make importing a library no parser uses fail, so an optional import of it is skipped.
+
+    Only a parse child calls this: the server itself needs numpy.
+    """
+
+    for name in _UNNEEDED_MODULES:
+        # A ``None`` entry makes ``import name`` raise ImportError.
+        sys.modules.setdefault(name, cast(ModuleType, None))
 
 
 def bundled_tiktoken_cache_dir() -> Path | None:
@@ -187,19 +219,12 @@ class ParseRequest:
 
 
 def parse_upload(*, payload: bytes, filename: str, extension: str) -> ParsedUserFileDocument:
-    """Read one upload with the parsers available so far.
-
-    Standard-library formats are read exactly as the server used to read them.
-    Every other accepted format is rejected until its parser exists.
-    """
+    """Read one upload with the parser its extension selects (see :mod:`animama.adapters.parsers.dispatch`)."""
 
     # Parser code loads only now, after the child has installed its guards.
-    from animama.adapters.parsers.text_user_file_parser import LIGHTWEIGHT_EXTENSIONS, parse_lightweight_user_file
+    from animama.adapters.parsers.dispatch import parse_user_file
 
-    normalized = extension.lower()
-    if normalized not in LIGHTWEIGHT_EXTENSIONS:
-        raise UserFileParseRejectedError(UNSUPPORTED_REASON, error_type="UnsupportedFileType")
-    return parse_lightweight_user_file(payload=payload, filename=filename, extension=normalized)
+    return parse_user_file(payload=payload, filename=filename, extension=extension)
 
 
 def answer_parse_request(request: ParseRequest, payload: bytes) -> dict[str, Any]:
@@ -231,6 +256,7 @@ def run_parse_child(stdin: BinaryIO | None = None) -> int:
         request = ParseRequest.decode_header(source.readline(MAX_HEADER_BYTES + 1))
         apply_resource_limits(memory_limit_mb=request.memory_limit_mb, timeout_seconds=request.timeout_seconds)
         install_network_guard()
+        block_unneeded_imports()
         configure_offline_tokenizer_cache()
         data = _encode_answer(answer_parse_request(request, source.read()))
     except MemoryError:
@@ -403,11 +429,12 @@ __all__ = [
     "MAX_HEADER_BYTES",
     "PARSE_UPLOAD_COMMAND",
     "UNREADABLE_REASON",
-    "UNSUPPORTED_REASON",
     "NetworkAccessBlockedError",
     "ParseRequest",
+    "address_space_limit_bytes",
     "answer_parse_request",
     "apply_resource_limits",
+    "block_unneeded_imports",
     "bundled_tiktoken_cache_dir",
     "configure_offline_tokenizer_cache",
     "decode_parse_answer",

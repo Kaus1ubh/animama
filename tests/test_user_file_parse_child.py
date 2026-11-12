@@ -9,12 +9,15 @@ import socket
 import subprocess
 import sys
 import time
+from collections.abc import Callable
 from pathlib import Path
+from typing import Any
 
 import psutil
 import pytest
 
 from animama.adapters.parsers import parse_child
+from animama.adapters.parsers.dispatch import parse_user_file
 from animama.adapters.parsers.isolated_user_file_parser import (
     IsolatedUserFileParser,
     UserFileParseChildError,
@@ -23,16 +26,24 @@ from animama.adapters.parsers.isolated_user_file_parser import (
 )
 from animama.adapters.parsers.parse_child import (
     UNREADABLE_REASON,
-    UNSUPPORTED_REASON,
     ParseRequest,
     answer_parse_request,
     decode_parsed_document,
     encode_parsed_document,
 )
-from animama.adapters.parsers.text_user_file_parser import parse_lightweight_user_file
+from animama.adapters.parsers.text_user_file_parser import parse_text_user_file
 from animama.app.ports.user_file_parser_port import UserFileParseRejectedError
 from animama.app.services.user_file_processing_service import is_retryable_processing_failure
 from animama.domain.user_file_processing import ParsedUserFileDocument, UserFileChunkDraft, UserFileOutlineItem
+from tests.user_file_fixtures import (
+    flate_bomb_pdf,
+    pdf_bytes,
+    pptx_bytes,
+    simple_docx,
+    text_page,
+    xlsx_bytes,
+    zip_bytes,
+)
 
 
 def _python(code: str) -> list[str]:
@@ -68,15 +79,78 @@ async def test_child_reads_standard_library_formats_as_the_server_did(extension:
 
     parsed = await IsolatedUserFileParser().parse(payload=payload, filename=filename, extension=extension)
 
-    assert parsed == parse_lightweight_user_file(payload=payload, filename=filename, extension=extension)
+    assert parsed == parse_text_user_file(payload=payload, filename=filename, extension=extension)
 
 
-async def test_child_rejects_formats_it_cannot_read_yet() -> None:
+def _slides(presentation: Any) -> None:
+    slide = presentation.slides.add_slide(presentation.slide_layouts[1])
+    slide.shapes.title.text = "Agenda"
+    slide.placeholders[1].text_frame.text = "Introductions"
+
+
+def _sheet(workbook: Any) -> None:
+    workbook.active.title = "Totals"
+    workbook.active.append(["Region", "Sales"])
+    workbook.active.append(["North", 12])
+
+
+OFFICE_AND_PDF_UPLOADS: dict[str, Callable[[], bytes]] = {
+    ".docx": lambda: simple_docx("The child read this Word document.", heading="Summary"),
+    ".pdf": lambda: pdf_bytes(text_page(b"The child read this PDF."), text_page(b"Second page.")),
+    ".pptx": lambda: pptx_bytes(_slides),
+    ".xlsx": lambda: xlsx_bytes(_sheet),
+}
+
+
+@pytest.mark.parametrize("extension", sorted(OFFICE_AND_PDF_UPLOADS))
+async def test_child_reads_office_documents_and_pdfs_end_to_end(extension: str) -> None:
+    """The real child, under the default limits (on Linux, a 1 GiB address space), reads each binary format."""
+
+    payload = OFFICE_AND_PDF_UPLOADS[extension]()
+    filename = f"upload{extension}"
+
+    parsed = await IsolatedUserFileParser().parse(payload=payload, filename=filename, extension=extension)
+
+    assert parsed == parse_user_file(payload=payload, filename=filename, extension=extension)
+    assert parsed.text
+
+
+async def test_child_refuses_a_zip_bomb_without_unpacking_it() -> None:
+    bomb = zip_bytes({"[Content_Types].xml": b"<Types/>", "word/document.xml": bytes(64 * 1024 * 1024)})
+
     with pytest.raises(UserFileParseRejectedError) as rejected:
-        await IsolatedUserFileParser().parse(payload=b"PK\x03\x04 office", filename="report.docx", extension=".docx")
+        await IsolatedUserFileParser(memory_limit_mb=256).parse(payload=bomb, filename="bomb.docx", extension=".docx")
 
-    assert rejected.value.reason == UNSUPPORTED_REASON == "This file type is not supported yet."
-    assert rejected.value.error_type == "UnsupportedFileType"
+    assert rejected.value.reason == "The document contains a part that expands more than 100 times when unpacked."
+
+
+async def test_pdf_decompression_bomb_fails_at_the_memory_limit() -> None:
+    """A content stream that inflates to 512 MiB stops at the limit, with the reason naming it (spec R3.4).
+
+    On Linux the child's address-space backstop sits above the limit, so the
+    parent's resident-memory check stops the child first, as on other platforms.
+    """
+
+    payload = flate_bomb_pdf(512)
+    assert len(payload) < 2 * 1024 * 1024
+
+    with pytest.raises(UserFileParseRejectedError) as rejected:
+        await IsolatedUserFileParser(memory_limit_mb=256).parse(payload=payload, filename="bomb.pdf", extension=".pdf")
+
+    assert rejected.value.reason == "Reading the file needed more than 256 MB of memory."
+    assert rejected.value.error_type == "MemoryError"
+
+
+def test_child_reports_a_missing_documents_extra_with_its_failure_name(monkeypatch: pytest.MonkeyPatch) -> None:
+    payload = simple_docx("Unread.")
+    monkeypatch.setitem(sys.modules, "docx", None)
+    request = ParseRequest(filename="a.docx", extension=".docx", memory_limit_mb=1024, timeout_seconds=60)
+
+    assert answer_parse_request(request, payload) == {
+        "ok": False,
+        "reason": "This installation cannot read .docx files: the documents extra is not installed.",
+        "error_type": "DocumentsExtraMissing",
+    }
 
 
 async def test_child_rejects_malformed_content_with_the_existing_reason() -> None:
@@ -87,25 +161,59 @@ async def test_child_rejects_malformed_content_with_the_existing_reason() -> Non
     assert rejected.value.error_type == "JSONDecodeError"
 
 
-def test_child_loads_only_parser_code() -> None:
-    """The ORM, the server and provider SDKs would cost each child time, memory and threads."""
+# Every parser library, and what each format may load. A format loads only its own library.
+PARSER_LIBRARIES = ("docx", "pptx", "openpyxl", "pypdfium2", "pypdfium2_raw", "lxml", "defusedxml", "PIL", "et_xmlfile")
+LIBRARIES_BY_EXTENSION = {
+    ".json": set(),
+    ".html": set(),
+    ".xml": {"defusedxml"},
+    ".docx": {"docx", "lxml"},
+    ".pptx": {"pptx", "lxml", "PIL"},
+    ".xlsx": {"openpyxl", "lxml", "defusedxml", "PIL"},
+    ".pdf": {"pypdfium2", "pypdfium2_raw"},
+}
+SAMPLE_UPLOADS: dict[str, Callable[[], bytes]] = {
+    ".json": lambda: b'{"a": 1}',
+    ".html": lambda: b"<h1>Title</h1><p>Body</p>",
+    ".xml": lambda: b"<root><item>Value</item></root>",
+    **OFFICE_AND_PDF_UPLOADS,
+}
 
+
+@pytest.mark.parametrize("extension", sorted(LIBRARIES_BY_EXTENSION))
+def test_child_loads_only_the_parser_code_its_format_needs(extension: str, tmp_path: Path) -> None:
+    """The ORM, the server, provider SDKs, numpy and other formats' libraries would cost each child time and memory.
+
+    The probe prepares itself as the child does, so openpyxl's optional numpy
+    import is refused as well.
+    """
+
+    upload = tmp_path / f"upload{extension}"
+    upload.write_bytes(SAMPLE_UPLOADS[extension]())
     probe = (
         "import sys\n"
         "import animama.runtime.cli\n"
-        "from animama.adapters.parsers.parse_child import ParseRequest, answer_parse_request\n"
-        "request = ParseRequest(filename='a.json', extension='.json', memory_limit_mb=64, timeout_seconds=5)\n"
-        "assert answer_parse_request(request, b'{\"a\": 1}')['ok'] is True\n"
+        "from animama.adapters.parsers.parse_child import ParseRequest, answer_parse_request, block_unneeded_imports\n"
+        "block_unneeded_imports()\n"
+        f"request = ParseRequest(filename='upload{extension}', extension='{extension}', memory_limit_mb=1024,"
+        " timeout_seconds=60)\n"
+        f"answer = answer_parse_request(request, open({str(upload)!r}, 'rb').read())\n"
+        "assert answer['ok'] is True, answer\n"
         "heavy = ('numpy', 'sqlalchemy', 'openai', 'anthropic', 'pydantic', 'fastapi', 'httpx')\n"
         "local = ('animama.app.services', 'animama.orm', 'animama.server', 'animama.local')\n"
-        "print(sorted(m for m in sys.modules if m.split('.')[0] in heavy or m.startswith(local)))\n"
+        f"libraries = {PARSER_LIBRARIES!r}\n"
+        "loaded = {name.split('.')[0] for name, module in sys.modules.items() if module is not None}\n"
+        "print(sorted(m for m in loaded if m in heavy or m in libraries))\n"
+        "print(sorted(m for m in sys.modules if m.startswith(local)))\n"
     )
     result = subprocess.run(
-        [sys.executable, "-P", "-c", probe], capture_output=True, text=True, timeout=60, check=False
+        [sys.executable, "-P", "-c", probe], capture_output=True, text=True, timeout=120, check=False
     )
 
     assert result.returncode == 0, result.stderr
-    assert result.stdout.strip() == "[]"
+    libraries, local_modules = result.stdout.strip().splitlines()
+    assert libraries == str(sorted(LIBRARIES_BY_EXTENSION[extension]))
+    assert local_modules == "[]"
 
 
 def test_parse_upload_command_answers_with_one_json_document() -> None:
@@ -241,13 +349,19 @@ def test_network_guard_refuses_connections_and_name_lookups() -> None:
             server.accept()
 
 
+def test_address_space_backstop_sits_above_the_memory_limit() -> None:
+    # Twice the limit plus 512 MB: room for the interpreter and one sampling interval of growth.
+    assert parse_child.address_space_limit_bytes(1024) == (2 * 1024 + 512) * 1024 * 1024
+    assert parse_child.address_space_limit_bytes(128) == (2 * 128 + 512) * 1024 * 1024
+
+
 @pytest.mark.skipif(not sys.platform.startswith("linux"), reason="only Linux enforces RLIMIT_AS")
-def test_linux_child_cannot_grow_past_its_memory_limit() -> None:
+def test_linux_child_cannot_grow_past_its_address_space_backstop() -> None:
     probe = (
-        "from animama.adapters.parsers.parse_child import apply_resource_limits\n"
+        "from animama.adapters.parsers.parse_child import address_space_limit_bytes, apply_resource_limits\n"
         "apply_resource_limits(memory_limit_mb=256, timeout_seconds=60)\n"
         "try:\n"
-        "    held = b'x' * (512 * 1024 * 1024)\n"
+        "    held = b'x' * address_space_limit_bytes(256)\n"
         "except MemoryError:\n"
         "    print('limited')\n"
     )

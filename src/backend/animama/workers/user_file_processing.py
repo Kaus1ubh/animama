@@ -19,7 +19,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 
 from animama.adapters.content_store.private_file_store import FilesystemPrivateFileStorage
 from animama.adapters.parsers.docling_user_file_parser import DoclingUserFileParser
-from animama.adapters.parsers.text_user_file_parser import LIGHTWEIGHT_EXTENSIONS, parse_lightweight_user_file
+from animama.adapters.parsers.text_user_file_parser import TEXT_EXTENSIONS, parse_text_user_file
 from animama.adapters.repositories.sqlalchemy.runtime_worker_repo import (
     clear_document_heartbeat,
     record_document_heartbeat,
@@ -57,8 +57,8 @@ class _StandardLibraryFirstParser:
         self._parser = parser
 
     async def parse(self, *, payload: bytes, filename: str, extension: str) -> ParsedUserFileDocument:
-        if extension.lower() in LIGHTWEIGHT_EXTENSIONS:
-            return parse_lightweight_user_file(payload=payload, filename=filename, extension=extension)
+        if extension.lower() in TEXT_EXTENSIONS:
+            return parse_text_user_file(payload=payload, filename=filename, extension=extension)
         return await self._parser.parse(payload=payload, filename=filename, extension=extension)
 
 

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Final, Literal
@@ -18,6 +19,18 @@ ACTIVE_PROCESSING_JOB_STATUSES = {
 
 PROCESSING_INTERRUPTED_ERROR = "Processing was interrupted"
 """Recorded when a job's last attempt stopped (a crash or restart) before it finished."""
+
+NO_SEARCHABLE_TEXT_ERROR = "No searchable text was extracted from the uploaded file"
+"""Recorded when a file was read but holds no text to search, such as a workbook without values."""
+
+MARKDOWN_ATX_HEADING_RE = re.compile(r"^ {0,3}(#{1,6})(?:[ \t]+(.*))?$")
+"""An ATX heading line: up to three spaces, one to six ``#``, then the line's end or a space or tab and the title.
+
+It matches in linear time; :func:`markdown_heading` strips the closing ``#`` run.
+Only ASCII spaces and tabs count, as in CommonMark.
+"""
+MARKDOWN_FENCE_RE = re.compile(r"^[ \t]*(`{3,}|~{3,})")
+"""The opening or closing line of a fenced code block, whose lines are never headings."""
 
 SEARCH_MODE_KEYWORD: Final = "keyword"
 SEARCH_MODE_SEMANTIC: Final = "semantic"
@@ -155,6 +168,46 @@ def markdown_table(rows: list[list[str]]) -> str:
     return "\n".join(lines)
 
 
+def markdown_outline(text: str) -> tuple[UserFileOutlineItem, ...]:
+    """Return the ATX headings of Markdown ``text`` in order, ignoring lines inside fenced code blocks."""
+
+    items: list[UserFileOutlineItem] = []
+    fence_marker: str | None = None
+    for line in text.replace("\r\n", "\n").replace("\r", "\n").split("\n"):
+        fence = MARKDOWN_FENCE_RE.match(line)
+        if fence is not None:
+            marker = fence.group(1)[0]
+            if fence_marker is None:
+                fence_marker = marker
+            elif fence_marker == marker:
+                fence_marker = None
+            continue
+        if fence_marker is not None:
+            continue
+        heading = markdown_heading(line)
+        if heading is not None:
+            items.append(UserFileOutlineItem(level=heading[0], title=heading[1]))
+    return tuple(items)
+
+
+def markdown_heading(line: str) -> tuple[int, str] | None:
+    """The level and title of an ATX heading line, or ``None`` for another line or an empty heading.
+
+    A closing run of ``#`` is not part of the title when a space or tab precedes
+    it or it makes up the whole title, as in CommonMark: ``## Setup ##`` is
+    "Setup", while ``# C#`` keeps its ``#``.
+    """
+
+    match = MARKDOWN_ATX_HEADING_RE.match(line)
+    if match is None:
+        return None
+    title = (match.group(2) or "").rstrip(" \t")
+    unclosed = title.rstrip("#")
+    if not unclosed or unclosed.endswith((" ", "\t")):
+        title = unclosed.rstrip(" \t")
+    return (len(match.group(1)), title) if title else None
+
+
 @dataclass(frozen=True, slots=True)
 class UserFileSearchResult:
     """Search result over processed user-file chunks."""
@@ -178,6 +231,9 @@ __all__ = [
     "JOB_STATUS_RUNNING",
     "JOB_STATUS_SUCCEEDED",
     "JOB_TYPE_PROCESS_FILE",
+    "MARKDOWN_ATX_HEADING_RE",
+    "MARKDOWN_FENCE_RE",
+    "NO_SEARCHABLE_TEXT_ERROR",
     "PROCESSING_INTERRUPTED_ERROR",
     "ParsedUserFileDocument",
     "SEARCH_MODE_HYBRID",
@@ -193,5 +249,7 @@ __all__ = [
     "UserFileProcessingJob",
     "UserFileProcessingJobSummary",
     "UserFileSearchResult",
+    "markdown_heading",
+    "markdown_outline",
     "markdown_table",
 ]
