@@ -2,7 +2,6 @@ import hashlib
 import json
 import logging
 import uuid
-from collections import Counter
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
@@ -18,6 +17,8 @@ from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.engine import make_url
 from sqlalchemy.exc import IntegrityError
 
+from tests.migration_database_helpers import alembic_head
+
 ROOT = Path(__file__).parents[1]
 VERSIONS = ROOT / "src" / "backend" / "migrations" / "versions"
 BASELINE_MIGRATION = VERSIONS / "0001_baseline.py"
@@ -27,7 +28,6 @@ BASELINE_REVISION = "baseline_20260908"
 # revision. Never update this hash: change the schema with a new revision.
 BASELINE_SHA256 = "438446a4a68e40391786337c6f0acd68e7398cf32dc9b82416bc59c975af1ad6"
 SCRIPTS = ScriptDirectory.from_config(Config(str(ROOT / "src/backend/alembic.ini")))
-HEAD = SCRIPTS.get_current_head()
 
 
 def test_revisions_do_not_import_live_metadata() -> None:
@@ -52,7 +52,7 @@ def test_baseline_artifact_is_frozen_at_the_released_schema() -> None:
 def test_history_is_one_linear_chain_from_the_baseline() -> None:
     """Every installed revision must have exactly one path to the head."""
 
-    assert SCRIPTS.get_heads() == [HEAD]
+    assert SCRIPTS.get_heads() == [alembic_head()]
     revisions = list(SCRIPTS.walk_revisions())
     assert revisions[-1].revision == BASELINE_REVISION
     assert revisions[-1].down_revision is None
@@ -179,7 +179,7 @@ def test_fresh_database_migrates_to_head(db_url: str, monkeypatch) -> None:
                     text("SELECT installation_principal_id FROM installation_settings")
                 ).scalar_one()
                 assert uuid.UUID(first_principal).version == 4
-                assert connection.scalar(text("SELECT version_num FROM alembic_version")) == HEAD
+                assert connection.scalar(text("SELECT version_num FROM alembic_version")) == alembic_head()
             command.upgrade(config, "head")
             with engine.connect() as connection:
                 assert connection.execute(
@@ -267,7 +267,7 @@ def test_released_baseline_profile_upgrades_to_head_with_its_rows(db_url: str, m
         # Appended, so the upgraded schema matches a fresh database's column order.
         assert columns[-1] == "reasoning_effort"
         with engine.connect() as connection:
-            assert connection.scalar(text("SELECT version_num FROM alembic_version")) == HEAD
+            assert connection.scalar(text("SELECT version_num FROM alembic_version")) == alembic_head()
             assert connection.scalar(text("SELECT installation_principal_id FROM installation_settings")) == principal
             assert tuple(
                 connection.execute(
@@ -294,38 +294,55 @@ def test_database_from_the_edited_baseline_reaches_head(db_url: str, monkeypatch
             )
         command.upgrade(config, "head")
         with engine.connect() as connection:
-            assert connection.scalar(text("SELECT version_num FROM alembic_version")) == HEAD
+            assert connection.scalar(text("SELECT version_num FROM alembic_version")) == alembic_head()
         columns = [column["name"] for column in inspect(engine).get_columns("anima_chat_profiles")]
         assert columns.count("reasoning_effort") == 1
 
 
-def _structural_differences(diffs: list[Any]) -> list[str]:
-    """Drop index and constraint pairs that differ only by name; the ORM and SQL name some differently."""
+# (table, name in the frozen baseline, name in the ORM): the same objects under
+# legacy names. Code matches some constraint names, so no other rename is ignored.
+KNOWN_NAME_DIFFERENCES = {
+    ("anima_content_bindings", "uq_anima_content_bindings_uq_anima_content_slot", "uq_anima_content_slot"),
+    ("content_catalog_dependencies", "ix_content_dependencies_target", "ix_content_catalog_dependencies_target"),
+    (
+        "content_catalog_dependencies",
+        "uq_content_catalog_dependencies_uq_content__d318",
+        "uq_content_catalog_dependency_ref",
+    ),
+    ("content_catalog_files", "ix_content_files_item_ordinal", "ix_content_catalog_files_item_ordinal"),
+    ("content_catalog_files", "uq_content_catalog_files_uq_content_file_path", "uq_content_catalog_file_path"),
+    (
+        "content_catalog_items",
+        "uq_content_catalog_items_uq_content_source_locator",
+        "uq_content_catalog_source_locator",
+    ),
+}
 
-    def key(diff: Any) -> tuple[Any, ...] | None:
-        # Column changes arrive as lists of tuples; only index/constraint tuples can be renames.
-        if not isinstance(diff, tuple) or diff[0] not in {
-            "add_index",
-            "remove_index",
-            "add_constraint",
-            "remove_constraint",
-        }:
-            return None
-        item = diff[1]
-        columns = tuple(column.name for column in item.columns)
-        return (type(item).__name__, item.table.name, columns, getattr(item, "unique", None))
 
-    added = Counter(key(diff) for diff in diffs if key(diff) and diff[0].startswith("add_"))
-    removed = Counter(key(diff) for diff in diffs if key(diff) and diff[0].startswith("remove_"))
-    return (
-        [repr(diff) for diff in diffs if key(diff) is None]
-        + [f"ORM adds {item}" for item in (added - removed).elements()]
-        + [f"ORM drops {item}" for item in (removed - added).elements()]
-    )
+def _unexplained_differences(diffs: list[Any]) -> list[str]:
+    """Report every difference except a known rename whose removal and addition both appear."""
+
+    def named(diff: Any) -> tuple[str, str, str] | None:
+        # Column changes arrive as lists of tuples; only index and constraint tuples can be renames.
+        if isinstance(diff, tuple) and diff[0] in {"add_index", "remove_index", "add_constraint", "remove_constraint"}:
+            return (diff[0].split("_", 1)[0], diff[1].table.name, diff[1].name)
+        return None
+
+    present = {named(diff) for diff in diffs}
+    explained: set[tuple[str, str, str] | None] = set()
+    for table, baseline_name, orm_name in KNOWN_NAME_DIFFERENCES:
+        pair = {("remove", table, baseline_name), ("add", table, orm_name)}
+        if pair <= present:
+            explained |= pair
+    return [repr(diff) for diff in diffs if named(diff) is None or named(diff) not in explained]
 
 
 def test_orm_matches_the_migrated_schema(db_url: str, monkeypatch: pytest.MonkeyPatch) -> None:
-    """An ORM schema change without a revision fails here, before installed profiles miss it."""
+    """An ORM schema change without a revision fails here, before installed profiles miss it.
+
+    Compared: tables, columns, types, nullability, server defaults, indexes, and
+    unique and foreign-key constraints. Not compared: CHECK constraints and index predicates.
+    """
 
     from animama.local import installation_model  # noqa: F401 - registers the installation tables
     from animama.orm import Base
@@ -333,8 +350,11 @@ def test_orm_matches_the_migrated_schema(db_url: str, monkeypatch: pytest.Monkey
     with migration_schema(db_url, monkeypatch) as (config, engine):
         command.upgrade(config, "head")
         with engine.connect() as connection:
-            diffs = compare_metadata(MigrationContext.configure(connection, opts={"compare_type": True}), Base.metadata)
-    assert _structural_differences(diffs) == []
+            context = MigrationContext.configure(
+                connection, opts={"compare_type": True, "compare_server_default": True}
+            )
+            diffs = compare_metadata(context, Base.metadata)
+    assert _unexplained_differences(diffs) == []
 
 
 @pytest.mark.parametrize("old_revision", ["0001", "0013_content_mutation_receipts"])

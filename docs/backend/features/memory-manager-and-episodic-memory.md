@@ -1110,7 +1110,8 @@ Undo eligibility from current locked-domain invariants rather than trusting a
 stored boolean.
 
 The `baseline_20260908` SQL includes these columns and constraints. Schema
-changes add an Alembic revision, which ordinary startup applies. Ordinary
+changes add an Alembic revision, which database bootstrap applies (desktop
+startup, or `./reset.sh` for a Compose stack). Ordinary
 `./reset.sh` preserves data and does not upgrade a database stamped outside the
 supported revision graph. See
 [Database operations](../operations/development.md#database) before working

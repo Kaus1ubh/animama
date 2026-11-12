@@ -142,8 +142,10 @@ ORM, so it upgrades an existing database in place and leaves it with the same
 schema as a fresh one. Never edit `0001_baseline.sql`, which is frozen at the
 schema released in desktop 0.1.2, or a merged revision: installed profiles
 already carry them ([ADR 0035](../../docs/adr/0035-released-schema-changes-use-forward-migrations.md)).
-`tests/test_alembic_fresh_install.py` fails when the ORM and the migrated schema
-differ. Update seeds or application defaults directly for data changes.
+`tests/test_alembic_fresh_install.py` compares the migrated schema with the ORM:
+tables, columns, types, nullability, server defaults, indexes, and unique and
+foreign-key constraints. It does not compare CHECK constraints or index
+predicates, so check a revision against those by hand. Update seeds or application defaults directly for data changes.
 
 The local Alembic graph owns the entire accountless local schema. It contains no
 hosted identity tables or foreign keys. A future hosted composition must use a

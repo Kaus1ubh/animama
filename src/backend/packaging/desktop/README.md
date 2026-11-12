@@ -67,9 +67,9 @@ the data-only SQL seeds in `src/backend/migrations/seeds/`, and frontend-owned m
 Source execution knows the checkout layout; frozen execution resolves package resources and fails if one
 is missing. Prompt code ships in the backend package, and versioned starter
 policy uses package resources. The spec includes the complete Alembic tree: the
-single `baseline_20260908` revision and its `0001_baseline.sql`. During development,
-update ORM/database definitions and the baseline SQL directly; do not add
-revisions. Restage after changing these resources. Existing
+frozen `baseline_20260908` revision with its `0001_baseline.sql`, and every later
+revision, which bootstrap applies to an existing profile
+([ADR 0035](../../../docs/adr/0035-released-schema-changes-use-forward-migrations.md)). Restage after changing these resources. Existing
 profiles/backups with a removed pre-release revision need the matching old app
 or checkout, or an explicitly disposable fresh profile; bootstrap must not stamp
 or silently reset them. `database bootstrap` uses Alembic's Python API

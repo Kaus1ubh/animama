@@ -31,9 +31,11 @@ upgrade the previous release's profile cannot pass its acceptance check
    `reasoning_effort_20261112`.
 3. **Merged revisions are never edited.** Installed profiles may already carry
    them; a correction is another revision.
-4. **A test compares the ORM with the migrated schema**, so an ORM change without
-   a revision fails before it ships. Differences in index or constraint names
-   alone are ignored.
+4. **A test compares the ORM with the migrated schema**, so an ORM change to
+   tables, columns, types, nullability, server defaults, indexes, or unique and
+   foreign-key constraints fails without a revision. Six legacy objects whose
+   ORM and baseline names differ are listed explicitly. CHECK constraints and
+   index predicates are not compared and need review by hand.
 
 ## Alternatives
 

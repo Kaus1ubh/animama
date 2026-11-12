@@ -6,8 +6,9 @@ Create Date: 2026-09-08
 
 The companion SQL artifact is frozen at the schema released in desktop 0.1.2:
 installed profiles carry this revision, so editing it would change their schema
-without a migration. Change the schema with a new revision instead. Keep
-initialization independent of live ORM imports.
+without a migration. Change the schema with a new revision instead; the SQL
+file's own header predates the freeze. Keep initialization independent of live
+ORM imports.
 """
 
 from __future__ import annotations

@@ -59,9 +59,10 @@ The SQL creates the tables, constraints, indexes, runtime-worker heartbeats and
 content mutation receipts directly, without importing live ORM metadata. Later
 schema changes are revisions on top of it; the first,
 `reasoning_effort_20261112`, adds `anima_chat_profiles.reasoning_effort`.
-Database bootstrap runs `alembic upgrade head`, so ordinary startup brings an
-existing database forward. The baseline SQL and merged revisions are never
-edited ([ADR 0035](../../adr/0035-released-schema-changes-use-forward-migrations.md)).
+Database bootstrap (desktop startup, or `./reset.sh` for a Compose stack) runs
+`alembic upgrade head`, bringing an existing database forward. The baseline SQL
+and merged revisions are never edited
+([ADR 0035](../../adr/0035-released-schema-changes-use-forward-migrations.md)).
 Update seeds or application defaults for data changes.
 
 The baseline creates and seeds the singleton installation settings row with a
