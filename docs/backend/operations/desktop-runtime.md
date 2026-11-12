@@ -176,10 +176,9 @@ unsigned development core. No unsigned-helper or arbitrary-path fallback exists.
 
 ## Migration snapshots and recovery
 
-The `baseline_20260908` revision initializes fresh databases. During development,
-schema changes update the ORM and baseline SQL directly without new Alembic
-revisions; existing databases do not automatically receive an edited baseline.
-Databases stamped with unsupported revision IDs have no forward upgrade through
+The `baseline_20260908` revision creates the schema released in desktop 0.1.2,
+and later revisions upgrade a profile in place during database bootstrap, after a
+pre-migration snapshot. Databases stamped with unsupported revision IDs have no forward upgrade through
 this graph. Preserve an old profile and its matching app/checkout if its data
 matters; use a separate disposable fresh profile for
 current native validation. Do not relabel an old database with `alembic stamp`,
@@ -187,8 +186,9 @@ automatically purge it, or treat its snapshot as restore-compatible with the new
 history. See [Database operations](development.md#database) for the reset and
 Local/private-file boundary.
 
-Because an edited baseline keeps the same Alembic head, the runtime manifest
-also records `database_schema_sha256`. Staging bootstraps a disposable profile
+Because a schema can differ at the same Alembic head (for example a profile
+from the 0.1.3 preview, built while the baseline was still edited in place),
+the runtime manifest also records `database_schema_sha256`. Staging bootstraps a disposable profile
 database with the bundled PostgreSQL and frozen backend, then hashes its
 `pg_dump --schema-only --no-owner --no-privileges --no-comments` output with
 version headers and per-run `\restrict` keys removed. The supervisor hashes
@@ -196,8 +196,8 @@ the profile the same way and stops with `database_schema_mismatch` before
 launching any service if the digests differ. It checks a profile already at the
 packaged head before bootstrap, so seeds never run against a stale schema, and
 checks a fresh or upgraded profile after bootstrap.
-A future real migration must therefore produce the same schema as a fresh
-baseline. If content reconciliation fails at backend startup, `/_desktop/health`
+Every revision must therefore leave an upgraded profile with exactly the
+schema of a fresh database, including column order. If content reconciliation fails at backend startup, `/_desktop/health`
 returns a terminal `content_startup_failed` and the supervisor reports it
 immediately instead of waiting for the readiness deadline.
 

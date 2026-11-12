@@ -49,6 +49,7 @@ production readiness or publication rights.
 | 0032 | [VRM stays the Avatar container; ARKit shapes are a face capability](0032-vrm-container-with-arkit-face-shapes.md)                                 | accepted                                                      |
 | 0033 | [Digest-keyed URLs for Included content files](0033-digest-keyed-included-content-file-urls.md)                                                    | proposed                                                      |
 | 0034 | [Automatic episode processing and the profile in every turn](0034-automatic-episode-processing-and-profile-context.md)                             | accepted; partly supersedes 0009                              |
+| 0035 | [Released schemas change only through forward migrations](0035-released-schema-changes-use-forward-migrations.md)                                 | accepted                                                      |
 
 ## When and how to record a decision
 

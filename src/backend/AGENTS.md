@@ -134,11 +134,16 @@ Use services, ports, repositories, and mappers for new persistence behavior.
 Some routes use ORM models directly; keep changes local there unless you
 are intentionally refactoring the route.
 
-During development, do not add Alembic revisions. Change the ORM/database
-definitions and `src/backend/migrations/versions/0001_baseline.sql` together when schema changes
-require it; update seeds or application defaults directly for data changes.
-The owner decides when to reset an existing development database. Keep Alembic
-baseline initialization and database bootstrap in place.
+Change the schema with a new revision in `src/backend/migrations/versions/`,
+together with the ORM change. Name the file `NNNN_<topic>.py` and the revision
+`<topic>_<YYYYMMDD>` (at most 32 characters), with the current head as its
+`down_revision`. Write it with Alembic operations or SQL, without importing the
+ORM, so it upgrades an existing database in place and leaves it with the same
+schema as a fresh one. Never edit `0001_baseline.sql`, which is frozen at the
+schema released in desktop 0.1.2, or a merged revision: installed profiles
+already carry them ([ADR 0035](../../docs/adr/0035-released-schema-changes-use-forward-migrations.md)).
+`tests/test_alembic_fresh_install.py` fails when the ORM and the migrated schema
+differ. Update seeds or application defaults directly for data changes.
 
 The local Alembic graph owns the entire accountless local schema. It contains no
 hosted identity tables or foreign keys. A future hosted composition must use a
