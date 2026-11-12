@@ -1193,9 +1193,9 @@ tuning variables include
 `ANIMAMA_USER_FILE_DOCLING_NUM_THREADS=2` to match; the worker's own default is
 4 threads. Table structure mode defaults to
 `ANIMAMA_USER_FILE_DOCLING_TABLE_MODE=fast`, and
-startup warm-up defaults to `ANIMAMA_USER_FILE_DOCLING_WARMUP=true`. Docling
-chunk sizing is controlled by `ANIMAMA_USER_FILE_CHUNK_MAX_TOKENS` and
-`ANIMAMA_USER_FILE_CHUNK_TOKENIZER_MODEL`.
+startup warm-up defaults to `ANIMAMA_USER_FILE_DOCLING_WARMUP=true`. Chunk
+sizing is controlled by `ANIMAMA_USER_FILE_CHUNK_MAX_TOKENS` (see
+[chunking](../features/user-files.md#chunking)).
 
 On its first start, the Compose worker downloads Docling's PDF layout and
 TableFormer models (about 530 MB) from Hugging Face into

@@ -21,6 +21,7 @@ from animama.adapters.content_store.private_file_store import (
     PrivateFileSizeMismatchError,
 )
 from animama.adapters.parsers import docling_user_file_parser as docling_parser_module
+from animama.adapters.parsers.dispatch import parse_user_file
 from animama.adapters.parsers.docling_user_file_parser import DoclingUserFileParser, DoclingUserFileParserError
 from animama.adapters.parsers.isolated_user_file_parser import UserFileParseChildError
 from animama.adapters.parsers.rejections import ENCRYPTED_DOCUMENT_REASON
@@ -32,11 +33,11 @@ from animama.app.ports.private_file_storage import PrivateFileStorage
 from animama.app.ports.user_file_parser_port import UserFileParseRejectedError
 from animama.app.ports.user_file_processing_port import UserFileProcessingRepository
 from animama.app.services import user_file_processing_service as processing_service_module
+from animama.app.services.user_file_chunking import chunk_parsed_user_file_document
 from animama.app.services.user_file_processing_service import (
     UserFileProcessingService,
     UserFileProcessingUnavailableError,
     UserFileProcessingValidationError,
-    chunk_parsed_user_file_document,
     is_retryable_processing_failure,
     read_claimed_upload,
 )
@@ -60,6 +61,7 @@ from animama.domain.user_file_processing import (
     UserFileOutlineItem,
     UserFileProcessingJob,
     UserFileSearchResult,
+    markdown_table,
 )
 from animama.orm.user_file import ORMUserFile
 from animama.orm.user_file_chunk import ORMUserFileChunk
@@ -67,6 +69,7 @@ from animama.orm.user_file_processing_job import ORMUserFileProcessingJob
 from animama.server.model_roles import ModelRoleSettings
 from animama.server.routers import user_files as user_files_router
 from animama.server.schemas.user_file import PyUserFileProcessRequest, PyUserFileSearchRequest
+from tests.user_file_fixtures import IMAGE_PAGE, pdf_bytes, text_page
 
 
 class _FakeEmbedder:
@@ -540,11 +543,12 @@ async def test_replace_chunks_success_and_search_modes(async_session, clean_user
     await _insert_job(async_session, job_id="job-search", file_id="file-search", status=JOB_STATUS_RUNNING, attempts=1)
     repo = SQLAlchemyUserFileProcessingRepository(async_session)
     parsed = ParsedUserFileDocument(
-        text="Alpha project notes.\n\nBeta budget table.",
+        text="# Alpha\n\n" + "Alpha project notes. " * 8 + "\n\n# Beta\n\n" + "Beta budget table. " * 8,
         parser_name="test",
-        metadata={"parser": "test"},
+        metadata={"parser": "test", "format": "md"},
     )
-    chunks = chunk_parsed_user_file_document(parsed, target_chars=40, overlap_chars=5)
+    chunks = chunk_parsed_user_file_document(parsed, max_tokens=64)
+    assert len(chunks) == 2
 
     completed = await repo.replace_chunks_and_mark_success(
         job_id="job-search",
@@ -1164,10 +1168,10 @@ async def test_complete_claimed_job_chunks_large_documents_off_the_event_loop() 
 
     rows = [["name", "value", "notes"], *[[f"row {index}", str(index), "x" * 40] for index in range(6000)]]
     parsed = ParsedUserFileDocument(
-        text="\n".join("\t".join(row) for row in rows),
-        parser_name="test",
-        metadata={"table_only": True},
-        tables=[{"table_index": 0, "rows": rows, "source": "tsv"}],
+        text=markdown_table(rows),
+        parser_name="stdlib-tsv",
+        metadata={"format": "tsv", "table_only": True},
+        tables=[{"table_index": 0, "header": rows[0], "data_row_count": len(rows) - 1, "source": "tsv"}],
     )
     service = UserFileProcessingService(
         processing=cast(UserFileProcessingRepository, _CapturingProcessingRepo()), uow=_NoopUow()
@@ -1388,32 +1392,85 @@ async def test_complete_claimed_job_uses_safe_overview_fallback_on_builder_failu
     }
 
 
-def test_chunking_uses_overlap_and_deterministic_indexes() -> None:
+async def test_complete_claimed_job_chunks_at_headings_within_the_configured_size() -> None:
+    """Chunks follow headings, stay within the chunk size and embed their heading path (spec R4.1 to R4.3)."""
+
+    # Each section fits 64 tokens and 256 characters; two together do not.
+    sections = "\n\n".join(f"## Part {index}\n\n" + " ".join(["budget"] * 30) + "." for index in range(4))
     parsed = ParsedUserFileDocument(
-        text="First paragraph is long enough.\n\nSecond paragraph is also long enough.\n\nThird paragraph closes.",
-        parser_name="test",
-        metadata={"parser": "test"},
+        text=f"# Report\n\n{sections}", parser_name="stdlib-text", metadata={"format": "md"}
+    )
+    repo = _CapturingProcessingRepo()
+    embedder = _RecordingEmbedder()
+    service = UserFileProcessingService(
+        processing=cast(UserFileProcessingRepository, repo), uow=_NoopUow(), chunk_max_tokens=64
     )
 
-    chunks = chunk_parsed_user_file_document(parsed, target_chars=45, overlap_chars=8)
-
-    assert [chunk.chunk_index for chunk in chunks] == list(range(len(chunks)))
-    assert len(chunks) > 1
-    assert all(chunk.char_count == len(chunk.text) for chunk in chunks)
-
-
-def test_chunking_groups_table_rows() -> None:
-    parsed = parse_text_user_file(
-        payload=b"name\tvalue\nalpha\t1\nbeta\t2\ngamma\t3\n",
-        filename="sheet.tsv",
-        extension=".tsv",
+    await service.complete_claimed_job(
+        claimed=_claimed_processing_job(file_id="file-headings", extension=".md"),
+        payload=b"# Report",
+        parser=_StaticParser(parsed),
+        embedder=embedder,
+        max_process_bytes=1024,
     )
 
-    chunks = chunk_parsed_user_file_document(parsed, target_chars=45, overlap_chars=0)
+    first_lines = [chunk.text.split("\n", 1)[0] for chunk in repo.chunks]
+    assert first_lines == ["# Report", "## Part 1", "## Part 2", "## Part 3"]
+    assert [chunk.metadata for chunk in repo.chunks] == [
+        {"chunk_type": "prose", "headings": ["Report", f"Part {index}"]} for index in range(4)
+    ]
+    assert embedder.texts == [f"Report > Part {index}\n\n{chunk.text}" for index, chunk in enumerate(repo.chunks)]
+    assert [chunk.embedding_text for chunk in repo.chunks] == embedder.texts
+    assert all(chunk.token_estimate <= 64 for chunk in repo.chunks)
 
-    assert chunks
-    assert all(chunk.metadata["chunk_type"] == "table" for chunk in chunks)
-    assert chunks[0].metadata["row_start"] == 1
+
+async def test_complete_claimed_job_records_pdf_pages_per_chunk_but_not_in_the_file_row() -> None:
+    parsed = parse_user_file(
+        payload=pdf_bytes(text_page(b"First page text."), IMAGE_PAGE, text_page(b"Third page text.")),
+        filename="paper.pdf",
+        extension=".pdf",
+    )
+    repo = _CapturingProcessingRepo()
+    service = UserFileProcessingService(processing=cast(UserFileProcessingRepository, repo), uow=_NoopUow())
+
+    await service.complete_claimed_job(
+        claimed=_claimed_processing_job(file_id="file-paper"),
+        payload=b"%PDF-1.4",
+        parser=_StaticParser(parsed),
+        embedder=None,
+        max_process_bytes=1024,
+    )
+
+    assert [chunk.metadata for chunk in repo.chunks] == [{"chunk_type": "prose", "pages": [1, 3]}]
+    assert repo.file_metadata is not None
+    parser_metadata = repo.file_metadata["parser_metadata"]
+    # Page offsets only serve chunking; the skipped pages stay recorded with the file.
+    assert "pdf_pages" not in parser_metadata
+    assert parser_metadata["page_count"] == 3 and parser_metadata["pdf_skipped_pages"] == [2]
+    assert repo.file_metadata_updates is not None
+    assert repo.file_metadata_updates["overview"]["description"].startswith("Page 2 has no selectable text. ")
+
+
+async def test_processing_the_same_file_again_yields_the_same_chunks() -> None:
+    steps = "\n\n".join(f"## Step {index}\n\n" + "Install the package and restart the app. " * 20 for index in range(5))
+    parsed = ParsedUserFileDocument(text=f"# Guide\n\n{steps}", parser_name="stdlib-text", metadata={"format": "md"})
+    results: list[list[UserFileChunkDraft]] = []
+    for _attempt in range(2):
+        repo = _CapturingProcessingRepo()
+        service = UserFileProcessingService(
+            processing=cast(UserFileProcessingRepository, repo), uow=_NoopUow(), chunk_max_tokens=100
+        )
+        await service.complete_claimed_job(
+            claimed=_claimed_processing_job(file_id="file-repeat", extension=".md", force=True),
+            payload=b"same bytes",
+            parser=_StaticParser(parsed),
+            embedder=None,
+            max_process_bytes=1024,
+        )
+        results.append(repo.chunks)
+
+    assert len(results[0]) > 1
+    assert results[0] == results[1]
 
 
 def test_text_parsers_validate_json_and_xml() -> None:

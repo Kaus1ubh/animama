@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Final, Literal
@@ -31,6 +32,29 @@ Only ASCII spaces and tabs count, as in CommonMark.
 """
 MARKDOWN_FENCE_RE = re.compile(r"^[ \t]*(`{3,}|~{3,})")
 """The opening or closing line of a fenced code block, whose lines are never headings."""
+
+MARKDOWN_TEXT_FORMATS = frozenset({"md", "markdown", "html", "htm", "docx", "pptx", "xlsx", "pdf", "csv", "tsv"})
+"""Formats whose parsed text is Markdown: its ``#`` lines are headings and its tables are Markdown tables.
+
+The structured parsers write their headings and escape any other line that
+would read as one (a PDF's text has none), and CSV and TSV become one table.
+Plain text (``txt``, ``rst``, ``org``), JSON and XML keep their own syntax, so a
+``#`` line there is text. Formats are named as :func:`user_file_document_format`
+returns them; Docling-parsed documents are named by extension.
+"""
+
+DEFAULT_USER_FILE_CHUNK_MAX_TOKENS = 800
+"""Default chunk size in cl100k_base tokens, heading path included (``ANIMAMA_USER_FILE_CHUNK_MAX_TOKENS``)."""
+MIN_USER_FILE_CHUNK_MAX_TOKENS = 64
+"""Smallest chunk size accepted: room for a heading path and some text."""
+MAX_USER_FILE_CHUNK_MAX_TOKENS = 1_400
+"""Largest chunk size accepted, so one chunk always fits one read of the uploaded-file read tool.
+
+A chunk holds at most four characters per token of the chunk size, and the read
+tool's estimate counts at most one token per character, so the largest chunk is
+at most 5,600 estimated tokens: inside the tool's 6,000 with room for its
+framing, whatever the script.
+"""
 
 SEARCH_MODE_KEYWORD: Final = "keyword"
 SEARCH_MODE_SEMANTIC: Final = "semantic"
@@ -140,7 +164,13 @@ class ClaimedUserFileProcessingJob:
 
 @dataclass(frozen=True, slots=True)
 class ParsedUserFileDocument:
-    """Normalized parser output used by chunking and worker code."""
+    """Normalized parser output used by chunking and worker code.
+
+    ``text`` holds the whole document, tables included. ``tables`` only
+    summarizes each table (its header cells, its number of rows and where it
+    came from) for the overview, so a large workbook's cells cross from the
+    parse child once. ``chunks`` is set only by a parser that chunks itself.
+    """
 
     text: str
     parser_name: str
@@ -151,7 +181,7 @@ class ParsedUserFileDocument:
     source_outline_truncated: bool = False
 
 
-def markdown_table(rows: list[list[str]]) -> str:
+def markdown_table(rows: Sequence[Sequence[str]]) -> str:
     """Render rows as a Markdown table whose first row is the header; short rows are padded."""
 
     if not rows:
@@ -168,21 +198,62 @@ def markdown_table(rows: list[list[str]]) -> str:
     return "\n".join(lines)
 
 
+def user_file_document_format(document: ParsedUserFileDocument) -> str:
+    """The parsed document's format without a dot: its ``format``, else its extension, else its parser's name."""
+
+    value = document.metadata.get("format")
+    if isinstance(value, str) and value.strip():
+        return value.strip().lower().lstrip(".")
+    extension = document.metadata.get("extension")
+    if isinstance(extension, str) and extension.strip():
+        return extension.strip().lower().lstrip(".")
+    return document.parser_name.removeprefix("stdlib-").lower()
+
+
+class MarkdownFenceTracker:
+    """Follow fenced code blocks line by line, so their lines are never read as headings or tables.
+
+    A fence opens at a line of three or more backticks or tildes and closes at
+    the next fence line made of the same character.
+    """
+
+    __slots__ = ("_marker",)
+
+    def __init__(self) -> None:
+        self._marker: str | None = None
+
+    @property
+    def inside(self) -> bool:
+        """Whether the lines read so far end inside a fenced block."""
+
+        return self._marker is not None
+
+    def is_code(self, line: str) -> bool:
+        """Whether ``line`` is a fence line or lies inside a fenced block.
+
+        Call it for every line in order, or at least for every line whose first
+        character other than a space or tab is a backtick or tilde: no other line
+        changes the state, and :attr:`inside` answers for those.
+        """
+
+        fence = MARKDOWN_FENCE_RE.match(line)
+        if fence is not None:
+            marker = fence.group(1)[0]
+            if self._marker is None:
+                self._marker = marker
+            elif self._marker == marker:
+                self._marker = None
+            return True
+        return self._marker is not None
+
+
 def markdown_outline(text: str) -> tuple[UserFileOutlineItem, ...]:
     """Return the ATX headings of Markdown ``text`` in order, ignoring lines inside fenced code blocks."""
 
     items: list[UserFileOutlineItem] = []
-    fence_marker: str | None = None
+    fences = MarkdownFenceTracker()
     for line in text.replace("\r\n", "\n").replace("\r", "\n").split("\n"):
-        fence = MARKDOWN_FENCE_RE.match(line)
-        if fence is not None:
-            marker = fence.group(1)[0]
-            if fence_marker is None:
-                fence_marker = marker
-            elif fence_marker == marker:
-                fence_marker = None
-            continue
-        if fence_marker is not None:
+        if fences.is_code(line):
             continue
         heading = markdown_heading(line)
         if heading is not None:
@@ -226,6 +297,7 @@ class UserFileSearchResult:
 __all__ = [
     "ACTIVE_PROCESSING_JOB_STATUSES",
     "ClaimedUserFileProcessingJob",
+    "DEFAULT_USER_FILE_CHUNK_MAX_TOKENS",
     "JOB_STATUS_FAILED",
     "JOB_STATUS_QUEUED",
     "JOB_STATUS_RUNNING",
@@ -233,6 +305,10 @@ __all__ = [
     "JOB_TYPE_PROCESS_FILE",
     "MARKDOWN_ATX_HEADING_RE",
     "MARKDOWN_FENCE_RE",
+    "MARKDOWN_TEXT_FORMATS",
+    "MAX_USER_FILE_CHUNK_MAX_TOKENS",
+    "MIN_USER_FILE_CHUNK_MAX_TOKENS",
+    "MarkdownFenceTracker",
     "NO_SEARCHABLE_TEXT_ERROR",
     "PROCESSING_INTERRUPTED_ERROR",
     "ParsedUserFileDocument",
@@ -252,4 +328,5 @@ __all__ = [
     "markdown_heading",
     "markdown_outline",
     "markdown_table",
+    "user_file_document_format",
 ]

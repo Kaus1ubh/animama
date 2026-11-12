@@ -134,13 +134,12 @@ def test_markdown_keeps_its_text_and_its_atx_headings_give_the_outline() -> None
 
 
 def test_csv_becomes_a_markdown_table_like_tsv() -> None:
-    csv_rows = b'name,notes\nalpha,"one, two"\nbeta,"line\none"\n'
+    csv_rows = b'name,notes\nalpha,"one, two"\nbeta,"line\none | two"\n'
     tsv_rows = b"name\tnotes\nalpha\tone, two\n"
 
     parsed = _parse(csv_rows, ".csv", "data.csv")
     tsv = _parse(tsv_rows, ".tsv", "data.tsv")
 
-    rows = [["name", "notes"], ["alpha", "one, two"], ["beta", "line\none"]]
     assert parsed.parser_name == "stdlib-csv"
     assert parsed.metadata == {
         "parser": "stdlib",
@@ -150,8 +149,10 @@ def test_csv_becomes_a_markdown_table_like_tsv() -> None:
         "table_only": True,
         "row_count": 3,
     }
-    assert parsed.tables == [{"table_index": 0, "rows": rows, "source": "csv"}]
-    assert parsed.text.startswith("| name | notes |\n| --- | --- |\n| alpha | one, two |")
+    # A table summary, not the cells again: the text already holds them.
+    assert parsed.tables == [{"table_index": 0, "header": ["name", "notes"], "data_row_count": 2, "source": "csv"}]
+    # Each row is one line of the table, so a cell's line breaks and pipes cannot split it.
+    assert parsed.text == "| name | notes |\n| --- | --- |\n| alpha | one, two |\n| beta | line one \\| two |"
     # TSV keeps its existing output; CSV takes the same path.
     assert tsv.text == "| name | notes |\n| --- | --- |\n| alpha | one, two |"
     assert tsv.metadata["table_only"] is True and tsv.parser_name == "stdlib-tsv"
@@ -236,13 +237,7 @@ def test_html_keeps_headings_paragraphs_lists_tables_and_link_text_in_order() ->
     assert parsed.parser_name == "stdlib-html"
     assert parsed.metadata["format"] == "html"
     assert parsed.metadata["title"] == "Trip notes"
-    assert parsed.tables == [
-        {
-            "table_index": 0,
-            "rows": [["Day", "Plan"], ["1", "Gion \\| Pontocho evening"], ["2", "Nara deer"]],
-            "source": "html",
-        }
-    ]
+    assert parsed.tables == [{"table_index": 0, "header": ["Day", "Plan"], "data_row_count": 2, "source": "html"}]
     for dropped in ("script text", "color: red", "Enable JavaScript", "Template text", "svg text", "example.com"):
         assert dropped not in parsed.text
 
@@ -320,9 +315,7 @@ def test_docx_reads_headings_paragraphs_lists_and_tables_in_document_order() -> 
         "format": "docx",
         "table_count": 1,
     }
-    assert parsed.tables == [
-        {"table_index": 0, "rows": [["Item", "Cost"], ["Rent \\| office", "1200"]], "source": "docx"}
-    ]
+    assert parsed.tables == [{"table_index": 0, "header": ["Item", "Cost"], "data_row_count": 1, "source": "docx"}]
 
 
 def test_docx_reads_tracked_insertions_and_content_controls_but_not_deletions() -> None:
@@ -416,7 +409,7 @@ def test_pptx_reads_slides_in_order_with_titles_text_tables_and_notes() -> None:
         "table_count": 1,
     }
     assert parsed.tables == [
-        {"table_index": 0, "rows": [["Phase", "Owner"], ["Build", "Ana"]], "source": "pptx", "slide": 2}
+        {"table_index": 0, "header": ["Phase", "Owner"], "data_row_count": 1, "source": "pptx", "slide": 2}
     ]
 
 
@@ -458,12 +451,6 @@ def _budget_xlsx() -> bytes:
 def test_xlsx_reads_each_sheet_as_a_table_of_saved_values() -> None:
     parsed = _parse(_budget_xlsx(), ".xlsx", "budget.xlsx")
 
-    budget = [
-        ["Item", "Cost", "When"],
-        ["Rent", "1200", "2026-01-05"],
-        ["Food", "300", "2026-01-05 09:30:00"],
-        ["Ratio", "0.3", "TRUE"],
-    ]
     assert parsed.text == (
         "# Budget\n\n"
         "| Item | Cost | When |\n| --- | --- | --- |\n| Rent | 1200 | 2026-01-05 |\n"
@@ -486,10 +473,19 @@ def test_xlsx_reads_each_sheet_as_a_table_of_saved_values() -> None:
         "table_count": 2,
     }
     assert parsed.tables == [
-        {"table_index": 0, "rows": budget, "source": "xlsx", "sheet": "Budget", "first_row": 1, "first_column": 1},
+        {
+            "table_index": 0,
+            "header": ["Item", "Cost", "When"],
+            "data_row_count": 3,
+            "source": "xlsx",
+            "sheet": "Budget",
+            "first_row": 1,
+            "first_column": 1,
+        },
         {
             "table_index": 1,
-            "rows": [["Remember \\| the deposit"]],
+            "header": ["Remember \\| the deposit"],
+            "data_row_count": 0,
             "source": "xlsx",
             "sheet": "Notes",
             "first_row": 3,
@@ -924,7 +920,7 @@ def test_text_formats_drop_a_utf8_byte_order_mark() -> None:
     """Excel's "CSV UTF-8" export, and Windows editors, start the file with U+FEFF."""
 
     assert _parse(b"\xef\xbb\xbfname,value\nalpha,1\n", ".csv").tables == [
-        {"table_index": 0, "rows": [["name", "value"], ["alpha", "1"]], "source": "csv"}
+        {"table_index": 0, "header": ["name", "value"], "data_row_count": 1, "source": "csv"}
     ]
     assert _parse(b'\xef\xbb\xbf{"a": 1}', ".json").text == '{\n  "a": 1\n}'
     assert _parse(b'\xef\xbb\xbf<?xml version="1.0"?><a/>', ".xml").text == '<?xml version="1.0"?><a/>'

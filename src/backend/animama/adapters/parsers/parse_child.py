@@ -12,22 +12,19 @@ from its standard output:
   "error_type": "<failure name for logs>"}``.
 
 Before any parser code runs, the child refuses outbound connections and name
-lookups, disables core dumps, bounds its CPU time (and, as a backstop, its
-address space on Linux), keeps libraries it never needs from loading, and points
-tiktoken at the encodings bundled with llama-index, so reading a file never
-downloads anything (spec R1.5). The parent enforces the wall-clock and
-resident-memory limits on every platform (spec R3.1).
+lookups, so reading a file never downloads anything (spec R1.5), disables core
+dumps, bounds its CPU time (and, as a backstop, its address space on Linux), and
+keeps libraries it never needs from loading. The parent enforces the wall-clock
+and resident-memory limits on every platform (spec R3.1).
 """
 
 from __future__ import annotations
 
-import importlib.util
 import json
 import math
 import os
 import sys
 from dataclasses import dataclass
-from pathlib import Path
 from types import ModuleType
 from typing import Any, BinaryIO, cast
 
@@ -149,33 +146,6 @@ def block_unneeded_imports() -> None:
         sys.modules.setdefault(name, cast(ModuleType, None))
 
 
-def bundled_tiktoken_cache_dir() -> Path | None:
-    """Return the tiktoken encodings directory shipped inside llama-index, if installed.
-
-    The lookup does not import llama-index itself, only its namespace package.
-    """
-
-    try:
-        spec = importlib.util.find_spec("llama_index.core")
-    except (ImportError, ValueError):
-        return None
-    for location in (spec.submodule_search_locations or ()) if spec is not None else ():
-        candidate = Path(location) / "_static" / "tiktoken_cache"
-        if candidate.is_dir():
-            return candidate
-    return None
-
-
-def configure_offline_tokenizer_cache() -> None:
-    """Point tiktoken at the bundled encodings unless the operator chose a cache directory."""
-
-    if os.environ.get("TIKTOKEN_CACHE_DIR"):
-        return
-    directory = bundled_tiktoken_cache_dir()
-    if directory is not None:
-        os.environ["TIKTOKEN_CACHE_DIR"] = str(directory)
-
-
 @dataclass(frozen=True, slots=True)
 class ParseRequest:
     """The header line of a parse request; the upload's bytes follow it."""
@@ -257,7 +227,6 @@ def run_parse_child(stdin: BinaryIO | None = None) -> int:
         apply_resource_limits(memory_limit_mb=request.memory_limit_mb, timeout_seconds=request.timeout_seconds)
         install_network_guard()
         block_unneeded_imports()
-        configure_offline_tokenizer_cache()
         data = _encode_answer(answer_parse_request(request, source.read()))
     except MemoryError:
         data = _encode_answer(
@@ -435,8 +404,6 @@ __all__ = [
     "answer_parse_request",
     "apply_resource_limits",
     "block_unneeded_imports",
-    "bundled_tiktoken_cache_dir",
-    "configure_offline_tokenizer_cache",
     "decode_parse_answer",
     "decode_parsed_document",
     "encode_parsed_document",

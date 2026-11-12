@@ -3,8 +3,9 @@
 Each worksheet, in workbook order, becomes a level-1 heading with its name and
 a Markdown table of its cell values: the values last saved with the workbook,
 never formulas. Fully empty rows and columns at a sheet's edges are trimmed.
-The document is table-only, and each sheet's table is kept in ``tables`` with
-its sheet name and its first row and column, so chunking can work per sheet.
+The document is table-only, so chunking keeps each sheet's chunks apart, and
+``tables`` summarizes each sheet's table with its sheet name and its first row
+and column.
 
 The workbook is opened read-only with saved values only, without external
 links or macros; openpyxl reads sheet XML through defusedxml.

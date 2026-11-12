@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
-import math
 import time
 from collections.abc import Iterable
 from dataclasses import dataclass
@@ -16,6 +15,7 @@ from animama.app.ports.text_embedder import TextEmbedder
 from animama.app.ports.uow_port import UnitOfWork
 from animama.app.ports.user_file_parser_port import UserFileParser, UserFileParseRejectedError
 from animama.app.ports.user_file_processing_port import UserFileProcessingRepository
+from animama.app.services.user_file_chunking import chunk_parsed_user_file_document
 from animama.app.services.user_file_overview import (
     build_user_file_overview,
     fallback_user_file_overview,
@@ -30,6 +30,7 @@ from animama.domain.user_file import (
     STATUS_UPLOADED,
 )
 from animama.domain.user_file_processing import (
+    DEFAULT_USER_FILE_CHUNK_MAX_TOKENS,
     JOB_STATUS_SUCCEEDED,
     JOB_TYPE_PROCESS_FILE,
     NO_SEARCHABLE_TEXT_ERROR,
@@ -37,13 +38,11 @@ from animama.domain.user_file_processing import (
     SEARCH_MODE_KEYWORD,
     SEARCH_MODE_SEMANTIC,
     ClaimedUserFileProcessingJob,
-    ParsedUserFileDocument,
     SearchMode,
     UserFileChunkDraft,
     UserFileProcessingInfo,
     UserFileProcessingJob,
     UserFileSearchResult,
-    markdown_table,
 )
 from animama.logging import get_logger
 from animama.utils.clock import utc_now
@@ -56,9 +55,10 @@ PROCESSABLE_FILE_STATUSES = {
     STATUS_FAILED,
 }
 
-DEFAULT_TARGET_CHARS = 2500
-DEFAULT_OVERLAP_CHARS = 250
 RRF_K = 60
+
+TRANSIENT_PARSER_METADATA = frozenset({"pdf_pages"})
+"""Parser metadata that only chunking reads, left out of the file's stored processing metadata."""
 
 
 class UserFileProcessingServiceError(Exception):
@@ -153,122 +153,6 @@ def new_user_file_processing_job_id() -> str:
     return f"job-{uuid4().hex}"
 
 
-def estimate_tokens(text: str) -> int:
-    """Estimate token count without importing tokenizer dependencies."""
-
-    stripped = text.strip()
-    if not stripped:
-        return 0
-    return max(1, math.ceil(len(stripped) / 4))
-
-
-def chunk_parsed_user_file_document(
-    document: ParsedUserFileDocument,
-    *,
-    target_chars: int = DEFAULT_TARGET_CHARS,
-    overlap_chars: int = DEFAULT_OVERLAP_CHARS,
-) -> list[UserFileChunkDraft]:
-    """Split parsed text into deterministic prose or table-oriented chunks."""
-
-    if document.metadata.get("table_only") and document.tables:
-        table_chunks = _chunk_tables(document, target_chars=target_chars)
-        if table_chunks:
-            return table_chunks
-
-    text = _normalize_chunk_text(document.text)
-    if not text:
-        return []
-
-    chunks: list[UserFileChunkDraft] = []
-    start = 0
-    index = 0
-    text_length = len(text)
-    while start < text_length:
-        end = min(text_length, start + target_chars)
-        if end < text_length:
-            boundary = text.rfind("\n\n", start + target_chars // 2, end)
-            if boundary == -1:
-                boundary = text.rfind("\n", start + target_chars // 2, end)
-            if boundary != -1 and boundary > start:
-                end = boundary
-        chunk_text = text[start:end].strip()
-        if chunk_text:
-            chunks.append(_chunk_draft(index, chunk_text, {**document.metadata, "chunk_type": "prose"}))
-            index += 1
-        if end >= text_length:
-            break
-        next_start = max(end - overlap_chars, start + 1)
-        start = next_start
-    return chunks
-
-
-def _chunk_tables(document: ParsedUserFileDocument, *, target_chars: int) -> list[UserFileChunkDraft]:
-    chunks: list[UserFileChunkDraft] = []
-    chunk_index = 0
-    for table_index, table in enumerate(document.tables or []):
-        rows = table.get("rows")
-        if not isinstance(rows, list) or not rows:
-            continue
-        header = rows[0]
-        body_rows = rows[1:] or []
-        group: list[list[str]] = []
-        row_start = 1
-        for offset, row in enumerate(body_rows, start=1):
-            candidate = [header, *group, row]
-            candidate_text = markdown_table([[str(cell) for cell in r] for r in candidate])
-            if group and len(candidate_text) > target_chars:
-                chunk_text = markdown_table([[str(cell) for cell in r] for r in [header, *group]])
-                chunks.append(
-                    _chunk_draft(
-                        chunk_index,
-                        chunk_text,
-                        {
-                            **document.metadata,
-                            "chunk_type": "table",
-                            "table_index": table.get("table_index", table_index),
-                            "row_start": row_start,
-                            "row_end": offset - 1,
-                        },
-                    )
-                )
-                chunk_index += 1
-                group = [row]
-                row_start = offset
-            else:
-                group.append(row)
-        if group or not body_rows:
-            chunk_text = markdown_table([[str(cell) for cell in r] for r in [header, *group]])
-            chunks.append(
-                _chunk_draft(
-                    chunk_index,
-                    chunk_text,
-                    {
-                        **document.metadata,
-                        "chunk_type": "table",
-                        "table_index": table.get("table_index", table_index),
-                        "row_start": row_start if body_rows else 0,
-                        "row_end": row_start + len(group) - 1 if group else 0,
-                    },
-                )
-            )
-            chunk_index += 1
-    return chunks
-
-
-def _normalize_chunk_text(text: str) -> str:
-    return "\n".join(line.rstrip() for line in text.replace("\r\n", "\n").replace("\r", "\n").split("\n")).strip()
-
-
-def _chunk_draft(index: int, text: str, metadata: dict[str, Any]) -> UserFileChunkDraft:
-    return UserFileChunkDraft(
-        chunk_index=index,
-        text=text,
-        char_count=len(text),
-        token_estimate=estimate_tokens(text),
-        metadata=dict(metadata),
-    )
-
-
 class UserFileProcessingService:
     """Coordinate user-file processing queue, worker, and debug search use cases."""
 
@@ -279,11 +163,13 @@ class UserFileProcessingService:
         uow: UnitOfWork,
         max_attempts: int = 3,
         processing_enabled: bool = True,
+        chunk_max_tokens: int = DEFAULT_USER_FILE_CHUNK_MAX_TOKENS,
     ) -> None:
         self._processing = processing
         self._uow = uow
         self._max_attempts = max(1, max_attempts)
         self._processing_enabled = processing_enabled
+        self._chunk_max_tokens = chunk_max_tokens
         self._log = get_logger("app.services.user_file_processing")
 
     async def list_processing_info(self, *, user_id: str, file_ids: list[str]) -> dict[str, UserFileProcessingInfo]:
@@ -377,10 +263,11 @@ class UserFileProcessingService:
         """Parse, chunk and (when embeddings are on) embed a claimed upload.
 
         ``parser`` reads every format; this service never parses upload bytes
-        itself. Chunking and the overview run in a worker thread so a large
-        document does not stall the server's other requests. With embeddings
-        off the file is ready for keyword search; only an embedding failure
-        marks it ``ready_keyword_only``.
+        itself. Chunks follow the document's headings (see
+        :mod:`animama.app.services.user_file_chunking`). Chunking and the
+        overview run in a worker thread so a large document does not stall the
+        server's other requests. With embeddings off the file is ready for
+        keyword search; only an embedding failure marks it ``ready_keyword_only``.
         """
 
         if payload is None:
@@ -439,6 +326,7 @@ class UserFileProcessingService:
         )
 
         if parsed.chunks is not None:
+            # Only the Docling worker's parser chunks a document itself.
             chunks = parsed.chunks
             self._log.info(
                 "User-file parser-provided chunks selected",
@@ -450,15 +338,15 @@ class UserFileProcessingService:
         else:
             chunk_started = time.perf_counter()
             self._log.info(
-                "User-file fallback chunking started",
+                "User-file chunking started",
                 job_id=claimed.job.id,
                 file_id=claimed.job.file_id,
                 user_id=claimed.job.user_id,
                 parser=parsed.parser_name,
             )
-            chunks = await asyncio.to_thread(chunk_parsed_user_file_document, parsed)
+            chunks = await asyncio.to_thread(chunk_parsed_user_file_document, parsed, max_tokens=self._chunk_max_tokens)
             self._log.info(
-                "User-file fallback chunking finished",
+                "User-file chunking finished",
                 job_id=claimed.job.id,
                 file_id=claimed.job.file_id,
                 user_id=claimed.job.user_id,
@@ -553,7 +441,9 @@ class UserFileProcessingService:
             "source_extension": extension,
             "embedded": embedding_model_id is not None,
             "warnings": processing_warnings,
-            "parser_metadata": parsed.metadata,
+            "parser_metadata": {
+                key: value for key, value in parsed.metadata.items() if key not in TRANSIENT_PARSER_METADATA
+            },
         }
         completed = await self._processing.replace_chunks_and_mark_success(
             job_id=claimed.job.id,
@@ -814,8 +704,6 @@ __all__ = [
     "UserFileProcessingUnavailableError",
     "UserFileProcessingValidationError",
     "UserFileSearchResults",
-    "chunk_parsed_user_file_document",
-    "estimate_tokens",
     "is_retryable_processing_failure",
     "new_user_file_processing_job_id",
     "read_claimed_upload",

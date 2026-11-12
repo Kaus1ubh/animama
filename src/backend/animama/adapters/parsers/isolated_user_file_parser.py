@@ -54,7 +54,6 @@ _CHILD_ENVIRONMENT_NAMES = frozenset(
         "LANG",
         "LANGUAGE",
         "LD_LIBRARY_PATH",
-        "TIKTOKEN_CACHE_DIR",
         "PYTHONPATH",
         "PYTHONHOME",
         "PYTHONUNBUFFERED",

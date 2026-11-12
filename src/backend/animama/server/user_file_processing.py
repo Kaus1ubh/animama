@@ -3,7 +3,8 @@
 One task, started by the application lifespan while processing is enabled,
 claims durable jobs one at a time, reads each upload in a bounded child process
 (:class:`~animama.adapters.parsers.isolated_user_file_parser.IsolatedUserFileParser`),
-chunks and embeds it, and records the result. A heartbeat every few seconds
+chunks it at its headings (``ANIMAMA_USER_FILE_CHUNK_MAX_TOKENS`` sets the size)
+and embeds it, and records the result. A heartbeat every few seconds
 reports the runner live and renews its job's lease, so a long parse keeps its
 claim. A graceful stop returns an unfinished job to the queue without spending
 its attempt; after a crash the job is claimed again once its lease expires, and
@@ -87,6 +88,7 @@ class UserFileProcessingRunner:
         self._lease_seconds = max(1, runtime_settings.anima_user_file_processing_lease_seconds)
         self._max_attempts = max(1, runtime_settings.anima_user_file_processing_max_attempts)
         self._max_process_bytes = max(1, runtime_settings.anima_user_file_max_process_bytes)
+        self._chunk_max_tokens = runtime_settings.anima_user_file_chunk_max_tokens
         # Names this runner's leases and liveness row; it is never shown to a browser.
         self._instance_id = instance_id or f"animama-server-{os.getpid()}-{uuid4().hex[:12]}"
         self._heartbeat_seconds = heartbeat_seconds
@@ -281,6 +283,7 @@ class UserFileProcessingRunner:
             processing=SQLAlchemyUserFileProcessingRepository(session),
             uow=SQLAlchemyUnitOfWork(session),
             max_attempts=self._max_attempts,
+            chunk_max_tokens=self._chunk_max_tokens,
         )
 
 

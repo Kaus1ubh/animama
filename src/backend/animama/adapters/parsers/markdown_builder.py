@@ -18,6 +18,8 @@ from animama.domain.user_file_processing import ParsedUserFileDocument, UserFile
 MAX_HEADING_LEVEL = 6
 MAX_LIST_DEPTH = 8
 """Deepest list nesting kept; deeper items stay at this depth."""
+MAX_SUMMARY_HEADER_CELLS = 32
+"""Header cells kept in a table's summary; an overview names only the first few."""
 
 _WHITESPACE = re.compile(r"\s+")
 # Control characters other than tab and newline never belong in extracted text.
@@ -51,6 +53,22 @@ def table_cell(value: str) -> str:
     """One table cell on one line, with its pipes escaped so they do not split the row."""
 
     return inline_text(value).replace("|", "\\|")
+
+
+def table_summary(rows: Sequence[Sequence[str]], table_index: int, **details: Any) -> dict[str, Any]:
+    """Describe a table without repeating its cells, which the Markdown text already holds.
+
+    ``header`` is the first row's cells (at most :data:`MAX_SUMMARY_HEADER_CELLS`)
+    and ``data_row_count`` counts the rows below it. Chunking reads the rows
+    from the text; the summary only feeds the file's overview.
+    """
+
+    return {
+        "table_index": table_index,
+        "header": list(rows[0][:MAX_SUMMARY_HEADER_CELLS]) if rows else [],
+        "data_row_count": max(0, len(rows) - 1),
+        **details,
+    }
 
 
 def trim_table(rows: Sequence[Sequence[str]]) -> tuple[list[list[str]], int, int]:
@@ -96,7 +114,7 @@ class MarkdownBuilder:
 
     @property
     def tables(self) -> list[dict[str, Any]]:
-        """The tables added so far, each with its ``table_index`` and the details given to :meth:`table`."""
+        """Summaries of the tables added so far (see :func:`table_summary`), with the details given to :meth:`table`."""
 
         return self._tables
 
@@ -140,14 +158,13 @@ class MarkdownBuilder:
     def table(self, rows: Sequence[Sequence[str]], **details: Any) -> None:
         """Add a Markdown table whose first row is the header; ``rows`` are already :func:`table_cell` text.
 
-        The table is also recorded in :attr:`tables` with its index and ``details``.
+        The table is also summarized in :attr:`tables` with its index and ``details``.
         """
 
         if not rows or not any(cell for row in rows for cell in row):
             return
-        table_rows = [list(row) for row in rows]
-        self._blocks.append(_Block(markdown_table(table_rows)))
-        self._tables.append({"table_index": len(self._tables), "rows": table_rows, **details})
+        self._blocks.append(_Block(markdown_table(rows)))
+        self._tables.append(table_summary(rows, len(self._tables), **details))
         self.has_content = True
 
     def text(self) -> str:
@@ -187,10 +204,12 @@ class MarkdownBuilder:
 __all__ = [
     "MAX_HEADING_LEVEL",
     "MAX_LIST_DEPTH",
+    "MAX_SUMMARY_HEADER_CELLS",
     "MarkdownBuilder",
     "clean_text",
     "escape_line_starts",
     "inline_text",
     "table_cell",
+    "table_summary",
     "trim_table",
 ]

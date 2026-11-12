@@ -98,7 +98,6 @@ class UserFileProcessingWorker:
             num_threads=settings.anima_user_file_docling_num_threads,
             table_mode=settings.anima_user_file_docling_table_mode,
             chunk_max_tokens=settings.anima_user_file_chunk_max_tokens,
-            tokenizer_model=settings.anima_user_file_chunk_tokenizer_model,
             artifacts_path=settings.animama_docling_artifacts_path,
         )
         self._embedder_resolver = embedder_resolver or _role_embedder
@@ -321,6 +320,7 @@ def _service(session: AsyncSession, *, max_attempts: int) -> UserFileProcessingS
         processing=SQLAlchemyUserFileProcessingRepository(session),
         uow=SQLAlchemyUnitOfWork(session),
         max_attempts=max_attempts,
+        chunk_max_tokens=settings.anima_user_file_chunk_max_tokens,
     )
 
 

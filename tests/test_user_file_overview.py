@@ -5,6 +5,8 @@ from typing import Any
 
 import pytest
 
+from animama.adapters.parsers.dispatch import parse_user_file
+from animama.app.chat import DirectChatPromptAssembler
 from animama.app.services.user_file_overview import (
     MAX_OVERVIEW_DESCRIPTION_CHARS,
     MAX_OVERVIEW_OUTLINE_ITEMS,
@@ -12,11 +14,14 @@ from animama.app.services.user_file_overview import (
     deserialize_user_file_overview,
     serialize_user_file_overview,
 )
+from animama.domain.user_file import STATUS_READY, UserFile
 from animama.domain.user_file_processing import (
     ParsedUserFileDocument,
     UserFileChunkDraft,
     UserFileOutlineItem,
 )
+from animama.product_http.chat.turn_setup import _attachment_prompt_context
+from tests.user_file_fixtures import IMAGE_PAGE, pdf_bytes, pptx_bytes, simple_docx, text_page, xlsx_bytes
 
 
 def _document(
@@ -191,12 +196,7 @@ def test_xml_overview_uses_root_and_unique_first_level_elements() -> None:
 def test_tsv_and_docling_table_only_documents_receive_table_overviews() -> None:
     tsv = build_user_file_overview(
         filename="data.tsv",
-        document=_document(
-            "| name | value |",
-            parser_name="stdlib-tsv",
-            metadata={"format": "tsv", "table_only": True},
-            tables=[{"table_index": 0, "rows": [["name", "value"], ["alpha", "1"], ["beta", "2"]]}],
-        ),
+        document=parse_user_file(payload=b"name\tvalue\nalpha\t1\nbeta\t2\n", filename="data.tsv", extension=".tsv"),
         chunks=[],
     )
     docling = build_user_file_overview(
@@ -287,3 +287,180 @@ def test_overview_serialization_round_trips_strictly() -> None:
 )
 def test_overview_deserialization_rejects_malformed_metadata(value: object) -> None:
     assert deserialize_user_file_overview(value) is None
+
+
+# --- Overviews from every parser (spec R4.5) and skipped PDF pages (spec R2.6) ------------------------
+
+
+def _deck(presentation: Any) -> None:
+    slide = presentation.slides.add_slide(presentation.slide_layouts[1])
+    slide.shapes.title.text = "Launch Plan"
+    slide.placeholders[1].text = "Ship the beta in spring with a small group of testers."
+
+
+def _workbook(workbook: Any) -> None:
+    workbook.active.title = "Budget"
+    workbook.active.append(["Item", "Cost"])
+    workbook.active.append(["Rent", 1200])
+
+
+@pytest.mark.parametrize(
+    ("extension", "payload", "outline"),
+    [
+        (".md", b"# Guide\n\n## Setup\n\nInstall the package before you start the app.", [(1, "Guide"), (2, "Setup")]),
+        (
+            ".html",
+            b"<h1>Guide</h1><h2>Setup</h2><p>Install the package before you start the app.</p>",
+            [(1, "Guide"), (2, "Setup")],
+        ),
+        (".docx", simple_docx("Install the package before you start the app.", heading="Setup"), [(2, "Setup")]),
+        (".pptx", pptx_bytes(_deck), [(1, "Launch Plan")]),
+        (".xlsx", xlsx_bytes(_workbook), [(1, "Budget")]),
+    ],
+)
+def test_every_structured_format_gets_a_structured_overview(
+    extension: str, payload: bytes, outline: list[tuple[int, str]]
+) -> None:
+    document = parse_user_file(payload=payload, filename=f"file{extension}", extension=extension)
+
+    overview = build_user_file_overview(filename=f"file{extension}", document=document, chunks=[])
+
+    assert overview.method == "structured"
+    assert [(item.level, item.title) for item in overview.outline] == outline
+
+
+def test_docling_documents_still_build_outlines_from_their_markdown() -> None:
+    """Documents the Docling worker produced keep their Markdown outline."""
+
+    document = _document(
+        "# Annual Report\n\n## Results\n\nRevenue grew in every region during the last financial year.",
+        parser_name="docling",
+        metadata={"parser": "docling", "extension": ".docx"},
+    )
+
+    overview = build_user_file_overview(filename="report.docx", document=document, chunks=[])
+
+    assert overview.method == "structured"
+    assert [(item.level, item.title) for item in overview.outline] == [(1, "Annual Report"), (2, "Results")]
+
+
+def test_markdown_outlines_follow_the_format_not_the_parser_name() -> None:
+    text = "# Title\n\n## Part\n\nSome descriptive prose about the parts of this particular document."
+
+    html_document = _document(text, parser_name="stdlib-html", metadata={"format": "html"})
+
+    html = build_user_file_overview(filename="page.html", document=html_document, chunks=[])
+    plain = build_user_file_overview(filename="notes.txt", document=_document(text), chunks=[])
+
+    assert html.method == "structured" and [item.title for item in html.outline] == ["Title", "Part"]
+    # A plain-text file's "#" lines are its own text, not headings.
+    assert plain.method == "extractive" and plain.outline == ()
+
+
+def test_stored_docling_overviews_still_read() -> None:
+    stored = {
+        "version": 1,
+        "description": "Annual Report. Revenue grew in every region.",
+        "outline": [{"level": 1, "title": "Annual Report"}, {"level": 2, "title": "Results"}],
+        "method": "structured",
+        "outline_truncated": False,
+    }
+
+    overview = deserialize_user_file_overview(stored)
+
+    assert overview is not None and serialize_user_file_overview(overview) == stored
+
+
+def _partly_scanned_pdf() -> ParsedUserFileDocument:
+    pages = (
+        text_page(b"Quarterly plan for the northern region and its budget."),
+        IMAGE_PAGE,
+        IMAGE_PAGE,
+        text_page(b"Summary of the decisions taken at the planning meeting."),
+    )
+    return parse_user_file(payload=pdf_bytes(*pages), filename="plan.pdf", extension=".pdf")
+
+
+@pytest.mark.parametrize(
+    ("skipped", "note"),
+    [
+        ([2, 3], "Pages 2–3 have no selectable text."),
+        ([4], "Page 4 has no selectable text."),
+        ([2, 3, 5, 7, 8, 9], "Pages 2–3, 5 and 7–9 have no selectable text."),
+    ],
+)
+def test_pdf_overview_names_the_pages_without_selectable_text(skipped: list[int], note: str) -> None:
+    document = _document(
+        "Quarterly plan for the northern region and its budget for the coming year.",
+        parser_name="pypdfium2",
+        metadata={"format": "pdf", "page_count": 10, "pdf_skipped_pages": skipped},
+    )
+
+    overview = build_user_file_overview(filename="plan.pdf", document=document, chunks=[])
+
+    assert overview.description.startswith(f"{note} ")
+    assert "Quarterly plan for the northern region" in overview.description
+
+
+def test_skipped_pages_of_a_parsed_pdf_are_named_in_its_overview() -> None:
+    document = _partly_scanned_pdf()
+    assert document.metadata["pdf_skipped_pages"] == [2, 3]
+
+    overview = build_user_file_overview(filename="plan.pdf", document=document, chunks=[])
+
+    assert overview.description.startswith("Pages 2–3 have no selectable text. ")
+
+
+def test_skipped_page_note_stays_within_the_description_bound() -> None:
+    document = _document(
+        "The plan describes every region in detail. " * 40,
+        parser_name="pypdfium2",
+        metadata={"format": "pdf", "page_count": 2000, "pdf_skipped_pages": list(range(2, 2001, 2))},
+    )
+
+    overview = build_user_file_overview(filename="plan.pdf", document=document, chunks=[])
+
+    assert len(overview.description) <= MAX_OVERVIEW_DESCRIPTION_CHARS
+    assert overview.description.startswith("Pages 2, 4, 6")
+    assert "more pages have no selectable text." in overview.description
+    assert "The plan describes every region" in overview.description
+    assert deserialize_user_file_overview(serialize_user_file_overview(overview)) == overview
+
+
+@pytest.mark.parametrize("skipped", [None, [], "2", [0, -1, True, "3"]])
+def test_missing_or_malformed_skipped_pages_add_no_note(skipped: object) -> None:
+    metadata: dict[str, Any] = {"format": "pdf"}
+    if skipped is not None:
+        metadata["pdf_skipped_pages"] = skipped
+    text = "Quarterly plan for the northern region and its budget for the coming year."
+
+    overview = build_user_file_overview(
+        filename="plan.pdf", document=_document(text, parser_name="pypdfium2", metadata=metadata), chunks=[]
+    )
+
+    assert overview.description == text
+
+
+def test_skipped_pages_reach_the_anima_in_the_attached_files_prompt_section() -> None:
+    overview = build_user_file_overview(filename="plan.pdf", document=_partly_scanned_pdf(), chunks=[])
+    user_file = UserFile(
+        id="file-plan",
+        user_id="user-1",
+        storage_locator="user-files/user-1/file-plan/original",
+        original_filename="plan.pdf",
+        normalized_extension=".pdf",
+        declared_size_bytes=1024,
+        status=STATUS_READY,
+        metadata={"overview": serialize_user_file_overview(overview)},
+    )
+
+    prompt = DirectChatPromptAssembler().assemble(
+        user_message="What is on page 2?",
+        anima_identity="Identity",
+        attached_files=(_attachment_prompt_context(user_file, chunk_count=2),),
+    )
+
+    request_context = prompt.messages[-2]["content"]
+    assert isinstance(request_context, str)
+    assert request_context.startswith("# List of attached user-uploaded files")
+    assert 'description: "Pages 2–3 have no selectable text. ' in request_context

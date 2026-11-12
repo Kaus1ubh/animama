@@ -12,6 +12,11 @@ from pydantic import BaseModel, Field, model_validator
 from animama.app.model_catalog import RETIRED_BUILTIN_REPLACEMENTS
 from animama.app.safety.config import MAX_REMINDER_HOURS, MIN_REMINDER_HOURS, OperatorSafetyConfig, valid_reminder_hours
 from animama.app.safety.crisis_resources import CrisisResourceTableError, crisis_resource_table
+from animama.domain.user_file_processing import (
+    DEFAULT_USER_FILE_CHUNK_MAX_TOKENS,
+    MAX_USER_FILE_CHUNK_MAX_TOKENS,
+    MIN_USER_FILE_CHUNK_MAX_TOKENS,
+)
 
 
 def _env_text(name: str) -> str | None:
@@ -126,10 +131,9 @@ class Settings(BaseModel):
     anima_user_file_docling_num_threads: int = int(os.getenv("ANIMAMA_USER_FILE_DOCLING_NUM_THREADS", "4"))
     anima_user_file_docling_table_mode: str = os.getenv("ANIMAMA_USER_FILE_DOCLING_TABLE_MODE", "fast")
     anima_user_file_docling_warmup: bool = _env_bool("ANIMAMA_USER_FILE_DOCLING_WARMUP", True)
-    anima_user_file_chunk_max_tokens: int = int(os.getenv("ANIMAMA_USER_FILE_CHUNK_MAX_TOKENS", "800"))
-    # A tiktoken encoding name for chunk sizing only; tokenization runs offline.
-    anima_user_file_chunk_tokenizer_model: str = (
-        _env_text("ANIMAMA_USER_FILE_CHUNK_TOKENIZER_MODEL") or "text-embedding-3-small"
+    # The chunk size in cl100k_base tokens, heading path included; counted offline.
+    anima_user_file_chunk_max_tokens: int = int(
+        os.getenv("ANIMAMA_USER_FILE_CHUNK_MAX_TOKENS", str(DEFAULT_USER_FILE_CHUNK_MAX_TOKENS))
     )
     anima_memory_file_max_bytes: int = int(os.getenv("ANIMAMA_MEMORY_FILE_MAX_BYTES", str(32 * 1024)))
     anima_chat_compaction_enabled: bool = _env_bool("ANIMAMA_CHAT_COMPACTION_ENABLED", True)
@@ -233,12 +237,18 @@ class Settings(BaseModel):
 
     @model_validator(mode="after")
     def validate_user_file_parse_limits(self) -> Settings:
-        """Reject parse limits that would fail every upload."""
+        """Reject parse limits that would fail every upload, and a chunk size outside the chunker's range."""
 
         if not 0 < self.anima_user_file_parse_timeout_seconds < math.inf:
             raise ValueError("ANIMAMA_USER_FILE_PARSE_TIMEOUT_SECONDS must be a positive number of seconds")
         if self.anima_user_file_parse_memory_mb <= 0:
             raise ValueError("ANIMAMA_USER_FILE_PARSE_MEMORY_MB must be a positive number of megabytes")
+        chunk_max_tokens = self.anima_user_file_chunk_max_tokens
+        if not MIN_USER_FILE_CHUNK_MAX_TOKENS <= chunk_max_tokens <= MAX_USER_FILE_CHUNK_MAX_TOKENS:
+            raise ValueError(
+                "ANIMAMA_USER_FILE_CHUNK_MAX_TOKENS must be between "
+                f"{MIN_USER_FILE_CHUNK_MAX_TOKENS} and {MAX_USER_FILE_CHUNK_MAX_TOKENS} tokens"
+            )
         return self
 
     @model_validator(mode="after")

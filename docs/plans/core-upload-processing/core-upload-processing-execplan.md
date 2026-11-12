@@ -122,7 +122,9 @@ Cloud refreshes its package inventories at its next repin, outside this plan.
 - [x] Phase 2: Every accepted format is read (review passed after one repair
   round; the stack check passed for Phases 1, 2 and 4, except the
   skipped-pages note, which is Phase 3 work).
-- [ ] Phase 3: Chunks follow headings.
+- [x] Phase 3: Chunks follow headings (review passed after two repair rounds;
+  the stack check showed heading chunks, PDF page ranges and the skipped-pages
+  answer).
 - [x] Phase 4: The composer holds sends until attachments are readable
   (review passed after two repair rounds; the browser-pane checks moved to the
   Phase 2 stack check).
@@ -842,7 +844,180 @@ produce chunks bounded by headings, as `/v1/files/debug/search` shows.
 
 Completion: commit `feat(uploads)[p3]: chunk uploads at their headings`.
 
-Check record: not started.
+Implementation notes (2026-11-12):
+
+- **Modules.** `app/services/user_file_chunking.py` is the heading-aware
+  chunker. `app/util/text_tokens.py` builds `cl100k_base` directly from
+  llama-index's bundled file after a SHA-256 check, so tiktoken never resolves
+  or downloads anything. A missing or damaged file falls back to a CJK-aware
+  estimate with one warning. Runs over 512 characters are counted in pieces,
+  because tiktoken is quadratic on long unbroken runs.
+- **Merging and splitting.** Adjacent sections merge while they fit whole,
+  keeping their heading lines, and the chunk path is the headings they share.
+  Oversized sections split by paragraphs, sentences, lines, words, then a
+  token cut, and never merge. Table-only documents never merge, so each sheet
+  keeps its own chunks.
+- **Size.** The 800-token limit covers the embedding text. A path longer than
+  a quarter of the limit drops its outer headings. Chunks no longer overlap,
+  and `token_estimate` is an exact `cl100k_base` count.
+- **Tables.** `tables` carries summaries (header cells, row count, sheet and
+  range) instead of cells, and the chunker finds tables in the Markdown and
+  repeats their header row. CSV and TSV cells with a newline or pipe are
+  escaped onto one line.
+- **Metadata.** `pdf_pages` is no longer copied into stored metadata.
+- **Overviews.** Markdown outlines are keyed on format rather than the Docling
+  parser name, table overviews come from the summaries, and the
+  skipped-pages note is added.
+- **Settings.** The tokenizer setting is retired, and the server refuses a
+  chunk size below 64. `ANIMAMA_USER_FILE_CHUNK_MAX_TOKENS` still needs a
+  Compose and `.env.example` entry, which Phase 5 part 2 adds.
+- **XLSX answer** (6 MiB, 4M cells): the answer shrank from 42.9 to 19.6 MiB,
+  decode memory from +247 to +35 MiB, and peak RSS from 500 to 279 MiB.
+  Chunking went from 2.05 s to 3.09 s, and from 9,091 to 18,182 chunks,
+  because the 800-token limit is now enforced. A 9.9 MiB workbook (6.6M cells)
+  still gives a 32.4 MiB answer and 30,000 chunks, about 24M tokens to embed.
+  The spec has no output cap, so none was added; the owner is told.
+- **Timings,** in a worker thread, with the longest event-loop gap:
+
+  | File | Chunking | Overview | Longest loop gap |
+  |---|---|---|---|
+  | 9 MiB text | 0.67 s | 0.57 s | 46 ms |
+  | 8.6 MiB Markdown with 9,000 headings | 0.82 s | — | 34 ms |
+  | 100-page PDF | 0.02 s | — | 17 ms |
+  | 9 MiB CSV | 0.55 s | — | 34 ms |
+
+- **Docs.** `docs/backend/features/user-files.md` gains Chunking, Overview and
+  settings sections, and `development.md` one sentence.
+
+Check record (uncommitted tree `a8b5b0e1` on `56cce87de`):
+
+- Red first: the new tests failed before the implementation.
+- The six-file Phase 3 pytest command: 258 passed, 1 skipped. Related chat,
+  runner, uploads, composition, memory-tool and packaging tests: 451 passed.
+- `ruff check` and `ruff format --check` were clean, `make mypy` found no
+  issues (911 files), and the boundary checker found 0 edges.
+- Stack check on `cup`, with the backend reloaded on the Phase 3 tree:
+  - A DOCX with three headed sections gave two chunks under 800 tokens:
+    "Field guide", covering Birds and Trees merged, and "Field guide > Rivers".
+    The embedding text starts with the heading path, and the stored text has
+    no prefix.
+  - A four-page PDF with blank pages 2 and 4 gave one chunk with
+    `pages: [1, 3]`.
+  - Annie answered: "Pages two and four have no readable text, and the code
+    word is QUARTZ-89."
+
+#### Code Review #1 Findings
+
+The review covered tree `a8b5b0e1` at standard tier. The reviewer judged
+R4.1–R4.6, R2.6 and the XLSX item met. It fuzzed 400 Markdown documents
+(22,748 chunks, limits 64–800, tables, unusual spaces, CJK and code blocks):
+no chunk went over its limit, no text was lost, and a second run was
+identical. The tokenizer matches `tiktoken_ext.openai_public`, and no consumer
+other than the overview reads `tables`.
+
+- P3-R1-F1 (blocking): wide tables and long runs of short words held every
+  chunk's pieces and split words up front.
+  - A 9 MiB CSV with 1,000 columns took 10.2 s, raised RSS from 385 to 1,166
+    MiB, stalled the loop for 301 ms, and produced only prose chunks.
+  - A one-line 9 MiB word list took 7.2 s, reached 1,402 MiB RSS and stalled
+    the loop for 266 ms.
+- P3-R1-F2: token-only limits let a fixed-width report produce 28,097-character
+  chunks. The read tool's estimate refuses those as too long to read.
+- P3-R1-F3: a chunk size of 1 or 2 looped forever, though settings forbid
+  values under 64.
+- P3-R1-F4: the "exact count" claims were overstated for indented table rows
+  and cut runs.
+- P3-R1-F5: exact counting is unverified in the packaged app; the staged
+  runtime predates Phase 3.
+- P3-R1-F6 (optional): a stale XLSX docstring, and an unused tokenizer-cache
+  hook in the child.
+
+#### Code Review #1 Revisions
+
+All findings were accepted.
+
+- F5 is added to the packaged-app check: its log must not contain the "token
+  counts are estimated" warning.
+- F1 to F4 and F6 went back to the implementer as repair round 1. F1 was to
+  emit chunk summaries and split lazily, with a memory and time regression
+  probe. F2 was a character cap matching the read tool. F3 was a minimum-size
+  guard. F4 was counting each final chunk exactly.
+
+Repair round 1 results:
+
+- **F1.** The chunker was rewritten.
+  - Sections stream, and each chunk is found by guessing a cut, snapping back
+    to the best boundary in the span's second half, then counting.
+    Boundaries go from block, to sentence, line, table cell, space, and
+    finally a hard cut.
+  - No object is made per word, line or row, and each chunk's metadata is
+    recorded when it is emitted.
+  - Wide tables: a header too big for a chunk gets its own chunks. Row chunks
+    repeat a header cut to its first columns when it would take over half a
+    chunk, and long rows split after a cell.
+  - Measurements:
+
+    | Probe | Time | Memory | Longest loop gap |
+    |---|---|---|---|
+    | Wide CSV | 9.3 s → 2.1 s | flat (was +781 MiB) | 239 ms → 1 ms; all chunks `table`, 13,328 of 13,335 repeat the header |
+    | One-line word list | 6.7 s → 0.7 s | 1,402 → 195 MiB | — |
+    | Unpunctuated CJK | 22.8 s → 2.7 s | — | — |
+    | Realistic Japanese Markdown | 0.8 s → 0.6 s | — | — |
+
+  - A bounded memory and time test covers single-character words,
+    unpunctuated CJK and a wide CSV.
+- **F2.** A chunk's text holds at most 4 × `max_tokens` characters (3,200 by
+  default). An end-to-end test reads every chunk of a fixed-width report
+  through `read_uploaded_file_chunks`. The chunk size is now limited to
+  64–2,000, so a chunk always fits one read.
+- **F3.** The chunker raises `ValueError` outside 64–2,000.
+- **F4.** `token_estimate` is the exact encoded count of the final embedding
+  text, exact up to 16,384 characters, and the wording matches.
+- **F6.** The docstring is fixed, and the child's unused tokenizer-cache hook
+  is removed.
+
+English prose usually hits the character cap first, at about 740 tokens per
+chunk.
+
+Implementer's record:
+
+- The six-file Phase 3 pytest command: 266 passed, 1 skipped.
+- The related set: 452 passed.
+- Ruff, mypy (911 files) and the boundary checker were clean.
+
+The Phase 3 files hash to tree `e7266167`; Code Review #2 rechecks them.
+
+#### Code Review #2 Findings
+
+The targeted recheck covered tree `e7266167` (matched) at standard tier and
+confirmed F1, F3, F4 and F6.
+
+- **F1.** Reruns kept memory flat with loop gaps of 1–15 ms. The wide CSV took
+  2.2 s, the word run 0.8 s, unpunctuated CJK 2.7 s and Japanese Markdown
+  0.6 s. A 20,000-column CSV and one-line base64 also stayed flat.
+- **Fuzz.** A reduced fuzz of 300 documents gave 73,279 chunks, with limits
+  64–2,000, CJK, Cyrillic, wide and indented tables, code blocks and long
+  runs. It found no chunk over a limit, no lost text, no wrong path, no
+  inexact estimate, and identical reruns.
+- **F2 (non-blocking gap).** The cap guarantees the read limit only for ASCII,
+  because the read tool counts each non-ASCII character as a token. At 2,000,
+  Cyrillic word runs reached 6,209 and runs of `—` reached 8,041 estimated
+  tokens, over the tool's 6,000.
+
+The reviewer reran the six-file pytest command (266 passed, 1 skipped) and
+`test_memory_file_tools.py` (85 passed).
+
+#### Code Review #2 Revisions
+
+F2's gap was closed in repair round 2 by lowering the largest chunk size to
+1,400. Then 4 × 1,400 = 5,600 characters, which is at most 5,600 estimated
+tokens in any script, inside the read tool's 6,000 with room for framing. The
+docstrings and `user-files.md` say so. A new test checks `— `, `что `, `…` and
+`漢` runs at the largest size against the read tool's own estimate. At
+standard tier, this one-constant change needs no reviewer recheck. After it,
+the six Phase 3 files plus `test_memory_file_tools.py` passed 355 with 1
+skipped, and `ruff check`, `make mypy` (911 files) and the boundary checker
+(0 edges) were clean. Phase 3 passes review.
 
 #### Code Review #1 Findings
 
@@ -1117,7 +1292,116 @@ Checks:
 Completion: commit
 `chore(uploads)[p5]: retire Docling and the document-processing pack`.
 
-Check record: not started.
+Implementation notes, part 1: desktop, web, Compose and CI. This ran in
+parallel with Phase 3, on files Phase 3 does not touch.
+
+- **Deleted:** `feature-packs/signature.ts`,
+  `scripts/runtime/{document-worker.mjs,document-native.mjs,worker-input.mjs,worker-input.ts}`,
+  `runtime/document-worker-launcher.c` and
+  `runtime/document-worker.entitlements.plist`.
+- **Supervisor.** It loses every worker path and its environment, and
+  `document_job` is no longer a removal blocker.
+- **Pack catalog.** `catalog.ts` requires every pack to be data-only,
+  unsigned and mode `0644`. `manager.ts` loses the executable-verifier seam and
+  adds the id to `RETIRED_PACK_IDS`. `shared/desktop-runtime.ts` drops the id.
+- **Release tooling.** The pack builder, `feature-packs.mjs`,
+  `release-policy.mjs` (the core app's `team_id`/`signing_identity` stay),
+  `release-macos.mjs`, `measure.mjs` and `smoke-policy.mjs` drop the pack.
+- **Runtime JSONs and scripts.** The runtime JSONs and schema, the acceptance
+  example, the package scripts and `knip.json` drop it too.
+- **Release workflow.** The macOS release workflow loses its `operation` input,
+  `prepare-worker` job and build gate, and its concurrency group is fixed.
+- **Web.** The pack row and the debug panel's pack panel and "Document worker"
+  line are gone. `featurePacks.inUse` is reworded and the pack strings removed
+  in all five locales.
+- **Self-host.** The Dockerfile worker stage, the commented Compose service,
+  the `docling-cache` volume, a stale Torch comment, the Docling cache in
+  `reset.sh` and `scripts/local-stack-state-common.sh` are gone.
+- **Expanded pack.** Its flows stay: the manifest format keeps its fields, so
+  existing manifests stay compatible, and catalog and update limits follow
+  `featurePackIds.length`, now 1.
+- **New tests.** A leftover document pack starts no worker, passes no
+  `ANIMAMA_DOCUMENT_*` environment and is removed. The retired id is refused
+  as a release input and as a size budget.
+- **Kept on purpose:** the generated capability `pack_id` literal, the hosted
+  route exclusion and the retirement entry.
+
+Check record, part 1 (uncommitted; from `src/frontend` unless noted):
+
+- `pnpm --filter animama-desktop check` exit 0.
+- `pnpm desktop:test` passed 645 with 14 skipped on rerun. The first run
+  failed `fuses.test.mjs` under load average 5; that file reads the real
+  Electron binary and passed alone.
+- `check:source` exit 0. Touched vitest files plus `LibraryPage.test.tsx`
+  passed 29, and the touched browser file passed 5.
+- `i18n:check`, `web:lint` and `prettier:check` exit 0. Knip, which is not in
+  `pnpm check`, kept its 1,077 existing findings with none new.
+- From the root: `bash -n reset.sh`, both Compose config selections and
+  `validate_local_compose.py` exit 0. `tests/test_compose_network_boundaries.py`
+  and `test_local_state_scripts.py` passed 151.
+- `python3 ../../scripts/heavy-slot.py -- pnpm desktop:runtime:stage --
+  --platform darwin --arch arm64` exit 0 in about 3.5 min, with the runtime
+  audit OK. It first required `pnpm install --frozen-lockfile` after the
+  product-ui 0.20.0 bump; the lockfile was unchanged. The pack catalog has no
+  entries, and the build and size reports list only the deferred
+  `expanded-included-content`. The core stage, including the Phase 2 parser
+  libraries, is 878,048,581 B installed and 395,458,096 B to download,
+  against budgets of 1,610,612,736 and 786,432,000.
+
+Check record: part 2 (backend and dependencies) follows Phase 3.
+
+#### Code Review #1 Findings (part 1)
+
+The review covered tree `ec3ea0cc` (recomputed unchanged at start and end) at
+high risk, scoped to part 1; part 2 gets its own review. The reviewer reran:
+
+- the desktop check, `pnpm desktop:test` (645 passed, 14 skipped, no flake)
+  and the five touched desktop test files (205 passed);
+- `check:source`, the touched web vitest files (29 passed), `i18n:check` and
+  `web:lint`;
+- `bash -n` on both shell scripts, both Compose selections with
+  `validate_local_compose.py`, and the Compose and state-script tests (151
+  passed);
+- a YAML and reference check of the workflow (actionlint is not installed);
+- `check_source.py` against temporary indexes.
+
+Findings:
+
+- P5-R1-F1 (blocking): the seven deleted desktop files still had
+  source-review entries, which surfaced as `stale: 7` against the part-1
+  tree.
+- P5-R1-F2 (blocking): `.env.example` still set the dead
+  `ANIMAMA_DOCLING_CACHE_HOST_PATH`.
+- P5-R1-F3 (blocking, trivial): desktop Settings search still listed
+  "document processing" as a keyword for the feature-pack section.
+- P5-R1-F4: stale wording remained in `electron-guide.md`, `files.ts`,
+  `release-windows.mjs` and a `LibraryPage.tsx` comment. The
+  `DesktopFeaturePacksPanel` `only` prop is used only by its test.
+- P5-R1-F5 (optional): the manifest schema and types still allow platform
+  values, signing and mode `0755` that validation now refuses. The platform
+  check is unreachable.
+- P5-R1-F6: the debug panel's processing-off note is English-only. The file
+  is exempt from i18n, but the panel renders in production.
+- P5-R1-F7: follow-ups for part 2 (the packaging README and the now-uncalled
+  worker spec and resources) and Phase 6 (`releases.md` and
+  `runtime-staging.md`). The next signed release needs new reviews. The
+  default stack's `./cache/docling` folder can be deleted.
+
+Verified with no defect: the supervisor lifecycle, the expanded-pack
+validation and digests, the macOS and Windows release policies, the smoke
+checks, workflow references and concurrency, `reset.sh` on existing stacks,
+and the i18n wording.
+
+#### Code Review #1 Revisions (part 1)
+
+- F3 fixed: the keyword is removed. The part-2 review rechecks it.
+- F1 and F2 move to part 2, which removes the stale entries and the
+  `.env.example` key with the backend ones.
+- F4 accepted for part 2.
+- F5 declined: the manifest format stays stable for existing
+  expanded-pack manifests, as the comment in `catalog.ts` documents.
+- F6 goes to the owner, alongside the existing English-only debug panel note.
+- F7 is split between part 2, Phase 6 and the PR's remaining gates.
 
 #### Code Review #1 Findings
 
@@ -1207,7 +1491,10 @@ criteria):
 2. **Packaged macOS app:** `pnpm desktop:mac:build:run`, an unsigned local
    build with no feature pack. With embeddings off, the same per-format check
    passes. Record the core size increase from the stage report against
-   `size-budgets.json`. Run no other checks while it packs.
+   `size-budgets.json`. Run no other checks while it packs. The app's
+   backend log must not contain the "token counts are estimated" warning, so
+   that counting uses the bundled tokenizer file (P3-R1-F5). Desktop Quick
+   Chat shows the hold and keeps its draft, which was deferred from Phase 4.
 3. **Windows x64:** there is no local Windows build environment. The desktop
    Windows release tests must still pass. The PR records native bundling of
    lxml and pypdfium2 on Windows as unperformed until the next Windows

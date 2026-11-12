@@ -251,6 +251,26 @@ async def test_runner_processes_uploads_through_the_parse_child(
     assert await runner.process_once() is False
 
 
+async def test_runner_chunks_with_the_configured_chunk_size(
+    async_session_factory: async_sessionmaker[AsyncSession], clean_tables: None
+) -> None:
+    storage = _MemoryStorage()
+    paragraphs = "\n\n".join(f"Paragraph {index} describes the plan for the coming season." for index in range(40))
+    await _queue(async_session_factory, storage, file_id="sized", payload=paragraphs.encode())
+
+    runner = _runner(async_session_factory, storage, _TextParser(), anima_user_file_chunk_max_tokens=64)
+    assert await runner.process_once() is True
+
+    async with async_session_factory() as session:
+        estimates = (
+            (await session.execute(select(ORMUserFileChunk.token_estimate).where(ORMUserFileChunk.file_id == "sized")))
+            .scalars()
+            .all()
+        )
+    assert len(estimates) > 1
+    assert max(estimates) <= 64
+
+
 async def test_wake_claims_new_work_without_waiting_for_the_next_poll(
     async_session_factory: async_sessionmaker[AsyncSession], clean_tables: None
 ) -> None:

@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import asyncio
 import json
-import os
 import socket
 import subprocess
 import sys
@@ -370,21 +369,6 @@ def test_linux_child_cannot_grow_past_its_address_space_backstop() -> None:
     assert result.stdout.strip() == "limited", result.stderr
 
 
-def test_child_points_tiktoken_at_the_encodings_bundled_with_llama_index(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("TIKTOKEN_CACHE_DIR", "")
-
-    parse_child.configure_offline_tokenizer_cache()
-
-    directory = Path(os.environ["TIKTOKEN_CACHE_DIR"])
-    assert directory.parts[-4:] == ("llama_index", "core", "_static", "tiktoken_cache")
-    assert any(entry.is_file() and entry.name != ".gitignore" for entry in directory.iterdir())
-
-    # An operator's own cache directory wins.
-    monkeypatch.setenv("TIKTOKEN_CACHE_DIR", "/operator/tiktoken")
-    parse_child.configure_offline_tokenizer_cache()
-    assert os.environ["TIKTOKEN_CACHE_DIR"] == "/operator/tiktoken"
-
-
 def test_parsed_documents_survive_the_child_protocol() -> None:
     document = ParsedUserFileDocument(
         text="# Report\n\nBody text",
@@ -449,7 +433,6 @@ def test_child_environment_is_an_allowlist_without_secrets() -> None:
         "LC_ALL": "C.UTF-8",
         "PYTHONUNBUFFERED": "1",
         "PYTHONPATH": "/app/src",
-        "TIKTOKEN_CACHE_DIR": "/operator/tiktoken",
         "_PYI_APPLICATION_HOME_DIR": "/Applications/Animama.app/Contents/Resources/runtime",
         "SystemRoot": "C:\\Windows",
     }

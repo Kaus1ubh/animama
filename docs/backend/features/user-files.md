@@ -134,8 +134,7 @@ file ID. Existing null digests are not backfilled; simultaneous duplicate
 uploads may both process before either result is ready.
 
 By default, the worker warms Docling's PDF pipeline before claiming jobs. Warm-up failures
-log a warning. Tokenization uses the configured model, falling back to
-`cl100k_base` when tiktoken cannot resolve it. Scanned PDFs need explicit OCR;
+log a warning. Scanned PDFs need explicit OCR;
 encrypted/password-protected documents fail processing.
 
 ## Embeddings role
@@ -193,38 +192,53 @@ Frontend tracks transient Uppy metadata stages: `preparing`, `initializing`, `up
 ## Chunking
 
 Chunking turns one parsed file into smaller searchable rows in
-`user_file_chunk`. Each chunk has a stable `chunk_index`, extracted text,
-character count, estimated token count, optional embedding, and parser/source
-metadata. Reprocessing deletes existing chunks for the file and writes a new
-deterministic chunk set before marking the job succeeded.
+`user_file_chunk`. Each chunk has a stable `chunk_index`, its text, character
+count, the token count of its embedding text (`token_estimate`), optional
+embedding, and compact metadata. Reprocessing
+deletes existing chunks for the file and writes a new chunk set before marking
+the job succeeded; the same file always gives the same chunks.
 
-Docling-parsed formats use Docling Core's `HybridChunker`:
+The server chunks every parsed document at its headings
+(`app/services/user_file_chunking.py`), in a worker thread:
 
-- Supported Docling formats are `.md`, `.csv`, `.html`, `.htm`, `.pdf`,
-  `.docx`, `.pptx`, and `.xlsx`.
-- `HybridChunker` starts from Docling's document hierarchy, splits chunks that
-  exceed the configured token budget, and merges compatible neighboring chunks
-  when `merge_peers` allows it.
-- Anima stores display text in chunk rows and embeds Docling's contextualized
-  text, kept in `embedding_text` so re-embedding matches. Contextualized text is
-  not exposed through public APIs.
-- Hybrid chunk metadata is compacted to stable keys: `parser`, `chunker`,
-  `headings`, `captions`, `origin`, `doc_items`, `doc_item_count`, and
-  `token_count`. Bulky Docling document items are truncated in metadata while
-  `doc_item_count` preserves the original item count.
+- Markdown headings divide the text into sections with a heading path, such as
+  `Report > Results > Costs`. Office documents, HTML, Markdown, PDF text and the
+  tables of CSV, TSV and XLSX files are Markdown. Plain text (`.txt`, `.rst`,
+  `.org`), JSON and XML have no headings, so their `#` lines are text.
+- A section that fits is one chunk, and adjacent sections merge while they fit.
+  Heading lines stay in the chunk text, and a merged chunk's path is the
+  headings its sections share. Worksheets never share a chunk.
+- A larger section is cut one chunk at a time. Each chunk takes as much as fits
+  and ends at the best boundary in the second half of that span: a blank line
+  or block start, then a sentence end (`. ! ?` before whitespace, or `。！？`;
+  not in code), a line break, a space, and only then anywhere. Nothing is
+  materialized per word, line or paragraph, so a pathological file costs time
+  in proportion to its chunks.
+- A table split across chunks ends a chunk after a row, else after a cell, and
+  every chunk of rows repeats the header and delimiter rows. A header that
+  would take more than half a chunk is cut to its first columns, with an `…`
+  column, and gets chunks of its own.
+- `ANIMAMA_USER_FILE_CHUNK_MAX_TOKENS` bounds each chunk's embedding text: its
+  heading path, a blank line, then its text. The stored text has no path;
+  `embedding_text` keeps the embedded form so re-embedding matches, and is not
+  exposed through public APIs. A path longer than a quarter of the limit drops
+  its outer headings.
+- The stored text also holds at most four characters per token of the chunk
+  size (3,200 at the default). `read_uploaded_file_chunks` estimates four ASCII
+  characters per token, so text where one token covers a long run of spaces,
+  such as a fixed-width report, still fits one read.
+- Tokens are `cl100k_base`, read from the encoding file llama-index bundles; no
+  tokenizer is downloaded. Every chunk's count is exact: its embedding text is
+  encoded whole. If that file is missing or damaged, counts fall back to a
+  CJK-aware estimate and the server logs a warning once.
+- Metadata holds `chunk_type` (`prose` or `table`), `headings` (the path),
+  `pages` (`[first, last]` for a PDF), and `table_index`, `row_start` and
+  `row_end` for rows of one table. Per-page character offsets stay out of the
+  stored metadata; `processing.parser_metadata` keeps a PDF's `page_count` and
+  `pdf_skipped_pages`.
 
-Simple formats and Docling fallback use the deterministic character/table
-chunker:
-
-- Prose chunks target about 2,500 characters.
-- Neighboring prose chunks overlap by about 250 characters.
-- The splitter prefers paragraph boundaries, then line boundaries, before
-  falling back to the character window.
-- Table-only stdlib TSV output is chunked by Markdown table row groups so the
-  table header stays with each group.
-
-This fallback strategy is predictable and dependency-light, and it keeps simple
-text formats out of Docling.
+Chunks the Docling worker stored keep their own metadata (`chunker:
+docling_hybrid`) and stay searchable; content reuse copies them unchanged.
 
 ## Processing Overviews
 
@@ -235,11 +249,14 @@ extraction `method`, and an `outline_truncated` flag. Operational parser,
 embedding, warning, and chunk-count details remain under
 `user_file.metadata.processing`.
 
-Rich files use Docling's native title and section tree while the converted
-document is available, with exported Markdown headings as a fallback. JSON,
-XML, and table-only files use format-specific structural summaries. Plain text
-without recognized structure receives an extractive description and an empty
-outline rather than fabricated sections. Overview extraction is local and
+Office documents, HTML and Markdown take their outline from their headings, and
+a PDF from its bookmarks; other Markdown formats fall back to their text's
+headings. JSON, XML, and table-only files use format-specific structural
+summaries. Plain text without recognized structure receives an extractive
+description and an empty outline rather than fabricated sections. A PDF with
+pages that have no selectable text starts its description by naming them, for
+example "Pages 2–3 have no selectable text.", in at most 160 characters, so the
+Anima can say which pages it could not read. Overview extraction is local and
 deterministic: it does not call a model provider, and a safe fallback prevents
 overview failures from failing an otherwise searchable processing job.
 
@@ -356,6 +373,11 @@ Limits:
   `25 MiB`.
 - `ANIMAMA_USER_FILE_MAX_PROCESS_BYTES`: worker payload limit. Defaults to
   `10 MiB`.
+- `ANIMAMA_USER_FILE_CHUNK_MAX_TOKENS`: [chunk](#chunking) size in
+  `cl100k_base` tokens, heading path included. Defaults to `800`; the server
+  refuses to start outside `64` to `1400`, the largest size whose chunks always
+  fit one `read_uploaded_file_chunks` read in any script. It sizes chunks only
+  and is independent of the embeddings model.
 
 Worker loop:
 
@@ -382,11 +404,6 @@ Docling:
   `accurate`. Defaults to `fast`.
 - `ANIMAMA_USER_FILE_DOCLING_WARMUP`: warm Docling's PDF pipeline when the
   worker starts. Defaults to `true`.
-- `ANIMAMA_USER_FILE_CHUNK_MAX_TOKENS`: Docling `HybridChunker` token budget.
-  Defaults to `800`.
-- `ANIMAMA_USER_FILE_CHUNK_TOKENIZER_MODEL`: OpenAI/tiktoken model name for
-  `HybridChunker` sizing. Defaults to `text-embedding-3-small`; it only sizes
-  chunks and is independent of the embeddings model.
 
 Compose worker resources:
 
