@@ -177,7 +177,7 @@ local server package, so any composition can return the same contract; the local
 router is a thin adapter. `runtime_kind` is presentation metadata (`desktop`,
 `self_hosted_web` or `hosted`), not an authentication mode or a feature gate;
 the local composition never reports `hosted`. Capability schema version 2 is
-exported in `local-http` contract version 22.0.0. `chat`, `model_selection` and
+exported in `local-http` contract version 23.0.0. `chat`, `model_selection` and
 `model_role_selection` admit chat and choices from the composition's catalog,
 independently of provider administration. The local adapter reports them true.
 `provider_credentials` and `local_filesystem_administration` describe owner key
@@ -840,9 +840,14 @@ The model selector write API is:
 - `PATCH /v1/animas/{anima_id}/chat-profile`
 
 The request body is `{ "default_model_provider_id": "<catalog row id>" }`,
-for example `OpenAIHTTPAgent:gpt-6-luna` or an owner row's `owner:<hex>` id.
-The route verifies anima ownership and an active `model_providers` row of kind
-`chat` before updating the profile; other rows return `400`.
+for example `OpenAIHTTPAgent:gpt-6-luna` or an owner row's `owner:<hex>` id,
+with an optional `reasoning_effort`. The route verifies anima ownership and an
+active `model_providers` row of kind `chat` before updating the profile; other
+rows return `400`. A `reasoning_effort` string must be one of the row's
+supported efforts (else `400`), and null clears it. Omitting it keeps the saved
+effort when the model is unchanged and clears it when the model changes. The
+response's `chat_profile.reasoning_effort` is the saved value, null meaning the
+model's default.
 
 ## Chat SSE
 
