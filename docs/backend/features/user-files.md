@@ -391,7 +391,7 @@ Docling:
 Compose worker resources:
 
 - `ANIMAMA_FILE_WORKER_CPUS`: CPU quota for the `animama-file-worker` service.
-  Defaults to `4.0`.
+  Defaults to `2.0`.
 - `ANIMAMA_FILE_WORKER_MEMORY`: memory limit for the `animama-file-worker`
   service. Defaults to `4g`.
 

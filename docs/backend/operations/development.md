@@ -1189,12 +1189,21 @@ tuning variables include
 `ANIMAMA_USER_FILE_DOCLING_ENABLE_OCR`,
 `ANIMAMA_USER_FILE_DOCLING_DO_TABLE_STRUCTURE`, and
 `ANIMAMA_USER_FILE_DOCLING_ACCELERATOR`. The commented Compose example gives the file worker
-to `ANIMAMA_FILE_WORKER_CPUS=4.0` and `ANIMAMA_FILE_WORKER_MEMORY=4g`. Docling
-CPU inference defaults to `ANIMAMA_USER_FILE_DOCLING_NUM_THREADS=4`, table
-structure mode defaults to `ANIMAMA_USER_FILE_DOCLING_TABLE_MODE=fast`, and
+`ANIMAMA_FILE_WORKER_CPUS=2.0` and `ANIMAMA_FILE_WORKER_MEMORY=4g`, and sets
+`ANIMAMA_USER_FILE_DOCLING_NUM_THREADS=2` to match; the worker's own default is
+4 threads. Table structure mode defaults to
+`ANIMAMA_USER_FILE_DOCLING_TABLE_MODE=fast`, and
 startup warm-up defaults to `ANIMAMA_USER_FILE_DOCLING_WARMUP=true`. Docling
 chunk sizing is controlled by `ANIMAMA_USER_FILE_CHUNK_MAX_TOKENS` and
 `ANIMAMA_USER_FILE_CHUNK_TOKENIZER_MODEL`.
+
+On its first start, the Compose worker downloads Docling's PDF layout and
+TableFormer models (about 530 MB) from Hugging Face into
+`ANIMAMA_DOCLING_CACHE_HOST_PATH` (default `./cache/docling`). It reuses them
+after restarts. With warm-up off, the first PDF triggers the download instead.
+Only PDFs need these models; until they are available, PDF jobs fail and retry.
+`HF_TOKEN` raises Hugging Face rate limits. Do not set `DOCLING_ARTIFACTS_PATH`:
+Docling then loads models only from that directory and never downloads them.
 
 The worker records a heartbeat every five seconds; the API reports it stale
 after twenty seconds. It also renews its running job lease independently of a

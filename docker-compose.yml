@@ -172,7 +172,10 @@ services:
   #     LOGNAME: animama
   #     ANIMAMA_CONTENT_ROOT: /var/lib/animama/content
   #     ANIMAMA_DATA_ROOT: /var/lib/animama/data
-  #     DOCLING_ARTIFACTS_PATH: /var/cache/animama/docling
+  #     # Docling downloads its PDF models into the cache mount on first start.
+  #     # DOCLING_ARTIFACTS_PATH would instead require them to exist already.
+  #     HF_HOME: /var/cache/animama/docling/huggingface
+  #     TIKTOKEN_CACHE_DIR: /var/cache/animama/docling/tiktoken
   #     ANIMAMA_DATABASE_URL: "postgresql+asyncpg://${POSTGRES_USER:-animama}:${POSTGRES_PASSWORD:-a}@postgres:5432/${POSTGRES_DB:-animama}"
   #     ANIMAMA_DATABASE_POOL_SIZE: ${ANIMAMA_DATABASE_POOL_SIZE:-5}
   #     ANIMAMA_DATABASE_MAX_OVERFLOW: ${ANIMAMA_DATABASE_MAX_OVERFLOW:-10}
