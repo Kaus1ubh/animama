@@ -2,7 +2,7 @@
 
 The release tools build signed macOS 15+ Apple-silicon candidates and support
 guarded updates, upgrade snapshots and installed-artifact smoke tests.
-Signed macOS preview builds 0.1.0 to 0.1.2 are published; no stable feed has
+Signed macOS preview builds 0.1.0 to 0.1.3 are published; no stable feed has
 been. Animama's prebuilt distribution ends before 2027-01-01: the final
 release will never check for updates, and
 [Ending distribution](#ending-distribution) is the owner's runbook for it and
