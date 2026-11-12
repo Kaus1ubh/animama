@@ -16,6 +16,9 @@ ACTIVE_PROCESSING_JOB_STATUSES = {
     JOB_STATUS_RUNNING,
 }
 
+PROCESSING_INTERRUPTED_ERROR = "Processing was interrupted"
+"""Recorded when a job's last attempt stopped (a crash or restart) before it finished."""
+
 SEARCH_MODE_KEYWORD: Final = "keyword"
 SEARCH_MODE_SEMANTIC: Final = "semantic"
 SEARCH_MODE_HYBRID: Final = "hybrid"
@@ -135,6 +138,23 @@ class ParsedUserFileDocument:
     source_outline_truncated: bool = False
 
 
+def markdown_table(rows: list[list[str]]) -> str:
+    """Render rows as a Markdown table whose first row is the header; short rows are padded."""
+
+    if not rows:
+        return ""
+    width = max(len(row) for row in rows)
+    normalized = [[cell.strip() for cell in row] + [""] * (width - len(row)) for row in rows]
+    header = normalized[0]
+    lines = [
+        "| " + " | ".join(header) + " |",
+        "| " + " | ".join("---" for _ in header) + " |",
+    ]
+    for row in normalized[1:]:
+        lines.append("| " + " | ".join(row) + " |")
+    return "\n".join(lines)
+
+
 @dataclass(frozen=True, slots=True)
 class UserFileSearchResult:
     """Search result over processed user-file chunks."""
@@ -158,6 +178,7 @@ __all__ = [
     "JOB_STATUS_RUNNING",
     "JOB_STATUS_SUCCEEDED",
     "JOB_TYPE_PROCESS_FILE",
+    "PROCESSING_INTERRUPTED_ERROR",
     "ParsedUserFileDocument",
     "SEARCH_MODE_HYBRID",
     "SEARCH_MODE_KEYWORD",
@@ -172,4 +193,5 @@ __all__ = [
     "UserFileProcessingJob",
     "UserFileProcessingJobSummary",
     "UserFileSearchResult",
+    "markdown_table",
 ]

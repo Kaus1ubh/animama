@@ -203,11 +203,8 @@ export class RuntimeSupervisor {
           root: path.join(this.options.runtimeRoot, "content", id),
         })).filter((source) => existsSync(source.root)),
       ]),
-      ANIMAMA_USER_FILE_PROCESSING_ENABLED: this.activePacks[
-        "document-processing"
-      ]
-        ? "1"
-        : "0",
+      // Upload processing stays on by the backend's default: the core
+      // backend reads uploads itself, whether or not a pack is active.
       ANIMAMA_DOCUMENT_WORKER_INSTANCE_ID: this.documentInstance,
       ...(this.activePacks["document-processing"]
         ? {

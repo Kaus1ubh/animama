@@ -40,7 +40,7 @@ def main(argv: list[str] | None = None) -> int:
     root = configure_resources()
     if args.audit_resources:
         from animama.adapters.parsers.docling_user_file_parser import DoclingUserFileParser
-        from animama.app.services.user_file_processing_service import parse_lightweight_user_file
+        from animama.adapters.parsers.text_user_file_parser import parse_lightweight_user_file
 
         # Local conversion exercises Docling's native imports and packaged model
         # weights under HF offline mode, without a database or provider key.

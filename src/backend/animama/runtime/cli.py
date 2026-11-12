@@ -74,6 +74,10 @@ def parser() -> argparse.ArgumentParser:
     worker.add_parser("avatar-cleanup")
     worker.add_parser("user-files")
     commands.add_parser("audit-resources", help="Verify frozen resources without credentials or a database")
+    commands.add_parser(
+        "parse-upload",
+        help="Read one uploaded file from standard input within limits (started by the server)",
+    )
     return command
 
 
@@ -164,6 +168,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         asyncio.run(cleanup())
     elif args.command == "worker":
         return delegate_document_worker()
+    elif args.command == "parse-upload":
+        # Parser code is imported only inside the child, after it installs its guards.
+        from animama.adapters.parsers.parse_child import run_parse_child
+
+        return run_parse_child()
     else:
         from animama.runtime.resources import print_resource_audit
 

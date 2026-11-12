@@ -1544,6 +1544,23 @@ describe("runtime supervision", () => {
     }
   });
 
+  it("leaves upload processing on by the backend's default, whatever the shell says", async () => {
+    // The core backend processes uploads itself (spec #871 R1.7); no feature
+    // pack switches it, and an owner's shell variable must not turn it off.
+    vi.stubEnv("ANIMAMA_USER_FILE_PROCESSING_ENABLED", "false");
+    try {
+      const current = create();
+      await current.runtime.start();
+      expect(fastapiLaunches()).toHaveLength(1);
+      for (const child of fixture.launches)
+        expect(child.env).not.toHaveProperty(
+          "ANIMAMA_USER_FILE_PROCESSING_ENABLED",
+        );
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
   it("passes no companion-safety override to any packaged child", async () => {
     // Packaged builds must run with the safe defaults (spec R8); a shell
     // variable on the owner's machine must not relax them.

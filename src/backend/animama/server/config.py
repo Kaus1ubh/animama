@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import math
 import os
 from datetime import timedelta
 from pathlib import Path
@@ -70,8 +71,8 @@ class Settings(BaseModel):
     animama_desktop_control_token: str | None = Field(
         default_factory=lambda: _env_text("ANIMAMA_DESKTOP_CONTROL_TOKEN"), repr=False
     )
-    # Compose retains its existing processing deployment; desktop explicitly
-    # disables it until main verifies the matching executable feature pack.
+    # The server processes uploads itself in every local composition; a
+    # self-host operator may turn processing off (uploads are still saved).
     animama_user_file_processing_enabled: bool = _env_bool("ANIMAMA_USER_FILE_PROCESSING_ENABLED", True)
     animama_document_worker_instance_id: str | None = _env_text("ANIMAMA_DOCUMENT_WORKER_INSTANCE_ID")
     animama_document_pack_version: str | None = _env_text("ANIMAMA_DOCUMENT_PACK_VERSION")
@@ -112,6 +113,9 @@ class Settings(BaseModel):
     anima_user_file_processing_batch_size: int = int(os.getenv("ANIMAMA_USER_FILE_PROCESSING_BATCH_SIZE", "1"))
     anima_user_file_processing_lease_seconds: int = int(os.getenv("ANIMAMA_USER_FILE_PROCESSING_LEASE_SECONDS", "300"))
     anima_user_file_processing_max_attempts: int = int(os.getenv("ANIMAMA_USER_FILE_PROCESSING_MAX_ATTEMPTS", "3"))
+    # Each upload is parsed in a child process; past either limit the file fails with a reason.
+    anima_user_file_parse_timeout_seconds: float = _env_float("ANIMAMA_USER_FILE_PARSE_TIMEOUT_SECONDS", 120.0)
+    anima_user_file_parse_memory_mb: int = int(os.getenv("ANIMAMA_USER_FILE_PARSE_MEMORY_MB", "1024"))
     anima_user_file_docling_timeout_seconds: int = int(os.getenv("ANIMAMA_USER_FILE_DOCLING_TIMEOUT_SECONDS", "120"))
     anima_user_file_docling_enable_ocr: bool = _env_bool("ANIMAMA_USER_FILE_DOCLING_ENABLE_OCR", False)
     anima_user_file_docling_do_table_structure: bool = _env_bool(
@@ -225,6 +229,16 @@ class Settings(BaseModel):
                     "Model default %s names retired %s; using %s", field, configured, replacement
                 )
                 setattr(self, field, replacement)
+        return self
+
+    @model_validator(mode="after")
+    def validate_user_file_parse_limits(self) -> Settings:
+        """Reject parse limits that would fail every upload."""
+
+        if not 0 < self.anima_user_file_parse_timeout_seconds < math.inf:
+            raise ValueError("ANIMAMA_USER_FILE_PARSE_TIMEOUT_SECONDS must be a positive number of seconds")
+        if self.anima_user_file_parse_memory_mb <= 0:
+            raise ValueError("ANIMAMA_USER_FILE_PARSE_MEMORY_MB must be a positive number of megabytes")
         return self
 
     @model_validator(mode="after")

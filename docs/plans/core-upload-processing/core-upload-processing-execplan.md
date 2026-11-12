@@ -117,7 +117,8 @@ Cloud refreshes its package inventories at its next repin, outside this plan.
 - [x] G0: the owner approved this plan on 2026-11-12.
 - [x] Workspace setup: spec published to #871 (2026-11-12T18:40:18Z), label
   `triage:ready-for-agent`, environment installed, plan committed (p0).
-- [ ] Phase 1: The core server processes uploads.
+- [x] Phase 1: The core server processes uploads (review passed after two
+  repair rounds; the stack check moved to Phase 2).
 - [ ] Phase 2: Every accepted format is read.
 - [ ] Phase 3: Chunks follow headings.
 - [ ] Phase 4: The composer holds sends until attachments are readable.
@@ -156,6 +157,13 @@ From planning research on 2026-11-12:
   This plan adds entries only for its own files and leaves that gap to the
   owner. Its checks therefore confirm that the report lists none of this
   task's files.
+- Phase 1: Windows development with auto-reload cannot start child
+  processes, because uvicorn's reloader uses a selector event loop. There,
+  jobs retry and then fail. The packaged Windows app does not reload.
+- Phase 1: Compose passes an explicit environment list to `animama-server`, so
+  the new parse-limit settings, and the poll, lease and size settings, cannot
+  be overridden in a self-host stack until Compose and `.env.example` list
+  them. Phase 2 adds them while it edits the Compose and Docker files.
 
 ## Decision Log
 
@@ -195,6 +203,10 @@ From planning research on 2026-11-12:
   `worker_state`. The runner records the existing heartbeat row with its own
   instance id, and the enqueue route wakes it so jobs start at once.
 - 2026-11-12, agent: desktop retires the pack id through `RETIRED_PACK_IDS`.
+- 2026-11-12, agent (implementation): Phase 4 ran in parallel with Phase 1
+  because they touch separate files. It is committed after Phase 1, and Phases
+  2 and 3 follow. The text parser moved to `adapters/parsers/` in Phase 1
+  rather than Phase 2, so the child stays small (see the Phase 1 notes).
 
 ## Phased implementation
 
@@ -296,15 +308,194 @@ stay queued and resume when it is turned back on.
 
 Completion: commit `feat(uploads)[p1]: process uploads inside the core server`.
 
-Check record: not started.
+Implementation notes (2026-11-12):
+
+- **Text parser moved early.** The child does not import the service module.
+  It imports `adapters/parsers/text_user_file_parser.py` instead, and the
+  Markdown table helper moved to the domain module. Importing
+  `animama.app.services` pulled in the ORM, pgvector and numpy. In a Linux
+  container the child then took about 550 MB of address space, 10 OpenBLAS
+  threads and 1 s to start, and crashed inside OpenBLAS under a 256 MB limit.
+  Now it takes about 40 MB, one thread and 0.1 s, and a test pins its import
+  footprint. A 149 MB JSON file under a 128 MB limit fails with the memory
+  reason.
+- **Responsiveness.** Chunking and the overview run in a worker thread.
+  In-loop they blocked for 1.3 s (overview of 10 MiB of text) and 1.15 s
+  (chunking a 7.8 MB table). A test checks that the server keeps answering.
+- **Child hardening.** The child runs in its own session (a process group
+  without a window on Windows) with a scrubbed environment: no `ANIMAMA_*`
+  variables and no provider keys. Core dumps are off, a CPU-time limit bounds
+  an orphaned child, and its stdout is protected from stray library output.
+- **Claims.** Claiming always commits, so the sweep of interrupted last
+  attempts sticks even when nothing is claimed. A file with a newer queued job
+  is left alone.
+- **Wake and settings.** The `:process` route wakes the runner through a
+  FastAPI dependency, and the OpenAPI document is byte-identical. Settings
+  reject zero, negative or infinite parse limits at startup.
+- **Process count.** Every composition runs one runner: built Compose and
+  desktop `serve` run one uvicorn process, and development Compose and the
+  native launcher run the reloader plus one app process.
+- **Desktop smoke.** The smoke journey records `no_automatic_optional_download`
+  and a new `core_upload_processing` check.
+
+Check record (uncommitted tree; the Phase 1 files hash to tree `0ed87dff` on
+top of `e0ce5ff01`):
+
+- Red first: the new runner, child and capability tests failed before the
+  implementation.
+- `timeout 1200 uv run --no-sync pytest -q tests/test_user_file_processing.py
+  tests/test_user_file_processing_runner.py tests/test_user_file_parse_child.py
+  tests/test_runtime_capabilities.py
+  tests/test_product_http_runtime_capabilities.py
+  tests/test_user_file_uploads.py tests/test_user_file_worker.py`: exit 0, 139
+  passed, 1 skipped. The skipped test is Linux-only (`RLIMIT_AS`) and was
+  checked by hand in a Linux container.
+- The related composition, packaging, wiring and boundary test files: 37
+  passed. Import boundary checker: 0 forbidden edges.
+- `uv run --no-sync ruff check` passed; `ruff format --check src/backend tests`
+  was clean; `UV_NO_SYNC=1 make mypy` found no issues in 897 files.
+- From `src/frontend`: `pnpm --filter animama-desktop check` exit 0; the
+  runtime-supervisor and smoke-hardening vitest files: 65 passed.
+- Not run in this phase: the task-stack check (moved to the Phase 2 stack
+  check, which covers it), the frozen app, Windows, and the full pre-push
+  suite.
 
 #### Code Review #1 Findings
 
-Not started.
+The review covered tree `0ed87dff` (all 25 files matched) at high risk. The
+reviewer reran:
+
+- The phase's pytest command (139 passed, 1 skipped), `ruff check`,
+  `make mypy` and the import boundary checker.
+- The two desktop vitest files (65 passed).
+- An OpenAPI export: byte-identical to the baseline (sha256 `f3fa651d`).
+
+It also probed the event loop and the child environment.
+
+- P1-R1-F1 (blocking): the final chunk write flushes every chunk at once.
+  pgvector's bind processing then holds the event loop: 4,660 chunks with
+  1536-dimension embeddings stalled it for 1.62 s. Content reuse rebinds
+  vectors the same way.
+- P1-R1-F2 (blocking): the child environment removed only `ANIMAMA_*`
+  variables and provider keys. `PGPASSWORD`, `PGHOST`, `PGUSER` and unrelated
+  shell secrets still reached the child.
+- P1-R1-F3 (blocking): the six new files had no source-review entry.
+- P1-R1-F4: the child's `error_type` was never logged.
+- P1-R1-F5: a child that died for environmental reasons failed the file
+  permanently. The desktop smoke would not catch a broken frozen
+  `parse-upload` dispatch.
+- P1-R1-F6: `read_claimed_upload` reported every read error as "not found",
+  which is now permanent.
+- P1-R1-F7: the interrupted-restart stack check had to carry over to Phase
+  2, and the hosted-capability test from step 6 was missing.
+- P1-R1-F8: in the interim, a running optional worker or pack would lose
+  Office and PDF jobs to the runner's "not supported yet" until Phase 2, so
+  Phases 1 and 2 must ship together.
+- P1-R1-F9 (optional): a graceful stop left the cancelled job to the 300 s
+  lease. For Phase 2, check that pypdfium2 and lxml start under the Linux
+  `RLIMIT_AS`.
+
+The reviewer judged the Windows auto-reload limitation acceptable for
+packaged and Compose use, and to be documented in Phase 6. It verified sound:
+the claim and sweep transitions, wake ordering, child cancellation and
+reaping, the pipe handling, and the instance-id capability.
 
 #### Code Review #1 Revisions
 
-Not started.
+All findings were accepted.
+
+- F3: entries are added with the Phase 1 commit.
+- F7: the stack check already carries over in Phase 2.
+- F8: Phases 1 and 2 ship together in this plan's single PR.
+- F1, F2, F4, F5 (with a smoke check that requires a ready worker and, where
+  practical, one `.txt` reaching Ready), F6, the hosted test from F7, and F9's
+  requeue went back to the implementer as repair round 1.
+
+Repair round 1 results:
+
+- **F1.** Chunks are written 32 per flush (`CHUNK_WRITE_BATCH`). Content reuse
+  copies chunks inside the database with one `INSERT … SELECT`, so vectors
+  never pass through Python. It keeps the chunk ids, the current-model vector
+  rule and the metadata rewrite. On the reviewer's case of 4,660 chunks ×
+  1,536 dimensions:
+
+  | Path | Max loop gap before | Max loop gap after | Total time |
+  |---|---|---|---|
+  | Write | 1.63 s | 0.02 s | 2.91 s → 2.88 s |
+  | Reuse | not measured | 0.009 s | 0.73 s |
+
+  Write and reuse have tests with embeddings on.
+- **F2.** The child's environment is an allowlist: path, home, temp, locale,
+  `LD_LIBRARY_PATH`, `TIKTOKEN_CACHE_DIR`, named Python and PyInstaller
+  variables, and Windows system variables. Its test includes `PG*`, cloud and
+  token secrets.
+- **F4.** A `UserFileParseError` base carries `error_type`. The runner logs it
+  with the job and file ids and the extension, and logs only the length of
+  the child's stderr.
+- **F5.** A child that ends without a valid answer raises a retryable
+  `UserFileParseChildError`. Timeouts, the memory limit and content rejections
+  stay permanent. The desktop smoke requires `worker_state` `ready`, its
+  `desktop-smoke.txt` to reach Ready with chunks, and the file to stay Ready
+  after a restart.
+- **F6.** A new port error, `PrivateFileUnavailableError`, covers a missing
+  file and a size mismatch, which are permanent. Other read errors retry.
+- **F7.** A hosted-style composition test checks the exact hosted
+  `user_file_processing` values and that no runner starts.
+- **F9.** A graceful stop requeues the in-flight job without spending its
+  attempt.
+
+Implementer's record after the round:
+
+- The Phase 1 pytest command: 150 passed, 1 skipped. Related tests: 41
+  passed.
+- Ruff, `make mypy` (897 files) and the boundary checker were clean. The
+  OpenAPI document is unchanged.
+- The desktop check and the two desktop vitest files (65) passed.
+
+The packaged-app smoke itself was not run. The Phase 1 files hash to tree
+`ab324dac` on `e0ce5ff01`; Code Review #2 rechecks them.
+
+#### Code Review #2 Findings
+
+The targeted recheck covered tree `ab324dac` (all 28 files matched) at high
+risk. It confirmed F1, F2, F4, F5, F6, F7 and F9.
+
+- **F1.** The reviewer's probe showed a 0.020 s longest loop gap for writes
+  and 0.010 s for reuse. All 4,660 rows were copied with matching vectors.
+  The SQL copy keeps the chunk-id form, owner filter, current-model vector
+  rule, embedding text, counts, metadata rewrite and database defaults. The
+  batches only flush, and the service commits once, so other sessions never
+  see a partial set of chunks.
+- **F2.** The probe dropped `PG*`, `ANIMAMA_*`, provider, cloud and token
+  secrets and `PYTHONSTARTUP`, and real children still start.
+- **F9.** Requeue cannot race the sweep or another claimer. It runs while
+  the heartbeat still renews the lease, and it is conditioned on
+  `status='running' AND locked_by=<self>`.
+
+There were no regressions. One non-blocking note: the release smoke accepted
+only `ready`, so an embedding hiccup that leaves the file `ready_keyword_only`
+would fail it.
+
+The reviewer reran the Phase 1 pytest files plus `test_local_app_composition.py`
+and `test_user_file_storage.py` (159 passed, 1 skipped), `ruff check`,
+`make mypy`, the boundary checker and the two desktop vitest files (65
+passed).
+
+#### Code Review #2 Revisions
+
+The smoke now accepts `ready` or `ready_keyword_only` for processing and
+persistence, through a `searchable` list. `node --check` passed, the
+smoke-hardening tests passed (6), and Prettier was clean. This is repair round
+2; Code Review #3 rechecks it.
+
+#### Code Review #3 Findings
+
+The recheck found only the smoke file changed since `ab324dac`. The change is
+correct: a missing response short-circuits before `chunk_count` is read, and
+`ready_keyword_only` still proves the packaged child read the file. The
+reviewer reran `node --check` and the smoke-hardening tests (6 passed). No
+blocking finding remains, and Phase 1 passes review. The source-review entries
+for the six new files land with this commit.
 
 ### Phase 2: Every accepted format is read
 
@@ -363,6 +554,16 @@ Checks:
 - `docker compose -f docker-compose.yml config --quiet` and the development
   selection. Rebuild `animama-server` for the task stack; one file of each
   supported format reaches Ready.
+- Composer checks in the browser pane on the same stack, deferred from
+  Phases 1 and 4:
+  - Sending is held while a file processes, with both the button and Enter.
+  - A failed file shows its reason, and removing it makes sending available
+    again.
+  - Voice Mode keeps held words.
+  - Desktop Quick Chat keeps its draft and shows the hold. If the browser
+    pane cannot reach Quick Chat, this moves to the packaged-app check.
+  - A job interrupted by restarting `animama-server` completes after the
+    restart.
 
 Completion: commit `feat(uploads)[p2]: read Office, HTML and PDF uploads without Docling`.
 
@@ -471,15 +672,139 @@ removed. Voice Mode keeps held words.
 
 Completion: commit `feat(chat)[p4]: hold sends until attachments are readable`.
 
-Check record: not started.
+Implementation notes (2026-11-12). This phase ran in parallel with Phase 1 on
+separate files and is committed right after it.
+
+- **Hold states.** `blocked` wins over `waiting`, because waiting alone would
+  never release the send.
+- **Voice Mode.** With Voice Mode on and held words in the box, the button
+  offers stop-voice instead of the held state, because the microphone control
+  only mutes.
+- **Failed enqueue.** It marks the card failed with its reason, so the hold
+  blocks instead of waiting forever. If capabilities cannot be read, the hook
+  still requests the enqueue and lets the server decide.
+- **Quick Chat.** It shows the held state in a tooltip, with no toast.
+- **Wording.** "Waiting for files to be ready", "Remove unreadable files to
+  send". "Unreadable" also covers originals saved while processing is turned
+  off.
+- **Declarations.** Four product-ui `.d.ts` files changed additively
+  (`chat/session-bindings`, `chat/useProductChatSession`,
+  `components/chat-input-submit-state`, `components/chat-input`), so
+  product-ui moved from 0.19.0 to 0.20.0 in `package.json` and
+  `contracts/hosted-web.md`. Cloud admits 0.20.0 at its repin.
+- **Docs.** `docs/frontend/features/user-file-uploads.md` describes the hold,
+  and `docs/frontend/runtime/voice.md` held voice turns. The upload doc's pack
+  section is Phase 5 and 6 work.
+
+Check record (uncommitted tree; the Phase 4 files hash to tree `53112b41` on
+top of `e0ce5ff01`; from `src/frontend`):
+
+- Red first: 11 failures across 6 files, plus 1 for Voice Mode.
+- `timeout 900 pnpm -s packages:build` and `pnpm -s packages:check`: exit 0.
+- `pnpm --filter animama-web check:source`: exit 0.
+- Targeted vitest (6 files): 50 passed. Neighbouring chat, user-files,
+  uploads, hooks, library, components and routes folders: 60 files, 417
+  passed.
+- `pnpm --filter @animama/product-ui test`: 50 passed.
+- `pnpm i18n:extract`, `pnpm i18n:check` and `pnpm i18n:status`: exit 0.
+- `pnpm web:lint`: exit 0. `pnpm prettier:workspace --check`: exit 0.
+- Browser: `hosted-composition` 29 passed. `hosted-workflows` passed 25 when
+  run alone; under load it failed 1 unrelated settings test on a first-page
+  timeout.
+- Not run: the browser-pane check on a stack (moved to the Phase 2 stack
+  check), `pnpm verify`, e2e and the full pre-push suite.
 
 #### Code Review #1 Findings
 
-Not started.
+The review covered tree `53112b41`, recomputed unchanged before and after the
+reviewer's runs, at high risk. The reviewer reran:
+
+- `packages:build` (exactly the 4 expected declarations changed; 66 files),
+  `packages:check`, and the product-ui tests (50 passed).
+- The 6 targeted vitest files (50 passed), and 62 neighbouring files (432
+  passed).
+- `check:source`, `i18n:check`, `i18n:status`, `web:lint`, and
+  `hosted-composition` (29 passed).
+
+Findings:
+
+- P4-R1-F1 (blocking): the three new files have no `licenses/source-review.json`
+  entry.
+- P4-R1-F2 (non-blocking): the browser-pane checks deferred to Phase 2 were
+  not listed there. These are a failed file's reason, removal re-enabling
+  sending, held Voice Mode words and the Quick Chat draft. The reviewer also
+  suggested a helper test for removing the failed file from a failed and ready
+  pair.
+- P4-R1-F3: a held Enter in Quick Chat was silent, and the doc's "a notice
+  says why" was untrue there.
+- P4-R1-F4: the upload doc did not mention the Voice Mode exception.
+- P4-R1-F5 (optional): the held `aria-disabled` replaced a consumer's value.
+- P4-R1-F6 (optional): the snapshot's `attachmentHold` was optional, for an
+  owner window that predates the hold. The project wants no pre-launch
+  compatibility paths.
+- P4-R1-F7 (optional): the hold arguments were built twice in
+  `ChatInterface.tsx`.
+- P4-R1-F8 (optional, narrow race): the hold was checked before chat creation
+  awaited, but file ids were read after it.
+
+Verified with no finding: every send path passes the guard before the input
+is cleared, polled rows release the hold, the card-status precedence change is
+safe, and R6.5 and R6.6 are met across all five locales.
 
 #### Code Review #1 Revisions
 
-Not started.
+All eight findings were accepted.
+
+- F1: entries are added with the Phase 4 commit.
+- F2: the checks were added to the Phase 2 stack check. A helper test was
+  added (`chat-attachment-hold.test.ts`): removing the failed file from a
+  failed and ready pair gives `none`.
+- F3: a held Quick Chat submit shows the same localized notice and keeps the
+  draft. product-ui exports `useChatAttachmentHoldNotice`, which both the
+  session and Quick Chat use. New test:
+  `web/src/routes/-quick-chat-attachment-hold.test.tsx`.
+- F4: the upload doc states the Voice Mode exception and the Quick Chat
+  notice.
+- F5: the held control sets `aria-disabled={held || consumer value}`.
+- F6: the snapshot field is required and validated.
+- F7: a single `holdFor` builds the hold arguments.
+- F8: attached file ids are read right after the hold check, before any
+  await, with a test that adds a file during chat creation.
+
+Four new tests failed before these repairs. After them, the implementer's
+record:
+
+- `packages:build`, `packages:check` and product-ui 50 passed.
+- 7 targeted files 55 passed; 61 neighbouring files 422 passed.
+- `check:source`, `i18n:check`, `web:lint` and both Prettier checks passed.
+- Declarations: still the same 4 files, within the 0.20.0 bump.
+
+#### Code Review #2 Findings
+
+The targeted recheck covered tree `cd8eb101` at high risk. It confirmed F2 to
+F8 and found one regression from F6.
+
+- P4-R2-F1 (blocking): the Quick Chat safety-bridge fixture in
+  `CompanionSafetyView.test.tsx` lacked the now-required `attachmentHold`.
+  The earlier neighbouring run had not included `src/ui/safety`.
+
+The reviewer reran `packages:build` and `packages:check`, the declaration
+diff, product-ui (50 passed), the 7 targeted files (55 passed), 65
+neighbouring files (442 passed, 1 failed: F1), `check:source`, `i18n:check`
+and `web:lint`.
+
+#### Code Review #2 Revisions
+
+P4-R2-F1 was fixed by adding `attachmentHold: "none"` to the fixture. The file
+passed 9 tests. A grep shows the only other snapshot fixture is already
+updated. This is repair round 2, the last allowed; Code Review #3 rechecks
+it.
+
+#### Code Review #3 Findings
+
+The recheck confirmed the fix (fixture line only) and reran 65 neighbouring
+vitest files, which passed 443, and `check:source`, which exited 0. No
+blocking finding remains, so Phase 4 passes review.
 
 ### Phase 5: Docling, the separate worker and the pack are retired
 

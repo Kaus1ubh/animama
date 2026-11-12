@@ -19,6 +19,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 
 from animama.adapters.content_store.private_file_store import FilesystemPrivateFileStorage
 from animama.adapters.parsers.docling_user_file_parser import DoclingUserFileParser
+from animama.adapters.parsers.text_user_file_parser import LIGHTWEIGHT_EXTENSIONS, parse_lightweight_user_file
 from animama.adapters.repositories.sqlalchemy.runtime_worker_repo import (
     clear_document_heartbeat,
     record_document_heartbeat,
@@ -27,8 +28,13 @@ from animama.adapters.repositories.sqlalchemy.uow import SQLAlchemyUnitOfWork
 from animama.adapters.repositories.sqlalchemy.user_file_processing_repo import SQLAlchemyUserFileProcessingRepository
 from animama.app.ports.private_file_storage import PrivateFileStorage
 from animama.app.ports.text_embedder import TextEmbedder
-from animama.app.services.user_file_processing_service import UserFileProcessingService
-from animama.domain.user_file_processing import ClaimedUserFileProcessingJob
+from animama.app.ports.user_file_parser_port import UserFileParser
+from animama.app.services.user_file_processing_service import (
+    UserFileProcessingService,
+    is_retryable_processing_failure,
+    read_claimed_upload,
+)
+from animama.domain.user_file_processing import ClaimedUserFileProcessingJob, ParsedUserFileDocument
 from animama.logging_config import get_logger
 from animama.server.config import settings
 from animama.server.local_runtime import initialize_local_runtime
@@ -38,6 +44,22 @@ log = get_logger("user-file.processing-worker")
 
 EmbedderResolver = Callable[[AsyncSession, str], Awaitable[TextEmbedder | None]]
 """Resolve the embeddings-role embedder for one file owner."""
+
+
+class _StandardLibraryFirstParser:
+    """This worker's split: standard-library formats in process, the rest through its parser.
+
+    The processing service no longer parses any format itself; the server's
+    runner reads every format in a bounded child process instead.
+    """
+
+    def __init__(self, parser: UserFileParser) -> None:
+        self._parser = parser
+
+    async def parse(self, *, payload: bytes, filename: str, extension: str) -> ParsedUserFileDocument:
+        if extension.lower() in LIGHTWEIGHT_EXTENSIONS:
+            return parse_lightweight_user_file(payload=payload, filename=filename, extension=extension)
+        return await self._parser.parse(payload=payload, filename=filename, extension=extension)
 
 
 class UserFileProcessingWorker:
@@ -210,7 +232,7 @@ class UserFileProcessingWorker:
                 await service.complete_claimed_job(
                     claimed=claimed,
                     payload=payload,
-                    parser=self._parser,
+                    parser=_StandardLibraryFirstParser(self._parser),
                     embedder=embedder,
                     max_process_bytes=self._max_process_bytes,
                 )
@@ -222,6 +244,7 @@ class UserFileProcessingWorker:
             )
         except Exception as exc:
             error = str(exc).strip() or exc.__class__.__name__
+            retryable = is_retryable_processing_failure(exc)
             log.warning(
                 "User-file processing job failed",
                 job_id=claimed.job.id,
@@ -229,11 +252,12 @@ class UserFileProcessingWorker:
                 user_id=claimed.job.user_id,
                 attempts=claimed.job.attempts,
                 max_attempts=claimed.job.max_attempts,
+                retryable=retryable,
                 error=error,
             )
             async with self._session_factory() as session:
                 service = _service(session, max_attempts=self._max_attempts)
-                await service.record_claimed_job_failure(claimed=claimed, error=error)
+                await service.record_claimed_job_failure(claimed=claimed, error=error, retryable=retryable)
 
     async def _embedder_for(self, session: AsyncSession, claimed: ClaimedUserFileProcessingJob) -> TextEmbedder | None:
         """Resolve the file owner's embeddings role for this job.
@@ -265,23 +289,7 @@ class UserFileProcessingWorker:
             return self._object_loader(claimed.storage_locator)
         if self._private_storage is None:  # Defensive: constructor establishes this invariant.
             return None
-        expected_size = claimed.stored_size_bytes or claimed.declared_size_bytes
-        try:
-            with self._private_storage.open_bounded(
-                claimed.storage_locator,
-                expected_size_bytes=expected_size,
-            ) as stored:
-                # The service needs only one byte beyond the limit to produce
-                # its ordinary oversized-file failure without retaining an
-                # arbitrarily large private document in worker memory.
-                return stored.stream.read(self._max_process_bytes + 1)
-        except Exception as exc:
-            log.warning(
-                "User-file local read failed",
-                file_id=claimed.job.file_id,
-                error=exc.__class__.__name__,
-            )
-            return None
+        return read_claimed_upload(self._private_storage, claimed, max_process_bytes=self._max_process_bytes)
 
     async def _warm_parser(self) -> None:
         warm_up = getattr(self._parser, "warm_up", None)

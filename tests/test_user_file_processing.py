@@ -1,7 +1,12 @@
 from __future__ import annotations
 
+import asyncio
 import hashlib
+import time
+from collections.abc import Iterator
+from contextlib import contextmanager
 from datetime import UTC, datetime, timedelta
+from io import BytesIO
 from types import SimpleNamespace
 from typing import Any, cast
 
@@ -10,18 +15,29 @@ from fastapi import HTTPException
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from animama.adapters.content_store.private_file_store import (
+    PrivateFileNotFoundError,
+    PrivateFileReadError,
+    PrivateFileSizeMismatchError,
+)
 from animama.adapters.parsers import docling_user_file_parser as docling_parser_module
 from animama.adapters.parsers.docling_user_file_parser import DoclingUserFileParser, DoclingUserFileParserError
+from animama.adapters.parsers.isolated_user_file_parser import UserFileParseChildError
+from animama.adapters.parsers.text_user_file_parser import parse_lightweight_user_file
 from animama.adapters.repositories.sqlalchemy.runtime_worker_repo import record_document_heartbeat
 from animama.adapters.repositories.sqlalchemy.uow import SQLAlchemyUnitOfWork
 from animama.adapters.repositories.sqlalchemy.user_file_processing_repo import SQLAlchemyUserFileProcessingRepository
+from animama.app.ports.private_file_storage import PrivateFileStorage
+from animama.app.ports.user_file_parser_port import UserFileParseRejectedError
 from animama.app.ports.user_file_processing_port import UserFileProcessingRepository
 from animama.app.services import user_file_processing_service as processing_service_module
 from animama.app.services.user_file_processing_service import (
     UserFileProcessingService,
     UserFileProcessingUnavailableError,
+    UserFileProcessingValidationError,
     chunk_parsed_user_file_document,
-    parse_lightweight_user_file,
+    is_retryable_processing_failure,
+    read_claimed_upload,
 )
 from animama.domain.request_principal import RequestPrincipal
 from animama.domain.user_file import (
@@ -36,6 +52,7 @@ from animama.domain.user_file_processing import (
     JOB_STATUS_QUEUED,
     JOB_STATUS_RUNNING,
     JOB_STATUS_SUCCEEDED,
+    PROCESSING_INTERRUPTED_ERROR,
     ClaimedUserFileProcessingJob,
     ParsedUserFileDocument,
     UserFileChunkDraft,
@@ -878,6 +895,309 @@ async def test_mark_job_failure_retries_then_fails_file(async_session, clean_use
     assert final.status == JOB_STATUS_FAILED
     assert file_obj is not None
     assert file_obj.status == STATUS_FAILED
+
+
+async def test_mark_job_failure_without_retry_fails_job_and_file_at_once(async_session, clean_user_file_tables) -> None:
+    await _insert_file(async_session, file_id="file-permanent", status=STATUS_PROCESSING)
+    await _insert_job(
+        async_session,
+        job_id="job-permanent",
+        file_id="file-permanent",
+        status=JOB_STATUS_RUNNING,
+        attempts=1,
+        max_attempts=3,
+    )
+    repo = SQLAlchemyUserFileProcessingRepository(async_session)
+
+    failed = await repo.mark_job_failure(
+        job_id="job-permanent",
+        user_id="user-1",
+        file_id="file-permanent",
+        error="No searchable text was extracted from the uploaded file",
+        now=_now(),
+        retry_delay_seconds=10,
+        retryable=False,
+    )
+    file_obj = await async_session.get(ORMUserFile, "file-permanent")
+
+    assert (failed.status, failed.attempts, failed.locked_by) == (JOB_STATUS_FAILED, 1, None)
+    assert failed.finished_at is not None
+    assert file_obj is not None
+    assert (file_obj.status, file_obj.last_error) == (
+        STATUS_FAILED,
+        "No searchable text was extracted from the uploaded file",
+    )
+
+
+async def test_claim_fails_interrupted_last_attempts_but_spares_files_with_newer_work(
+    async_session_factory, clean_user_file_tables
+) -> None:
+    expired = _now() - timedelta(minutes=10)
+    async with async_session_factory() as setup:
+        await _insert_file(setup, file_id="file-interrupted", status=STATUS_PROCESSING)
+        await _insert_job(
+            setup,
+            job_id="job-interrupted",
+            file_id="file-interrupted",
+            status=JOB_STATUS_RUNNING,
+            attempts=3,
+            max_attempts=3,
+            locked_at=expired,
+        )
+        # A forced reprocess queued a newer job (due later) before the old last attempt expired.
+        await _insert_file(setup, file_id="file-requeued", status=STATUS_PROCESSING)
+        await _insert_job(
+            setup,
+            job_id="job-requeued-old",
+            file_id="file-requeued",
+            status=JOB_STATUS_RUNNING,
+            attempts=3,
+            max_attempts=3,
+            locked_at=expired,
+        )
+        await _insert_job(
+            setup,
+            job_id="job-requeued-new",
+            file_id="file-requeued",
+            run_after=_now() + timedelta(minutes=5),
+        )
+
+    async with async_session_factory() as session:
+        service = UserFileProcessingService(
+            processing=SQLAlchemyUserFileProcessingRepository(session),
+            uow=SQLAlchemyUnitOfWork(session),
+        )
+        assert await service.claim_next_job(worker_id="worker-1", lease_seconds=300) is None
+
+    # The sweep committed although nothing was claimed.
+    async with async_session_factory() as session:
+        interrupted_job = await session.get(ORMUserFileProcessingJob, "job-interrupted")
+        interrupted_file = await session.get(ORMUserFile, "file-interrupted")
+        old_job = await session.get(ORMUserFileProcessingJob, "job-requeued-old")
+        new_job = await session.get(ORMUserFileProcessingJob, "job-requeued-new")
+        requeued_file = await session.get(ORMUserFile, "file-requeued")
+    assert interrupted_job is not None and interrupted_file is not None
+    assert (interrupted_job.status, interrupted_job.last_error) == (JOB_STATUS_FAILED, PROCESSING_INTERRUPTED_ERROR)
+    assert (interrupted_job.locked_by, interrupted_job.locked_at) == (None, None)
+    assert interrupted_job.finished_at is not None
+    assert (interrupted_file.status, interrupted_file.last_error) == (STATUS_FAILED, PROCESSING_INTERRUPTED_ERROR)
+    assert old_job is not None and new_job is not None and requeued_file is not None
+    assert old_job.status == JOB_STATUS_FAILED
+    assert new_job.status == JOB_STATUS_QUEUED
+    assert (requeued_file.status, requeued_file.last_error) == (STATUS_PROCESSING, None)
+
+
+def test_only_unexpected_failures_are_retried() -> None:
+    assert is_retryable_processing_failure(RuntimeError("database restarted")) is True
+    assert is_retryable_processing_failure(UserFileParseChildError("The file could not be read.")) is True
+    assert is_retryable_processing_failure(UserFileProcessingValidationError("Uploaded object is empty")) is False
+    assert is_retryable_processing_failure(UserFileParseRejectedError("This file type is not supported yet.")) is False
+
+
+def _claimed_upload_from(storage: object) -> bytes | None:
+    return read_claimed_upload(
+        cast(PrivateFileStorage, storage),
+        _claimed_processing_job(file_id="file-read", extension=".txt"),
+        max_process_bytes=16,
+    )
+
+
+@pytest.mark.parametrize(
+    "missing",
+    [PrivateFileNotFoundError("gone"), PrivateFileSizeMismatchError(expected_size_bytes=64, actual_size_bytes=3)],
+)
+def test_missing_or_resized_upload_reads_as_absent(missing: Exception) -> None:
+    """Reading again cannot help, so the job fails as a missing upload."""
+
+    class Storage:
+        @contextmanager
+        def open_bounded(self, locator: str, *, expected_size_bytes: int) -> Iterator[SimpleNamespace]:
+            raise missing
+            yield SimpleNamespace()
+
+    assert _claimed_upload_from(Storage()) is None
+
+
+@pytest.mark.parametrize(
+    "failure",
+    [PrivateFileReadError("Private file changed or became unreadable"), PermissionError(13, "Permission denied")],
+)
+def test_other_upload_read_errors_propagate_so_the_job_retries(failure: Exception) -> None:
+    class Storage:
+        @contextmanager
+        def open_bounded(self, locator: str, *, expected_size_bytes: int) -> Iterator[SimpleNamespace]:
+            raise failure
+            yield SimpleNamespace()
+
+    with pytest.raises(type(failure)):
+        _claimed_upload_from(Storage())
+    assert is_retryable_processing_failure(failure) is True
+
+
+def test_upload_reads_at_most_one_byte_past_the_processing_limit() -> None:
+    class Storage:
+        @contextmanager
+        def open_bounded(self, locator: str, *, expected_size_bytes: int) -> Iterator[SimpleNamespace]:
+            yield SimpleNamespace(stream=BytesIO(b"x" * 64), size_bytes=64, sha256="unused")
+
+    assert _claimed_upload_from(Storage()) == b"x" * 17
+
+
+async def test_storing_and_reusing_embedded_chunks_keeps_the_event_loop_responsive(
+    async_session_factory, clean_user_file_tables
+) -> None:
+    """Writing or copying a large file's vectors leaves other requests running (spec R1.6)."""
+
+    digest = "e" * 64
+    async with async_session_factory() as setup:
+        for file_id in ("file-embedded", "file-duplicate"):
+            await _insert_file(setup, file_id=file_id, status=STATUS_PROCESSING)
+            await _insert_job(setup, job_id=f"job-{file_id}", file_id=file_id, status=JOB_STATUS_RUNNING, attempts=1)
+    vector = [(index % 97) / 97 for index in range(1536)]
+    chunks = [
+        UserFileChunkDraft(
+            chunk_index=index,
+            text=f"Chunk {index} " * 40,
+            char_count=400,
+            token_estimate=100,
+            metadata={"filename": "file-embedded.txt", "chunk_type": "prose"},
+            embedding=vector,
+        )
+        for index in range(1200)
+    ]
+    gaps: list[float] = []
+
+    async def tick() -> None:
+        previous = time.perf_counter()
+        while True:
+            await asyncio.sleep(0.005)
+            current = time.perf_counter()
+            gaps.append(current - previous)
+            previous = current
+
+    async def longest_stall(write) -> tuple[float, float]:
+        gaps.clear()
+        ticker = asyncio.create_task(tick())
+        await asyncio.sleep(0.02)
+        started = time.perf_counter()
+        try:
+            async with async_session_factory() as session:
+                await write(SQLAlchemyUserFileProcessingRepository(session))
+                await session.commit()
+        finally:
+            ticker.cancel()
+        return max(gaps), time.perf_counter() - started
+
+    async def store(repo: SQLAlchemyUserFileProcessingRepository) -> None:
+        await repo.replace_chunks_and_mark_success(
+            job_id="job-file-embedded",
+            user_id="user-1",
+            file_id="file-embedded",
+            sha256=digest,
+            chunks=chunks,
+            file_status=STATUS_READY,
+            processing_metadata={"parser": "test"},
+            processed_at=_now(),
+            embedding_model_id="test:embedding",
+        )
+
+    async def reuse(repo: SQLAlchemyUserFileProcessingRepository) -> None:
+        reused = await repo.reuse_processed_file(
+            job_id="job-file-duplicate",
+            user_id="user-1",
+            file_id="file-duplicate",
+            sha256=digest,
+            processed_at=_now(),
+            embedding_model_id="test:embedding",
+        )
+        assert reused is not None
+
+    store_stall, store_elapsed = await longest_stall(store)
+    reuse_stall, reuse_elapsed = await longest_stall(reuse)
+
+    # Encoding every vector in one flush stalled the loop for about the whole write.
+    assert store_stall < max(0.1, store_elapsed / 4)
+    assert reuse_stall < max(0.1, reuse_elapsed / 4)
+    async with async_session_factory() as session:
+        copies = (
+            (await session.execute(select(ORMUserFileChunk).where(ORMUserFileChunk.file_id == "file-duplicate")))
+            .scalars()
+            .all()
+        )
+    assert len(copies) == len(chunks)
+    assert all(copy.embedding_model_id == "test:embedding" and copy.embedding is not None for copy in copies)
+    assert {copy.metadata_["filename"] for copy in copies} == {"file-duplicate.txt"}
+    assert copies[0].id == "chunk-file-duplicate-000000"
+
+
+async def test_complete_claimed_job_reads_every_format_through_the_injected_parser() -> None:
+    """The server never parses upload bytes itself, even plain text."""
+
+    class RecordingParser:
+        def __init__(self) -> None:
+            self.extensions: list[str] = []
+
+        async def parse(self, *, payload: bytes, filename: str, extension: str) -> ParsedUserFileDocument:
+            self.extensions.append(extension)
+            return ParsedUserFileDocument(text=payload.decode(), parser_name="isolated", metadata={})
+
+    parser = RecordingParser()
+    repo = _CapturingProcessingRepo()
+    service = UserFileProcessingService(processing=cast(UserFileProcessingRepository, repo), uow=_NoopUow())
+
+    for extension in (".txt", ".json", ".pdf"):
+        await service.complete_claimed_job(
+            claimed=_claimed_processing_job(file_id=f"file{extension}", extension=extension),
+            payload=b"Readable text",
+            parser=parser,
+            embedder=None,
+            max_process_bytes=1024,
+        )
+
+    assert parser.extensions == [".txt", ".json", ".pdf"]
+    assert repo.chunks[0].text == "Readable text"
+
+
+async def test_complete_claimed_job_chunks_large_documents_off_the_event_loop() -> None:
+    """Chunking and overviews of a large table leave the server responsive (spec R1.6)."""
+
+    rows = [["name", "value", "notes"], *[[f"row {index}", str(index), "x" * 40] for index in range(6000)]]
+    parsed = ParsedUserFileDocument(
+        text="\n".join("\t".join(row) for row in rows),
+        parser_name="test",
+        metadata={"table_only": True},
+        tables=[{"table_index": 0, "rows": rows, "source": "tsv"}],
+    )
+    service = UserFileProcessingService(
+        processing=cast(UserFileProcessingRepository, _CapturingProcessingRepo()), uow=_NoopUow()
+    )
+    gaps: list[float] = []
+
+    async def tick() -> None:
+        previous = time.perf_counter()
+        while True:
+            await asyncio.sleep(0.005)
+            current = time.perf_counter()
+            gaps.append(current - previous)
+            previous = current
+
+    ticker = asyncio.create_task(tick())
+    started = time.perf_counter()
+    try:
+        await service.complete_claimed_job(
+            claimed=_claimed_processing_job(file_id="file-large-table", extension=".tsv"),
+            payload=b"large table",
+            parser=_StaticParser(parsed),
+            embedder=None,
+            max_process_bytes=1024,
+        )
+    finally:
+        ticker.cancel()
+    elapsed = time.perf_counter() - started
+
+    assert gaps
+    # Blocking work would stall the loop for about the whole call.
+    assert max(gaps) < max(0.1, elapsed / 2)
 
 
 @pytest.mark.asyncio

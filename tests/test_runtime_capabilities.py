@@ -2,18 +2,22 @@
 
 from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
+from typing import cast
 from unittest.mock import AsyncMock
 from uuid import uuid4
 
 import pytest
 from fastapi import FastAPI, HTTPException
 from sqlalchemy import delete
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from animama.adapters.model_assets import FilesystemModelAssetStore
 from animama.adapters.repositories.sqlalchemy.runtime_worker_repo import (
     clear_document_heartbeat,
     record_document_heartbeat,
 )
+from animama.app.ports.private_file_storage import PrivateFileStorage
+from animama.app.ports.text_embedder import TextEmbedder
 from animama.app.services.model_asset_service import ModelAssetService
 from animama.app.services.user_file_processing_service import (
     UserFileProcessingConflictError,
@@ -28,12 +32,28 @@ from animama.product_http.routes import runtime_capabilities
 from animama.server.config import Settings
 from animama.server.deps import get_async_session, get_current_principal
 from animama.server.routers import desktop_control, user_files
+from animama.server.user_file_processing import UserFileProcessingRunner
 from tests.local_http_client import local_client
 from tests.product_http_support import install_local_ports
 from tests.test_model_asset_sets import FILES, GPU_FILES, GPU_MANIFEST, MANIFEST, SetRelease, _set_entry
 
 
-def _app(session, tmp_path, *, enabled=False, **settings):
+def _idle_runner(runtime_settings: Settings, instance_id: str) -> UserFileProcessingRunner:
+    """A processing runner that never starts; the capability reads only its identity."""
+
+    async def embeddings_off(_session: AsyncSession, _user_id: str) -> TextEmbedder | None:
+        return None
+
+    return UserFileProcessingRunner(
+        cast(async_sessionmaker[AsyncSession], None),
+        private_storage=cast(PrivateFileStorage, None),
+        embedder_resolver=embeddings_off,
+        runtime_settings=runtime_settings,
+        instance_id=instance_id,
+    )
+
+
+def _app(session, tmp_path, *, enabled=False, runner_instance="expected-instance", **settings):
     """Use real route dependencies with a deliberately separate test principal."""
 
     app = FastAPI()
@@ -42,9 +62,10 @@ def _app(session, tmp_path, *, enabled=False, **settings):
         animama_data_root=tmp_path / "data",
         animama_user_file_processing_enabled=enabled,
         animama_desktop_control_token="c" * 64,
-        animama_document_worker_instance_id="expected-instance",
         **{"animama_parakeet_stt_enabled": False, **settings},
     )
+    if runner_instance is not None:
+        app.state.user_file_processing_runner = _idle_runner(app.state.runtime_settings, runner_instance)
     app.state.local_runtime_paths = SimpleNamespace(included_sources=(), operations_root=tmp_path / "operations")
     app.include_router(runtime_capabilities.router)
     app.include_router(desktop_control.router)
@@ -101,8 +122,30 @@ async def test_capabilities_separate_pack_presence_and_worker_liveness(
         assert (processing["last_heartbeat_at"] is not None) == (expected in {"ready", "stale"})
         assert "expected-instance" not in response.text
         assert "c" * 64 not in response.text
+        assert processing["pack_id"] == "document-processing"
     await async_session.execute(delete(ORMRuntimeWorkerHeartbeat))
     await async_session.commit()
+
+
+async def test_capabilities_wait_for_the_servers_own_processor(async_session, tmp_path):
+    """A fresh heartbeat proves nothing until this server's runner is the one renewing it."""
+
+    await async_session.execute(delete(ORMRuntimeWorkerHeartbeat))
+    async_session.add(
+        ORMRuntimeWorkerHeartbeat(
+            kind="document-processing", instance_id="expected-instance", heartbeat_at=datetime.now(UTC)
+        )
+    )
+    await async_session.commit()
+    try:
+        app = _app(async_session, tmp_path, enabled=True, runner_instance=None)
+        async with local_client(app) as client:
+            processing = (await client.get("/v1/runtime-capabilities")).json()["user_file_processing"]
+        assert (processing["enabled"], processing["worker_state"]) == (True, "starting")
+        assert processing["last_heartbeat_at"] is None
+    finally:
+        await async_session.execute(delete(ORMRuntimeWorkerHeartbeat))
+        await async_session.commit()
 
 
 async def test_operator_parakeet_source_reports_its_flag_without_versions(async_session, tmp_path):

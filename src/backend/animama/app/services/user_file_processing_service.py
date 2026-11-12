@@ -2,21 +2,19 @@
 
 from __future__ import annotations
 
-import csv
+import asyncio
 import hashlib
-import json
 import math
 import time
 from collections.abc import Iterable
 from dataclasses import dataclass
-from io import StringIO
 from typing import Any
 from uuid import uuid4
-from xml.etree import ElementTree
 
+from animama.app.ports.private_file_storage import PrivateFileStorage, PrivateFileUnavailableError
 from animama.app.ports.text_embedder import TextEmbedder
 from animama.app.ports.uow_port import UnitOfWork
-from animama.app.ports.user_file_parser_port import UserFileParser
+from animama.app.ports.user_file_parser_port import UserFileParser, UserFileParseRejectedError
 from animama.app.ports.user_file_processing_port import UserFileProcessingRepository
 from animama.app.services.user_file_overview import (
     build_user_file_overview,
@@ -44,6 +42,7 @@ from animama.domain.user_file_processing import (
     UserFileProcessingInfo,
     UserFileProcessingJob,
     UserFileSearchResult,
+    markdown_table,
 )
 from animama.logging import get_logger
 from animama.utils.clock import utc_now
@@ -56,7 +55,6 @@ PROCESSABLE_FILE_STATUSES = {
     STATUS_FAILED,
 }
 
-LIGHTWEIGHT_EXTENSIONS = frozenset({".txt", ".rst", ".org", ".json", ".tsv", ".xml"})
 DEFAULT_TARGET_CHARS = 2500
 DEFAULT_OVERLAP_CHARS = 250
 RRF_K = 60
@@ -84,6 +82,47 @@ class UserFileProcessingConflictError(UserFileProcessingServiceError):
 
 class UserFileProcessingUnavailableError(UserFileProcessingServiceError):
     """Raised when semantic search dependencies are unavailable."""
+
+
+def is_retryable_processing_failure(error: BaseException) -> bool:
+    """Return whether a failed processing attempt may succeed when retried.
+
+    A missing, empty or oversized upload, a file without searchable text and
+    content the parser rejects fail the same way every time, so they fail the
+    file at once. Anything else (a database or provider hiccup, a parser crash
+    in this process) is retried with backoff.
+    """
+
+    return not isinstance(error, UserFileProcessingValidationError | UserFileParseRejectedError)
+
+
+def read_claimed_upload(
+    storage: PrivateFileStorage,
+    claimed: ClaimedUserFileProcessingJob,
+    *,
+    max_process_bytes: int,
+) -> bytes | None:
+    """Read a claimed upload's private bytes, at most one byte past the processing limit.
+
+    One extra byte is enough for :meth:`UserFileProcessingService.complete_claimed_job`
+    to report an oversized upload without holding an arbitrarily large document
+    in memory. A file that is missing or no longer its recorded size returns
+    ``None``, which fails the job for good. Any other read error (a permission
+    problem, an unavailable disk) propagates, so the job is retried. This blocks
+    on file IO; async callers run it in a thread.
+    """
+
+    expected_size = claimed.stored_size_bytes or claimed.declared_size_bytes
+    try:
+        with storage.open_bounded(claimed.storage_locator, expected_size_bytes=expected_size) as stored:
+            return stored.stream.read(max_process_bytes + 1)
+    except PrivateFileUnavailableError as exc:
+        get_logger("app.services.user_file_processing").warning(
+            "User-file upload is missing or changed",
+            file_id=claimed.job.file_id,
+            error_type=exc.__class__.__name__,
+        )
+        return None
 
 
 @dataclass(frozen=True, slots=True)
@@ -120,78 +159,6 @@ def estimate_tokens(text: str) -> int:
     if not stripped:
         return 0
     return max(1, math.ceil(len(stripped) / 4))
-
-
-def parse_lightweight_user_file(*, payload: bytes, filename: str, extension: str) -> ParsedUserFileDocument:
-    """Parse simple formats with stdlib checks instead of invoking Docling."""
-
-    text = _decode_text_payload(payload)
-    normalized_extension = extension.lower()
-    metadata: dict[str, Any] = {
-        "parser": "stdlib",
-        "filename": filename,
-        "extension": normalized_extension,
-    }
-
-    if normalized_extension == ".json":
-        try:
-            parsed = json.loads(text)
-        except json.JSONDecodeError as exc:
-            raise UserFileProcessingValidationError(f"Invalid JSON document: {exc.msg}") from exc
-        return ParsedUserFileDocument(
-            text=json.dumps(parsed, indent=2, sort_keys=True, ensure_ascii=False),
-            parser_name="stdlib-json",
-            metadata={**metadata, "format": "json"},
-        )
-
-    if normalized_extension == ".xml":
-        try:
-            ElementTree.fromstring(text)
-        except ElementTree.ParseError as exc:
-            raise UserFileProcessingValidationError("Invalid XML document") from exc
-        return ParsedUserFileDocument(
-            text=text.strip(),
-            parser_name="stdlib-xml",
-            metadata={**metadata, "format": "xml"},
-        )
-
-    if normalized_extension == ".tsv":
-        rows = list(csv.reader(StringIO(text), delimiter="\t"))
-        table = _rows_to_markdown_table(rows)
-        return ParsedUserFileDocument(
-            text=table,
-            parser_name="stdlib-tsv",
-            metadata={**metadata, "format": "tsv", "table_only": True, "row_count": len(rows)},
-            tables=[{"table_index": 0, "rows": rows, "source": "tsv"}],
-        )
-
-    return ParsedUserFileDocument(
-        text=text.strip(),
-        parser_name="stdlib-text",
-        metadata={**metadata, "format": normalized_extension.lstrip(".") or "text"},
-    )
-
-
-def _decode_text_payload(payload: bytes) -> str:
-    try:
-        return payload.decode("utf-8")
-    except UnicodeDecodeError:
-        return payload.decode("utf-8", errors="replace")
-
-
-def _rows_to_markdown_table(rows: list[list[str]]) -> str:
-    if not rows:
-        return ""
-    width = max(len(row) for row in rows)
-    normalized = [[cell.strip() for cell in row] + [""] * (width - len(row)) for row in rows]
-    header = normalized[0]
-    lines = [
-        "| " + " | ".join(header) + " |",
-        "| " + " | ".join("---" for _ in header) + " |",
-    ]
-    for row in normalized[1:]:
-        lines.append("| " + " | ".join(row) + " |")
-    return "\n".join(lines)
 
 
 def chunk_parsed_user_file_document(
@@ -247,9 +214,9 @@ def _chunk_tables(document: ParsedUserFileDocument, *, target_chars: int) -> lis
         row_start = 1
         for offset, row in enumerate(body_rows, start=1):
             candidate = [header, *group, row]
-            candidate_text = _rows_to_markdown_table([[str(cell) for cell in r] for r in candidate])
+            candidate_text = markdown_table([[str(cell) for cell in r] for r in candidate])
             if group and len(candidate_text) > target_chars:
-                chunk_text = _rows_to_markdown_table([[str(cell) for cell in r] for r in [header, *group]])
+                chunk_text = markdown_table([[str(cell) for cell in r] for r in [header, *group]])
                 chunks.append(
                     _chunk_draft(
                         chunk_index,
@@ -269,7 +236,7 @@ def _chunk_tables(document: ParsedUserFileDocument, *, target_chars: int) -> lis
             else:
                 group.append(row)
         if group or not body_rows:
-            chunk_text = _rows_to_markdown_table([[str(cell) for cell in r] for r in [header, *group]])
+            chunk_text = markdown_table([[str(cell) for cell in r] for r in [header, *group]])
             chunks.append(
                 _chunk_draft(
                     chunk_index,
@@ -393,8 +360,8 @@ class UserFileProcessingService:
             now=utc_now(),
             limit_file_id=limit_file_id,
         )
-        if claimed is not None:
-            await self._uow.commit()
+        # Commit even without a claim: claiming also fails interrupted last attempts.
+        await self._uow.commit()
         return claimed
 
     async def complete_claimed_job(
@@ -408,8 +375,11 @@ class UserFileProcessingService:
     ) -> UserFileProcessingJob:
         """Parse, chunk and (when embeddings are on) embed a claimed upload.
 
-        With embeddings off the file is ready for keyword search; only an
-        embedding failure marks it ``ready_keyword_only``.
+        ``parser`` reads every format; this service never parses upload bytes
+        itself. Chunking and the overview run in a worker thread so a large
+        document does not stall the server's other requests. With embeddings
+        off the file is ready for keyword search; only an embedding failure
+        marks it ``ready_keyword_only``.
         """
 
         if payload is None:
@@ -449,20 +419,13 @@ class UserFileProcessingService:
             user_id=claimed.job.user_id,
             extension=extension,
             byte_count=len(payload),
-            parser="stdlib" if extension in LIGHTWEIGHT_EXTENSIONS else "docling",
+            parser=type(parser).__name__,
         )
-        if extension in LIGHTWEIGHT_EXTENSIONS:
-            parsed = parse_lightweight_user_file(
-                payload=payload,
-                filename=claimed.original_filename,
-                extension=extension,
-            )
-        else:
-            parsed = await parser.parse(
-                payload=payload,
-                filename=claimed.original_filename,
-                extension=extension,
-            )
+        parsed = await parser.parse(
+            payload=payload,
+            filename=claimed.original_filename,
+            extension=extension,
+        )
         self._log.info(
             "User-file parsing finished",
             job_id=claimed.job.id,
@@ -492,7 +455,7 @@ class UserFileProcessingService:
                 user_id=claimed.job.user_id,
                 parser=parsed.parser_name,
             )
-            chunks = chunk_parsed_user_file_document(parsed)
+            chunks = await asyncio.to_thread(chunk_parsed_user_file_document, parsed)
             self._log.info(
                 "User-file fallback chunking finished",
                 job_id=claimed.job.id,
@@ -506,7 +469,8 @@ class UserFileProcessingService:
 
         overview_warning: str | None = None
         try:
-            overview = build_user_file_overview(
+            overview = await asyncio.to_thread(
+                build_user_file_overview,
                 filename=claimed.original_filename,
                 document=parsed,
                 chunks=chunks,
@@ -521,7 +485,8 @@ class UserFileProcessingService:
                 user_id=claimed.job.user_id,
                 error=message,
             )
-            overview = fallback_user_file_overview(
+            overview = await asyncio.to_thread(
+                fallback_user_file_overview,
                 filename=claimed.original_filename,
                 document=parsed,
                 chunks=chunks,
@@ -609,7 +574,14 @@ class UserFileProcessingService:
         *,
         claimed: ClaimedUserFileProcessingJob,
         error: str,
+        retryable: bool = True,
     ) -> UserFileProcessingJob:
+        """Record a failed attempt; see :func:`is_retryable_processing_failure` for ``retryable``.
+
+        A retryable failure is queued again with backoff until the attempt
+        limit; otherwise the job and its file fail now with ``error``.
+        """
+
         retry_delay = _retry_delay_seconds(claimed.job.attempts)
         updated = await self._processing.mark_job_failure(
             job_id=claimed.job.id,
@@ -618,9 +590,25 @@ class UserFileProcessingService:
             error=error,
             now=utc_now(),
             retry_delay_seconds=retry_delay,
+            retryable=retryable,
         )
         await self._uow.commit()
         return updated
+
+    async def release_claimed_job(self, *, claimed: ClaimedUserFileProcessingJob, worker_id: str) -> bool:
+        """Return a job this worker stopped processing to the queue now, without spending its attempt.
+
+        Only a job still running under ``worker_id`` is released; its file stays
+        at Processing. Returns whether the job was released.
+        """
+
+        released = await self._processing.release_claimed_job(
+            job_id=claimed.job.id,
+            worker_id=worker_id,
+            now=utc_now(),
+        )
+        await self._uow.commit()
+        return released
 
     async def delete_chunks_for_file(self, *, user_id: str, file_id: str) -> None:
         await self._processing.delete_chunks_for_file(user_id=user_id, file_id=file_id)
@@ -816,7 +804,6 @@ def _retry_delay_seconds(attempts: int) -> int:
 
 
 __all__ = [
-    "LIGHTWEIGHT_EXTENSIONS",
     "PROCESSABLE_FILE_STATUSES",
     "ProcessFileResult",
     "UserFileProcessingConflictError",
@@ -828,7 +815,8 @@ __all__ = [
     "UserFileSearchResults",
     "chunk_parsed_user_file_document",
     "estimate_tokens",
+    "is_retryable_processing_failure",
     "new_user_file_processing_job_id",
-    "parse_lightweight_user_file",
+    "read_claimed_upload",
     "search_user_file_chunks",
 ]

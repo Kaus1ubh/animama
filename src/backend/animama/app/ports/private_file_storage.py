@@ -6,6 +6,13 @@ from contextlib import AbstractContextManager
 from typing import BinaryIO, Protocol
 
 
+class PrivateFileUnavailableError(Exception):
+    """The stored file is missing or no longer matches its recorded size.
+
+    Reading it again cannot succeed. Other read errors may be transient.
+    """
+
+
 class StoredPrivateFile(Protocol):
     """Seekable verified private bytes returned by a storage adapter."""
 
@@ -32,6 +39,12 @@ class PrivateFileStorage(Protocol):
         *,
         expected_size_bytes: int,
     ) -> AbstractContextManager[StoredPrivateFile]:
+        """Open exactly ``expected_size_bytes`` verified bytes.
+
+        Raises :class:`PrivateFileUnavailableError` when the file is missing or
+        differs in size.
+        """
+
         raise NotImplementedError
 
     def head(self, locator: str) -> dict[str, object] | None:
@@ -44,4 +57,4 @@ class PrivateFileStorage(Protocol):
         raise NotImplementedError
 
 
-__all__ = ["PrivateFileStorage", "StoredPrivateFile"]
+__all__ = ["PrivateFileStorage", "PrivateFileUnavailableError", "StoredPrivateFile"]
