@@ -11,27 +11,20 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from alembic.script import ScriptDirectory
 from sqlalchemy import text
 
 from animama.app.services.typed_content_service import TypedContentService
 from animama.domain.content_catalog import ContentKind
 from animama.local.database import LocalDatabase
-from animama.runtime.resources import alembic_config
 from animama.server.config import Settings
 from animama.server.local_installation_bootstrap import create_local_installation_bootstrap_service
 from animama.server.local_runtime import initialize_local_runtime
 from tests.content_package_helpers import package_services
 from tests.migration_database_helpers import (
+    alembic_head,
     migrated_database as migrated_database,
     migration_postgres as migration_postgres,
 )
-
-
-def _alembic_head() -> str:
-    """The revision a bootstrapped database reaches."""
-
-    return ScriptDirectory.from_config(alembic_config()).get_current_head()
 
 
 def _document(weight: float = 0.5) -> dict[str, Any]:
@@ -79,7 +72,7 @@ async def test_pose_baseline_save_restart_and_failed_update_recovery(
     try:
         owner = await _bootstrap(first, settings)
         async with first.session_factory()() as session:
-            assert await session.scalar(text("SELECT version_num FROM alembic_version")) == _alembic_head()
+            assert await session.scalar(text("SELECT version_num FROM alembic_version")) == alembic_head()
             paths, catalog, content, saves, _ = package_services(session, tmp_path)
             command: dict[str, Any] = {
                 "user_id": owner,
