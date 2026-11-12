@@ -136,8 +136,9 @@ without `avatar_setting_overrides` (per-owner Avatar settings), the Avatar
 settings routes and package export or import of Avatars fail the same way.
 Without the runtime snapshot columns `bundles` and `inputs_digest`, runtime
 issuance, bundle reads and chat turns fail with `column ... does not exist`.
-Without `anima_chat_profiles.reasoning_effort`, Anima reads, the Anima list and
-chat turns fail the same way.
+Without `anima_chat_profiles.reasoning_effort`, database bootstrap stops at
+`01-seed-model-providers.sql` with `column "reasoning_effort" of relation
+"anima_chat_profiles" does not exist`, before the application starts.
 Without `episode_processing_settings`, automatic episode processing runs at its
 default threshold, but changing the threshold fails with `relation
 "episode_processing_settings" does not exist`; without the split
