@@ -17,6 +17,7 @@ from animama.adapters.repositories.sqlalchemy.product_repositories import SQLAlc
 from animama.app.anima_creation_contract import CreateAnimaRequest
 from animama.app.services import AnimaChatProfileService
 from animama.domain import AnimaChatProfile, ModelProvider
+from animama.domain.model_provider import ModelProviderCapabilities
 from animama.domain.request_principal import RequestPrincipal
 from animama.orm import (
     ORMAnima,
@@ -53,6 +54,7 @@ def _model_provider(
     provider_type: str | None = None,
     model: str | None = None,
     active: bool = True,
+    reasoning_efforts: list[str] | None = None,
 ) -> ModelProvider:
     provider = provider_type or f"Provider{suffix}"
     model_name = model or f"model-{suffix}"
@@ -63,6 +65,10 @@ def _model_provider(
         model_label=model_name,
         provider_label=provider,
         active=active,
+        capabilities=ModelProviderCapabilities(
+            supports_reasoning=bool(reasoning_efforts),
+            supported_reasoning_efforts=reasoning_efforts,
+        ),
     )
 
 
@@ -90,6 +96,8 @@ def test_anima_chat_profile_orm_metadata_is_registered() -> None:
     table = Base.metadata.tables["anima_chat_profiles"]
     assert table.c.anima_id.primary_key
     assert table.c.default_model_provider_id.nullable is False
+    # Null means the model's default preselection.
+    assert table.c.reasoning_effort.nullable is True
     assert "metadata" in table.c
     assert "created_at" in table.c
     assert "updated_at" in table.c
@@ -107,6 +115,7 @@ async def test_mapper_and_orm_round_trip_for_explicit_profile(async_session) -> 
         AnimaChatProfile(
             anima_id=anima_id,
             default_model_provider_id=provider.id,
+            reasoning_effort="low",
             metadata={"source": "explicit", "nested": {"keep": True}},
         )
     )
@@ -116,6 +125,7 @@ async def test_mapper_and_orm_round_trip_for_explicit_profile(async_session) -> 
     assert stored.anima_id == anima_id
     assert fetched is not None
     assert fetched.default_model_provider_id == provider.id
+    assert fetched.reasoning_effort == "low"
     assert fetched.metadata == {"source": "explicit", "nested": {"keep": True}}
     assert fetched.created_at is not None
     assert fetched.updated_at is not None
@@ -228,6 +238,79 @@ async def test_set_default_model_provider_without_uow_does_not_commit(async_sess
 
 
 @pytest.mark.asyncio
+async def test_set_default_model_provider_stores_only_efforts_the_model_offers(async_session) -> None:
+    suffix = _suffix()
+    anima_id = f"anima-{suffix}"
+    reasoning = await _store_provider(
+        async_session, _model_provider(suffix=f"{suffix}a", reasoning_efforts=["none", "low", "medium"])
+    )
+    fixed = await _store_provider(async_session, _model_provider(suffix=f"{suffix}b"))
+    await _store_anima(async_session, anima_id=anima_id)
+    service = AnimaChatProfileService(
+        profiles=SQLAlchemyAnimaChatProfileRepository(async_session),
+        model_providers=SQLAlchemyModelProviderRepository(async_session),
+    )
+
+    stored = await service.set_default_model_provider(
+        anima_id=anima_id, model_provider_id=reasoning.id, reasoning_effort="low"
+    )
+    assert stored.reasoning_effort == "low"
+
+    with pytest.raises(ValueError, match="reasoning effort"):
+        await service.set_default_model_provider(
+            anima_id=anima_id, model_provider_id=reasoning.id, reasoning_effort="max"
+        )
+    with pytest.raises(ValueError, match="reasoning effort"):
+        await service.set_default_model_provider(anima_id=anima_id, model_provider_id=fixed.id, reasoning_effort="low")
+    # A rejected effort leaves the stored choice alone.
+    unchanged = await service.resolve_for_anima(anima_id)
+    assert unchanged is not None and unchanged.reasoning_effort == "low"
+
+    cleared = await service.set_default_model_provider(
+        anima_id=anima_id, model_provider_id=reasoning.id, reasoning_effort=None
+    )
+    assert cleared.reasoning_effort is None
+
+
+@pytest.mark.asyncio
+async def test_omitted_effort_is_kept_for_the_same_model_and_cleared_by_a_model_switch(async_session) -> None:
+    suffix = _suffix()
+    anima_id = f"anima-{suffix}"
+    efforts = ["none", "low", "medium"]
+    first = await _store_provider(async_session, _model_provider(suffix=f"{suffix}a", reasoning_efforts=efforts))
+    second = await _store_provider(async_session, _model_provider(suffix=f"{suffix}b", reasoning_efforts=efforts))
+    await _store_anima(async_session, anima_id=anima_id)
+    service = AnimaChatProfileService(
+        profiles=SQLAlchemyAnimaChatProfileRepository(async_session),
+        model_providers=SQLAlchemyModelProviderRepository(async_session),
+    )
+
+    await service.set_default_model_provider(anima_id=anima_id, model_provider_id=first.id, reasoning_effort="low")
+    kept = await service.set_default_model_provider(anima_id=anima_id, model_provider_id=first.id)
+    switched = await service.set_default_model_provider(anima_id=anima_id, model_provider_id=second.id)
+    chosen_with_switch = await service.set_default_model_provider(
+        anima_id=anima_id, model_provider_id=first.id, reasoning_effort="medium"
+    )
+
+    assert kept.reasoning_effort == "low"
+    # A new model starts at its own default even when it offers the same effort.
+    assert switched.reasoning_effort is None
+    assert chosen_with_switch.reasoning_effort == "medium"
+
+
+def test_update_request_trims_effort_and_tells_an_omitted_effort_from_a_cleared_one() -> None:
+    omitted = PyAnimaChatProfileUpdateRequest(default_model_provider_id="Provider:model")
+    cleared = PyAnimaChatProfileUpdateRequest(default_model_provider_id="Provider:model", reasoning_effort=None)
+    chosen = PyAnimaChatProfileUpdateRequest(default_model_provider_id="Provider:model", reasoning_effort=" low ")
+
+    assert "reasoning_effort" not in omitted.model_fields_set
+    assert "reasoning_effort" in cleared.model_fields_set and cleared.reasoning_effort is None
+    assert chosen.reasoning_effort == "low"
+    with pytest.raises(ValueError):
+        PyAnimaChatProfileUpdateRequest(default_model_provider_id="Provider:model", reasoning_effort="  ")
+
+
+@pytest.mark.asyncio
 async def test_direct_creation_seeds_chat_profile_and_one_identity_history(async_session, tmp_path) -> None:
     async with anima_creation_fixture(async_session, tmp_path) as fixture:
         request = fixture.request()
@@ -306,3 +389,33 @@ async def test_update_anima_chat_profile_validates_ownership_and_active_provider
             user=RequestPrincipal(id="user-2"),
         )
     assert ownership_exc.value.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_update_anima_chat_profile_saves_and_returns_the_reasoning_effort(async_session) -> None:
+    suffix = _suffix()
+    anima_id = f"anima-{suffix}"
+    provider = await _store_provider(
+        async_session, _model_provider(suffix=suffix, reasoning_efforts=["none", "low", "medium"])
+    )
+    await _store_anima(async_session, anima_id=anima_id)
+    await async_session.commit()
+
+    async def patch(**body: Any) -> dict[str, Any]:
+        response = await update_anima_chat_profile(
+            anima_id,
+            PyAnimaChatProfileUpdateRequest(default_model_provider_id=provider.id, **body),
+            repositories=SQLAlchemyProductRepositories(async_session),
+            user=RequestPrincipal(id="user-1"),
+        )
+        profile: dict[str, Any] = json.loads(bytes(response.body))["chat_profile"]
+        return profile
+
+    assert (await patch())["reasoning_effort"] is None
+    assert (await patch(reasoning_effort="low"))["reasoning_effort"] == "low"
+    # Re-saving the same model without an effort keeps the saved one.
+    assert (await patch())["reasoning_effort"] == "low"
+    with pytest.raises(HTTPException) as unsupported:
+        await patch(reasoning_effort="max")
+    assert unsupported.value.status_code == 400
+    assert (await patch(reasoning_effort=None))["reasoning_effort"] is None

@@ -136,6 +136,7 @@
       },
       "select": "モデルを選択",
       "toasts": {
+        "effortUpdateFailed": "推論の強さを保存できませんでした",
         "selectFirst": "チャットする前にモデルを選択してください。",
         "unsupported": "このモデルはまだ直接チャットで使えません。",
         "updateFailed": "モデルを更新できませんでした"

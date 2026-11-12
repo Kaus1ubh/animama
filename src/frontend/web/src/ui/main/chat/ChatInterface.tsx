@@ -143,6 +143,8 @@ type ChatInterfaceViewProps = {
   input: string;
   inputPlaceholder: string;
   isAwaitingStreamingAnimationFinalization: boolean;
+  /** A model restore or confirmed switch is saving; the model picker waits for it. */
+  isConfirmingModelSwitch?: boolean;
   isDictationPreparing?: boolean;
   isMicCaptureActive?: boolean;
   isStreaming: boolean;
@@ -228,6 +230,7 @@ export function ChatInterfaceView({
   input,
   inputPlaceholder,
   isAwaitingStreamingAnimationFinalization,
+  isConfirmingModelSwitch = false,
   isDictationPreparing = false,
   isMicCaptureActive = false,
   isStreaming,
@@ -495,7 +498,9 @@ export function ChatInterfaceView({
                     activeChat={activeChat}
                     animaId={animaId}
                     closeSignal={modelSelectorCloseSignal}
-                    disabled={isStreaming}
+                    // An effort save names the current model, so it must not
+                    // overtake a model switch that is still saving.
+                    disabled={isStreaming || isConfirmingModelSwitch}
                     onIncompatibleModelSelect={onIncompatibleModelSelect}
                     onModelChange={onModelChange}
                   />
@@ -1174,6 +1179,7 @@ export const ChatInterface = ({
         isAwaitingStreamingAnimationFinalization={
           isAwaitingStreamingAnimationFinalization
         }
+        isConfirmingModelSwitch={isConfirmingModelSwitch}
         isDictationPreparing={isDictationPreparing}
         isMicCaptureActive={isMicCaptureActive}
         isStreaming={isStreaming}

@@ -4,6 +4,7 @@ import type { PyModelProviderCatalogItem } from "@animama/runtime-contracts/api-
 
 import {
   defaultReasoningEffort,
+  effectiveReasoningEffort,
   supportedReasoningEfforts,
 } from "./model-catalog";
 
@@ -61,5 +62,29 @@ describe("chat picker reasoning effort", () => {
       ),
     ).toBeNull();
     expect(supportedReasoningEfforts(undefined)).toEqual([]);
+  });
+});
+
+describe("saved reasoning effort", () => {
+  it("uses the Anima's saved effort when the row offers it", () => {
+    expect(effectiveReasoningEffort(row(), "low")).toBe("low");
+  });
+
+  it("uses the row's default without a saved effort", () => {
+    const haiku = row({ default_reasoning_effort: "medium" });
+    expect(effectiveReasoningEffort(haiku, null)).toBe("medium");
+    expect(effectiveReasoningEffort(row(), undefined)).toBe("none");
+  });
+
+  it("falls back to the row's default when the row no longer offers the saved effort", () => {
+    expect(
+      effectiveReasoningEffort(
+        row({ supported_reasoning_efforts: ["none", "high"] }),
+        "low",
+      ),
+    ).toBe("none");
+    expect(
+      effectiveReasoningEffort(row({ supported_reasoning_efforts: [] }), "low"),
+    ).toBeNull();
   });
 });

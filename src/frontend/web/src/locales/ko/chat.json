@@ -136,6 +136,7 @@
       },
       "select": "모델 선택",
       "toasts": {
+        "effortUpdateFailed": "추론 강도를 저장하지 못했습니다",
         "selectFirst": "채팅하기 전에 모델을 선택하세요.",
         "unsupported": "이 모델은 아직 직접 채팅에서 사용할 수 없습니다.",
         "updateFailed": "모델을 업데이트하지 못했습니다"

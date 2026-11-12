@@ -866,7 +866,7 @@ steps, each with its own approval:
 4. **Animama Cloud follow-ups.** Its landing download links, hosted privacy
    terms, operator dashboard download analytics and its copy of
    `included-content-attribution.txt` need the same change, and its next
-   repin admits `local-http` 22 and `runtime-contracts` 0.22.0.
+   repin admits `local-http` 23 and `runtime-contracts` 0.23.0.
 
 Before the cut-off, a revert restores updates and downloads for a new build;
 after it, reconnecting the custom domain restores service while the bucket

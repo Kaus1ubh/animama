@@ -48,6 +48,9 @@ export function useUpdateAnimaChatProfile() {
   const userKey = userId ?? "__anon__";
 
   return useMutation<PyAnimaResponse, Error, UpdateAnimaChatProfileArgs>({
+    // Saves run one at a time, so quick effort changes reach the server (and
+    // the cache) in the order they were made.
+    scope: { id: "anima-chat-profile" },
     mutationFn: async (args) => {
       const { data } =
         await updateAnimaChatProfileV1AnimasAnimaIdChatProfilePatch({

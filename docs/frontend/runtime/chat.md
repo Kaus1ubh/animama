@@ -199,10 +199,19 @@ slider. Its model name and Chat features icon switch the same popover to the
 model list or native-tool settings; Back returns to reasoning. Catalog rows
 advertise `requestable_native_tool_support` and `supported_reasoning_efforts`.
 Models without adjustable reasoning omit the slider. Supported native tools
-are enabled by default when the active model advertises them. The effort starts
-at the row's `default_reasoning_effort` when the row offers it (`medium` on
-Anthropic rows), else at its first supported effort (`defaultReasoningEffort`
-in `lib/chat/model-catalog.ts`).
+are enabled by default when the active model advertises them.
+
+The effort is saved per Anima with its model. The slider shows the Anima's
+`chat_profile.reasoning_effort` while the active row offers it; with none saved,
+or one the row no longer offers, it shows the row's `default_reasoning_effort`
+when the row offers it (`medium` on Anthropic rows), else its first supported
+effort (`effectiveReasoningEffort` in `lib/chat/model-catalog.ts`). Each slider
+change saves `{ default_model_provider_id, reasoning_effort }` through
+`PATCH /v1/animas/{anima_id}/chat-profile`. Chat-profile saves share one
+mutation scope, so they reach the server in order, and the latest pick shows
+until its save settles. A failed save shows a toast and the slider returns to
+the saved effort. Selecting another model sends no effort, so the backend
+clears the saved one and the new model starts at its default.
 
 Web search availability comes from `webSearchAvailability` (product-ui) using
 the row and the runtime capability `web_search`: hosted when the row lists
@@ -225,8 +234,10 @@ application search. The control does not see the per-turn reasoning effort:
 on Chat Completions `gpt-5.4` rows the backend drops search when an effort is
 sent and logs `reasoning_with_function_tools`.
 
-Empty `native_tools` arrays are preserved in `SettingsProvider`, so unchecking
-a tool stays unchecked instead of falling back to defaults on the next render.
+Chat features are not saved. `SettingsProvider` keeps the composer's choice
+(`chatFeatureChoice`) for one Anima and model, so leaving and reopening the chat
+page keeps it, including a choice that turned every tool off. Another Anima or
+model, and a relaunch, start from the defaults.
 
 `native_tool_support` is the complete provider/model capability set and may
 also contain backend-owned tools such as memory `apply_patch`. The selector
@@ -236,11 +247,13 @@ web search. The request builder filters native-tool overrides against the same
 settings after a catalog update; internal capabilities are
 never sent through `dispatch_options.native_tools`.
 
-Changing the base model resets request-scoped model settings to that model's
-catalog defaults. Reasoning and feature controls apply directly to the active
-model without switching it; changing one preserves the other. These settings
-live in `SettingsProvider` chat request overrides and are sent with future dispatch
-requests; they do not persist to the anima chat profile.
+Reasoning and feature controls apply directly to the active model without
+switching it; changing one preserves the other. `chatRequestOptions`
+(`lib/chat/chat-request-options.ts`) derives both from the Anima's chat profile,
+the catalog row and the Chat features choice. The composer shows its result and
+`useChatSession` sends it, so turns carry the saved effort even while the
+composer is not mounted (for example PiP voice turns from another page).
+Remounting the composer changes neither setting.
 
 Input integration preserves typed text while appending final dictation segments.
 Dictation drives the avatar listening phase. Manual typing briefly activates
@@ -314,8 +327,9 @@ Derived state:
   opening SSE, checks the selected catalog row against the active chat's stored
   `api_standard`. Missing, unsupported, or different-standard rows block the
   send locally; the backend fence remains authoritative.
-- Merges request-scoped `chatRequestOptions` from `SettingsProvider` into the chat
-  request body.
+- Merges the Anima's chat request options (`chatRequestOptions`: the saved or
+  default reasoning effort and the Chat features choice) into the chat request
+  body.
 - When the effective TTS setting is enabled, adds
   `dispatch_options.main_structured_response=true`.
 - `onToken`: appends normal text to `streamingSegments`, routes
