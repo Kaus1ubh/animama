@@ -320,7 +320,7 @@ KNOWN_NAME_DIFFERENCES = {
 
 
 def _unexplained_differences(diffs: list[Any]) -> list[str]:
-    """Report every difference except a known rename whose removal and addition both appear."""
+    """Report every difference except a known rename: both sides present, same columns and uniqueness."""
 
     def named(diff: Any) -> tuple[str, str, str] | None:
         # Column changes arrive as lists of tuples; only index and constraint tuples can be renames.
@@ -328,12 +328,15 @@ def _unexplained_differences(diffs: list[Any]) -> list[str]:
             return (diff[0].split("_", 1)[0], diff[1].table.name, diff[1].name)
         return None
 
-    present = {named(diff) for diff in diffs}
+    def shape(item: Any) -> tuple[Any, ...]:
+        return (type(item).__name__, tuple(column.name for column in item.columns), getattr(item, "unique", None))
+
+    shapes = {named(diff): shape(diff[1]) for diff in diffs if named(diff) is not None}
     explained: set[tuple[str, str, str] | None] = set()
     for table, baseline_name, orm_name in KNOWN_NAME_DIFFERENCES:
-        pair = {("remove", table, baseline_name), ("add", table, orm_name)}
-        if pair <= present:
-            explained |= pair
+        removed, added = ("remove", table, baseline_name), ("add", table, orm_name)
+        if removed in shapes and added in shapes and shapes[removed] == shapes[added]:
+            explained |= {removed, added}
     return [repr(diff) for diff in diffs if named(diff) is None or named(diff) not in explained]
 
 
