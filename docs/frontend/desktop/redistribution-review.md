@@ -83,11 +83,6 @@ and source metadata are bound into the inventory, so changing either invalidates
 an approval for different bytes. Resolve unclassified or unclear records; do not
 fill approval fields automatically from a passing scan.
 
-The `darwin-arm64` receipt of 2026-11-03 predates the switch of the `animama`
-group to AGPL-3.0-only, the dependency lockfile changes of the open-source
-preparation, the `adapted-code` notice group and the corrected Included-content
-attribution, so the next macOS release needs a fresh `darwin-arm64` review.
-
 The `win32-x64` receipt in `release-policy.json` predates the removal of the
 `litellm` runtime dependency and four later changes, so the next Windows stage
 needs a fresh inventory review that covers them:
