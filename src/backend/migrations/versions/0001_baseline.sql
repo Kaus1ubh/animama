@@ -36,7 +36,6 @@ CREATE TABLE anima (
 CREATE TABLE anima_chat_profiles (
     anima_id character varying NOT NULL,
     default_model_provider_id character varying NOT NULL,
-    reasoning_effort character varying(16),
     metadata jsonb DEFAULT '{}'::jsonb NOT NULL,
     created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL

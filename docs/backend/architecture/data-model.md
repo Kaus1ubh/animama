@@ -51,17 +51,19 @@ the same Postgres instance. Keep that total below the database's
 `max_connections` with headroom for migrations, admin tools, and maintenance
 workers.
 
-## Development schema and initialization
+## Schema and migrations
 
-Alembic revision `baseline_20260908` creates the complete current accountless
-local schema from `src/backend/migrations/versions/0001_baseline.sql`. The SQL creates
-the tables, constraints, indexes, runtime-worker heartbeats and content mutation
-receipts directly.
-It does not import live ORM metadata. During development, update ORM/database
-definitions and the baseline SQL directly as needed; do not add Alembic
-revisions. Update seeds or application defaults for data changes. The owner
-decides when to reset an existing development database to apply the current
-baseline; ordinary startup does not reapply edited baseline SQL.
+Alembic revision `baseline_20260908` creates the accountless local schema
+released in desktop 0.1.2 from `src/backend/migrations/versions/0001_baseline.sql`.
+The SQL creates the tables, constraints, indexes, runtime-worker heartbeats and
+content mutation receipts directly, without importing live ORM metadata. Later
+schema changes are revisions on top of it; the first,
+`reasoning_effort_20261112`, adds `anima_chat_profiles.reasoning_effort`.
+Database bootstrap (desktop startup, or `./reset.sh` for a Compose stack) runs
+`alembic upgrade head`, bringing an existing database forward. The baseline SQL
+and merged revisions are never edited
+([ADR 0035](../../adr/0035-released-schema-changes-use-forward-migrations.md)).
+Update seeds or application defaults for data changes.
 
 The baseline creates and seeds the singleton installation settings row with a
 new UUIDv4 principal in the same migration transaction. The principal is not a
@@ -498,7 +500,7 @@ another interruption.
 
 The baseline includes run kind, task state, the Responses cursor,
 approval feedback, old/new descriptions, applied Version and Undo audit fields.
-During development, schema changes update the ORM and baseline SQL directly.
+Schema changes add an Alembic revision.
 Databases outside the supported revision graph require their matching checkout
 or an explicitly disposable reset; a routine restart does not add missing
 schema or discard data.
@@ -529,9 +531,8 @@ paths, and anima-scope cached paths all ignore rows with `deleted_at IS NOT
 NULL`. A virtual root is used instead of a persisted root row; `parent_id = NULL`
 means the top level of the selected scope.
 
-The baseline includes the memory-manager open-run index. During development,
-changes to this invariant update the ORM and baseline SQL directly; existing
-databases require an owner-directed reset to receive a changed baseline.
+The baseline includes the memory-manager open-run index. Changes to this
+invariant add an Alembic revision.
 
 The application path is:
 

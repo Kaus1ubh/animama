@@ -10,8 +10,19 @@ from pathlib import Path
 from uuid import uuid4
 
 import pytest
+from alembic.script import ScriptDirectory
 from sqlalchemy import create_engine
 from sqlalchemy.engine import make_url
+
+from animama.runtime.resources import alembic_config
+
+
+def alembic_head() -> str:
+    """The revision that bootstrap brings a database to."""
+
+    head = ScriptDirectory.from_config(alembic_config()).get_current_head()
+    assert head is not None
+    return head
 
 
 @pytest.fixture(scope="module")

@@ -4,31 +4,44 @@ import logging
 import uuid
 from contextlib import contextmanager
 from pathlib import Path
+from typing import Any
 
 import pytest
 from alembic import command
+from alembic.autogenerate import compare_metadata
 from alembic.config import Config
+from alembic.migration import MigrationContext
 from alembic.script import ScriptDirectory
 from alembic.util import CommandError
 from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.engine import make_url
 from sqlalchemy.exc import IntegrityError
 
+from tests.migration_database_helpers import alembic_head
+
 ROOT = Path(__file__).parents[1]
-BASELINE_MIGRATION = ROOT / "src" / "backend" / "migrations" / "versions" / "0001_baseline.py"
-BASELINE_SQL = ROOT / "src" / "backend" / "migrations" / "versions" / "0001_baseline.sql"
-BASELINE_SHA256 = "48aa7b305c34a21e88cda4d5487941c63636c7797c59768f2db7d4b612b6a689"
+VERSIONS = ROOT / "src" / "backend" / "migrations" / "versions"
+BASELINE_MIGRATION = VERSIONS / "0001_baseline.py"
+BASELINE_SQL = VERSIONS / "0001_baseline.sql"
+BASELINE_REVISION = "baseline_20260908"
+# Desktop 0.1.2 shipped this exact baseline, and installed profiles carry its
+# revision. Never update this hash: change the schema with a new revision.
+BASELINE_SHA256 = "438446a4a68e40391786337c6f0acd68e7398cf32dc9b82416bc59c975af1ad6"
+SCRIPTS = ScriptDirectory.from_config(Config(str(ROOT / "src/backend/alembic.ini")))
 
 
-def test_baseline_does_not_import_live_metadata() -> None:
-    migration = BASELINE_MIGRATION.read_text(encoding="utf-8")
-    assert "animama.orm" not in migration
-    assert "Base.metadata" not in migration
-    assert "create_all" not in migration
-    assert "0001_baseline.sql" in migration
+def test_revisions_do_not_import_live_metadata() -> None:
+    """Migrations replay the schema of their time, not the current ORM."""
+
+    for path in sorted(VERSIONS.glob("*.py")):
+        migration = path.read_text(encoding="utf-8")
+        assert "animama.orm" not in migration, path.name
+        assert "Base.metadata" not in migration, path.name
+        assert "create_all" not in migration, path.name
+    assert "0001_baseline.sql" in BASELINE_MIGRATION.read_text(encoding="utf-8")
 
 
-def test_baseline_artifact_has_the_reviewed_schema_fingerprint() -> None:
+def test_baseline_artifact_is_frozen_at_the_released_schema() -> None:
     baseline = BASELINE_SQL.read_bytes()
     assert hashlib.sha256(baseline).hexdigest() == BASELINE_SHA256
     sql = baseline.decode("utf-8")
@@ -36,12 +49,17 @@ def test_baseline_artifact_has_the_reviewed_schema_fingerprint() -> None:
     assert sql.count("CREATE TABLE ") == 47
 
 
-def test_current_schema_is_the_single_root_and_head() -> None:
-    scripts = ScriptDirectory.from_config(Config(str(ROOT / "src/backend/alembic.ini")))
-    assert scripts.get_heads() == ["baseline_20260908"]
-    revisions = list(scripts.walk_revisions())
-    assert len(revisions) == 1
-    assert revisions[0].down_revision is None
+def test_history_is_one_linear_chain_from_the_baseline() -> None:
+    """Every installed revision must have exactly one path to the head."""
+
+    assert SCRIPTS.get_heads() == [alembic_head()]
+    revisions = list(SCRIPTS.walk_revisions())
+    assert revisions[-1].revision == BASELINE_REVISION
+    assert revisions[-1].down_revision is None
+    for newer, older in zip(revisions, revisions[1:], strict=False):
+        assert newer.down_revision == older.revision
+    # alembic_version.version_num is varchar(32).
+    assert all(len(revision.revision) <= 32 for revision in revisions)
 
 
 def test_fresh_database_migrates_to_head(db_url: str, monkeypatch) -> None:
@@ -161,7 +179,7 @@ def test_fresh_database_migrates_to_head(db_url: str, monkeypatch) -> None:
                     text("SELECT installation_principal_id FROM installation_settings")
                 ).scalar_one()
                 assert uuid.UUID(first_principal).version == 4
-                assert connection.scalar(text("SELECT version_num FROM alembic_version")) == "baseline_20260908"
+                assert connection.scalar(text("SELECT version_num FROM alembic_version")) == alembic_head()
             command.upgrade(config, "head")
             with engine.connect() as connection:
                 assert connection.execute(
@@ -209,6 +227,137 @@ def migration_schema(db_url: str, monkeypatch: pytest.MonkeyPatch):
         with admin.begin() as connection:
             connection.exec_driver_sql(f'DROP SCHEMA "{schema}" CASCADE')
         admin.dispose()
+
+
+def test_released_baseline_profile_upgrades_to_head_with_its_rows(db_url: str, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A desktop 0.1.2 profile sits at the baseline; upgrading adds later columns and keeps its rows."""
+
+    with migration_schema(db_url, monkeypatch) as (config, engine):
+        command.upgrade(config, BASELINE_REVISION)
+        assert "reasoning_effort" not in {
+            column["name"] for column in inspect(engine).get_columns("anima_chat_profiles")
+        }
+        with engine.begin() as connection:
+            principal = connection.scalar(text("SELECT installation_principal_id FROM installation_settings"))
+            connection.execute(
+                text(
+                    "INSERT INTO model_connections (id, source, name, preset, compatibility, active) "
+                    "VALUES ('openai', 'builtin', 'OpenAI', 'openai', '{}', true)"
+                )
+            )
+            connection.execute(
+                text(
+                    "INSERT INTO model_providers (id, model, provider_type, model_label, provider_label, "
+                    "service_tiers_supported, active, accepts, produces, supports_developer_role, supports_tools, "
+                    "supports_streaming, structured_kinds, pricing_status, pricing_notes, metadata) VALUES "
+                    "('provider', 'model', 'openai', 'Model', 'Provider', '[]', true, '[]', '[]', true, true, true, "
+                    "'[]', 'unknown', '[]', '{}')"
+                )
+            )
+            connection.execute(text("INSERT INTO anima (id, display_name) VALUES ('anima', 'Annie')"))
+            connection.execute(
+                text(
+                    "INSERT INTO anima_chat_profiles (anima_id, default_model_provider_id) VALUES ('anima', 'provider')"
+                )
+            )
+
+        command.upgrade(config, "head")
+
+        columns = [column["name"] for column in inspect(engine).get_columns("anima_chat_profiles")]
+        # Appended, so the upgraded schema matches a fresh database's column order.
+        assert columns[-1] == "reasoning_effort"
+        with engine.connect() as connection:
+            assert connection.scalar(text("SELECT version_num FROM alembic_version")) == alembic_head()
+            assert connection.scalar(text("SELECT installation_principal_id FROM installation_settings")) == principal
+            assert tuple(
+                connection.execute(
+                    text("SELECT anima_id, default_model_provider_id, reasoning_effort FROM anima_chat_profiles")
+                ).one()
+            ) == ("anima", "provider", None)
+
+        command.downgrade(config, BASELINE_REVISION)
+        assert "reasoning_effort" not in {
+            column["name"] for column in inspect(engine).get_columns("anima_chat_profiles")
+        }
+        with engine.connect() as connection:
+            assert connection.scalar(text("SELECT count(*) FROM anima_chat_profiles")) == 1
+
+
+def test_database_from_the_edited_baseline_reaches_head(db_url: str, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Development stacks and 0.1.3 preview profiles got reasoning_effort from an edited baseline."""
+
+    with migration_schema(db_url, monkeypatch) as (config, engine):
+        command.upgrade(config, BASELINE_REVISION)
+        with engine.begin() as connection:
+            connection.execute(
+                text("ALTER TABLE anima_chat_profiles ADD COLUMN reasoning_effort character varying(16)")
+            )
+        command.upgrade(config, "head")
+        with engine.connect() as connection:
+            assert connection.scalar(text("SELECT version_num FROM alembic_version")) == alembic_head()
+        columns = [column["name"] for column in inspect(engine).get_columns("anima_chat_profiles")]
+        assert columns.count("reasoning_effort") == 1
+
+
+# (table, name in the frozen baseline, name in the ORM): the same objects under
+# legacy names. Code matches some constraint names, so no other rename is ignored.
+KNOWN_NAME_DIFFERENCES = {
+    ("anima_content_bindings", "uq_anima_content_bindings_uq_anima_content_slot", "uq_anima_content_slot"),
+    ("content_catalog_dependencies", "ix_content_dependencies_target", "ix_content_catalog_dependencies_target"),
+    (
+        "content_catalog_dependencies",
+        "uq_content_catalog_dependencies_uq_content__d318",
+        "uq_content_catalog_dependency_ref",
+    ),
+    ("content_catalog_files", "ix_content_files_item_ordinal", "ix_content_catalog_files_item_ordinal"),
+    ("content_catalog_files", "uq_content_catalog_files_uq_content_file_path", "uq_content_catalog_file_path"),
+    (
+        "content_catalog_items",
+        "uq_content_catalog_items_uq_content_source_locator",
+        "uq_content_catalog_source_locator",
+    ),
+}
+
+
+def _unexplained_differences(diffs: list[Any]) -> list[str]:
+    """Report every difference except a known rename: both sides present, same columns and uniqueness."""
+
+    def named(diff: Any) -> tuple[str, str, str] | None:
+        # Column changes arrive as lists of tuples; only index and constraint tuples can be renames.
+        if isinstance(diff, tuple) and diff[0] in {"add_index", "remove_index", "add_constraint", "remove_constraint"}:
+            return (diff[0].split("_", 1)[0], diff[1].table.name, diff[1].name)
+        return None
+
+    def shape(item: Any) -> tuple[Any, ...]:
+        return (type(item).__name__, tuple(column.name for column in item.columns), getattr(item, "unique", None))
+
+    shapes = {named(diff): shape(diff[1]) for diff in diffs if named(diff) is not None}
+    explained: set[tuple[str, str, str] | None] = set()
+    for table, baseline_name, orm_name in KNOWN_NAME_DIFFERENCES:
+        removed, added = ("remove", table, baseline_name), ("add", table, orm_name)
+        if removed in shapes and added in shapes and shapes[removed] == shapes[added]:
+            explained |= {removed, added}
+    return [repr(diff) for diff in diffs if named(diff) is None or named(diff) not in explained]
+
+
+def test_orm_matches_the_migrated_schema(db_url: str, monkeypatch: pytest.MonkeyPatch) -> None:
+    """An ORM schema change without a revision fails here, before installed profiles miss it.
+
+    Compared: tables, columns, types, nullability, server defaults, indexes, and
+    unique and foreign-key constraints. Not compared: CHECK constraints and index predicates.
+    """
+
+    from animama.local import installation_model  # noqa: F401 - registers the installation tables
+    from animama.orm import Base
+
+    with migration_schema(db_url, monkeypatch) as (config, engine):
+        command.upgrade(config, "head")
+        with engine.connect() as connection:
+            context = MigrationContext.configure(
+                connection, opts={"compare_type": True, "compare_server_default": True}
+            )
+            diffs = compare_metadata(context, Base.metadata)
+    assert _unexplained_differences(diffs) == []
 
 
 @pytest.mark.parametrize("old_revision", ["0001", "0013_content_mutation_receipts"])

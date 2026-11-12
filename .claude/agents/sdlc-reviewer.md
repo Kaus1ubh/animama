@@ -35,8 +35,8 @@ reuse and no unnecessary abstraction or code bloat. Pay particular attention to:
   restored local accounts or browser bearer tokens);
 - the Cloud boundary (no Cloud imports, sibling paths or private build inputs);
 - hand-edited generated clients or router output;
-- new Alembic revisions (schema changes belong in `0001_baseline.sql` during
-  development);
+- schema changes without a forward Alembic revision, and edits to
+  `0001_baseline.sql` or to a merged revision;
 - documentation left missing or misleading by the change.
 
 Reuse the check record (`SDLC.md#check-records`). Rerun a read-only check only
