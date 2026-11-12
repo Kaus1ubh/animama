@@ -8,6 +8,7 @@ import {
 const snapshot = {
   activeChat: null,
   animaId: "annie",
+  attachmentHold: "none",
   chatId: "chat-1",
   input: "",
   inputPlaceholder: "",
@@ -69,6 +70,23 @@ describe("Quick Chat memory cue mirror", () => {
     );
     expect(isQuickChatSnapshot({ ...snapshot, animaName: null })).toBe(true);
     expect(isQuickChatSnapshot({ ...snapshot, animaName: 7 })).toBe(false);
+  });
+});
+
+describe("Quick Chat attachment hold", () => {
+  it("mirrors the main window's attachment hold", () => {
+    for (const attachmentHold of ["none", "waiting", "blocked"]) {
+      expect(
+        isQuickChatSnapshot(structuredClone({ ...snapshot, attachmentHold })),
+      ).toBe(true);
+    }
+    // Both windows load the same bundle, so every snapshot carries the hold.
+    const withoutHold: Record<string, unknown> = { ...snapshot };
+    delete withoutHold.attachmentHold;
+    expect(isQuickChatSnapshot(withoutHold)).toBe(false);
+    for (const attachmentHold of [undefined, null, "held", true, 1]) {
+      expect(isQuickChatSnapshot({ ...snapshot, attachmentHold })).toBe(false);
+    }
   });
 });
 

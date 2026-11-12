@@ -26,6 +26,7 @@ import {
   resolveChatInputSubmitState,
   type ChatInputSubmitMode,
 } from "./chat-input-submit-state";
+import type { ChatAttachmentHold } from "../chat/session-bindings";
 const CHAT_INPUT_COMPACT_GAP_PX = 8;
 const CHAT_INPUT_MEASUREMENT_TOLERANCE_PX = 2;
 /**
@@ -509,6 +510,11 @@ interface ChatInputSubmitProps extends React.ComponentProps<typeof Button> {
   onStop?: () => void;
   activeMicMode?: ChatInputMicMode | null;
   onMicSessionStop?: () => void;
+  /**
+   * Holds typed text while its attachments are not readable yet: the control
+   * says why instead of sending, and stopping a reply or Voice Mode still works.
+   */
+  attachmentHold?: ChatAttachmentHold;
 }
 
 function ChatInputSubmit({
@@ -518,6 +524,7 @@ function ChatInputSubmit({
   onStop: onStopProp,
   activeMicMode: activeMicModeProp,
   onMicSessionStop: onMicSessionStopProp,
+  attachmentHold = "none",
   className,
   disabled: disabledProp,
   onClick: onClickProp,
@@ -546,6 +553,7 @@ function ChatInputSubmit({
       disabled: Boolean(disabled),
       voiceAvailable: context.voiceAvailable,
       voiceModeShortcut: context.micShortcuts?.voiceMode,
+      attachmentHold,
     },
     t,
   );
@@ -571,8 +579,11 @@ function ChatInputSubmit({
     <Button
       {...props}
       aria-label={props["aria-label"] ?? submitState.label}
+      // A held send stays focusable, unlike `disabled`, so its tooltip can say
+      // why; otherwise the consumer's own value applies.
+      aria-disabled={submitState.held || props["aria-disabled"]}
       className={cn(
-        "h-fit shrink-0 rounded-full border p-1.5 dark:border-zinc-600",
+        "h-fit shrink-0 rounded-full border p-1.5 aria-disabled:cursor-not-allowed aria-disabled:opacity-50 dark:border-zinc-600",
         className,
       )}
       disabled={submitState.disabled}

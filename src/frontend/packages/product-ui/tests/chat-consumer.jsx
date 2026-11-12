@@ -24,6 +24,7 @@ let markdownEnabled = true;
 let speechModel = "eleven_v4_turbo";
 let speechProvider = "elevenlabs";
 let pocketFallback = true;
+let attachmentHold = "none";
 const speechSessions = [];
 const speechFailures = [];
 const speechFallbacks = [];
@@ -172,6 +173,7 @@ function SessionConsumer() {
       completeTtsRun: (runId) => ttsCompletions.push(runId),
       markTtsStreamStarted: (runId) => ttsStreamStarts.push(runId),
     },
+    getAttachmentHold: () => attachmentHold,
     openDraftChatRoute: () => {},
     replaceChatRoute: () => {},
   });
@@ -301,6 +303,9 @@ window.fixture = {
   switchChat: () => api.switchChat(),
   submitText: (text) =>
     api.handleSubmitText({ text, inputMode: "voice", clearInput: true }),
+  setAttachmentHold: (hold) => {
+    attachmentHold = hold;
+  },
   setHistory: (chatId, messages) => {
     histories[chatId] = messages;
   },

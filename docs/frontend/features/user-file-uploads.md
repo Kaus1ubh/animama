@@ -51,7 +51,9 @@ existing backend ID directly.
 6. On `upload-success`, `useUserFileUpload` calls
    `POST /v1/files/{file_id}:finalize`.
 7. The hook reads fresh `GET /v1/runtime-capabilities` metadata. It calls
-   `POST /v1/files/{file_id}:process` only when processing is enabled.
+   `POST /v1/files/{file_id}:process` unless processing is turned off (an
+   unreadable capability response still requests it; the server decides). If
+   that request fails, the original stays saved and its card shows the failure.
 8. The hook invalidates user-file queries through the finalize/process
    mutations and shows toast feedback.
 
@@ -63,14 +65,26 @@ installation-owned backend file. Cards combine transient Uppy metadata for
 browser-side stages with `useUserFiles({ pollActive: true })` status when the
 backend file row is known.
 
+Sending waits until the Anima can read every new upload in the tray
+(`lib/user-files/chat-attachment-hold.ts`). While one is uploading, queued or
+processing, the send control shows that it is waiting for files. A failed
+card, or a saved original while processing is turned off, makes it ask for that
+file's removal instead. While Voice Mode is on, the control keeps offering to
+stop Voice Mode, so the notice each held turn shows is the sign of the hold.
+The session checks the same hold (`getAttachmentHold`) on every send path: the
+button, Enter, Voice Mode and prompt suggestions. Desktop Quick Chat mirrors
+the hold from the main window and checks it before sending its draft. A held
+turn is not sent; its text stays and a notice says why
+(`useChatAttachmentHoldNotice`). Files chosen from the Library are already
+readable and never hold a send.
+
 ## Optional Desktop Processing
 
 Embedded desktop stores and finalizes originals without the document pack.
 Those files stay `uploaded`/Original saved, rather than displaying a failed
 processing job or polling forever. The Library explains that extraction/search
 needs the pack and offers the same main-window Install controls as Settings.
-Already indexed files remain searchable. The hook also preserves the successful
-upload if a later capability or enqueue request fails.
+Already indexed files remain searchable.
 
 `useRuntimeCapabilities` reads the owner-protected capability endpoint. An
 absent pack has `enabled: false`; disabled processing cannot enqueue even from

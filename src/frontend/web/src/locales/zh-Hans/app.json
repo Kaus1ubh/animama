@@ -216,7 +216,6 @@
     "originalSavedNotQueued": "已保存原始文件，但处理未加入队列。",
     "processingNotQueuedAfterUpload": "上传已完成，但无法将处理加入队列。",
     "processingUnavailable": "处理未加入队列。文档处理可用后，你可以在资源库中处理原始文件。",
-    "processingUnavailableDesktop": "此应用不提供文档处理。",
     "queuedForProcessing": "文件已上传并加入处理队列。",
     "rejected": "无法上传此文件。",
     "restrictions": {

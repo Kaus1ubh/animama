@@ -1417,7 +1417,6 @@ export default interface Resources {
       "originalSavedNotQueued": "Original saved; processing was not queued.",
       "processingNotQueuedAfterUpload": "Upload completed, but processing could not be queued.",
       "processingUnavailable": "Processing was not queued. You can process the original from Library once document processing is available.",
-      "processingUnavailableDesktop": "Document processing is not available in this app.",
       "queuedForProcessing": "File uploaded and queued for processing.",
       "rejected": "File cannot be uploaded.",
       "restrictions": {

@@ -121,7 +121,9 @@ Cloud refreshes its package inventories at its next repin, outside this plan.
   repair rounds; the stack check moved to Phase 2).
 - [ ] Phase 2: Every accepted format is read.
 - [ ] Phase 3: Chunks follow headings.
-- [ ] Phase 4: The composer holds sends until attachments are readable.
+- [x] Phase 4: The composer holds sends until attachments are readable
+  (review passed after two repair rounds; the browser-pane checks moved to the
+  Phase 2 stack check).
 - [ ] Phase 5: Docling, the separate worker and the pack are retired.
 - [ ] Phase 6: Documentation and decision records.
 - [ ] Final integration review, full pre-push suite and acceptance checks.

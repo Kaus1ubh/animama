@@ -2,6 +2,7 @@ import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useCallback, useEffect, useLayoutEffect, useState } from "react";
 import type { ChangeEvent } from "react";
 import { useTranslation } from "react-i18next";
+import { useChatAttachmentHoldNotice } from "@animama/product-ui/chat";
 import { CompanionSafetyView } from "@/ui/safety/CompanionSafetyView";
 
 import {
@@ -78,6 +79,7 @@ function DesktopQuickChatRoute() {
     useDesktopQuickChatConsumer(animaId);
   const [draftInput, setDraftInput] = useState("");
   const snapshotAnimaId = snapshot?.animaId ?? null;
+  const noticeAttachmentHold = useChatAttachmentHoldNotice();
   useTransparentQuickChatDocument();
   usePauseClosedQuickChatAnimations();
   useDesktopQuickChatInteractiveRegions(isQuickChatWindow && Boolean(snapshot));
@@ -131,10 +133,12 @@ function DesktopQuickChatRoute() {
 
   const handleSubmit = useCallback(() => {
     const text = draftInput;
-    if (!text.trim()) return;
+    if (!snapshot || !text.trim()) return;
+    // Uploads the Anima cannot read yet hold the turn: say why, keep the draft.
+    if (noticeAttachmentHold(snapshot.attachmentHold)) return;
     setDraftInput("");
     sendCommand({ type: "submit-text", text });
-  }, [draftInput, sendCommand]);
+  }, [draftInput, noticeAttachmentHold, sendCommand, snapshot]);
 
   if (!snapshot) {
     return (
@@ -151,6 +155,7 @@ function DesktopQuickChatRoute() {
           activeChat={snapshot.activeChat}
           activeMode={snapshot.voice.activeMode}
           animaName={snapshot.animaName ?? null}
+          attachmentHold={snapshot.attachmentHold}
           autoFocusInput
           canChat={snapshot.canChat}
           chatMarkdownEnabled={snapshot.chatMarkdownEnabled ?? true}

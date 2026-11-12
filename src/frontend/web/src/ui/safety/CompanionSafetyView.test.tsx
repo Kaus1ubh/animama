@@ -231,6 +231,7 @@ describe("Quick Chat safety bridge", () => {
       promptSuggestions: [],
       showPromptSuggestions: false,
       voice: {},
+      attachmentHold: "none",
     };
     expect(
       isQuickChatSnapshot({

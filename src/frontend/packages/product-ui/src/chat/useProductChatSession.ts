@@ -68,6 +68,7 @@ import {
 import {
   textOnlyChatEffects,
   textOnlySpeechPolicy,
+  type ChatAttachmentHold,
   type ChatSessionEffects,
   type ChatSpeechPolicy,
   type ChatRuntimeFence,
@@ -122,6 +123,12 @@ export type UseProductChatSessionArgs = {
   animaId: string;
   routeChatId?: string | null;
   getAttachedFileIds?: () => string[];
+  /**
+   * Whether the attachments let a turn be sent now, read at each send. A held
+   * turn is not sent, whichever way it was sent: its text stays and a notice
+   * says why.
+   */
+  getAttachmentHold?: () => ChatAttachmentHold;
   openDraftChatRoute: () => void | Promise<void>;
   replaceChatRoute: (chatId: string) => void | Promise<void>;
   safety?: ChatSafetyEffects;
@@ -202,6 +209,29 @@ function patchAnimaEmotionSnapshot(
 }
 
 /**
+ * Says why attachments hold a turn, as every send through the session does.
+ * The returned function shows the notice and returns `true` while `hold`
+ * keeps the turn, and returns `false` when it can be sent.
+ */
+export function useChatAttachmentHoldNotice(): (
+  hold: ChatAttachmentHold,
+) => boolean {
+  const { t } = useProductTranslation();
+  return useCallback(
+    (hold: ChatAttachmentHold) => {
+      if (hold === "none") return false;
+      toast.error(
+        hold === "waiting"
+          ? t("session.toasts.filesNotReady")
+          : t("session.toasts.filesUnreadable"),
+      );
+      return true;
+    },
+    [t],
+  );
+}
+
+/**
  * Orchestrates the chat runtime used by ChatInterface:
  * - route/anima resolution
  * - chat create/update
@@ -217,12 +247,14 @@ export function useProductChatSession({
   webSearch = null,
   animaId,
   getAttachedFileIds,
+  getAttachmentHold,
   openDraftChatRoute,
   routeChatId = null,
   replaceChatRoute,
   safety,
 }: UseProductChatSessionArgs): UseProductChatSessionResult {
   const { t } = useProductTranslation();
+  const noticeAttachmentHold = useChatAttachmentHoldNotice();
   // Safety handlers change identity per render; read the latest through a ref so
   // the submit callback need not be rebuilt.
   const safetyRef = useRef(safety);
@@ -885,6 +917,14 @@ export function useProductChatSession({
           toast.error(t("session.toasts.modelsLoading"));
           return false;
         }
+        // Attachments the Anima cannot read yet hold the turn; its text stays.
+        if (noticeAttachmentHold(getAttachmentHold?.() ?? "none")) {
+          interactionStatus = "invalid";
+          return false;
+        }
+        // The turn sends the attachments just checked: one added while the
+        // chat is being created waits for the next turn.
+        const attachedFileIds = getAttachedFileIds?.() ?? [];
 
         const modelGate = chatModelSendGate(activeChat, activeModelProvider);
         if (!modelGate.ok) {
@@ -1103,7 +1143,6 @@ export function useProductChatSession({
         };
 
         // 5) Open chat SSE and reconcile each streamed event type.
-        const attachedFileIds = getAttachedFileIds?.() ?? [];
         const resolvedChatRequestOptions = {
           ...(chatRequestOptions ?? {}),
           ...(useMainStructuredResponse
@@ -1550,7 +1589,9 @@ export function useProductChatSession({
       clearStreamingState,
       finalizeCompletedStream,
       getAttachedFileIds,
+      getAttachmentHold,
       logger,
+      noticeAttachmentHold,
       patchChatTitleCaches,
       patchAnimaEmotionCaches,
       requestAvatarGesture,

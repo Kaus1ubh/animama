@@ -148,12 +148,14 @@
     }
   },
   "composer": {
+    "removeUnreadableFiles": "Remove unreadable files to send",
     "send": "Send message",
     "sending": "Sending message",
     "speechUnavailable": "Offline speech recognition is unavailable",
     "stop": "Stop",
     "stopVoice": "Stop voice mode",
-    "voiceMode": "Voice mode"
+    "voiceMode": "Voice mode",
+    "waitingForFiles": "Waiting for files to be ready"
   },
   "conversation": {
     "label": "Conversation"
@@ -177,6 +179,8 @@
       "avatarSessionExpired": "This Avatar session expired. Reload it, then send your message again.",
       "chatLoadFailed": "Chat could not be loaded.",
       "chatLoading": "Chat is still loading.",
+      "filesNotReady": "Attached files are not ready yet.",
+      "filesUnreadable": "Remove unreadable files before sending.",
       "missingAnima": "Missing anima.",
       "modelNotDirect": "This model is not available for direct chat yet.",
       "modelsLoading": "Models are still loading.",
