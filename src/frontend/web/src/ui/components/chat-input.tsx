@@ -565,7 +565,10 @@ function ChatInputModelSelector({
         },
       })
       .catch(() => {
-        toast.error(t("composer.model.toasts.effortUpdateFailed"));
+        // A failed step of a drag is replaced by the later saves.
+        if (latestEffortSave.current === save) {
+          toast.error(t("composer.model.toasts.effortUpdateFailed"));
+        }
       })
       .finally(() => {
         // A newer pick stays shown until its own save settles.
