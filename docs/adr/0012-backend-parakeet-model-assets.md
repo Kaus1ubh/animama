@@ -1,6 +1,8 @@
 # 0012: Parakeet speech models as backend model assets
 
-- Status: accepted; amended on 2026-11-04 (downloads end, below)
+- Status: accepted; amended on 2026-11-04 (downloads end, below); decision 5's
+  `document-processing` clause superseded by
+  [0036](0036-uploads-processed-in-core-server.md) (below)
 - Recorded: 2026-10-01
 - Retrospective: no
 - Original decision date: 2026-10-01 (owner decisions in issue #221)
@@ -92,6 +94,13 @@ installing an asset that is not installed is then refused with
 removed. The objects on `downloads.animama.ai` stay published only for a short
 transition after the final desktop release. The catalog and downloader are
 unchanged.
+
+## Amendment (2026-11-12): document processing retired
+
+[ADR 0036](0036-uploads-processed-in-core-server.md) retires the
+`document-processing` pack: the core server processes uploads itself. Decision
+5 therefore keeps the pack manager, archive transport and custody for
+`expanded-included-content` only, and no pack is signed.
 
 ## Evidence
 

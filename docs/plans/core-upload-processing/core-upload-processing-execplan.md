@@ -130,7 +130,8 @@ Cloud refreshes its package inventories at its next repin, outside this plan.
   Phase 2 stack check).
 - [x] Phase 5: Docling, the separate worker and the pack are retired (two
   scoped reviews; desktop staging passed with no document pack).
-- [ ] Phase 6: Documentation and decision records.
+- [x] Phase 6: Documentation and decision records (light tier; the final
+  integration review covers it; the #837 comment follows at PR time).
 - [ ] Final integration review, full pre-push suite and acceptance checks.
 - [ ] PR opened with its evidence and remaining gates.
 

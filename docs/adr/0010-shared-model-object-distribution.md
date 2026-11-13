@@ -1,10 +1,13 @@
 # 0010: Shared voice model objects and optional downloads
 
 - Status: accepted; items 2, 8 (Parakeet clause), 3 (built self-host) and 9
-  (setup draft, GPU visibility) superseded by [0012](0012-backend-parakeet-model-assets.md)
+  (setup draft, GPU visibility) superseded by [0012](0012-backend-parakeet-model-assets.md);
+  item 6's `document-processing` clause superseded by
+  [0036](0036-uploads-processed-in-core-server.md)
 - Recorded: 2026-09-28
 - Amended: 2026-10-20, Michael is a core voice for the Andrew starter ([issue #618](https://github.com/raymond-van/animama/issues/618));
-  2026-11-04, downloads end (below)
+  2026-11-04, downloads end (below); 2026-11-12, the `document-processing` pack
+  is retired (below)
 - Retrospective: no
 - Original decision date: 2026-09-28
 - Decision basis: owner decisions and implementation authorization in [issue #188](https://github.com/raymond-van/animama/issues/188), synchronized 2026-09-28
@@ -132,6 +135,15 @@ installing an asset that is not installed is then refused with
 `model_downloads_ended`, while assets installed earlier keep working and can be
 removed. The objects on `downloads.animama.ai` stay published only for a short
 transition after the final desktop release. The catalog and downloader are
+unchanged.
+
+## Amendment (2026-11-12): document processing leaves the pack catalog
+
+[ADR 0036](0036-uploads-processed-in-core-server.md) moves upload processing
+into the core server and retires the `document-processing` pack, so item 6's
+preservation of archive handling and signed-code verification for that pack no
+longer applies. Feature packs now carry data only: the pack manager accepts no
+signed or executable pack. Archive handling for `expanded-included-content` is
 unchanged.
 
 ## Evidence

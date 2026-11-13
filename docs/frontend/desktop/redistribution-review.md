@@ -55,8 +55,8 @@ complete and silent.
 ## Pack and native dependencies
 
 `desktop/runtime/feature-pack-releases.json` has no active pack. Expanded
-Included content and Docling document processing are deferred: they produce no
-initial-release archive or catalog entry. Both Parakeet sets and both
+Included content is deferred: it produces no initial-release archive or
+catalog entry. Both Parakeet sets and both
 SenseVoice sets are published as shared model objects and downloaded at runtime,
 outside the packaged core; their attributions, the onnx-asr MIT notice and the
 full FunASR Model License text stay in the packaged notice bundle, and each
@@ -70,9 +70,21 @@ source coordinates and bundled terms in the runtime inventory. Review linkage,
 notices and distribution obligations for the exact build. A generated inventory
 or a successful Apple notarization does not grant redistribution permission.
 
-Before activating document processing, review its models/native libraries and
-exact signed worker inventory. Rebuilding or changing signed worker bytes
-requires fresh signatures, notarization, inventory and review.
+The core runtime of both targets freezes the upload parsers of the `documents`
+extra: python-docx, python-pptx, openpyxl and et_xmlfile (MIT), XlsxWriter
+(BSD-2-Clause), defusedxml (PSF), lxml (BSD-3-Clause) and pypdfium2
+(BSD-3-Clause or Apache-2.0). The next review of each target covers them, with
+two items to check in particular:
+
+- lxml's binary wheels statically link zlib, libxml2, libxslt, libexslt and GNU
+  libiconv. libiconv is LGPL-2.1: as for `psycopg`, review its linkage,
+  notices and distribution obligations for the exact build.
+- pypdfium2 bundles a PDFium build whose own components, such as FreeType,
+  ICU, libjpeg-turbo, OpenJPEG, libpng, Little CMS, Abseil and zlib, each carry
+  a notice. `src/backend/packaging/desktop/python_licenses.py` copies every
+  licence file a distribution declares, so these notices and lxml's
+  bundled-library terms should reach `THIRD_PARTY_NOTICES.txt`; confirm them in
+  the exact artifact.
 
 ## Exact artifact review
 

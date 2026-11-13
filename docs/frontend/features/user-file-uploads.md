@@ -78,26 +78,27 @@ turn is not sent; its text stays and a notice says why
 (`useChatAttachmentHoldNotice`). Files chosen from the Library are already
 readable and never hold a send.
 
-## Optional Desktop Processing
+## Processing Availability
 
-Embedded desktop stores and finalizes originals without the document pack.
-Those files stay `uploaded`/Original saved, rather than displaying a failed
-processing job or polling forever. The Library explains that extraction/search
-needs the pack and offers the same main-window Install controls as Settings.
-Already indexed files remain searchable.
+Every local runtime, desktop included, processes uploads in its own server, so
+`useRuntimeCapabilities` reports `user_file_processing.enabled: true` and a new
+upload moves from Original saved through Queued and Processing to Ready. The
+web app reads only `enabled`. `worker_state`, the server processor's liveness,
+is diagnostic: work queued while it is `starting` or `stale` waits durably. A
+file that fails shows its reason, such as a scanned PDF without selectable text
+or an encrypted document, on its card and in the Library.
 
-`useRuntimeCapabilities` reads the owner-protected capability endpoint. An
-absent pack has `enabled: false`; disabled processing cannot enqueue even from
-a stale renderer (`409`, `detail.code: file_processing_unavailable`). An installed
-pack can be `starting`, `ready`, or `stale`: starting/stale workers may accept
-durable queued work, and the Library shows that liveness separately. Removal
-waits for running jobs; originals and queued jobs survive it. Self-hosted web
-uses the same capability response but has no desktop Install bridge.
+A self-hosted operator can turn processing off
+(`ANIMAMA_USER_FILE_PROCESSING_ENABLED=false`). New uploads then stay
+`uploaded`/Original saved instead of showing a failed job or polling forever,
+the Library says that upload processing is unavailable, and files indexed
+earlier stay searchable. Disabled processing cannot enqueue even from a stale
+renderer (`409`, `detail.code: file_processing_unavailable`).
 
 ## Backend lifecycle and frontend status
 
 [User Files](../../backend/features/user-files.md) owns endpoint validation,
-worker configuration, processing statuses, chunking and deletion recovery.
+processing configuration, processing statuses, chunking and deletion recovery.
 The frontend uses three mutations: init returns the PUT target, finalize confirms
 stored bytes, and process enqueues work. `force=true` requests reprocessing.
 
@@ -200,9 +201,8 @@ pnpm build
 ```
 
 Manual end-to-end validation requires only the normal local stack and writable
-`data/` mount; no R2-compatible service or credentials are required. The
-checked-in worker service is currently commented out, so `./reset.sh` alone
-does not start parsing. Enable/configure the private worker before testing
-processing and confirm a fresh heartbeat through the capability endpoint.
-Embedded tests require the real signed document pack; mocked UI controls are
-not evidence of native conversion.
+`data/` mount; no R2-compatible service or credentials are required.
+`./reset.sh` starts processing with the server; the capability endpoint should
+report `worker_state: "ready"`. Desktop parsing runs in the frozen runtime's
+own parse child, so checking Office and PDF files there needs a staged or
+packaged app; mocked UI controls are not evidence of native parsing.

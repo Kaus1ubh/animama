@@ -24,9 +24,9 @@ production readiness or publication rights.
 | 0007 | [Repository-owned specifications and execution plans](0007-repository-owned-planning.md)                                                           | accepted                                                      |
 | 0008 | [Non-overridable companion guardrail](0008-non-overridable-companion-guardrail.md)                                                                 | accepted; placement amended by 0023 and on 2026-10-25                           |
 | 0009 | [Shared user memory and per-Anima relationship memory](0009-shared-user-memory-and-per-anima-relationship-memory.md)                               | accepted; partly superseded by 0034                           |
-| 0010 | [Shared voice model objects and optional downloads](0010-shared-model-object-distribution.md)                                                      | accepted; partly superseded by 0012; amended on 2026-11-04     |
+| 0010 | [Shared voice model objects and optional downloads](0010-shared-model-object-distribution.md)                                                      | accepted; partly superseded by 0012 and 0036; amended on 2026-11-04 |
 | 0011 | [Application-owned companion features and composition catalog policy](0011-application-owned-companion-features-and-composition-catalog-policy.md) | accepted; amended on 2026-09-30 and 2026-11-03                |
-| 0012 | [Parakeet speech models as backend model assets](0012-backend-parakeet-model-assets.md)                                                            | accepted; amended on 2026-11-04                               |
+| 0012 | [Parakeet speech models as backend model assets](0012-backend-parakeet-model-assets.md)                                                            | accepted; amended on 2026-11-04; partly superseded by 0036    |
 | 0013 | [Native Windows desktop packaging](0013-native-windows-desktop-packaging.md)                                                                       | accepted                                                      |
 | 0014 | [Track-based Anima Pose Clips organised by beats](0014-track-based-anima-pose-clips.md)                                                            | accepted; partly superseded by 0016 and 0019                  |
 | 0015 | [One Avatar Effect definition source and model-agnostic face parts](0015-avatar-effect-definition-source-and-face-parts.md)                        | accepted                                                      |
@@ -49,6 +49,7 @@ production readiness or publication rights.
 | 0032 | [VRM stays the Avatar container; ARKit shapes are a face capability](0032-vrm-container-with-arkit-face-shapes.md)                                 | accepted                                                      |
 | 0033 | [Digest-keyed URLs for Included content files](0033-digest-keyed-included-content-file-urls.md)                                                    | proposed                                                      |
 | 0034 | [Automatic episode processing and the profile in every turn](0034-automatic-episode-processing-and-profile-context.md)                             | accepted; partly supersedes 0009                              |
+| 0036 | [Uploads are processed in the core server without Docling](0036-uploads-processed-in-core-server.md)                                               | accepted; partly supersedes 0010 and 0012                     |
 
 ## When and how to record a decision
 

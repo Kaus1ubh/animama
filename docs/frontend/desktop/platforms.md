@@ -254,8 +254,7 @@ rejects it because Linux has no embedded runtime.
 Do not advertise their former shell artifacts as current self-contained builds.
 Core signing, notarization, update feeds, and clean-machine smoke are implemented
 as gated tooling for both macOS and Windows; an actual accepted release remains
-outstanding. The deferred document worker requires signing, notarization and
-publisher verification before execution; see the
+outstanding. Feature packs carry data only; see the
 [pack producer](runtime-staging.md#optional-pack-producer). Windows feature
 packs are not built yet, so a Windows release refuses any active pack.
 
@@ -338,8 +337,8 @@ installation, removal and offline dictation from Voice settings, with no backend
 restart or window reload. The final release checks removal and offline
 dictation after upgrading the previous release with offline speech already
 installed.
-Expanded content and document processing are deferred from the first release; retain their lifecycle and
-in-use/removal regression coverage without advertising their downloads.
+Expanded content is deferred from the first release; retain its lifecycle and
+in-use/removal regression coverage without advertising its download.
 Those real artifact/native tests remain gated, not passed. A
 successful type check, mocked supervisor test, native database component probe,
 or unsigned core journey does not replace native optional-download acceptance.

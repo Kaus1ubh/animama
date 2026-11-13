@@ -102,8 +102,11 @@ Each staging pass clears only `desktop/.desktop-runtime/darwin-arm64`, then:
    flags. The runtime retains required language, encoding, and text-search
    modules, but no headers, static archives, or development tools. Symbols stay
    in a separate output directory.
-3. Freezes Python 3.12.13 and the locked server dependencies with PyInstaller
-   6.22.2. The build environment is separate from the repository's `.venv`.
+3. Freezes Python 3.12.13 and the locked server dependencies, with the
+   `documents` extra's upload parsers, using PyInstaller 6.22.2. The build
+   environment is separate from the repository's `.venv`. The frozen runtime
+   also serves as each upload's parse child (`parse-upload`), so the parsers'
+   native libraries (lxml and PDFium) ship, and are signed, with the core.
 4. Builds Vite in `embedded-desktop` mode, without duplicate Included aliases.
    App stage scenes from `public/background` ship unchanged; the audit rejects
    any other file under an Included compatibility route such as `background/`.
@@ -219,9 +222,7 @@ A successful stage also rewrites the ignored local
 it does not reuse narrative from an older build.
 
 Read the exact stage reports for measured bytes and audit results. Feasibility
-sizes are not signed DMG/ZIP sizes. `worker-review.json` records signed worker
-measurements after export; core worker fields remain null until a reviewed
-worker enters the catalog. A generated license inventory requires human review.
+sizes are not signed DMG/ZIP sizes. A generated license inventory requires human review.
 See [redistribution review](redistribution-review.md) for source and notice
 mappings and the pending artifact review.
 
@@ -281,13 +282,13 @@ affects it.
 pnpm desktop:runtime:packs -- --platform darwin --arch arm64
 ```
 
-It can consume expanded Included content outside the core closure and the
-separately signed worker input. `desktop/runtime/feature-pack-releases.json` fixes the release URL,
+It consumes expanded Included content outside the core closure; every pack is
+data only. `desktop/runtime/feature-pack-releases.json` fixes the release URL,
 versions, license references, explicit `active`/`deferred` release status, and
-approved inventory digest for each supported ID. Expanded Included content and
-document processing are `deferred` for the first release: their development
-inputs remain but they produce no archive/catalog entry or release size gate and
-require no initial-release approval. An active pack ships only when bound to its
+approved inventory digest for each supported ID. Expanded Included content is
+`deferred` for the first release: its development inputs remain but it
+produces no archive/catalog entry or release size gate and requires no
+initial-release approval. An active pack ships only when bound to its
 owner-approved exact digest; a null or changed digest produces a review report,
 not an installable catalog entry. Do not fill in approval hashes
 without reviewing redistribution
@@ -307,7 +308,7 @@ two expanded payloads, archive bytes and a 64 MiB reserve. Existing installed
 versions are never assumed reclaimable. No mutable latest-pack feed exists.
 
 The current release input contains the Apple publisher and no active pack, so a
-matching stage emits an empty installable catalog; both deferred packs remain
+matching stage emits an empty installable catalog; the deferred pack remains
 absent. Existing development content files are not approval.
 
 Browser production-preview checks and an `embedded-desktop` Vite build prove
@@ -316,74 +317,12 @@ tests, or signed/native acceptance. Restage the entire matching web/backend
 output after a cache-policy or frontend change; do not copy individual chunks
 into an audited runtime.
 
-### Separate Document Worker
-
-The executable pack uses its own Python environment and PyInstaller spec:
-`src/backend/packaging/desktop/animama-document-worker.spec`. It includes
-lightweight parsers, Docling/Torch, dependency notices, fixed Docling layout/table
-models, and a tiktoken cache. Runtime resource configuration is frozen-only and
-forces offline model loading; OCR/VLM model families are not included.
-
-Before invoking the builder, configure the reviewed Apple Team ID, Developer ID
-Application identity, and designated requirement in the release input file.
-Use the same Team ID for the eventual core app. Put notarization credentials in
-a Keychain profile and set only its name in `ANIMAMA_MACOS_NOTARY_PROFILE`:
-
-```sh
-pnpm desktop:runtime:document-worker -- --platform darwin --arch arm64
-```
-
-Without these prerequisites the command stops before building or signing. It
-never enables an unsigned worker, including in development. With them, it
-builds `Animama Document Worker.app`, checks Mach-O architecture and native
-dependency containment, signs nested Mach-O files and the bundle, notarizes and
-staples it, verifies the pinned publisher and Gatekeeper assessment, then runs
-the frozen resource/PDF-conversion audit. The signed input lives under
-`desktop/.desktop-runtime/document-worker/darwin-arm64/signed-input`. Review
-that exact inventory before producing its pack. The producer also exports an
-unapproved review archive/manifest to `desktop/release/worker-input/`. Reuse
-these exact signed bytes on release runners with
-`node desktop/scripts/runtime/worker-input.mjs import` after recording the
-approved inventory. Re-signing a rebuilt helper changes its digest and
-invalidates approval for different bytes. See [Releases](releases.md#build-and-preserve-the-reviewed-helper).
-The pipeline and refusal gates
-have component coverage; an actual signed artifact, native conversion, and
-measured worker size remain required acceptance evidence.
-
-The native audit reads Mach-O load commands so a dylib's own `LC_ID_DYLIB` is
-not mistaken for a missing dependency. Before signing, the builder replaces
-references to proven PyInstaller Torch aliases with contained loader-relative
-paths and removes those duplicate copies. Other native aliases are retained
-for possible Python/ctypes lookups, with their original search locations
-preserved after materialization. The resulting pack still contains only regular
-files; missing libraries, external search paths and size overruns fail the build.
-`Contents/Resources/NATIVE_LIBRARIES.json` records the dependency audit and
-relocations.
-The app's `Contents/MacOS/animama-document-worker` is a small native launcher;
-the intact frozen Python tree lives in `Contents/Resources/document-worker`.
-The launcher uses a bundle-relative absolute path and `execv`, preserving the
-supervisor's PID/signals without a shell, PATH dependency or helper process.
-The producer explicitly signs and verifies every payload Mach-O before signing
-the outer app. The pack installer independently checks every native signature
-after extraction, as well as the full sealed bundle. No non-code signature is
-stored only in extended attributes, and the archive still rejects links.
-Core and worker audits also inspect each shipped arm64 Mach-O deployment
-minimum before runtime probes or signing. They compare deployment versions,
-not SDK versions; an absent/foreign target or a requirement above the advertised
-minimum fails. Failed core audits invalidate their success receipt. Build flags,
-app/helper metadata, runtime admission and update feeds target macOS 15. Rebuild
-rather than relabel artifacts, and retain the macOS 15 runtime-acceptance gate.
-The private `document-worker/darwin-arm64/notarization-response.log` retains the
-Apple submission response, including on a timeout; inspect it before submitting
-again. It is build-cache evidence, not a publication or approval receipt.
-
 ## Native verification
 
 Unpackaged supervised tests can supply an absolute fixture catalog through
 `ANIMAMA_DESKTOP_DEV_PACK_CATALOG_PATH`; only that mode permits loopback HTTP
 fixture archives. Packaged builds reject the override and use their embedded
-catalog. This is not permission to mount unreviewed release content or run an
-unsigned executable pack.
+catalog. This is not permission to mount unreviewed release content.
 
 The native database listens only on authenticated loopback TCP. Unused Unix
 sockets are disabled so a long application-data path does not exceed macOS's
@@ -421,6 +360,14 @@ repeated bootstrap, and a real custom-format dump restored into a separate fresh
 database. The restored principal, Alembic head, pgvector extension, and exact
 owner-scoped marker rows must match the snapshot. It is stopped and removed in
 `finally`; it does not create or alter any Compose stack.
+
+On macOS the audit also inspects each shipped arm64 Mach-O deployment minimum
+before runtime probes or signing, including those of prebuilt wheels such as
+lxml and PDFium. It compares deployment versions, not SDK versions; an
+absent or foreign target, or a requirement above the advertised minimum,
+fails. A failed audit invalidates its success receipt. Build flags, app
+metadata, runtime admission and update feeds target macOS 15. Rebuild rather
+than relabel artifacts, and retain the macOS 15 runtime-acceptance gate.
 
 Hard caps are 750 MiB compressed core and 1.5 GiB installed core. Five-percent
 component regressions are compared with the last **released** baseline. There

@@ -22,12 +22,12 @@ remain pending for the exact current candidate.
 | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Inputs                        | Apple Team ID, Developer ID identity and local notarization Keychain profile are configured; content/dependency terms and notices are reviewed. Keep credentials out of source and chat.                                                                                                                                                                                        |
 | Candidate coordinates         | Select the app distribution with `ANIMAMA_RELEASE_DISTRIBUTION` (default `r2`) and keep it identical for stage, audit and `desktop:dist:mac`. Archive-pack and update URLs derive from it; model objects always use `downloads.animama.ai/models/`. No token, visibility check or upload is needed to build.                                                                    |
-| Reviewed packs                | No pack is active: expanded content and document processing are deferred, and a policy that ends updates (the final release) forbids activating one. Preserve the signed/notarized worker without advertising or approving it. The required model objects, including both Parakeet and both SenseVoice sets, are scanned with the candidate.                                       |
+| Reviewed packs                | No pack is active: expanded content is deferred, and a policy that ends updates (the final release) forbids activating one. The required model objects, including both Parakeet and both SenseVoice sets, are scanned with the candidate.                                       |
 | Dependency audit              | On each build host, `pnpm audit --prod`, the full audit's `desktop>electron` entries and `pip-audit` of the frozen backend's locked packages report no advisory, except ones accepted as unreachable and listed in `desktop/release/dependency-audit/`. Electron is on the latest release of a supported stable major.                                                          |
 | Candidate                     | From reviewed release inputs on `main`, stage, audit and build the local signed DMG/ZIP. Check sizes, hashes, signatures, notarization and notices. A build never uploads to GitHub; notarization sends the binaries to Apple.                                                                                                                                                  |
 | Automated acceptance          | Run the required-name setup smoke on a fresh macOS account, local VM clone or runner. It rejects blank input before named completion. Explicit provider-key approval is needed for real chat calls. Never reset the maintainer's normal desktop profile.                                                                                                                        |
 | Distribution / public preview | Currently not authorized. The publisher requires the selected destination to serve anonymously (a public GitHub repository or the R2 custom domain), a passing release scan and separate approval of the exact candidate/packs. A private destination cannot serve installed-app downloads; a different private testing transport would require a separate design and approval. |
-| Native acceptance             | Check physical microphone/audio, windows/shortcuts, in-place offline speech install/removal and offline dictation (for the final release, removal and dictation after upgrading the previous release with offline speech installed), packs/document conversion when a pack is active, failures/recovery and a real forward signed upgrade. Record supported OS and compatible app/pack versions actually exercised. |
+| Native acceptance             | Check physical microphone/audio, windows/shortcuts, in-place offline speech install/removal and offline dictation (for the final release, removal and dictation after upgrading the previous release with offline speech installed), packs when a pack is active, failures/recovery and a real forward signed upgrade. Record supported OS and compatible app/pack versions actually exercised. |
 | Stable promotion              | `raymond-van` reviews the exact DMG-bound manual receipt, required-name smoke/network reports and a rerun dependency audit, then runs the final publisher command.                                                                                                                                                                                                              |
 
 Windows 11 x64 passes the same gates with its own commands; see
@@ -46,7 +46,7 @@ physical machine or minimum-OS compatibility.
 
 ## Commands and inputs
 
-Build details, helper reuse, token scope and first-release upgrade QA are in
+Build details, token scope and first-release upgrade QA are in
 [Release tooling](releases.md). Set the release version only in
 `desktop/package.json`: it versions the packaged app, and the web build reports
 it in About. First prepare complete release model inputs from the repository root:
@@ -116,7 +116,7 @@ bucket and read-only token under its own prefix. `ANIMAMA_REQUIRE_MIXAMO_MOTION=
 and `ANIMAMA_REQUIRE_WOW_COMEDY_SFX=1` make the stage fail without the verified
 packs, so a candidate cannot silently ship without them.
 
-The signed helper and reviewed pack/core inputs must already be configured.
+The reviewed pack and core inputs must already be configured.
 Public visibility and release-repository API availability are not candidate build
 preconditions; dependency downloads and Apple notarization still need network access.
 The embedded update and pack URLs remain pinned and anonymous:
@@ -125,8 +125,8 @@ startup and local functionality must still work. Do not embed tokens, add runtim
 feed/catalog overrides, or call a manually copied pack a verified download.
 Do not rebuild while an exact candidate is under acceptance: a signature or
 input change invalidates its old hashes and receipts. Preserve
-`desktop/release/publish` and the matching helper input outside disposable build
-outputs before starting another candidate; `desktop:dist:mac` replaces its derived
+`desktop/release/publish` outside disposable build outputs before starting
+another candidate; `desktop:dist:mac` replaces its derived
 candidate directory, not user data.
 
 Smoke the exact candidate DMG in a disposable clone of the golden smoke VM,
@@ -312,8 +312,8 @@ After actual release, verify remote asset hashes against the local index and
 retain the exact reviewed artifacts and test notes, including the tested OS and
 app/pack version matrix. Only then update `desktop/runtime/size-baseline.json`
 from the released size report and record any approved exception. Do not turn
-unsigned staging sizes, synthetic recovery tests or unbuilt worker estimates
-into a release baseline or completed acceptance report.
+unsigned staging sizes or synthetic recovery tests into a release baseline or
+completed acceptance report.
 
 ## Failure and handoff
 
@@ -344,7 +344,7 @@ rollback of app files is not permission to downgrade a migrated database.
 
 To resume, review the [open release gates](#release-gates-in-order),
 apply the verified signing metadata and review the exact inputs, then prepare the
-signed helper and private candidate. Keep the acceptance receipt with the exact
+private candidate. Keep the acceptance receipt with the exact
 candidate hashes, app/pack versions, operating system, tested journeys, remaining
 limits and the maintainer's decision. Public-distribution approval is separate. Do not dispatch CI, change visibility
 or publish as part of candidate preparation.

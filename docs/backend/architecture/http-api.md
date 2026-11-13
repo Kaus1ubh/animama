@@ -32,7 +32,8 @@ Local setup and host/key administration schemas remain in the server composition
   and first-run completion.
 - `product_http/routes/runtime_capabilities.py` (shared): owner-protected
   optional feature availability, as each composition's ports report it; the
-  local report (`server/runtime_capabilities.py`) includes document-worker liveness.
+  local report (`server/runtime_capabilities.py`) includes the liveness of the
+  server's upload processing runner.
 - `server/routers/desktop_control.py`: private pack-removal preflight, never
   included in public OpenAPI or mounted in self-host composition.
 - `product_http/routes/animas.py` (shared): Anima list, reads, edits,
@@ -137,11 +138,12 @@ Local setup and host/key administration schemas remain in the server composition
   "local_filesystem_administration": true,
   "native_features": true,
   "user_file_processing": {
-    "enabled": false,
-    "worker_state": "disabled",
-    "last_heartbeat_at": null,
+    "enabled": true,
+    "worker_state": "ready",
+    "last_heartbeat_at": "2026-11-12T18:40:18Z",
     "pack_id": "document-processing",
-    "supported_extensions": []
+    "supported_extensions": [".csv", ".docx", ".htm", ".html", ".json", ".md",
+      ".org", ".pdf", ".pptx", ".rst", ".tsv", ".txt", ".xlsx", ".xml"]
   },
   "offline_speech_enabled": false,
   "offline_speech_asset_version": null,
@@ -197,12 +199,14 @@ request none. The Library's Preview action and Avatar portraits do not depend on
 `model_configuration` is true when the composition's
 catalog policy enables owner models, which only the local composition does; the
 local-only [model configuration routes](#model-configuration) exist only then.
-The shared `GET /v1/model-roles` report is served by every composition. The
-self-host composition returns a null document `pack_id`; the Electron
-supervisor supplies pack-dependent settings. An enabled worker is `starting`
-until its expected instance has a heartbeat, `ready` for twenty seconds after
-that heartbeat, then `stale`. Enabled work may queue while
-starting/stale. A disabled capability returns `409` with
+The shared `GET /v1/model-roles` report is served by every composition. Every
+local composition [processes uploads in its server](../features/user-files.md#in-server-processing):
+`user_file_processing.enabled` follows `ANIMAMA_USER_FILE_PROCESSING_ENABLED`
+(default `true`), and `worker_state` is `starting` until the server's
+processing runner has a heartbeat, `ready` for twenty seconds after that
+heartbeat, then `stale`. `pack_id` is a fixed `document-processing` label on
+desktop and null in self-host; it names no installable pack. Enabled work may
+queue while starting/stale. A disabled capability returns `409` with
 `{"detail":{"code":"file_processing_unavailable"}}` from explicit process
 requests before repository lookup or enqueue. Original-file upload/finalization
 and existing indexed-file search still work. React checks fresh capability
@@ -283,12 +287,13 @@ search backend, used by tool-capable models without hosted search (see
 
 `POST /_desktop/feature-packs/{pack_id}:removal-check` is a separate supervisor
 contract. Only a valid per-launch `X-Animama-Desktop-Control` token reaches it;
-all other requests and unknown pack IDs return 404. The bounded response has
+all other requests and unknown or retired pack IDs (such as
+`document-processing`) return 404. The bounded response has
 `schema_version`, `pack_id`, nullable `source_version`/`pack_version`, `removable`,
 and at most 32 `{kind, id, label}` blockers. Kinds cover Anima/loadout references,
-runtime and preview leases, content operations, and live document jobs. It never
-returns filesystem roots. Electron repeats preflight after draining renderers
-and stopping the worker, before switching pack pointers. Catalog withdrawal
+runtime and preview leases, and content operations. It never
+returns filesystem roots. Electron repeats preflight after draining renderers,
+before switching pack pointers. Catalog withdrawal
 reuses the same reference checks at restart, except that Included items' own
 edges into the pack are rebuilt from the new scan rather than blocking (an
 optional sound drops; a required dependency becomes invalid); readiness fails
@@ -1540,8 +1545,10 @@ and backend debug search. It exposes:
   opaque local locator, file existence, and exact size; mark the row
   `uploaded`.
 - `POST /v1/files/{file_id}:process`: enqueue or reuse a durable processing job
-  for the current user's finalized file. The API process only enqueues; parsing
-  runs in the `animama-file-worker` process.
+  for the current user's finalized file and wake the server's processing
+  runner. The request only enqueues; the runner parses the file afterwards in
+  a bounded child process. Returns `409` `file_processing_unavailable` while
+  processing is turned off.
 - `POST /v1/files/debug/search`: search current-user processed chunks in
   `keyword`, `semantic`, or `hybrid` mode. Keyword search uses PostgreSQL
   full-text search. Semantic search embeds the query with the Embeddings role
@@ -1569,7 +1576,7 @@ Macro-enabled Office files, executables, scripts, installers, and archives remai
 blocked.
 
 See [user files](../features/user-files.md) for the end-to-end local upload
-flow, parser worker lifecycle, statuses, configuration, and debug UI behavior.
+flow, in-server processing, statuses, configuration, and debug UI behavior.
 
 ## Archives
 

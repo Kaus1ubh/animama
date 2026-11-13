@@ -837,9 +837,11 @@ Current APIs list only non-`deleted` files for the resolved request principal.
 
 `ORMUserFileProcessingJob` is the durable Postgres-backed processing queue. Jobs
 store `file_id`, `user_id`, `queued`/`running`/terminal status, attempts,
-`run_after`, lease fields, timestamps, last error, and metadata. Parser workers
-claim jobs with row leases and retry failed conversions up to the configured max
-attempts.
+`run_after`, lease fields, timestamps, last error, and metadata. The server's
+upload processing runner claims jobs with row leases. A failure that a retry
+cannot fix fails the job at once; others retry up to the configured max
+attempts, and a job whose lease expired on its last attempt fails as
+interrupted.
 
 `ORMUserFileChunk` stores searchable chunks extracted from uploaded files.
 Chunks denormalize `user_id`, keep deterministic `chunk_index` per file, store
@@ -861,24 +863,26 @@ fresh processing. The `(user_id, embedding_model_id)` index finds chunks that
 do not match the owner's Embeddings role. Search compares only vectors from
 the current role; other chunks wait for the re-embedding task.
 
-For Docling-parsed formats, chunk metadata is compacted before persistence.
-Stable metadata keys are `parser`, `chunker`, `headings`, `captions`, `origin`,
-`doc_items`, `doc_item_count`, and `token_count`. `doc_items` stores a bounded
-summary of source item refs/labels/text/page hints, while `doc_item_count`
-records the original Docling item count. Docling's contextualized text is
-stored only in `embedding_text` and is never returned by public APIs.
+Chunk metadata holds `chunk_type`, the `headings` path, a PDF chunk's `pages`,
+and `table_index`, `row_start` and `row_end` for rows of one table (see
+[chunking](../features/user-files.md#chunking)). The heading path is prefixed
+only to `embedding_text`, which is never returned by public APIs. Chunks that
+the retired Docling parser stored keep its compacted keys (`parser`, `chunker`,
+`headings`, `captions`, `origin`, `doc_items`, `doc_item_count` and
+`token_count`) until their file is reprocessed.
 
 The original-file, chunk, and queue tables are part of the accountless Alembic
-baseline. Disabling or removing the desktop document pack retains those rows.
-Queued work resumes when a worker returns; live running leases block removal.
+baseline. Turning processing off retains those rows, and queued work resumes
+when it is turned back on.
 
 `ORMRuntimeWorkerHeartbeat` stores one row per worker kind, with `instance_id`
-and UTC `heartbeat_at`. The document worker upserts its liveness every five
-seconds and renews only running jobs with its own `locked_by`. Shutdown clears
-only its own instance's heartbeat, so an older worker cannot erase replacement
-liveness. No provider key, process path, or local account is stored here.
-The public capability endpoint compares the expected instance and uses a
-twenty-second freshness threshold; queue leases retain their separate timeout.
+and UTC `heartbeat_at`. The server's upload processing runner upserts the
+`document-processing` row every five seconds and renews only running jobs with
+its own `locked_by`. Stopping clears only its own instance's heartbeat, so an
+older process cannot erase a replacement's liveness. No provider key, process
+path, or local account is stored here. The public capability endpoint compares
+the row with the running server's own runner and uses a twenty-second
+freshness threshold; queue leases retain their separate timeout.
 
 ### Archive
 
