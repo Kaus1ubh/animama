@@ -1,10 +1,9 @@
-"""Optional desktop work is admitted by the API, independently of renderer state."""
+"""Runtime capabilities and private desktop controls are decided by the API, independently of renderer state."""
 
 from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 from typing import cast
 from unittest.mock import AsyncMock
-from uuid import uuid4
 
 import pytest
 from fastapi import FastAPI, HTTPException
@@ -26,8 +25,6 @@ from animama.app.services.user_file_processing_service import (
 from animama.domain.model_assets import ASSET_CATALOG_SCHEMA, parse_asset_catalog
 from animama.domain.request_principal import RequestPrincipal
 from animama.orm.runtime_worker import ORMRuntimeWorkerHeartbeat
-from animama.orm.user_file import ORMUserFile
-from animama.orm.user_file_processing_job import ORMUserFileProcessingJob
 from animama.product_http.routes import runtime_capabilities
 from animama.server.config import Settings
 from animama.server.deps import get_async_session, get_current_principal
@@ -93,9 +90,7 @@ def _app(session, tmp_path, *, enabled=False, runner_instance="expected-instance
         (True, 1, "previous-instance", "starting"),
     ],
 )
-async def test_capabilities_separate_pack_presence_and_worker_liveness(
-    async_session, tmp_path, enabled, age, instance, expected
-):
+async def test_capabilities_report_the_processors_liveness(async_session, tmp_path, enabled, age, instance, expected):
     await async_session.execute(delete(ORMRuntimeWorkerHeartbeat))
     if age is not None:
         async_session.add(
@@ -122,6 +117,7 @@ async def test_capabilities_separate_pack_presence_and_worker_liveness(
         assert (processing["last_heartbeat_at"] is not None) == (expected in {"ready", "stale"})
         assert "expected-instance" not in response.text
         assert "c" * 64 not in response.text
+        # The capability keeps its shape (spec R1.7), though no pack provides processing any more.
         assert processing["pack_id"] == "document-processing"
     await async_session.execute(delete(ORMRuntimeWorkerHeartbeat))
     await async_session.commit()
@@ -240,8 +236,9 @@ async def test_private_control_is_not_a_browser_api_and_contains_no_paths(async_
         assert result.json()["removable"] is True
         assert result.json()["blockers"] == []
         assert str(tmp_path) not in result.text
-        # Parakeet sets are backend model assets now, not removable packs.
-        for unknown in ("unknown", "parakeet-stt", "parakeet-stt-webgpu"):
+        # Parakeet sets are backend model assets now, and the server itself processes
+        # uploads, so none of these is a removable pack.
+        for unknown in ("unknown", "parakeet-stt", "parakeet-stt-webgpu", "document-processing"):
             assert (
                 await client.post(
                     f"/_desktop/feature-packs/{unknown}:removal-check", headers={"X-Animama-Desktop-Control": "c" * 64}
@@ -263,56 +260,6 @@ async def test_old_worker_cannot_clear_replacement_heartbeat(async_session):
     await clear_document_heartbeat(async_session, instance_id="new")
     async_session.expire_all()
     assert await async_session.get(ORMRuntimeWorkerHeartbeat, "document-processing") is None
-
-
-async def test_removal_control_blocks_live_jobs_and_preserves_the_queue(async_session, tmp_path):
-    file_id = str(uuid4())
-    now = datetime.now(UTC)
-    async_session.add(
-        ORMUserFile(
-            id=file_id,
-            user_id="installation-owner",
-            storage_locator=f"files/{file_id}/original",
-            original_filename="Project\nnotes.pdf",
-            normalized_extension=".pdf",
-            declared_size_bytes=10,
-            stored_size_bytes=10,
-            status="uploaded",
-            upload_expires_at=now + timedelta(minutes=5),
-        )
-    )
-    await async_session.flush()
-    for status in ("running", "queued"):
-        async_session.add(
-            ORMUserFileProcessingJob(
-                id=f"{file_id}-{status}",
-                file_id=file_id,
-                user_id="installation-owner",
-                status=status,
-                locked_at=now if status == "running" else None,
-                locked_by="worker" if status == "running" else None,
-            )
-        )
-    await async_session.commit()
-    try:
-        app = _app(async_session, tmp_path, enabled=True)
-        async with local_client(app) as client:
-            url = "/_desktop/feature-packs/document-processing:removal-check"
-            headers = {"X-Animama-Desktop-Control": "c" * 64}
-            blocked = (await client.post(url, headers=headers)).json()
-            assert blocked["removable"] is False
-            assert blocked["blockers"] == [
-                {"kind": "document_job", "id": f"{file_id}-running", "label": "Projectnotes.pdf"}
-            ]
-            running = await async_session.get(ORMUserFileProcessingJob, f"{file_id}-running")
-            running.status = "succeeded"
-            await async_session.commit()
-            assert (await client.post(url, headers=headers)).json()["removable"] is True
-            assert (await async_session.get(ORMUserFileProcessingJob, f"{file_id}-queued")).status == "queued"
-            assert (await async_session.get(ORMUserFile, file_id)).stored_size_bytes == 10
-    finally:
-        await async_session.execute(delete(ORMUserFile).where(ORMUserFile.id == file_id))
-        await async_session.commit()
 
 
 @pytest.mark.parametrize("desktop_token", ["c" * 64, None])

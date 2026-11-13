@@ -1,4 +1,8 @@
-"""Bounded worker liveness and lease renewal for the optional document process."""
+"""Liveness and lease renewal for the server's upload processor.
+
+The heartbeat row keeps its ``document-processing`` kind, which the runtime
+capability reads to report the processor's state.
+"""
 
 from datetime import UTC, datetime
 

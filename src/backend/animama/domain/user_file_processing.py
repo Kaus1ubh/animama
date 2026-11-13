@@ -40,7 +40,7 @@ The structured parsers write their headings and escape any other line that
 would read as one (a PDF's text has none), and CSV and TSV become one table.
 Plain text (``txt``, ``rst``, ``org``), JSON and XML keep their own syntax, so a
 ``#`` line there is text. Formats are named as :func:`user_file_document_format`
-returns them; Docling-parsed documents are named by extension.
+returns them.
 """
 
 DEFAULT_USER_FILE_CHUNK_MAX_TOKENS = 800
@@ -164,19 +164,18 @@ class ClaimedUserFileProcessingJob:
 
 @dataclass(frozen=True, slots=True)
 class ParsedUserFileDocument:
-    """Normalized parser output used by chunking and worker code.
+    """Normalized parser output used by chunking and the overview.
 
-    ``text`` holds the whole document, tables included. ``tables`` only
-    summarizes each table (its header cells, its number of rows and where it
-    came from) for the overview, so a large workbook's cells cross from the
-    parse child once. ``chunks`` is set only by a parser that chunks itself.
+    ``text`` holds the whole document, tables included, and every chunk is cut
+    from it. ``tables`` only summarizes each table (its header cells, its number
+    of rows and where it came from) for the overview, so a large workbook's
+    cells cross from the parse child once.
     """
 
     text: str
     parser_name: str
     metadata: dict[str, Any]
     tables: list[dict[str, Any]] | None = None
-    chunks: list[UserFileChunkDraft] | None = None
     source_outline: tuple[UserFileOutlineItem, ...] = ()
     source_outline_truncated: bool = False
 

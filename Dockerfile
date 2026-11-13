@@ -67,14 +67,3 @@ CMD ["python", "-m", "animama.server.compose_entrypoint"]
 FROM animama-server-development AS animama-server
 COPY --from=web-builder /app/web/dist /opt/animama/web
 ENV ANIMAMA_WEB_ROOT=/opt/animama/web
-
-FROM base AS animama-file-worker
-RUN apt-get update -y \
-    && apt-get install -y --no-install-recommends libglib2.0-0 libgl1 libgomp1 libxcb1 \
-    && rm -rf /var/lib/apt/lists/*
-RUN --mount=type=cache,id=animama-uv-linux-${TARGETARCH}-py312-uv0.11.28,target=/root/.cache/uv,sharing=locked \
-    uv sync --frozen --no-dev --extra file-worker --no-install-project
-COPY --from=source /app /app
-RUN --mount=type=cache,id=animama-uv-linux-${TARGETARCH}-py312-uv0.11.28,target=/root/.cache/uv,sharing=locked \
-    uv sync --frozen --no-dev --extra file-worker
-CMD ["python", "-m", "animama.workers.user_file_processing"]

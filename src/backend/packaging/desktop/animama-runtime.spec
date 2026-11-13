@@ -4,7 +4,7 @@
 The parse child imports each parser library only for its format; the analysis
 still follows those imports, and pyinstaller-hooks-contrib collects their native
 and data files (PDFium's library and version files, lxml, the python-docx and
-python-pptx templates). Docling remains a separate optional artifact.
+python-pptx templates).
 """
 import importlib.metadata
 import re
@@ -54,7 +54,7 @@ a = Analysis(
     datas=datas,
     hiddenimports=hiddenimports,
     hookspath=[],
-    excludes=["docling", "torch", "torchvision", "transformers", "pytest", "debugpy", "IPython", "tkinter"],
+    excludes=["pytest", "debugpy", "IPython", "tkinter"],
     noarchive=False,
 )
 # Editable-install metadata is a build-machine locator, not a runtime resource.

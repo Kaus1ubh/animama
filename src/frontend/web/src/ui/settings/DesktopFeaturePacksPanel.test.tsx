@@ -17,7 +17,11 @@ vi.mock("@/hooks/useDesktopFeaturePacks", () => ({
 beforeEach(() => {
   fixture.available = true;
   fixture.packs = [
-    { id: "document-processing", state: "not_installed", available: false },
+    {
+      id: "expanded-included-content",
+      state: "not_installed",
+      available: false,
+    },
   ];
 });
 
@@ -26,12 +30,21 @@ describe("optional feature pack controls", () => {
     fixture.available = false;
     expect(renderToStaticMarkup(<DesktopFeaturePacksPanel />)).toBe("");
   });
-  it("shows an unavailable contextual entry without inventing sizes or enabling Install", () => {
-    const html = renderToStaticMarkup(
-      <DesktopFeaturePacksPanel only="document-processing" />,
-    );
+  it("keeps a retained pack the catalog no longer offers without inventing sizes or enabling Install", () => {
+    fixture.packs = [
+      {
+        id: "expanded-included-content",
+        state: "update_available",
+        available: false,
+        hasInstalledFiles: true,
+      },
+    ];
+    const html = renderToStaticMarkup(<DesktopFeaturePacksPanel />);
     expect(html).toContain("No compatible released pack");
-    expect(html).toMatch(/<button[^>]*disabled=""[^>]*>Install<\/button>/u);
+    expect(html).toMatch(
+      /<button[^>]*disabled=""[^>]*>Install compatible version<\/button>/u,
+    );
+    expect(html).toContain(">Remove</button>");
     expect(fixture.run).not.toHaveBeenCalled();
   });
   it("omits unreleased packs from the general Settings catalog", () => {
@@ -44,9 +57,8 @@ describe("optional feature pack controls", () => {
     ];
     expect(renderToStaticMarkup(<DesktopFeaturePacksPanel />)).toBe("");
   });
-  it("lists only the remaining packs, never speech recognition", () => {
+  it("lists only the remaining pack, never speech recognition or document processing", () => {
     fixture.packs = [
-      { id: "document-processing", state: "not_installed", available: true },
       {
         id: "expanded-included-content",
         state: "not_installed",
@@ -54,14 +66,13 @@ describe("optional feature pack controls", () => {
       },
     ];
     const html = renderToStaticMarkup(<DesktopFeaturePacksPanel />);
-    expect(html).toContain("Document processing");
     expect(html).toContain("Expanded Included content");
-    expect(html).not.toMatch(/speech/iu);
+    expect(html).not.toMatch(/speech|document/iu);
   });
   it("keeps an active pack's removal refusal from offering Install", () => {
     fixture.packs = [
       {
-        id: "document-processing",
+        id: "expanded-included-content",
         state: "failed",
         available: true,
         version: "0.1.0",
@@ -70,21 +81,23 @@ describe("optional feature pack controls", () => {
         error: "pack_in_use",
         blockers: [
           {
-            kind: "document_job",
-            id: "job-1",
-            label: "Document job in progress",
+            kind: "preview_lease",
+            id: "preview-1",
+            label: "Content preview open",
           },
         ],
       },
     ];
     const html = renderToStaticMarkup(<DesktopFeaturePacksPanel />);
-    expect(html).toContain("Document job in progress");
+    expect(html).toContain("Content preview open");
+    expect(html).toContain("Close content previews");
+    expect(html).not.toMatch(/document/iu);
     expect(html).not.toContain(">Install<");
   });
   it("shows bounded progress and cancellation for a catalog download", () => {
     fixture.packs = [
       {
-        id: "document-processing",
+        id: "expanded-included-content",
         state: "downloading",
         available: true,
         downloadBytes: 1024,

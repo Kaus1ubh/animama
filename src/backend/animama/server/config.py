@@ -79,9 +79,6 @@ class Settings(BaseModel):
     # The server processes uploads itself in every local composition; a
     # self-host operator may turn processing off (uploads are still saved).
     animama_user_file_processing_enabled: bool = _env_bool("ANIMAMA_USER_FILE_PROCESSING_ENABLED", True)
-    animama_document_worker_instance_id: str | None = _env_text("ANIMAMA_DOCUMENT_WORKER_INSTANCE_ID")
-    animama_document_pack_version: str | None = _env_text("ANIMAMA_DOCUMENT_PACK_VERSION")
-    animama_docling_artifacts_path: Path | None = _env_path("ANIMAMA_DOCLING_ARTIFACTS_PATH")
     animama_parakeet_stt_enabled: bool = _env_bool("ANIMAMA_PARAKEET_STT_ENABLED", True)
     animama_sensevoice_stt_enabled: bool = _env_bool("ANIMAMA_SENSEVOICE_STT_ENABLED", True)
     # Where the speech-to-text sets (Parakeet and SenseVoice) come from: the
@@ -115,22 +112,11 @@ class Settings(BaseModel):
         os.getenv("ANIMAMA_USER_FILE_MAX_PROCESS_BYTES", str(10 * 1024 * 1024))
     )
     anima_user_file_processing_poll_seconds: float = float(os.getenv("ANIMAMA_USER_FILE_PROCESSING_POLL_SECONDS", "2"))
-    anima_user_file_processing_batch_size: int = int(os.getenv("ANIMAMA_USER_FILE_PROCESSING_BATCH_SIZE", "1"))
     anima_user_file_processing_lease_seconds: int = int(os.getenv("ANIMAMA_USER_FILE_PROCESSING_LEASE_SECONDS", "300"))
     anima_user_file_processing_max_attempts: int = int(os.getenv("ANIMAMA_USER_FILE_PROCESSING_MAX_ATTEMPTS", "3"))
     # Each upload is parsed in a child process; past either limit the file fails with a reason.
     anima_user_file_parse_timeout_seconds: float = _env_float("ANIMAMA_USER_FILE_PARSE_TIMEOUT_SECONDS", 120.0)
     anima_user_file_parse_memory_mb: int = int(os.getenv("ANIMAMA_USER_FILE_PARSE_MEMORY_MB", "1024"))
-    anima_user_file_docling_timeout_seconds: int = int(os.getenv("ANIMAMA_USER_FILE_DOCLING_TIMEOUT_SECONDS", "120"))
-    anima_user_file_docling_enable_ocr: bool = _env_bool("ANIMAMA_USER_FILE_DOCLING_ENABLE_OCR", False)
-    anima_user_file_docling_do_table_structure: bool = _env_bool(
-        "ANIMAMA_USER_FILE_DOCLING_DO_TABLE_STRUCTURE",
-        True,
-    )
-    anima_user_file_docling_accelerator: str = os.getenv("ANIMAMA_USER_FILE_DOCLING_ACCELERATOR", "cpu")
-    anima_user_file_docling_num_threads: int = int(os.getenv("ANIMAMA_USER_FILE_DOCLING_NUM_THREADS", "4"))
-    anima_user_file_docling_table_mode: str = os.getenv("ANIMAMA_USER_FILE_DOCLING_TABLE_MODE", "fast")
-    anima_user_file_docling_warmup: bool = _env_bool("ANIMAMA_USER_FILE_DOCLING_WARMUP", True)
     # The chunk size in cl100k_base tokens, heading path included; counted offline.
     anima_user_file_chunk_max_tokens: int = int(
         os.getenv("ANIMAMA_USER_FILE_CHUNK_MAX_TOKENS", str(DEFAULT_USER_FILE_CHUNK_MAX_TOKENS))

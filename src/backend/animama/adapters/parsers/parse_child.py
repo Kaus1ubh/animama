@@ -29,7 +29,7 @@ from types import ModuleType
 from typing import Any, BinaryIO, cast
 
 from animama.app.ports.user_file_parser_port import UserFileParseRejectedError
-from animama.domain.user_file_processing import ParsedUserFileDocument, UserFileChunkDraft, UserFileOutlineItem
+from animama.domain.user_file_processing import ParsedUserFileDocument, UserFileOutlineItem
 
 PARSE_UPLOAD_COMMAND = "parse-upload"
 """The runtime CLI subcommand that runs :func:`run_parse_child`."""
@@ -270,22 +270,6 @@ def encode_parsed_document(document: ParsedUserFileDocument) -> dict[str, Any]:
         "parser_name": document.parser_name,
         "metadata": document.metadata,
         "tables": document.tables,
-        "chunks": (
-            None
-            if document.chunks is None
-            else [
-                {
-                    "chunk_index": chunk.chunk_index,
-                    "text": chunk.text,
-                    "char_count": chunk.char_count,
-                    "token_estimate": chunk.token_estimate,
-                    "metadata": chunk.metadata,
-                    "embedding_text": chunk.embedding_text,
-                    "embedding": chunk.embedding,
-                }
-                for chunk in document.chunks
-            ]
-        ),
         "source_outline": [{"level": item.level, "title": item.title} for item in document.source_outline],
         "source_outline_truncated": document.source_outline_truncated,
     }
@@ -296,35 +280,16 @@ def decode_parsed_document(value: object) -> ParsedUserFileDocument:
 
     data = _dict(value, "document")
     tables = data.get("tables")
-    chunks = data.get("chunks")
     return ParsedUserFileDocument(
         text=_str(data.get("text"), "text"),
         parser_name=_str(data.get("parser_name"), "parser_name"),
         metadata=_dict(data.get("metadata"), "metadata"),
         tables=None if tables is None else [_dict(table, "table") for table in _list(tables, "tables")],
-        chunks=None if chunks is None else [_decode_chunk(chunk) for chunk in _list(chunks, "chunks")],
         source_outline=tuple(
             UserFileOutlineItem(level=_int(item.get("level"), "level"), title=_str(item.get("title"), "title"))
             for item in (_dict(entry, "outline item") for entry in _list(data.get("source_outline", []), "outline"))
         ),
         source_outline_truncated=_bool(data.get("source_outline_truncated", False), "source_outline_truncated"),
-    )
-
-
-def _decode_chunk(value: object) -> UserFileChunkDraft:
-    data = _dict(value, "chunk")
-    embedding_text = data.get("embedding_text")
-    embedding = data.get("embedding")
-    return UserFileChunkDraft(
-        chunk_index=_int(data.get("chunk_index"), "chunk_index"),
-        text=_str(data.get("text"), "chunk text"),
-        char_count=_int(data.get("char_count"), "char_count"),
-        token_estimate=_int(data.get("token_estimate"), "token_estimate"),
-        metadata=_dict(data.get("metadata"), "chunk metadata"),
-        embedding_text=None if embedding_text is None else _str(embedding_text, "embedding_text"),
-        embedding=None
-        if embedding is None
-        else [_float(number, "embedding") for number in _list(embedding, "embedding")],
     )
 
 
@@ -380,12 +345,6 @@ def _int(value: object, name: str) -> int:
     if isinstance(value, bool) or not isinstance(value, int):
         raise ValueError(f"{name} must be an integer")
     return value
-
-
-def _float(value: object, name: str) -> float:
-    if isinstance(value, bool) or not isinstance(value, int | float):
-        raise ValueError(f"{name} must be a number")
-    return float(value)
 
 
 def _bool(value: object, name: str) -> bool:

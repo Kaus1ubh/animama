@@ -40,7 +40,6 @@ export const manualMacChecks = [
   "pip",
   "quick_chat",
   "offline_dictation",
-  "document_processing",
   "expanded_content",
   "pack_interruption",
   "update_preserves_local_state",
@@ -64,11 +63,7 @@ export const manualWindowsChecks = [
 ];
 
 /** Checks that only a build with an active feature pack can exercise. */
-const PACK_CHECKS = new Set([
-  "document_processing",
-  "expanded_content",
-  "pack_interruption",
-]);
+const PACK_CHECKS = new Set(["expanded_content", "pack_interruption"]);
 
 /** What each target's smoke report and human acceptance are bound to. */
 const ACCEPTANCE = {

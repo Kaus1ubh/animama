@@ -26,17 +26,19 @@ import {
 import { downloadPack } from "./download.js";
 import { extractPack } from "./extract.js";
 import { realDirectory, verifyPackFiles } from "./files.js";
-import { verifyExecutablePack } from "./signature.js";
 
 export type ActivePack = { manifest: PackManifest; root: string };
 
 /**
- * Former speech model packs, now backend model assets (ADR 0012). Startup
- * deletes exactly their pack directories and model download staging.
+ * Retired packs: the former speech model packs, now backend model assets
+ * (ADR 0012), and document processing, which the core server now does
+ * (#871). Startup deletes exactly their pack directories and model download
+ * staging.
  */
 const RETIRED_PACK_IDS: readonly string[] = [
   "parakeet-stt",
   "parakeet-stt-webgpu",
+  "document-processing",
 ];
 /** Only validated, bounded control-response labels may cross into renderer status. */
 export class PackInUseError extends RuntimeError {
@@ -52,7 +54,7 @@ export type PackTransition = {
   removing: boolean;
   previous: ActivePacks;
   next: ActivePacks;
-  /** Called only after requests/workers have drained; failure recovery restores it. */
+  /** Called only after requests and renderers have drained; failure recovery restores it. */
   commit(): Promise<void>;
   rollback(): Promise<void>;
 };
@@ -62,9 +64,8 @@ export type PackManagerOptions = {
   catalog: PackCatalog;
   onProgress(status: FeaturePackStatus): void;
   transition(change: PackTransition): Promise<void>;
-  // Narrow seams let tests exercise files and HTTP without pretending to sign code.
+  // A narrow seam lets tests refuse an install for disk space without filling a disk.
   freeBytes?: () => Promise<bigint>;
-  verifyExecutable?: typeof verifyExecutablePack;
 };
 
 /** One serialized installer, with cancellation outside the queue and atomic active pointers. */
@@ -128,10 +129,6 @@ export class FeaturePackManager {
     if (JSON.stringify(saved) !== JSON.stringify(manifest))
       throw new RuntimeError("pack_manifest_invalid");
     await verifyPackFiles(root, manifest);
-    await (this.options.verifyExecutable ?? verifyExecutablePack)(
-      root,
-      manifest,
-    );
   }
   /**
    * Delete retired packs' files by exact name. Idempotent; a failure leaves
@@ -414,10 +411,6 @@ export class FeaturePackManager {
         });
         await extractPack(partial, staging, manifest, signal);
         this.emit(id, { state: "verifying", progress: 1 });
-        await (this.options.verifyExecutable ?? verifyExecutablePack)(
-          staging,
-          manifest,
-        );
         signal.throwIfAborted();
         this.emit(id, { state: "installing" });
         const exists = await lstat(destination)

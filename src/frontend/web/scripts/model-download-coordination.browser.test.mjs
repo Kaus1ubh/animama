@@ -51,7 +51,7 @@ async function mount(packState = "not_installed") {
       pack(next) {
         state = next;
         for (const fn of progress)
-          fn({ id: "document-processing", state, available: true });
+          fn({ id: "expanded-included-content", state, available: true });
       },
       ready() {
         for (const fn of runtime)
@@ -76,7 +76,7 @@ async function mount(packState = "not_installed") {
       },
       featurePacks: {
         list: async () => [
-          { id: "document-processing", state, available: true },
+          { id: "expanded-included-content", state, available: true },
         ],
         onProgress(fn) {
           progress.add(fn);

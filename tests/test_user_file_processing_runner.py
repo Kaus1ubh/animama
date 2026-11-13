@@ -321,6 +321,23 @@ async def test_missing_upload_fails_without_retrying(
     assert job.last_error == "Uploaded file was not found in private local storage"
 
 
+async def test_upload_over_the_processing_limit_fails_without_retrying(
+    async_session_factory: async_sessionmaker[AsyncSession], clean_tables: None
+) -> None:
+    """A file over the processing limit fails at once, never chunked from a truncated read."""
+
+    storage = _MemoryStorage()
+    await _queue(async_session_factory, storage, file_id="large", payload=b"x" * 64)
+
+    await _runner(async_session_factory, storage, _TextParser(), anima_user_file_max_process_bytes=32).process_once()
+
+    file, job, chunks = await _rows(async_session_factory, "large")
+    assert file.status == STATUS_FAILED
+    assert (job.status, job.attempts) == (JOB_STATUS_FAILED, 1)
+    assert job.last_error == "Uploaded object exceeds the 32 byte limit"
+    assert chunks == 0
+
+
 async def test_unreadable_upload_is_retried(
     async_session_factory: async_sessionmaker[AsyncSession], clean_tables: None
 ) -> None:

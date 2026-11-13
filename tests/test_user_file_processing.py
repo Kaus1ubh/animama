@@ -20,9 +20,7 @@ from animama.adapters.content_store.private_file_store import (
     PrivateFileReadError,
     PrivateFileSizeMismatchError,
 )
-from animama.adapters.parsers import docling_user_file_parser as docling_parser_module
 from animama.adapters.parsers.dispatch import parse_user_file
-from animama.adapters.parsers.docling_user_file_parser import DoclingUserFileParser, DoclingUserFileParserError
 from animama.adapters.parsers.isolated_user_file_parser import UserFileParseChildError
 from animama.adapters.parsers.rejections import ENCRYPTED_DOCUMENT_REASON
 from animama.adapters.parsers.text_user_file_parser import parse_text_user_file
@@ -637,6 +635,8 @@ async def test_reuse_processed_file_clones_same_user_digest_result_atomically(
     clean_user_file_tables,
 ) -> None:
     digest = hashlib.sha256(b"same bytes").hexdigest()
+    # The source is a row the retired Docling worker processed: its chunks,
+    # overview and processing record are reused exactly as stored.
     await _insert_file(
         async_session,
         file_id="file-source",
@@ -1206,49 +1206,39 @@ async def test_complete_claimed_job_chunks_large_documents_off_the_event_loop() 
 
 
 @pytest.mark.asyncio
-async def test_complete_claimed_job_uses_parser_chunks_and_embedding_text() -> None:
+async def test_complete_claimed_job_embeds_chunks_and_stores_their_vectors() -> None:
     parsed = ParsedUserFileDocument(
-        text="",
-        parser_name="docling",
-        metadata={"parser": "docling"},
-        chunks=[
-            UserFileChunkDraft(
-                chunk_index=0,
-                text="Display chunk text",
-                embedding_text="Heading breadcrumb\nDisplay chunk text",
-                char_count=len("Display chunk text"),
-                token_estimate=7,
-                metadata={"parser": "docling", "chunker": "docling_hybrid"},
-            )
-        ],
+        text="# Field guide\n\nDisplay chunk text",
+        parser_name="stdlib-text",
+        metadata={"format": "md"},
     )
     repo = _CapturingProcessingRepo()
     embedder = _RecordingEmbedder()
     service = UserFileProcessingService(processing=cast(UserFileProcessingRepository, repo), uow=_NoopUow())
 
     completed = await service.complete_claimed_job(
-        claimed=_claimed_processing_job(file_id="file-parser-chunks"),
-        payload=b"%PDF-1.7\nbody",
+        claimed=_claimed_processing_job(file_id="file-embedded", extension=".md"),
+        payload=b"# Field guide",
         parser=_StaticParser(parsed),
         embedder=embedder,
         max_process_bytes=1024,
     )
 
     assert completed.status == JOB_STATUS_SUCCEEDED
-    assert embedder.texts == ["Heading breadcrumb\nDisplay chunk text"]
+    assert embedder.texts == ["Field guide\n\n# Field guide\n\nDisplay chunk text"]
     assert repo.file_status == STATUS_READY
-    assert repo.sha256 == hashlib.sha256(b"%PDF-1.7\nbody").hexdigest()
+    assert repo.sha256 == hashlib.sha256(b"# Field guide").hexdigest()
     assert len(repo.reuse_calls) == 1
     assert len(repo.chunks) == 1
-    assert repo.chunks[0].text == "Display chunk text"
-    assert repo.chunks[0].embedding_text == "Heading breadcrumb\nDisplay chunk text"
+    assert repo.chunks[0].text == "# Field guide\n\nDisplay chunk text"
+    assert repo.chunks[0].embedding_text == embedder.texts[0]
     assert repo.chunks[0].embedding == [1.0, 0.0, 0.0]
     assert repo.embedding_model_id == "test:embedding"
     assert repo.reuse_calls[0]["embedding_model_id"] == "test:embedding"
     assert repo.file_metadata is not None
     assert repo.file_metadata["embedded"] is True
     assert repo.file_metadata_updates is not None
-    assert repo.file_metadata_updates["overview"]["description"] == "Display chunk text"
+    assert repo.file_metadata_updates["overview"]["outline"] == [{"level": 1, "title": "Field guide"}]
 
 
 @pytest.mark.asyncio
@@ -1280,18 +1270,7 @@ async def test_complete_claimed_job_reuses_verified_content_before_parsing() -> 
 @pytest.mark.asyncio
 async def test_complete_claimed_job_force_bypasses_content_reuse() -> None:
     parsed = ParsedUserFileDocument(
-        text="Forced processing content.",
-        parser_name="docling",
-        metadata={"parser": "docling"},
-        chunks=[
-            UserFileChunkDraft(
-                chunk_index=0,
-                text="Forced processing content.",
-                char_count=26,
-                token_estimate=7,
-                metadata={"parser": "docling"},
-            )
-        ],
+        text="Forced processing content.", parser_name="pypdfium2", metadata={"format": "pdf"}
     )
     repo = _CapturingProcessingRepo()
     service = UserFileProcessingService(processing=cast(UserFileProcessingRepository, repo), uow=_NoopUow())
@@ -1312,17 +1291,8 @@ async def test_complete_claimed_job_force_bypasses_content_reuse() -> None:
 async def test_complete_claimed_job_keeps_overview_when_embedding_fails() -> None:
     parsed = ParsedUserFileDocument(
         text="A durable overview remains available even when semantic embedding fails.",
-        parser_name="docling",
-        metadata={"parser": "docling", "extension": ".pdf"},
-        chunks=[
-            UserFileChunkDraft(
-                chunk_index=0,
-                text="Searchable display text",
-                char_count=len("Searchable display text"),
-                token_estimate=5,
-                metadata={"parser": "docling"},
-            )
-        ],
+        parser_name="pypdfium2",
+        metadata={"format": "pdf"},
         source_outline=(UserFileOutlineItem(level=1, title="Overview title"),),
     )
     repo = _CapturingProcessingRepo()
@@ -1346,18 +1316,7 @@ async def test_complete_claimed_job_keeps_overview_when_embedding_fails() -> Non
 @pytest.mark.asyncio
 async def test_complete_claimed_job_uses_safe_overview_fallback_on_builder_failure(monkeypatch) -> None:
     parsed = ParsedUserFileDocument(
-        text="Fallback source text remains safe and searchable.",
-        parser_name="docling",
-        metadata={"parser": "docling", "extension": ".pdf"},
-        chunks=[
-            UserFileChunkDraft(
-                chunk_index=0,
-                text="Fallback source text remains safe and searchable.",
-                char_count=49,
-                token_estimate=12,
-                metadata={"parser": "docling"},
-            )
-        ],
+        text="Fallback source text remains safe and searchable.", parser_name="pypdfium2", metadata={"format": "pdf"}
     )
     repo = _CapturingProcessingRepo()
     service = UserFileProcessingService(processing=cast(UserFileProcessingRepository, repo), uow=_NoopUow())
@@ -1479,212 +1438,6 @@ def test_text_parsers_validate_json_and_xml() -> None:
 
     assert '"a": 1' in parsed_json.text
     assert parsed_xml.text.startswith("<root>")
-
-
-def test_docling_parser_normalizes_table_mode_and_threads() -> None:
-    parser = DoclingUserFileParser(table_mode="accurate", num_threads=2)
-    fallback = DoclingUserFileParser(table_mode="unexpected", num_threads=0)
-
-    assert parser._table_mode == "accurate"
-    assert parser._num_threads == 2
-    assert fallback._table_mode == "fast"
-    assert fallback._num_threads >= 1
-
-
-@pytest.mark.asyncio
-async def test_docling_parser_uses_converter_and_exports_metadata(monkeypatch) -> None:
-    class _Label:
-        def __init__(self, name: str) -> None:
-            self.name = name
-
-    class _Item:
-        def __init__(self, label: str, text: str) -> None:
-            self.label = _Label(label)
-            self.text = text
-
-    class _Doc:
-        def export_to_markdown(self, compact_tables: bool = False) -> str:
-            return "Converted markdown"
-
-        def export_to_dict(self) -> dict[str, Any]:
-            return {"texts": [{"text": "Converted markdown"}], "tables": []}
-
-        def iterate_items(self):
-            return [
-                (_Item("TITLE", "Native paper title"), 1),
-                (_Item("SECTION_HEADER", "Results"), 2),
-                (_Item("TEXT", "Ignored body"), 2),
-            ]
-
-    class _Converter:
-        def convert(self, path):
-            assert str(path).endswith(".pdf")
-            return SimpleNamespace(document=_Doc())
-
-    parser = DoclingUserFileParser()
-    monkeypatch.setattr(parser, "_make_converter", lambda: _Converter())
-
-    parsed = await parser.parse(payload=b"%PDF-1.7\nbody", filename="paper.pdf", extension=".pdf")
-
-    assert parsed.parser_name == "docling"
-    assert parsed.text == "Converted markdown"
-    assert parsed.metadata["docling"]["texts_count"] == 1
-    assert parsed.source_outline == (
-        UserFileOutlineItem(level=1, title="Native paper title"),
-        UserFileOutlineItem(level=2, title="Results"),
-    )
-
-
-@pytest.mark.asyncio
-async def test_docling_outline_failure_records_warning_and_keeps_markdown_fallback(monkeypatch) -> None:
-    class _Doc:
-        def export_to_markdown(self, compact_tables: bool = False) -> str:
-            return "# Markdown title\n\nFallback prose."
-
-        def export_to_dict(self) -> dict[str, Any]:
-            return {"texts": [{"text": "Fallback prose."}]}
-
-        def iterate_items(self):
-            raise RuntimeError("tree unavailable")
-
-    class _Converter:
-        def convert(self, path):
-            return SimpleNamespace(document=_Doc())
-
-    parser = DoclingUserFileParser()
-    monkeypatch.setattr(parser, "_make_converter", lambda: _Converter())
-
-    parsed = await parser.parse(payload=b"%PDF-1.7\nbody", filename="paper.pdf", extension=".pdf")
-
-    assert parsed.source_outline == ()
-    assert parsed.source_outline_truncated is False
-    assert any("Docling outline extraction failed" in warning for warning in parsed.metadata["warnings"])
-
-
-@pytest.mark.asyncio
-async def test_docling_parser_uses_hybrid_chunks_and_compacts_metadata(monkeypatch) -> None:
-    class _Doc:
-        def export_to_markdown(self, compact_tables: bool = False) -> str:
-            return "Converted markdown"
-
-        def export_to_dict(self) -> dict[str, Any]:
-            return {"texts": [{"text": "Converted markdown"}], "tables": []}
-
-    class _Converter:
-        def convert(self, path):
-            return SimpleNamespace(document=_Doc())
-
-    class _Meta:
-        def export_json_dict(self) -> dict[str, Any]:
-            return {
-                "headings": ["Section A"],
-                "captions": ["Figure 1"],
-                "origin": {
-                    "filename": "paper.pdf",
-                    "mimetype": "application/pdf",
-                    "binary_hash": 123,
-                    "uri": "file:///tmp/paper.pdf",
-                },
-                "doc_items": [
-                    {
-                        "self_ref": f"#/texts/{index}",
-                        "label": "text",
-                        "text": f"Item {index}",
-                        "prov": [{"page_no": index + 1}],
-                    }
-                    for index in range(10)
-                ],
-            }
-
-    class _Chunk:
-        text = "Display text"
-        meta = _Meta()
-
-    class _Tokenizer:
-        def count_tokens(self, *, text: str) -> int:
-            assert text == "Section A\nDisplay text"
-            return 42
-
-    class _Chunker:
-        tokenizer = _Tokenizer()
-
-        def chunk(self, *, dl_doc):
-            return [_Chunk()]
-
-        def contextualize(self, chunk) -> str:
-            return f"{chunk.meta.export_json_dict()['headings'][0]}\n{chunk.text}"
-
-    def _fake_make_hybrid_chunker(*, max_tokens: int, tokenizer_model: str):
-        assert max_tokens == 123
-        assert tokenizer_model == "text-embedding-3-small"
-        return _Chunker()
-
-    parser = DoclingUserFileParser(chunk_max_tokens=123, tokenizer_model="text-embedding-3-small")
-    monkeypatch.setattr(parser, "_make_converter", lambda: _Converter())
-    monkeypatch.setattr(docling_parser_module, "_make_hybrid_chunker", _fake_make_hybrid_chunker)
-
-    parsed = await parser.parse(payload=b"%PDF-1.7\nbody", filename="paper.pdf", extension=".pdf")
-
-    assert parsed.chunks is not None
-    assert len(parsed.chunks) == 1
-    chunk = parsed.chunks[0]
-    assert chunk.text == "Display text"
-    assert chunk.embedding_text == "Section A\nDisplay text"
-    assert chunk.token_estimate == 42
-    assert chunk.metadata == {
-        "parser": "docling",
-        "chunker": "docling_hybrid",
-        "headings": ["Section A"],
-        "captions": ["Figure 1"],
-        "origin": {
-            "filename": "paper.pdf",
-            "mimetype": "application/pdf",
-            "binary_hash": 123,
-            "uri": "file:///tmp/paper.pdf",
-        },
-        "doc_items": [
-            {"self_ref": f"#/texts/{index}", "label": "text", "text": f"Item {index}", "page_no": index + 1}
-            for index in range(8)
-        ],
-        "doc_item_count": 10,
-        "token_count": 42,
-    }
-
-
-@pytest.mark.asyncio
-async def test_docling_parser_falls_back_when_hybrid_chunker_fails(monkeypatch) -> None:
-    class _Doc:
-        def export_to_markdown(self, compact_tables: bool = False) -> str:
-            return "Converted markdown"
-
-        def export_to_dict(self) -> dict[str, Any]:
-            return {"texts": [{"text": "Converted markdown"}]}
-
-    class _Converter:
-        def convert(self, path):
-            return SimpleNamespace(document=_Doc())
-
-    class _FailingChunker:
-        def chunk(self, *, dl_doc):
-            raise RuntimeError("chunking exploded")
-
-    parser = DoclingUserFileParser()
-    monkeypatch.setattr(parser, "_make_converter", lambda: _Converter())
-    monkeypatch.setattr(docling_parser_module, "_make_hybrid_chunker", lambda **_kwargs: _FailingChunker())
-
-    parsed = await parser.parse(payload=b"%PDF-1.7\nbody", filename="paper.pdf", extension=".pdf")
-
-    assert parsed.text == "Converted markdown"
-    assert parsed.chunks is None
-    assert parsed.metadata["warnings"] == ["HybridChunker failed; using Markdown fallback chunking: chunking exploded"]
-
-
-@pytest.mark.asyncio
-async def test_docling_parser_rejects_bad_headers() -> None:
-    parser = DoclingUserFileParser()
-
-    with pytest.raises(DoclingUserFileParserError):
-        await parser.parse(payload=b"not a pdf", filename="paper.pdf", extension=".pdf")
 
 
 @pytest.mark.asyncio

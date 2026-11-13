@@ -321,48 +321,33 @@ class UserFileProcessingService:
             user_id=claimed.job.user_id,
             parser=parsed.parser_name,
             text_chars=len(parsed.text),
-            parser_chunk_count=len(parsed.chunks) if parsed.chunks is not None else None,
             duration_seconds=round(time.perf_counter() - parse_started, 3),
         )
 
-        if parsed.chunks is not None:
-            # Only the Docling worker's parser chunks a document itself.
-            chunks = parsed.chunks
-            self._log.info(
-                "User-file parser-provided chunks selected",
-                job_id=claimed.job.id,
-                file_id=claimed.job.file_id,
-                user_id=claimed.job.user_id,
-                chunk_count=len(chunks),
-            )
-        else:
-            chunk_started = time.perf_counter()
-            self._log.info(
-                "User-file chunking started",
-                job_id=claimed.job.id,
-                file_id=claimed.job.file_id,
-                user_id=claimed.job.user_id,
-                parser=parsed.parser_name,
-            )
-            chunks = await asyncio.to_thread(chunk_parsed_user_file_document, parsed, max_tokens=self._chunk_max_tokens)
-            self._log.info(
-                "User-file chunking finished",
-                job_id=claimed.job.id,
-                file_id=claimed.job.file_id,
-                user_id=claimed.job.user_id,
-                chunk_count=len(chunks),
-                duration_seconds=round(time.perf_counter() - chunk_started, 3),
-            )
+        chunk_started = time.perf_counter()
+        self._log.info(
+            "User-file chunking started",
+            job_id=claimed.job.id,
+            file_id=claimed.job.file_id,
+            user_id=claimed.job.user_id,
+            parser=parsed.parser_name,
+        )
+        chunks = await asyncio.to_thread(chunk_parsed_user_file_document, parsed, max_tokens=self._chunk_max_tokens)
+        self._log.info(
+            "User-file chunking finished",
+            job_id=claimed.job.id,
+            file_id=claimed.job.file_id,
+            user_id=claimed.job.user_id,
+            chunk_count=len(chunks),
+            duration_seconds=round(time.perf_counter() - chunk_started, 3),
+        )
         if not chunks:
             raise UserFileProcessingValidationError(NO_SEARCHABLE_TEXT_ERROR)
 
         overview_warning: str | None = None
         try:
             overview = await asyncio.to_thread(
-                build_user_file_overview,
-                filename=claimed.original_filename,
-                document=parsed,
-                chunks=chunks,
+                build_user_file_overview, filename=claimed.original_filename, document=parsed
             )
         except Exception as exc:
             message = str(exc).strip() or exc.__class__.__name__
@@ -375,10 +360,7 @@ class UserFileProcessingService:
                 error=message,
             )
             overview = await asyncio.to_thread(
-                fallback_user_file_overview,
-                filename=claimed.original_filename,
-                document=parsed,
-                chunks=chunks,
+                fallback_user_file_overview, filename=claimed.original_filename, document=parsed
             )
 
         embedding_warning: str | None = None

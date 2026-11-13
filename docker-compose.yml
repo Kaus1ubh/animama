@@ -63,8 +63,8 @@ services:
       - path: ${ANIMAMA_CONNECTION_KEYS_FILE:-/dev/null}
         required: false
     environment:
-      # Libraries such as Torch call getpass.getuser(); provide a logical name
-      # because the host UID intentionally may not exist in the image passwd file.
+      # Libraries that call getpass.getuser() need a logical name, because the
+      # host UID intentionally may not exist in the image passwd file.
       USER: animama
       LOGNAME: animama
       ANIMAMA_CONTENT_ROOT: /var/lib/animama/content
@@ -130,6 +130,7 @@ services:
       ANIMAMA_USER_FILE_PROCESSING_MAX_ATTEMPTS: ${ANIMAMA_USER_FILE_PROCESSING_MAX_ATTEMPTS:-3}
       ANIMAMA_USER_FILE_PARSE_TIMEOUT_SECONDS: ${ANIMAMA_USER_FILE_PARSE_TIMEOUT_SECONDS:-120}
       ANIMAMA_USER_FILE_PARSE_MEMORY_MB: ${ANIMAMA_USER_FILE_PARSE_MEMORY_MB:-1024}
+      ANIMAMA_USER_FILE_CHUNK_MAX_TOKENS: ${ANIMAMA_USER_FILE_CHUNK_MAX_TOKENS:-800}
       ANIMAMA_PARAKEET_STT_ENABLED: ${ANIMAMA_PARAKEET_STT_ENABLED:-true}
       ANIMAMA_SENSEVOICE_STT_ENABLED: ${ANIMAMA_SENSEVOICE_STT_ENABLED:-true}
       # Built installs download the speech-to-text sets (Parakeet and
@@ -165,80 +166,6 @@ services:
       postgres:
         condition: service_healthy
 
-  # animama-file-worker:
-  #   build:
-  #     context: .
-  #     target: animama-file-worker
-  #   container_name: "${ANIMAMA_CONTAINER_NAME_PREFIX:-}animama-file-worker"
-  #   restart: unless-stopped
-  #   user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
-  #   command: ["python", "-m", "animama.workers.user_file_processing"]
-  #   environment:
-  #     USER: animama
-  #     LOGNAME: animama
-  #     ANIMAMA_CONTENT_ROOT: /var/lib/animama/content
-  #     ANIMAMA_DATA_ROOT: /var/lib/animama/data
-  #     # Docling downloads its PDF models into the cache mount on first start.
-  #     # DOCLING_ARTIFACTS_PATH would instead require them to exist already.
-  #     HF_HOME: /var/cache/animama/docling/huggingface
-  #     TIKTOKEN_CACHE_DIR: /var/cache/animama/docling/tiktoken
-  #     ANIMAMA_DATABASE_URL: "postgresql+asyncpg://${POSTGRES_USER:-animama}:${POSTGRES_PASSWORD:-a}@postgres:5432/${POSTGRES_DB:-animama}"
-  #     ANIMAMA_DATABASE_POOL_SIZE: ${ANIMAMA_DATABASE_POOL_SIZE:-5}
-  #     ANIMAMA_DATABASE_MAX_OVERFLOW: ${ANIMAMA_DATABASE_MAX_OVERFLOW:-10}
-  #     ANIMAMA_DATABASE_POOL_TIMEOUT_SECONDS: ${ANIMAMA_DATABASE_POOL_TIMEOUT_SECONDS:-30}
-  #     ANIMAMA_DATABASE_POOL_RECYCLE_SECONDS: ${ANIMAMA_DATABASE_POOL_RECYCLE_SECONDS:--1}
-  #     ANIMAMA_DATABASE_POOL_PRE_PING: ${ANIMAMA_DATABASE_POOL_PRE_PING:-true}
-  #     OPENAI_API_KEY: ${OPENAI_API_KEY}
-  #     ANIMAMA_DEFAULT_EMBEDDING_MODEL_PROVIDER_ID: ${ANIMAMA_DEFAULT_EMBEDDING_MODEL_PROVIDER_ID:-}
-  #     ANIMAMA_LOG_TZ: America/New_York
-  #     ANIMAMA_LOG_DIR: /var/log/animama
-  #     ANIMAMA_LOG_TO_FILE: ${ANIMAMA_LOG_TO_FILE:-0}
-  #     ANIMAMA_USER_FILE_MAX_PROCESS_BYTES: ${ANIMAMA_USER_FILE_MAX_PROCESS_BYTES:-10485760}
-  #     ANIMAMA_USER_FILE_PROCESSING_POLL_SECONDS: ${ANIMAMA_USER_FILE_PROCESSING_POLL_SECONDS:-2}
-  #     ANIMAMA_USER_FILE_PROCESSING_BATCH_SIZE: ${ANIMAMA_USER_FILE_PROCESSING_BATCH_SIZE:-1}
-  #     ANIMAMA_USER_FILE_PROCESSING_LEASE_SECONDS: ${ANIMAMA_USER_FILE_PROCESSING_LEASE_SECONDS:-300}
-  #     ANIMAMA_USER_FILE_PROCESSING_MAX_ATTEMPTS: ${ANIMAMA_USER_FILE_PROCESSING_MAX_ATTEMPTS:-3}
-  #     ANIMAMA_USER_FILE_DOCLING_TIMEOUT_SECONDS: ${ANIMAMA_USER_FILE_DOCLING_TIMEOUT_SECONDS:-120}
-  #     ANIMAMA_USER_FILE_DOCLING_ENABLE_OCR: ${ANIMAMA_USER_FILE_DOCLING_ENABLE_OCR:-false}
-  #     ANIMAMA_USER_FILE_DOCLING_DO_TABLE_STRUCTURE: ${ANIMAMA_USER_FILE_DOCLING_DO_TABLE_STRUCTURE:-true}
-  #     ANIMAMA_USER_FILE_DOCLING_ACCELERATOR: ${ANIMAMA_USER_FILE_DOCLING_ACCELERATOR:-cpu}
-  #     ANIMAMA_USER_FILE_DOCLING_NUM_THREADS: ${ANIMAMA_USER_FILE_DOCLING_NUM_THREADS:-2}
-  #     ANIMAMA_USER_FILE_DOCLING_TABLE_MODE: ${ANIMAMA_USER_FILE_DOCLING_TABLE_MODE:-fast}
-  #     ANIMAMA_USER_FILE_DOCLING_WARMUP: ${ANIMAMA_USER_FILE_DOCLING_WARMUP:-true}
-  #     ANIMAMA_USER_FILE_CHUNK_MAX_TOKENS: ${ANIMAMA_USER_FILE_CHUNK_MAX_TOKENS:-800}
-  #     ANIMAMA_USER_FILE_CHUNK_TOKENIZER_MODEL: ${ANIMAMA_USER_FILE_CHUNK_TOKENIZER_MODEL:-text-embedding-3-small}
-  #     HF_TOKEN: ${HF_TOKEN:-}
-  #   volumes:
-  #     - .:/app
-  #     - ./.animama-logs:/var/log/animama
-  #     - type: bind
-  #       source: ${ANIMAMA_INCLUDED_CONTENT_HOST_PATH:-./content/included}
-  #       target: /var/lib/animama/content/included
-  #       read_only: true
-  #     - type: bind
-  #       source: ${ANIMAMA_LOCAL_CONTENT_HOST_PATH:-./content/local}
-  #       target: /var/lib/animama/content/local
-  #     - type: bind
-  #       source: ${ANIMAMA_DATA_HOST_PATH:-./data}
-  #       target: /var/lib/animama/data
-  #     - type: bind
-  #       source: ${ANIMAMA_DOCLING_CACHE_HOST_PATH:-./cache/docling}
-  #       target: /var/cache/animama/docling
-  #   networks:
-  #     - animama-network
-  #   depends_on:
-  #     postgres:
-  #       condition: service_healthy
-  #   cpus: ${ANIMAMA_FILE_WORKER_CPUS:-2.0}
-  #   mem_limit: ${ANIMAMA_FILE_WORKER_MEMORY:-4g}
-  #   pids_limit: ${ANIMAMA_FILE_WORKER_PIDS_LIMIT:-256}
-  #   cap_drop:
-  #     - ALL
-  #   security_opt:
-  #     - no-new-privileges:true
-  #   tmpfs:
-  #     - /tmp:size=${ANIMAMA_FILE_WORKER_TMPFS_SIZE:-512m},mode=1777
-
   # Local observability UIs.
   dozzle:
     profiles: [dev-tools]
@@ -259,4 +186,3 @@ networks:
 volumes:
   postgres-data:
   pgadmin-data:
-  docling-cache:

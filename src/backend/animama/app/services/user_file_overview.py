@@ -24,7 +24,6 @@ from animama.domain.user_file_processing import (
     MARKDOWN_FENCE_RE,
     MARKDOWN_TEXT_FORMATS,
     ParsedUserFileDocument,
-    UserFileChunkDraft,
     UserFileOutlineItem,
     UserFileOverview,
     UserFileOverviewMethod,
@@ -101,23 +100,13 @@ _STOPWORDS = frozenset(
 )
 
 
-def build_user_file_overview(
-    *,
-    filename: str,
-    document: ParsedUserFileDocument,
-    chunks: Sequence[UserFileChunkDraft],
-) -> UserFileOverview:
+def build_user_file_overview(*, filename: str, document: ParsedUserFileDocument) -> UserFileOverview:
     """Build one deterministic, bounded overview from normalized parser output."""
 
-    return _with_skipped_pages(_document_overview(filename=filename, document=document, chunks=chunks), document)
+    return _with_skipped_pages(_document_overview(filename=filename, document=document), document)
 
 
-def _document_overview(
-    *,
-    filename: str,
-    document: ParsedUserFileDocument,
-    chunks: Sequence[UserFileChunkDraft],
-) -> UserFileOverview:
+def _document_overview(*, filename: str, document: ParsedUserFileDocument) -> UserFileOverview:
     format_name = user_file_document_format(document)
     outline: tuple[UserFileOutlineItem, ...]
     outline_truncated = bool(document.source_outline_truncated)
@@ -150,41 +139,30 @@ def _document_overview(
         outline, bounded = _bound_outline(table_outline)
         return _overview(table_description, outline, "table", outline_truncated or bounded)
 
-    source_text = _overview_source_text(document, chunks)
-    normalized_text = _normalize_block(source_text)
+    normalized_text = _normalize_block(document.text)
     if normalized_text and len(normalized_text) <= MAX_OVERVIEW_DESCRIPTION_CHARS:
         return _overview(normalized_text, (), "extractive", outline_truncated)
 
-    description = _extractive_description(source_text, sentence_count=2)
+    description = _extractive_description(document.text, sentence_count=2)
     if description:
         return _overview(description, (), "extractive", outline_truncated)
 
-    return _fallback_overview(filename=filename, document=document, chunks=chunks)
+    return _fallback_overview(filename=filename, document=document)
 
 
-def fallback_user_file_overview(
-    *,
-    filename: str,
-    document: ParsedUserFileDocument,
-    chunks: Sequence[UserFileChunkDraft],
-) -> UserFileOverview:
+def fallback_user_file_overview(*, filename: str, document: ParsedUserFileDocument) -> UserFileOverview:
     """Return a no-fail excerpt or filename overview after extraction errors."""
 
-    overview = _fallback_overview(filename=filename, document=document, chunks=chunks)
+    overview = _fallback_overview(filename=filename, document=document)
     try:
         return _with_skipped_pages(overview, document)
     except Exception:
         return overview
 
 
-def _fallback_overview(
-    *,
-    filename: str,
-    document: ParsedUserFileDocument,
-    chunks: Sequence[UserFileChunkDraft],
-) -> UserFileOverview:
+def _fallback_overview(*, filename: str, document: ParsedUserFileDocument) -> UserFileOverview:
     try:
-        source = _normalize_block(_overview_source_text(document, chunks))
+        source = _normalize_block(document.text)
         description = _clip_text(source, MAX_OVERVIEW_DESCRIPTION_CHARS)
     except Exception:
         description = ""
@@ -329,7 +307,7 @@ def _overview(
 
 
 def _supports_markdown_outline(document: ParsedUserFileDocument) -> bool:
-    """Whether the text's ``#`` lines are headings; Docling-parsed documents name their extension."""
+    """Whether the text's ``#`` lines are headings, which its format decides."""
 
     return user_file_document_format(document) in MARKDOWN_TEXT_FORMATS
 
@@ -450,24 +428,7 @@ def _table_structure(
         column_text = ", ".join(first_columns[:8]) or "unspecified columns"
         description = f"Tabular document with {len(tables)} table(s), {total_rows} data rows, and {column_text}."
         return tuple(outline), description
-
-    docling = document.metadata.get("docling")
-    table_count = docling.get("tables_count") if isinstance(docling, Mapping) else None
-    if isinstance(table_count, int) and not isinstance(table_count, bool) and table_count > 0:
-        fallback_outline = tuple(
-            UserFileOutlineItem(level=1, title=f"Table {index}") for index in range(1, table_count + 1)
-        )
-        return fallback_outline, f"Structured document containing {table_count} table(s)."
     return (), ""
-
-
-def _overview_source_text(
-    document: ParsedUserFileDocument,
-    chunks: Sequence[UserFileChunkDraft],
-) -> str:
-    if document.text.strip():
-        return document.text
-    return "\n\n".join(chunk.text for chunk in chunks if chunk.text.strip())
 
 
 def _extractive_description(text: str, *, sentence_count: int) -> str:

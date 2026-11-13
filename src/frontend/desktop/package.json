@@ -38,7 +38,6 @@
     "runtime:packs": "node scripts/runtime/feature-packs.mjs",
     "runtime:private-pack": "node scripts/runtime/private-pack-cli.mjs",
     "runtime:mixamo-motion": "node scripts/runtime/private-pack-cli.mjs --pack mixamo-motion",
-    "runtime:document-worker": "node scripts/runtime/document-worker.mjs",
     "release:mac": "node scripts/runtime/release-gate.mjs mac",
     "release:scan": "node scripts/runtime/scan-release-candidate.mjs",
     "models:stage": "node scripts/runtime/publish-models-r2.mjs stage",

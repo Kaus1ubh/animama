@@ -73,12 +73,11 @@ export async function measure(target, manifest) {
   const releases = readJson(
     path.join(sourceRoot, "feature-pack-releases.json"),
   );
-  const deferred = (id) => releases.packs[id].release_status === "deferred";
-  const expandedDeferred = deferred("expanded-included-content");
+  const expandedDeferred =
+    releases.packs["expanded-included-content"].release_status === "deferred";
   const expanded = expandedDeferred
     ? null
     : await archive(target, "expanded-input-feasibility", [expandedPath]);
-  const documentDeferred = deferred("document-processing");
   const report = {
     schema: "animama-size-report/1",
     target: target.target,
@@ -96,11 +95,6 @@ export async function measure(target, manifest) {
         installed_bytes: expanded?.sizes["expanded-included-content"] ?? null,
         download_bytes: expanded?.download_bytes ?? null,
         ...(expandedDeferred ? { state: "deferred" } : {}),
-      },
-      "document-processing": {
-        installed_bytes: null,
-        download_bytes: null,
-        ...(documentDeferred ? { state: "deferred" } : {}),
       },
     },
   };

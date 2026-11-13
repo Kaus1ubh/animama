@@ -165,8 +165,7 @@ export function validateReleasePolicy(
     !/^[A-Z0-9]{10}$/u.test(publisher?.team_id ?? "") ||
     typeof publisher?.signing_identity !== "string" ||
     !publisher.signing_identity.startsWith("Developer ID Application:") ||
-    !publisher.signing_identity.endsWith(`(${publisher.team_id})`) ||
-    !publisher.designated_requirement
+    !publisher.signing_identity.endsWith(`(${publisher.team_id})`)
   )
     throw new Error(
       "Configure the reviewed macOS publisher in runtime/feature-pack-releases.json; ad-hoc signing is not a release.",
@@ -205,7 +204,7 @@ export function validateReleasePolicy(
   if (
     !packReleases ||
     Object.keys(packReleases).sort().join(",") !==
-      "document-processing,expanded-included-content" ||
+      "expanded-included-content" ||
     Object.values(packReleases).some(
       (pack) => !["active", "deferred"].includes(pack?.release_status),
     )

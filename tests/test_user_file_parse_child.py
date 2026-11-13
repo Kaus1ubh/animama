@@ -33,7 +33,7 @@ from animama.adapters.parsers.parse_child import (
 from animama.adapters.parsers.text_user_file_parser import parse_text_user_file
 from animama.app.ports.user_file_parser_port import UserFileParseRejectedError
 from animama.app.services.user_file_processing_service import is_retryable_processing_failure
-from animama.domain.user_file_processing import ParsedUserFileDocument, UserFileChunkDraft, UserFileOutlineItem
+from animama.domain.user_file_processing import ParsedUserFileDocument, UserFileOutlineItem
 from tests.user_file_fixtures import (
     flate_bomb_pdf,
     pdf_bytes,
@@ -375,18 +375,6 @@ def test_parsed_documents_survive_the_child_protocol() -> None:
         parser_name="test",
         metadata={"parser": "test", "pages": [1, 2], "nested": {"flag": True, "ratio": 0.5}},
         tables=[{"table_index": 0, "rows": [["name", "value"], ["alpha", "1"]], "source": "tsv"}],
-        chunks=[
-            UserFileChunkDraft(
-                chunk_index=0,
-                text="Body text",
-                char_count=9,
-                token_estimate=3,
-                metadata={"pages": [1]},
-                embedding_text="Report\nBody text",
-                embedding=[0.25, -1.5],
-            ),
-            UserFileChunkDraft(chunk_index=1, text="More", char_count=4, token_estimate=1, metadata={}),
-        ],
         source_outline=(UserFileOutlineItem(level=1, title="Report"), UserFileOutlineItem(level=2, title="Costs")),
         source_outline_truncated=True,
     )
@@ -405,7 +393,6 @@ def test_parsed_documents_survive_the_child_protocol() -> None:
         {"text": 1, "parser_name": "p", "metadata": {}},
         {"text": "t", "parser_name": "p", "metadata": []},
         {"text": "t", "parser_name": "p", "metadata": {}, "tables": {}},
-        {"text": "t", "parser_name": "p", "metadata": {}, "chunks": [{"chunk_index": "0"}]},
         {"text": "t", "parser_name": "p", "metadata": {}, "source_outline": [{"level": "1", "title": "x"}]},
         {"text": "t", "parser_name": "p", "metadata": {}, "source_outline_truncated": "yes"},
     ],

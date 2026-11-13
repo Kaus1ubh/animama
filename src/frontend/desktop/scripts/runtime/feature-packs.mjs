@@ -5,7 +5,6 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 import {
   buildPython,
-  cacheRoot,
   desktopRoot,
   parseTarget,
   pythonEnvironment,
@@ -29,12 +28,6 @@ export async function stageFeaturePacks(target) {
       "expanded-included-content": path.join(
         target.output,
         "pack-inputs/expanded-included-content",
-      ),
-      "document-processing": path.join(
-        cacheRoot,
-        "document-worker",
-        target.target,
-        "signed-input",
       ),
     },
     output: path.join(target.output, "feature-packs"),

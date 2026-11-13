@@ -55,38 +55,13 @@ def test_cli_never_accepts_credentials_as_arguments() -> None:
         cli.parser().parse_args(["database", "bootstrap", "--password", "not-a-real-secret"])
 
 
-def test_document_worker_is_unavailable_until_verified_pack_support(
-    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
-) -> None:
-    monkeypatch.setenv("ANIMAMA_DOCUMENT_WORKER_EXECUTABLE", "/not/trusted")
-    assert cli.main(["worker", "user-files"]) == cli.FEATURE_UNAVAILABLE
-    assert json.loads(capsys.readouterr().out) == {"code": "feature_unavailable", "feature": "document-processing"}
+def test_cli_runs_no_separate_document_worker() -> None:
+    """The server processes uploads itself; the only worker left is avatar upload cleanup."""
 
-
-def test_document_delegate_rechecks_the_fixed_path_digest_and_isolates_pyinstaller(tmp_path, monkeypatch):
-    root = tmp_path.resolve()
-    executable = root / "Animama Document Worker.app/Contents/MacOS/animama-document-worker"
-    executable.parent.mkdir(parents=True)
-    executable.write_bytes(b"test fixture, never executed")
-    monkeypatch.setattr(sys, "platform", "darwin")
-    monkeypatch.setenv("ANIMAMA_DOCUMENT_WORKER_ROOT", str(root))
-    monkeypatch.setenv("ANIMAMA_DOCUMENT_WORKER_EXECUTABLE", str(executable))
-    monkeypatch.setenv("ANIMAMA_DOCUMENT_WORKER_EXECUTABLE_SHA256", hashlib.sha256(executable.read_bytes()).hexdigest())
-    calls = []
-    monkeypatch.setattr(os, "execve", lambda *args: calls.append(args))
-    assert cli.main(["worker", "user-files"]) == 0
-    assert calls[0][0] == executable
-    assert calls[0][1] == [str(executable)]
-    assert calls[0][2]["PYINSTALLER_RESET_ENVIRONMENT"] == "1"
-
-    calls.clear()
-    executable.write_bytes(b"changed fixture")
-    with pytest.raises(RuntimeError, match="document_worker_digest_invalid"):
-        cli.main(["worker", "user-files"])
-    monkeypatch.setenv("ANIMAMA_DOCUMENT_WORKER_EXECUTABLE", str(root / "arbitrary-program"))
-    with pytest.raises(RuntimeError, match="document_worker_path_invalid"):
-        cli.main(["worker", "user-files"])
-    assert calls == []
+    assert cli.parser().parse_args(["worker", "avatar-cleanup"]).operation == "avatar-cleanup"
+    with pytest.raises(SystemExit) as error:
+        cli.parser().parse_args(["worker", "user-files"])
+    assert error.value.code == 2
 
 
 def test_pack_writer_emits_deterministic_ustar_and_rechecks_input_custody(tmp_path):
@@ -118,34 +93,6 @@ def test_pack_writer_emits_deterministic_ustar_and_rechecks_input_custody(tmp_pa
     file.symlink_to(first)
     with pytest.raises(ValueError, match="escapes its root"):
         writer(source, inventory, second)
-
-
-def test_document_worker_resources_are_frozen_and_offline_only(tmp_path, monkeypatch):
-    from animama.runtime import document_worker
-
-    with pytest.raises(RuntimeError, match="requires_frozen_resources"):
-        document_worker.configure_resources()
-    monkeypatch.setattr(sys, "frozen", True, raising=False)
-    monkeypatch.setattr(sys, "_MEIPASS", str(tmp_path), raising=False)
-    with pytest.raises(RuntimeError, match="resources_missing"):
-        document_worker.configure_resources()
-    for name in ("docling", "tiktoken"):
-        directory = tmp_path / "document-resources" / name
-        directory.mkdir(parents=True)
-        (directory / "fixture").write_bytes(b"resource inventory fixture")
-    for name in (
-        "ANIMAMA_DOCLING_ARTIFACTS_PATH",
-        "TIKTOKEN_CACHE_DIR",
-        "HF_HUB_OFFLINE",
-        "HF_HUB_DISABLE_TELEMETRY",
-        "TRANSFORMERS_OFFLINE",
-        "ANIMAMA_USER_FILE_DOCLING_ENABLE_OCR",
-    ):
-        monkeypatch.setenv(name, "fixture")
-    assert document_worker.configure_resources() == tmp_path / "document-resources"
-    assert os.environ["HF_HUB_OFFLINE"] == "1"
-    assert os.environ["TRANSFORMERS_OFFLINE"] == "1"
-    assert os.environ["ANIMAMA_USER_FILE_DOCLING_ENABLE_OCR"] == "0"
 
 
 def test_bootstrap_preserves_sql_comments_and_literal_semicolons() -> None:

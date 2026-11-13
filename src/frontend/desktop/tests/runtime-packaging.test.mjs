@@ -5,7 +5,6 @@ import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
-  renameSync,
   rmSync,
   symlinkSync,
   writeFileSync,
@@ -13,7 +12,6 @@ import {
 import { tmpdir } from "node:os";
 import { symlinksAvailable } from "./fixtures/symlinks.mjs";
 import { spawnSync } from "node:child_process";
-import { fileURLToPath } from "node:url";
 import path from "node:path";
 import {
   assertInventory,
@@ -65,10 +63,6 @@ import {
   assertMacosMinimum,
   auditMacosMinimum,
 } from "../scripts/runtime/macos-platform.mjs";
-import {
-  documentLoadCommands,
-  prepareDocumentLibraries,
-} from "../scripts/runtime/document-native.mjs";
 import {
   assertDesktopWebAssets,
   assertNoHomeDirectoryPaths,
@@ -319,47 +313,42 @@ describe("desktop runtime packaging", () => {
 
   it("renders the exact active/deferred redistribution review state", () => {
     const root = fixture();
-    const review = renderRedistributionReview({
-      target: { output: root, runtime: path.join(root, "runtime") },
-      manifest: { build_id: "build-1", files: [{ path: "one" }] },
-      inventory: {
-        pending_review: ["one"],
-        records: [{ license: "MIT" }],
-      },
-      sizes: {
-        installed_bytes: 10,
-        download_bytes: 5,
-        packs: {
-          "expanded-included-content": {
-            installed_bytes: 4,
-            download_bytes: 3,
-          },
-          "document-processing": {
-            installed_bytes: null,
-            download_bytes: null,
-            state: "deferred",
-          },
+    const render = (report, measured) =>
+      renderRedistributionReview({
+        target: { output: root, runtime: path.join(root, "runtime") },
+        manifest: { build_id: "build-1", files: [{ path: "one" }] },
+        inventory: {
+          pending_review: ["one"],
+          records: [{ license: "MIT" }],
         },
+        sizes: {
+          installed_bytes: 10,
+          download_bytes: 5,
+          packs: { "expanded-included-content": measured },
+        },
+        packReport: {
+          reports: [{ id: "expanded-included-content", ...report }],
+        },
+        inventorySha256: "b".repeat(64),
+      });
+    const active = render(
+      {
+        state: "redistribution_review_required",
+        inventory_sha256: "a".repeat(64),
       },
-      packReport: {
-        reports: [
-          {
-            id: "expanded-included-content",
-            state: "redistribution_review_required",
-            inventory_sha256: "a".repeat(64),
-          },
-          { id: "document-processing", state: "deferred" },
-        ],
-      },
-      inventorySha256: "b".repeat(64),
-    });
-    expect(review).toContain(
+      { installed_bytes: 4, download_bytes: 3 },
+    );
+    expect(active).toContain(
       "`expanded-included-content` | `redistribution_review_required`",
     );
-    expect(review).toContain(
-      "`document-processing` | `deferred` | Not required",
+    expect(active).toContain("`NOASSERTION` records: 0");
+    const deferred = render(
+      { state: "deferred" },
+      { installed_bytes: null, download_bytes: null, state: "deferred" },
     );
-    expect(review).toContain("`NOASSERTION` records: 0");
+    expect(deferred).toContain(
+      "`expanded-included-content` | `deferred` | Not required",
+    );
   });
 
   it("removes only the explicitly excluded legacy portraits from desktop web output", () => {
@@ -444,98 +433,28 @@ describe("desktop runtime packaging", () => {
     },
   );
   it.skipIf(process.platform !== "darwin")(
-    "launches the worker relative to its relocated app without a shell or PATH lookup",
+    "audits a real native binary whose name has spaces and parentheses",
     () => {
       const root = fixture();
-      const original = path.join(root, "Original.app");
-      const moved = path.join(root, "Moved app.app");
-      const macos = path.join(original, "Contents/MacOS");
-      const resources = path.join(
-        original,
-        "Contents/Resources/document-worker",
-      );
-      mkdirSync(macos, { recursive: true });
-      mkdirSync(resources, { recursive: true });
+      const source = path.join(root, "helper.c");
+      writeFileSync(source, "int main(void) { return 0; }\n");
+      const helper = "Electron Helper (GPU)";
       const compile = spawnSync(
         "/usr/bin/clang",
         [
-          "-Wall",
-          "-Wextra",
-          "-Werror",
+          "-arch",
+          "arm64",
           "-mmacosx-version-min=15.0",
-          fileURLToPath(
-            new URL("../runtime/document-worker-launcher.c", import.meta.url),
-          ),
+          source,
           "-o",
-          path.join(macos, "animama-document-worker"),
+          path.join(root, helper),
         ],
         { encoding: "utf8" },
       );
-      expect(compile.stderr).toBe("");
-      expect(compile.status).toBe(0);
-      const payloadSource = path.join(root, "payload.c");
-      writeFileSync(
-        payloadSource,
-        '#include <stdio.h>\nint main(int argc, char **argv) { for (int i = 1; i < argc; i++) printf("%s%s", argv[i], i + 1 == argc ? "\\n" : " "); return 0; }\n',
-      );
-      const payloadCompile = spawnSync(
-        "/usr/bin/clang",
-        [payloadSource, "-o", path.join(resources, "animama-document-worker")],
-        { encoding: "utf8" },
-      );
-      expect(payloadCompile.status).toBe(0);
-      writeFileSync(
-        path.join(original, "Contents/Info.plist"),
-        '<?xml version="1.0" encoding="UTF-8"?>\n<plist version="1.0"><dict><key>CFBundleIdentifier</key><string>com.animama.document-worker.fixture</string><key>CFBundleExecutable</key><string>animama-document-worker</string><key>CFBundlePackageType</key><string>APPL</string></dict></plist>\n',
-      );
-      for (const code of [
-        path.join(resources, "animama-document-worker"),
-        original,
-      ]) {
-        const signed = spawnSync(
-          "/usr/bin/codesign",
-          ["--force", "--options", "runtime", "--sign", "-", code],
-          { encoding: "utf8" },
-        );
-        expect(signed.status).toBe(0);
-      }
-      const verified = spawnSync(
-        "/usr/bin/codesign",
-        ["--verify", "--deep", "--strict", original],
-        { encoding: "utf8" },
-      );
-      expect({ status: verified.status, stderr: verified.stderr }).toEqual({
+      expect({ status: compile.status, stderr: compile.stderr }).toEqual({
         status: 0,
         stderr: "",
       });
-      renameSync(original, moved);
-      const executable = path.join(
-        moved,
-        "Contents/MacOS/animama-document-worker",
-      );
-      const arguments_ = ["--audit-resources", "literal ; $(false)"];
-      const launched = spawnSync(executable, arguments_, {
-        cwd: tmpdir(),
-        env: { PATH: "/nonexistent" },
-        encoding: "utf8",
-      });
-      expect({
-        status: launched.status,
-        signal: launched.signal,
-        stderr: launched.stderr,
-      }).toEqual({ status: 0, signal: null, stderr: "" });
-      expect(launched.stdout).toBe(`${arguments_.join(" ")}\n`);
-      rmSync(
-        path.join(
-          moved,
-          "Contents/Resources/document-worker/animama-document-worker",
-        ),
-      );
-      const missing = spawnSync(executable, [], { encoding: "utf8" });
-      expect(missing.status).toBe(126);
-      expect(missing.stderr).toContain("cannot start payload");
-      const helper = "Electron Helper (GPU)";
-      renameSync(executable, path.join(root, helper));
       expect(auditMacosMinimum(root, [helper], "15.0")).toEqual([
         { path: helper, minimum_macos: ["15.0"] },
       ]);
@@ -600,236 +519,10 @@ describe("desktop runtime packaging", () => {
     },
   );
 
-  it("distinguishes a dylib ID from real, weak and reexported dependencies", () => {
-    const output = `library:
-Load command 0
-          cmd LC_ID_DYLIB
-      cmdsize 64
-         name @rpath/libSelf.dylib (offset 24)
-Load command 1
-          cmd LC_LOAD_DYLIB
-      cmdsize 64
-         name /usr/lib/libSystem.B.dylib (offset 24)
-Load command 2
-          cmd LC_LOAD_WEAK_DYLIB
-      cmdsize 64
-         name @rpath/libWeak.dylib (offset 24)
-Load command 3
-          cmd LC_REEXPORT_DYLIB
-      cmdsize 64
-         name @loader_path/libExport.dylib (offset 24)
-Load command 4
-          cmd LC_RPATH
-      cmdsize 32
-         path @loader_path/.. (offset 12)
-`;
-    expect(documentLoadCommands(output)).toEqual({
-      dependencies: [
-        "/usr/lib/libSystem.B.dylib",
-        "@rpath/libWeak.dylib",
-        "@loader_path/libExport.dylib",
-      ],
-      rpaths: ["@loader_path/.."],
-    });
-    expect(() =>
-      documentLoadCommands("\nLoad command 0\n cmd LC_LOAD_DYLIB\n"),
-    ).toThrow("Malformed");
-  });
-
-  /** A copied PyInstaller alias, with actual files and simulated native tools. */
-  function workerLibraries() {
-    const root = fixture();
-    const frozenRoot = path.join(root, "frozen");
-    const executableRoot = path.join(root, "bundle/Contents/MacOS");
-    const canonical = "_internal/torch/lib/libtorch_cpu.dylib";
-    const alias = "_internal/libtorch_cpu.dylib";
-    const consumer = "_internal/torch/_C.so";
-    for (const base of [frozenRoot, executableRoot]) {
-      for (const name of ["animama-document-worker", canonical, consumer]) {
-        mkdirSync(path.dirname(path.join(base, name)), { recursive: true });
-        writeFileSync(
-          path.join(base, name),
-          Buffer.from("cffaedfe00000000", "hex"),
-        );
-      }
-    }
-    symlinkSync("torch/lib/libtorch_cpu.dylib", path.join(frozenRoot, alias));
-    writeFileSync(
-      path.join(executableRoot, alias),
-      Buffer.from("cffaedfe00000000", "hex"),
-    );
-    const commands = new Map([
-      [
-        consumer,
-        {
-          dependencies: ["@rpath/libtorch_cpu.dylib"],
-          rpaths: ["@loader_path/.."],
-        },
-      ],
-    ]);
-    const runNative = vi.fn((tool, args) => {
-      const name = path.relative(executableRoot, args.at(-1));
-      if (tool.endsWith("/otool")) {
-        const { dependencies = [], rpaths = [] } = commands.get(name) ?? {};
-        return [
-          ...dependencies.map(
-            (value) => `cmd LC_LOAD_DYLIB\n name ${value} (offset 24)`,
-          ),
-          ...rpaths.map((value) => `cmd LC_RPATH\n path ${value} (offset 12)`),
-        ]
-          .map((block, i) => `\nLoad command ${i}\n ${block}\n`)
-          .join("");
-      }
-      if (tool.endsWith("/install_name_tool")) {
-        const entry = commands.get(name);
-        const key = args[0] === "-rpath" ? "rpaths" : "dependencies";
-        entry[key] = entry[key].map((value) =>
-          value === args[1] ? args[2] : value,
-        );
-      }
-      return "";
-    });
-    return {
-      frozenRoot,
-      executableRoot,
-      runNative,
-      commands,
-      alias,
-      canonical,
-      consumer,
-    };
-  }
-
-  it.skipIf(!symlinksAvailable)(
-    "relocates proven Torch aliases before removing duplicate bytes and reaudits real references",
-    () => {
-      const input = workerLibraries();
-      const result = prepareDocumentLibraries(input);
-      expect(result.relocations).toEqual([
-        {
-          path: input.consumer,
-          command: "-change",
-          from: "@rpath/libtorch_cpu.dylib",
-          to: "@loader_path/lib/libtorch_cpu.dylib",
-        },
-      ]);
-      expect(existsSync(path.join(input.executableRoot, input.alias))).toBe(
-        false,
-      );
-      expect(existsSync(path.join(input.frozenRoot, input.alias))).toBe(true);
-      expect(
-        result.files.find((file) => file.path === input.consumer).dependencies,
-      ).toEqual(["@loader_path/lib/libtorch_cpu.dylib"]);
-    },
-  );
-
-  it.skipIf(!symlinksAvailable).each([
-    [
-      "missing dependency",
-      { dependencies: ["@loader_path/missing.dylib"] },
-      "unresolved",
-    ],
-    [
-      "absolute dependency",
-      { dependencies: ["/opt/homebrew/lib/test.dylib"] },
-      "absolute non-system",
-    ],
-    [
-      "escaping search path",
-      { rpaths: ["@loader_path/../../../../.."] },
-      "external library search",
-    ],
-    [
-      "unrelocatable search path",
-      { rpaths: ["/opt/homebrew/lib"] },
-      "not relocatable",
-    ],
-  ])("rejects a worker's %s", (_, commands, message) => {
-    const input = workerLibraries();
-    input.commands.set(input.consumer, commands);
-    expect(() => prepareDocumentLibraries(input)).toThrow(message);
-  });
-
-  it.skipIf(!symlinksAvailable)(
-    "retains non-Torch aliases for ctypes while relocating their search paths",
-    () => {
-      const input = workerLibraries();
-      const alias = "_internal/libImage.dylib";
-      const canonical = "_internal/PIL/.dylibs/libImage.dylib";
-      for (const base of [input.frozenRoot, input.executableRoot]) {
-        mkdirSync(path.dirname(path.join(base, canonical)), {
-          recursive: true,
-        });
-        writeFileSync(
-          path.join(base, canonical),
-          Buffer.from("cffaedfe00000000", "hex"),
-        );
-      }
-      symlinkSync(
-        "PIL/.dylibs/libImage.dylib",
-        path.join(input.frozenRoot, alias),
-      );
-      writeFileSync(
-        path.join(input.executableRoot, alias),
-        Buffer.from("cffaedfe00000000", "hex"),
-      );
-      for (const name of [alias, canonical]) {
-        input.commands.set(name, {
-          dependencies: ["@rpath/libtorch_cpu.dylib"],
-          rpaths: ["@loader_path/../.."],
-        });
-      }
-      const result = prepareDocumentLibraries(input);
-      expect(existsSync(path.join(input.executableRoot, alias))).toBe(true);
-      expect(result.relocations).toContainEqual({
-        path: alias,
-        command: "-rpath",
-        from: "@loader_path/../..",
-        to: "@loader_path/.",
-      });
-      expect(
-        result.files.find((entry) => entry.path === alias).dependencies,
-      ).toEqual(["@loader_path/torch/lib/libtorch_cpu.dylib"]);
-    },
-  );
-
-  it.skipIf(!symlinksAvailable)(
-    "reaudits dependencies after aliases are removed instead of trusting tool success",
-    () => {
-      const input = workerLibraries();
-      const runner = input.runNative;
-      input.runNative = (tool, args) =>
-        tool.endsWith("/install_name_tool") ? "" : runner(tool, args);
-      expect(() => prepareDocumentLibraries(input)).toThrow(
-        "unresolved non-system library",
-      );
-    },
-  );
-
-  it.skipIf(!symlinksAvailable)(
-    "refuses to discard a changed alias or an unexpected Torch target",
-    () => {
-      const input = workerLibraries();
-      writeFileSync(
-        path.join(input.executableRoot, input.alias),
-        "different library",
-      );
-      expect(() => prepareDocumentLibraries(input)).toThrow("does not match");
-      rmSync(path.join(input.frozenRoot, input.alias));
-      symlinkSync(
-        "../animama-document-worker",
-        path.join(input.frozenRoot, input.alias),
-      );
-      expect(() => prepareDocumentLibraries(input)).toThrow(
-        "Unexpected worker Torch alias",
-      );
-    },
-  );
-
   it("keeps public testing previews out of the stable feed and refuses mutation of stable releases", () => {
     const names = [
       "Animama-0.1.0-arm64.dmg",
-      "document-processing-0.1.0-darwin-arm64.tar.zst",
+      "expanded-included-content-0.1.0-data-only.tar.zst",
       "THIRD_PARTY_NOTICES.txt",
       "latest-mac.yml",
       "manual-acceptance.json",
@@ -879,17 +572,8 @@ Load command 4
       macos: {
         team_id: "TESTTEAM01",
         signing_identity: "Developer ID Application: Fixture (TESTTEAM01)",
-        designated_requirement: "identifier com.animama.document-worker",
       },
-      packs: Object.fromEntries(
-        ["expanded-included-content", "document-processing"].map((id) => [
-          id,
-          {
-            release_status:
-              id === "expanded-included-content" ? "active" : "deferred",
-          },
-        ]),
-      ),
+      packs: { "expanded-included-content": { release_status: "active" } },
     };
     const r2 = validateReleasePolicy(policy, packs, "0.1.0", {
       distribution: "r2",
@@ -952,6 +636,20 @@ Load command 4
       );
     expect(() =>
       validateReleasePolicy({ ...policy }, { ...packs, packs: {} }, "0.1.0"),
+    ).toThrow("explicit active or deferred");
+    // The retired document pack is not a release input any more.
+    expect(() =>
+      validateReleasePolicy(
+        policy,
+        {
+          ...packs,
+          packs: {
+            ...packs.packs,
+            "document-processing": { release_status: "deferred" },
+          },
+        },
+        "0.1.0",
+      ),
     ).toThrow("explicit active or deferred");
     expect(() =>
       validateReleasePolicy({ ...policy, distributions: null }, packs, "0.1.0"),
@@ -1133,23 +831,11 @@ Load command 4
       macos: {
         team_id: "TESTTEAM01",
         signing_identity: "Developer ID Application: Fixture (TESTTEAM01)",
-        designated_requirement: "identifier com.animama.document-worker",
       },
-      packs: Object.fromEntries(
-        ["expanded-included-content", "document-processing"].map((id) => [
-          id,
-          {
-            release_status:
-              id === "expanded-included-content" ? "active" : "deferred",
-          },
-        ]),
-      ),
+      packs: { "expanded-included-content": { release_status: "active" } },
     });
     json(path.join(runtime, "pack-catalog.json"), {
-      entries: ["expanded-included-content"].map((id) => ({
-        id,
-        signing: { publisher: "TESTTEAM01" },
-      })),
+      entries: [{ id: "expanded-included-content", signing: null }],
     });
     json(path.join(runtime, "update-policy.json"), {
       schema: "animama-update-policy/3",
@@ -1271,21 +957,18 @@ Load command 4
       });
       json(inventory, {});
       vi.stubEnv("ANIMAMA_MACOS_NOTARY_PROFILE", "fixture-notary");
+      // Any pack beyond the active ones, such as the retired document pack,
+      // keeps a stale catalog out of the release.
       json(path.join(runtime, "pack-catalog.json"), {
         entries: ["document-processing", "expanded-included-content"].map(
-          (id) => ({ id, signing: { publisher: "TESTTEAM01" } }),
+          (id) => ({ id, signing: null }),
         ),
       });
       await expect(releaseMac()).rejects.toThrow(
         "deferred packs must be absent",
       );
       json(path.join(runtime, "pack-catalog.json"), {
-        entries: [
-          {
-            id: "expanded-included-content",
-            signing: { publisher: "TESTTEAM01" },
-          },
-        ],
+        entries: [{ id: "expanded-included-content", signing: null }],
       });
       // An R2 stage cannot be packaged as a GitHub candidate, or vice versa.
       vi.stubEnv("ANIMAMA_RELEASE_DISTRIBUTION", "github");
@@ -1559,11 +1242,9 @@ Load command 4
       macos: {
         team_id: "TESTTEAM01",
         signing_identity: "Developer ID Application: Fixture (TESTTEAM01)",
-        designated_requirement: "identifier com.animama.document-worker",
       },
       packs: {
         "expanded-included-content": { release_status: "deferred" },
-        "document-processing": { release_status: "deferred" },
       },
     });
     json(path.join(runtime, "licenses/inventory.json"), {});
@@ -1829,11 +1510,7 @@ Load command 4
     ).toThrow();
     // A build without active packs cannot exercise pack checks, so they are
     // neither required nor recorded.
-    const packChecks = [
-      "document_processing",
-      "expanded_content",
-      "pack_interruption",
-    ];
+    const packChecks = ["expanded_content", "pack_interruption"];
     const withoutPacks = {
       ...accepted,
       checks: Object.fromEntries(
@@ -2125,6 +1802,21 @@ describe("size gates", () => {
   });
   it("reads durable approval inputs without any private planning checkout", () => {
     expect(validateSizeReport(report).failures).toEqual([]);
+  });
+  it("refuses a pack without a reviewed budget, such as the retired document pack", () => {
+    const pack = { installed_bytes: null, download_bytes: null };
+    expect(
+      validateSizeReport({
+        ...report,
+        packs: { "expanded-included-content": pack },
+      }).failures,
+    ).toEqual([]);
+    expect(() =>
+      validateSizeReport({
+        ...report,
+        packs: { "document-processing": pack },
+      }),
+    ).toThrow("Unknown pack budget: document-processing");
   });
   it("rejects malformed approval records and an approval for different bytes", () => {
     expect(() =>

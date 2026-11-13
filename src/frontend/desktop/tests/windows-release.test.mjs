@@ -100,12 +100,10 @@ const packs = {
   macos: {
     team_id: "TESTTEAM01",
     signing_identity: "Developer ID Application: Fixture (TESTTEAM01)",
-    designated_requirement: "identifier com.animama.document-worker",
   },
   windows: publisher,
   packs: {
     "expanded-included-content": { release_status: "deferred" },
-    "document-processing": { release_status: "deferred" },
   },
 };
 

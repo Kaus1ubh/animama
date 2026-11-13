@@ -128,7 +128,8 @@ Cloud refreshes its package inventories at its next repin, outside this plan.
 - [x] Phase 4: The composer holds sends until attachments are readable
   (review passed after two repair rounds; the browser-pane checks moved to the
   Phase 2 stack check).
-- [ ] Phase 5: Docling, the separate worker and the pack are retired.
+- [x] Phase 5: Docling, the separate worker and the pack are retired (two
+  scoped reviews; desktop staging passed with no document pack).
 - [ ] Phase 6: Documentation and decision records.
 - [ ] Final integration review, full pre-push suite and acceptance checks.
 - [ ] PR opened with its evidence and remaining gates.
@@ -163,6 +164,18 @@ From planning research on 2026-11-12:
   This plan adds entries only for its own files and leaves that gap to the
   owner. Its checks therefore confirm that the report lists none of this
   task's files.
+- During Phase 5, `origin/main` moved 19 commits past `aede262c0`:
+  - desktop releases 0.1.3 and 0.1.4;
+  - forward migrations for released schemas (ADR 0035, so this plan's ADR is
+    0036);
+  - per-Anima reasoning effort, which touches `ChatInterface.tsx`, the web
+    `chat-input.tsx` and the chat locales;
+  - contracts at local-http 23.0.0 and runtime-contracts 0.23.0;
+  - Electron 45.3.1 and new redistribution-review records.
+
+  The branch merges `origin/main` after Phase 6 and before the final
+  integration review. This change has no schema change, so the
+  forward-migration rule does not bite.
 - Phase 1: Windows development with auto-reload cannot start child
   processes, because uvicorn's reloader uses a selector event loop. There,
   jobs retry and then fail. The packaged Windows app does not reload.
@@ -1403,6 +1416,112 @@ and the i18n wording.
 - F6 goes to the owner, alongside the existing English-only debug panel note.
 - F7 is split between part 2, Phase 6 and the PR's remaining gates.
 
+Implementation notes, part 2: backend and dependencies (2026-11-12, on top of
+part 1 and the Phase 3 commit `37a7db257`).
+
+- **Dependencies.** `pyproject.toml` loses the `file-worker` extra, the torch
+  sources and `pytorch-cpu` index, the `torch<2.14` hold, the dev conflict and
+  the `docling.*` mypy override. `uv.lock` dropped 50 packages (258 → 206)
+  with no additions and no version changes. They include Docling's family,
+  torch and torchvision, transformers, the Hugging Face and ML stack (scipy,
+  OpenCV, rapidocr, shapely and more), BeautifulSoup, marko, pandas and
+  smaller helpers.
+- **Deleted.**
+  - `adapters/parsers/docling_user_file_parser.py`, `runtime/document_worker.py`
+    and `workers/user_file_processing.py`;
+  - `packaging/desktop/{animama-document-worker.spec,document_worker_entrypoint.py,document_worker_resources.py}`;
+  - `tests/test_user_file_worker.py`.
+- **CLI.** `runtime/cli.py` loses `worker user-files` and its delegation, and
+  `worker avatar-cleanup` stays.
+- **Settings.** `server/config.py` loses the three document/Docling settings,
+  the seven `anima_user_file_docling_*` settings and
+  `anima_user_file_processing_batch_size`, which only the old worker read.
+- **Parser chunks.** Parser-provided chunks, which only Docling produced, are
+  gone: the service branch, `ParsedUserFileDocument.chunks` and the child
+  protocol's chunk encoding.
+- **Overviews.** The overview drops its Docling-only fallbacks, so
+  `build_user_file_overview` and `fallback_user_file_overview` no longer take
+  `chunks`.
+- **Pack id.** `domain/feature_packs.py` and the removal repository drop the
+  id and the `document_job` blocker. The desktop-control router is outside
+  OpenAPI and takes `pack_id: str`; it now answers 404 for the retired id,
+  like any unknown id. The OpenAPI export is byte-identical (`f3fa651d`
+  before and after), and `pnpm openapi-ts:check` passes.
+- **Old rows.** Old-row compatibility needs no special code: search, read and
+  reuse ignore which parser made a chunk. Tests keep stored Docling overviews
+  deserializing and Docling-processed sources reusable as stored.
+- **Self-host.** `.env.example` loses `ANIMAMA_DOCLING_CACHE_HOST_PATH`
+  (P5-R1-F2). `ANIMAMA_USER_FILE_CHUNK_MAX_TOKENS` joins `.env.example` and the
+  `animama-server` Compose environment.
+- **Wording (P5-R1-F4).** Stale wording is fixed in `electron-guide.md`,
+  `files.ts`, `release-windows.mjs` and a `LibraryPage.tsx` comment.
+  `DesktopFeaturePacksPanel` loses its unused `only` prop.
+- **Guides (P5-R1-F7).** The packaging README and `src/backend/AGENTS.md`
+  describe in-server processing.
+
+Check record, part 2 (uncommitted; Phase 5 tree `bd648ef6` on `37a7db257`):
+
+- `uv lock --check` passed (206 packages).
+- The touched pytest files plus runner, parse-child, capability, packaging
+  and composition passed 268, with 1 skipped. The neighbouring set passed
+  487.
+- Ruff, `make mypy` (907 files) and the boundary checker were clean.
+- The desktop check and `check:source` exit 0. Web vitest passed 14 and
+  desktop vitest 71. `prettier:check` and both Compose selections exit 0.
+
+#### Code Review #1 Findings (part 2)
+
+The review covered tree `bd648ef6` (recomputed unchanged at start and end) at
+high risk: part 2, its edits to shared files, and the F3 recheck. The
+reviewer reran everything:
+
+- the lock check (206 packages);
+- pytest on 12 core files (299 passed, 1 skipped) and 16 neighbouring files
+  (515 passed);
+- Ruff, `make mypy` (907 files) and the boundary checker;
+- an OpenAPI export of `git archive 37a7db257` against the source, which was
+  byte-identical (`f3fa651d`);
+- both Compose selections, the desktop check, desktop vitest (71 passed), web
+  vitest (14 passed) and `check:source`.
+
+There were no new blocking findings. The carried P5-R1-F1, removing 14 stale
+source-review entries, lands with the commit. F2, F3, F4 and F7 are verified
+fixed.
+
+- P5-R2-F1 (non-blocking): deleting the old worker tests removed the only test
+  of the processing byte limit, so a broken guard could truncate a large file
+  silently.
+- P5-R2-F2 (optional): in `desktop_control.py`, the expanded-pack condition is
+  now always true, and `pack_version` repeats `source_version`.
+
+Verified with no defect:
+
+- None of the 50 removed packages was ever installed without the old extra,
+  and all 578 `animama` modules import without them.
+- No references to removed names remain, and the child protocol is
+  self-consistent.
+- The overview callers, the retired-id 404, old-row reuse and the frozen spec
+  are sound, and the hosted path is unchanged.
+
+Cloud follow-ups for the repin:
+
+- Remove the three deleted modules from Cloud's tenant inventories.
+- Refresh the package-admission inventory's `requires_dist` and the backend
+  extras in Cloud's `uv.lock` (`file-worker` becomes `documents`).
+
+No Cloud code imports a removed name.
+
+#### Code Review #1 Revisions (part 2)
+
+- P5-R1-F1: the 14 stale entries are removed in this commit. The source-review
+  check then lists none of this task's files, only `main`'s 14 earlier gaps.
+- P5-R2-F1 fixed: `test_upload_over_the_processing_limit_fails_without_retrying`
+  in `tests/test_user_file_processing_runner.py` shows a file over the limit
+  fails on attempt 1 with no chunks. The runner file passed 20 and Ruff was
+  clean; as a test-only addition it needs no recheck.
+- P5-R2-F2 declined: the response is private to the desktop, and the branch
+  stays readable. Phase 5 passes review.
+
 #### Code Review #1 Findings
 
 Not started.
@@ -1448,7 +1567,48 @@ settings, and the `check_source.py` script.
 
 Completion: commit `docs(uploads)[p6]: describe in-server upload processing`.
 
-Check record: not started.
+Implementation notes (2026-11-12; ran in parallel with Phase 5 part 2, docs
+only):
+
+- **ADR.** `docs/adr/0036-uploads-processed-in-core-server.md` is numbered
+  0036 because `main` gained ADR 0035. It records the context, the owner's
+  decisions, the alternatives (releasing the pack, desktop only, keeping
+  Docling optional for self-host) and the consequences. ADR 0010 (item 6) and
+  ADR 0012 (decision 5's pack clause) carry 2026-11-12 amendments, and the ADR
+  index is updated. When `main` merges, the index keeps both new rows, 0035
+  then 0036.
+- **Glossary.** "Feature pack" now means a data-only pack, currently only
+  expanded Included content.
+- **Backend docs.**
+  - `user-files.md` gains an In-Server Processing section, how each format is
+    read, the refusal reasons, the settings and the PDF limits, and loses the
+    worker and Docling sections.
+  - `development.md`: "Optional document worker" becomes "Upload processing",
+    including the `cache/docling` cleanup for default and named stacks and the
+    Windows auto-reload limit.
+  - `desktop-runtime.md`, `model-assets.md`, `data-model.md`, `http-api.md`
+    (the capability example and the retired id's 404) and the backend README
+    are updated.
+- **Desktop docs.** `feature-packs.md`, `runtime-staging.md`, `releases.md`
+  ("Build a signed macOS candidate"), `release-process.md`, `overview.md`,
+  `platforms.md`, `troubleshooting.md` and `redistribution-review.md` are
+  updated. The redistribution review gains lxml/libiconv and PDFium notices as
+  items for the next review.
+- **Uploads UI docs.** `user-file-uploads.md`: "Optional Desktop Processing"
+  becomes "Processing Availability".
+- **Settings.** Every setting the docs name exists in `config.py` with the
+  documented default, and no retired setting is documented.
+
+Check record (uncommitted):
+
+- A search for Docling, the pack, the worker and the file-worker extra finds
+  only intentional keeps: the capability label, the heartbeat row, the retired
+  id's 404 and startup removal, stored Docling chunk metadata, and the
+  `cache/docling` cleanup note.
+- A relative-link and anchor check over 1,339 links in tracked Markdown found
+  0 broken. The repo has no link checker, so a scratch script ran it.
+- `check_source.py` fails only on `main`'s 14 known gaps. The ADR's entry lands
+  with the commit.
 
 ## Final integration review
 

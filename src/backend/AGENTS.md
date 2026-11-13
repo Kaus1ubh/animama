@@ -164,13 +164,17 @@ optional sources can be withdrawn only after reference and lease checks. Keep
 the ordinary single Included root behavior when desktop source variables are
 absent.
 
-Optional document processing is admitted by the service, not just the renderer.
-An absent desktop pack retains originals and rejects enqueue with
-`file_processing_unavailable`; starting/stale enabled workers may queue durable
-work. Keep heartbeat instance matching, own-job lease renewal, and private
-removal preflight separate from the public owner-protected capability endpoint.
-Core must never fall back to importing Docling or execute an arbitrary worker
-path. See the desktop packaging README for the fixed signed-helper contract.
+Every local composition processes uploads inside the server.
+`server/user_file_processing.py` runs one durable job at a time and parses each
+file in a `parse-upload` child (`adapters/parsers/parse_child.py`) under time
+and memory limits with network access blocked; never parse upload bytes in the
+server process. Parser libraries come from the `documents` extra, which the
+hosted composition does not need. Admission stays in the service, not just the
+renderer: `ANIMAMA_USER_FILE_PROCESSING_ENABLED=false` keeps originals and
+rejects enqueue with `file_processing_unavailable`, while an enabled but
+starting or stale processor still accepts durable work. Keep heartbeat instance
+matching and own-job lease renewal separate from the public owner-protected
+capability endpoint.
 
 ## API Contracts
 

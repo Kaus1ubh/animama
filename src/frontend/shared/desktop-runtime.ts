@@ -110,10 +110,7 @@ export type CredentialsBridge = {
    */
   apply(changes: CredentialChange[]): Promise<CredentialStatus[]>;
 };
-export const featurePackIds = [
-  "expanded-included-content",
-  "document-processing",
-] as const;
+export const featurePackIds = ["expanded-included-content"] as const;
 export type FeaturePackId = (typeof featurePackIds)[number];
 export type FeaturePackStatus = {
   id: FeaturePackId;
