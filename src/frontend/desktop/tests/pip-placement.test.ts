@@ -28,29 +28,54 @@ describe("PiP placement file", () => {
   });
 
   it("reads back the placement it saved", () => {
-    const placement = { displayId: 7, x: 100, y: 200, sizeScale: 0.7 };
+    const placement = { displayId: 7, x: 100, y: 200, width: 360, height: 400 };
     writePipPlacement(file, placement);
     expect(readPipPlacement(file)).toEqual(placement);
   });
 
-  it("ignores a missing, malformed or other-version file", () => {
+  it("reads a version-1 file at the size its scale described", () => {
+    writeFileSync(
+      file,
+      JSON.stringify({
+        version: 1,
+        displayId: 7,
+        x: 100,
+        y: 200,
+        sizeScale: 0.7,
+      }),
+    );
+    expect(readPipPlacement(file)).toEqual({
+      displayId: 7,
+      x: 100,
+      y: 200,
+      width: 294,
+      height: 392,
+    });
+  });
+
+  it.each([
+    ["an unknown version", { version: 3, width: 360, height: 400 }],
+    ["a version-2 file without a size", { version: 2, sizeScale: 0.7 }],
+    ["a fractional width", { version: 2, width: 360.5, height: 400 }],
+    ["an empty size", { version: 2, width: 0, height: 400 }],
+    ["a version-1 scale that is not a number", { version: 1, sizeScale: "1" }],
+    ["a version-1 scale of zero", { version: 1, sizeScale: 0 }],
+    [
+      "a position that is not a number",
+      { version: 2, x: "0", width: 360, height: 400 },
+    ],
+    ["a fractional position", { version: 2, x: 0.5, width: 360, height: 400 }],
+  ])("ignores %s", (_case, content) => {
+    writeFileSync(
+      file,
+      JSON.stringify({ displayId: 1, x: 0, y: 0, ...content }),
+    );
+    expect(readPipPlacement(file)).toBeNull();
+  });
+
+  it("ignores a missing or malformed file", () => {
     expect(readPipPlacement(file)).toBeNull();
     writeFileSync(file, "not json");
-    expect(readPipPlacement(file)).toBeNull();
-    writeFileSync(
-      file,
-      JSON.stringify({ version: 2, displayId: 1, x: 0, y: 0, sizeScale: 1 }),
-    );
-    expect(readPipPlacement(file)).toBeNull();
-    writeFileSync(
-      file,
-      JSON.stringify({ version: 1, displayId: 1, x: "0", y: 0, sizeScale: 1 }),
-    );
-    expect(readPipPlacement(file)).toBeNull();
-    writeFileSync(
-      file,
-      JSON.stringify({ version: 1, displayId: 1, x: 0.5, y: 0, sizeScale: 1 }),
-    );
     expect(readPipPlacement(file)).toBeNull();
   });
 });
@@ -59,7 +84,7 @@ describe("resolveSavedPipBounds", () => {
   it("restores the saved position on its display", () => {
     expect(
       resolveSavedPipBounds(
-        { displayId: 1, x: 300, y: 400, sizeScale: 0.5 },
+        { displayId: 1, x: 300, y: 400, ...size },
         [{ id: 1, workArea }],
         size,
       ),
@@ -69,17 +94,28 @@ describe("resolveSavedPipBounds", () => {
   it("keeps the window inside a work area that has shrunk", () => {
     expect(
       resolveSavedPipBounds(
-        { displayId: 1, x: 1400, y: 0, sizeScale: 0.5 },
+        { displayId: 1, x: 1400, y: 0, ...size },
         [{ id: 1, workArea }],
         size,
       ),
     ).toEqual({ x: 1230, y: 25, ...size });
   });
 
+  it("shrinks the window to fit a work area smaller than it", () => {
+    const tall = { width: 600, height: 896 };
+    expect(
+      resolveSavedPipBounds(
+        { displayId: 1, x: 300, y: 400, ...tall },
+        [{ id: 1, workArea }],
+        tall,
+      ),
+    ).toEqual({ x: 300, y: 25, width: 600, height: 875 });
+  });
+
   it("gives up when the saved display is disconnected", () => {
     expect(
       resolveSavedPipBounds(
-        { displayId: 2, x: 300, y: 400, sizeScale: 0.5 },
+        { displayId: 2, x: 300, y: 400, ...size },
         [{ id: 1, workArea }],
         size,
       ),
