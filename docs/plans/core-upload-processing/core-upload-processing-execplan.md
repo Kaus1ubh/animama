@@ -136,8 +136,10 @@ Cloud refreshes its package inventories at its next repin, outside this plan.
 - [x] Final integration review: passed, with F1, F2, F4 and F6 repaired.
 - [x] Acceptance: the built Compose stack and the staged frozen runtime
   passed. The packaged-app UI check is owner-run.
-- [ ] Full pre-push suite on the final candidate (waits for the owner's
-  go-ahead, per the owner's standing instruction).
+- [x] Full pre-push suite on the final candidate `9f09abfc1`, run with the
+  owner's go-ahead: passed, with three load timeouts that passed on rerun
+  (see Validation and acceptance).
+- [ ] PR opened with its evidence and remaining gates.
 - [ ] PR opened with its evidence and remaining gates.
 
 ## Surprises & Discoveries
@@ -1816,6 +1818,41 @@ Packaged desktop runtime (macOS arm64, candidate `fec2e6b4f`):
   Ready.
 - **Windows:** no Windows build environment, so native bundling there is
   unverified.
+
+### Full pre-push suite (2026-11-13, candidate `9f09abfc1`)
+
+The owner approved the run. It used the heavy-job slots, on macOS arm64 with
+OrbStack and Python 3.12.13.
+
+- **Backend.** `python3 scripts/heavy-slot.py -- make check-test`: exit 0.
+  Ruff, the format check, mypy and the typed-content audit passed, and pytest
+  passed 5,586 with 30 skipped (4 min 37 s).
+- **Frontend.** `python3 ../../scripts/heavy-slot.py -- pnpm verify`: exit 0.
+  Web vitest passed 664 files (6,413 tests; 1 file and 2 tests skipped), the
+  node test groups passed, and lint and the build passed. `pnpm prettier:check`
+  exit 0.
+- **Browser tests.** `pnpm web:test:browser` passed 138 of 140. Two timeouts in
+  hosted tests both passed when rerun alone:
+  - `hosted-workflows` "hosted settings hooks persist retained groups…" (25
+    passed alone);
+  - `retained-screens` "actual hosted Library restores mobile navigation
+    after Escape" (12 passed alone).
+
+  These match the known load flakes in hosted browser files.
+- **Journeys.** `pnpm e2e:test:fast` against a disposable built stack
+  (`ANIMAMA_LLM_SKIP=1 ANIMAMA_WEB_BUILD_MODE=production ./reset.sh --name
+  cupe2e --base-port 8940`) passed 39 and failed 1:
+  `accountless-creator-discard.spec.ts:47` "…discard existing draft before
+  Library Edit". The gesture name field did not appear within 10 s, which is
+  the known Library Edit stall. Rerun alone with `--grep`, all 4 matching
+  journeys passed.
+- **Package sets.** `build.py models` and `build` for `main` at `f6b848441`
+  and for the candidate, then `compare`: "Compatibility policy passed" (213
+  files). The product-ui 0.20.0 bump covers the declaration changes, and the
+  OpenAPI document has no structural change.
+- **Not run:** the full `pnpm e2e:test`, whose content and import journeys
+  this change does not touch, and hosted CI, because the Validation workflow
+  is disabled by the owner.
 
 ## Idempotence and recovery
 
