@@ -386,24 +386,49 @@ def _claimed_processing_job(
     )
 
 
-async def test_worker_heartbeat_renews_only_its_own_running_job(async_session, clean_user_file_tables):
+async def test_worker_heartbeat_renews_only_its_current_job(async_session, clean_user_file_tables):
+    """A job the worker left behind, such as one whose outcome failed to record, must let its lease expire."""
+
     before = _now() - timedelta(seconds=600)
-    for name, status in (("own", JOB_STATUS_RUNNING), ("foreign", JOB_STATUS_RUNNING), ("queued", JOB_STATUS_QUEUED)):
+    jobs = (
+        ("own", JOB_STATUS_RUNNING),
+        ("stranded", JOB_STATUS_RUNNING),
+        ("foreign", JOB_STATUS_RUNNING),
+        ("queued", JOB_STATUS_QUEUED),
+    )
+    for name, status in jobs:
         await _insert_file(async_session, file_id=name)
         await _insert_job(async_session, job_id=name, file_id=name, status=status, locked_at=before)
     foreign = await async_session.get(ORMUserFileProcessingJob, "foreign")
     foreign.locked_by = "other-worker"
     await async_session.commit()
 
-    await record_document_heartbeat(async_session, instance_id="installation-worker", worker_id="old-worker")
+    await record_document_heartbeat(
+        async_session, instance_id="installation-worker", worker_id="old-worker", job_id="own"
+    )
     async_session.expire_all()
     own = await async_session.get(ORMUserFileProcessingJob, "own")
+    stranded = await async_session.get(ORMUserFileProcessingJob, "stranded")
     foreign = await async_session.get(ORMUserFileProcessingJob, "foreign")
     queued = await async_session.get(ORMUserFileProcessingJob, "queued")
     assert own.locked_at > _now() - timedelta(seconds=5)
+    assert stranded.locked_at == before
     assert foreign.locked_at == before
     assert queued.locked_at == before
     assert queued.status == JOB_STATUS_QUEUED
+
+
+async def test_idle_worker_heartbeat_renews_no_job(async_session, clean_user_file_tables):
+    before = _now() - timedelta(seconds=600)
+    await _insert_file(async_session, file_id="stranded")
+    await _insert_job(async_session, job_id="stranded", file_id="stranded", status=JOB_STATUS_RUNNING, locked_at=before)
+
+    await record_document_heartbeat(
+        async_session, instance_id="installation-worker", worker_id="old-worker", job_id=None
+    )
+    async_session.expire_all()
+    stranded = await async_session.get(ORMUserFileProcessingJob, "stranded")
+    assert stranded.locked_at == before
 
 
 @pytest.mark.asyncio

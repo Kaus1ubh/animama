@@ -6,7 +6,8 @@ published from the agreed [spec](core-upload-processing-spec.md) at
 Authorized scope: the whole plan (owner approval G0, 2026-11-12).
 Planning baseline and implementation base: `origin/main` at `aede262c0`.
 Workspace: worktree `core-upload-processing`, branch
-`feat/core-upload-processing`; no Compose stack yet.
+`feat/core-upload-processing`; task stack `cup` (base port 8900,
+`http://animama-cup.localhost:8900`), stopped after acceptance.
 
 ## Purpose and context
 
@@ -132,7 +133,11 @@ Cloud refreshes its package inventories at its next repin, outside this plan.
   scoped reviews; desktop staging passed with no document pack).
 - [x] Phase 6: Documentation and decision records (light tier; the final
   integration review covers it; the #837 comment follows at PR time).
-- [ ] Final integration review, full pre-push suite and acceptance checks.
+- [x] Final integration review: passed, with F1, F2, F4 and F6 repaired.
+- [x] Acceptance: the built Compose stack and the staged frozen runtime
+  passed. The packaged-app UI check is owner-run.
+- [ ] Full pre-push suite on the final candidate (waits for the owner's
+  go-ahead, per the owner's standing instruction).
 - [ ] PR opened with its evidence and remaining gates.
 
 ## Surprises & Discoveries
@@ -814,14 +819,6 @@ passed, 1 skipped), the overview tests (16 passed), Ruff, mypy, the boundary
 checker and the lock check. No blocking finding remains; F3 lands with this
 commit, and Phase 2 passes review.
 
-#### Code Review #1 Findings
-
-Not started.
-
-#### Code Review #1 Revisions
-
-Not started.
-
 ### Phase 3: Chunks follow headings
 
 Review tier: standard (behavior inside the processing service; no contract,
@@ -1032,14 +1029,6 @@ standard tier, this one-constant change needs no reviewer recheck. After it,
 the six Phase 3 files plus `test_memory_file_tools.py` passed 355 with 1
 skipped, and `ruff check`, `make mypy` (911 files) and the boundary checker
 (0 edges) were clean. Phase 3 passes review.
-
-#### Code Review #1 Findings
-
-Not started.
-
-#### Code Review #1 Revisions
-
-Not started.
 
 ### Phase 4: The composer holds sends until attachments are readable
 
@@ -1523,14 +1512,6 @@ No Cloud code imports a removed name.
 - P5-R2-F2 declined: the response is private to the desktop, and the branch
   stays readable. Phase 5 passes review.
 
-#### Code Review #1 Findings
-
-Not started.
-
-#### Code Review #1 Revisions
-
-Not started.
-
 ### Phase 6: Documentation and decision records
 
 Review tier: light (documentation). The final integration review covers it.
@@ -1554,7 +1535,7 @@ Steps:
    - **Guides:** `src/backend/AGENTS.md`, `src/frontend/AGENTS.md`, the
      desktop `README.md` and `src/backend/packaging/desktop/README.md`.
    - Do not run Prettier on Markdown.
-2. ADR 0035 records processing uploads in the core server without Docling,
+2. ADR 0036 records processing uploads in the core server without Docling,
    with its reasons (size, a signed worker never built, the final desktop
    release) and consequences. It amends ADR 0010 decision 6 and ADR 0012's
    document-processing remark; update their status lines and the ADR index.
@@ -1621,13 +1602,108 @@ runs once on the final candidate through the heavy slot: root
 `python3 ../../scripts/heavy-slot.py -- pnpm e2e:test:fast` runs against a
 disposable built stack.
 
+### Merge of `origin/main`
+
+`fec2e6b4f` merges `origin/main` (`f6b848441`, 19 commits) into the branch.
+Two conflicts were resolved by hand:
+
+- `contracts/hosted-web.md` takes runtime-contracts 0.23.0 from `main` and
+  product-ui 0.20.0 from this branch.
+- `docs/adr/README.md` keeps both rows, 0035 then 0036.
+
+Git auto-merged `ChatInterface.tsx`, the desktop `package.json`,
+`source-manifest.json` (Electron 45.3.1, and only the expanded pack deferred),
+`resources.d.ts` and the docs. The source-review check now lists 18 gaps, all
+`main`'s own: its ADR 0035, migration `0002_reasoning_effort.py`, the
+chat-request-options files, and the earlier 14.
+
+Checks after the merge, on `fec2e6b4f`:
+
+- `uv lock --check` (206 packages) and the dependency sync.
+- `pnpm install --frozen-lockfile`, `packages:build`, `packages:check`, and
+  product-ui's tests (50 passed).
+- Web `check:source` and the desktop check (exit 0), and web vitest over the
+  chat, user-files, Quick Chat, routes, components, safety and chat-library
+  folders (50 files, 355 passed).
+- `i18n:check`.
+- Backend pytest over the upload, capability, packaging, composition,
+  memory-tool and migration files (416 passed, 1 skipped).
+
 ### Code Review #1 Findings (final integration)
 
-Not started.
+The review covered `fec2e6b4f` (tree `cba18dda`) against `main` at
+`f6b848441`, the whole plan, and Phase 6 folded in. As the policy says, it ran
+no checks of its own, reading the plan's records and using read-only
+inspection. It found no blocking findings.
+
+Cross-phase checks were sound:
+
+- **Pipeline.** The child dispatches exactly the 14 accepted extensions.
+  `pdf_pages` reaches the chunker and `pdf_skipped_pages` the overview, and
+  reuse keeps the skipped-pages note. One set of constants governs the 64–1400
+  chunk range everywhere, and every chunk fits one read.
+- **Composer hold.** The hold matches the backend's real statuses and stored
+  reasons.
+- **Settings.** The capability semantics hold, and all eight user-file
+  settings agree across `config.py`, `.env.example`, Compose and the docs.
+- **Removed names.** No references to removed names remain beyond
+  intentional keeps, and source review covers every added file and no deleted
+  one.
+
+The merge is correct:
+
+- `ChatInterface.tsx` keeps `main`'s model-switch wiring and the hold wiring.
+- The contracts, ADR index, Electron and desktop version records are
+  coherent.
+- No ORM or migration changed, so ADR 0035 does not apply.
+
+Findings:
+
+- FI-R1-F1 (non-blocking, recommended before the PR): the heartbeat renewed
+  every running job this runner held. If recording a job's outcome failed,
+  for example during a PostgreSQL restart, the job stayed at Processing with a
+  fresh lease until the server restarted. The old worker had the same flaw.
+- FI-R1-F2: `development.md` told readers to install with `uv sync --frozen`
+  alone. Without the `documents` extra, mypy and the parser tests fail.
+- FI-R1-F3 (disclosure and owner gate): `main`'s recorded redistribution
+  receipts (darwin-arm64 for 0.1.4, and win32-x64) no longer match the frozen
+  inventory. The next release needs a new review covering lxml's statically
+  linked LGPL-2.1 libiconv and PDFium's component notices.
+- FI-R1-F4: plan hygiene. Empty review stubs, a stale ADR number and the
+  header's stack note needed fixing, and the acceptance records needed
+  committing.
+- FI-R1-F5 (optional): capability polling every 10 s is now permanent while
+  `worker_state` has no production reader.
+- FI-R1-F6 (optional): a stale ORM docstring.
+
+The acceptance table found every requirement met. Pending items:
+
+- R7.3, the #837 comment at PR time;
+- the owner's packaged-app check (Annie's answers, Quick Chat, the tokenizer
+  log);
+- the owner's redistribution review;
+- the full pre-push suite.
+
+Windows bundling is unverified.
 
 ### Code Review #1 Revisions (final integration)
 
-Not started.
+- **F1, fixed.** `record_document_heartbeat` takes the current `job_id` and
+  renews only that job, while this worker holds it, and the runner passes its
+  current job.
+  - `test_worker_heartbeat_renews_only_its_current_job` adds a stranded job,
+    which the old code would have renewed.
+  - `test_idle_worker_heartbeat_renews_no_job` covers an idle worker.
+  - After the fix, `test_user_file_processing.py`, the runner and both
+    capability files passed 87, with Ruff and `make mypy` (907 files) clean.
+  - The fix is small and covered by tests.
+- **F2, fixed.** The sentence now says
+  `uv sync --frozen --extra documents`.
+- **F3 is disclosed** in the PR as an owner gate.
+- **F4, fixed:** the stubs, the ADR number and the header note.
+- **F6, fixed:** the docstring.
+- **F5 declined** as out of scope, as the Surprises section notes; it goes to
+  the owner as a follow-up.
 
 ## Validation and acceptance
 
@@ -1673,6 +1749,74 @@ Remaining gates after the PR:
 - If the final desktop release is scheduled before Phase 5 lands, the owner
   decides whether Phases 1 to 4 ship as their own PR. The default is one PR.
 
+### Acceptance results (2026-11-12, candidate `fec2e6b4f`)
+
+Built Compose stack: `ANIMAMA_WEB_BUILD_MODE=production ./reset.sh --name cup
+--base-port 8900 --purge`, at `http://animama-cup.localhost:8900`. Only
+FastAPI is published, on loopback; PostgreSQL is private and there is no web
+or worker service. The image has the parser libraries and neither Docling nor
+torch, and embeddings are off (the default). The production
+Content-Security-Policy blocks pages from fetching a local fixture server, so
+the fixtures went through the app's own HTTP API, with same-origin and CSRF
+headers, and were attached from the Library in the composer.
+
+- **Formats.** One file of each of the 14 formats, plus a partly scanned PDF,
+  reached Ready in about 0.3 s each. Annie answered every code word over
+  batches of four files per turn, the read tool's per-turn limit.
+- **Skipped pages.** She said the partly scanned PDF's pages 2–3 had no
+  readable text.
+- **Large files.** A 50-page text PDF reached Ready in 0.28 s (50 chunks) and a
+  1.1 MB DOCX in 1.31 s (1,609 chunks), well inside the 10 s bound. Annie found
+  both code words through search; the PDF's is on page 25.
+- **Failures.** An image-only PDF failed with "This PDF has no selectable
+  text; it may be scanned.", and an encrypted PDF and an encrypted DOCX (an OLE
+  file with `EncryptionInfo` and `EncryptedPackage`) with "Encrypted or
+  password-protected documents are not supported". A bare OLE header named
+  `.docx` got "The file does not match its .docx extension.", the intended
+  reason for a renamed legacy Office file.
+- **Send hold.** With a 9 MB file generated in the page:
+  - The control read "Waiting for files to be ready" (`aria-disabled`).
+  - A held Enter showed "Attached files are not ready yet." and kept the
+    text.
+  - The control returned to "Send message" after 2.8 s, and Annie then
+    answered the file's code word.
+- **Concurrency.** Andrew's reply stream opened at 19:51:57.67, server time,
+  while three unique 9 MB uploads parsed and finished by 19:52:04.8, and the
+  reply completed.
+
+Packaged desktop runtime (macOS arm64, candidate `fec2e6b4f`):
+
+- **Staging.** `python3 ../../scripts/heavy-slot.py -- pnpm desktop:runtime:stage
+  -- --platform darwin --arch arm64` exited 0 with the runtime audit OK. The
+  core is 395,753,697 B to download and 878,284,346 B installed, against
+  budgets of 786,432,000 and 1,610,612,736. The tokenizer file
+  `llama_index/core/_static/tiktoken_cache/9b5ad71b…` is in the staged runtime.
+- **Frozen child.** The staged executable's `parse-upload` child was run on
+  every fixture with a minimal environment:
+  - Every format parsed with its library: `stdlib-text`, `-json`, `-csv`,
+    `-tsv`, `-html` and `-xml`, `python-docx`, `python-pptx`, `openpyxl` and
+    `pypdfium2`.
+  - Outlines were present, and the partly scanned PDF recorded skipped pages
+    `[2, 3]`.
+  - The image-only PDF and the encrypted PDF and DOCX were refused with the
+    specified reasons.
+  - Times were 0.12–1.3 s per file: 0.19 s for 9 MB of text, 0.63 s for the
+    1.1 MB DOCX, and 1.28 s for the first PPTX, which loads native libraries.
+- **Not performed by the agent:**
+  - Launching the packaged app itself. The full smoke needs a signed artifact
+    and a live provider key passed through the release tooling. The agent
+    cannot type a live key into the app, and has no desktop UI automation for
+    the Electron window.
+  - Inside the app: Annie answering from each format, the Quick Chat hold
+    and draft, and the backend log free of the "token counts are estimated"
+    warning.
+
+  These go to the owner as a native check. The upgraded release smoke runs
+  them in part: it requires `worker_state` `ready` and its `.txt` to reach
+  Ready.
+- **Windows:** no Windows build environment, so native bundling there is
+  unverified.
+
 ## Idempotence and recovery
 
 - No schema change. Jobs and files are durable, and
@@ -1690,4 +1834,27 @@ Remaining gates after the PR:
 
 ## Outcomes & Retrospective
 
-Not started.
+Delivered on the branch, pending the owner's merge approval:
+
+- Every local composition processes every accepted format inside the core
+  server. A runner hands parsing to a bounded, network-less child process.
+- Office files are read with small libraries, and PDFs by their text layer,
+  with skipped pages named to the Anima.
+- Chunks follow headings, and every chunk fits one read.
+- The composer holds sends until attachments are readable.
+- Docling, torch, the separate worker, the Compose worker and the desktop
+  `document-processing` pack are gone. 50 packages left the lockfile, and the
+  desktop core stays well inside its budgets.
+
+Lessons:
+
+- Reviews caught real defects that tests had missed: an event-loop stall
+  in chunk writes, secrets reaching the child, unbounded ZIP inflation,
+  cubic regex backtracking, chunker memory blow-ups and stranded leases.
+- Running phases on disjoint files in parallel saved time, but needed careful
+  per-phase staging.
+- A production build's Content-Security-Policy blocks browser-pane fixture
+  fetches, so built-stack checks upload through the API.
+
+Remaining: the gates listed under Validation and acceptance, and the Cloud
+repin follow-ups.

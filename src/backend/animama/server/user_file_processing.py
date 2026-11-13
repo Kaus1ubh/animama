@@ -181,8 +181,14 @@ class UserFileProcessingRunner:
 
         while True:
             try:
+                current = self._current
                 async with self._session_factory() as session:
-                    await record_document_heartbeat(session, instance_id=self._instance_id, worker_id=self._instance_id)
+                    await record_document_heartbeat(
+                        session,
+                        instance_id=self._instance_id,
+                        worker_id=self._instance_id,
+                        job_id=current.job.id if current is not None else None,
+                    )
             except Exception as exc:
                 _log.warning("User-file processing heartbeat failed", error_type=exc.__class__.__name__)
             await asyncio.sleep(self._heartbeat_seconds)

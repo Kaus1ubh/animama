@@ -253,7 +253,7 @@ async def test_private_control_is_not_a_browser_api_and_contains_no_paths(async_
 
 
 async def test_old_worker_cannot_clear_replacement_heartbeat(async_session):
-    await record_document_heartbeat(async_session, instance_id="new", worker_id="new-worker")
+    await record_document_heartbeat(async_session, instance_id="new", worker_id="new-worker", job_id=None)
     await clear_document_heartbeat(async_session, instance_id="old")
     row = await async_session.get(ORMRuntimeWorkerHeartbeat, "document-processing")
     assert row.instance_id == "new"

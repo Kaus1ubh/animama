@@ -981,7 +981,8 @@ coverage and detection-delay tradeoffs when changing validation policy.
 
 The development dependency group includes the PyYAML, jsonschema and ReportLab
 type stubs required by the existing mypy target.
-Install from `uv.lock` with `uv sync --frozen` before checking a clean checkout. Ruff lint
+Install from `uv.lock` with `uv sync --frozen --extra documents` before checking a clean
+checkout; mypy and the upload parser tests need the `documents` extra. Ruff lint
 checks its configured repository scope; formatting checks only
 `src/backend/animama` and `tests`, and mypy checks those same backend/test roots.
 Python 3.12 is the minimum supported backend interpreter, and Ruff and mypy use
