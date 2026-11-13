@@ -417,15 +417,19 @@ export class PipWindowManager {
   private gripResizeTimer: ReturnType<typeof setInterval> | null = null;
   /**
    * The window's shape (width ÷ height), which the size scale keeps. The owner
-   * changes it by dragging the window's edges; a scale that reaches a size
-   * limit does not, so the shape returns once the scale moves back.
+   * changes it by dragging the window's edges. A scale that reaches a size
+   * limit does not, so the shape returns once the scale moves back while PiP
+   * stays open; reopening starts from the size that was saved.
    */
   private aspectRatio = DEFAULT_PIP_ASPECT_RATIO;
   /**
-   * The window size this manager last set or took on. A `resize` to any other
-   * size came from the owner dragging the window's edges.
+   * The window size this manager last gave the window, as the OS reported it,
+   * or took on from the owner. A `resize` to any other size came from the
+   * owner dragging the window's edges.
    */
   private windowSize: Size | null = null;
+  /** True while this manager sizes the window; those resizes are its own. */
+  private applyingWindowBounds = false;
   private state: DesktopPipState = {
     isOpen: false,
     animaId: null,
@@ -465,10 +469,6 @@ export class PipWindowManager {
       placement,
       clampPipWindowSize(placement ?? options),
     );
-    this.windowSize = {
-      width: initialBounds.width,
-      height: initialBounds.height,
-    };
     this.aspectRatio = initialBounds.width / initialBounds.height;
     this.state = {
       isOpen: true,
@@ -479,16 +479,19 @@ export class PipWindowManager {
       sizeScale: resolveSizeScaleForHeight(initialBounds.height),
     };
 
-    if (this.pipWindow?.isDestroyed() === false) {
-      this.startMouseTracking(this.pipWindow);
+    const openWindow = this.pipWindow;
+    if (openWindow?.isDestroyed() === false) {
+      this.startMouseTracking(openWindow);
       this.resetPipReadiness();
-      this.setPipMouseEventsIgnored(this.pipWindow, false);
-      this.pipWindow.hide();
-      this.pipWindow.setBounds(initialBounds);
-      await this.loadPipRoute(this.pipWindow, options.animaId, options.chatId);
-      this.syncPipWindowVisibility(this.pipWindow);
-      if (this.pipWindow.isVisible()) {
-        this.pipWindow.focus();
+      this.setPipMouseEventsIgnored(openWindow, false);
+      openWindow.hide();
+      this.applyWindowBounds(openWindow, () =>
+        openWindow.setBounds(initialBounds),
+      );
+      await this.loadPipRoute(openWindow, options.animaId, options.chatId);
+      this.syncPipWindowVisibility(openWindow);
+      if (openWindow.isVisible()) {
+        openWindow.focus();
       }
       this.sendStateChanged();
       return this.getState();
@@ -525,6 +528,7 @@ export class PipWindowManager {
       },
     });
     this.pipWindow = pipWindow;
+    this.rememberWindowSize(pipWindow);
     keepLocalizedTitle(pipWindow, this.locale, "windows.pip");
     installWindowGuards(pipWindow, this.config.allowedWebOrigin);
     pipWindow.setAlwaysOnTop(true, "floating");
@@ -836,7 +840,7 @@ export class PipWindowManager {
    * Sizes this manager set itself are already accounted for.
    */
   private adoptOwnerResize(window: BrowserWindow): void {
-    if (window.isDestroyed()) return;
+    if (window.isDestroyed() || this.applyingWindowBounds) return;
     const { width, height } = window.getBounds();
     if (this.windowSize?.width === width && this.windowSize.height === height) {
       return;
@@ -850,9 +854,30 @@ export class PipWindowManager {
   }
 
   /**
+   * Size or place the window as this manager decides. The `resize` events
+   * this causes are not the owner's, and the size is read back afterwards
+   * because the OS may round it, for example at fractional display scaling
+   * on Windows. The shape stays the one asked for, so rounding never adds up.
+   */
+  private applyWindowBounds(window: BrowserWindow, apply: () => void): void {
+    this.applyingWindowBounds = true;
+    try {
+      apply();
+    } finally {
+      this.applyingWindowBounds = false;
+    }
+    this.rememberWindowSize(window);
+  }
+
+  private rememberWindowSize(window: BrowserWindow): void {
+    const { width, height } = window.getBounds();
+    this.windowSize = { width, height };
+  }
+
+  /**
    * Resize the window for a new size scale, in its current shape, and
    * remember it. The slider and wheel keep the window's center where the
-   * work area allows; the grip keeps its top-left corner. A grip resize keeps the top-left corner, so no `move` event
+   * work area allows; the grip keeps its top-left corner, so no `move` event
    * follows, and a programmatic `setSize` is not reliably reported as
    * `resize`; the placement is saved here rather than left to window events.
    */
@@ -862,11 +887,12 @@ export class PipWindowManager {
     preserveCenter: boolean,
   ): void {
     const nextSize = resolveWindowSizeForScale(sizeScale, this.aspectRatio);
-    this.windowSize = nextSize;
-    if (!preserveCenter) {
-      window.setSize(nextSize.width, nextSize.height);
-    } else {
-      const bounds = window.getBounds();
+    const bounds = window.getBounds();
+    this.applyWindowBounds(window, () => {
+      if (!preserveCenter) {
+        window.setSize(nextSize.width, nextSize.height);
+        return;
+      }
       // Grow away from the work area's edges rather than past them, so PiP
       // left in a corner stays flush with it.
       window.setBounds(
@@ -880,7 +906,7 @@ export class PipWindowManager {
           screen.getDisplayMatching(bounds).workArea,
         ),
       );
-    }
+    });
     this.schedulePlacementSave(window);
   }
 

@@ -537,6 +537,57 @@ describe("PiP placement", () => {
     });
   });
 
+  it("keeps the shape when the OS rounds the sizes it sets", async () => {
+    const pip = manager();
+    const pipWindow = await openPip(pip);
+    // At 125% display scaling a size can come back a pixel larger than asked,
+    // and the OS reports the manager's own resizes as `resize` events.
+    const round = (value: number) => Math.ceil(Math.ceil(value * 1.25) / 1.25);
+    pipWindow.setSize = (width: number, height: number) => {
+      pipWindow.bounds = {
+        ...pipWindow.bounds,
+        width: round(width),
+        height: round(height),
+      };
+      pipWindow.emit("resize");
+    };
+    pipWindow.setBounds = (bounds) => {
+      pipWindow.bounds = {
+        ...bounds,
+        width: round(bounds.width),
+        height: round(bounds.height),
+      };
+      pipWindow.emit("resize");
+      pipWindow.emit("move");
+    };
+    const expectDefaultShape = () => {
+      const { width, height } = pipWindow.getBounds();
+      expect(Math.abs(width - height * 0.75)).toBeLessThanOrEqual(1);
+    };
+
+    const pipContents = pipWindow.webContents as unknown as WebContents;
+    pip.setGripResizing(pipContents, true);
+    for (let step = 0; step < 120; step += 1) {
+      fake.cursor.x += 3;
+      fake.cursor.y += 4;
+      vi.advanceTimersByTime(20);
+    }
+    pip.setGripResizing(pipContents, false);
+    expect(pipWindow.getBounds().height).toBe(760);
+    expectDefaultShape();
+
+    for (let sweep = 0; sweep < 3; sweep += 1) {
+      for (let tenths = 5; tenths <= 15; tenths += 1) {
+        pip.setSizeScale(tenths / 10);
+      }
+      for (let tenths = 15; tenths >= 5; tenths -= 1) {
+        pip.setSizeScale(tenths / 10);
+      }
+    }
+    expect(pipWindow.getBounds().height).toBe(280);
+    expectDefaultShape();
+  });
+
   it("limits edge drags to the sizes the size scale reaches", async () => {
     const pipWindow = await openPip(manager());
     expect(pipWindow.options).toMatchObject({

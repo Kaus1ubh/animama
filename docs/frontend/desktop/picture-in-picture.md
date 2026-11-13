@@ -300,7 +300,9 @@ field of view is vertical, so the height sets the Avatar's size on screen and
 the width only sets the room at its sides. The range is `0.275` to `1.6`,
 `154` to `896` px tall; `0.5` is the default. Dragging the window's native
 edges changes its shape as well as its scale, for example to keep the arms of a
-wide Gesture in view. The slider, wheel and grip keep the window's current
+wide Gesture in view. On macOS and Windows the body is click-through, so only
+edges where PiP takes mouse input can be dragged: the top edge and the sides
+beside the toolbar. The slider, wheel and grip keep the window's current
 shape, which starts at 3:4.
 
 While the PiP window is hovered, the avatar scene opacity drops to 30% and a
