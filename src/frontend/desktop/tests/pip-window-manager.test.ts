@@ -55,7 +55,7 @@ const fake = vi.hoisted(() => {
     readonly webContents = new FakeWebContents();
     destroyed = false;
     bounds: Bounds;
-    constructor(options: Bounds) {
+    constructor(readonly options: Bounds & Record<string, unknown>) {
       super();
       this.bounds = {
         x: options.x,
@@ -107,6 +107,13 @@ const fake = vi.hoisted(() => {
       this.bounds = { ...this.bounds, x, y };
       this.emit("move");
     }
+    /** The owner drags the window's edges; a left or top edge also moves it. */
+    dragEdgesTo(bounds: Bounds) {
+      const moved = bounds.x !== this.bounds.x || bounds.y !== this.bounds.y;
+      this.bounds = { ...bounds };
+      this.emit("resize");
+      if (moved) this.emit("move");
+    }
   }
 
   const workArea = { x: 0, y: 0, width: 1440, height: 900 };
@@ -133,7 +140,7 @@ vi.mock("../src/main-process/logging.js", () => ({
 }));
 
 import type { WebContents } from "electron";
-import { mkdtempSync, realpathSync, rmSync } from "node:fs";
+import { mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { ShellLocale } from "../src/main-process/locale/shell-locale.js";
@@ -433,6 +440,96 @@ describe("PiP placement", () => {
     const restarted = manager();
     expect((await openPip(restarted)).getBounds()).toEqual(resized);
     expect(restarted.getState().sizeScale).toBeCloseTo(0.7);
+  });
+
+  it("reopens at the size and shape its edges were dragged to, after a restart too", async () => {
+    const pip = manager();
+    let pipWindow = await openPip(pip);
+    // Wider than the default 3:4, so the Avatar's arms have room.
+    const dragged = { x: 1000, y: 400, width: 440, height: 500 };
+    pipWindow.dragEdgesTo(dragged);
+    // The size scale follows the height, which sets the Avatar's size.
+    expect(pip.getState().sizeScale).toBeCloseTo(500 / 560);
+    vi.advanceTimersByTime(600);
+    pip.close();
+
+    pipWindow = await openPip(pip);
+    expect(pipWindow.getBounds()).toEqual(dragged);
+
+    const restarted = manager();
+    pipWindow = await openPip(restarted);
+    expect(pipWindow.getBounds()).toEqual(dragged);
+    expect(restarted.getState().sizeScale).toBeCloseTo(500 / 560);
+  });
+
+  it("keeps the shape its edges were dragged to when the slider or grip rescales it", async () => {
+    const pip = manager();
+    const pipWindow = await openPip(pip);
+    pipWindow.dragEdgesTo({ x: 100, y: 150, width: 420, height: 280 });
+
+    // The slider scales around the window's center.
+    pip.setSizeScale(0.6);
+    expect(pipWindow.getBounds()).toEqual({
+      x: 58,
+      y: 122,
+      width: 504,
+      height: 336,
+    });
+
+    const pipContents = pipWindow.webContents as unknown as WebContents;
+    pip.setGripResizing(pipContents, true);
+    // Along the 3:2 window's diagonal: 0.1 of 840 x 560.
+    fake.cursor.x += 84;
+    fake.cursor.y += 56;
+    vi.advanceTimersByTime(20);
+    pip.setGripResizing(pipContents, false);
+    expect(pip.getState().sizeScale).toBeCloseTo(0.7);
+    expect(pipWindow.getBounds()).toEqual({
+      x: 58,
+      y: 122,
+      width: 588,
+      height: 392,
+    });
+
+    vi.advanceTimersByTime(600);
+    pip.close();
+    expect((await openPip(manager())).getBounds()).toEqual({
+      x: 58,
+      y: 122,
+      width: 588,
+      height: 392,
+    });
+  });
+
+  it("limits edge drags to the sizes the size scale reaches", async () => {
+    const pipWindow = await openPip(manager());
+    expect(pipWindow.options).toMatchObject({
+      minWidth: 116,
+      minHeight: 154,
+      maxWidth: 1200,
+      maxHeight: 896,
+    });
+  });
+
+  it("reopens at the size a version-1 placement file saved as a scale", async () => {
+    writeFileSync(
+      path.join(profile, "pip-placement.json"),
+      JSON.stringify({
+        version: 1,
+        displayId: 1,
+        x: 100,
+        y: 150,
+        sizeScale: 0.7,
+      }),
+    );
+    const pip = manager();
+    expect((await openPip(pip)).getBounds()).toEqual({
+      x: 100,
+      y: 150,
+      width: 294,
+      height: 392,
+    });
+    expect(pip.getState().sizeScale).toBeCloseTo(0.7);
   });
 
   it("keeps a move made just before closing", async () => {

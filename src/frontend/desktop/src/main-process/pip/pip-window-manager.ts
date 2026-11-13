@@ -85,23 +85,26 @@ type Point = {
   y: number;
 };
 
-type Bounds = {
-  x: number;
-  y: number;
+type Size = {
   width: number;
   height: number;
 };
 
+type Bounds = Point & Size;
+
+/** The window at size scale 1 before the owner gives it another shape. */
 const DEFAULT_PIP_WIDTH = 420;
 const DEFAULT_PIP_HEIGHT = 560;
+const DEFAULT_PIP_ASPECT_RATIO = DEFAULT_PIP_WIDTH / DEFAULT_PIP_HEIGHT;
 const MIN_PIP_SIZE_SCALE = 0.275;
+const MAX_PIP_SIZE_SCALE = 1.6;
 const MIN_PIP_WIDTH = Math.round(DEFAULT_PIP_WIDTH * MIN_PIP_SIZE_SCALE);
 const MIN_PIP_HEIGHT = Math.round(DEFAULT_PIP_HEIGHT * MIN_PIP_SIZE_SCALE);
 const MAX_PIP_WIDTH = 1200;
-const MAX_PIP_HEIGHT = 1200;
+/** The size scale follows the height, so the height spans the scale range. */
+const MAX_PIP_HEIGHT = Math.round(DEFAULT_PIP_HEIGHT * MAX_PIP_SIZE_SCALE);
 const DEFAULT_BACKGROUND_MODE: DesktopPipBackgroundMode = "transparent";
 const DEFAULT_PIP_SIZE_SCALE = 0.5;
-const MAX_PIP_SIZE_SCALE = 1.6;
 const PIP_MOUSE_POLL_INTERVAL_MS = 50;
 /** Moves and resizes arrive continuously; save once the window settles. */
 const PIP_PLACEMENT_SAVE_DELAY_MS = 500;
@@ -154,42 +157,45 @@ function clampPipSizeScale(value: unknown): number {
   return Math.max(MIN_PIP_SIZE_SCALE, Math.min(MAX_PIP_SIZE_SCALE, value));
 }
 
-function resolveSizeScaleForWindowSize(width: number, height: number): number {
-  const widthScale = width / DEFAULT_PIP_WIDTH;
-  const heightScale = height / DEFAULT_PIP_HEIGHT;
-  return clampPipSizeScale((widthScale + heightScale) / 2);
+/**
+ * The size scale of a window `height` pixels tall. The PiP camera's field of
+ * view is vertical, so the Avatar's size on screen follows the window's
+ * height; its width only sets how much room the Avatar has at its sides.
+ */
+function resolveSizeScaleForHeight(height: number): number {
+  return clampPipSizeScale(height / DEFAULT_PIP_HEIGHT);
 }
 
 /**
  * The size scale that brings the window's bottom-right corner closest to the
- * cursor after it moved `dx`/`dy` from where a grip drag began. The aspect
- * ratio is fixed, so the corner follows the cursor's movement along the
- * window's diagonal.
+ * cursor after it moved `dx`/`dy` from where a grip drag began. The window
+ * keeps its shape (`aspectRatio`, width ÷ height), so the corner follows the
+ * cursor's movement along the window's diagonal.
  */
 export function resolveCornerResizeScale(
   startScale: number,
   dx: number,
   dy: number,
+  aspectRatio: number,
 ): number {
-  const diagonalScale =
-    (dx * DEFAULT_PIP_WIDTH + dy * DEFAULT_PIP_HEIGHT) /
-    (DEFAULT_PIP_WIDTH ** 2 + DEFAULT_PIP_HEIGHT ** 2);
+  // The window's size at scale 1 in this shape.
+  const width = DEFAULT_PIP_HEIGHT * aspectRatio;
+  const height = DEFAULT_PIP_HEIGHT;
+  const diagonalScale = (dx * width + dy * height) / (width ** 2 + height ** 2);
   return clampPipSizeScale(startScale + diagonalScale);
 }
 
-function resolveWindowSizeForScale(sizeScale: number): {
-  width: number;
-  height: number;
-} {
+/** `size` rounded to whole pixels within the window's size limits. */
+function clampPipWindowSize(size: Size): Size {
   return {
     width: clampWindowSize(
-      DEFAULT_PIP_WIDTH * sizeScale,
+      size.width,
       DEFAULT_PIP_WIDTH,
       MIN_PIP_WIDTH,
       MAX_PIP_WIDTH,
     ),
     height: clampWindowSize(
-      DEFAULT_PIP_HEIGHT * sizeScale,
+      size.height,
       DEFAULT_PIP_HEIGHT,
       MIN_PIP_HEIGHT,
       MAX_PIP_HEIGHT,
@@ -197,11 +203,20 @@ function resolveWindowSizeForScale(sizeScale: number): {
   };
 }
 
-function resolveDefaultWindowSize(): {
-  width: number;
-  height: number;
-} {
-  return resolveWindowSizeForScale(DEFAULT_PIP_SIZE_SCALE);
+/** The window size for `sizeScale` in the shape `aspectRatio` (width ÷ height). */
+function resolveWindowSizeForScale(
+  sizeScale: number,
+  aspectRatio: number,
+): Size {
+  const height = DEFAULT_PIP_HEIGHT * sizeScale;
+  return clampPipWindowSize({ width: height * aspectRatio, height });
+}
+
+function resolveDefaultWindowSize(): Size {
+  return resolveWindowSizeForScale(
+    DEFAULT_PIP_SIZE_SCALE,
+    DEFAULT_PIP_ASPECT_RATIO,
+  );
 }
 
 function isLiveWebContents(
@@ -225,7 +240,7 @@ function isPipRouteUrl(value: string, allowedWebOrigin: string): boolean {
 /** Flush with the bottom-right corner of the owner window's display. */
 function resolveDefaultPipBounds(
   ownerContents: WebContents,
-  size: { width: number; height: number },
+  size: Size,
 ): Bounds {
   const ownerWindow = BrowserWindow.fromWebContents(ownerContents);
   const display =
@@ -399,6 +414,17 @@ export class PipWindowManager {
   private pipRendererReady = false;
   /** Follows the cursor while the route's resize grip is held. */
   private gripResizeTimer: ReturnType<typeof setInterval> | null = null;
+  /**
+   * The window's shape (width ÷ height), which the size scale keeps. The owner
+   * changes it by dragging the window's edges; a scale that reaches a size
+   * limit does not, so the shape returns once the scale moves back.
+   */
+  private aspectRatio = DEFAULT_PIP_ASPECT_RATIO;
+  /**
+   * The window size this manager last set or took on. A `resize` to any other
+   * size came from the owner dragging the window's edges.
+   */
+  private windowSize: Size | null = null;
   private state: DesktopPipState = {
     isOpen: false,
     animaId: null,
@@ -430,23 +456,27 @@ export class PipWindowManager {
     this.ownerContents = ownerContents;
     this.closePipWhenOwnerDestroyed(ownerContents);
 
-    // PiP reopens where the owner last left it on this machine.
+    // PiP reopens where the owner last left it on this machine, at the size
+    // and shape they left it.
     const placement = this.savedPlacement();
+    const initialBounds = this.resolveOpenBounds(
+      ownerContents,
+      placement,
+      clampPipWindowSize(placement ?? options),
+    );
+    this.windowSize = {
+      width: initialBounds.width,
+      height: initialBounds.height,
+    };
+    this.aspectRatio = initialBounds.width / initialBounds.height;
     this.state = {
       isOpen: true,
       animaId: options.animaId,
       chatId: options.chatId,
       backgroundMode: options.backgroundMode,
       isHovered: false,
-      sizeScale: placement
-        ? clampPipSizeScale(placement.sizeScale)
-        : resolveSizeScaleForWindowSize(options.width, options.height),
+      sizeScale: resolveSizeScaleForHeight(initialBounds.height),
     };
-    const initialBounds = this.resolveOpenBounds(
-      ownerContents,
-      placement,
-      this.state.sizeScale,
-    );
 
     if (this.pipWindow?.isDestroyed() === false) {
       this.startMouseTracking(this.pipWindow);
@@ -465,8 +495,11 @@ export class PipWindowManager {
 
     const pipWindow = new BrowserWindow({
       ...initialBounds,
+      // Edge drags stay within the sizes the size scale can describe.
       minWidth: MIN_PIP_WIDTH,
       minHeight: MIN_PIP_HEIGHT,
+      maxWidth: MAX_PIP_WIDTH,
+      maxHeight: MAX_PIP_HEIGHT,
       frame: false,
       transparent: true,
       backgroundColor: "#00000000",
@@ -537,7 +570,10 @@ export class PipWindowManager {
     };
 
     pipWindow.on("move", () => this.schedulePlacementSave(pipWindow));
-    pipWindow.on("resize", () => this.schedulePlacementSave(pipWindow));
+    pipWindow.on("resize", () => {
+      this.adoptOwnerResize(pipWindow);
+      this.schedulePlacementSave(pipWindow);
+    });
     pipWindow.on("close", () => {
       this.setPipMouseEventsIgnored(pipWindow, false);
     });
@@ -636,6 +672,7 @@ export class PipWindowManager {
     this.setPipMouseEventsIgnored(window, false);
     const startCursor = screen.getCursorScreenPoint();
     const startScale = this.state.sizeScale;
+    const aspectRatio = this.aspectRatio;
     this.gripResizeTimer = setInterval(() => {
       if (window.isDestroyed()) {
         this.stopGripResize();
@@ -646,6 +683,7 @@ export class PipWindowManager {
         startScale,
         cursor.x - startCursor.x,
         cursor.y - startCursor.y,
+        aspectRatio,
       );
       if (sizeScale === this.state.sizeScale) return;
       this.state = { ...this.state, sizeScale };
@@ -792,17 +830,37 @@ export class PipWindowManager {
   }
 
   /**
-   * Resize the window for a new size scale and remember it. A grip resize
-   * keeps the top-left corner, so no `move` event follows, and a programmatic
-   * `setSize` is not reliably reported as `resize`; the placement is saved
-   * here rather than left to window events.
+   * Take on a size the owner gave the window by dragging its edges: its shape
+   * becomes the one the size scale keeps, and its height sets the scale.
+   * Sizes this manager set itself are already accounted for.
+   */
+  private adoptOwnerResize(window: BrowserWindow): void {
+    if (window.isDestroyed()) return;
+    const { width, height } = window.getBounds();
+    if (this.windowSize?.width === width && this.windowSize.height === height) {
+      return;
+    }
+    this.windowSize = { width, height };
+    this.aspectRatio = width / height;
+    const sizeScale = resolveSizeScaleForHeight(height);
+    if (sizeScale === this.state.sizeScale) return;
+    this.state = { ...this.state, sizeScale };
+    this.sendStateChanged();
+  }
+
+  /**
+   * Resize the window for a new size scale, in its current shape, and
+   * remember it. A grip resize keeps the top-left corner, so no `move` event
+   * follows, and a programmatic `setSize` is not reliably reported as
+   * `resize`; the placement is saved here rather than left to window events.
    */
   private setPipWindowSizeScale(
     window: BrowserWindow,
     sizeScale: number,
     preserveCenter: boolean,
   ): void {
-    const nextSize = resolveWindowSizeForScale(sizeScale);
+    const nextSize = resolveWindowSizeForScale(sizeScale, this.aspectRatio);
+    this.windowSize = nextSize;
     if (!preserveCenter) {
       window.setSize(nextSize.width, nextSize.height);
     } else {
@@ -818,15 +876,15 @@ export class PipWindowManager {
   }
 
   /**
-   * The saved position when its display is still connected, else the
-   * bottom-right corner of the owner window's display.
+   * `size` at the saved position when its display is still connected, else at
+   * the bottom-right corner of the owner window's display; either way fitted
+   * to that display's work area.
    */
   private resolveOpenBounds(
     ownerContents: WebContents,
     placement: PipPlacement | null,
-    sizeScale: number,
+    size: Size,
   ): Bounds {
-    const size = resolveWindowSizeForScale(sizeScale);
     const saved = placement
       ? resolveSavedPipBounds(placement, screen.getAllDisplays(), size)
       : null;
@@ -841,9 +899,9 @@ export class PipWindowManager {
   }
 
   /**
-   * Remember the window's position and size scale now, and write them once
-   * moves settle. The placement is read here, while the window is live, so a
-   * pending write still lands after the window is destroyed.
+   * Remember the window's position and size now, and write them once moves
+   * and resizes settle. The placement is read here, while the window is live,
+   * so a pending write still lands after the window is destroyed.
    */
   private schedulePlacementSave(window: BrowserWindow): void {
     if (window.isDestroyed()) return;
@@ -852,7 +910,8 @@ export class PipWindowManager {
       displayId: screen.getDisplayMatching(bounds).id,
       x: bounds.x,
       y: bounds.y,
-      sizeScale: this.state.sizeScale,
+      width: bounds.width,
+      height: bounds.height,
     };
     if (this.placementSaveTimer !== null) {
       clearTimeout(this.placementSaveTimer);

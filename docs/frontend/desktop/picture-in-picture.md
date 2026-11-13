@@ -39,18 +39,20 @@ The PiP window is managed by
 `desktop/src/main-process/pip/pip-window-manager.ts`.
 
 The window is hidden, transparent, frameless and always on top, with no shadow
-or taskbar entry. It starts at 210 × 280 with a 116 × 154 minimum size and the
-standard isolated, sandboxed preload. See the manager for the complete options.
+or taskbar entry. It starts at 210 × 280, sizes between 116 × 154 and
+1200 × 896, and uses the standard isolated, sandboxed preload. See the manager
+for the complete options.
 
 PiP reopens where the owner last left it on this machine. After a move or
 resize settles, and when the window closes, the manager saves its display,
-top-left corner and size scale to `pip-placement.json` in the desktop profile
+top-left corner and size to `pip-placement.json` in the desktop profile
 (`pip-placement.ts`). Screen coordinates only fit this machine's displays, so
 they are not App settings. A saved position is used while its display is
-connected, moved back inside that display's work area if needed. Otherwise PiP
-opens flush with the bottom-right corner of the owner window's display work
-area, which already excludes OS taskbars, the Dock and the menu bar. The default
-size scale is `0.5`.
+connected, kept inside that display's work area if needed. Otherwise PiP opens
+flush with the bottom-right corner of the owner window's display work area,
+which already excludes OS taskbars, the Dock and the menu bar. Version-1 files,
+which saved a size scale instead of a size, reopen at the size that scale
+described.
 
 It uses the floating always-on-top level and remains visible across workspaces,
 including fullscreen workspaces. On macOS it is a non-activating panel, which
@@ -292,8 +294,13 @@ diagonal. Mouse input stays enabled, so the release reaches the grip wherever
 the cursor is. The drag also ends when the window blurs, hides, navigates or
 closes.
 
-The scale range is `0.275` to `1.6`. `0.5` is the default; `0.275` maps to the
-native minimum size. The window keeps its 210 × 280 aspect ratio when scaled.
+The size scale is the window's height relative to 560 px. The PiP camera's
+field of view is vertical, so the height sets the Avatar's size on screen and
+the width only sets the room at its sides. The range is `0.275` to `1.6`,
+`154` to `896` px tall; `0.5` is the default. Dragging the window's native
+edges changes its shape as well as its scale, for example to keep the arms of a
+wide Gesture in view. The slider, wheel and grip keep the window's current
+shape, which starts at 3:4.
 
 While the PiP window is hovered, the avatar scene opacity drops to 30% and a
 thin border marks the window bounds. This makes it easier to see what is
