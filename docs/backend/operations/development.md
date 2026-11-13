@@ -119,16 +119,16 @@ For a schema-only operation, run migrations directly:
 uv run alembic -c src/backend/alembic.ini upgrade head
 ```
 
-During development, do not add Alembic revisions. Update ORM/database
-definitions and `src/backend/migrations/versions/0001_baseline.sql` directly when changing the
-schema; change seeds or application defaults directly for data changes. The
-owner decides when to reset existing development data. Running bootstrap or
-`alembic upgrade head` against a database already at the baseline does not
-reapply changes to its SQL.
+Change the schema with a new Alembic revision, together with the ORM change
+([backend guide](../../../src/backend/AGENTS.md)); change seeds or application
+defaults directly for data changes. Bootstrap and `alembic upgrade head` apply
+new revisions to an existing database.
 
-Existing development databases must therefore be reset to gain tables and
-columns added to the baseline; no migration adds them. Without `avatar_face_part_overrides`
-(Included Avatar face-part corrections), Avatar requests and chat runtime
+Before desktop 0.1.2 the baseline was edited in place, so a development
+database created from an older edit lacks tables and columns that the frozen
+baseline has, and no migration adds them. Reset such a database. Without
+`avatar_face_part_overrides` (Included Avatar face-part corrections), Avatar
+requests and chat runtime
 preparation fail with `relation "avatar_face_part_overrides" does not exist`;
 without `avatar_setting_overrides` (per-owner Avatar settings), the Avatar
 settings routes and package export or import of Avatars fail the same way.
@@ -146,10 +146,11 @@ The local Alembic graph owns extension creation and the complete accountless
 schema and contains no hosted identity tables. Animama Cloud uses a separate
 migration history and app composition.
 
-Alembic revision `baseline_20260908` creates the current local schema from
-`src/backend/migrations/versions/0001_baseline.sql`. The baseline creates installation settings
-and generates one UUIDv4 owner; it never imports live ORM metadata. Keep its SQL
-consistent with the ORM while retaining this single development baseline.
+Alembic revision `baseline_20260908` creates the schema released in desktop
+0.1.2 from `src/backend/migrations/versions/0001_baseline.sql`, creates
+installation settings and generates one UUIDv4 owner; it never imports live ORM
+metadata. Its SQL is frozen (a test pins its hash), and later revisions form one
+linear chain to the head.
 
 A database or backup stamped with an unsupported pre-baseline revision needs
 its matching checkout, or an explicit reset of disposable development data. `alembic upgrade head` cannot bridge this

@@ -476,7 +476,7 @@ describe("Windows release candidate", () => {
         ...options.config,
         extends: null,
         productName: "Animama",
-        electronVersion: "45.2.1",
+        electronVersion: "45.3.1",
         electronDist: path.join(root, "electron"),
         npmRebuild: false,
         directories: { output: "release" },

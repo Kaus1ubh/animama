@@ -43,6 +43,7 @@ def _chat_profile_payload(profile: AnimaChatProfile | None) -> dict[str, Any] | 
     return {
         "anima_id": profile.anima_id,
         "default_model_provider_id": profile.default_model_provider_id,
+        "reasoning_effort": profile.reasoning_effort,
         "metadata": dict(profile.metadata or {}),
         "created_at": profile.created_at,
         "updated_at": profile.updated_at,
@@ -134,7 +135,7 @@ async def update_anima_chat_profile(
     repositories: WriteRepositories,
     user: Annotated[RequestPrincipal, Depends(get_current_principal)],
 ) -> JSONResponse:
-    """Update the anima-level direct chat model selector."""
+    """Update the anima-level direct chat model and reasoning effort selector."""
 
     await require_owned_anima(repositories.animas, anima_id=anima_id, user_id=user.id)
     service = AnimaChatProfileService(
@@ -146,6 +147,8 @@ async def update_anima_chat_profile(
         await service.set_default_model_provider(
             anima_id=anima_id,
             model_provider_id=req.default_model_provider_id,
+            # An omitted effort (not an explicit null) lets the service keep or reset it.
+            reasoning_effort=req.reasoning_effort if "reasoning_effort" in req.model_fields_set else ...,
             metadata_patch={"source": "anima_chat_profile_update"},
         )
     except ValueError as exc:

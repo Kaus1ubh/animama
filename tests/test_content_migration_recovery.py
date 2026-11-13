@@ -24,6 +24,7 @@ from animama.server.local_installation_bootstrap import create_local_installatio
 from animama.server.local_runtime import initialize_local_runtime
 from tests.content_package_helpers import package_services, reviewed_export, reviewed_import, vrma
 from tests.migration_database_helpers import (
+    alembic_head,
     migrated_database as migrated_database,
     migration_postgres as migration_postgres,
 )
@@ -78,7 +79,7 @@ async def test_reviewed_package_replay_after_fresh_bootstrap_preserves_later_cha
         assert state.content_ready
         owner = state.principal_id
         async with first.session_factory()() as session:
-            assert await session.scalar(text("SELECT version_num FROM alembic_version")) == "baseline_20260908"
+            assert await session.scalar(text("SELECT version_num FROM alembic_version")) == alembic_head()
             paths, catalog, content, saves, packages = package_services(session, tmp_path)
             saved = await saves.save_standalone(**_command(owner))
             exported = await reviewed_export(packages, user_id=owner, root_item_id=saved.item.id)

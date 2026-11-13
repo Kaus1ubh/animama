@@ -250,8 +250,8 @@ the provider's lifecycle. This is a larger change:
 5. decide whether the provider shares an existing transcript standard or needs
    a new `api_standard` mapping in `app/chat/api_standard.py`; a new standard
    or model-client profile also extends the `chats` `api_standard` and
-   `last_model_client` CHECK constraints in the ORM and
-   `src/backend/migrations/versions/0001_baseline.sql`;
+   `last_model_client` CHECK constraints in the ORM and a new Alembic
+   revision;
 6. translate structured output, reasoning, tools, usage, errors, retries, and
    terminal stream events explicitly, mapping failures to the neutral
    categories in `app/model_clients/error_categories.py`;
@@ -369,8 +369,8 @@ represented faithfully, either:
 
 - mark the missing dimension in `pricing_notes` and document the estimate's
   limitation; or
-- extend the domain, ORM, baseline SQL, mapper, serializer, estimator, seed, and
-  tests before claiming complete pricing support.
+- extend the domain, ORM (with an Alembic revision), mapper, serializer,
+  estimator, seed, and tests before claiming complete pricing support.
 
 Unknown pricing must remain explicitly unpriced, never zero.
 

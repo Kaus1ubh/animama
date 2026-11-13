@@ -47,6 +47,7 @@ import type {
   PyModelProviderCatalogItem,
   PyUserFileResponse,
 } from "@/lib/content/catalogTypes";
+import { chatRequestOptions } from "@/lib/chat/chat-request-options";
 import { chatModelSendGate } from "@/lib/chat/model-provider-compatibility";
 import {
   selectableNativeTools,
@@ -69,7 +70,6 @@ import {
 } from "lucide-react";
 import {
   alternateModelIds,
-  defaultReasoningEffort,
   modelConnectionLabel,
   modelDisplayName,
   modelOptionDetail,
@@ -81,15 +81,7 @@ import type React from "react";
 import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 import { useFormatters, type LocaleFormatters } from "@animama/product-ui/i18n";
-import {
-  useCallback,
-  useContext,
-  useEffect,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import {
@@ -432,12 +424,15 @@ function ChatInputModelSelector({
   const { data: anima } = useAnima(animaId);
   const { data: catalog = [], isSuccess: catalogLoaded } = useModelProviders();
   const updateAnimaChatProfile = useUpdateAnimaChatProfile();
+  // Effort saves use their own mutation so the picker stays enabled while one
+  // is in flight; the shared scope keeps every profile save in order.
+  const saveReasoningEffort = useUpdateAnimaChatProfile();
   const webSearch = useRuntimeCapabilities().data?.web_search;
-  const { chatRequestOptions, setChatRequestOverrides } = useSettings();
-  // Track the model id instead of the full catalog object. Query refreshes can
-  // replace model objects without changing the active model, and those refreshes
-  // should not overwrite the user's per-request tool/reasoning selections.
-  const lastActiveItemIdRef = useRef<string | null>(null);
+  const { chatFeatureChoice, setChatFeatureChoice } = useSettings();
+  // The latest effort picked on the slider, shown until its save settles;
+  // afterwards the saved profile value shows.
+  const [pendingEffort, setPendingEffort] = useState<string | null>(null);
+  const latestEffortSave = useRef(0);
   const activeItemId = anima?.chat_profile?.default_model_provider_id ?? null;
   // Embedding models never appear; hidden ones only while they are the choice.
   const models = useMemo(
@@ -454,21 +449,34 @@ function ChatInputModelSelector({
   const modelGroups = useMemo(() => groupModelOptions(models), [models]);
   // Rows sharing a name on one connection are told apart without naming APIs.
   const alternateIds = useMemo(() => alternateModelIds(models), [models]);
-  const selectedNativeTools = useMemo(() => {
-    const supported = new Set(selectableNativeTools(activeItem, webSearch));
-    const requested = Array.isArray(chatRequestOptions?.native_tools)
-      ? chatRequestOptions.native_tools
-      : selectableNativeTools(activeItem, webSearch);
-    return new Set(requested.filter((tool) => supported.has(tool)));
-  }, [activeItem, chatRequestOptions?.native_tools, webSearch]);
+  // The same options the chat session sends with each turn.
+  const requestOptions = useMemo(
+    () =>
+      chatRequestOptions({
+        animaId,
+        item: activeItem,
+        savedEffort: anima?.chat_profile?.reasoning_effort,
+        webSearch,
+        featureChoice: chatFeatureChoice,
+      }),
+    [
+      activeItem,
+      anima?.chat_profile?.reasoning_effort,
+      animaId,
+      chatFeatureChoice,
+      webSearch,
+    ],
+  );
+  const selectedNativeTools = useMemo(
+    () => new Set(requestOptions?.native_tools ?? []),
+    [requestOptions],
+  );
   const reasoningEfforts = supportedReasoningEfforts(activeItem);
-  const requestedEffort =
-    chatRequestOptions?.reasoning_effort ?? defaultReasoningEffort(activeItem);
-  const selectedReasoningEffort = reasoningEfforts.includes(
-    requestedEffort ?? "",
-  )
-    ? requestedEffort
-    : defaultReasoningEffort(activeItem);
+  const savedReasoningEffort = requestOptions?.reasoning_effort ?? null;
+  const selectedReasoningEffort =
+    pendingEffort && reasoningEfforts.includes(pendingEffort)
+      ? pendingEffort
+      : savedReasoningEffort;
   const selectedEffortIndex = Math.max(
     0,
     reasoningEfforts.indexOf(selectedReasoningEffort ?? ""),
@@ -489,19 +497,6 @@ function ChatInputModelSelector({
         ? t("composer.model.select")
         : t("composer.model.noProfile");
 
-  const resetChatRequestSettingsForModel = useCallback(
-    (item: PyModelProviderCatalogItem) => {
-      // Every available tool starts on, including web search.
-      const nativeTools = selectableNativeTools(item, webSearch);
-      setChatRequestOverrides((current) => ({
-        ...current,
-        native_tools: nativeTools.length ? nativeTools : undefined,
-        reasoning_effort: defaultReasoningEffort(item) ?? undefined,
-      }));
-    },
-    [setChatRequestOverrides, webSearch],
-  );
-
   const handleSelect = async (item: PyModelProviderCatalogItem) => {
     if (isDisabled) return;
 
@@ -516,12 +511,14 @@ function ChatInputModelSelector({
       }
       return;
     }
-    // Re-selecting the active model must preserve request-scoped options.
+    // Re-selecting the active model keeps its effort and Chat features.
     if (item.id === activeItemId) {
       setView("reasoning");
       return;
     }
 
+    // Without an effort, the saved one is cleared, so the new model starts at
+    // its own default; Chat features are kept per model and start at theirs.
     try {
       await updateAnimaChatProfile.mutateAsync({
         animaId,
@@ -533,7 +530,6 @@ function ChatInputModelSelector({
     }
 
     setView("reasoning");
-    resetChatRequestSettingsForModel(item);
     onModelChange?.();
   };
 
@@ -544,19 +540,40 @@ function ChatInputModelSelector({
       : Array.from(selectedNativeTools).filter(
           (activeTool) => activeTool !== tool,
         );
-    setChatRequestOverrides((current) => ({
-      ...current,
-      // An explicit empty array keeps default-on tools off for future requests.
-      native_tools: nextTools,
-    }));
+    // Kept for this Anima and model only; an empty list keeps tools off.
+    setChatFeatureChoice({
+      animaId,
+      modelProviderId: activeItem.id,
+      nativeTools: nextTools,
+    });
   };
 
+  /**
+   * Saves a slider effort on the Anima's chat profile. A drag saves each step
+   * it crosses; the saves run in order, so the last one wins.
+   */
   const handleReasoningChange = (effort: string) => {
     if (isDisabled || !activeItem || !reasoningEfforts.includes(effort)) return;
-    setChatRequestOverrides((current) => ({
-      ...current,
-      reasoning_effort: effort,
-    }));
+    const save = ++latestEffortSave.current;
+    setPendingEffort(effort);
+    saveReasoningEffort
+      .mutateAsync({
+        animaId,
+        body: {
+          default_model_provider_id: activeItem.id,
+          reasoning_effort: effort,
+        },
+      })
+      .catch(() => {
+        // A failed step of a drag is replaced by the later saves.
+        if (latestEffortSave.current === save) {
+          toast.error(t("composer.model.toasts.effortUpdateFailed"));
+        }
+      })
+      .finally(() => {
+        // A newer pick stays shown until its own save settles.
+        if (latestEffortSave.current === save) setPendingEffort(null);
+      });
   };
 
   useEffect(() => {
@@ -566,17 +583,11 @@ function ChatInputModelSelector({
     }
   }, [closeSignal]);
 
-  useLayoutEffect(() => {
-    if (!activeItem || !activeItemId) return;
-    if (lastActiveItemIdRef.current === activeItemId) return;
-    lastActiveItemIdRef.current = activeItemId;
-    resetChatRequestSettingsForModel(activeItem);
-  }, [activeItem, activeItemId, resetChatRequestSettingsForModel]);
-
   // Search availability can change while the same model stays selected: the
   // capability loads after the catalog, or the owner configures or removes
-  // the backend. Follow the default then (on when available) without
-  // touching the model's other options.
+  // the backend. A Chat features choice follows the default then (on when
+  // available) without touching other tools; without one, the defaults
+  // already follow availability.
   const activeSearchState = webSearchAvailability(activeItem, webSearch)?.state;
   const lastSearchStateRef = useRef<{ id: string; state?: string } | null>(
     null,
@@ -589,11 +600,15 @@ function ChatInputModelSelector({
       return;
     const available =
       activeSearchState === "hosted" || activeSearchState === "application";
-    setChatRequestOverrides((current) => ({
-      ...current,
-      native_tools: withWebSearch(current.native_tools, available),
-    }));
-  }, [activeItemId, activeSearchState, setChatRequestOverrides]);
+    setChatFeatureChoice((current) =>
+      current?.animaId === animaId && current.modelProviderId === activeItemId
+        ? {
+            ...current,
+            nativeTools: withWebSearch(current.nativeTools, available),
+          }
+        : current,
+    );
+  }, [activeItemId, activeSearchState, animaId, setChatFeatureChoice]);
 
   return (
     <Popover

@@ -18,9 +18,9 @@
   },
   "redistribution_reviews": {
     "darwin-arm64": {
-      "inventory_sha256": "12435a4e686b6e127da55fee70beecbe25e28633184c51f176c7d5aa7237eecd",
+      "inventory_sha256": "c78fd3226f986145d9ffe0a0b656caa71b86979b1c8e4e9f92c38b7c05a75c44",
       "reviewed_by": "raymond-van",
-      "reviewed_on": "2026-11-03"
+      "reviewed_on": "2026-11-12"
     },
     "win32-x64": {
       "inventory_sha256": "fb1508b381d314ecf4a30c10526f9d477309a899a832ab7543d64fe0f7c61979",

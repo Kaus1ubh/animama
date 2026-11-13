@@ -257,6 +257,8 @@ def _render_retired_builtin_remap() -> str:
         "-- current built-in row on the same API, so existing installations keep chatting.\n"
         "UPDATE anima_chat_profiles AS profile SET\n"
         "    default_model_provider_id = remap.replacement_id,\n"
+        # The saved effort belongs to the retired model; the new one starts at its default.
+        "    reasoning_effort = NULL,\n"
         "    updated_at = CURRENT_TIMESTAMP\n"
         + remap_from
         + "WHERE profile.default_model_provider_id = remap.retired_id;\n"

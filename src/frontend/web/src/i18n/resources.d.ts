@@ -1571,6 +1571,7 @@ export default interface Resources {
         },
         "select": "Select model",
         "toasts": {
+          "effortUpdateFailed": "Failed to save reasoning effort",
           "selectFirst": "Select a model before chatting.",
           "unsupported": "This model is not available for direct chat yet.",
           "updateFailed": "Failed to update model"

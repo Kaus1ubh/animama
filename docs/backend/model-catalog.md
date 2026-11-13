@@ -148,6 +148,13 @@ defaults to `OpenAIResponsesHTTPAgent:gpt-6-luna`. Existing Animas keep their
 own profile. The frontend model selector persists
 changes through `PATCH /v1/animas/{anima_id}/chat-profile`.
 
+The profile's nullable `reasoning_effort` holds the owner's effort for that
+model; null means the model's default. An update may set one of the row's
+`supported_reasoning_efforts` (others return `400`) or null. An update that
+omits it keeps the saved effort for the same model and clears it when the model
+changes. `chat:sse` does not read it: the client sends the effective effort
+with each turn.
+
 The backend validates anima chat-profile updates (an active chat row) and
 request-level `chat:sse` model overrides against `model_providers` rows; see
 [direct chat](runtime/chat.md#request-contract) for turn validation.
@@ -306,8 +313,10 @@ Anthropic rows may offer only `ANTHROPIC_REASONING_EFFORTS` (`none`, `low`,
 `medium`, `high`, `xhigh`, `max`); owner Anthropic rows that list `minimal`
 are rejected with `invalid_capabilities`.
 
-The chat picker preselects a row's `default_reasoning_effort`, else its first
-listed effort, and sends that with each turn unless the owner picks another.
+The chat picker shows, and sends with each turn, the effort saved on the
+Anima's chat profile while the row offers it. With none saved (null), or one
+the row no longer offers, it uses the row's `default_reasoning_effort`, else its
+first listed effort.
 `default_chat_reasoning_effort` (`app/model_catalog.py`) reports
 `DEFAULT_ANTHROPIC_CHAT_EFFORT` (`medium`) for every Anthropic row, built-in or
 owner, that offers it; the Anthropic adapter applies the same constant to chat

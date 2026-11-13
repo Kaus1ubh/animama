@@ -172,6 +172,7 @@ WHERE source = 'builtin' AND active AND id NOT IN ('AnthropicMessagesHTTPAgent:c
 -- current built-in row on the same API, so existing installations keep chatting.
 UPDATE anima_chat_profiles AS profile SET
     default_model_provider_id = remap.replacement_id,
+    reasoning_effort = NULL,
     updated_at = CURRENT_TIMESTAMP
 FROM (VALUES
     ('OpenAIHTTPAgent:gpt-5-nano', 'OpenAIHTTPAgent:gpt-6-luna'),

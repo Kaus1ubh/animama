@@ -282,9 +282,11 @@ startup, debugging, and reporting.
   Router output. Regenerate the SDK offline through `pnpm openapi-ts`.
 - Backend schema/API changes should update backend docs and coordinate frontend
   client regeneration through the frontend guide.
-- During development, do not add Alembic revisions. Update ORM/database
-  definitions and `src/backend/migrations/versions/0001_baseline.sql` directly as needed;
-  existing development databases may be reset at the owner's discretion.
+- Change the schema with a new Alembic revision, together with the ORM change,
+  so installed desktop profiles upgrade in place. Never edit
+  `src/backend/migrations/versions/0001_baseline.sql`, which is frozen at the
+  schema released in desktop 0.1.2, or any merged revision
+  ([ADR 0035](docs/adr/0035-released-schema-changes-use-forward-migrations.md)).
 - Local ownership uses the generated installation principal. Shared FastAPI
   routes receive a `RequestPrincipal` from the resolver installed by the local
   composition; tests override that dependency explicitly. Better Auth is

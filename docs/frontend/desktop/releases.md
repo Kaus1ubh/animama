@@ -2,7 +2,7 @@
 
 The release tools build signed macOS 15+ Apple-silicon candidates and support
 guarded updates, upgrade snapshots and installed-artifact smoke tests.
-Signed macOS preview builds 0.1.0 to 0.1.2 are published; no stable feed has
+Signed macOS preview builds 0.1.0 to 0.1.3 are published; no stable feed has
 been. Animama's prebuilt distribution ends before 2027-01-01: the final
 release will never check for updates, and
 [Ending distribution](#ending-distribution) is the owner's runbook for it and
@@ -830,7 +830,7 @@ steps, each with its own approval:
 4. **Animama Cloud follow-ups.** Its landing download links, hosted privacy
    terms, operator dashboard download analytics and its copy of
    `included-content-attribution.txt` need the same change, and its next
-   repin admits `local-http` 22 and `runtime-contracts` 0.22.0.
+   repin admits `local-http` 23 and `runtime-contracts` 0.23.0.
 
 Before the cut-off, a revert restores updates and downloads for a new build;
 after it, reconnecting the custom domain restores service while the bucket

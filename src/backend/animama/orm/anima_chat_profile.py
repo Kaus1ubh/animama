@@ -15,7 +15,7 @@ if TYPE_CHECKING:
 
 
 class ORMAnimaChatProfile(SqlalchemyBase, TimestampMixin):
-    """Anima-level default model provider for direct chat."""
+    """Anima-level default model provider and reasoning effort for direct chat."""
 
     __tablename__ = "anima_chat_profiles"
 
@@ -29,6 +29,8 @@ class ORMAnimaChatProfile(SqlalchemyBase, TimestampMixin):
         ForeignKey("model_providers.id"),
         nullable=False,
     )
+    # The owner's effort for the default model; null means that model's default.
+    reasoning_effort: Mapped[str | None] = mapped_column(String(16), nullable=True)
     metadata_: Mapped[dict[str, Any]] = mapped_column(
         "metadata",
         JSONB,
