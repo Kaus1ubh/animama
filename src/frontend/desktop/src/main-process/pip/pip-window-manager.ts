@@ -8,6 +8,7 @@ import {
 import { writeLog } from "../logging.js";
 import { installWindowGuards } from "../security/guards.js";
 import {
+  movePipBoundsInside,
   readPipPlacement,
   resolveCornerPipBounds,
   resolveSavedPipBounds,
@@ -850,7 +851,8 @@ export class PipWindowManager {
 
   /**
    * Resize the window for a new size scale, in its current shape, and
-   * remember it. A grip resize keeps the top-left corner, so no `move` event
+   * remember it. The slider and wheel keep the window's center where the
+   * work area allows; the grip keeps its top-left corner. A grip resize keeps the top-left corner, so no `move` event
    * follows, and a programmatic `setSize` is not reliably reported as
    * `resize`; the placement is saved here rather than left to window events.
    */
@@ -865,12 +867,19 @@ export class PipWindowManager {
       window.setSize(nextSize.width, nextSize.height);
     } else {
       const bounds = window.getBounds();
-      window.setBounds({
-        x: Math.round(bounds.x + (bounds.width - nextSize.width) / 2),
-        y: Math.round(bounds.y + (bounds.height - nextSize.height) / 2),
-        width: nextSize.width,
-        height: nextSize.height,
-      });
+      // Grow away from the work area's edges rather than past them, so PiP
+      // left in a corner stays flush with it.
+      window.setBounds(
+        movePipBoundsInside(
+          {
+            x: Math.round(bounds.x + (bounds.width - nextSize.width) / 2),
+            y: Math.round(bounds.y + (bounds.height - nextSize.height) / 2),
+            width: nextSize.width,
+            height: nextSize.height,
+          },
+          screen.getDisplayMatching(bounds).workArea,
+        ),
+      );
     }
     this.schedulePlacementSave(window);
   }

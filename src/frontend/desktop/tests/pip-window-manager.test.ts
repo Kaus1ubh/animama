@@ -462,6 +462,42 @@ describe("PiP placement", () => {
     expect(restarted.getState().sizeScale).toBeCloseTo(500 / 560);
   });
 
+  // Flush with each corner of the 1440 x 900 work area, at a non-3:4 size.
+  it.each([
+    ["top-left", { x: 0, y: 0, width: 360, height: 400 }],
+    ["top-right", { x: 1080, y: 0, width: 360, height: 400 }],
+    ["bottom-left", { x: 0, y: 500, width: 360, height: 400 }],
+    ["bottom-right", { x: 1080, y: 500, width: 360, height: 400 }],
+  ])(
+    "reopens in the %s corner at the size its edges were dragged to",
+    async (_corner, dragged) => {
+      const pip = manager();
+      let pipWindow = await openPip(pip);
+      pipWindow.moveTo(700, 300);
+      pipWindow.dragEdgesTo(dragged);
+      vi.advanceTimersByTime(600);
+      pip.close();
+
+      pipWindow = await openPip(pip);
+      expect(pipWindow.getBounds()).toEqual(dragged);
+      pip.close();
+      expect((await openPip(manager())).getBounds()).toEqual(dragged);
+    },
+  );
+
+  it("grows a window left in a corner away from the corner, and reopens it there", async () => {
+    const pip = manager();
+    // Opens flush with the bottom-right corner at 210 x 280.
+    const pipWindow = await openPip(pip);
+    pip.setSizeScale(0.7);
+    const grown = { x: 1146, y: 508, width: 294, height: 392 };
+    expect(pipWindow.getBounds()).toEqual(grown);
+    vi.advanceTimersByTime(600);
+    pip.close();
+
+    expect((await openPip(manager())).getBounds()).toEqual(grown);
+  });
+
   it("keeps the shape its edges were dragged to when the slider or grip rescales it", async () => {
     const pip = manager();
     const pipWindow = await openPip(pip);

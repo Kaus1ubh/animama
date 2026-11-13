@@ -95,20 +95,29 @@ export function writePipPlacement(file: string, placement: PipPlacement): void {
 }
 
 /**
- * Shrink `bounds` to fit `area` if it is larger, then move it the least
- * distance that keeps it inside.
+ * Move `bounds` the least distance that keeps it inside `area`; a side longer
+ * than the area's starts at its left or top edge.
  */
-function keepInside(bounds: PipRect, area: PipRect): PipRect {
+export function movePipBoundsInside(bounds: PipRect, area: PipRect): PipRect {
   const clamp = (value: number, min: number, max: number) =>
     Math.max(min, Math.min(max, value));
-  const width = Math.min(bounds.width, area.width);
-  const height = Math.min(bounds.height, area.height);
   return {
-    x: clamp(bounds.x, area.x, area.x + area.width - width),
-    y: clamp(bounds.y, area.y, area.y + area.height - height),
-    width,
-    height,
+    ...bounds,
+    x: clamp(bounds.x, area.x, area.x + area.width - bounds.width),
+    y: clamp(bounds.y, area.y, area.y + area.height - bounds.height),
   };
+}
+
+/** Shrink `bounds` to fit `area` if it is larger, then move it inside. */
+function keepInside(bounds: PipRect, area: PipRect): PipRect {
+  return movePipBoundsInside(
+    {
+      ...bounds,
+      width: Math.min(bounds.width, area.width),
+      height: Math.min(bounds.height, area.height),
+    },
+    area,
+  );
 }
 
 /**

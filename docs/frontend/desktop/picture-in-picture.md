@@ -281,7 +281,8 @@ separator give way to the voice controls.
 The size button swaps the voice, camera and background buttons for a slider; the size
 button, Escape or leaving the window swaps them back. Slider changes call
 `window.animamaDesktop.pip.setSizeScale(...)`, which resizes the native
-`BrowserWindow` around its current center. Wheel events over the PiP window use
+`BrowserWindow` around its current center, kept inside the display's work area
+so PiP left in a corner grows away from it. Wheel events over the PiP window use
 the same size-scale path. On macOS and Windows, click-through means wheel resize
 only works where the PiP window is currently receiving input; on Linux it works
 over the whole PiP rectangle because click-through is disabled.
