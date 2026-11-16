@@ -1,6 +1,22 @@
 {
   "schema": "animama-size-baseline/1",
-  "app_version": null,
-  "targets": {},
-  "note": "No self-contained desktop release exists. Phase 1 measurements are evidence, not a released baseline. Populate from verified release artifacts in Phase 4."
+  "targets": {
+    "darwin-arm64": {
+      "app_version": "0.1.5",
+      "measurement": "signed-stapled-app-and-final-distribution-archives",
+      "installed_bytes": 889490759,
+      "download_bytes": 417631516,
+      "components": {
+        "electron": 272141412,
+        "frozen_backend": 197759713,
+        "package_overhead": 1596669,
+        "starter_content": 42443296,
+        "licenses": 9676745,
+        "postgresql": 16807812,
+        "web_javascript": 22485994,
+        "browser_runtimes": 326579118
+      }
+    }
+  },
+  "note": "Each target's entry comes from that target's published size-report.json. darwin-arm64: the 0.1.5 stable release (SHA-256 369dd3e745b60f8b5cebbd7651fb94d1315f32f9f4a8029a8ce342068ee8dab8, verified anonymously). Update an entry only from a later released artifact's report."
 }
