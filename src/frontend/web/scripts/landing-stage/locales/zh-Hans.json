@@ -28,7 +28,9 @@
     "features": "功能",
     "previousReaction": "上一个反应",
     "nextReaction": "下一个反应",
-    "readDocs": "阅读文档"
+    "readDocs": "阅读文档",
+    "watchTrailer": "观看预告片",
+    "trailerTitle": "Animama 发布预告片"
   },
   "stops": {
     "hero": {

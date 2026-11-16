@@ -28,7 +28,9 @@
     "features": "Features",
     "previousReaction": "Previous reaction",
     "nextReaction": "Next reaction",
-    "readDocs": "Read the docs"
+    "readDocs": "Read the docs",
+    "watchTrailer": "Watch the trailer",
+    "trailerTitle": "Animama launch trailer"
   },
   "stops": {
     "hero": {

@@ -28,7 +28,9 @@
     "features": "機能",
     "previousReaction": "前のリアクション",
     "nextReaction": "次のリアクション",
-    "readDocs": "ドキュメントを読む"
+    "readDocs": "ドキュメントを読む",
+    "watchTrailer": "トレーラーを見る",
+    "trailerTitle": "Animama ローンチトレーラー"
   },
   "stops": {
     "hero": {

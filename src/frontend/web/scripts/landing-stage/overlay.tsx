@@ -21,6 +21,7 @@ import {
   ChevronsLeft,
   ChevronsRight,
   Brain,
+  Play,
 } from "lucide-react";
 
 import { Message, MessageContent } from "@animama/product-ui/components";
@@ -148,6 +149,7 @@ function Overlay({ controller }: { controller: StageController }) {
         avatar={avatar}
         controller={controller}
       />
+      <Trailer active={active === 0} revealed={state.revealed} />
       <main id="content" tabIndex={-1} className="outline-none">
         {/* The 3D stage itself is hidden from screen readers. */}
         <p className="sr-only">
@@ -429,6 +431,76 @@ function ProgressThread({
         </span>
       </div>
     </nav>
+  );
+}
+
+/**
+ * The launch trailer, bottom right over the hero once her wave has revealed
+ * its text: a poster that, played, becomes YouTube's privacy-enhanced player
+ * in place, so nothing reaches YouTube until then. Without JavaScript the
+ * poster opens the video on YouTube. Leaving the hero unloads the player,
+ * which stops it.
+ */
+function Trailer({ active, revealed }: { active: boolean; revealed: boolean }) {
+  const { t } = useLanding();
+  const [playing, setPlaying] = useState(false);
+  useEffect(() => {
+    if (!active) setPlaying(false);
+  }, [active]);
+  const shown = active && revealed;
+  return (
+    <div
+      className={cn(
+        "fixed right-(--gutter) bottom-6 z-30 w-[min(20rem,42vw)] transition-[opacity,translate,visibility] duration-500 max-md:w-44 md:bottom-8",
+        shown
+          ? "visible translate-y-0 opacity-100"
+          : "pointer-events-none invisible translate-y-3 opacity-0 motion-reduce:translate-y-0",
+      )}
+      aria-hidden={!shown}
+    >
+      {playing ? (
+        <iframe
+          src={`${SITE.trailer.embed}?autoplay=1&rel=0`}
+          title={t("page.trailerTitle")}
+          allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
+          allowFullScreen
+          referrerPolicy="strict-origin-when-cross-origin"
+          className="aspect-video w-full rounded-xl border-0 shadow-lg"
+        />
+      ) : (
+        <a
+          href={SITE.trailer.url}
+          target="_blank"
+          rel="noreferrer"
+          onClick={(event) => {
+            event.preventDefault();
+            setPlaying(true);
+          }}
+          className="group focus-visible:ring-ring block rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
+        >
+          <span className="relative block overflow-hidden rounded-xl shadow-lg ring-1 ring-black/5">
+            <img
+              src={SITE.trailer.poster}
+              alt=""
+              width={768}
+              height={432}
+              className="aspect-video w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
+            />
+            <span className="absolute inset-0 flex items-center justify-center">
+              <span className="bg-primary text-primary-foreground flex size-11 items-center justify-center rounded-full shadow-md transition-transform group-hover:scale-105 max-md:size-9">
+                <Play
+                  aria-hidden="true"
+                  className="size-5 translate-x-px fill-current max-md:size-4"
+                />
+              </span>
+            </span>
+          </span>
+          <span className="text-foreground/80 group-hover:text-foreground caption-halo mt-2 block text-center text-sm font-medium max-md:sr-only">
+            {t("page.watchTrailer")}
+          </span>
+        </a>
+      )}
+    </div>
   );
 }
 

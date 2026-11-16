@@ -474,6 +474,18 @@ export const BETA_ACCESS_URL =
 export const SITE = {
   url: "https://animama.ai/",
   docsUrl: "https://docs.animama.ai/",
+  /** The source repository, which the header links by its GitHub mark. */
+  github: "https://github.com/raymond-van/animama",
+  /**
+   * The launch trailer the hero shows bottom right: its YouTube page, the
+   * privacy-enhanced player the poster loads on click (the only frame the
+   * site's CSP admits), and the poster in the page's `static/` folder.
+   */
+  trailer: {
+    url: "https://youtu.be/LKHQR8zyUx8",
+    embed: "https://www.youtube-nocookie.com/embed/LKHQR8zyUx8",
+    poster: "/trailer-poster.jpg",
+  },
   /** A 1200×630 still of the hero, in the page's `static/` folder. */
   shareImage: "og-image.jpg",
   shareImageAlt:

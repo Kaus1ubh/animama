@@ -52,7 +52,8 @@ the catalogs (below):
   download page. Turned on, the header offers one **Request Beta Access**
   button (the form at `BETA_ACCESS_URL`) instead, and stops show their `beta`
   copy.
-- `SITE`: the canonical address, docs link, share image, copyright
+- `SITE`: the canonical address, docs link, the source repository (the
+  header's GitHub mark, beside the language picker), share image, copyright
   line (English in every locale), the contact address,
   the social links (Discord, YouTube and X icons, `social-icons.tsx`; also the
   schema.org `sameAs`), and the
@@ -74,7 +75,8 @@ The page and the site header speak the app's UI Locales (English, 日本語,
 한국어, 简体中文, 繁體中文), through the app's i18next setup
 (`createAnimamaI18n` in `i18n.ts`). A visitor sees their saved choice, else
 the first of their browser's languages that is a UI Locale, else English;
-the header's language picker switches the page live, sets `<html lang>` and
+the header's language picker (each locale by a short label: EN, JA, KO, 简,
+繁) switches the page live, sets `<html lang>` and
 the tab's title, and saves the choice as `landing-stage-locale` for every
 page on the site (blocked storage only loses the memory). During the closed
 beta, which hides the picker, the page is English.
