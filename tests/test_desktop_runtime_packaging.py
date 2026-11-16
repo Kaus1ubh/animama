@@ -24,6 +24,18 @@ def test_runtime_resource_audit_has_schema_and_starter_resources() -> None:
     assert evidence["local_http_schema_version"] == 1
 
 
+def test_resource_audit_rejects_embeddings_without_pgvector(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A frozen build that lost pgvector fails its audit instead of every embedding write."""
+
+    from sqlalchemy.dialects.postgresql import JSONB
+
+    from animama.orm.user_file_chunk import ORMUserFileChunk
+
+    monkeypatch.setattr(ORMUserFileChunk.__table__.c.embedding, "type", JSONB())
+    with pytest.raises(ValueError, match="pgvector"):
+        resources.audit_resources()
+
+
 def test_sql_runtime_resource_contains_product_seeds_directly() -> None:
     seed_root = resources.runtime_resource("sql")
     assert seed_root == Path(__file__).resolve().parents[1] / "src/backend/migrations/seeds"

@@ -182,6 +182,11 @@ ignore_missing_imports = true
 module = "regex"
 ignore_missing_imports = true
 
+# pgvector's SQLAlchemy column type ships no types.
+[[tool.mypy.overrides]]
+module = "pgvector.*"
+ignore_missing_imports = true
+
 # The optional system-metrics probe uses psutil's untyped distribution.
 [[tool.mypy.overrides]]
 module = "psutil"

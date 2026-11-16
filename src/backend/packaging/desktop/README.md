@@ -40,8 +40,10 @@ control admission. Readiness includes the exact PID/start token and local HTTP
 schema so main verifies its own child before granting renderer access. These
 controls are excluded from OpenAPI and absent in self-host composition.
 `audit-resources` reports `local_http_schema_version: 1`, matching the
-`animama-desktop-runtime/2` resource manifest. See backend operations for
-inputs.
+`animama-desktop-runtime/2` resource manifest. It also fails when the
+embedding columns are not pgvector vectors, which means PyInstaller missed
+a dynamically imported package; import such packages statically. See backend
+operations for inputs.
 
 `archive_feature_pack.py` is a build-only deterministic USTAR writer. It emits
 only inventoried regular files after containment/size/hash checks. It is not a

@@ -53,8 +53,10 @@ def audit_resources() -> dict[str, Any]:
 
     from alembic.script import ScriptDirectory
     from fastapi.routing import iter_route_contexts
+    from pgvector.sqlalchemy import Vector
 
     from animama.app.services.starter_loadout_policy import starter_loadout_policy
+    from animama.orm import Base
     from animama.prompts.avatar_animation_manifest import get_manifest_gesture_inventory
     from animama.server.app import app
 
@@ -81,6 +83,11 @@ def audit_resources() -> dict[str, Any]:
     routes = list(iter_route_contexts(app.routes))
     if "/v1/animas/{anima_id}/chat:sse" not in {route.path for route in routes}:
         raise ValueError("Frozen FastAPI application is missing its chat route")
+    # Postgres rejects any other type for the vector columns, so a build without
+    # pgvector would fail every upload chunk and archive passage write.
+    embedding_columns = [table.c.embedding for table in Base.metadata.tables.values() if "embedding" in table.c]
+    if not embedding_columns or not all(isinstance(column.type, Vector) for column in embedding_columns):
+        raise ValueError("Packaged ORM does not map embeddings to pgvector's vector type")
     return {
         "schema": "animama-resource-audit/1",
         "local_http_schema_version": 1,
