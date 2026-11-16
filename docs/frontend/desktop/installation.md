@@ -1,6 +1,8 @@
 # Install and use Animama Desktop
 
-Signed macOS preview builds 0.1.0 to 0.1.4 have been published for testing.
+Animama 0.1.5 is the current stable macOS release, and installed apps receive
+later stable versions through its update feed. Signed preview builds 0.1.0 to
+0.1.4 have also been published for testing.
 Animama's prebuilt downloads, update feed and model downloads end before
 2027-01-01; before then, a final release stops checking for updates and
 explains what has changed. Installed apps keep working afterwards: chat,
