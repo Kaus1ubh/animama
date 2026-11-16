@@ -19,7 +19,10 @@ import {
   smokeCopyDirectory,
 } from "../scripts/runtime/smoke-hardening.mjs";
 import { hardeningSmokeChecks } from "../scripts/runtime/smoke-policy.mjs";
-import { desktopCapabilityChecks } from "../scripts/runtime/smoke-journey.mjs";
+import {
+  desktopCapabilityChecks,
+  fileSurvivedRestart,
+} from "../scripts/runtime/smoke-journey.mjs";
 import {
   assertWindowsCopyFits,
   windowsCopyLocation,
@@ -181,5 +184,34 @@ describe("installed-artifact smoke journey", () => {
       no_automatic_optional_download: false,
       core_upload_processing: false,
     });
+  });
+
+  it("expects the processed file, not the finalized upload, after a restart", () => {
+    // Processing records the content hash, so the finalized upload has none yet.
+    const processed = {
+      status: "ready",
+      sha256: "a".repeat(64),
+      chunk_count: 1,
+    };
+    expect(fileSurvivedRestart(processed, { ...processed })).toBe(true);
+    expect(
+      fileSurvivedRestart(processed, {
+        ...processed,
+        status: "ready_keyword_only",
+      }),
+    ).toBe(true);
+    for (const persisted of [
+      { ...processed, sha256: null },
+      { ...processed, chunk_count: 0 },
+      { ...processed, status: "processing" },
+      undefined,
+    ])
+      expect(fileSurvivedRestart(processed, persisted)).toBe(false);
+    expect(
+      fileSurvivedRestart(
+        { ...processed, sha256: null },
+        { ...processed, sha256: null },
+      ),
+    ).toBe(false);
   });
 });
