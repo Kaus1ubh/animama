@@ -21,7 +21,6 @@ import {
   ChevronsLeft,
   ChevronsRight,
   Brain,
-  Play,
 } from "lucide-react";
 
 import { Message, MessageContent } from "@animama/product-ui/components";
@@ -476,6 +475,7 @@ function Trailer({ active, revealed }: { active: boolean; revealed: boolean }) {
             event.preventDefault();
             setPlaying(true);
           }}
+          aria-label={t("page.watchTrailer")}
           className="group focus-visible:ring-ring block rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
         >
           <span className="relative block overflow-hidden rounded-xl shadow-lg ring-1 ring-black/5">
@@ -487,20 +487,28 @@ function Trailer({ active, revealed }: { active: boolean; revealed: boolean }) {
               className="aspect-video w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
             />
             <span className="absolute inset-0 flex items-center justify-center">
-              <span className="bg-primary text-primary-foreground flex size-11 items-center justify-center rounded-full shadow-md transition-transform group-hover:scale-105 max-md:size-9">
-                <Play
-                  aria-hidden="true"
-                  className="size-5 translate-x-px fill-current max-md:size-4"
-                />
-              </span>
+              <YouTubePlayButton className="h-12 w-[68px] opacity-90 drop-shadow-md transition-opacity group-hover:opacity-100 max-md:h-9 max-md:w-[51px]" />
             </span>
-          </span>
-          <span className="text-foreground/80 group-hover:text-foreground caption-halo mt-2 block text-center text-sm font-medium max-md:sr-only">
-            {t("page.watchTrailer")}
           </span>
         </a>
       )}
     </div>
+  );
+}
+
+/**
+ * YouTube's familiar play button (its embed player's red rounded rectangle
+ * with a white triangle), so the poster reads as a video at a glance.
+ */
+function YouTubePlayButton({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 68 48" aria-hidden="true" className={className}>
+      <path
+        d="M66.52 7.74c-.78-2.93-2.49-5.41-5.42-6.19C55.79.13 34 0 34 0S12.21.13 6.9 1.55C3.97 2.33 2.27 4.81 1.48 7.74.06 13.05 0 24 0 24s.06 10.95 1.48 16.26c.78 2.93 2.49 5.41 5.42 6.19C12.21 47.87 34 48 34 48s21.79-.13 27.1-1.55c2.93-.78 4.64-3.26 5.42-6.19C67.94 34.95 68 24 68 24s-.06-10.95-1.48-16.26z"
+        fill="#f00"
+      />
+      <path d="M45 24 27 14v20z" fill="#fff" />
+    </svg>
   );
 }
 
