@@ -65,6 +65,23 @@ export function desktopCapabilityChecks(capabilities) {
   };
 }
 
+/** Upload states in which an Anima can read the file (keyword-only when embedding failed). */
+const SEARCHABLE_FILE_STATES = ["ready", "ready_keyword_only"];
+
+/**
+ * Whether a processed upload came back unchanged after a restart. Compare with
+ * the processed record: processing stores the content hash, so the finalized
+ * upload has none to compare.
+ */
+export function fileSurvivedRestart(processed, persisted) {
+  return (
+    typeof processed?.sha256 === "string" &&
+    persisted?.sha256 === processed.sha256 &&
+    persisted.chunk_count === processed.chunk_count &&
+    SEARCHABLE_FILE_STATES.includes(persisted.status)
+  );
+}
+
 /**
  * The installed-artifact smoke. The exact installed app is checked without
  * being debugged: its fuse wire, its sealed update policy, and a prompt exit
@@ -603,11 +620,10 @@ export async function runSmokeJourney({ report, provider, platform }) {
       await new Promise((resolve) => setTimeout(resolve, 500));
       processed = await request(page, `/v1/files/${file.file_id}`);
     }
-    // A failed embedding call leaves the file usable through keyword search.
-    const searchable = ["ready", "ready_keyword_only"];
     evidence(
       "private_file_processing",
-      searchable.includes(processed?.status) && processed.chunk_count > 0,
+      SEARCHABLE_FILE_STATES.includes(processed?.status) &&
+        processed.chunk_count > 0,
     );
     step = "restart-persistence";
     const stableOrigin = origin;
@@ -628,8 +644,7 @@ export async function runSmokeJourney({ report, provider, platform }) {
     const persistedFile = await request(page, `/v1/files/${file.file_id}`);
     evidence(
       "private_file_persistence",
-      persistedFile.sha256 === file.sha256 &&
-        searchable.includes(persistedFile.status),
+      fileSurvivedRestart(processed, persistedFile),
     );
     evidence(
       "provider_persistence",
