@@ -139,8 +139,10 @@ Cloud refreshes its package inventories at its next repin, outside this plan.
 - [x] Full pre-push suite on the final candidate `9f09abfc1`, run with the
   owner's go-ahead: passed, with three load timeouts that passed on rerun
   (see Validation and acceptance).
-- [ ] PR opened with its evidence and remaining gates.
-- [ ] PR opened with its evidence and remaining gates.
+- [x] PR #879 opened with its evidence and remaining gates (2026-11-13).
+- [x] Second merge of `origin/main` (2026-11-16) after #880 and #882 merged:
+  one licence-record conflict resolved; affected checks passed (see
+  Validation and acceptance).
 
 ## Surprises & Discoveries
 
@@ -1853,6 +1855,30 @@ OrbStack and Python 3.12.13.
 - **Not run:** the full `pnpm e2e:test`, whose content and import journeys
   this change does not touch, and hosted CI, because the Validation workflow
   is disabled by the owner.
+
+### Second merge of `origin/main` (2026-11-16)
+
+After the PR opened, `main` gained #880 (licence-review entries for 18 files)
+and #882 (desktop picture-in-picture sizing). The merge of `origin/main` at
+`030842f8b` conflicted only in `licenses/source-review.json`, where both sides
+added an ADR entry at the same place; both entries are kept, in path order.
+Everything else merged cleanly. #882 changes only the PiP main-process files,
+their tests and `picture-in-picture.md`, which this PR does not touch, so the
+merge adds no code from this PR.
+
+Checks on the merged tree:
+
+- `python3 scripts/public-release/check_source.py`: every tracked file is
+  covered exactly once (the 18 earlier gaps are closed by #880).
+- `python3 -m unittest discover -s scripts/public-release -p 'test_*.py'`: 12
+  passed.
+- `pnpm desktop:check`: exit 0.
+- `pnpm desktop:test`: 39 files passed, 2 skipped (665 tests passed, 14
+  skipped).
+
+The full pre-push suite was not rerun: this PR's code is unchanged since
+`9f09abfc1`, and the merge brings only #880's records and #882's desktop
+files, which the desktop checks cover.
 
 ## Idempotence and recovery
 
