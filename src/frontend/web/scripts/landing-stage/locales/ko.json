@@ -28,7 +28,9 @@
     "features": "기능",
     "previousReaction": "이전 리액션",
     "nextReaction": "다음 리액션",
-    "readDocs": "문서 읽기"
+    "readDocs": "문서 읽기",
+    "watchTrailer": "트레일러 보기",
+    "trailerTitle": "Animama 출시 트레일러"
   },
   "stops": {
     "hero": {

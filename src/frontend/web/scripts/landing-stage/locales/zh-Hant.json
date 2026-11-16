@@ -28,7 +28,9 @@
     "features": "功能",
     "previousReaction": "上一個反應",
     "nextReaction": "下一個反應",
-    "readDocs": "閱讀說明文件"
+    "readDocs": "閱讀說明文件",
+    "watchTrailer": "觀看預告片",
+    "trailerTitle": "Animama 發布預告片"
   },
   "stops": {
     "hero": {

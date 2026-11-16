@@ -10,5 +10,4 @@
 @import "../../src/styles/globals.css";
 @import "./site-header.css";
 @source "./site-header.tsx";
-@source "./flags.tsx";
 @source "../../src/ui/components/dropdown-menu.tsx";

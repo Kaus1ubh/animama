@@ -24408,13 +24408,6 @@
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "src/frontend/web/scripts/landing-stage/flags.tsx",
-      "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
-      "copyright": "2026 Raymond Van",
-      "review": "prepared-not-release-approved"
-    },
-    {
       "path": "src/frontend/web/scripts/landing-stage/i18n.ts",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
@@ -24617,6 +24610,25 @@
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
       "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/scripts/landing-stage/static/trailer-poster.jpg",
+      "candidate_license": "LicenseRef-pixiv-VRoidPreset",
+      "basis": "Raymond Van's launch-trailer banner, downscaled for the landing page's trailer poster: Animama renderer captures of the Annie and Andrew starters and of AvatarSample H, M and Y, which Raymond exported from VRoid Studio's VRoidPreset A–Z presets, with Animama's own logo and Included effect art; retained under the models' terms, like og-image.jpg",
+      "copyright": [
+        "pixiv VRoid Project",
+        "2026 Raymond Van"
+      ],
+      "evidence": [
+        "licenses/third-party/art-vroid-review.json"
+      ],
+      "notices": [
+        "licenses/third-party/art-NOTICES.md"
+      ],
+      "conditions": [
+        "The owner confirmed on 2026-11-16 that every avatar shown is a VRoid model. The three samples are Raymond's VRoid Studio VRM 1.0 exports, not the CC BY VRoid Hub sample file: their embedded metadata names Raymond as author, allows commercial use by corporations and needs no credit. The VRoidPreset A–Z conditions govern their pixiv components; a still image redistributes no model data."
+      ],
       "review": "prepared-not-release-approved"
     },
     {

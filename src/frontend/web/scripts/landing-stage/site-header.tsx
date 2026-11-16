@@ -21,8 +21,8 @@ import {
   DropdownMenuTrigger,
 } from "@/ui/components/dropdown-menu";
 
-import { LocaleFlag } from "./flags";
 import { useLanding, type LandingT } from "./i18n";
+import { SocialIcon } from "./social-icons";
 import { BETA_ACCESS_URL, CLOSED_BETA, SITE } from "./stops";
 
 /*
@@ -64,9 +64,9 @@ export const focusRing = (light: boolean) =>
 
 /**
  * The site header: the logo on the left; on the right one liquid-glass pill
- * holding Home, About and Docs, the theme toggle and language picker, Log in
- * and Sign up (Animama Cloud's account pages), and Download as its one
- * solid button. During the closed beta the page is English only, Request Beta
+ * holding Home, About and Docs, the theme toggle, the GitHub link and the
+ * language picker, Log in and Sign up (Animama Cloud's account pages), and
+ * Download as its one solid button. During the closed beta the page is English only, Request Beta
  * Access (the form) replaces the language picker, Log in, Sign up and that
  * button, and Download becomes a link beside About (the download page). A
  * single soft highlight glides to whichever item the pointer is over. Below 1024px the pill gives way to that button and a menu button that
@@ -236,6 +236,7 @@ export function SiteHeader({
           </a>
           {divider}
           <ThemeToggle light={light} theme={theme} t={t} />
+          <GitHubLink light={light} />
           {CLOSED_BETA ? null : (
             <LanguagePicker
               locale={locale}
@@ -320,23 +321,75 @@ function ThemeToggle({
       aria-label={t(dark ? "header.switchToLight" : "header.switchToDark")}
       aria-pressed={dark}
       data-pill-item=""
-      className={cn(
-        "relative z-10 flex size-8 cursor-pointer items-center justify-center rounded-full transition-colors outline-none focus-visible:ring-2",
-        focusRing(light),
-        light
-          ? "text-white"
-          : "text-foreground/75 hover:text-foreground dark:text-foreground/80 dark:hover:text-foreground",
-      )}
+      className={iconButton(light)}
     >
       <Icon className="size-4" aria-hidden="true" />
     </button>
   );
 }
 
+/** The header's round icon buttons: the theme toggle and the GitHub link. */
+const iconButton = (light: boolean) =>
+  cn(
+    "relative z-10 flex size-8 cursor-pointer items-center justify-center rounded-full transition-colors outline-none focus-visible:ring-2",
+    focusRing(light),
+    light
+      ? "text-white"
+      : "text-foreground/75 hover:text-foreground dark:text-foreground/80 dark:hover:text-foreground",
+  );
+
+/** The source repository on GitHub, by its mark; the brand name is its label in every locale. */
+function GitHubLink({ light }: { light: boolean }) {
+  return (
+    <a
+      href={SITE.github}
+      target="_blank"
+      rel="noreferrer"
+      aria-label="GitHub"
+      data-pill-item=""
+      className={iconButton(light)}
+    >
+      <SocialIcon name="github" className="size-4" />
+    </a>
+  );
+}
+
 /**
- * Language menu: the current locale's flag, opening a list of the app's UI
- * Locales by flag and their own names. A choice switches the site's words
- * at once and is remembered in this browser (`useLanding`).
+ * Each UI Locale's short label in the language picker: its two-letter code,
+ * and the script character for the two Chinese variants (简 Simplified, 繁
+ * Traditional), which read more clearly to their readers than a code.
+ */
+const LOCALE_CODES: Record<UiLocale, string> = {
+  en: "EN",
+  ja: "JA",
+  ko: "KO",
+  "zh-Hans": "简",
+  "zh-Hant": "繁",
+};
+
+/** A locale's short label, in that locale's language so CJK fonts apply. */
+function LocaleCode({
+  locale,
+  className,
+}: {
+  locale: UiLocale;
+  className?: string;
+}) {
+  return (
+    <span
+      lang={locale}
+      aria-hidden="true"
+      className={cn("text-xs font-semibold tracking-wide", className)}
+    >
+      {LOCALE_CODES[locale]}
+    </span>
+  );
+}
+
+/**
+ * Language menu: the current locale's short label, opening a list of the
+ * app's UI Locales by short label and their own names. A choice switches the
+ * site's words at once and is remembered in this browser (`useLanding`).
  */
 type LocaleChoice = {
   locale: UiLocale;
@@ -355,15 +408,13 @@ function LanguagePicker({
         data-pill-item=""
         // Marks a header whose words can change language (`site-header.css`).
         data-locale-picker=""
-        className={cn(
-          "relative z-10 flex size-8 cursor-pointer items-center justify-center rounded-full outline-none focus-visible:ring-2",
-          focusRing(light),
-        )}
+        className={iconButton(light)}
+        // The visible code is part of the name, for voice control.
         aria-label={t("header.currentLanguage", {
-          language: localeNativeName(locale),
+          language: `${localeNativeName(locale)} (${LOCALE_CODES[locale]})`,
         })}
       >
-        <LocaleFlag locale={locale} className="size-5" />
+        <LocaleCode locale={locale} />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="z-50 min-w-44">
         <LanguageOptions locale={locale} onLocaleChange={onLocaleChange} />
@@ -372,7 +423,7 @@ function LanguagePicker({
   );
 }
 
-/** The app's UI Locales by flag and their own names, as menu radio items. */
+/** The app's UI Locales by short label and their own names, as menu radio items. */
 function LanguageOptions({ locale, onLocaleChange }: LocaleChoice) {
   return (
     <DropdownMenuRadioGroup
@@ -388,7 +439,10 @@ function LanguageOptions({ locale, onLocaleChange }: LocaleChoice) {
           lang={option}
           className="gap-2.5"
         >
-          <LocaleFlag locale={option} className="size-4" />
+          <LocaleCode
+            locale={option}
+            className="text-muted-foreground w-4 text-center"
+          />
           {localeNativeName(option)}
         </DropdownMenuRadioItem>
       ))}
@@ -399,7 +453,7 @@ function LanguageOptions({ locale, onLocaleChange }: LocaleChoice) {
 /**
  * The header's items for screens narrower than the pill (below 1024px): a
  * glass menu button opening Home, About, Download (during the closed beta),
- * Docs, the Avatar choice (phones only, over the tour), dark mode, and the
+ * Docs, GitHub, the Avatar choice (phones only, over the tour), dark mode, and the
  * language list, Log in and Sign up (none of these three during the closed
  * beta). Toggling dark mode keeps the
  * menu open so the change shows behind it.
@@ -455,6 +509,11 @@ function SiteMenu({
         <DropdownMenuItem asChild>
           <a href={SITE.docsUrl} target="_blank" rel="noreferrer">
             {t("header.docs")}
+          </a>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <a href={SITE.github} target="_blank" rel="noreferrer">
+            GitHub
           </a>
         </DropdownMenuItem>
         <DropdownMenuSeparator />

@@ -47,7 +47,7 @@ import { useLanding, type LandingKey, type LandingT } from "./i18n";
 import { MoodBloom } from "./mood-bloom";
 import { PROGRAM } from "./program";
 import { TextShimmer } from "./text-shimmer";
-import { SocialIcon } from "./social-icons";
+import { SocialIcon, SocialIconPath } from "./social-icons";
 import { SiteHeader, focusRing } from "./site-header";
 import {
   BETA_ACCESS_URL,
@@ -148,6 +148,7 @@ function Overlay({ controller }: { controller: StageController }) {
         avatar={avatar}
         controller={controller}
       />
+      <Trailer active={active === 0} revealed={state.revealed} />
       <main id="content" tabIndex={-1} className="outline-none">
         {/* The 3D stage itself is hidden from screen readers. */}
         <p className="sr-only">
@@ -429,6 +430,96 @@ function ProgressThread({
         </span>
       </div>
     </nav>
+  );
+}
+
+/**
+ * The launch trailer, bottom right over the hero once her wave has revealed
+ * its text: a poster that, played, becomes YouTube's privacy-enhanced player
+ * in place (and takes focus), so nothing reaches YouTube until then. The
+ * poster links the video on YouTube, so a modified click or the context menu
+ * opens it there. Leaving the hero unloads the player, which stops it.
+ */
+function Trailer({ active, revealed }: { active: boolean; revealed: boolean }) {
+  const { t } = useLanding();
+  const [playing, setPlaying] = useState(false);
+  const player = useRef<HTMLIFrameElement>(null);
+  useEffect(() => {
+    if (!active) setPlaying(false);
+  }, [active]);
+  useEffect(() => {
+    if (playing) player.current?.focus();
+  }, [playing]);
+  const shown = active && revealed;
+  return (
+    <div
+      className={cn(
+        "fixed right-(--gutter) bottom-6 z-30 w-[min(20rem,42vw)] transition-[opacity,translate,visibility] duration-500 max-md:w-44 md:bottom-8",
+        shown
+          ? "visible translate-y-0 opacity-100"
+          : "pointer-events-none invisible translate-y-3 opacity-0 motion-reduce:translate-y-0",
+      )}
+      aria-hidden={!shown}
+    >
+      {playing ? (
+        <iframe
+          ref={player}
+          src={`${SITE.trailer.embed}?autoplay=1&playsinline=1&rel=0`}
+          title={t("page.trailerTitle")}
+          allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
+          allowFullScreen
+          referrerPolicy="strict-origin-when-cross-origin"
+          className="aspect-video w-full rounded-xl border-0 shadow-lg"
+        />
+      ) : (
+        <a
+          href={SITE.trailer.url}
+          target="_blank"
+          rel="noreferrer"
+          onClick={(event) => {
+            // A modified click opens YouTube as an ordinary link would.
+            if (
+              event.metaKey ||
+              event.ctrlKey ||
+              event.shiftKey ||
+              event.altKey
+            )
+              return;
+            event.preventDefault();
+            setPlaying(true);
+          }}
+          aria-label={t("page.watchTrailer")}
+          className="group focus-visible:ring-ring block rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
+        >
+          <span className="relative block overflow-hidden rounded-xl shadow-lg ring-1 ring-black/5">
+            <img
+              src={SITE.trailer.poster}
+              alt=""
+              width={768}
+              height={432}
+              className="aspect-video w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
+            />
+            <span className="absolute inset-0 flex items-center justify-center">
+              <YouTubePlayButton className="h-12 w-[68px] opacity-90 drop-shadow-md transition-opacity group-hover:opacity-100 max-md:h-9 max-md:w-[51px]" />
+            </span>
+          </span>
+        </a>
+      )}
+    </div>
+  );
+}
+
+/**
+ * A YouTube-style play button, so the poster reads as a video at a glance:
+ * the YouTube mark from Simple Icons (`social-icons.tsx`, CC0) in YouTube
+ * red over a white triangle that fills its cut-out.
+ */
+function YouTubePlayButton({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 3.5 24 17" aria-hidden="true" className={className}>
+      <path d="M9 8l7.5 4L9 16z" fill="#fff" />
+      <SocialIconPath name="youtube" fill="#f00" />
+    </svg>
   );
 }
 
