@@ -1,6 +1,6 @@
 # Install and use Animama Desktop
 
-Signed macOS preview builds 0.1.0 to 0.1.3 have been published for testing.
+Signed macOS preview builds 0.1.0 to 0.1.4 have been published for testing.
 Animama's prebuilt downloads, update feed and model downloads end before
 2027-01-01; before then, a final release stops checking for updates and
 explains what has changed. Installed apps keep working afterwards: chat,
