@@ -15,6 +15,17 @@ const PATHS = {
 
 export type SocialIconName = keyof typeof PATHS;
 
+/** A brand mark's bare path, for composing it into another drawing. */
+export function SocialIconPath({
+  name,
+  fill,
+}: {
+  name: SocialIconName;
+  fill?: string;
+}) {
+  return <path d={PATHS[name]} fill={fill} />;
+}
+
 /** A decorative brand mark; its link carries the accessible name. */
 export function SocialIcon({
   name,

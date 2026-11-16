@@ -52,6 +52,11 @@ the catalogs (below):
   download page. Turned on, the header offers one **Request Beta Access**
   button (the form at `BETA_ACCESS_URL`) instead, and stops show their `beta`
   copy.
+- `SITE.trailer`: the launch trailer the hero shows bottom right once its
+  text is revealed. Its poster (`static/trailer-poster.jpg`) loads YouTube's
+  privacy-enhanced player in place on a click, so nothing reaches YouTube
+  before then; leaving the hero unloads the player. The trailer is part of
+  the live overlay, so the no-JavaScript text has no trailer.
 - `SITE`: the canonical address, docs link, the source repository (the
   header's GitHub mark, beside the language picker), share image, copyright
   line (English in every locale), the contact address,
@@ -113,7 +118,8 @@ have no spaces, so `words.ts` splits their captions with `Intl.Segmenter`
 and titles wrap only between those words.
 
 `static/og-image.jpg` is the 1200×630 share image: a capture of the hero at
-that size with `?nointro`, the header links and progress thread hidden.
+that size with `?nointro`, the header links, progress thread and trailer
+poster hidden.
 Recapture it when the hero changes.
 
 ## Live stage and fallback
@@ -209,9 +215,13 @@ build fails if a pinned site has no `site-chrome.json`.
 
 `static/_headers` sets the CSP, `frame-ancestors 'none'`, nosniff, referrer
 and permissions policies, HSTS and caching. The CSP admits only the site's
-own scripts, styles, fonts and images, plus Cloudflare Web Analytics: the
-host injects its beacon from `static.cloudflareinsights.com/beacon.min.js/`
-into served HTML, and the beacon reports to the site's own `/cdn-cgi/rum`.
+own scripts, styles, fonts and images, plus two exceptions. Cloudflare Web
+Analytics: the host injects its beacon from
+`static.cloudflareinsights.com/beacon.min.js/` into served HTML, and the
+beacon reports to the site's own `/cdn-cgi/rum`. The launch trailer: the
+player frame from `www.youtube-nocookie.com`, and the media-session artwork
+the browser fetches from `i.ytimg.com` once it plays. The headers cover
+Animama Cloud's pages too, so they admit the same two hosts.
 Neither the build nor the preview contains the beacon. Otherwise:
 
 - `index.html` has no inline code; its pre-paint theme script is

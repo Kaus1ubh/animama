@@ -47,7 +47,7 @@ import { useLanding, type LandingKey, type LandingT } from "./i18n";
 import { MoodBloom } from "./mood-bloom";
 import { PROGRAM } from "./program";
 import { TextShimmer } from "./text-shimmer";
-import { SocialIcon } from "./social-icons";
+import { SocialIcon, SocialIconPath } from "./social-icons";
 import { SiteHeader, focusRing } from "./site-header";
 import {
   BETA_ACCESS_URL,
@@ -436,16 +436,20 @@ function ProgressThread({
 /**
  * The launch trailer, bottom right over the hero once her wave has revealed
  * its text: a poster that, played, becomes YouTube's privacy-enhanced player
- * in place, so nothing reaches YouTube until then. Without JavaScript the
- * poster opens the video on YouTube. Leaving the hero unloads the player,
- * which stops it.
+ * in place (and takes focus), so nothing reaches YouTube until then. The
+ * poster links the video on YouTube, so a modified click or the context menu
+ * opens it there. Leaving the hero unloads the player, which stops it.
  */
 function Trailer({ active, revealed }: { active: boolean; revealed: boolean }) {
   const { t } = useLanding();
   const [playing, setPlaying] = useState(false);
+  const player = useRef<HTMLIFrameElement>(null);
   useEffect(() => {
     if (!active) setPlaying(false);
   }, [active]);
+  useEffect(() => {
+    if (playing) player.current?.focus();
+  }, [playing]);
   const shown = active && revealed;
   return (
     <div
@@ -459,7 +463,8 @@ function Trailer({ active, revealed }: { active: boolean; revealed: boolean }) {
     >
       {playing ? (
         <iframe
-          src={`${SITE.trailer.embed}?autoplay=1&rel=0`}
+          ref={player}
+          src={`${SITE.trailer.embed}?autoplay=1&playsinline=1&rel=0`}
           title={t("page.trailerTitle")}
           allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
           allowFullScreen
@@ -472,6 +477,14 @@ function Trailer({ active, revealed }: { active: boolean; revealed: boolean }) {
           target="_blank"
           rel="noreferrer"
           onClick={(event) => {
+            // A modified click opens YouTube as an ordinary link would.
+            if (
+              event.metaKey ||
+              event.ctrlKey ||
+              event.shiftKey ||
+              event.altKey
+            )
+              return;
             event.preventDefault();
             setPlaying(true);
           }}
@@ -497,17 +510,15 @@ function Trailer({ active, revealed }: { active: boolean; revealed: boolean }) {
 }
 
 /**
- * YouTube's familiar play button (its embed player's red rounded rectangle
- * with a white triangle), so the poster reads as a video at a glance.
+ * A YouTube-style play button, so the poster reads as a video at a glance:
+ * the YouTube mark from Simple Icons (`social-icons.tsx`, CC0) in YouTube
+ * red over a white triangle that fills its cut-out.
  */
 function YouTubePlayButton({ className }: { className?: string }) {
   return (
-    <svg viewBox="0 0 68 48" aria-hidden="true" className={className}>
-      <path
-        d="M66.52 7.74c-.78-2.93-2.49-5.41-5.42-6.19C55.79.13 34 0 34 0S12.21.13 6.9 1.55C3.97 2.33 2.27 4.81 1.48 7.74.06 13.05 0 24 0 24s.06 10.95 1.48 16.26c.78 2.93 2.49 5.41 5.42 6.19C12.21 47.87 34 48 34 48s21.79-.13 27.1-1.55c2.93-.78 4.64-3.26 5.42-6.19C67.94 34.95 68 24 68 24s-.06-10.95-1.48-16.26z"
-        fill="#f00"
-      />
-      <path d="M45 24 27 14v20z" fill="#fff" />
+    <svg viewBox="0 3.5 24 17" aria-hidden="true" className={className}>
+      <path d="M9 8l7.5 4L9 16z" fill="#fff" />
+      <SocialIconPath name="youtube" fill="#f00" />
     </svg>
   );
 }

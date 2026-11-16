@@ -409,8 +409,9 @@ function LanguagePicker({
         // Marks a header whose words can change language (`site-header.css`).
         data-locale-picker=""
         className={iconButton(light)}
+        // The visible code is part of the name, for voice control.
         aria-label={t("header.currentLanguage", {
-          language: localeNativeName(locale),
+          language: `${localeNativeName(locale)} (${LOCALE_CODES[locale]})`,
         })}
       >
         <LocaleCode locale={locale} />
