@@ -73,8 +73,8 @@ or a successful Apple notarization does not grant redistribution permission.
 The core runtime of both targets freezes the upload parsers of the `documents`
 extra: python-docx, python-pptx, openpyxl and et_xmlfile (MIT), XlsxWriter
 (BSD-2-Clause), defusedxml (PSF), lxml (BSD-3-Clause) and pypdfium2
-(BSD-3-Clause or Apache-2.0). The `darwin-arm64` receipt covers them. The next
-`win32-x64` review must cover them too, with two items to check in particular:
+(BSD-3-Clause or Apache-2.0). Both targets' receipts cover them. When either
+package changes, check two items in particular:
 
 - lxml's binary wheels statically link zlib, libxml2, libxslt, libexslt and GNU
   libiconv. libiconv is LGPL-2.1: as for `psycopg`, review its linkage,
@@ -95,30 +95,8 @@ and source metadata are bound into the inventory, so changing either invalidates
 an approval for different bytes. Resolve unclassified or unclear records; do not
 fill approval fields automatically from a passing scan.
 
-The `win32-x64` receipt in `release-policy.json` predates the removal of the
-`litellm` runtime dependency and four later changes, so the next Windows stage
-needs a fresh inventory review that covers them:
-
-- the Python license inventory gains the `anthropic` client SDK and its new
-  dependencies (`httpx2`, `httpcore2`, `truststore` and `docstring-parser`;
-  `idna` moves to 3.20);
-- the `google-genai` stack returns at new versions for
-  [Gemini voices](../runtime/gemini-tts.md): `google-genai` 2.33.0
-  (Apache-2.0), `google-auth` 2.62.0, `pyasn1` 0.6.4 and `pyasn1-modules`
-  0.4.2; `cachetools` and `rsa` are no longer present;
-- the notice inventory changes because the `model-provider-logos` group in
-  `runtime/license-sources.json` now covers ten logos, including the
-  Anthropic mark from models.dev;
-- offline speech recognition for Japanese, Korean and Chinese adds the
-  `sensevoice-input` and `sensevoice-webgpu-input` notice groups
-  (`sensevoice-attribution.txt` and the FunASR Model License 1.1 text in
-  `sensevoice-funasr-model-license.txt`) and the `opencc-dictionary-data` group
-  (`opencc-data-apache-2.0.txt`). The JavaScript inventory gains `opencc-js`
-  1.4.2 (MIT), whose bundled `cn2t` tables come from opencc-data
-  (Apache-2.0). The SenseVoice weights stay runtime downloads.
-
 Allowlist entries in `release-scan.gitleaks.toml` that only covered `litellm`
-can be dropped once that scan passes without them; keep any that the returned
+can be dropped once a release scan passes without them; keep any that the
 `google-genai` package still needs.
 
 `httpx2`, which `anthropic`, `openai` 3 and `openai-agents` 0.24 use, verifies
