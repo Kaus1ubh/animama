@@ -4,7 +4,8 @@ The manual release process builds and reviews exact artifacts from `main`, then
 uses separate preview and stable publication commands. `raymond-van` is the
 configured maintainer. CI publication is not configured as the release path.
 
-Signed macOS previews 0.1.0 to 0.1.4 are published; no stable release is.
+Signed macOS previews 0.1.0 to 0.1.4 and stable releases 0.1.4 and 0.1.5 are
+published; the macOS update feed (`latest-mac.yml`) serves 0.1.5.
 Before distribution ends, a final release turns update checks and model
 downloads off; [Ending distribution](releases.md#ending-distribution) covers it
 and the cut-off. A local signed candidate can be built before the

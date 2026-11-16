@@ -72,10 +72,14 @@ export function checkSizes(
     budgets.core.installed_bytes,
   );
   ceiling("core.download", report.download_bytes, budgets.core.download_bytes);
+  // Targets are released separately, so each one is compared only with its own
+  // released baseline; a target never released is held to the hard caps alone.
   const previous = baseline.targets[report.target];
-  if (baseline.app_version !== null && !previous)
-    failures.push("Released baseline is missing this target");
   if (previous) {
+    if (!/^\d+\.\d+\.\d+$/u.test(previous.app_version ?? ""))
+      failures.push(
+        `Released baseline has no exact app version for ${report.target}`,
+      );
     for (const component of report.components) {
       const old = previous.components[component.name];
       if (!Number.isSafeInteger(old) || old <= 0)
@@ -99,7 +103,7 @@ export function checkSizes(
   return {
     failures,
     accepted_exceptions: [...new Set(accepted)],
-    regression_baseline: baseline.app_version ?? "not-yet-released",
+    regression_baseline: previous?.app_version ?? "not-yet-released",
   };
 }
 

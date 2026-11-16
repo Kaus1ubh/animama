@@ -368,8 +368,8 @@ metadata, runtime admission and update feeds target macOS 15. Rebuild rather
 than relabel artifacts, and retain the macOS 15 runtime-acceptance gate.
 
 Hard caps are 750 MiB compressed core and 1.5 GiB installed core. Five-percent
-component regressions are compared with the last **released** baseline. There
-is no released baseline yet. Exceptions require explicit owner approval, a
+component regressions are compared with the last **released** baseline,
+currently macOS 0.1.5; Windows has none yet. Exceptions require explicit owner approval, a
 dated/version-bounded record in `runtime/size-exceptions.json`, and a
 matching explicit approval in `runtime/size-approvals.json`. See
 [size exception decisions](size-decisions.md). License inventory records and `NOASSERTION` values

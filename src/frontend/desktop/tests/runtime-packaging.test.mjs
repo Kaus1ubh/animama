@@ -1738,7 +1738,46 @@ describe("size gates", () => {
     packs: {},
   };
   const noApprovals = { schema: "animama-size-approvals/1", approvals: [] };
-  const baseline = { app_version: null, targets: {} };
+  const baseline = { targets: {} };
+  it("compares each target only with its own released baseline", () => {
+    const released = {
+      targets: {
+        "darwin-arm64": { app_version: "0.0.9", components: { electron: 90 } },
+      },
+    };
+    const check = (overrides, record = released) =>
+      checkSizes(
+        { ...report, ...overrides },
+        budgets,
+        record,
+        { exceptions: [] },
+        noApprovals,
+      );
+    // A target that has never been released is held to the hard caps alone.
+    expect(check({ target: "win32-x64" })).toMatchObject({
+      failures: [],
+      regression_baseline: "not-yet-released",
+    });
+    // 100 bytes is more than 5% above the released 90.
+    expect(check({})).toMatchObject({
+      failures: ["electron: 100 bytes exceeds 94"],
+      regression_baseline: "0.0.9",
+    });
+    expect(
+      check({ components: [{ name: "electron", installed_bytes: 94 }] }),
+    ).toMatchObject({ failures: [], regression_baseline: "0.0.9" });
+    expect(
+      check(
+        {},
+        { targets: { "darwin-arm64": { components: { electron: 90 } } } },
+      ).failures,
+    ).toContain("Released baseline has no exact app version for darwin-arm64");
+    expect(
+      check({
+        components: [{ name: "web_javascript", installed_bytes: 1 }],
+      }).failures,
+    ).toEqual(["Released baseline is missing web_javascript"]);
+  });
   it("has no invented released baseline and enforces hard caps", () => {
     expect(
       checkSizes(report, budgets, baseline, { exceptions: [] }, noApprovals)
@@ -1756,8 +1795,9 @@ describe("size gates", () => {
   });
   it("rejects an unapproved or expired regression exception", () => {
     const previous = {
-      app_version: "0.0.9",
-      targets: { "darwin-arm64": { components: { electron: 90 } } },
+      targets: {
+        "darwin-arm64": { app_version: "0.0.9", components: { electron: 90 } },
+      },
     };
     const exception = {
       id: "SIZE-TEST",

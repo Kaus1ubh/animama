@@ -2,7 +2,9 @@
 
 Desktop staging, audits and release artifacts enforce the hard caps in
 `src/frontend/desktop/runtime/size-budgets.json` and compare component regressions
-with the last released `size-baseline.json`. There is no released baseline yet.
+with that target's entry in `size-baseline.json`, taken from its last released
+size report: macOS 0.1.5. Windows has no released entry yet, so its candidates
+are held to the hard caps alone.
 Neither a successful development build nor an unsigned size report changes a cap.
 
 An exception requires an explicit owner decision for an exact target, component,
