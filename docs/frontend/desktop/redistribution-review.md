@@ -73,8 +73,8 @@ or a successful Apple notarization does not grant redistribution permission.
 The core runtime of both targets freezes the upload parsers of the `documents`
 extra: python-docx, python-pptx, openpyxl and et_xmlfile (MIT), XlsxWriter
 (BSD-2-Clause), defusedxml (PSF), lxml (BSD-3-Clause) and pypdfium2
-(BSD-3-Clause or Apache-2.0). The next review of each target covers them, with
-two items to check in particular:
+(BSD-3-Clause or Apache-2.0). The `darwin-arm64` receipt covers them. The next
+`win32-x64` review must cover them too, with two items to check in particular:
 
 - lxml's binary wheels statically link zlib, libxml2, libxslt, libexslt and GNU
   libiconv. libiconv is LGPL-2.1: as for `psycopg`, review its linkage,

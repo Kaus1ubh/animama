@@ -171,8 +171,8 @@ same installer; see [Releases](releases.md#what-people-see).
 
 1. Build version N with `pnpm desktop:win:installer`, and copy
    `Animama-<N>-x64-setup.exe` out of `desktop/release`.
-2. Set a higher `version` in `desktop/package.json` locally, for example
-   `0.1.4`. Do not commit it.
+2. Set a higher `version` in `desktop/package.json` locally, such as the next
+   patch version. Do not commit it.
 3. Stage, audit and build again. The runtime manifest records the app version,
    and the app refuses a runtime staged for another version.
 4. Install N, run it, then run the N+1 installer: it replaces N in place and
