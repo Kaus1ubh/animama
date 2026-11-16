@@ -6,6 +6,13 @@ export type VoiceSubmitReason =
   | "semantic_end_turn"
   | "silence_timeout";
 
+/**
+ * Whether a turn's attachments let it be sent: `none`; `waiting` while one is
+ * still uploading or processing; `blocked` while one cannot be read and must
+ * be removed first.
+ */
+export type ChatAttachmentHold = "none" | "waiting" | "blocked";
+
 /** The issued server fence is required even when visual playback is unavailable. */
 export type ChatRuntimeFence = {
   runtimeRevision: string | null;

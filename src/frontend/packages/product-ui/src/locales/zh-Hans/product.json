@@ -143,12 +143,14 @@
     }
   },
   "composer": {
+    "removeUnreadableFiles": "移除无法读取的文件后才能发送",
     "send": "发送消息",
     "sending": "正在发送消息",
     "speechUnavailable": "离线语音识别不可用",
     "stop": "停止",
     "stopVoice": "停止语音模式",
-    "voiceMode": "语音模式"
+    "voiceMode": "语音模式",
+    "waitingForFiles": "正在等待文件就绪"
   },
   "conversation": {
     "label": "对话"
@@ -172,6 +174,8 @@
       "avatarSessionExpired": "此虚拟形象会话已过期。请重新加载后再次发送消息。",
       "chatLoadFailed": "无法加载聊天。",
       "chatLoading": "聊天仍在加载中。",
+      "filesNotReady": "附件尚未就绪。",
+      "filesUnreadable": "请先移除无法读取的文件再发送。",
       "missingAnima": "缺少 Anima。",
       "modelNotDirect": "此模型暂不支持直接聊天。",
       "modelsLoading": "模型仍在加载中。",

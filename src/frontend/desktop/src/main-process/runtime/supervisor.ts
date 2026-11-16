@@ -25,10 +25,6 @@ import {
   type ActivePacks,
   type PackTransition,
 } from "../feature-packs/manager.js";
-import {
-  DOCUMENT_EXECUTABLE,
-  verifyExecutablePack,
-} from "../feature-packs/signature.js";
 import { atomicWrite } from "./atomic-file.js";
 import { RuntimeError, runtimeErrorCode } from "./errors.js";
 import {
@@ -105,12 +101,10 @@ export class RuntimeSupervisor {
   private postgres?: PrivatePostgres;
   private backend?: OwnedProcess;
   private cleanupWorker?: OwnedProcess;
-  private documentWorker?: OwnedProcess;
   private packs?: FeaturePackManager;
   private activePacks: ActivePacks = {};
   private backendOrigin?: URL;
   private renderersQuiesced = false;
-  private documentInstance = randomUUID();
   private vault?: CredentialVault;
   // Main owns these bounded status entries (providers, the vault's connection
   // keys and at most 32 unsaved connection failures); product windows can be
@@ -131,7 +125,6 @@ export class RuntimeSupervisor {
   private readonly controlToken = randomBytes(32).toString("hex");
   /** Orders credential deliveries; each backend accepts only newer generations. */
   private credentialGeneration = 0;
-  private documentWorkerRestartQueued = false;
   readonly rendererCapability = randomBytes(32).toString("hex");
   constructor(private options: SupervisorOptions) {
     runtimeRedactor.add(this.controlToken, this.rendererCapability);
@@ -203,19 +196,8 @@ export class RuntimeSupervisor {
           root: path.join(this.options.runtimeRoot, "content", id),
         })).filter((source) => existsSync(source.root)),
       ]),
-      ANIMAMA_USER_FILE_PROCESSING_ENABLED: this.activePacks[
-        "document-processing"
-      ]
-        ? "1"
-        : "0",
-      ANIMAMA_DOCUMENT_WORKER_INSTANCE_ID: this.documentInstance,
-      ...(this.activePacks["document-processing"]
-        ? {
-            ANIMAMA_DOCUMENT_PACK_VERSION: versionDirectory(
-              this.activePacks["document-processing"].manifest,
-            ),
-          }
-        : {}),
+      // No upload-processing switch: the core backend reads uploads itself
+      // and leaves processing on by its default.
       ANIMAMA_DESKTOP_BUILD_ID: this.manifest.build_id,
       ANIMAMA_DESKTOP_APP_VERSION: this.options.appVersion,
       ANIMAMA_LOCAL_BIND_HOST: "127.0.0.1",
@@ -440,7 +422,6 @@ export class RuntimeSupervisor {
             );
           }
         });
-        await this.startDocumentWorker();
         await this.startBackend(database.installation_principal_id);
         backup.successfulLaunch(database.alembic_head!, this.launchId);
       } catch (error) {
@@ -547,9 +528,7 @@ export class RuntimeSupervisor {
       !this.postgres?.process ||
       !owned.children.has(this.postgres.process) ||
       !this.cleanupWorker ||
-      !owned.children.has(this.cleanupWorker) ||
-      (this.activePacks["document-processing"] &&
-        (!this.documentWorker || !owned.children.has(this.documentWorker)))
+      !owned.children.has(this.cleanupWorker)
     )
       throw new RuntimeError("backend_start_failed");
     this.backendOrigin = new URL(origin);
@@ -621,14 +600,12 @@ export class RuntimeSupervisor {
   private async restartConsumers(): Promise<void> {
     this.expectedBackendExit = true;
     await this.quiesceRenderers();
-    await this.stopDocumentWorker();
     if (this.backend) await this.owned!.terminate(this.backend);
     this.backend = undefined;
     this.backendOrigin = undefined;
     const database = await this.databaseCommand("inspect");
     if (!database.installation_principal_id)
       throw new RuntimeError("installation_principal_missing");
-    await this.startDocumentWorker();
     await this.startBackend(database.installation_principal_id);
   }
   credentials(): CredentialStatus[] {
@@ -703,9 +680,6 @@ export class RuntimeSupervisor {
         throw error;
       }
     }
-    // Never interrupt an actively leased document job to install an app update.
-    if (this.activePacks["document-processing"])
-      await this.requirePackRemovable("document-processing");
   }
   preflightUpdate(candidate: UpdateCandidate): Promise<void> {
     return this.serialize(() => this.checkUpdatePacks(candidate));
@@ -721,7 +695,6 @@ export class RuntimeSupervisor {
       try {
         await this.quiesceBackend();
         await this.quiesceRenderers();
-        await this.stopDocumentWorker();
         await this.checkUpdatePacks(candidate);
       } catch (error) {
         this.updatePending = false;
@@ -757,44 +730,6 @@ export class RuntimeSupervisor {
     this.updatePending = false;
     this.shutdownRequested = false;
     await this.start();
-  }
-  /**
-   * Signature verification is repeated at every launch, including provider
-   * restarts. A worker-only restart keeps the instance id the running FastAPI
-   * was started with, so its readiness check still recognises the worker.
-   */
-  private async startDocumentWorker(renewInstance = true): Promise<void> {
-    const pack = this.activePacks["document-processing"];
-    if (!pack) return;
-    await verifyExecutablePack(pack.root, pack.manifest);
-    if (renewInstance) this.documentInstance = randomUUID();
-    const executable = path.join(pack.root, DOCUMENT_EXECUTABLE);
-    const expected = pack.manifest.files.find(
-      (file) => file.path === DOCUMENT_EXECUTABLE,
-    )!;
-    const env = this.environment();
-    env.ANIMAMA_DOCUMENT_WORKER_EXECUTABLE = executable;
-    env.ANIMAMA_DOCUMENT_WORKER_ROOT = pack.root;
-    env.ANIMAMA_DOCUMENT_WORKER_EXECUTABLE_SHA256 = expected.sha256;
-    this.documentWorker = this.owned!.launch(
-      "document-worker",
-      this.executable(),
-      ["worker", "user-files"],
-      env,
-      this.options.paths.base,
-    );
-    const child = this.documentWorker;
-    void child.exit.then(() => {
-      if (!this.shutdownRequested && this.documentWorker === child) {
-        this.setStatus({ state: "error", code: "document_worker_exited" });
-        void this.serialize(() => this.stopServices()).catch(() => undefined);
-      }
-    });
-  }
-  private async stopDocumentWorker(): Promise<void> {
-    const child = this.documentWorker;
-    this.documentWorker = undefined;
-    if (child) await this.owned!.terminate(child);
   }
   private async requirePackRemovable(id: FeaturePackId): Promise<void> {
     if (!this.backendOrigin) throw new RuntimeError("runtime_not_ready");
@@ -835,7 +770,6 @@ export class RuntimeSupervisor {
           "runtime_lease",
           "preview_lease",
           "content_operation",
-          "document_job",
         ].includes(blocker.kind) ||
         typeof blocker.id !== "string" ||
         blocker.id.length > 128 ||
@@ -860,9 +794,8 @@ export class RuntimeSupervisor {
       try {
         await this.quiesceBackend();
         await this.quiesceRenderers();
-        await this.stopDocumentWorker();
-        // Recheck after stopping the worker: a job could have been claimed
-        // between the first preflight and the graceful stop.
+        // Recheck after the drain: a reference could have been added between
+        // the first preflight and quiescence.
         await this.requirePackRemovable(change.id);
         this.expectedBackendExit = true;
         if (this.backend) await this.owned!.terminate(this.backend);
@@ -874,13 +807,11 @@ export class RuntimeSupervisor {
         const database = await this.databaseCommand("inspect");
         if (!database.installation_principal_id)
           throw new RuntimeError("installation_principal_missing");
-        await this.startDocumentWorker();
         await this.startBackend(database.installation_principal_id);
       } catch (error) {
         try {
           this.expectedBackendExit = true;
           await this.quiesceRenderers();
-          await this.stopDocumentWorker();
           if (this.backend) await this.owned!.terminate(this.backend);
           this.backend = undefined;
           this.backendOrigin = undefined;
@@ -889,7 +820,6 @@ export class RuntimeSupervisor {
           const database = await this.databaseCommand("inspect");
           if (!database.installation_principal_id)
             throw new RuntimeError("installation_principal_missing");
-          await this.startDocumentWorker();
           await this.startBackend(database.installation_principal_id);
         } catch (recoveryError) {
           await this.stopServices().catch(() => undefined);
@@ -936,7 +866,6 @@ export class RuntimeSupervisor {
           return this.credentials();
         }
       }
-      this.queueDocumentWorkerRestart();
       return this.credentials();
     });
   }
@@ -1006,28 +935,6 @@ export class RuntimeSupervisor {
     }
   }
   /**
-   * The document worker embeds with saved keys from its environment, so it
-   * restarts after a delivery. Queued behind the save and coalesced.
-   */
-  private queueDocumentWorkerRestart(): void {
-    if (
-      !this.activePacks["document-processing"] ||
-      this.documentWorkerRestartQueued
-    )
-      return;
-    this.documentWorkerRestartQueued = true;
-    void this.serialize(async () => {
-      this.documentWorkerRestartQueued = false;
-      // Transitions and shutdown that ran first have already stopped it.
-      if (!this.documentWorker || this.shutdownRequested) return;
-      await this.stopDocumentWorker();
-      await this.startDocumentWorker(false);
-    }).catch((error) => {
-      this.setStatus({ state: "error", code: runtimeErrorCode(error) });
-      void this.serialize(() => this.stopServices()).catch(() => undefined);
-    });
-  }
-  /**
    * Remember a batch's failure for the replacement window. Failures for
    * connection keys that were never saved are capped, oldest first.
    */
@@ -1068,7 +975,6 @@ export class RuntimeSupervisor {
     );
     this.backend = undefined;
     this.backendOrigin = undefined;
-    await stop(() => this.stopDocumentWorker());
     await stop(() =>
       this.cleanupWorker
         ? this.owned?.terminate(this.cleanupWorker)

@@ -1,19 +1,22 @@
-"""Optional desktop work is admitted by the API, independently of renderer state."""
+"""Runtime capabilities and private desktop controls are decided by the API, independently of renderer state."""
 
 from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
+from typing import cast
 from unittest.mock import AsyncMock
-from uuid import uuid4
 
 import pytest
 from fastapi import FastAPI, HTTPException
 from sqlalchemy import delete
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from animama.adapters.model_assets import FilesystemModelAssetStore
 from animama.adapters.repositories.sqlalchemy.runtime_worker_repo import (
     clear_document_heartbeat,
     record_document_heartbeat,
 )
+from animama.app.ports.private_file_storage import PrivateFileStorage
+from animama.app.ports.text_embedder import TextEmbedder
 from animama.app.services.model_asset_service import ModelAssetService
 from animama.app.services.user_file_processing_service import (
     UserFileProcessingConflictError,
@@ -22,18 +25,32 @@ from animama.app.services.user_file_processing_service import (
 from animama.domain.model_assets import ASSET_CATALOG_SCHEMA, parse_asset_catalog
 from animama.domain.request_principal import RequestPrincipal
 from animama.orm.runtime_worker import ORMRuntimeWorkerHeartbeat
-from animama.orm.user_file import ORMUserFile
-from animama.orm.user_file_processing_job import ORMUserFileProcessingJob
 from animama.product_http.routes import runtime_capabilities
 from animama.server.config import Settings
 from animama.server.deps import get_async_session, get_current_principal
 from animama.server.routers import desktop_control, user_files
+from animama.server.user_file_processing import UserFileProcessingRunner
 from tests.local_http_client import local_client
 from tests.product_http_support import install_local_ports
 from tests.test_model_asset_sets import FILES, GPU_FILES, GPU_MANIFEST, MANIFEST, SetRelease, _set_entry
 
 
-def _app(session, tmp_path, *, enabled=False, **settings):
+def _idle_runner(runtime_settings: Settings, instance_id: str) -> UserFileProcessingRunner:
+    """A processing runner that never starts; the capability reads only its identity."""
+
+    async def embeddings_off(_session: AsyncSession, _user_id: str) -> TextEmbedder | None:
+        return None
+
+    return UserFileProcessingRunner(
+        cast(async_sessionmaker[AsyncSession], None),
+        private_storage=cast(PrivateFileStorage, None),
+        embedder_resolver=embeddings_off,
+        runtime_settings=runtime_settings,
+        instance_id=instance_id,
+    )
+
+
+def _app(session, tmp_path, *, enabled=False, runner_instance="expected-instance", **settings):
     """Use real route dependencies with a deliberately separate test principal."""
 
     app = FastAPI()
@@ -42,9 +59,10 @@ def _app(session, tmp_path, *, enabled=False, **settings):
         animama_data_root=tmp_path / "data",
         animama_user_file_processing_enabled=enabled,
         animama_desktop_control_token="c" * 64,
-        animama_document_worker_instance_id="expected-instance",
         **{"animama_parakeet_stt_enabled": False, **settings},
     )
+    if runner_instance is not None:
+        app.state.user_file_processing_runner = _idle_runner(app.state.runtime_settings, runner_instance)
     app.state.local_runtime_paths = SimpleNamespace(included_sources=(), operations_root=tmp_path / "operations")
     app.include_router(runtime_capabilities.router)
     app.include_router(desktop_control.router)
@@ -72,9 +90,7 @@ def _app(session, tmp_path, *, enabled=False, **settings):
         (True, 1, "previous-instance", "starting"),
     ],
 )
-async def test_capabilities_separate_pack_presence_and_worker_liveness(
-    async_session, tmp_path, enabled, age, instance, expected
-):
+async def test_capabilities_report_the_processors_liveness(async_session, tmp_path, enabled, age, instance, expected):
     await async_session.execute(delete(ORMRuntimeWorkerHeartbeat))
     if age is not None:
         async_session.add(
@@ -101,8 +117,31 @@ async def test_capabilities_separate_pack_presence_and_worker_liveness(
         assert (processing["last_heartbeat_at"] is not None) == (expected in {"ready", "stale"})
         assert "expected-instance" not in response.text
         assert "c" * 64 not in response.text
+        # The capability keeps its shape (spec R1.7), though no pack provides processing any more.
+        assert processing["pack_id"] == "document-processing"
     await async_session.execute(delete(ORMRuntimeWorkerHeartbeat))
     await async_session.commit()
+
+
+async def test_capabilities_wait_for_the_servers_own_processor(async_session, tmp_path):
+    """A fresh heartbeat proves nothing until this server's runner is the one renewing it."""
+
+    await async_session.execute(delete(ORMRuntimeWorkerHeartbeat))
+    async_session.add(
+        ORMRuntimeWorkerHeartbeat(
+            kind="document-processing", instance_id="expected-instance", heartbeat_at=datetime.now(UTC)
+        )
+    )
+    await async_session.commit()
+    try:
+        app = _app(async_session, tmp_path, enabled=True, runner_instance=None)
+        async with local_client(app) as client:
+            processing = (await client.get("/v1/runtime-capabilities")).json()["user_file_processing"]
+        assert (processing["enabled"], processing["worker_state"]) == (True, "starting")
+        assert processing["last_heartbeat_at"] is None
+    finally:
+        await async_session.execute(delete(ORMRuntimeWorkerHeartbeat))
+        await async_session.commit()
 
 
 async def test_operator_parakeet_source_reports_its_flag_without_versions(async_session, tmp_path):
@@ -197,8 +236,9 @@ async def test_private_control_is_not_a_browser_api_and_contains_no_paths(async_
         assert result.json()["removable"] is True
         assert result.json()["blockers"] == []
         assert str(tmp_path) not in result.text
-        # Parakeet sets are backend model assets now, not removable packs.
-        for unknown in ("unknown", "parakeet-stt", "parakeet-stt-webgpu"):
+        # Parakeet sets are backend model assets now, and the server itself processes
+        # uploads, so none of these is a removable pack.
+        for unknown in ("unknown", "parakeet-stt", "parakeet-stt-webgpu", "document-processing"):
             assert (
                 await client.post(
                     f"/_desktop/feature-packs/{unknown}:removal-check", headers={"X-Animama-Desktop-Control": "c" * 64}
@@ -213,63 +253,13 @@ async def test_private_control_is_not_a_browser_api_and_contains_no_paths(async_
 
 
 async def test_old_worker_cannot_clear_replacement_heartbeat(async_session):
-    await record_document_heartbeat(async_session, instance_id="new", worker_id="new-worker")
+    await record_document_heartbeat(async_session, instance_id="new", worker_id="new-worker", job_id=None)
     await clear_document_heartbeat(async_session, instance_id="old")
     row = await async_session.get(ORMRuntimeWorkerHeartbeat, "document-processing")
     assert row.instance_id == "new"
     await clear_document_heartbeat(async_session, instance_id="new")
     async_session.expire_all()
     assert await async_session.get(ORMRuntimeWorkerHeartbeat, "document-processing") is None
-
-
-async def test_removal_control_blocks_live_jobs_and_preserves_the_queue(async_session, tmp_path):
-    file_id = str(uuid4())
-    now = datetime.now(UTC)
-    async_session.add(
-        ORMUserFile(
-            id=file_id,
-            user_id="installation-owner",
-            storage_locator=f"files/{file_id}/original",
-            original_filename="Project\nnotes.pdf",
-            normalized_extension=".pdf",
-            declared_size_bytes=10,
-            stored_size_bytes=10,
-            status="uploaded",
-            upload_expires_at=now + timedelta(minutes=5),
-        )
-    )
-    await async_session.flush()
-    for status in ("running", "queued"):
-        async_session.add(
-            ORMUserFileProcessingJob(
-                id=f"{file_id}-{status}",
-                file_id=file_id,
-                user_id="installation-owner",
-                status=status,
-                locked_at=now if status == "running" else None,
-                locked_by="worker" if status == "running" else None,
-            )
-        )
-    await async_session.commit()
-    try:
-        app = _app(async_session, tmp_path, enabled=True)
-        async with local_client(app) as client:
-            url = "/_desktop/feature-packs/document-processing:removal-check"
-            headers = {"X-Animama-Desktop-Control": "c" * 64}
-            blocked = (await client.post(url, headers=headers)).json()
-            assert blocked["removable"] is False
-            assert blocked["blockers"] == [
-                {"kind": "document_job", "id": f"{file_id}-running", "label": "Projectnotes.pdf"}
-            ]
-            running = await async_session.get(ORMUserFileProcessingJob, f"{file_id}-running")
-            running.status = "succeeded"
-            await async_session.commit()
-            assert (await client.post(url, headers=headers)).json()["removable"] is True
-            assert (await async_session.get(ORMUserFileProcessingJob, f"{file_id}-queued")).status == "queued"
-            assert (await async_session.get(ORMUserFile, file_id)).stored_size_bytes == 10
-    finally:
-        await async_session.execute(delete(ORMUserFile).where(ORMUserFile.id == file_id))
-        await async_session.commit()
 
 
 @pytest.mark.parametrize("desktop_token", ["c" * 64, None])

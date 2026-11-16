@@ -129,8 +129,7 @@
         "scripts/runtime/ci-keychain.mjs",
         "scripts/runtime/ci-smoke.mjs",
         "scripts/runtime/publish-macos.mjs",
-        "scripts/runtime/native-build.mjs",
-        "scripts/runtime/worker-input.mjs"
+        "scripts/runtime/native-build.mjs"
       ],
       "project": [
         "*.ts",

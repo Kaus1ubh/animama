@@ -1,7 +1,12 @@
 from __future__ import annotations
 
+import asyncio
 import hashlib
+import time
+from collections.abc import Iterator
+from contextlib import contextmanager
 from datetime import UTC, datetime, timedelta
+from io import BytesIO
 from types import SimpleNamespace
 from typing import Any, cast
 
@@ -10,18 +15,29 @@ from fastapi import HTTPException
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from animama.adapters.parsers import docling_user_file_parser as docling_parser_module
-from animama.adapters.parsers.docling_user_file_parser import DoclingUserFileParser, DoclingUserFileParserError
+from animama.adapters.content_store.private_file_store import (
+    PrivateFileNotFoundError,
+    PrivateFileReadError,
+    PrivateFileSizeMismatchError,
+)
+from animama.adapters.parsers.dispatch import parse_user_file
+from animama.adapters.parsers.isolated_user_file_parser import UserFileParseChildError
+from animama.adapters.parsers.rejections import ENCRYPTED_DOCUMENT_REASON
+from animama.adapters.parsers.text_user_file_parser import parse_text_user_file
 from animama.adapters.repositories.sqlalchemy.runtime_worker_repo import record_document_heartbeat
 from animama.adapters.repositories.sqlalchemy.uow import SQLAlchemyUnitOfWork
 from animama.adapters.repositories.sqlalchemy.user_file_processing_repo import SQLAlchemyUserFileProcessingRepository
+from animama.app.ports.private_file_storage import PrivateFileStorage
+from animama.app.ports.user_file_parser_port import UserFileParseRejectedError
 from animama.app.ports.user_file_processing_port import UserFileProcessingRepository
 from animama.app.services import user_file_processing_service as processing_service_module
+from animama.app.services.user_file_chunking import chunk_parsed_user_file_document
 from animama.app.services.user_file_processing_service import (
     UserFileProcessingService,
     UserFileProcessingUnavailableError,
-    chunk_parsed_user_file_document,
-    parse_lightweight_user_file,
+    UserFileProcessingValidationError,
+    is_retryable_processing_failure,
+    read_claimed_upload,
 )
 from animama.domain.request_principal import RequestPrincipal
 from animama.domain.user_file import (
@@ -36,12 +52,14 @@ from animama.domain.user_file_processing import (
     JOB_STATUS_QUEUED,
     JOB_STATUS_RUNNING,
     JOB_STATUS_SUCCEEDED,
+    PROCESSING_INTERRUPTED_ERROR,
     ClaimedUserFileProcessingJob,
     ParsedUserFileDocument,
     UserFileChunkDraft,
     UserFileOutlineItem,
     UserFileProcessingJob,
     UserFileSearchResult,
+    markdown_table,
 )
 from animama.orm.user_file import ORMUserFile
 from animama.orm.user_file_chunk import ORMUserFileChunk
@@ -49,6 +67,7 @@ from animama.orm.user_file_processing_job import ORMUserFileProcessingJob
 from animama.server.model_roles import ModelRoleSettings
 from animama.server.routers import user_files as user_files_router
 from animama.server.schemas.user_file import PyUserFileProcessRequest, PyUserFileSearchRequest
+from tests.user_file_fixtures import IMAGE_PAGE, pdf_bytes, text_page
 
 
 class _FakeEmbedder:
@@ -367,24 +386,49 @@ def _claimed_processing_job(
     )
 
 
-async def test_worker_heartbeat_renews_only_its_own_running_job(async_session, clean_user_file_tables):
+async def test_worker_heartbeat_renews_only_its_current_job(async_session, clean_user_file_tables):
+    """A job the worker left behind, such as one whose outcome failed to record, must let its lease expire."""
+
     before = _now() - timedelta(seconds=600)
-    for name, status in (("own", JOB_STATUS_RUNNING), ("foreign", JOB_STATUS_RUNNING), ("queued", JOB_STATUS_QUEUED)):
+    jobs = (
+        ("own", JOB_STATUS_RUNNING),
+        ("stranded", JOB_STATUS_RUNNING),
+        ("foreign", JOB_STATUS_RUNNING),
+        ("queued", JOB_STATUS_QUEUED),
+    )
+    for name, status in jobs:
         await _insert_file(async_session, file_id=name)
         await _insert_job(async_session, job_id=name, file_id=name, status=status, locked_at=before)
     foreign = await async_session.get(ORMUserFileProcessingJob, "foreign")
     foreign.locked_by = "other-worker"
     await async_session.commit()
 
-    await record_document_heartbeat(async_session, instance_id="installation-worker", worker_id="old-worker")
+    await record_document_heartbeat(
+        async_session, instance_id="installation-worker", worker_id="old-worker", job_id="own"
+    )
     async_session.expire_all()
     own = await async_session.get(ORMUserFileProcessingJob, "own")
+    stranded = await async_session.get(ORMUserFileProcessingJob, "stranded")
     foreign = await async_session.get(ORMUserFileProcessingJob, "foreign")
     queued = await async_session.get(ORMUserFileProcessingJob, "queued")
     assert own.locked_at > _now() - timedelta(seconds=5)
+    assert stranded.locked_at == before
     assert foreign.locked_at == before
     assert queued.locked_at == before
     assert queued.status == JOB_STATUS_QUEUED
+
+
+async def test_idle_worker_heartbeat_renews_no_job(async_session, clean_user_file_tables):
+    before = _now() - timedelta(seconds=600)
+    await _insert_file(async_session, file_id="stranded")
+    await _insert_job(async_session, job_id="stranded", file_id="stranded", status=JOB_STATUS_RUNNING, locked_at=before)
+
+    await record_document_heartbeat(
+        async_session, instance_id="installation-worker", worker_id="old-worker", job_id=None
+    )
+    async_session.expire_all()
+    stranded = await async_session.get(ORMUserFileProcessingJob, "stranded")
+    assert stranded.locked_at == before
 
 
 @pytest.mark.asyncio
@@ -522,11 +566,12 @@ async def test_replace_chunks_success_and_search_modes(async_session, clean_user
     await _insert_job(async_session, job_id="job-search", file_id="file-search", status=JOB_STATUS_RUNNING, attempts=1)
     repo = SQLAlchemyUserFileProcessingRepository(async_session)
     parsed = ParsedUserFileDocument(
-        text="Alpha project notes.\n\nBeta budget table.",
+        text="# Alpha\n\n" + "Alpha project notes. " * 8 + "\n\n# Beta\n\n" + "Beta budget table. " * 8,
         parser_name="test",
-        metadata={"parser": "test"},
+        metadata={"parser": "test", "format": "md"},
     )
-    chunks = chunk_parsed_user_file_document(parsed, target_chars=40, overlap_chars=5)
+    chunks = chunk_parsed_user_file_document(parsed, max_tokens=64)
+    assert len(chunks) == 2
 
     completed = await repo.replace_chunks_and_mark_success(
         job_id="job-search",
@@ -615,6 +660,8 @@ async def test_reuse_processed_file_clones_same_user_digest_result_atomically(
     clean_user_file_tables,
 ) -> None:
     digest = hashlib.sha256(b"same bytes").hexdigest()
+    # The source is a row the retired Docling worker processed: its chunks,
+    # overview and processing record are reused exactly as stored.
     await _insert_file(
         async_session,
         file_id="file-source",
@@ -880,50 +927,343 @@ async def test_mark_job_failure_retries_then_fails_file(async_session, clean_use
     assert file_obj.status == STATUS_FAILED
 
 
-@pytest.mark.asyncio
-async def test_complete_claimed_job_uses_parser_chunks_and_embedding_text() -> None:
+async def test_mark_job_failure_without_retry_fails_job_and_file_at_once(async_session, clean_user_file_tables) -> None:
+    await _insert_file(async_session, file_id="file-permanent", status=STATUS_PROCESSING)
+    await _insert_job(
+        async_session,
+        job_id="job-permanent",
+        file_id="file-permanent",
+        status=JOB_STATUS_RUNNING,
+        attempts=1,
+        max_attempts=3,
+    )
+    repo = SQLAlchemyUserFileProcessingRepository(async_session)
+
+    failed = await repo.mark_job_failure(
+        job_id="job-permanent",
+        user_id="user-1",
+        file_id="file-permanent",
+        error="No searchable text was extracted from the uploaded file",
+        now=_now(),
+        retry_delay_seconds=10,
+        retryable=False,
+    )
+    file_obj = await async_session.get(ORMUserFile, "file-permanent")
+
+    assert (failed.status, failed.attempts, failed.locked_by) == (JOB_STATUS_FAILED, 1, None)
+    assert failed.finished_at is not None
+    assert file_obj is not None
+    assert (file_obj.status, file_obj.last_error) == (
+        STATUS_FAILED,
+        "No searchable text was extracted from the uploaded file",
+    )
+
+
+async def test_claim_fails_interrupted_last_attempts_but_spares_files_with_newer_work(
+    async_session_factory, clean_user_file_tables
+) -> None:
+    expired = _now() - timedelta(minutes=10)
+    async with async_session_factory() as setup:
+        await _insert_file(setup, file_id="file-interrupted", status=STATUS_PROCESSING)
+        await _insert_job(
+            setup,
+            job_id="job-interrupted",
+            file_id="file-interrupted",
+            status=JOB_STATUS_RUNNING,
+            attempts=3,
+            max_attempts=3,
+            locked_at=expired,
+        )
+        # A forced reprocess queued a newer job (due later) before the old last attempt expired.
+        await _insert_file(setup, file_id="file-requeued", status=STATUS_PROCESSING)
+        await _insert_job(
+            setup,
+            job_id="job-requeued-old",
+            file_id="file-requeued",
+            status=JOB_STATUS_RUNNING,
+            attempts=3,
+            max_attempts=3,
+            locked_at=expired,
+        )
+        await _insert_job(
+            setup,
+            job_id="job-requeued-new",
+            file_id="file-requeued",
+            run_after=_now() + timedelta(minutes=5),
+        )
+
+    async with async_session_factory() as session:
+        service = UserFileProcessingService(
+            processing=SQLAlchemyUserFileProcessingRepository(session),
+            uow=SQLAlchemyUnitOfWork(session),
+        )
+        assert await service.claim_next_job(worker_id="worker-1", lease_seconds=300) is None
+
+    # The sweep committed although nothing was claimed.
+    async with async_session_factory() as session:
+        interrupted_job = await session.get(ORMUserFileProcessingJob, "job-interrupted")
+        interrupted_file = await session.get(ORMUserFile, "file-interrupted")
+        old_job = await session.get(ORMUserFileProcessingJob, "job-requeued-old")
+        new_job = await session.get(ORMUserFileProcessingJob, "job-requeued-new")
+        requeued_file = await session.get(ORMUserFile, "file-requeued")
+    assert interrupted_job is not None and interrupted_file is not None
+    assert (interrupted_job.status, interrupted_job.last_error) == (JOB_STATUS_FAILED, PROCESSING_INTERRUPTED_ERROR)
+    assert (interrupted_job.locked_by, interrupted_job.locked_at) == (None, None)
+    assert interrupted_job.finished_at is not None
+    assert (interrupted_file.status, interrupted_file.last_error) == (STATUS_FAILED, PROCESSING_INTERRUPTED_ERROR)
+    assert old_job is not None and new_job is not None and requeued_file is not None
+    assert old_job.status == JOB_STATUS_FAILED
+    assert new_job.status == JOB_STATUS_QUEUED
+    assert (requeued_file.status, requeued_file.last_error) == (STATUS_PROCESSING, None)
+
+
+def test_only_unexpected_failures_are_retried() -> None:
+    assert is_retryable_processing_failure(RuntimeError("database restarted")) is True
+    assert is_retryable_processing_failure(UserFileParseChildError("The file could not be read.")) is True
+    assert is_retryable_processing_failure(UserFileProcessingValidationError("Uploaded object is empty")) is False
+    assert is_retryable_processing_failure(UserFileParseRejectedError(ENCRYPTED_DOCUMENT_REASON)) is False
+
+
+def _claimed_upload_from(storage: object) -> bytes | None:
+    return read_claimed_upload(
+        cast(PrivateFileStorage, storage),
+        _claimed_processing_job(file_id="file-read", extension=".txt"),
+        max_process_bytes=16,
+    )
+
+
+@pytest.mark.parametrize(
+    "missing",
+    [PrivateFileNotFoundError("gone"), PrivateFileSizeMismatchError(expected_size_bytes=64, actual_size_bytes=3)],
+)
+def test_missing_or_resized_upload_reads_as_absent(missing: Exception) -> None:
+    """Reading again cannot help, so the job fails as a missing upload."""
+
+    class Storage:
+        @contextmanager
+        def open_bounded(self, locator: str, *, expected_size_bytes: int) -> Iterator[SimpleNamespace]:
+            raise missing
+            yield SimpleNamespace()
+
+    assert _claimed_upload_from(Storage()) is None
+
+
+@pytest.mark.parametrize(
+    "failure",
+    [PrivateFileReadError("Private file changed or became unreadable"), PermissionError(13, "Permission denied")],
+)
+def test_other_upload_read_errors_propagate_so_the_job_retries(failure: Exception) -> None:
+    class Storage:
+        @contextmanager
+        def open_bounded(self, locator: str, *, expected_size_bytes: int) -> Iterator[SimpleNamespace]:
+            raise failure
+            yield SimpleNamespace()
+
+    with pytest.raises(type(failure)):
+        _claimed_upload_from(Storage())
+    assert is_retryable_processing_failure(failure) is True
+
+
+def test_upload_reads_at_most_one_byte_past_the_processing_limit() -> None:
+    class Storage:
+        @contextmanager
+        def open_bounded(self, locator: str, *, expected_size_bytes: int) -> Iterator[SimpleNamespace]:
+            yield SimpleNamespace(stream=BytesIO(b"x" * 64), size_bytes=64, sha256="unused")
+
+    assert _claimed_upload_from(Storage()) == b"x" * 17
+
+
+async def test_storing_and_reusing_embedded_chunks_keeps_the_event_loop_responsive(
+    async_session_factory, clean_user_file_tables
+) -> None:
+    """Writing or copying a large file's vectors leaves other requests running (spec R1.6)."""
+
+    digest = "e" * 64
+    async with async_session_factory() as setup:
+        for file_id in ("file-embedded", "file-duplicate"):
+            await _insert_file(setup, file_id=file_id, status=STATUS_PROCESSING)
+            await _insert_job(setup, job_id=f"job-{file_id}", file_id=file_id, status=JOB_STATUS_RUNNING, attempts=1)
+    vector = [(index % 97) / 97 for index in range(1536)]
+    chunks = [
+        UserFileChunkDraft(
+            chunk_index=index,
+            text=f"Chunk {index} " * 40,
+            char_count=400,
+            token_estimate=100,
+            metadata={"filename": "file-embedded.txt", "chunk_type": "prose"},
+            embedding=vector,
+        )
+        for index in range(1200)
+    ]
+    gaps: list[float] = []
+
+    async def tick() -> None:
+        previous = time.perf_counter()
+        while True:
+            await asyncio.sleep(0.005)
+            current = time.perf_counter()
+            gaps.append(current - previous)
+            previous = current
+
+    async def longest_stall(write) -> tuple[float, float]:
+        gaps.clear()
+        ticker = asyncio.create_task(tick())
+        await asyncio.sleep(0.02)
+        started = time.perf_counter()
+        try:
+            async with async_session_factory() as session:
+                await write(SQLAlchemyUserFileProcessingRepository(session))
+                await session.commit()
+        finally:
+            ticker.cancel()
+        return max(gaps), time.perf_counter() - started
+
+    async def store(repo: SQLAlchemyUserFileProcessingRepository) -> None:
+        await repo.replace_chunks_and_mark_success(
+            job_id="job-file-embedded",
+            user_id="user-1",
+            file_id="file-embedded",
+            sha256=digest,
+            chunks=chunks,
+            file_status=STATUS_READY,
+            processing_metadata={"parser": "test"},
+            processed_at=_now(),
+            embedding_model_id="test:embedding",
+        )
+
+    async def reuse(repo: SQLAlchemyUserFileProcessingRepository) -> None:
+        reused = await repo.reuse_processed_file(
+            job_id="job-file-duplicate",
+            user_id="user-1",
+            file_id="file-duplicate",
+            sha256=digest,
+            processed_at=_now(),
+            embedding_model_id="test:embedding",
+        )
+        assert reused is not None
+
+    store_stall, store_elapsed = await longest_stall(store)
+    reuse_stall, reuse_elapsed = await longest_stall(reuse)
+
+    # Encoding every vector in one flush stalled the loop for about the whole write.
+    assert store_stall < max(0.1, store_elapsed / 4)
+    assert reuse_stall < max(0.1, reuse_elapsed / 4)
+    async with async_session_factory() as session:
+        copies = (
+            (await session.execute(select(ORMUserFileChunk).where(ORMUserFileChunk.file_id == "file-duplicate")))
+            .scalars()
+            .all()
+        )
+    assert len(copies) == len(chunks)
+    assert all(copy.embedding_model_id == "test:embedding" and copy.embedding is not None for copy in copies)
+    assert {copy.metadata_["filename"] for copy in copies} == {"file-duplicate.txt"}
+    assert copies[0].id == "chunk-file-duplicate-000000"
+
+
+async def test_complete_claimed_job_reads_every_format_through_the_injected_parser() -> None:
+    """The server never parses upload bytes itself, even plain text."""
+
+    class RecordingParser:
+        def __init__(self) -> None:
+            self.extensions: list[str] = []
+
+        async def parse(self, *, payload: bytes, filename: str, extension: str) -> ParsedUserFileDocument:
+            self.extensions.append(extension)
+            return ParsedUserFileDocument(text=payload.decode(), parser_name="isolated", metadata={})
+
+    parser = RecordingParser()
+    repo = _CapturingProcessingRepo()
+    service = UserFileProcessingService(processing=cast(UserFileProcessingRepository, repo), uow=_NoopUow())
+
+    for extension in (".txt", ".json", ".pdf"):
+        await service.complete_claimed_job(
+            claimed=_claimed_processing_job(file_id=f"file{extension}", extension=extension),
+            payload=b"Readable text",
+            parser=parser,
+            embedder=None,
+            max_process_bytes=1024,
+        )
+
+    assert parser.extensions == [".txt", ".json", ".pdf"]
+    assert repo.chunks[0].text == "Readable text"
+
+
+async def test_complete_claimed_job_chunks_large_documents_off_the_event_loop() -> None:
+    """Chunking and overviews of a large table leave the server responsive (spec R1.6)."""
+
+    rows = [["name", "value", "notes"], *[[f"row {index}", str(index), "x" * 40] for index in range(6000)]]
     parsed = ParsedUserFileDocument(
-        text="",
-        parser_name="docling",
-        metadata={"parser": "docling"},
-        chunks=[
-            UserFileChunkDraft(
-                chunk_index=0,
-                text="Display chunk text",
-                embedding_text="Heading breadcrumb\nDisplay chunk text",
-                char_count=len("Display chunk text"),
-                token_estimate=7,
-                metadata={"parser": "docling", "chunker": "docling_hybrid"},
-            )
-        ],
+        text=markdown_table(rows),
+        parser_name="stdlib-tsv",
+        metadata={"format": "tsv", "table_only": True},
+        tables=[{"table_index": 0, "header": rows[0], "data_row_count": len(rows) - 1, "source": "tsv"}],
+    )
+    service = UserFileProcessingService(
+        processing=cast(UserFileProcessingRepository, _CapturingProcessingRepo()), uow=_NoopUow()
+    )
+    gaps: list[float] = []
+
+    async def tick() -> None:
+        previous = time.perf_counter()
+        while True:
+            await asyncio.sleep(0.005)
+            current = time.perf_counter()
+            gaps.append(current - previous)
+            previous = current
+
+    ticker = asyncio.create_task(tick())
+    started = time.perf_counter()
+    try:
+        await service.complete_claimed_job(
+            claimed=_claimed_processing_job(file_id="file-large-table", extension=".tsv"),
+            payload=b"large table",
+            parser=_StaticParser(parsed),
+            embedder=None,
+            max_process_bytes=1024,
+        )
+    finally:
+        ticker.cancel()
+    elapsed = time.perf_counter() - started
+
+    assert gaps
+    # Blocking work would stall the loop for about the whole call.
+    assert max(gaps) < max(0.1, elapsed / 2)
+
+
+@pytest.mark.asyncio
+async def test_complete_claimed_job_embeds_chunks_and_stores_their_vectors() -> None:
+    parsed = ParsedUserFileDocument(
+        text="# Field guide\n\nDisplay chunk text",
+        parser_name="stdlib-text",
+        metadata={"format": "md"},
     )
     repo = _CapturingProcessingRepo()
     embedder = _RecordingEmbedder()
     service = UserFileProcessingService(processing=cast(UserFileProcessingRepository, repo), uow=_NoopUow())
 
     completed = await service.complete_claimed_job(
-        claimed=_claimed_processing_job(file_id="file-parser-chunks"),
-        payload=b"%PDF-1.7\nbody",
+        claimed=_claimed_processing_job(file_id="file-embedded", extension=".md"),
+        payload=b"# Field guide",
         parser=_StaticParser(parsed),
         embedder=embedder,
         max_process_bytes=1024,
     )
 
     assert completed.status == JOB_STATUS_SUCCEEDED
-    assert embedder.texts == ["Heading breadcrumb\nDisplay chunk text"]
+    assert embedder.texts == ["Field guide\n\n# Field guide\n\nDisplay chunk text"]
     assert repo.file_status == STATUS_READY
-    assert repo.sha256 == hashlib.sha256(b"%PDF-1.7\nbody").hexdigest()
+    assert repo.sha256 == hashlib.sha256(b"# Field guide").hexdigest()
     assert len(repo.reuse_calls) == 1
     assert len(repo.chunks) == 1
-    assert repo.chunks[0].text == "Display chunk text"
-    assert repo.chunks[0].embedding_text == "Heading breadcrumb\nDisplay chunk text"
+    assert repo.chunks[0].text == "# Field guide\n\nDisplay chunk text"
+    assert repo.chunks[0].embedding_text == embedder.texts[0]
     assert repo.chunks[0].embedding == [1.0, 0.0, 0.0]
     assert repo.embedding_model_id == "test:embedding"
     assert repo.reuse_calls[0]["embedding_model_id"] == "test:embedding"
     assert repo.file_metadata is not None
     assert repo.file_metadata["embedded"] is True
     assert repo.file_metadata_updates is not None
-    assert repo.file_metadata_updates["overview"]["description"] == "Display chunk text"
+    assert repo.file_metadata_updates["overview"]["outline"] == [{"level": 1, "title": "Field guide"}]
 
 
 @pytest.mark.asyncio
@@ -955,18 +1295,7 @@ async def test_complete_claimed_job_reuses_verified_content_before_parsing() -> 
 @pytest.mark.asyncio
 async def test_complete_claimed_job_force_bypasses_content_reuse() -> None:
     parsed = ParsedUserFileDocument(
-        text="Forced processing content.",
-        parser_name="docling",
-        metadata={"parser": "docling"},
-        chunks=[
-            UserFileChunkDraft(
-                chunk_index=0,
-                text="Forced processing content.",
-                char_count=26,
-                token_estimate=7,
-                metadata={"parser": "docling"},
-            )
-        ],
+        text="Forced processing content.", parser_name="pypdfium2", metadata={"format": "pdf"}
     )
     repo = _CapturingProcessingRepo()
     service = UserFileProcessingService(processing=cast(UserFileProcessingRepository, repo), uow=_NoopUow())
@@ -987,17 +1316,8 @@ async def test_complete_claimed_job_force_bypasses_content_reuse() -> None:
 async def test_complete_claimed_job_keeps_overview_when_embedding_fails() -> None:
     parsed = ParsedUserFileDocument(
         text="A durable overview remains available even when semantic embedding fails.",
-        parser_name="docling",
-        metadata={"parser": "docling", "extension": ".pdf"},
-        chunks=[
-            UserFileChunkDraft(
-                chunk_index=0,
-                text="Searchable display text",
-                char_count=len("Searchable display text"),
-                token_estimate=5,
-                metadata={"parser": "docling"},
-            )
-        ],
+        parser_name="pypdfium2",
+        metadata={"format": "pdf"},
         source_outline=(UserFileOutlineItem(level=1, title="Overview title"),),
     )
     repo = _CapturingProcessingRepo()
@@ -1021,18 +1341,7 @@ async def test_complete_claimed_job_keeps_overview_when_embedding_fails() -> Non
 @pytest.mark.asyncio
 async def test_complete_claimed_job_uses_safe_overview_fallback_on_builder_failure(monkeypatch) -> None:
     parsed = ParsedUserFileDocument(
-        text="Fallback source text remains safe and searchable.",
-        parser_name="docling",
-        metadata={"parser": "docling", "extension": ".pdf"},
-        chunks=[
-            UserFileChunkDraft(
-                chunk_index=0,
-                text="Fallback source text remains safe and searchable.",
-                char_count=49,
-                token_estimate=12,
-                metadata={"parser": "docling"},
-            )
-        ],
+        text="Fallback source text remains safe and searchable.", parser_name="pypdfium2", metadata={"format": "pdf"}
     )
     repo = _CapturingProcessingRepo()
     service = UserFileProcessingService(processing=cast(UserFileProcessingRepository, repo), uow=_NoopUow())
@@ -1067,246 +1376,93 @@ async def test_complete_claimed_job_uses_safe_overview_fallback_on_builder_failu
     }
 
 
-def test_chunking_uses_overlap_and_deterministic_indexes() -> None:
+async def test_complete_claimed_job_chunks_at_headings_within_the_configured_size() -> None:
+    """Chunks follow headings, stay within the chunk size and embed their heading path (spec R4.1 to R4.3)."""
+
+    # Each section fits 64 tokens and 256 characters; two together do not.
+    sections = "\n\n".join(f"## Part {index}\n\n" + " ".join(["budget"] * 30) + "." for index in range(4))
     parsed = ParsedUserFileDocument(
-        text="First paragraph is long enough.\n\nSecond paragraph is also long enough.\n\nThird paragraph closes.",
-        parser_name="test",
-        metadata={"parser": "test"},
+        text=f"# Report\n\n{sections}", parser_name="stdlib-text", metadata={"format": "md"}
+    )
+    repo = _CapturingProcessingRepo()
+    embedder = _RecordingEmbedder()
+    service = UserFileProcessingService(
+        processing=cast(UserFileProcessingRepository, repo), uow=_NoopUow(), chunk_max_tokens=64
     )
 
-    chunks = chunk_parsed_user_file_document(parsed, target_chars=45, overlap_chars=8)
-
-    assert [chunk.chunk_index for chunk in chunks] == list(range(len(chunks)))
-    assert len(chunks) > 1
-    assert all(chunk.char_count == len(chunk.text) for chunk in chunks)
-
-
-def test_chunking_groups_table_rows() -> None:
-    parsed = parse_lightweight_user_file(
-        payload=b"name\tvalue\nalpha\t1\nbeta\t2\ngamma\t3\n",
-        filename="sheet.tsv",
-        extension=".tsv",
+    await service.complete_claimed_job(
+        claimed=_claimed_processing_job(file_id="file-headings", extension=".md"),
+        payload=b"# Report",
+        parser=_StaticParser(parsed),
+        embedder=embedder,
+        max_process_bytes=1024,
     )
 
-    chunks = chunk_parsed_user_file_document(parsed, target_chars=45, overlap_chars=0)
+    first_lines = [chunk.text.split("\n", 1)[0] for chunk in repo.chunks]
+    assert first_lines == ["# Report", "## Part 1", "## Part 2", "## Part 3"]
+    assert [chunk.metadata for chunk in repo.chunks] == [
+        {"chunk_type": "prose", "headings": ["Report", f"Part {index}"]} for index in range(4)
+    ]
+    assert embedder.texts == [f"Report > Part {index}\n\n{chunk.text}" for index, chunk in enumerate(repo.chunks)]
+    assert [chunk.embedding_text for chunk in repo.chunks] == embedder.texts
+    assert all(chunk.token_estimate <= 64 for chunk in repo.chunks)
 
-    assert chunks
-    assert all(chunk.metadata["chunk_type"] == "table" for chunk in chunks)
-    assert chunks[0].metadata["row_start"] == 1
+
+async def test_complete_claimed_job_records_pdf_pages_per_chunk_but_not_in_the_file_row() -> None:
+    parsed = parse_user_file(
+        payload=pdf_bytes(text_page(b"First page text."), IMAGE_PAGE, text_page(b"Third page text.")),
+        filename="paper.pdf",
+        extension=".pdf",
+    )
+    repo = _CapturingProcessingRepo()
+    service = UserFileProcessingService(processing=cast(UserFileProcessingRepository, repo), uow=_NoopUow())
+
+    await service.complete_claimed_job(
+        claimed=_claimed_processing_job(file_id="file-paper"),
+        payload=b"%PDF-1.4",
+        parser=_StaticParser(parsed),
+        embedder=None,
+        max_process_bytes=1024,
+    )
+
+    assert [chunk.metadata for chunk in repo.chunks] == [{"chunk_type": "prose", "pages": [1, 3]}]
+    assert repo.file_metadata is not None
+    parser_metadata = repo.file_metadata["parser_metadata"]
+    # Page offsets only serve chunking; the skipped pages stay recorded with the file.
+    assert "pdf_pages" not in parser_metadata
+    assert parser_metadata["page_count"] == 3 and parser_metadata["pdf_skipped_pages"] == [2]
+    assert repo.file_metadata_updates is not None
+    assert repo.file_metadata_updates["overview"]["description"].startswith("Page 2 has no selectable text. ")
 
 
-def test_lightweight_parsers_validate_json_and_xml() -> None:
-    parsed_json = parse_lightweight_user_file(payload=b'{"b": 2, "a": 1}', filename="data.json", extension=".json")
-    parsed_xml = parse_lightweight_user_file(payload=b"<root><item /></root>", filename="data.xml", extension=".xml")
+async def test_processing_the_same_file_again_yields_the_same_chunks() -> None:
+    steps = "\n\n".join(f"## Step {index}\n\n" + "Install the package and restart the app. " * 20 for index in range(5))
+    parsed = ParsedUserFileDocument(text=f"# Guide\n\n{steps}", parser_name="stdlib-text", metadata={"format": "md"})
+    results: list[list[UserFileChunkDraft]] = []
+    for _attempt in range(2):
+        repo = _CapturingProcessingRepo()
+        service = UserFileProcessingService(
+            processing=cast(UserFileProcessingRepository, repo), uow=_NoopUow(), chunk_max_tokens=100
+        )
+        await service.complete_claimed_job(
+            claimed=_claimed_processing_job(file_id="file-repeat", extension=".md", force=True),
+            payload=b"same bytes",
+            parser=_StaticParser(parsed),
+            embedder=None,
+            max_process_bytes=1024,
+        )
+        results.append(repo.chunks)
+
+    assert len(results[0]) > 1
+    assert results[0] == results[1]
+
+
+def test_text_parsers_validate_json_and_xml() -> None:
+    parsed_json = parse_text_user_file(payload=b'{"b": 2, "a": 1}', filename="data.json", extension=".json")
+    parsed_xml = parse_text_user_file(payload=b"<root><item /></root>", filename="data.xml", extension=".xml")
 
     assert '"a": 1' in parsed_json.text
     assert parsed_xml.text.startswith("<root>")
-
-
-def test_docling_parser_normalizes_table_mode_and_threads() -> None:
-    parser = DoclingUserFileParser(table_mode="accurate", num_threads=2)
-    fallback = DoclingUserFileParser(table_mode="unexpected", num_threads=0)
-
-    assert parser._table_mode == "accurate"
-    assert parser._num_threads == 2
-    assert fallback._table_mode == "fast"
-    assert fallback._num_threads >= 1
-
-
-@pytest.mark.asyncio
-async def test_docling_parser_uses_converter_and_exports_metadata(monkeypatch) -> None:
-    class _Label:
-        def __init__(self, name: str) -> None:
-            self.name = name
-
-    class _Item:
-        def __init__(self, label: str, text: str) -> None:
-            self.label = _Label(label)
-            self.text = text
-
-    class _Doc:
-        def export_to_markdown(self, compact_tables: bool = False) -> str:
-            return "Converted markdown"
-
-        def export_to_dict(self) -> dict[str, Any]:
-            return {"texts": [{"text": "Converted markdown"}], "tables": []}
-
-        def iterate_items(self):
-            return [
-                (_Item("TITLE", "Native paper title"), 1),
-                (_Item("SECTION_HEADER", "Results"), 2),
-                (_Item("TEXT", "Ignored body"), 2),
-            ]
-
-    class _Converter:
-        def convert(self, path):
-            assert str(path).endswith(".pdf")
-            return SimpleNamespace(document=_Doc())
-
-    parser = DoclingUserFileParser()
-    monkeypatch.setattr(parser, "_make_converter", lambda: _Converter())
-
-    parsed = await parser.parse(payload=b"%PDF-1.7\nbody", filename="paper.pdf", extension=".pdf")
-
-    assert parsed.parser_name == "docling"
-    assert parsed.text == "Converted markdown"
-    assert parsed.metadata["docling"]["texts_count"] == 1
-    assert parsed.source_outline == (
-        UserFileOutlineItem(level=1, title="Native paper title"),
-        UserFileOutlineItem(level=2, title="Results"),
-    )
-
-
-@pytest.mark.asyncio
-async def test_docling_outline_failure_records_warning_and_keeps_markdown_fallback(monkeypatch) -> None:
-    class _Doc:
-        def export_to_markdown(self, compact_tables: bool = False) -> str:
-            return "# Markdown title\n\nFallback prose."
-
-        def export_to_dict(self) -> dict[str, Any]:
-            return {"texts": [{"text": "Fallback prose."}]}
-
-        def iterate_items(self):
-            raise RuntimeError("tree unavailable")
-
-    class _Converter:
-        def convert(self, path):
-            return SimpleNamespace(document=_Doc())
-
-    parser = DoclingUserFileParser()
-    monkeypatch.setattr(parser, "_make_converter", lambda: _Converter())
-
-    parsed = await parser.parse(payload=b"%PDF-1.7\nbody", filename="paper.pdf", extension=".pdf")
-
-    assert parsed.source_outline == ()
-    assert parsed.source_outline_truncated is False
-    assert any("Docling outline extraction failed" in warning for warning in parsed.metadata["warnings"])
-
-
-@pytest.mark.asyncio
-async def test_docling_parser_uses_hybrid_chunks_and_compacts_metadata(monkeypatch) -> None:
-    class _Doc:
-        def export_to_markdown(self, compact_tables: bool = False) -> str:
-            return "Converted markdown"
-
-        def export_to_dict(self) -> dict[str, Any]:
-            return {"texts": [{"text": "Converted markdown"}], "tables": []}
-
-    class _Converter:
-        def convert(self, path):
-            return SimpleNamespace(document=_Doc())
-
-    class _Meta:
-        def export_json_dict(self) -> dict[str, Any]:
-            return {
-                "headings": ["Section A"],
-                "captions": ["Figure 1"],
-                "origin": {
-                    "filename": "paper.pdf",
-                    "mimetype": "application/pdf",
-                    "binary_hash": 123,
-                    "uri": "file:///tmp/paper.pdf",
-                },
-                "doc_items": [
-                    {
-                        "self_ref": f"#/texts/{index}",
-                        "label": "text",
-                        "text": f"Item {index}",
-                        "prov": [{"page_no": index + 1}],
-                    }
-                    for index in range(10)
-                ],
-            }
-
-    class _Chunk:
-        text = "Display text"
-        meta = _Meta()
-
-    class _Tokenizer:
-        def count_tokens(self, *, text: str) -> int:
-            assert text == "Section A\nDisplay text"
-            return 42
-
-    class _Chunker:
-        tokenizer = _Tokenizer()
-
-        def chunk(self, *, dl_doc):
-            return [_Chunk()]
-
-        def contextualize(self, chunk) -> str:
-            return f"{chunk.meta.export_json_dict()['headings'][0]}\n{chunk.text}"
-
-    def _fake_make_hybrid_chunker(*, max_tokens: int, tokenizer_model: str):
-        assert max_tokens == 123
-        assert tokenizer_model == "text-embedding-3-small"
-        return _Chunker()
-
-    parser = DoclingUserFileParser(chunk_max_tokens=123, tokenizer_model="text-embedding-3-small")
-    monkeypatch.setattr(parser, "_make_converter", lambda: _Converter())
-    monkeypatch.setattr(docling_parser_module, "_make_hybrid_chunker", _fake_make_hybrid_chunker)
-
-    parsed = await parser.parse(payload=b"%PDF-1.7\nbody", filename="paper.pdf", extension=".pdf")
-
-    assert parsed.chunks is not None
-    assert len(parsed.chunks) == 1
-    chunk = parsed.chunks[0]
-    assert chunk.text == "Display text"
-    assert chunk.embedding_text == "Section A\nDisplay text"
-    assert chunk.token_estimate == 42
-    assert chunk.metadata == {
-        "parser": "docling",
-        "chunker": "docling_hybrid",
-        "headings": ["Section A"],
-        "captions": ["Figure 1"],
-        "origin": {
-            "filename": "paper.pdf",
-            "mimetype": "application/pdf",
-            "binary_hash": 123,
-            "uri": "file:///tmp/paper.pdf",
-        },
-        "doc_items": [
-            {"self_ref": f"#/texts/{index}", "label": "text", "text": f"Item {index}", "page_no": index + 1}
-            for index in range(8)
-        ],
-        "doc_item_count": 10,
-        "token_count": 42,
-    }
-
-
-@pytest.mark.asyncio
-async def test_docling_parser_falls_back_when_hybrid_chunker_fails(monkeypatch) -> None:
-    class _Doc:
-        def export_to_markdown(self, compact_tables: bool = False) -> str:
-            return "Converted markdown"
-
-        def export_to_dict(self) -> dict[str, Any]:
-            return {"texts": [{"text": "Converted markdown"}]}
-
-    class _Converter:
-        def convert(self, path):
-            return SimpleNamespace(document=_Doc())
-
-    class _FailingChunker:
-        def chunk(self, *, dl_doc):
-            raise RuntimeError("chunking exploded")
-
-    parser = DoclingUserFileParser()
-    monkeypatch.setattr(parser, "_make_converter", lambda: _Converter())
-    monkeypatch.setattr(docling_parser_module, "_make_hybrid_chunker", lambda **_kwargs: _FailingChunker())
-
-    parsed = await parser.parse(payload=b"%PDF-1.7\nbody", filename="paper.pdf", extension=".pdf")
-
-    assert parsed.text == "Converted markdown"
-    assert parsed.chunks is None
-    assert parsed.metadata["warnings"] == ["HybridChunker failed; using Markdown fallback chunking: chunking exploded"]
-
-
-@pytest.mark.asyncio
-async def test_docling_parser_rejects_bad_headers() -> None:
-    parser = DoclingUserFileParser()
-
-    with pytest.raises(DoclingUserFileParserError):
-        await parser.parse(payload=b"not a pdf", filename="paper.pdf", extension=".pdf")
 
 
 @pytest.mark.asyncio

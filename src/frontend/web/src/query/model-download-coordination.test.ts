@@ -43,7 +43,7 @@ function desktop(state = "not_installed") {
     runtime: { status: vi.fn(async () => ({ state: "ready" })) },
     featurePacks: {
       list: vi.fn(async () => [
-        { id: "document-processing", state, available: true },
+        { id: "expanded-included-content", state, available: true },
       ]),
     },
   } as unknown as AnimamaDesktopBridge;

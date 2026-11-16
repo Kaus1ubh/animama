@@ -26,7 +26,9 @@ function Packs() {
           error: packs.error,
         })}
       </output>
-      <button onClick={() => void packs.run("install", "document-processing")}>
+      <button
+        onClick={() => void packs.run("install", "expanded-included-content")}
+      >
         Install pack
       </button>
     </section>

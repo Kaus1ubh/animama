@@ -1392,7 +1392,7 @@ export function ApplicationSettingsModal({
       id: "feature-packs",
       section: "General",
       label: t("featurePacks.title"),
-      keywords: ["document processing", "included content", "download"],
+      keywords: ["included content", "download"],
       hidden: !platform.isDesktop,
       render: () => (
         <DesktopFeaturePacksPanel className={FLAT_SETTINGS_PANEL_CLASS_NAME} />

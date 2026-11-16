@@ -25,7 +25,7 @@
       "const": "animama-feature-pack/1"
     },
     "id": {
-      "enum": ["expanded-included-content", "document-processing"]
+      "enum": ["expanded-included-content"]
     },
     "display_name": {
       "type": "string",
@@ -132,25 +132,6 @@
     }
   },
   "allOf": [
-    {
-      "if": {
-        "properties": {
-          "id": {
-            "const": "document-processing"
-          }
-        }
-      },
-      "then": {
-        "properties": {
-          "signing": {
-            "type": "object"
-          },
-          "platform": {
-            "enum": ["darwin", "win32"]
-          }
-        }
-      }
-    },
     {
       "if": {
         "properties": {

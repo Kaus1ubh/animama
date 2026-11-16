@@ -19,15 +19,16 @@ import { apiErrorLine, uncodedErrorText } from "@/lib/errors/apiError";
  * - `finalizing`: Uppy reported direct upload success, and the hook is calling
  *   `POST /v1/files/{file_id}:finalize` so the backend can verify the local file
  *   exists, size matches, and the row can become durable.
- * - `uploaded`: the original is durable but processing has not been queued,
- *   including when the optional document pack is absent. This is not a failure.
+ * - `uploaded`: the original is durable but processing has not been queued
+ *   yet, or processing is turned off. This is not a failure.
  * - `queued`: the process enqueue request returned a queued processing job.
  *   The durable upload exists, but the worker has not claimed the job yet.
  * - `processing`: the process enqueue request returned a processing/running
  *   state, or the tray is waiting for backend polling to report the latest
  *   worker state.
  * - `failed`: a hook-level step failed before an authoritative backend file
- *   status was available, such as init, direct upload, or finalize failure.
+ *   status was available, such as init, direct upload, or finalize failure,
+ *   or the processing enqueue failed after the original was saved.
  */
 export type UserFileUploadStage =
   | "preparing"
@@ -50,7 +51,9 @@ export type UserFileUploadStage =
  * Backend-authoritative file statuses win when present:
  *
  * - `uploaded`: backend finalized the direct upload. The object exists and
- *   passed ownership/size checks, but it is not chat-readable context.
+ *   passed ownership/size checks, but it is not chat-readable context. A
+ *   browser failure wins over this row: the row cannot record that the
+ *   processing enqueue failed.
  * - `ready`: backend worker stored chunks and embeddings. The file is
  *   searchable by semantic and keyword debug search and can be attached to
  *   `chat:sse` through its backend file id.
@@ -293,19 +296,22 @@ export function resolveUserFileUploadCardStatus({
   backendFile,
 }: ResolveUserFileUploadCardStatusArgs): UserFileUploadCardStatus {
   const t = getI18n().getFixedT(null, "library");
+  const error = localError(uppyFile);
+  const stage = uppyFile.meta?.anima_stage;
+  const failedLocally = Boolean(error) || stage === "failed";
   const backend = backendFile ? backendStatus(backendFile) : null;
-  if (backend) {
+  // A saved original whose processing could not be queued stays `uploaded` on
+  // the backend; only the browser knows it failed, and why.
+  if (backend && !(backend.id === "uploaded" && failedLocally)) {
     return backend;
   }
 
-  const error = localError(uppyFile);
-  if (error || uppyFile.meta?.anima_stage === "failed") {
+  if (failedLocally) {
     return status("failed", t("uploads.status.failed"), "destructive", false, {
       error: error || t("uploads.failed"),
     });
   }
 
-  const stage = uppyFile.meta?.anima_stage;
   if (stage) {
     return status(
       stage,

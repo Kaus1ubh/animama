@@ -5,7 +5,10 @@ import { toast } from "sonner";
 import { useRuntimePlatform } from "@/platform/RuntimePlatformProvider";
 import type { PyChatResponse } from "@/lib/content/catalogTypes";
 import type { ChatMessage } from "@/ui/main/chat/useChatSession";
-import type { ChatCrisisSupport } from "@animama/product-ui/chat";
+import type {
+  ChatAttachmentHold,
+  ChatCrisisSupport,
+} from "@animama/product-ui/chat";
 import type { AiNoticeKind } from "@/lib/safety/aiNotice";
 import { isRecord } from "@/lib/records";
 
@@ -38,6 +41,12 @@ export type DesktopQuickChatSnapshot = {
   animaId: string;
   /** Names the Anima in mirrored memory cue details. */
   animaName?: string | null;
+  /**
+   * Whether the main window's upload tray holds a send. Quick Chat has no
+   * tray, so it shows the hold on its send control, says why and keeps its
+   * draft.
+   */
+  attachmentHold: ChatAttachmentHold;
   chatId: string | null;
   input: string;
   inputPlaceholder: string;
@@ -135,6 +144,12 @@ function isMemoryEntryId(value: unknown): value is string {
   );
 }
 
+const ATTACHMENT_HOLDS: ReadonlySet<unknown> = new Set<ChatAttachmentHold>([
+  "none",
+  "waiting",
+  "blocked",
+]);
+
 /** Exported for tests: unknown command types from the Quick Chat window are ignored. */
 export function isQuickChatCommand(
   value: unknown,
@@ -175,6 +190,7 @@ export function isQuickChatSnapshot(
   ) {
     return false;
   }
+  if (!ATTACHMENT_HOLDS.has(value.attachmentHold)) return false;
   if (!(typeof value.chatId === "string" || value.chatId === null)) {
     return false;
   }

@@ -11,7 +11,7 @@ help: ## Show backend tasks (frontend tasks use pnpm in src/frontend).
 	@awk 'BEGIN {FS = ":.*## "} /^[a-z-]+:.*## / {printf "  %-20s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 
 sync: ## Install backend development dependencies and supported local extras.
-	uv sync --extra voice --extra viz --extra realtime --extra encrypt --all-packages --group dev
+	uv sync --extra voice --extra viz --extra realtime --extra encrypt --extra documents --all-packages --group dev
 
 test: ## Run offline backend tests in PYTEST_WORKERS xdist workers (default 2).
 	uv run pytest -n $(PYTEST_WORKERS)

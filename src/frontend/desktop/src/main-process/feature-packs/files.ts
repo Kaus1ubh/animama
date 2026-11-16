@@ -40,7 +40,7 @@ export async function hashFile(
   return hash.digest("hex");
 }
 
-/** Revalidate the complete inventory at startup and before executing a worker. */
+/** Revalidate the complete inventory after extraction and at every startup. */
 export async function verifyPackFiles(
   root: string,
   manifest: PackManifest,

@@ -216,7 +216,6 @@
     "originalSavedNotQueued": "元のファイルを保存しましたが、処理はキューに追加されませんでした。",
     "processingNotQueuedAfterUpload": "アップロードは完了しましたが、処理をキューに追加できませんでした。",
     "processingUnavailable": "処理はキューに追加されませんでした。ドキュメント処理が利用可能になったら、ライブラリから元のファイルを処理できます。",
-    "processingUnavailableDesktop": "このアプリではドキュメント処理を利用できません。",
     "queuedForProcessing": "ファイルをアップロードし、処理のキューに追加しました。",
     "rejected": "このファイルはアップロードできません。",
     "restrictions": {

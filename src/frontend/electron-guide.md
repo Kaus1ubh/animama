@@ -22,7 +22,7 @@ runtime-owner context. Electron imports stay out of browser modules.
 | Area                                                  | Responsibility                                                                                 |
 | ----------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
 | `desktop/src/main-process/runtime/`                   | Paths, manifests, vault, processes, PGDATA, migrations, readiness, recovery, guarded IPC       |
-| `desktop/src/main-process/feature-packs/`             | Catalog-bound download, strict extraction, inventory/signature verification, atomic activation |
+| `desktop/src/main-process/feature-packs/`             | Catalog-bound download, strict extraction, inventory verification, atomic activation           |
 | `desktop/src/main-process/updates/`                   | Stable public feed policy, consent, disk/pack preflight, native updater adapter                |
 | `desktop/scripts/runtime/release-macos.mjs`           | Audited candidate packaging; publication is a separate gated command                           |
 | `desktop/src/main-process/runtime/product-windows.ts` | Product-document destruction, remembered routes and request gating                             |

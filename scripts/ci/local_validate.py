@@ -280,7 +280,9 @@ def worker(args: argparse.Namespace) -> int:
             "web": "backend suite, independent packaging, isolated consumers and compatibility",
         }
         receipt["limitations"].append(f"Not run by {args.profile} profile: {omitted[args.profile]}.")
-    planned = [("frozen-python-install", source, ["uv", "sync", "--frozen", "--python", "3.12.13"])]
+    planned = [
+        ("frozen-python-install", source, ["uv", "sync", "--frozen", "--python", "3.12.13", "--extra", "documents"])
+    ]
     if args.profile in {"web", "full"}:
         # Keep downloaded, manifest-verified inputs outside the exact source.
         # The browser smoke forwards this root into its isolated child servers.

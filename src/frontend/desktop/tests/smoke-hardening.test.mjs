@@ -19,6 +19,7 @@ import {
   smokeCopyDirectory,
 } from "../scripts/runtime/smoke-hardening.mjs";
 import { hardeningSmokeChecks } from "../scripts/runtime/smoke-policy.mjs";
+import { desktopCapabilityChecks } from "../scripts/runtime/smoke-journey.mjs";
 import {
   assertWindowsCopyFits,
   windowsCopyLocation,
@@ -142,5 +143,43 @@ describe("installed-artifact smoke hardening", () => {
       "copy_updates_unavailable",
       "canonical_profile_untouched",
     ]);
+  });
+});
+
+describe("installed-artifact smoke journey", () => {
+  it("expects a running core upload processor and no automatic optional download", () => {
+    const capabilities = {
+      runtime_kind: "desktop",
+      offline_speech_enabled: false,
+      user_file_processing: { enabled: true, worker_state: "ready" },
+    };
+    expect(desktopCapabilityChecks(capabilities)).toEqual({
+      no_automatic_optional_download: true,
+      core_upload_processing: true,
+    });
+    for (const user_file_processing of [
+      { enabled: false, worker_state: "disabled" },
+      { enabled: true, worker_state: "starting" },
+      { enabled: true, worker_state: "stale" },
+    ])
+      expect(
+        desktopCapabilityChecks({ ...capabilities, user_file_processing }),
+      ).toEqual({
+        no_automatic_optional_download: true,
+        core_upload_processing: false,
+      });
+    expect(
+      desktopCapabilityChecks({
+        ...capabilities,
+        offline_speech_enabled: true,
+      }),
+    ).toEqual({
+      no_automatic_optional_download: false,
+      core_upload_processing: true,
+    });
+    expect(desktopCapabilityChecks(undefined)).toEqual({
+      no_automatic_optional_download: false,
+      core_upload_processing: false,
+    });
   });
 });

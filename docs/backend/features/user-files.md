@@ -42,38 +42,72 @@ Frontend UI:
   processing status, selected delete controls, process/reprocess actions, and
   debug search.
 
-Worker:
+Processing:
 
-- `animama.workers.user_file_processing`
-- The checked-in Compose `animama-file-worker` service is commented out. Start
-  parsing only after deliberately configuring that private service or host worker.
-- Embedded desktop supervises the separate signed document pack; core does not
-  include Docling/Torch or silently start a replacement parser.
+- `server/user_file_processing.py`: the processing runner that every local
+  composition starts inside the server. No other process needs to run.
+- `adapters/parsers/`: the format parsers, which run in a bounded child
+  process (the `parse-upload` subcommand of `runtime/cli.py`).
 
-## Optional Processing Capability
+## In-Server Processing
 
-The owner-protected capability API separates pack availability (`enabled`) from
-worker liveness (`disabled`, `starting`, `ready`, `stale`). The document worker
-writes a heartbeat every five seconds. Twenty seconds without a matching
-heartbeat is stale, but enabled work can still queue durably. A disabled pack
-causes the service to reject process requests with 409 and
-`{"detail":{"code":"file_processing_unavailable"}}` before file lookup or
-job creation. Upload initialization, bytes, and finalization remain available.
+Every local composition (packaged desktop, built self-host and development)
+processes uploads in its server process; the hosted composition does not
+process uploads. `create_local_app` starts the processing runner, which claims
+durable jobs one at a time. The `:process` route wakes it, so a new upload
+starts at once, and it polls for due retries. Every five seconds it records a
+heartbeat and renews its running job's lease, so a long parse keeps its claim.
+Each composition runs one server process and so one runner. Several processes
+would still claim jobs safely (`SKIP LOCKED`), but they would share one
+liveness row.
 
-The frontend preserves the saved original and offers installation instead of
-showing a failed processing job. Existing indexed chunks remain searchable.
-Pack removal is blocked by live running leases; queued rows survive and resume
-after reinstallation. Heartbeat renewal extends only the worker's own running
-jobs, and shutdown prevents new claims. Desktop model weights and tokenizer
-resources are packaged and loaded offline; no runtime Docling download is used.
+The server never parses upload bytes itself. For each file the runner starts a
+child of the same runtime (`parse-upload`, implemented in
+`adapters/parsers/parse_child.py`) and sends it the bytes on standard input:
 
-In desktop, private originals live below the supervisor's `ANIMAMA_DATA_ROOT`
-inside `~/Library/Application Support/Animama/data`, not in app resources or the
-document pack. Removing/replacing a pack is not file deletion. No signed worker
-release is approved yet; fixture/core checks are not production conversion
-acceptance. See [Desktop operations](../operations/desktop-runtime.md) for helper
-verification and backups, and [Feature packs](../../frontend/desktop/feature-packs.md)
-for the user-facing flow.
+- The parent kills a child that runs past
+  `ANIMAMA_USER_FILE_PARSE_TIMEOUT_SECONDS` (default 120) or whose resident
+  memory passes `ANIMAMA_USER_FILE_PARSE_MEMORY_MB` (default 1024), sampled
+  every 10 ms. The file fails with a reason naming the limit. On Linux the child
+  also sets an address-space backstop of twice the memory limit plus 512 MB.
+- The child inherits only an allowlisted environment (program and library
+  paths, temporary directories, locale, and Python and PyInstaller settings),
+  never database credentials or provider keys. Before any parser runs, it
+  refuses every outbound connection and name lookup, turns off core dumps and
+  bounds its CPU time. Nothing in a document runs or is fetched.
+- Chunking, overviews and embedding happen back in the server, off its event
+  loop, so chat and other requests keep responding while a file processes.
+
+A failure that a retry cannot fix fails the job and file on the first attempt
+with its reason: a missing, changed, empty or oversized original, content a
+parser refuses, a parse limit, or a document without searchable text. Anything
+else, such as a child that crashes or a database or embedding-provider error,
+retries after `min(300, 2^(attempts-1))` seconds until the attempt limit. A
+graceful stop waits five seconds for the current job, then cancels it and
+returns it to the queue without spending its attempt. After a crash, the job is
+claimed again once its lease expires; if that was its last attempt, it fails
+with "Processing was interrupted", so no file stays at Processing.
+
+`GET /v1/runtime-capabilities` reports `user_file_processing`. `enabled`
+follows `ANIMAMA_USER_FILE_PROCESSING_ENABLED` (default `true`). `worker_state`
+is the runner's liveness: `starting` until this server's runner has recorded a
+heartbeat, `ready` while that heartbeat is less than twenty seconds old, then
+`stale`. Enabled work queues durably while the runner is starting or stale.
+`pack_id` is a fixed `document-processing` label on desktop and null elsewhere;
+it keeps the response shape and names no installable pack.
+
+A self-host operator can set `ANIMAMA_USER_FILE_PROCESSING_ENABLED=false`. The
+runner then does not start, and process requests return 409
+`{"detail":{"code":"file_processing_unavailable"}}` before file lookup or job
+creation. Upload initialization, bytes and finalization still work, saved
+originals stay `uploaded`, existing indexed chunks stay searchable, and queued
+jobs resume when processing is turned back on. Desktop never sets the switch.
+
+On desktop, private originals live below the supervisor's `ANIMAMA_DATA_ROOT`
+inside `~/Library/Application Support/Animama/data`, not in app resources. See
+[Desktop operations](../operations/desktop-runtime.md) for backups, and
+[upload processing](../operations/development.md#upload-processing) for
+development stacks.
 
 ## Supported Files
 
@@ -90,6 +124,50 @@ executables, scripts, installers, and archive formats.
 
 Upload size defaults to `25 MiB` through `ANIMAMA_USER_FILE_MAX_UPLOAD_BYTES`.
 Processing size defaults to `10 MiB` through `ANIMAMA_USER_FILE_MAX_PROCESS_BYTES`.
+
+Each format becomes Markdown text (`adapters/parsers/dispatch.py` chooses the
+parser by extension):
+
+- `.txt`, `.rst` and `.org` keep their text, and `.md` its Markdown. `.json` is
+  reformatted, `.xml` keeps its text once it parses, and `.csv` and `.tsv`
+  become a Markdown table.
+- HTML keeps headings, paragraphs, lists, tables and link text in document
+  order, and drops scripts, styles and markup.
+- DOCX keeps headings (Title is level 1 and "Heading N" level N + 1),
+  paragraphs, lists and tables in body order. Headers, footers, footnotes,
+  comments, text boxes and images are not read.
+- PPTX gives each slide a heading with its title, followed by its text, tables
+  and speaker notes.
+- XLSX gives each sheet a heading and a table of the cell values last saved with
+  the workbook, never formulas.
+- PDF is read from each page's text layer, in the order the PDF stores it,
+  without OCR or layout analysis. Pages without selectable text are skipped and
+  named in the file's [overview](#processing-overviews); a PDF with no
+  selectable text fails with "This PDF has no selectable text; it may be
+  scanned." A PDF that only restricts permissions opens without a password and
+  is read.
+
+Office documents, PDFs and `.xml` need the `documents` extra (python-docx,
+python-pptx, openpyxl, pypdfium2 and defusedxml). Every local installation
+includes it; without it those files fail with "This installation cannot read
+.docx files: the documents extra is not installed." (naming the extension).
+
+Uploads are untrusted, and every refusal names its reason:
+
+- Content of another kind than its extension, such as a `.docx` that is not a
+  ZIP package or a `.pdf` without a `%PDF-` header, fails with "The file does
+  not match its .docx extension." A truncated file of the right kind is
+  "damaged or incomplete".
+- A document that needs a password to open fails with "Encrypted or
+  password-protected documents are not supported", and so does an Office file
+  stored as an encrypted package. Any other OLE file under an Office extension,
+  such as a legacy `.doc` renamed `.docx`, gets the mismatch reason.
+- Office packages are checked before a library opens them: at most 10,000
+  parts and 256 MiB unpacked, a compression ratio of at most 100 for parts over
+  1 MiB, and only stored or deflated parts. Every part is inflated once to
+  prove it stays within its recorded size.
+- XML that declares any entity, in a `.xml` file or inside an Office package,
+  is refused, and no external content is loaded.
 
 ## Step-By-Step Upload And Processing Walkthrough
 
@@ -111,32 +189,29 @@ Chat and Library use the same upload lifecycle:
    `POST /v1/files/{file_id}:process`. This creates a durable queued job and
    returns `202`; parsing never runs in the API request. Normal requests reuse
    queued/running work or an already-ready result. `force=true` reprocesses it.
-5. The worker claims jobs with `FOR UPDATE SKIP LOCKED`, records its lease and
-   attempt, and verifies the original's size and format. Missing, changed, empty,
-   or oversized originals fail; PDFs require `%PDF-` and Office documents must
-   be ZIP containers. Expired leases can be reclaimed after a worker exits.
+5. The server's [processing runner](#in-server-processing) claims the job with
+   `FOR UPDATE SKIP LOCKED`, records its lease and attempt, and reads the
+   original. A missing, changed, empty or oversized original fails at once. A
+   job whose lease expired after a crash can be claimed again.
 6. Before parsing, a non-forced job may reuse an owned ready file with the same
    SHA-256, normalized extension, and at least one chunk. It copies chunks,
    overview, and processing results into independent rows, and copies vectors
-   only when they come from the owner's current embeddings model. Otherwise it
-   parses and [chunks](#chunking) the document, then embeds it when the
+   only when they come from the owner's current embeddings model. Otherwise a
+   bounded child process [parses](#supported-files) the document, and the server
+   [chunks](#chunking) it and embeds it when the
    [embeddings role](#embeddings-role) is on. Embedding failure retains
    keyword-searchable chunks with a warning.
 7. Successful processing replaces chunks, stores the digest and timestamp, and
    marks the job `succeeded`. The file becomes `ready`, or `ready_keyword_only`
-   when embedding failed. Failures record `last_error` and retry
-   with bounded backoff; exhausted jobs and files become `failed`. The client
-   polls `GET /v1/files` for authoritative status and processing summaries.
+   when embedding failed. A failure records `last_error`: one that a retry
+   cannot fix fails the job and file at once, and others retry with bounded
+   backoff until the attempt limit, then fail. The client polls
+   `GET /v1/files` for authoritative status and processing summaries.
 
 Reused uploads remain independent for attachment, deletion, and forced
 reprocessing. `content_reused: true` records reuse without exposing the source
 file ID. Existing null digests are not backfilled; simultaneous duplicate
 uploads may both process before either result is ready.
-
-By default, the worker warms Docling's PDF pipeline before claiming jobs. Warm-up failures
-log a warning. Tokenization uses the configured model, falling back to
-`cl100k_base` when tiktoken cannot resolve it. Scanned PDFs need explicit OCR;
-encrypted/password-protected documents fail processing.
 
 ## Embeddings role
 
@@ -193,38 +268,54 @@ Frontend tracks transient Uppy metadata stages: `preparing`, `initializing`, `up
 ## Chunking
 
 Chunking turns one parsed file into smaller searchable rows in
-`user_file_chunk`. Each chunk has a stable `chunk_index`, extracted text,
-character count, estimated token count, optional embedding, and parser/source
-metadata. Reprocessing deletes existing chunks for the file and writes a new
-deterministic chunk set before marking the job succeeded.
+`user_file_chunk`. Each chunk has a stable `chunk_index`, its text, character
+count, the token count of its embedding text (`token_estimate`), optional
+embedding, and compact metadata. Reprocessing
+deletes existing chunks for the file and writes a new chunk set before marking
+the job succeeded; the same file always gives the same chunks.
 
-Docling-parsed formats use Docling Core's `HybridChunker`:
+The server chunks every parsed document at its headings
+(`app/services/user_file_chunking.py`), in a worker thread:
 
-- Supported Docling formats are `.md`, `.csv`, `.html`, `.htm`, `.pdf`,
-  `.docx`, `.pptx`, and `.xlsx`.
-- `HybridChunker` starts from Docling's document hierarchy, splits chunks that
-  exceed the configured token budget, and merges compatible neighboring chunks
-  when `merge_peers` allows it.
-- Anima stores display text in chunk rows and embeds Docling's contextualized
-  text, kept in `embedding_text` so re-embedding matches. Contextualized text is
-  not exposed through public APIs.
-- Hybrid chunk metadata is compacted to stable keys: `parser`, `chunker`,
-  `headings`, `captions`, `origin`, `doc_items`, `doc_item_count`, and
-  `token_count`. Bulky Docling document items are truncated in metadata while
-  `doc_item_count` preserves the original item count.
+- Markdown headings divide the text into sections with a heading path, such as
+  `Report > Results > Costs`. Office documents, HTML, Markdown, PDF text and the
+  tables of CSV, TSV and XLSX files are Markdown. Plain text (`.txt`, `.rst`,
+  `.org`), JSON and XML have no headings, so their `#` lines are text.
+- A section that fits is one chunk, and adjacent sections merge while they fit.
+  Heading lines stay in the chunk text, and a merged chunk's path is the
+  headings its sections share. Worksheets never share a chunk.
+- A larger section is cut one chunk at a time. Each chunk takes as much as fits
+  and ends at the best boundary in the second half of that span: a blank line
+  or block start, then a sentence end (`. ! ?` before whitespace, or `。！？`;
+  not in code), a line break, a space, and only then anywhere. Nothing is
+  materialized per word, line or paragraph, so a pathological file costs time
+  in proportion to its chunks.
+- A table split across chunks ends a chunk after a row, else after a cell, and
+  every chunk of rows repeats the header and delimiter rows. A header that
+  would take more than half a chunk is cut to its first columns, with an `…`
+  column, and gets chunks of its own.
+- `ANIMAMA_USER_FILE_CHUNK_MAX_TOKENS` bounds each chunk's embedding text: its
+  heading path, a blank line, then its text. The stored text has no path;
+  `embedding_text` keeps the embedded form so re-embedding matches, and is not
+  exposed through public APIs. A path longer than a quarter of the limit drops
+  its outer headings.
+- The stored text also holds at most four characters per token of the chunk
+  size (3,200 at the default). `read_uploaded_file_chunks` estimates four ASCII
+  characters per token, so text where one token covers a long run of spaces,
+  such as a fixed-width report, still fits one read.
+- Tokens are `cl100k_base`, read from the encoding file llama-index bundles; no
+  tokenizer is downloaded. Every chunk's count is exact: its embedding text is
+  encoded whole. If that file is missing or damaged, counts fall back to a
+  CJK-aware estimate and the server logs a warning once.
+- Metadata holds `chunk_type` (`prose` or `table`), `headings` (the path),
+  `pages` (`[first, last]` for a PDF), and `table_index`, `row_start` and
+  `row_end` for rows of one table. Per-page character offsets stay out of the
+  stored metadata; `processing.parser_metadata` keeps a PDF's `page_count` and
+  `pdf_skipped_pages`.
 
-Simple formats and Docling fallback use the deterministic character/table
-chunker:
-
-- Prose chunks target about 2,500 characters.
-- Neighboring prose chunks overlap by about 250 characters.
-- The splitter prefers paragraph boundaries, then line boundaries, before
-  falling back to the character window.
-- Table-only stdlib TSV output is chunked by Markdown table row groups so the
-  table header stays with each group.
-
-This fallback strategy is predictable and dependency-light, and it keeps simple
-text formats out of Docling.
+Chunks that the retired Docling parser stored keep their own metadata
+(`chunker: docling_hybrid`) and stay searchable; content reuse copies them
+unchanged, and reprocessing with `force=true` replaces them.
 
 ## Processing Overviews
 
@@ -235,11 +326,14 @@ extraction `method`, and an `outline_truncated` flag. Operational parser,
 embedding, warning, and chunk-count details remain under
 `user_file.metadata.processing`.
 
-Rich files use Docling's native title and section tree while the converted
-document is available, with exported Markdown headings as a fallback. JSON,
-XML, and table-only files use format-specific structural summaries. Plain text
-without recognized structure receives an extractive description and an empty
-outline rather than fabricated sections. Overview extraction is local and
+Office documents, HTML and Markdown take their outline from their headings, and
+a PDF from its bookmarks; other Markdown formats fall back to their text's
+headings. JSON, XML, and table-only files use format-specific structural
+summaries. Plain text without recognized structure receives an extractive
+description and an empty outline rather than fabricated sections. A PDF with
+pages that have no selectable text starts its description by naming them, for
+example "Pages 2–3 have no selectable text.", in at most 160 characters, so the
+Anima can say which pages it could not read. Overview extraction is local and
 deterministic: it does not call a model provider, and a safe fallback prevents
 overview failures from failing an otherwise searchable processing job.
 
@@ -325,21 +419,6 @@ metadata, object keys, or storage URLs. The Anima should use search for
 relevance, exact phrases, and locating a chunk; it should use bounded reads for
 whole-document synthesis, sequential sections, or surrounding context.
 
-## Local Worker
-
-Run a host worker with the same database and private storage configuration as
-the backend:
-
-```bash
-uv run --no-dev --extra file-worker python -m animama.workers.user_file_processing
-```
-
-The Compose worker service is commented out. Configure it explicitly before
-starting or rebuilding it; see
-[optional document worker setup](../operations/development.md#optional-document-worker).
-The `animama-server` image excludes parser dependencies; the separate
-`animama-file-worker` target installs Docling with CPU-only PyTorch.
-
 ## Configuration
 
 Storage:
@@ -354,46 +433,29 @@ Limits:
 
 - `ANIMAMA_USER_FILE_MAX_UPLOAD_BYTES`: upload declaration limit. Defaults to
   `25 MiB`.
-- `ANIMAMA_USER_FILE_MAX_PROCESS_BYTES`: worker payload limit. Defaults to
-  `10 MiB`.
+- `ANIMAMA_USER_FILE_MAX_PROCESS_BYTES`: largest original that is processed.
+  Defaults to `10 MiB`; a larger upload is saved but fails processing.
+- `ANIMAMA_USER_FILE_PARSE_TIMEOUT_SECONDS`: wall-clock limit for one file's
+  parse child. Defaults to `120`.
+- `ANIMAMA_USER_FILE_PARSE_MEMORY_MB`: resident-memory limit for one file's
+  parse child. Defaults to `1024`. The server refuses to start with a zero,
+  negative or infinite parse limit.
+- `ANIMAMA_USER_FILE_CHUNK_MAX_TOKENS`: [chunk](#chunking) size in
+  `cl100k_base` tokens, heading path included. Defaults to `800`; the server
+  refuses to start outside `64` to `1400`, the largest size whose chunks always
+  fit one `read_uploaded_file_chunks` read in any script. It sizes chunks only
+  and is independent of the embeddings model.
 
-Worker loop:
+Processing loop:
 
-- `ANIMAMA_USER_FILE_WORKER_ID`: optional explicit worker ID.
-- `ANIMAMA_USER_FILE_PROCESSING_POLL_SECONDS`: poll interval. Defaults to `2`.
-- `ANIMAMA_USER_FILE_PROCESSING_BATCH_SIZE`: jobs claimed per poll. Defaults to
-  `1`.
-- `ANIMAMA_USER_FILE_PROCESSING_LEASE_SECONDS`: running-job lease. Defaults to
-  `300`.
-- `ANIMAMA_USER_FILE_PROCESSING_MAX_ATTEMPTS`: retry limit. Defaults to `3`.
-
-Docling:
-
-- `ANIMAMA_USER_FILE_DOCLING_TIMEOUT_SECONDS`: conversion timeout. Defaults to
-  `120`.
-- `ANIMAMA_USER_FILE_DOCLING_ENABLE_OCR`: PDF OCR flag. Defaults to `false`.
-- `ANIMAMA_USER_FILE_DOCLING_DO_TABLE_STRUCTURE`: table extraction flag.
-  Defaults to `true`.
-- `ANIMAMA_USER_FILE_DOCLING_ACCELERATOR`: Docling accelerator. Defaults to
-  `cpu`.
-- `ANIMAMA_USER_FILE_DOCLING_NUM_THREADS`: Docling CPU inference threads.
-  Defaults to `4`.
-- `ANIMAMA_USER_FILE_DOCLING_TABLE_MODE`: table extraction mode, `fast` or
-  `accurate`. Defaults to `fast`.
-- `ANIMAMA_USER_FILE_DOCLING_WARMUP`: warm Docling's PDF pipeline when the
-  worker starts. Defaults to `true`.
-- `ANIMAMA_USER_FILE_CHUNK_MAX_TOKENS`: Docling `HybridChunker` token budget.
-  Defaults to `800`.
-- `ANIMAMA_USER_FILE_CHUNK_TOKENIZER_MODEL`: OpenAI/tiktoken model name for
-  `HybridChunker` sizing. Defaults to `text-embedding-3-small`; it only sizes
-  chunks and is independent of the embeddings model.
-
-Compose worker resources:
-
-- `ANIMAMA_FILE_WORKER_CPUS`: CPU quota for the `animama-file-worker` service.
-  Defaults to `2.0`.
-- `ANIMAMA_FILE_WORKER_MEMORY`: memory limit for the `animama-file-worker`
-  service. Defaults to `4g`.
+- `ANIMAMA_USER_FILE_PROCESSING_ENABLED`: `false` turns processing off for a
+  self-hosted installation; uploads are still saved. Defaults to `true`.
+- `ANIMAMA_USER_FILE_PROCESSING_POLL_SECONDS`: how often the runner looks for
+  due jobs when nothing wakes it. Defaults to `2`.
+- `ANIMAMA_USER_FILE_PROCESSING_LEASE_SECONDS`: running-job lease, after which
+  a crashed server's job is claimed again. Defaults to `300`.
+- `ANIMAMA_USER_FILE_PROCESSING_MAX_ATTEMPTS`: attempts before a file that
+  keeps failing for a retryable reason fails. Defaults to `3`.
 
 ## Data Model And Ownership
 
@@ -407,10 +469,10 @@ request principal. One installation cannot list, finalize, process, search, or
 delete another owner's files. Original locators are not accepted from clients and are
 not returned by the public APIs.
 
-The original-file, chunk, job and optional-worker heartbeat tables are part of
+The original-file, chunk, job and processing-heartbeat tables are part of
 the accountless `baseline_20260908` baseline. A database stamped with a removed
 revision needs the explicit development reset boundary described in
-[Database operations](../operations/development.md#database); ordinary worker
+[Database operations](../operations/development.md#database); ordinary server
 restarts preserve ownership, uploads and queued jobs.
 
 ## Deletion And Recovery
@@ -425,11 +487,14 @@ Pending uploads can be aborted with `DELETE /v1/files/uploads/{file_id}`. If the
 browser PUT fails, the pending row remains until abort or expiry cleanup is
 added later.
 
-Processing enqueue is idempotent. Worker leases are recoverable after lease
-expiration. Reprocessing with `force=true` replaces chunks idempotently.
+Processing enqueue is idempotent. Job leases are recoverable after they
+expire. Reprocessing with `force=true` replaces chunks idempotently.
 
 ## Known Limitations
 
+- PDFs are read from their text layer only. There is no OCR, layout analysis
+  or table-structure recognition, so scanned pages are skipped, a multi-column
+  page reads in the order the PDF stores its text, and PDF tables read as text.
 - Stored vectors are keyed by catalog row ID. Pointing an embeddings
   connection at another server keeps the row ID, so existing vectors still
   count as current: search compares them with the new server's vectors, and a
@@ -439,5 +504,5 @@ expiration. Reprocessing with `force=true` replaces chunks idempotently.
 ## Non-Goals
 
 The API does not expose original download URLs or let agents read original
-bytes. OCR is opt-in; encrypted/password-protected documents and macro-enabled
-Office files are unsupported.
+bytes. OCR, encrypted or password-protected documents and macro-enabled Office
+files are unsupported.

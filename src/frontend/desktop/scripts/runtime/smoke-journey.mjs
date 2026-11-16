@@ -50,6 +50,22 @@ export function addCleanup(current, instruction) {
 }
 
 /**
+ * Smoke checks of a fresh app's runtime capabilities: no optional download
+ * started by itself, and the core app's upload processor is running without a
+ * pack.
+ */
+export function desktopCapabilityChecks(capabilities) {
+  return {
+    no_automatic_optional_download:
+      capabilities?.runtime_kind === "desktop" &&
+      capabilities.offline_speech_enabled === false,
+    core_upload_processing:
+      capabilities?.user_file_processing?.enabled === true &&
+      capabilities.user_file_processing.worker_state === "ready",
+  };
+}
+
+/**
  * The installed-artifact smoke. The exact installed app is checked without
  * being debugged: its fuse wire, its sealed update policy, and a prompt exit
  * with no runtime for each debugging switch. The fresh-profile, required-name
@@ -393,12 +409,10 @@ export async function runSmokeJourney({ report, provider, platform }) {
     });
     evidence("first_anima_chat", firstAnima?.display_name === "Annie");
     const capabilities = await request(page, "/v1/runtime-capabilities");
-    evidence(
-      "no_automatic_optional_download",
-      capabilities.runtime_kind === "desktop" &&
-        capabilities.offline_speech_enabled === false &&
-        capabilities.user_file_processing?.enabled === false,
-    );
+    for (const [name, passed] of Object.entries(
+      desktopCapabilityChecks(capabilities),
+    ))
+      evidence(name, passed);
     step = "gateway-rejection";
     for (const headers of [
       {},
@@ -574,6 +588,27 @@ export async function runSmokeJourney({ report, provider, platform }) {
       "private_file_creation",
       file?.status === "uploaded" && file?.stored_size_bytes > 0,
     );
+    // Reading the file runs the packaged runtime's own `parse-upload` child.
+    step = "private-file-processing";
+    await request(page, `/v1/files/${file.file_id}:process`, {
+      method: "POST",
+      body: "{}",
+    });
+    const processingDeadline = Date.now() + 60_000;
+    let processed = await request(page, `/v1/files/${file.file_id}`);
+    while (
+      ["uploaded", "processing"].includes(processed.status) &&
+      Date.now() < processingDeadline
+    ) {
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      processed = await request(page, `/v1/files/${file.file_id}`);
+    }
+    // A failed embedding call leaves the file usable through keyword search.
+    const searchable = ["ready", "ready_keyword_only"];
+    evidence(
+      "private_file_processing",
+      searchable.includes(processed?.status) && processed.chunk_count > 0,
+    );
     step = "restart-persistence";
     const stableOrigin = origin;
     await close();
@@ -594,7 +629,7 @@ export async function runSmokeJourney({ report, provider, platform }) {
     evidence(
       "private_file_persistence",
       persistedFile.sha256 === file.sha256 &&
-        persistedFile.status === "uploaded",
+        searchable.includes(persistedFile.status),
     );
     evidence(
       "provider_persistence",

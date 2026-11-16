@@ -289,10 +289,10 @@ or migration behavior.
   Offline speech models are not packs: the backend model-asset service installs
   the Parakeet and SenseVoice sets from the fixed shared model origin until the
   final release turns downloads off (ADRs 0012 and 0029). Keep strict zstd/USTAR checks for
-  archive packs and the shared atomic transition/rollback barrier. The separate document-worker pack must pass pinned OS-signature
-  verification on install and every launch, even with an unsigned development
-  core; never add an unsigned-worker bypass. See the staging guide for release
-  input approvals, producer commands, and the outstanding native artifact gates.
+  archive packs and the shared atomic transition/rollback barrier. Packs carry
+  data only: the catalog refuses platform builds, publishers and executable
+  files. See the staging guide for release input approvals, producer commands,
+  and the outstanding native artifact gates.
 - Platform dev builds are documented in `../../docs/frontend/desktop/platforms.md`.
 - `pnpm desktop:mac` requires a complete fresh stage and audit, explicitly
   disables signing (`identity: null`), and rechecks the packaged inventory. Unlicensed decorative SFX

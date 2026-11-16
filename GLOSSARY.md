@@ -190,11 +190,12 @@ the editable loadout, a live view of changing files or a database backup.
 
 ## Feature pack
 
-A verified optional desktop distribution component, installed by Electron's pack
-manager with a service restart, that adds capability or assets: expanded
-Included content or document processing. It is distinct from a **Model asset**,
-a portable content import/export package and a wheel/npm software package set;
-installation alone does not equip an Anima.
+A verified, data-only optional desktop distribution component, installed by
+Electron's pack manager with a service restart: currently only expanded
+Included content. Upload processing is part of the core app, not a pack. A
+feature pack is distinct from a **Model asset**, a portable content
+import/export package and a wheel/npm software package set; installation alone
+does not equip an Anima.
 
 ## Model asset
 

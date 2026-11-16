@@ -229,7 +229,8 @@ cancel, retry and removal without changing the selected provider or voice.
 
 Use the downloader for restart-free data files the running app can pick up,
 such as optional voices and the speech-to-text sets. Bundles that need a service
-switch, such as the document-processing pack, stay in Electron's pack manager.
+switch, such as the expanded Included content pack, stay in Electron's pack
+manager.
 
 Use the app's Remove action before reinstalling. Never edit an installed file in
 place. A renderer using an installed speech-to-text set holds a short use lease, and removal

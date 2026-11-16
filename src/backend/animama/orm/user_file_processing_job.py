@@ -13,7 +13,7 @@ from .sqlalchemy_base import SqlalchemyBase
 
 
 class ORMUserFileProcessingJob(SqlalchemyBase, TimestampMixin):
-    """Durable processing queue row for user-file parser workers."""
+    """Durable processing queue row for the server's upload processor."""
 
     __tablename__ = "user_file_processing_job"
     __table_args__ = (

@@ -68,7 +68,6 @@
     "desktop:runtime:audit": "pnpm --filter animama-desktop runtime:audit",
     "desktop:icons": "pnpm --filter animama-desktop icons",
     "desktop:runtime:packs": "pnpm --filter animama-desktop runtime:packs",
-    "desktop:runtime:document-worker": "pnpm --filter animama-desktop runtime:document-worker",
     "desktop:dist:mac": "pnpm --filter animama-desktop release:mac",
     "desktop:release:scan": "pnpm --filter animama-desktop release:scan",
     "desktop:dist:windows": "pnpm --filter animama-desktop release:windows",

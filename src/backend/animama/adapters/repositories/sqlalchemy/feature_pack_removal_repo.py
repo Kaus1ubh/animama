@@ -1,7 +1,7 @@
 """Reference and lease checks used before withdrawal and desktop pack removal."""
 
 import hashlib
-from datetime import datetime, timedelta
+from datetime import datetime
 
 from sqlalchemy import Select, exists, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -17,8 +17,6 @@ from animama.orm.content_catalog import (
     ORMContentPreview,
     ORMContentPreviewFile,
 )
-from animama.orm.user_file import ORMUserFile
-from animama.orm.user_file_processing_job import ORMUserFileProcessingJob
 
 
 def _label(value: str) -> str:
@@ -89,21 +87,3 @@ async def content_operations_idle(session: AsyncSession) -> bool:
         if not await session.scalar(text("SELECT pg_try_advisory_xact_lock(:key)"), {"key": key}):
             return False
     return True
-
-
-async def document_job_blockers(
-    session: AsyncSession, *, now: datetime, lease_seconds: int
-) -> list[PackRemovalBlocker]:
-    """Queued work survives removal. A live, claimed job prevents removal."""
-
-    rows = await session.execute(
-        select(ORMUserFileProcessingJob.id, ORMUserFile.original_filename)
-        .join(ORMUserFile)
-        .where(
-            ORMUserFileProcessingJob.status == "running",
-            ORMUserFileProcessingJob.locked_at > now - timedelta(seconds=lease_seconds),
-        )
-        .order_by(ORMUserFileProcessingJob.id)
-        .limit(32)
-    )
-    return [PackRemovalBlocker("document_job", row.id[:128], _label(row.original_filename)) for row in rows]

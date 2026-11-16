@@ -351,14 +351,12 @@ if [ -n "$PROJECT_NAME" ] && [ "$PROJECT_NAME" != "animama" ]; then
   DERIVED_STACK_ROOT="${script_dir}/.animama-stacks/${STACK_STORAGE_KEY}"
   DERIVED_LOCAL_CONTENT_HOST_PATH="${DERIVED_STACK_ROOT}/content/local"
   DERIVED_DATA_HOST_PATH="${DERIVED_STACK_ROOT}/data"
-  DERIVED_DOCLING_CACHE_HOST_PATH="${DERIVED_STACK_ROOT}/cache/docling"
   DERIVED_HOST_CONTENT_ROOT="${DERIVED_STACK_ROOT}/content"
 else
   STACK_STORAGE_KEY="default"
   DERIVED_STACK_ROOT=""
   DERIVED_LOCAL_CONTENT_HOST_PATH="${script_dir}/content/local"
   DERIVED_DATA_HOST_PATH="${script_dir}/data"
-  DERIVED_DOCLING_CACHE_HOST_PATH="${script_dir}/cache/docling"
   DERIVED_HOST_CONTENT_ROOT="${script_dir}/content"
 fi
 
@@ -367,9 +365,6 @@ if [ -n "$PROJECT_NAME" ] && [ "$PROJECT_NAME" != "animama" ]; then
     die "named stacks require their isolated derived ANIMAMA_LOCAL_CONTENT_HOST_PATH"
   [ -z "${ANIMAMA_DATA_HOST_PATH:-}" ] || [ "$ANIMAMA_DATA_HOST_PATH" = "$DERIVED_DATA_HOST_PATH" ] ||
     die "named stacks require their isolated derived ANIMAMA_DATA_HOST_PATH"
-  [ -z "${ANIMAMA_DOCLING_CACHE_HOST_PATH:-}" ] ||
-    [ "$ANIMAMA_DOCLING_CACHE_HOST_PATH" = "$DERIVED_DOCLING_CACHE_HOST_PATH" ] ||
-    die "named stacks require their isolated derived ANIMAMA_DOCLING_CACHE_HOST_PATH"
 fi
 
 if [ "$PURGE_REQUESTED" = true ]; then
@@ -377,19 +372,15 @@ if [ "$PURGE_REQUESTED" = true ]; then
     die "--purge refuses a custom ANIMAMA_LOCAL_CONTENT_HOST_PATH"
   [ -z "${ANIMAMA_DATA_HOST_PATH:-}" ] || [ "$ANIMAMA_DATA_HOST_PATH" = "$DERIVED_DATA_HOST_PATH" ] ||
     die "--purge refuses a custom ANIMAMA_DATA_HOST_PATH"
-  [ -z "${ANIMAMA_DOCLING_CACHE_HOST_PATH:-}" ] ||
-    [ "$ANIMAMA_DOCLING_CACHE_HOST_PATH" = "$DERIVED_DOCLING_CACHE_HOST_PATH" ] ||
-    die "--purge refuses a custom ANIMAMA_DOCLING_CACHE_HOST_PATH"
 fi
 
 ANIMAMA_INCLUDED_CONTENT_HOST_PATH="${ANIMAMA_INCLUDED_CONTENT_HOST_PATH:-${script_dir}/content/included}"
 ANIMAMA_LOCAL_CONTENT_HOST_PATH="${ANIMAMA_LOCAL_CONTENT_HOST_PATH:-$DERIVED_LOCAL_CONTENT_HOST_PATH}"
 ANIMAMA_DATA_HOST_PATH="${ANIMAMA_DATA_HOST_PATH:-$DERIVED_DATA_HOST_PATH}"
-ANIMAMA_DOCLING_CACHE_HOST_PATH="${ANIMAMA_DOCLING_CACHE_HOST_PATH:-$DERIVED_DOCLING_CACHE_HOST_PATH}"
 ANIMAMA_CONTENT_ROOT="${ANIMAMA_CONTENT_ROOT:-$DERIVED_HOST_CONTENT_ROOT}"
 ANIMAMA_DATA_ROOT="${ANIMAMA_DATA_ROOT:-$ANIMAMA_DATA_HOST_PATH}"
 export ANIMAMA_INCLUDED_CONTENT_HOST_PATH ANIMAMA_LOCAL_CONTENT_HOST_PATH ANIMAMA_DATA_HOST_PATH
-export ANIMAMA_DOCLING_CACHE_HOST_PATH ANIMAMA_CONTENT_ROOT ANIMAMA_DATA_ROOT
+export ANIMAMA_CONTENT_ROOT ANIMAMA_DATA_ROOT
 
 if [ "$BASE_PORT_REQUESTED" = true ]; then
   if [[ ! "$BASE_PORT" =~ ^[0-9]+$ ]] || [ "$BASE_PORT" -lt 1 ] || [ "$BASE_PORT" -gt 65535 ]; then
@@ -475,7 +466,6 @@ write_stack_env_file() {
     write_env_var ANIMAMA_INCLUDED_CONTENT_HOST_PATH
     write_env_var ANIMAMA_LOCAL_CONTENT_HOST_PATH
     write_env_var ANIMAMA_DATA_HOST_PATH
-    write_env_var ANIMAMA_DOCLING_CACHE_HOST_PATH
   } > "$STACK_ENV_FILE"
 }
 
@@ -514,7 +504,6 @@ prepare_host_roots() {
     "$ANIMAMA_DATA_HOST_PATH/internal/runtime" \
     "$ANIMAMA_DATA_HOST_PATH/internal/derivatives" \
     "$ANIMAMA_DATA_HOST_PATH/internal/reconciliation" \
-    "$ANIMAMA_DOCLING_CACHE_HOST_PATH" \
     "${script_dir}/.animama-logs"
 }
 

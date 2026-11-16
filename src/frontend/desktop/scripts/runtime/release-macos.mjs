@@ -185,14 +185,6 @@ export async function releaseMac(args = []) {
       "Release acceptance requires exactly the active reviewed feature-pack artifacts; deferred packs must be absent",
     );
   if (
-    release.activePackIds.includes("document-processing") &&
-    catalog.entries.find((entry) => entry.id === "document-processing")?.signing
-      ?.publisher !== release.publisher.team_id
-  )
-    throw new Error(
-      "Core and document helper must use the same reviewed Apple Team ID",
-    );
-  if (
     JSON.stringify(
       readJson(path.join(target.runtime, "update-policy.json")),
     ) !== JSON.stringify(release.updatePolicy)

@@ -1,7 +1,16 @@
-"""Deterministic overview extraction for processed user uploads."""
+"""Deterministic overview extraction for processed user uploads.
+
+An overview is what the Anima sees of an attached file before reading it: a
+bounded description and an outline (spec R4.5). Structured formats take their
+outline from the parser's headings, Markdown formats from their text's
+headings, and JSON, XML and tables from their structure; other text gets an
+extractive description. A PDF with pages that had no selectable text says which
+in its description (spec R2.6).
+"""
 
 from __future__ import annotations
 
+import dataclasses
 import json
 import math
 import re
@@ -11,11 +20,15 @@ from collections.abc import Mapping, Sequence
 from xml.etree import ElementTree
 
 from animama.domain.user_file_processing import (
+    MARKDOWN_ATX_HEADING_RE,
+    MARKDOWN_FENCE_RE,
+    MARKDOWN_TEXT_FORMATS,
     ParsedUserFileDocument,
-    UserFileChunkDraft,
     UserFileOutlineItem,
     UserFileOverview,
     UserFileOverviewMethod,
+    markdown_outline,
+    user_file_document_format,
 )
 
 USER_FILE_OVERVIEW_VERSION = 1
@@ -24,12 +37,15 @@ MAX_OVERVIEW_TITLE_CHARS = 200
 MAX_OVERVIEW_OUTLINE_CHARS = 16_000
 MAX_OVERVIEW_DESCRIPTION_CHARS = 400
 MAX_OVERVIEW_HEADING_LEVEL = 6
+# A title is cut to this many characters before it is normalized: enough for the
+# link markup and spacing normalization removes, and a bound on that work.
+_MAX_RAW_TITLE_CHARS = 4 * MAX_OVERVIEW_TITLE_CHARS
 MAX_SUMMARY_SAMPLE_CHARS = 12_000
 SUMMARY_SEGMENT_CHARS = MAX_SUMMARY_SAMPLE_CHARS // 3
+MAX_SKIPPED_PAGES_NOTE_CHARS = 160
+"""Longest note naming a PDF's pages without selectable text; it starts the description."""
 
 _METHODS = frozenset({"structured", "extractive", "table", "json", "xml", "fallback_excerpt"})
-_ATX_HEADING_RE = re.compile(r"^\s{0,3}(#{1,6})\s+(.+?)\s*#*\s*$")
-_FENCE_RE = re.compile(r"^\s*(`{3,}|~{3,})")
 _MARKDOWN_LINK_RE = re.compile(r"\[([^\]]+)\]\([^)]*\)")
 _SENTENCE_RE = re.compile(r"[^.!?\n]+[.!?]+(?:[\"')\]]*)")
 _WORD_RE = re.compile(r"[^\W_]+(?:['’-][^\W_]+)*", re.UNICODE)
@@ -84,15 +100,14 @@ _STOPWORDS = frozenset(
 )
 
 
-def build_user_file_overview(
-    *,
-    filename: str,
-    document: ParsedUserFileDocument,
-    chunks: Sequence[UserFileChunkDraft],
-) -> UserFileOverview:
+def build_user_file_overview(*, filename: str, document: ParsedUserFileDocument) -> UserFileOverview:
     """Build one deterministic, bounded overview from normalized parser output."""
 
-    format_name = _document_format(document)
+    return _with_skipped_pages(_document_overview(filename=filename, document=document), document)
+
+
+def _document_overview(*, filename: str, document: ParsedUserFileDocument) -> UserFileOverview:
+    format_name = user_file_document_format(document)
     outline: tuple[UserFileOutlineItem, ...]
     outline_truncated = bool(document.source_outline_truncated)
 
@@ -110,7 +125,7 @@ def build_user_file_overview(
         outline, bounded = _bound_outline(document.source_outline)
         outline_truncated = outline_truncated or bounded
     elif _supports_markdown_outline(document):
-        outline, bounded = _bound_outline(_extract_markdown_outline(document.text))
+        outline, bounded = _bound_outline(markdown_outline(document.text))
         outline_truncated = outline_truncated or bounded
     else:
         outline = ()
@@ -124,28 +139,30 @@ def build_user_file_overview(
         outline, bounded = _bound_outline(table_outline)
         return _overview(table_description, outline, "table", outline_truncated or bounded)
 
-    source_text = _overview_source_text(document, chunks)
-    normalized_text = _normalize_block(source_text)
+    normalized_text = _normalize_block(document.text)
     if normalized_text and len(normalized_text) <= MAX_OVERVIEW_DESCRIPTION_CHARS:
         return _overview(normalized_text, (), "extractive", outline_truncated)
 
-    description = _extractive_description(source_text, sentence_count=2)
+    description = _extractive_description(document.text, sentence_count=2)
     if description:
         return _overview(description, (), "extractive", outline_truncated)
 
-    return fallback_user_file_overview(filename=filename, document=document, chunks=chunks)
+    return _fallback_overview(filename=filename, document=document)
 
 
-def fallback_user_file_overview(
-    *,
-    filename: str,
-    document: ParsedUserFileDocument,
-    chunks: Sequence[UserFileChunkDraft],
-) -> UserFileOverview:
+def fallback_user_file_overview(*, filename: str, document: ParsedUserFileDocument) -> UserFileOverview:
     """Return a no-fail excerpt or filename overview after extraction errors."""
 
+    overview = _fallback_overview(filename=filename, document=document)
     try:
-        source = _normalize_block(_overview_source_text(document, chunks))
+        return _with_skipped_pages(overview, document)
+    except Exception:
+        return overview
+
+
+def _fallback_overview(*, filename: str, document: ParsedUserFileDocument) -> UserFileOverview:
+    try:
+        source = _normalize_block(document.text)
         description = _clip_text(source, MAX_OVERVIEW_DESCRIPTION_CHARS)
     except Exception:
         description = ""
@@ -153,6 +170,54 @@ def fallback_user_file_overview(
         safe_name = _normalize_inline(filename) or "uploaded file"
         description = _clip_text(f"Uploaded document {safe_name}.", MAX_OVERVIEW_DESCRIPTION_CHARS)
     return _overview(description, (), "fallback_excerpt", False)
+
+
+def skipped_pages_note(document: ParsedUserFileDocument) -> str | None:
+    """The sentence naming a PDF's pages without selectable text, such as "Pages 2–3 have no selectable text."
+
+    Runs of pages are joined into ranges. When the whole list would pass
+    :data:`MAX_SKIPPED_PAGES_NOTE_CHARS`, the first ranges are named and the
+    rest counted. Returns ``None`` when the parser recorded no such page.
+    """
+
+    value = document.metadata.get("pdf_skipped_pages")
+    if not isinstance(value, list):
+        return None
+    pages = sorted({page for page in value if isinstance(page, int) and not isinstance(page, bool) and page > 0})
+    if not pages:
+        return None
+    if len(pages) == 1:
+        return f"Page {pages[0]} has no selectable text."
+    ranges: list[tuple[int, int]] = []
+    for page in pages:
+        if ranges and page == ranges[-1][1] + 1:
+            ranges[-1] = (ranges[-1][0], page)
+        else:
+            ranges.append((page, page))
+    names = [str(first) if first == last else f"{first}–{last}" for first, last in ranges]
+    listed = names[0] if len(names) == 1 else f"{', '.join(names[:-1])} and {names[-1]}"
+    note = f"Pages {listed} have no selectable text."
+    if len(note) <= MAX_SKIPPED_PAGES_NOTE_CHARS:
+        return note
+    note = f"{len(pages)} pages have no selectable text."
+    remaining = len(pages)
+    for index, (first, last) in enumerate(ranges[:-1]):
+        remaining -= last - first + 1
+        candidate = f"Pages {', '.join(names[: index + 1])} and {remaining} more pages have no selectable text."
+        if len(candidate) > MAX_SKIPPED_PAGES_NOTE_CHARS:
+            break
+        note = candidate
+    return note
+
+
+def _with_skipped_pages(overview: UserFileOverview, document: ParsedUserFileDocument) -> UserFileOverview:
+    """Start the description with the skipped-pages note, which then survives any later clipping."""
+
+    note = skipped_pages_note(document)
+    if note is None:
+        return overview
+    description = _clip_text(_normalize_block(f"{note} {overview.description}"), MAX_OVERVIEW_DESCRIPTION_CHARS)
+    return dataclasses.replace(overview, description=description)
 
 
 def serialize_user_file_overview(overview: UserFileOverview) -> dict[str, object]:
@@ -241,38 +306,10 @@ def _overview(
     )
 
 
-def _document_format(document: ParsedUserFileDocument) -> str:
-    value = document.metadata.get("format")
-    if isinstance(value, str) and value.strip():
-        return value.strip().lower().lstrip(".")
-    extension = document.metadata.get("extension")
-    if isinstance(extension, str) and extension.strip():
-        return extension.strip().lower().lstrip(".")
-    return document.parser_name.removeprefix("stdlib-").lower()
-
-
 def _supports_markdown_outline(document: ParsedUserFileDocument) -> bool:
-    return document.parser_name == "docling" or _document_format(document) in {"md", "markdown", "html", "htm"}
+    """Whether the text's ``#`` lines are headings, which its format decides."""
 
-
-def _extract_markdown_outline(text: str) -> tuple[UserFileOutlineItem, ...]:
-    items: list[UserFileOutlineItem] = []
-    fence_marker: str | None = None
-    for line in text.replace("\r\n", "\n").replace("\r", "\n").split("\n"):
-        fence = _FENCE_RE.match(line)
-        if fence is not None:
-            marker = fence.group(1)[0]
-            if fence_marker is None:
-                fence_marker = marker
-            elif fence_marker == marker:
-                fence_marker = None
-            continue
-        if fence_marker is not None:
-            continue
-        match = _ATX_HEADING_RE.match(line)
-        if match is not None:
-            items.append(UserFileOutlineItem(level=len(match.group(1)), title=match.group(2)))
-    return tuple(items)
+    return user_file_document_format(document) in MARKDOWN_TEXT_FORMATS
 
 
 def _bound_outline(
@@ -284,7 +321,7 @@ def _bound_outline(
     previous: tuple[int, str] | None = None
     for item in items:
         level = min(MAX_OVERVIEW_HEADING_LEVEL, max(1, int(item.level)))
-        normalized_title = _normalize_heading(item.title)
+        normalized_title = _normalize_heading(str(item.title)[:_MAX_RAW_TITLE_CHARS])
         if not normalized_title:
             continue
         clipped_title = _clip_text(normalized_title, MAX_OVERVIEW_TITLE_CHARS)
@@ -374,38 +411,24 @@ def _table_structure(
         total_rows = 0
         for index, table in enumerate(tables, start=1):
             outline.append(UserFileOutlineItem(level=1, title=f"Table {index}"))
-            rows = table.get("rows") if isinstance(table, Mapping) else None
-            if isinstance(rows, list) and rows:
-                columns = [_normalize_inline(value) for value in rows[0]]
-                columns = [value for value in columns if value]
-                data_rows = max(0, len(rows) - 1)
-                if index == 1:
-                    first_columns = columns
+            if not isinstance(table, Mapping):
+                continue
+            # Parsers summarize each table by its header cells and its number of rows below them.
+            header = table.get("header")
+            columns = [_normalize_inline(value) for value in header] if isinstance(header, list) else []
+            columns = [value for value in columns if value]
+            if index == 1:
+                first_columns = columns
+            if columns:
+                outline.append(UserFileOutlineItem(level=2, title=f"Columns: {', '.join(columns)}"))
+            data_rows = table.get("data_row_count")
+            if isinstance(data_rows, int) and not isinstance(data_rows, bool) and data_rows >= 0:
                 total_rows += data_rows
-                if columns:
-                    outline.append(UserFileOutlineItem(level=2, title=f"Columns: {', '.join(columns)}"))
                 outline.append(UserFileOutlineItem(level=2, title=f"Rows: {data_rows}"))
         column_text = ", ".join(first_columns[:8]) or "unspecified columns"
         description = f"Tabular document with {len(tables)} table(s), {total_rows} data rows, and {column_text}."
         return tuple(outline), description
-
-    docling = document.metadata.get("docling")
-    table_count = docling.get("tables_count") if isinstance(docling, Mapping) else None
-    if isinstance(table_count, int) and not isinstance(table_count, bool) and table_count > 0:
-        fallback_outline = tuple(
-            UserFileOutlineItem(level=1, title=f"Table {index}") for index in range(1, table_count + 1)
-        )
-        return fallback_outline, f"Structured document containing {table_count} table(s)."
     return (), ""
-
-
-def _overview_source_text(
-    document: ParsedUserFileDocument,
-    chunks: Sequence[UserFileChunkDraft],
-) -> str:
-    if document.text.strip():
-        return document.text
-    return "\n\n".join(chunk.text for chunk in chunks if chunk.text.strip())
 
 
 def _extractive_description(text: str, *, sentence_count: int) -> str:
@@ -473,7 +496,7 @@ def _prose_for_sentences(text: str) -> str:
             current.clear()
 
     for line in text.split("\n"):
-        fence = _FENCE_RE.match(line)
+        fence = MARKDOWN_FENCE_RE.match(line)
         if fence is not None:
             flush_paragraph()
             marker = fence.group(1)[0]
@@ -487,7 +510,7 @@ def _prose_for_sentences(text: str) -> str:
             flush_paragraph()
             continue
         if (
-            _ATX_HEADING_RE.match(line)
+            MARKDOWN_ATX_HEADING_RE.match(line)
             or _LIST_LINE_RE.match(line)
             or stripped.startswith("<!--")
             or (stripped.startswith("|") and stripped.endswith("|"))
@@ -527,9 +550,11 @@ __all__ = [
     "MAX_OVERVIEW_OUTLINE_CHARS",
     "MAX_OVERVIEW_OUTLINE_ITEMS",
     "MAX_OVERVIEW_TITLE_CHARS",
+    "MAX_SKIPPED_PAGES_NOTE_CHARS",
     "USER_FILE_OVERVIEW_VERSION",
     "build_user_file_overview",
     "deserialize_user_file_overview",
     "fallback_user_file_overview",
     "serialize_user_file_overview",
+    "skipped_pages_note",
 ]

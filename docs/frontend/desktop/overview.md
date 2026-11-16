@@ -41,8 +41,8 @@ Packaged builds always select embedded mode. At startup, `desktop/src/main.ts`:
 4. Initializes or starts owned PostgreSQL 16 with pgvector, verifies the exact
    PGDATA, backs up an existing schema before upgrading, and runs the frozen
    bootstrap CLI. Migrations own installation-principal generation.
-5. Starts upload cleanup, the document worker if its pack passes inventory and
-   OS-signature verification, and FastAPI on the saved application port. Private
+5. Starts upload cleanup and FastAPI on the saved application port; FastAPI
+   processes uploaded files itself. Private
    readiness must match the exact child PID/start token, runtime/build, local HTTP
    schema, Alembic head and owner after Included-source reconciliation succeeds.
 6. Installs the fresh HttpOnly renderer capability and loads the packaged React
@@ -176,8 +176,7 @@ address (`origin`, only beside a value), and main delivers it as
 `ANIMAMA_CONNECTION_<ID>_ORIGIN`; the backend sends the key nowhere else. Main encrypts the vault through Electron `safeStorage`, then
 sends the whole saved set to the running FastAPI, which replaces its in-memory
 keys ([desktop runtime](../../backend/operations/desktop-runtime.md)). No window
-or backend restarts; only the installed document worker restarts, because it
-embeds with keys from its environment. The panel then refreshes model
+or backend restarts. The panel then refreshes model
 and connection queries. If delivery fails twice, main restarts local
 services from the vault. PostgreSQL, the stable origin and local ownership never
 change. Unavailable secure storage fails closed; it never falls back to
@@ -225,36 +224,35 @@ neither source paths nor arbitrary filesystem access. Only Local is watched.
 
 ## Optional Feature Packs
 
-The optional packs are expanded Included content and document processing; both
-are deferred from the first release. Offline speech recognition (the Parakeet
-and SenseVoice-Small sets) uses backend model assets that install without a
-restart, not packs.
+The only optional pack is expanded Included content, deferred from the first
+release. Offline speech recognition (the Parakeet and SenseVoice-Small sets)
+uses backend model assets that install without a restart, not packs, and
+uploaded files are processed by FastAPI itself.
 [Feature packs](feature-packs.md) describes availability, setup and removal
-behavior for both.
+behavior.
 
 The owner-protected `GET /v1/runtime-capabilities` is the renderer's capability
-authority. Pack status is separate from document-worker liveness. An installed
-worker may be `starting` or `stale` while new jobs remain safely queued; an absent
-pack cannot enqueue. See backend [User files](../../backend/features/user-files.md).
+authority. Its `user_file_processing` entry is always enabled on desktop, and
+`worker_state` reports FastAPI's upload processor. See backend
+[User files](../../backend/features/user-files.md#in-server-processing).
 
 Electron downloads only app-matched catalog archives, checks real free space,
 size and SHA-256, strictly extracts regular USTAR members, and verifies the full
 inventory before an atomic pointer switch. Interrupted extraction has no mount
 authority. Failed installation retains the prior version; verified ETag/range
-metadata permits download resume. See [Runtime staging](runtime-staging.md) for
-producer, approval, and executable-signature gates.
+metadata permits download resume. Packs carry data only. See
+[Runtime staging](runtime-staging.md) for producer and approval gates.
 
 Activation/removal preserves the saved origin. It checks private backend
 removal blockers, remembers a validated main-app route, destroys all product
 windows/workers and shows independent recovery. Private quiescence stops new
-admission and waits up to 15 seconds for admitted work. The supervisor stops the
-worker, repeats removal checks, stops FastAPI, then switches the pointer and
+admission and waits up to 15 seconds for admitted work. The supervisor repeats
+removal checks, stops FastAPI, then switches the pointer and
 restarts. A busy quiesce preserves the old pointer/configuration and restarts
 that configuration; no resume endpoint reopens admission.
-Save unfinished edits first. Anima references, unexpired preview/runtime leases,
-active import/reconciliation work, and running document jobs prevent removal;
-affected labels appear in Settings. Expanded entries are never auto-equipped.
-Queued document jobs survive removal and resume with the worker installed again.
+Save unfinished edits first. Anima references, unexpired preview/runtime leases
+and active import/reconciliation work prevent removal; affected labels appear
+in Settings. Expanded entries are never auto-equipped.
 
 Installed speech-to-text sets are served from the backend model-asset store at
 the protected same-origin `/onnx/models/parakeet-tdt-0.6b-v2[-webgpu]/` and

@@ -70,10 +70,14 @@ Repository = "https://github.com/raymond-van/animama"
 Documentation = "https://github.com/raymond-van/animama/tree/main/docs/backend"
 
 [project.optional-dependencies]
-file-worker = [
-    "docling==2.142.1",
-    "torch>=2.13,<3",
-    "torchvision>=0.17.2,<1",
+# Upload parsers, imported only by the parse child: Office documents, PDF text layers
+# and safe XML. Every local composition installs them; the hosted one never parses uploads.
+documents = [
+    "python-docx>=1.2.0,<2",
+    "python-pptx>=1.0.2,<2",
+    "openpyxl>=3.1.5,<4",
+    "pypdfium2>=5.14.0,<6",
+    "defusedxml>=0.7.1,<1",
 ]
 voice = ["numpy>=2.2.0,<3"]
 # Empty, kept so existing `uv sync --extra viz --extra realtime` commands still resolve.
@@ -82,34 +86,16 @@ realtime = []
 # Not imported here: holds the transitive cryptography (google-auth, pyjwt) at a patched major.
 encrypt = ["cryptography>=50.0,<51"]
 
-[tool.uv.sources]
-torch = [{ index = "pytorch-cpu" }]
-torchvision = [{ index = "pytorch-cpu" }]
-
 [tool.uv]
-# Lock-only holds on releases that change the generated SDK, request behaviour or the
-# desktop document worker; the published wheel keeps its broader ranges.
+# Lock-only holds on releases that change the generated SDK or request behaviour;
+# the published wheel keeps its broader ranges.
 constraint-dependencies = [
     # 2.13+ merges identical Input/Output schemas, renaming generated SDK types.
     "pydantic<2.13",
     # 0.142+ adds native OpenTelemetry, and 0.147-0.162 change request parsing
     # (omitted vs null JSON values, form defaults); adopt them in their own change.
     "fastapi<0.142",
-    # torch 2.14 grows libtorch_cpu by about 140 MB, which puts the desktop document worker
-    # over its reviewed size ceiling; 2.13 already carries the advisory fix.
-    "torch<2.14",
 ]
-conflicts = [
-    [
-        { group = "dev" },
-        { extra = "file-worker" },
-    ],
-]
-
-[[tool.uv.index]]
-name = "pytorch-cpu"
-url = "https://download.pytorch.org/whl/cpu"
-explicit = true
 
 [dependency-groups]
 desktop-build = [
@@ -185,10 +171,10 @@ disallow_incomplete_defs = true
 disallow_untyped_defs = true
 disallow_untyped_calls = true
 
-# The file-worker extra is checked at its adapter boundary without installing
-# that heavyweight runtime pack into the development environment.
+# Upload parsers in the documents extra that ship no types; the parsers keep
+# their calls to these libraries small and typed at their own boundary.
 [[tool.mypy.overrides]]
-module = ["docling.*", "docling_core.*"]
+module = ["defusedxml.*", "openpyxl.*", "pypdfium2.*"]
 ignore_missing_imports = true
 
 # Speech text drops emoji by Unicode property with regex, which ships no types.

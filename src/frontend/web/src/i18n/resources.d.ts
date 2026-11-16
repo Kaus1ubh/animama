@@ -1417,7 +1417,6 @@ export default interface Resources {
       "originalSavedNotQueued": "Original saved; processing was not queued.",
       "processingNotQueuedAfterUpload": "Upload completed, but processing could not be queued.",
       "processingUnavailable": "Processing was not queued. You can process the original from Library once document processing is available.",
-      "processingUnavailableDesktop": "Document processing is not available in this app.",
       "queuedForProcessing": "File uploaded and queued for processing.",
       "rejected": "File cannot be uploaded.",
       "restrictions": {
@@ -6295,13 +6294,9 @@ export default interface Resources {
         "remove": "Remove"
       },
       "cleanupPending": "The pack is no longer active, but some files remain. Close applications using those files, then retry Remove.",
-      "inUse": "Finish active document jobs, close content previews, and unequip this pack’s entries in each Anima’s Behavior before retrying.",
+      "inUse": "Close content previews and unequip this pack’s entries in each Anima’s Behavior before retrying.",
       "noCompatiblePack": "No compatible released pack is included in this app’s catalog.",
       "packs": {
-        "documentProcessing": {
-          "description": "Extracts and indexes uploaded documents. Removing it preserves your originals and queued work.",
-          "name": "Document processing"
-        },
         "expandedIncludedContent": {
           "description": "Adds selectable content to Included. It never changes your Anima’s Behavior automatically.",
           "name": "Expanded Included content"

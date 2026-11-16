@@ -26,8 +26,6 @@ import {
 } from "../src/main-process/feature-packs/catalog.js";
 import { credentialTarget } from "../../shared/desktop-runtime";
 import { useProcessGuard } from "../src/main-process/runtime/processes.js";
-import { DOCUMENT_EXECUTABLE } from "../src/main-process/feature-packs/signature.js";
-import { RuntimeError } from "../src/main-process/runtime/errors.js";
 
 const fixture = vi.hoisted(() => {
   type Child = {
@@ -79,21 +77,12 @@ const fixture = vi.hoisted(() => {
     available: vi.fn(),
     elevated: vi.fn(async () => false),
     verify: vi.fn(),
-    verifyPack: vi.fn(),
     postgresStarts: vi.fn(),
     postgresStops: vi.fn(),
     command: vi.fn(),
   };
 });
 
-// The signed document executable is covered by pack tests; supervisor tests
-// only need its launch sequencing.
-vi.mock("../src/main-process/feature-packs/signature.js", async (original) => ({
-  ...(await original<
-    typeof import("../src/main-process/feature-packs/signature.js")
-  >()),
-  verifyExecutablePack: fixture.verifyPack,
-}));
 vi.mock("../src/main-process/runtime/manifest.js", async (importOriginal) => ({
   ...(await importOriginal<
     typeof import("../src/main-process/runtime/manifest.js")
@@ -985,119 +974,50 @@ describe("runtime supervision", () => {
     expect(current.runtime.status().state).toBe("ready");
   });
 
-  /** Activate a data-only document pack after start, as a launch with it would. */
-  async function withDocumentWorker(runtime: RuntimeSupervisor) {
-    const internals = runtime as unknown as {
-      activePacks: Record<string, unknown>;
-      startDocumentWorker(renewInstance?: boolean): Promise<void>;
-    };
-    internals.activePacks = {
-      "document-processing": {
-        root: "/fixture/document-processing",
-        manifest: {
-          schema: "animama-feature-pack/1",
-          version: "0.1.0",
-          archive_sha256: "a".repeat(64),
-          files: [{ path: DOCUMENT_EXECUTABLE, sha256: "b".repeat(64) }],
+  it("starts no document worker and passes no worker settings beside a retired document pack", async () => {
+    const current = create();
+    // An installation that once activated the retired document-processing pack.
+    const retired = path.join(
+      current.options.paths.packs,
+      "document-processing",
+    );
+    mkdirSync(path.join(retired, "versions/0.1.0-0123456789abcdef"), {
+      recursive: true,
+    });
+    atomicWrite(
+      path.join(current.options.paths.packs, "active.json"),
+      JSON.stringify({
+        schema: 1,
+        packs: {
+          "document-processing": {
+            directory: "0.1.0-0123456789abcdef",
+            digest: "a".repeat(64),
+          },
         },
-      },
-    };
-    await internals.startDocumentWorker(false);
-  }
-  const documentWorkers = () =>
-    fixture.launches.filter((child) => child.name === "document-worker");
-
-  it("restarts only the document worker after deliveries, once, with the backend's instance id", async () => {
-    const current = create();
-    await current.runtime.start();
-    await withDocumentWorker(current.runtime);
-    const backend = fastapiLaunches().at(-1)!;
-
-    await Promise.all([
-      current.runtime.changeCredentials([
-        { provider: "openai", value: "fixture-a" },
-      ]),
-      current.runtime.changeCredentials([
-        { provider: "openai", value: "fixture-b" },
-      ]),
-    ]);
-    await vi.waitFor(() => expect(documentWorkers()).toHaveLength(2));
-
-    const [before, after] = documentWorkers();
-    expect(fixture.owners.at(-1)?.has(before!)).toBe(false);
-    expect(after!.env.OPENAI_API_KEY).toBe("fixture-b");
-    // FastAPI's readiness check compares heartbeats with the id it started with.
-    expect(after!.env.ANIMAMA_DOCUMENT_WORKER_INSTANCE_ID).toBe(
-      backend.env.ANIMAMA_DOCUMENT_WORKER_INSTANCE_ID,
-    );
-    expect(fastapiLaunches()).toHaveLength(1);
-    expect(current.runtime.status().state).toBe("ready");
-  });
-
-  it("leaves the document worker alone when its pack is not active", async () => {
-    const current = create();
-    await current.runtime.start();
-    const internals = current.runtime as unknown as {
-      documentWorker?: object;
-      stopDocumentWorker(): Promise<void>;
-    };
-    internals.documentWorker = {};
-    const stop = vi.spyOn(internals, "stopDocumentWorker");
-
-    await current.runtime.changeCredentials([
-      { provider: "openai", value: "fixture-a" },
-    ]);
-    // A second save runs after any restart the first one queued.
-    await current.runtime.changeCredentials([
-      { provider: "openai", value: "fixture-b" },
-    ]);
-
-    expect(stop).not.toHaveBeenCalled();
-  });
-
-  it("does not restart the document worker once shutdown has begun", async () => {
-    const current = create();
-    await current.runtime.start();
-    await withDocumentWorker(current.runtime);
-    fixture.deliver.mockImplementationOnce(
-      async (body: { generation: number }) => {
-        void current.runtime.stop();
-        return Response.json({
-          schema_version: 1,
-          generation: body.generation,
-        });
-      },
-    );
-
-    await current.runtime.changeCredentials([
-      { provider: "openai", value: "fixture-key" },
-    ]);
-    await vi.waitFor(() =>
-      expect(current.runtime.status().state).toBe("stopped"),
-    );
-
-    expect(documentWorkers()).toHaveLength(1);
-  });
-
-  it("reports a failed document worker restart with its own code and stops services", async () => {
-    const current = create();
-    await current.runtime.start();
-    await withDocumentWorker(current.runtime);
-    fixture.verifyPack.mockRejectedValueOnce(
-      new RuntimeError("pack_signature_invalid"),
-    );
-
-    await current.runtime.changeCredentials([
-      { provider: "openai", value: "fixture-key" },
-    ]);
-
-    await vi.waitFor(() =>
-      expect(current.runtime.status()).toEqual({
-        state: "error",
-        code: "pack_signature_invalid",
       }),
     );
-    await vi.waitFor(() => expect(fixture.postgresStops).toHaveBeenCalled());
+
+    await current.runtime.start();
+
+    expect(current.runtime.status().state).toBe("ready");
+    expect(fixture.launches.map((child) => child.name).sort()).toEqual([
+      "avatar-cleanup",
+      "fastapi",
+      "postgres",
+    ]);
+    for (const child of fixture.launches)
+      expect(
+        Object.keys(child.env).filter((name) =>
+          name.startsWith("ANIMAMA_DOCUMENT_"),
+        ),
+      ).toEqual([]);
+    expect(existsSync(retired)).toBe(false);
+    expect(
+      current.runtime
+        .featurePacks()
+        .list()
+        .map((pack) => pack.id),
+    ).toEqual(["expanded-included-content"]);
   });
 
   it("keeps the replacement running when the backend crashed during a save", async () => {
@@ -1541,6 +1461,23 @@ describe("runtime supervision", () => {
       expect(worker.env.ANIMAMA_DESKTOP_CONTROL_TOKEN).toBeUndefined();
       expect(worker.env.ANIMAMA_DESKTOP_RENDERER_CAPABILITY).toBeUndefined();
       expect(parakeet(worker.env)).toEqual([]);
+    }
+  });
+
+  it("leaves upload processing on by the backend's default, whatever the shell says", async () => {
+    // The core backend processes uploads itself (spec #871 R1.7); no feature
+    // pack switches it, and an owner's shell variable must not turn it off.
+    vi.stubEnv("ANIMAMA_USER_FILE_PROCESSING_ENABLED", "false");
+    try {
+      const current = create();
+      await current.runtime.start();
+      expect(fastapiLaunches()).toHaveLength(1);
+      for (const child of fixture.launches)
+        expect(child.env).not.toHaveProperty(
+          "ANIMAMA_USER_FILE_PROCESSING_ENABLED",
+        );
+    } finally {
+      vi.unstubAllEnvs();
     }
   });
 

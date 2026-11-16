@@ -24,11 +24,6 @@ function packText(
           "featurePacks.packs.expandedIncludedContent.description",
         ),
       };
-    case "document-processing":
-      return {
-        name: t("featurePacks.packs.documentProcessing.name"),
-        description: t("featurePacks.packs.documentProcessing.description"),
-      };
   }
 }
 
@@ -74,12 +69,10 @@ export function packSizeSummary(
   });
 }
 
-/** Reuse the same catalog/IPC controls in Settings and contextual install actions. */
+/** Settings controls to install, update and remove the desktop's optional feature packs. */
 export function DesktopFeaturePacksPanel({
-  only,
   className,
 }: {
-  only?: FeaturePackId;
   className?: string;
 }) {
   const { t } = useTranslation("settings");
@@ -89,11 +82,10 @@ export function DesktopFeaturePacksPanel({
     null,
   );
   if (!available) return null;
-  // General Settings follows the embedded catalog. Preserve retained files for
+  // Settings follows the embedded catalog. Preserve retained files for
   // removal/recovery even if a later release no longer offers their pack.
-  // Contextual controls may still explain why their required pack is unavailable.
-  const visiblePacks = packs.filter((pack) =>
-    only ? pack.id === only : pack.hasInstalledFiles || pack.available,
+  const visiblePacks = packs.filter(
+    (pack) => pack.hasInstalledFiles || pack.available,
   );
   if (!visiblePacks.length && !error) return null;
   const changing = packs.some((pack) =>
@@ -107,9 +99,7 @@ export function DesktopFeaturePacksPanel({
       )}
       aria-label={t("featurePacks.title")}
     >
-      <h3 className="text-base font-semibold">
-        {only ? packText(t, only).name : t("featurePacks.title")}
-      </h3>
+      <h3 className="text-base font-semibold">{t("featurePacks.title")}</h3>
       <p className="text-muted-foreground text-sm">
         {t("featurePacks.reloadWarning")}
       </p>
@@ -121,7 +111,7 @@ export function DesktopFeaturePacksPanel({
         );
         return (
           <div key={id} className="space-y-2">
-            {!only ? <h4 className="text-sm font-medium">{name}</h4> : null}
+            <h4 className="text-sm font-medium">{name}</h4>
             <p className="text-muted-foreground text-sm">{description}</p>
             <p className="text-muted-foreground text-xs">
               {packSizeSummary(t, format, pack)}

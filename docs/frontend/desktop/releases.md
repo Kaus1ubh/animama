@@ -80,7 +80,7 @@ against the sealed publisher; a build that fails offers no updates. Do not copy 
 newer updater version without checking its API.
 
 Before both download and restart, the supervisor checks free space, active pack
-operations, document jobs, and expanded-content references. An update that would
+operations and expanded-content references. An update that would
 strand referenced expanded content is blocked. The required free space is two
 download archives, two installed app copies, twice the current PGDATA byte count,
 and a 256 MiB reserve. Existing data or packs are never assumed reclaimable.
@@ -141,7 +141,7 @@ explicit publication decision; these commands do not select one.
 | Input                                             | Required operator decision                                                                                                                                                                                     |
 | ------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `desktop/runtime/release-policy.json`             | Both distributions (R2 public base URL and bucket; GitHub `owner`/`repo`), stable channel, `updates` (`offered`, or `ended` for the final release, which also forbids an active pack), one human redistribution receipt per target |
-| `desktop/runtime/feature-pack-releases.json`      | Approved active-pack hashes, explicit deferred-pack status, Apple Team ID, Developer ID identity, document-helper designated requirement. Pack URLs are derived from the selected distribution, never set here |
+| `desktop/runtime/feature-pack-releases.json`      | Approved active-pack hashes, explicit deferred-pack status, Apple Team ID, Developer ID identity. Pack URLs are derived from the selected distribution, never set here |
 | `feature-pack-releases.json` `windows`            | Artifact Signing endpoint, account and certificate profile, and the certificate subject and identity-validation EKU every Windows signature must carry. None is a secret                                       |
 | `desktop/runtime/windows-signing.lock.json`       | The Windows SDK `signtool` and Artifact Signing client library, pinned by version and SHA-256                                                                                                                  |
 | `desktop/runtime/macos-acceptance.example.json`   | Template only; a reviewer must supply the actual DMG hash, date, identity, prior signed version, and completed checks                                                                                          |
@@ -161,61 +161,32 @@ passed native ONNX/Electron/input-hook/audio acceptance. Keep the release gate
 closed until those exact signed binaries pass; if a specific exception is needed,
 record why and repeat signing, size, and acceptance checks for the new artifact.
 
-## Build and preserve the reviewed helper
+## Build a signed macOS candidate
 
 The release input configures Team ID `9XHPMZ723L` and identity
-`Developer ID Application: RAYMOND VAN (9XHPMZ723L)`, plus a pinned
-document-worker designated requirement. Set the local notarization Keychain
-profile name in `ANIMAMA_MACOS_NOTARY_PROFILE`; passwords and signing private
-keys remain outside the repository. Configuration does not prove a successful
-signed build or authorize reuse of changed inventory bytes.
+`Developer ID Application: RAYMOND VAN (9XHPMZ723L)`. Set the local
+notarization Keychain profile name in `ANIMAMA_MACOS_NOTARY_PROFILE`; passwords
+and signing private keys remain outside the repository. Configuration does not
+prove a successful signed build or authorize reuse of changed inventory bytes.
 
 Electron Builder receives the certificate name `RAYMOND VAN (9XHPMZ723L)`;
-direct `codesign` calls use the full identity. The worker uses a native launcher
-and explicitly signed Resources payload; see
-[Runtime staging](runtime-staging.md#separate-document-worker). Core and worker
-audits compare every shipped Mach-O deployment target with macOS 15. Rebuild
+direct `codesign` calls use the full identity. The core audit compares every
+shipped Mach-O deployment target with macOS 15 (see
+[Runtime staging](runtime-staging.md#native-verification)). Rebuild
 incompatible inputs; do not suppress timestamping or patch headers to claim
 compatibility.
 
 Run native builds on Apple silicon with the pinned toolchain from the staging
 guide. Configure an existing notarization Keychain profile and set its name in
 `ANIMAMA_MACOS_NOTARY_PROFILE`; never put passwords in source or shell history.
-Commands below run from `src/frontend`.
-
-```sh
-pnpm desktop:runtime:document-worker -- --platform darwin --arch arm64
-```
-
-The document pack is deferred from the first release. For a future activation,
-the producer freezes the helper, signs and notarizes it, staples it,
-verifies its publisher, and runs the frozen conversion probe. It also
-exports `desktop/release/worker-input/`: a strict archive, candidate manifest,
-and `worker-review.json` marked **unapproved**. Review the payload inventory and
-record its hash in the pack release inputs. Preserve that exact archive.
-
-Rebuilding a signed helper changes signature/timestamp bytes, invalidating the
-reviewed hash. To reuse the reviewed helper on another build runner, transfer the
-three files together to the same derived directory and run:
-
-```sh
-node desktop/scripts/runtime/worker-input.mjs import
-pnpm desktop:runtime:stage -- --platform darwin --arch arm64
-pnpm desktop:runtime:audit -- --platform darwin --arch arm64
-```
-
-Import requires the recorded approval, exact archive hash/size, strict extraction,
-full inventory, and pinned OS signature. It replaces only derived helper build
-input after verification. It neither approves a candidate nor weakens executable
-pack verification. Keep private CI artifacts available until all dependent
-release builds finish; an expired artifact requires a new review of any rebuilt
-bytes. The first release has no active pack: expanded Included content and
-document processing are explicitly deferred from it and must be absent from its catalog and release artifacts.
+Commands below run from `src/frontend`. The first release has no active pack:
+expanded Included content is explicitly deferred from it and must be absent
+from its catalog and release artifacts.
 
 To retain a pack across known compatible app versions, set its optional
 `app_versions` list and immutable original `release_tag` in the pack release
 inputs before building the predecessor. Keep those fields, pack version,
-inventory, license references, signing identity and archive bytes identical in
+inventory, license references and archive bytes identical in
 the successor. The builder then emits the same manifest/pointer; a signed
 successor catalog explicitly approves it for the new app. Defaults remain this
 app version/tag only. Never change the bytes at an existing release URL, claim
@@ -235,7 +206,6 @@ Mach-O files/bundles, adds the review receipt, recomputes the runtime manifest,
 and only then seals the outer app. It notarizes and staples the app, builds the
 DMG/update ZIP, notarizes both, signs/staples the DMG, and verifies Gatekeeper.
 Updating runtime hashes after the outer signature would invalidate the seal.
-The helper and core must use the same pinned Apple Team ID.
 
 To exercise signing without a review receipt or Apple submission, for example
 after an Electron or electron-builder upgrade:
@@ -402,8 +372,9 @@ executables must belong to its own resources, and its update check must report
 `unavailable`, because its signature no longer matches the publisher, and
 the installed app's profile must stay absent or empty. The journey tests
 setup, a provider key applied without a window or backend restart,
-provider status, local HTTP rejection, core capabilities, both starter chats,
-exact typed bytes, private upload, restart persistence, temporary-key removal,
+provider status, local HTTP rejection, core capabilities (including a ready
+upload processor), both starter chats, exact typed bytes, a private upload
+processed until searchable, restart persistence, temporary-key removal,
 and owned shutdown. Afterwards the harness deletes the copy and its profile, and
 on macOS the Keychain item the copy created; the installed app stays for
 inspection. Publication requires every check, the hardening ones included
@@ -547,8 +518,7 @@ On a clean test Mac, check avatar animation, PocketTTS, microphone permission,
 PiP, quick chat, offline dictation after installing offline speech in Voice
 settings (with no backend restart or window reload; for the final release,
 after upgrading the previous release with offline speech already installed),
-any active expanded content,
-document conversion, interrupted pack installation/recovery, and an actual
+any active expanded content, interrupted pack installation/recovery, and an actual
 prompted upgrade preserving the principal, chats, content, provider status,
 database, and compatible pack. Confirm no unintended provider/model downloads.
 Use a normal Finder/LaunchServices app launch for macOS permission checks; a
@@ -572,7 +542,7 @@ On a clean Windows 11 test machine, the Windows receipt
 With the current embedded catalog, pack installation needs the selected
 distribution to serve anonymous public URLs before native download acceptance
 can finish. A private destination does not add private download support; failures must remain recoverable and must
-not block the core app. No token, feed override or unsigned-worker bypass is allowed.
+not block the core app. No token or feed override is allowed.
 Public preview and QA feeds are currently not authorized. A different private
 testing transport would require separate design/approval, not a build flag.
 If the owner later approves public distribution, after the required-name smoke
@@ -618,8 +588,8 @@ stack. It checks blank-name rejection and successful named setup in one run.
 After the maintainer/main guard, `source-validation` reuses
 `.github/workflows/validate-public.yml` from the same commit. Its single
 `Validation` job always executes the full backend/static and portable product
-contract for release callers before either the release build or `prepare-worker`
-can reach signing credentials. Local receipts and routine-change reductions are
+contract for release callers before the release build can reach signing
+credentials. Local receipts and routine-change reductions are
 not substitutes for this release gate. Checkout uses
 the dispatch's immutable `github.sha` throughout; this gate does not consult a
 previous branch run or assume a moving `main` is validated. Release secrets are
@@ -662,9 +632,8 @@ printing them, stores the notary profile, and restores/deletes its Keychain in a
 always-run cleanup step. Signing credentials are not available to test/build
 steps through environment variables and are never artifact inputs.
 
-If CI publication is configured, the initial release does not dispatch
-`prepare-worker` or import a document helper because document processing is
-deferred. After committing reviewed core inputs, dispatch `release`. The workflow checks/tests,
+If CI publication is configured, dispatch the workflow after committing
+reviewed core inputs. The workflow checks/tests,
 stages/audits, signs the candidate, and runs the required-name fresh-profile smoke. With
 `publish=false` it stops there. With `publish=true`, a protected preview job first
 requires explicit approval for public testing. It publishes the immutable
@@ -673,11 +642,6 @@ version objects) without changing the stable feed. The stable
 publication job then waits at a different protected environment while you test
 native behavior and the actual upgrade. Only approve it after supplying the exact
 manual receipt. Inspect artifacts at each gate; do not approve in anticipation.
-
-For a future document-pack activation, dispatch `prepare-worker`, preserve and
-review its private Actions artifact, then update the release workflow to import
-that exact approved run before marking the pack active. Never reuse a helper by
-filename or rebuild it after its inventory approval.
 
 The `distribution` workflow input (default `r2`) sets
 `ANIMAMA_RELEASE_DISTRIBUTION` for every job. The workflow does not yet run the

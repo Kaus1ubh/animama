@@ -12,6 +12,7 @@ import pytest_asyncio
 from sqlalchemy import delete, select
 
 from animama.adapters.memory_patch import AgentsSDKV4AMemoryPatchPlanner
+from animama.adapters.parsers.dispatch import parse_user_file
 from animama.adapters.repositories.sqlalchemy.memory_entry_repo import SQLAlchemyMemoryEntryRepository
 from animama.adapters.repositories.sqlalchemy.uow import SQLAlchemyUnitOfWork
 from animama.adapters.repositories.sqlalchemy.user_file_processing_repo import SQLAlchemyUserFileProcessingRepository
@@ -37,8 +38,10 @@ from animama.app.services.memory_entry_service import (
     MemoryEntryNotFoundError,
     MemoryEntryService,
 )
+from animama.app.services.user_file_chunking import chunk_parsed_user_file_document
 from animama.domain.memory_episode import MEMORY_EPISODE_LOG_ENTRY_KIND
 from animama.domain.user_file import STATUS_READY, STATUS_UPLOADED
+from animama.domain.user_file_processing import DEFAULT_USER_FILE_CHUNK_MAX_TOKENS
 from animama.orm import ORMMemoryEntry, ORMMemoryEntryVersion
 from animama.orm.user_file import ORMUserFile
 from animama.orm.user_file_chunk import ORMUserFileChunk
@@ -1533,6 +1536,44 @@ async def test_read_uploaded_file_chunks_rejects_one_oversized_legacy_chunk(asyn
         "message": "A stored chunk exceeds the bounded read response limit",
         "retryable": False,
     }
+
+
+@pytest.mark.asyncio
+async def test_every_chunk_of_a_fixed_width_report_fits_one_read(async_session) -> None:
+    """A cl100k token can cover a long run of spaces, so chunks also hold at most four characters per token.
+
+    Without that cap, 800 tokens of this report would be about 40,000 characters, which the read tool,
+    estimating four characters per token, refuses as larger than one read.
+    """
+
+    rows = [f"Item {index}{' ' * 600}{index * 37:>8}  2026-01-{index % 28 + 1:02d}" for index in range(300)]
+    document = parse_user_file(payload="\n".join(rows).encode(), filename="report.txt", extension=".txt")
+    chunks = chunk_parsed_user_file_document(document)
+    assert len(chunks) > 1
+    assert all(estimate_text_tokens(chunk.text) <= DEFAULT_USER_FILE_CHUNK_MAX_TOKENS for chunk in chunks)
+    await _insert_uploaded_file_chunk(
+        async_session,
+        file_id="file-report",
+        original_filename="report.txt",
+        text=[chunk.text for chunk in chunks],
+    )
+    service = _tool_service(
+        async_session,
+        include_user_files=True,
+        allowed_uploaded_files={"file-report": "report.txt"},
+    )
+
+    for index, chunk in enumerate(chunks):
+        result = _loads(
+            await service.execute(
+                tool_name=MEMORY_TOOL_READ_UPLOADED_FILE_CHUNKS,
+                arguments={"file_name": "report.txt", "start_chunk": index, "chunk_count": 1},
+                context=_context(),
+                tool_call_id=f"call-read-{index}",
+            )
+        )
+        assert result["ok"] is True, result
+        assert result["files"][0]["chunks"] == [{"chunk_index": index, "text": chunk.text}]
 
 
 @pytest.mark.asyncio

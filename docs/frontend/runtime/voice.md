@@ -839,8 +839,9 @@ When semantic result is `end_turn`:
    - `turnId`, `smartTurnJobId`, `smartTurnScore`, `smartTurnLatencyMs`
 
    `handleSubmitText` resolves `false` when the message is not accepted (a
-   reply is still streaming, or the chat cannot send yet); the text then stays
-   in the input and joins the next voice turn or a manual send.
+   reply is still streaming, the chat cannot send yet, or attachments the
+   Anima cannot read yet hold it, with a notice); the text then stays in the
+   input and joins the next voice turn or a manual send.
 7. rotate to a new `turnId` and reset per-turn smart-turn state
 
 If no transcript/callback exists:

@@ -1,4 +1,8 @@
-"""Bounded worker liveness and lease renewal for the optional document process."""
+"""Liveness and lease renewal for the server's upload processor.
+
+The heartbeat row keeps its ``document-processing`` kind, which the runtime
+capability reads to report the processor's state.
+"""
 
 from datetime import UTC, datetime
 
@@ -10,8 +14,15 @@ from animama.orm.runtime_worker import ORMRuntimeWorkerHeartbeat
 from animama.orm.user_file_processing_job import ORMUserFileProcessingJob
 
 
-async def record_document_heartbeat(session: AsyncSession, *, instance_id: str, worker_id: str) -> None:
-    """A live worker renews only its own running jobs; finished jobs stay finished."""
+async def record_document_heartbeat(
+    session: AsyncSession, *, instance_id: str, worker_id: str, job_id: str | None
+) -> None:
+    """Record the processor's liveness and renew the lease of the job it is working on.
+
+    Only ``job_id`` is renewed, and only while this worker still holds it: a job
+    the processor left behind (say, when recording its outcome failed) lets its
+    lease expire, so it is claimed again instead of staying at Processing.
+    """
 
     now = datetime.now(UTC)
     statement = insert(ORMRuntimeWorkerHeartbeat).values(
@@ -23,11 +34,16 @@ async def record_document_heartbeat(session: AsyncSession, *, instance_id: str, 
             set_={"instance_id": instance_id, "heartbeat_at": now},
         )
     )
-    await session.execute(
-        update(ORMUserFileProcessingJob)
-        .where(ORMUserFileProcessingJob.status == "running", ORMUserFileProcessingJob.locked_by == worker_id)
-        .values(locked_at=now)
-    )
+    if job_id is not None:
+        await session.execute(
+            update(ORMUserFileProcessingJob)
+            .where(
+                ORMUserFileProcessingJob.id == job_id,
+                ORMUserFileProcessingJob.status == "running",
+                ORMUserFileProcessingJob.locked_by == worker_id,
+            )
+            .values(locked_at=now)
+        )
     await session.commit()
 
 

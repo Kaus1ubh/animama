@@ -39,8 +39,9 @@ rendering, and client-side speech recognition.
   `/v1/model-providers`.
 - [Memory](features/memory.md): scoped markdown memory entries, anima identity
   prompt assembly, seeded user profile entries, and memory tool boundaries.
-- [User files](features/user-files.md): installation-owned uploads, parser worker,
-  chunk storage, debug search, and current MVP limits.
+- [User files](features/user-files.md): installation-owned uploads, in-server
+  processing and parsing limits, chunk storage, debug search, and current MVP
+  limits.
 - [Local User Profile](features/user-profiles-and-usernames.md): required private
   display-name personalization for the generated installation principal, with
   nullable bootstrap placeholders before setup.

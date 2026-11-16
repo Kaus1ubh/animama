@@ -216,7 +216,6 @@
     "originalSavedNotQueued": "已儲存原始檔案，但處理未加入佇列。",
     "processingNotQueuedAfterUpload": "上傳已完成，但無法將處理加入佇列。",
     "processingUnavailable": "處理未加入佇列。文件處理可用後，你可以在資源庫中處理原始檔案。",
-    "processingUnavailableDesktop": "此應用程式不提供文件處理。",
     "queuedForProcessing": "檔案已上傳並加入處理佇列。",
     "rejected": "無法上傳此檔案。",
     "restrictions": {

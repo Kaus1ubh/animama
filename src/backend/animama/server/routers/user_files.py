@@ -54,6 +54,7 @@ from animama.server.schemas.user_file import (
     PyUserFileUploadInitRequest,
     PyUserFileUploadInitResponse,
 )
+from animama.server.user_file_processing import UserFileProcessingRunner, request_user_file_processing_runner
 from animama.server.user_file_storage import (
     build_user_file_storage_locator,
     delete_private_file,
@@ -350,6 +351,7 @@ async def process_user_file(
     user: UserDep,
     req: PyUserFileProcessRequest | None = None,
     runtime_settings: Annotated[Settings, Depends(get_runtime_settings)] = settings,
+    runner: Annotated[UserFileProcessingRunner | None, Depends(request_user_file_processing_runner)] = None,
 ) -> PyUserFileProcessResponse:
     """Enqueue a durable processing job for a finalized current-user file."""
 
@@ -368,6 +370,9 @@ async def process_user_file(
         UserFileProcessingUnavailableError,
     ) as exc:
         _raise_processing_http_error(exc)
+    if runner is not None:
+        # Start the job now rather than at the runner's next poll.
+        runner.wake()
     return PyUserFileProcessResponse(
         file_id=result.file_id,
         job_id=result.job_id,

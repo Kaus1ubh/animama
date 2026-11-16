@@ -1179,6 +1179,27 @@ test("a message sent while a reply streams is reported as not accepted", async (
   );
 });
 
+test("attachments the Anima cannot read yet hold a turn and keep its text", async (t) => {
+  const page = await sessionConsumer(t);
+  await page.evaluate(() => window.fixture.setAttachmentHold("waiting"));
+  await page.fill("#draft", "Summarize the report");
+  await page.click("#submit");
+  const accepted = await page.evaluate(() =>
+    window.fixture.submitText("Spoken while the file processes"),
+  );
+  assert.equal(accepted, false);
+  await page.evaluate(() => window.fixture.setAttachmentHold("blocked"));
+  await page.click("#submit");
+  assert.equal(await page.inputValue("#draft"), "Summarize the report");
+
+  await page.evaluate(() => window.fixture.setAttachmentHold("none"));
+  await page.click("#submit");
+  await page.waitForFunction(() => window.fixture.requests().length === 1);
+  assert.equal(await page.inputValue("#draft"), "");
+  const [request] = await page.evaluate(() => window.fixture.requests());
+  assert.equal(request.body.message, "Summarize the report");
+});
+
 test("provider failure stays visible after terminal frame and a later successful turn", async (t) => {
   const page = await sessionConsumer(t);
   await submitSession(page, "failed message");

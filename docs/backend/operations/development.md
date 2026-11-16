@@ -17,12 +17,10 @@ make sync
 ```
 
 This uses
-`uv sync --extra voice --extra viz --extra realtime --extra encrypt --all-packages --group dev`.
-It intentionally excludes the file-worker parser stack. The file-worker extra
-conflicts with the default `dev` group: run the worker with
-`--no-dev --extra file-worker` when testing the parser directly on the host;
-that replaces the development packages in `.venv` until the next plain
-`uv sync` or `uv run`.
+`uv sync --extra voice --extra viz --extra realtime --extra encrypt --extra documents --all-packages --group dev`.
+The `documents` extra installs the upload parsers (python-docx, python-pptx,
+openpyxl, pypdfium2 and defusedxml); without it, Office, PDF and XML uploads
+fail with a reason naming the extra.
 
 A `.venv` last synced from a lock older than October 9, 2026 holds both
 griffe 1.x and griffelib 2.x, which install the same `griffe` package. Syncing
@@ -31,7 +29,7 @@ importing the OpenAI Agents SDK fails with `ImportError: cannot import name
 'Docstring' from 'griffe'`. Reinstall griffelib once with the same extras:
 
 ```bash
-uv sync --extra voice --extra viz --extra realtime --extra encrypt --all-packages --group dev --reinstall-package griffelib
+uv sync --extra voice --extra viz --extra realtime --extra encrypt --extra documents --all-packages --group dev --reinstall-package griffelib
 ```
 
 A new `.venv` is unaffected.
@@ -598,7 +596,7 @@ uv run pytest -q tests/test_direct_chat_turn_executor.py tests/test_direct_chat_
 uv run pytest -q tests/test_anima_chat_sse.py tests/test_anima_sse_events.py
 uv run pytest -q tests/test_anima_chat_profile.py tests/test_anima_loadouts_api.py
 uv run pytest -q tests/test_memory_files.py tests/test_memory_files_api.py
-uv run pytest -q tests/test_user_file_uploads.py tests/test_user_file_processing.py tests/test_user_file_worker.py
+uv run pytest -q tests/test_user_file_uploads.py tests/test_user_file_processing.py tests/test_user_file_processing_runner.py tests/test_user_file_parsers.py
 uv run pytest -q tests/test_emotions.py
 ```
 
@@ -983,7 +981,8 @@ coverage and detection-delay tradeoffs when changing validation policy.
 
 The development dependency group includes the PyYAML, jsonschema and ReportLab
 type stubs required by the existing mypy target.
-Install from `uv.lock` with `uv sync --frozen` before checking a clean checkout. Ruff lint
+Install from `uv.lock` with `uv sync --frozen --extra documents` before checking a clean
+checkout; mypy and the upload parser tests need the `documents` extra. Ruff lint
 checks its configured repository scope; formatting checks only
 `src/backend/animama` and `tests`, and mypy checks those same backend/test roots.
 Python 3.12 is the minimum supported backend interpreter, and Ruff and mypy use
@@ -1037,17 +1036,8 @@ Avatar upload cleanup remains only for the retained non-content staging record:
 uv run python -m animama.workers.avatar_upload_cleanup
 ```
 
-User-file processing:
-
-```bash
-uv run --no-dev --extra file-worker python -m animama.workers.user_file_processing
-```
-
-Workers need the same database configuration as the API. The user-file worker
-also embeds chunks with the owner's Embeddings role, so give it the API's
-`OPENAI_BASE_URL` (if set) and the key variable of that role's connection.
-Without a working connection the file is processed for keyword search only; the
-API's re-embedding adds its vectors once the connection works.
+It needs the same database configuration as the API. Uploaded files need no
+worker: the API server processes them (see [upload processing](#upload-processing)).
 
 ## Docker Compose
 
@@ -1140,80 +1130,44 @@ Local runs using the root `.env` and Docker Compose share the repository-root
 `reset.sh` prepares that directory and clears today's log during reset.
 Daily files use `YYYY-MM-DD.log` names and are ignored by Git and Docker builds.
 
-### Optional document worker
+### Upload processing
 
-The current checked-in `animama-file-worker` service is commented out. A normal
-reset starts the core stack but does not start document processing:
+`animama-server` processes uploads itself in both Compose selections; there is
+no worker service to start or rebuild (see
+[User files](../features/user-files.md#in-server-processing)). The backend
+Dockerfile's `animama-server-development` target, and `animama-server` built on
+it, install the core dependencies with the `documents` extra, so a plain
+`./reset.sh` reads every accepted format. Backend images copy the backend
+package, migrations/init SQL, and the shared animation manifest. The server
+image also receives the React output from a frontend build stage. The Docker
+context admits those frontend build inputs while excluding desktop assets,
+installed dependencies and private local files.
 
-```bash
-./reset.sh
-```
-
-Enable/configure the private worker service deliberately when testing parsing,
-or run the host worker with the same database and private-file roots. Capability
-`enabled: true` allows durable queuing but is not evidence that a worker is
-running: inspect `GET /v1/runtime-capabilities` and project-scoped service state.
-For named worktree stacks, use the named reset command and logs, for example:
+`GET /v1/runtime-capabilities` reports `user_file_processing.worker_state:
+"ready"` while the processing runner is live. The server logs each job's
+result; a failure names its error type (for example `NoSelectableText` or
+`EncryptedDocument`) and reason, never document text. For a named worktree
+stack, for example:
 
 ```bash
 ./reset.sh --name abc --base-port 8200
 docker compose -p animama-abc logs -f animama-server
 ```
 
-The backend Dockerfile has separate final targets. `animama-server` installs the
-core dependencies and intentionally omits Docling/parser dependencies. The
-`animama-file-worker` target installs the full `docling` package and resolves
-PyTorch through uv's explicit CPU-only `pytorch-cpu` index, avoiding CUDA
-runtime packages in the worker image. Backend images copy the backend package,
-migrations/init SQL, and the shared animation manifest. The server image also
-receives the React output from a frontend build stage. The Docker context admits
-those frontend build inputs while excluding desktop assets, installed dependencies
-and private local files. Plain `./reset.sh` can rebuild the backend image through
-its bootstrap step, but it does not rebuild this optional worker automatically.
-After restoring/configuring the worker service, request its build explicitly
-(for the main stack):
+Compose passes the server the user-file settings that `.env.example` lists;
+[User files](../features/user-files.md#configuration) describes each.
+`ANIMAMA_USER_FILE_PROCESSING_ENABLED=false` turns processing off and keeps
+uploads. Processing sends nothing over the network except to the Embeddings
+role's model connection, and downloads nothing. Stacks keep no parser model
+cache: a leftover `./cache/docling` folder in the main checkout, or
+`cache/docling` under a named stack's `.animama-stacks/` directory, can be
+deleted.
 
-```bash
-./reset.sh --build animama-file-worker
-```
-
-The file worker requires the same database URL and `ANIMAMA_DATA_ROOT` mount as
-the API. It reads installation-owned originals through the private filesystem port;
-no R2/S3/MinIO endpoint, credentials, or bucket are required. User-file worker
-tuning variables include
-`ANIMAMA_USER_FILE_MAX_PROCESS_BYTES`,
-`ANIMAMA_USER_FILE_PROCESSING_POLL_SECONDS`,
-`ANIMAMA_USER_FILE_PROCESSING_BATCH_SIZE`,
-`ANIMAMA_USER_FILE_PROCESSING_LEASE_SECONDS`,
-`ANIMAMA_USER_FILE_PROCESSING_MAX_ATTEMPTS`,
-`ANIMAMA_USER_FILE_DOCLING_TIMEOUT_SECONDS`,
-`ANIMAMA_USER_FILE_DOCLING_ENABLE_OCR`,
-`ANIMAMA_USER_FILE_DOCLING_DO_TABLE_STRUCTURE`, and
-`ANIMAMA_USER_FILE_DOCLING_ACCELERATOR`. The commented Compose example gives the file worker
-`ANIMAMA_FILE_WORKER_CPUS=2.0` and `ANIMAMA_FILE_WORKER_MEMORY=4g`, and sets
-`ANIMAMA_USER_FILE_DOCLING_NUM_THREADS=2` to match; the worker's own default is
-4 threads. Table structure mode defaults to
-`ANIMAMA_USER_FILE_DOCLING_TABLE_MODE=fast`, and
-startup warm-up defaults to `ANIMAMA_USER_FILE_DOCLING_WARMUP=true`. Docling
-chunk sizing is controlled by `ANIMAMA_USER_FILE_CHUNK_MAX_TOKENS` and
-`ANIMAMA_USER_FILE_CHUNK_TOKENIZER_MODEL`.
-
-On its first start, the Compose worker downloads Docling's PDF layout and
-TableFormer models (about 530 MB) from Hugging Face into
-`ANIMAMA_DOCLING_CACHE_HOST_PATH` (default `./cache/docling`). It reuses them
-after restarts. With warm-up off, the first PDF triggers the download instead.
-Only PDFs need these models; until they are available, PDF jobs fail and retry.
-`HF_TOKEN` raises Hugging Face rate limits. Do not set `DOCLING_ARTIFACTS_PATH`:
-Docling then loads models only from that directory and never downloads them.
-
-The worker records a heartbeat every five seconds; the API reports it stale
-after twenty seconds. It also renews its running job lease independently of a
-long parser call. Stop prevents further claims, preserves queued jobs, and
-removes only that instance's heartbeat. The current baseline includes the
-heartbeat table. Apply `alembic upgrade head` on a supported database before
-starting an updated worker; old removed revisions require the explicit reset
-boundary above. In the main stack,
-use `docker compose -p animama exec animama-server alembic upgrade head`.
+On Windows, the native launcher (`python -m animama.server.native_entrypoint`)
+always runs Uvicorn's reloader, whose selector event loop cannot start child
+processes. Upload jobs there retry and then fail with "This event loop cannot
+start upload parse processes". Test uploads on a Compose stack or in the
+packaged app, which does not reload.
 
 Memory filesystem content size is controlled by
 `ANIMAMA_MEMORY_FILE_MAX_BYTES`, default `32768` bytes. This limit applies to
@@ -1365,12 +1319,12 @@ For the supported host backend development extras, use the frozen equivalent of
 `make sync`:
 
 ```bash
-uv sync --frozen --extra voice --extra viz --extra realtime --extra encrypt --all-packages --group dev
+uv sync --frozen --extra voice --extra viz --extra realtime --extra encrypt --extra documents --all-packages --group dev
 ```
 
-Choose narrower existing extras when appropriate; file-worker parsing is
-separate. Package managers reuse their own download caches without sharing
-writable installations. See [dependency download caches](#dependency-download-caches).
+Choose narrower existing extras when appropriate; without `documents`, Office,
+PDF and XML uploads fail. Package managers reuse their own download caches
+without sharing writable installations. See [dependency download caches](#dependency-download-caches).
 
 ### Parallel Worktree Dev Environments
 
@@ -1500,7 +1454,7 @@ COMPOSE_PROJECT_NAME COMPOSE_PROFILES
 ANIMAMA_WEB_BUILD_MODE ANIMAMA_MODEL_ROOT
 APP_HOST APP_SCHEME WEB_SERVER_PORT PGADMIN_PORT DOZZLE_PORT
 ANIMAMA_INCLUDED_CONTENT_HOST_PATH ANIMAMA_LOCAL_CONTENT_HOST_PATH
-ANIMAMA_DATA_HOST_PATH ANIMAMA_DOCLING_CACHE_HOST_PATH ANIMAMA_LOG_DIR
+ANIMAMA_DATA_HOST_PATH ANIMAMA_LOG_DIR
 POSTGRES_USER POSTGRES_PASSWORD POSTGRES_DB PGADMIN_EMAIL PGADMIN_PASSWORD
 OPENAI_API_KEY OPENAI_BASE_URL ANTHROPIC_API_KEY DEEPSEEK_API_KEY HF_TOKEN
 ANIMAMA_LOCAL_MODEL_HOST ANIMAMA_CONNECTION_KEYS_FILE

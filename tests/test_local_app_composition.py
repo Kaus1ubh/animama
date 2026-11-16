@@ -94,6 +94,9 @@ def test_startup_admits_only_the_bootstrap_owner_without_gateway_assertions(
     )
     monkeypatch.setattr(app_module, "start_content_runtime", no_op)
     monkeypatch.setattr(app_module, "stop_content_runtime", no_op)
+    # Upload processing needs real private roots and a database; admission does not.
+    monkeypatch.setattr(app_module, "start_user_file_processing", lambda *args, **kwargs: None)
+    monkeypatch.setattr(app_module, "stop_user_file_processing", no_op)
 
     runtime_settings = Settings(
         animama_content_root=tmp_path / "content",

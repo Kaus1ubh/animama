@@ -264,13 +264,9 @@
       "remove": "移除"
     },
     "cleanupPending": "该功能包已停用，但仍有部分文件残留。请关闭正在使用这些文件的应用程序，然后重试移除。",
-    "inUse": "请先完成进行中的文档任务、关闭内容预览，并从 Anima 装备中移除此功能包的条目，然后重试。",
+    "inUse": "请先关闭内容预览，并从 Anima 装备中移除此功能包的条目，然后重试。",
     "noCompatiblePack": "此应用的目录中没有兼容的已发布功能包。",
     "packs": {
-      "documentProcessing": {
-        "description": "提取上传的文档并建立索引。移除后会保留你的原始文件和排队中的任务。",
-        "name": "文档处理"
-      },
       "expandedIncludedContent": {
         "description": "向内置内容添加可选内容。绝不会自动更改你的 Anima 的装备。",
         "name": "扩展内置内容"

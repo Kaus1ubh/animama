@@ -38,6 +38,7 @@ from animama.server.runtime_credentials import (
     scrub_credential_environment,
 )
 from animama.server.telemetry import setup_telemetry
+from animama.server.user_file_processing import start_user_file_processing, stop_user_file_processing
 
 logger = logging.getLogger(__name__)
 
@@ -162,6 +163,13 @@ def create_local_app(
             perform_initial_scan=False,
         )
         start_embedding_refresh(application, session_factory=get_async_session_factory(application))
+        # Uploads are processed in this process unless the operator turned processing off.
+        start_user_file_processing(
+            application,
+            session_factory=get_async_session_factory(application),
+            paths=paths,
+            runtime_settings=local_settings,
+        )
         _start_automatic_episode_processing(application, owner_id=state.principal_id)
         # A bounded repair state may still use the existing bootstrap API. The
         # owner is established by completed service bootstrap, never that API's
@@ -170,6 +178,7 @@ def create_local_app(
 
     @application.on_event("shutdown")
     async def stop_accountless_runtime() -> None:  # pragma: no cover - startup IO
+        await stop_user_file_processing(application)
         await stop_automatic_episode_processing(application)
         await stop_embedding_refresh(application)
         await close_model_asset_service(application)

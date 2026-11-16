@@ -2,8 +2,7 @@
   "schema": "animama-pack-release-inputs/1",
   "macos": {
     "team_id": "9XHPMZ723L",
-    "signing_identity": "Developer ID Application: RAYMOND VAN (9XHPMZ723L)",
-    "designated_requirement": "identifier \"com.animama.document-worker\" and anchor apple generic and certificate 1[field.1.2.840.113635.100.6.2.6] exists and certificate leaf[field.1.2.840.113635.100.6.1.13] exists and certificate leaf[subject.OU] = \"9XHPMZ723L\""
+    "signing_identity": "Developer ID Application: RAYMOND VAN (9XHPMZ723L)"
   },
   "windows": {
     "endpoint": "https://eus.codesigning.azure.net/",
@@ -18,12 +17,6 @@
       "version": "0.1.0",
       "approved_inventory_sha256": null,
       "license_refs": ["included-content"]
-    },
-    "document-processing": {
-      "release_status": "deferred",
-      "version": "0.1.0",
-      "approved_inventory_sha256": null,
-      "license_refs": ["document-worker-notices"]
     }
   }
 }

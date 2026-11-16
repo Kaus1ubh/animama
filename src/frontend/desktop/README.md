@@ -82,9 +82,8 @@ recognition is optional; PocketTTS does not require it. Its CPU model and GPU
 add-on install in place from Voice settings through the backend model-asset
 service, without a restart. Browser Web Speech STT/TTS is not offered in
 desktop settings. Only app-matched, verified packs can enable pack
-capabilities; expanded content and document processing are deferred from the
-first release. The future document worker requires a verified publisher
-signature even when testing an unsigned core.
+capabilities; expanded content is deferred from the first release. The core
+server processes uploaded files itself.
 
 ## Release and recovery boundaries
 

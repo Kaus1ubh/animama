@@ -143,12 +143,14 @@
     }
   },
   "composer": {
+    "removeUnreadableFiles": "보내려면 읽을 수 없는 파일을 제거하세요",
     "send": "메시지 보내기",
     "sending": "메시지 보내는 중",
     "speechUnavailable": "오프라인 음성 인식을 사용할 수 없습니다",
     "stop": "중지",
     "stopVoice": "음성 모드 중지",
-    "voiceMode": "음성 모드"
+    "voiceMode": "음성 모드",
+    "waitingForFiles": "파일이 준비되기를 기다리는 중"
   },
   "conversation": {
     "label": "대화"
@@ -172,6 +174,8 @@
       "avatarSessionExpired": "이 아바타 세션이 만료되었습니다. 다시 불러온 후 메시지를 다시 보내세요.",
       "chatLoadFailed": "채팅을 불러올 수 없습니다.",
       "chatLoading": "채팅을 아직 불러오는 중입니다.",
+      "filesNotReady": "첨부 파일이 아직 준비되지 않았습니다.",
+      "filesUnreadable": "보내기 전에 읽을 수 없는 파일을 제거하세요.",
       "missingAnima": "Anima가 없습니다.",
       "modelNotDirect": "이 모델은 아직 직접 채팅에 사용할 수 없습니다.",
       "modelsLoading": "모델을 아직 불러오는 중입니다.",

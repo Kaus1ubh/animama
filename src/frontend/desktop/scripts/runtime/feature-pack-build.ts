@@ -21,7 +21,6 @@ import {
   realDirectory,
 } from "../../src/main-process/feature-packs/files.js";
 import { extractPack } from "../../src/main-process/feature-packs/extract.js";
-import { verifyExecutablePack } from "../../src/main-process/feature-packs/signature.js";
 
 /**
  * A public HTTPS release folder (GitHub release download path or R2 version
@@ -49,7 +48,6 @@ type ReleaseInputs = {
   /** Derived from the selected distribution at staging; never committed. */
   release_base_url: string;
   distribution?: ReleaseDistribution | null;
-  macos: { team_id: string | null; designated_requirement: string | null };
   packs: Record<
     FeaturePackId,
     {
@@ -67,14 +65,10 @@ type ReleaseInputs = {
 };
 const titles: Record<FeaturePackId, string> = {
   "expanded-included-content": "Expanded Included content",
-  "document-processing": "Document processing",
 };
 
-/** Inspect immutable staged inputs, retaining mode and hash rather than file-name guesses. */
-export async function inventoryPack(
-  root: string,
-  id: FeaturePackId,
-): Promise<PackFile[]> {
+/** Inventory immutable staged inputs by size and hash; pack files are plain `0644` data. */
+export async function inventoryPack(root: string): Promise<PackFile[]> {
   await realDirectory(root);
   const files: PackFile[] = [];
   const visit = async (relative: string): Promise<void> => {
@@ -104,10 +98,7 @@ export async function inventoryPack(
         size_bytes: metadata.size,
         sha256: await hashFile(file),
         media_type: media,
-        mode:
-          id === "document-processing" && metadata.mode & 0o111
-            ? "0755"
-            : "0644",
+        mode: "0644",
       });
       if (files.length > 100_000) throw new Error("Pack inventory too large");
     }
@@ -156,7 +147,6 @@ export async function buildPackArchive(options: {
       manifest,
       new AbortController().signal,
     );
-    await verifyExecutablePack(verify, manifest);
     await rename(compressed, options.output);
     return manifest;
   } finally {
@@ -214,16 +204,11 @@ export async function buildFeaturePacks(options: {
   const reports = [];
   for (const id of featurePackIds) {
     const release = options.release.packs[id];
+    const filename = `${id}-${release.version}-data-only.tar.zst`;
     if (release.release_status === "deferred") {
       // A rerun after deferral must not leave this version's earlier archive
       // beside the new catalog. Only a fixed, validated derived path is removed.
-      await rm(
-        path.join(
-          options.output,
-          `${id}-${release.version}-${id === "document-processing" ? "darwin-arm64" : "data-only"}.tar.zst`,
-        ),
-        { force: true },
-      );
+      await rm(path.join(options.output, filename), { force: true });
       reports.push({ id, state: "deferred" });
       continue;
     }
@@ -239,7 +224,7 @@ export async function buildFeaturePacks(options: {
       reports.push({ id, state: "input_unavailable" });
       continue;
     }
-    const files = await inventoryPack(root, id);
+    const files = await inventoryPack(root);
     const digest = createHash("sha256")
       .update(JSON.stringify(files))
       .digest("hex");
@@ -255,30 +240,17 @@ export async function buildFeaturePacks(options: {
     }
     if (installed > options.budgets[id].installed_bytes)
       throw new Error(`${id} exceeds its installed size ceiling`);
-    const filename = `${id}-${release.version}-${id === "document-processing" ? "darwin-arm64" : "data-only"}.tar.zst`;
     const common = {
       id,
       display_name: titles[id],
       version: release.version,
       app_versions: [...(release.app_versions ?? [options.appVersion])].sort(),
-      platform:
-        id === "document-processing"
-          ? ("darwin" as const)
-          : ("data-only" as const),
-      architecture:
-        id === "document-processing"
-          ? ("arm64" as const)
-          : ("data-only" as const),
+      platform: "data-only" as const,
+      architecture: "data-only" as const,
       installed_bytes: installed,
       license_refs: release.license_refs,
       files,
-      signing:
-        id === "document-processing"
-          ? {
-              publisher: options.release.macos.team_id ?? "",
-              requirement: options.release.macos.designated_requirement ?? "",
-            }
-          : null,
+      signing: null,
     };
     const manifest = await buildPackArchive({
       root,
