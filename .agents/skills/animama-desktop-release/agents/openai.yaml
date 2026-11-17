@@ -1,0 +1,4 @@
+interface:
+  display_name: "Animama Desktop Release"
+  short_description: "Build, sign, scan and publish a desktop release candidate"
+  default_prompt: "Use $animama-desktop-release to build a signed desktop release candidate from the latest main on this host. Stop at each owner gate."

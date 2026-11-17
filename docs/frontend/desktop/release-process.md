@@ -17,6 +17,10 @@ The commands below are a runbook; they do not authorize publication or visibilit
 changes. Core native acceptance, minimum-OS tests and a real forward upgrade
 remain pending for the exact current candidate.
 
+The optional [desktop release skill](../../../.agents/skills/animama-desktop-release/SKILL.md)
+lets an agent run this runbook on the build host. It stops at every owner
+decision below.
+
 ## Release gates, in order
 
 | Gate                          | What must be true before continuing                                                                                                                                                                                                                                                                                                                                             |
