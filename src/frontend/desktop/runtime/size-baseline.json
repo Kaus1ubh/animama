@@ -16,7 +16,23 @@
         "web_javascript": 22485994,
         "browser_runtimes": 326579118
       }
+    },
+    "win32-x64": {
+      "app_version": "0.1.6",
+      "measurement": "signed-app-and-installer",
+      "installed_bytes": 988358083,
+      "download_bytes": 376996816,
+      "components": {
+        "electron": 375718750,
+        "frozen_backend": 192523304,
+        "package_overhead": 1886448,
+        "starter_content": 42469328,
+        "licenses": 9935116,
+        "postgresql": 16759896,
+        "web_javascript": 22486123,
+        "browser_runtimes": 326579118
+      }
     }
   },
-  "note": "Each target's entry comes from that target's published size-report.json. darwin-arm64: the 0.1.5 stable release (SHA-256 369dd3e745b60f8b5cebbd7651fb94d1315f32f9f4a8029a8ce342068ee8dab8, verified anonymously). Update an entry only from a later released artifact's report."
+  "note": "Each target's entry comes from that target's published size report. darwin-arm64: the 0.1.5 stable release's size-report.json (SHA-256 369dd3e745b60f8b5cebbd7651fb94d1315f32f9f4a8029a8ce342068ee8dab8, verified anonymously). win32-x64: the 0.1.6 stable release's size-report-win32-x64.json (SHA-256 4eef51b47997bb09aff1264d9359092848b0d92f24642ed41082fd83fd4563b0, verified anonymously). Update an entry only from a later released artifact's report."
 }
