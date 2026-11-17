@@ -16,6 +16,7 @@ import {
   sha256,
   writeJson,
 } from "./common.mjs";
+import { assertFuseWire } from "./fuses.mjs";
 import { assertInventory, inventoryId } from "./inventory.mjs";
 import { componentInventory } from "./inventory.mjs";
 import {
@@ -184,14 +185,6 @@ export async function releaseMac(args = []) {
       "Release acceptance requires exactly the active reviewed feature-pack artifacts; deferred packs must be absent",
     );
   if (
-    release.activePackIds.includes("document-processing") &&
-    catalog.entries.find((entry) => entry.id === "document-processing")?.signing
-      ?.publisher !== release.publisher.team_id
-  )
-    throw new Error(
-      "Core and document helper must use the same reviewed Apple Team ID",
-    );
-  if (
     JSON.stringify(
       readJson(path.join(target.runtime, "update-policy.json")),
     ) !== JSON.stringify(release.updatePolicy)
@@ -241,6 +234,7 @@ export async function releaseMac(args = []) {
   )
     throw new Error("Signed runtime identity mismatch");
   assertInventory(runtime, manifest.files);
+  assertFuseWire(app);
   if (rehearsal) verifyAppCodeSignature(app, release.publisher.team_id);
   else verifySignedApp(app, release.publisher.team_id);
   const dmg = path.join(directory, `Animama-${release.version}-arm64.dmg`);

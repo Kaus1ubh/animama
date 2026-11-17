@@ -1,5 +1,3 @@
-"use client";
-
 import { ChevronDown, ChevronRight, FileDiff } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import type { TFunction } from "i18next";

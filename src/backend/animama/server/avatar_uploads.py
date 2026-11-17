@@ -7,7 +7,7 @@ remove expired or abandoned staged bytes.
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import datetime
 
 from sqlalchemy import asc, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -20,10 +20,7 @@ from animama.domain.staged_upload import (
     StagedUploadStatus,
 )
 from animama.orm import ORMAvatarUpload
-
-
-def utcnow() -> datetime:
-    return datetime.now(UTC)
+from animama.utils.clock import utc_now
 
 
 async def list_uploads_for_cleanup(
@@ -32,7 +29,7 @@ async def list_uploads_for_cleanup(
     now: datetime | None = None,
     limit: int = 50,
 ) -> list[ORMAvatarUpload]:
-    effective_now = now or utcnow()
+    effective_now = now or utc_now()
     result = await session.execute(
         select(ORMAvatarUpload)
         .where(
@@ -71,5 +68,4 @@ __all__ = [
     "STATUS_PENDING",
     "list_uploads_for_cleanup",
     "set_upload_status",
-    "utcnow",
 ]

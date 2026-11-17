@@ -1,9 +1,7 @@
-"use client";
-
 import { useEffect, useRef } from "react";
 import { getI18n } from "react-i18next";
 
-import { useOptionalSoundController } from "@/hooks/use-sound-controller";
+import { useOptionalSoundController } from "@/hooks/useSoundController";
 import {
   collectAnimaPoseClipEventsBetween,
   isAnimaPoseClipVFXEvent,

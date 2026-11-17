@@ -73,13 +73,16 @@ vi.mock("@/ui/settings/SettingsProvider", () => ({
     isUpdating: false,
   }),
 }));
-vi.mock("@/hooks/use-pocket-tts-runtime", () => ({
+vi.mock("@/hooks/usePocketTtsRuntime", () => ({
   usePocketTtsRuntime: () => ({
     hasCustomVoice: false,
     isEncodingVoice: false,
   }),
 }));
-vi.mock("@/hooks/use-pocket-voice-downloads", () => ({
+vi.mock("@/query/hooks/useModelDownloadsEnded", () => ({
+  useModelDownloadsEnded: () => false,
+}));
+vi.mock("@/hooks/usePocketVoiceDownloads", () => ({
   usePocketVoiceDownloads: () => ({
     availability: () => null,
     install: vi.fn(),

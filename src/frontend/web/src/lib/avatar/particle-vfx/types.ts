@@ -135,6 +135,8 @@ export type ParticleVFXControllerSnapshot = {
   catalog: readonly ParticleVFXCatalogEntry[];
   activeInstances: ParticleVFXRuntimeInstanceSnapshot[];
   activeCount: number;
+  /** Stopped effects whose particles are still living out their life. */
+  finishingCount: number;
   loadedEffectIds: string[];
   loadedCount: number;
   warnings: string[];

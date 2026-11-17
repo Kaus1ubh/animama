@@ -1,10 +1,9 @@
-import { createWebI18n } from "@/i18n/web-i18n";
-
 import {
   createStore,
   type StageController,
   type StageState,
 } from "./controller";
+import { PAGE_NAMESPACES, createLandingI18n, initialLocale } from "./i18n";
 import { mountOverlay } from "./overlay";
 import {
   createBackdrops,
@@ -93,11 +92,12 @@ export async function startFallback(reason: string) {
     problems: [],
     fallback: reason,
   };
-  // The app's components read their labels from its English catalogs.
+  // The page's words and its app components' labels, in the visitor's
+  // language.
   mountOverlay(
     document.getElementById("overlay") as HTMLDivElement,
     controller,
-    await createWebI18n("en"),
+    await createLandingI18n(initialLocale(), PAGE_NAMESPACES),
   );
   if (openingStop > 0)
     window.scrollTo({ top: openingStop * window.innerHeight });

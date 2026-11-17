@@ -1,4 +1,3 @@
-"use client";
 import { useCallback, useMemo } from "react";
 import {
   useProductChatSession,
@@ -7,13 +6,14 @@ import {
   type ChatSpeechPolicy,
 } from "@animama/product-ui/chat";
 import { useAnima } from "@/query/hooks/useAnima";
+import { useModelProviders } from "@/query/hooks/useModelProviders";
 import { useRuntimeCapabilities } from "@/query/hooks/useRuntimeCapabilities";
 import { useSettings } from "@/ui/settings/SettingsProvider";
 import { useRuntimePlatform } from "@/platform/RuntimePlatformProvider";
 import { useMountedAnimaRuntimeContent } from "@/ui/app/AnimaRouteProviders";
 import { useAvatarRuntimeStore } from "@/stores/avatar-runtime-store";
 import { useAvatarLipSyncBridgeStore } from "@/stores/avatar-lipsync-bridge-store";
-import { useTtsPlayback } from "@/hooks/use-tts-playback";
+import { useTtsPlayback } from "@/hooks/useTtsPlayback";
 import { createLogger } from "@/lib/logger";
 import {
   resolvePreferredTtsProvider,
@@ -25,6 +25,7 @@ import {
   toElevenLabsTtsModelId,
   toGeminiTtsModelId,
 } from "@/lib/settings/preferences";
+import { chatRequestOptions } from "@/lib/chat/chat-request-options";
 import { chatTtsDispatchOptions } from "@/lib/chat/chat-tts-dispatch";
 import type { PocketAnimaVoiceSelectionContext } from "@/lib/speech/pocket/anima-voice-selection";
 export {
@@ -58,8 +59,33 @@ export function useChatSession(args: UseChatSessionArgs) {
   const { animaId } = args;
   const logger = useMemo(() => createLogger("ChatInterface"), []);
   const { data: anima } = useAnima(animaId);
-  const { chatRequestOptions, effectivePreferences } = useSettings();
+  const { chatFeatureChoice, effectivePreferences } = useSettings();
   const runtimeCapabilities = useRuntimeCapabilities();
+  const { data: modelProviders } = useModelProviders();
+  const activeModelProviderId =
+    anima?.chat_profile?.default_model_provider_id ?? null;
+  const savedReasoningEffort = anima?.chat_profile?.reasoning_effort;
+  const webSearch = runtimeCapabilities.data?.web_search;
+  // Worked out from the saved profile, so turns carry the Anima's effort
+  // whether or not the composer is mounted.
+  const dispatchOptions = useMemo(
+    () =>
+      chatRequestOptions({
+        animaId,
+        item: modelProviders?.find((item) => item.id === activeModelProviderId),
+        savedEffort: savedReasoningEffort,
+        webSearch,
+        featureChoice: chatFeatureChoice,
+      }),
+    [
+      activeModelProviderId,
+      animaId,
+      chatFeatureChoice,
+      modelProviders,
+      savedReasoningEffort,
+      webSearch,
+    ],
+  );
   const platform = useRuntimePlatform();
   const mountedRuntimeContent = useMountedAnimaRuntimeContent();
   const resetAvatarRuntime = useAvatarRuntimeStore(
@@ -400,7 +426,7 @@ export function useChatSession(args: UseChatSessionArgs) {
     runtime: mountedRuntimeContent,
     effects,
     speech,
-    dispatchOptions: chatRequestOptions,
-    webSearch: runtimeCapabilities.data?.web_search,
+    dispatchOptions,
+    webSearch,
   });
 }

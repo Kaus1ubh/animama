@@ -64,6 +64,8 @@ export function resolvePocketFallbackVoice(
   defaultVoice: string,
   availability: (voiceId: string) => PocketVoiceAvailability | null = () =>
     null,
+  /** Downloads have ended, so a voice that is not installed never will be. */
+  downloadsEnded = false,
 ): PocketFallbackResolution {
   const fallback = availableVoices.includes(defaultVoice)
     ? defaultVoice
@@ -95,6 +97,17 @@ export function resolvePocketFallbackVoice(
     };
   }
   const download = availability(configuredVoice);
+  if (download && download.status !== "installed" && downloadsEnded)
+    return {
+      voice: fallback,
+      notice: {
+        scope: "session",
+        key: `pocket_voice_downloads_ended:${configuredVoice}`,
+        message: t("pocket.fallback.downloadsEnded", {
+          voice: configuredVoice,
+        }),
+      },
+    };
   if (download && download.status !== "installed") {
     // Speak with the default until the voice is installed; start (or retry) the
     // download unless one is already running.

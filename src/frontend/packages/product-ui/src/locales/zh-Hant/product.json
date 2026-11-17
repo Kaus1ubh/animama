@@ -143,12 +143,14 @@
     }
   },
   "composer": {
+    "removeUnreadableFiles": "移除無法讀取的檔案後才能傳送",
     "send": "傳送訊息",
     "sending": "正在傳送訊息",
     "speechUnavailable": "離線語音辨識無法使用",
     "stop": "停止",
     "stopVoice": "停止語音模式",
-    "voiceMode": "語音模式"
+    "voiceMode": "語音模式",
+    "waitingForFiles": "正在等待檔案就緒"
   },
   "conversation": {
     "label": "對話"
@@ -172,6 +174,8 @@
       "avatarSessionExpired": "此虛擬形象工作階段已過期。請重新載入後再次傳送訊息。",
       "chatLoadFailed": "無法載入聊天。",
       "chatLoading": "聊天仍在載入中。",
+      "filesNotReady": "附件尚未就緒。",
+      "filesUnreadable": "請先移除無法讀取的檔案再傳送。",
       "missingAnima": "缺少 Anima。",
       "modelNotDirect": "此模型尚不支援直接聊天。",
       "modelsLoading": "模型仍在載入中。",

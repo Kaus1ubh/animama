@@ -6,11 +6,11 @@ Parakeet INT8 inputs recorded in
 [`models/parakeet-tdt-0.6b-v2/manifest.json`](../../../models/parakeet-tdt-0.6b-v2/manifest.json).
 The five upstream files are pinned to full Hugging Face commits, sizes and
 SHA-256 digests. Animama's README and attribution complete the seven-file set.
-Normal acquisition downloads the verified raw files and notices from Animama's
-shared content-addressed model origin. No Cloud checkout, Hugging Face account
-or API credential is needed. Before those objects are published, release
-maintainers can explicitly use `parakeet.py acquire --source upstream`; missing
-ordinary objects never trigger an upstream fallback. The SenseVoice-Small sets
+`acquire` downloads the pinned upstream files and uses the checked-in notices;
+until `downloads.animama.ai` is disconnected, `--source animama` fetches
+Animama's content-addressed objects instead, and a missing object never falls
+back to upstream. No Cloud checkout, Hugging Face account or API credential is
+needed. The SenseVoice-Small sets
 for Japanese, Korean and Chinese use the same store and commands; see
 [SenseVoice multilingual sets](#sensevoice-multilingual-sets).
 
@@ -155,6 +155,14 @@ Installed desktop packs remain separately owned under Application Support.
 
 ## Downloaded model assets
 
+The final release turns downloads off (`MODEL_DOWNLOADS_OFFERED` in
+`src/backend/animama/server/model_assets.py`): the model-asset list then reports
+`downloads_offered: false`, an install of an asset that is not installed is
+refused with `model_downloads_ended`, and startup discards staged bytes, which
+could never resume. Assets installed earlier keep working, are served and
+leased as before, and can be removed. Until then the downloader works as
+described below.
+
 The backend's shared downloader installs pinned files and multi-file sets on
 demand through [`/v1/model-assets`](../architecture/http-api.md#model-assets).
 It is the same FastAPI code on desktop and self-host, and it needs no restart.
@@ -181,15 +189,16 @@ It is the same FastAPI code on desktop and self-host, and it needs no restart.
   failure before a body arrives (an HTTP error, a refused host or a mismatched
   range) is not retried. A file failing its size or digest is discarded and
   downloaded again on the next install; Remove/cancel discards all staged
-  bytes, including during a resume wait. Startup deletes staging that cannot
-  resume and stored assets whose IDs left the catalog.
+  bytes, including during a resume wait. Startup deletes stored assets whose
+  IDs left the catalog and staging that cannot resume (all staging, once
+  downloads have ended).
 - `<data_root>` is `ANIMAMA_DATA_ROOT`: `<userData>/data` on desktop and
   `/var/lib/animama/data` in Compose (the `ANIMAMA_DATA_HOST_PATH` bind
   mount), so installs persist with that data. There is no quota; an install
   starts only with its remaining bytes plus 64 MiB free on that filesystem.
 - `scripts/backup-local.sh` and restore rollbacks omit installed and staged
-  model assets. After a restore they report not installed; download them again
-  in the app.
+  model assets. A restore keeps the installation's installed sets in place and
+  discards staged bytes.
 
 Each catalog URL names an object published once under
 `https://downloads.animama.ai/models/<model-id>/<file-sha256>/<file-name>`,
@@ -220,7 +229,8 @@ cancel, retry and removal without changing the selected provider or voice.
 
 Use the downloader for restart-free data files the running app can pick up,
 such as optional voices and the speech-to-text sets. Bundles that need a service
-switch, such as the document-processing pack, stay in Electron's pack manager.
+switch, such as the expanded Included content pack, stay in Electron's pack
+manager.
 
 Use the app's Remove action before reinstalling. Never edit an installed file in
 place. A renderer using an installed speech-to-text set holds a short use lease, and removal
@@ -300,9 +310,10 @@ author and keeping the model name:
   for WebGPU, where the INT8 graph's quantized operators have no kernels. It
   requires the base set, whose tokens and metadata it uses.
 
-Both sets are published on `downloads.animama.ai`, where in-app installs and
-the default `acquire` source fetch them. `--source upstream` instead downloads
-the pinned upstream revision, as for Parakeet:
+Both sets are published on `downloads.animama.ai`, where in-app installs fetch
+them. The default `acquire` source downloads the pinned upstream revision, as
+for Parakeet; until the cut-off, `--source animama` fetches the published
+objects instead:
 
 ```bash
 python3 scripts/models/sensevoice.py acquire

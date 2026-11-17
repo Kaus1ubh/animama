@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import math
 import os
 from datetime import timedelta
 from pathlib import Path
@@ -11,6 +12,11 @@ from pydantic import BaseModel, Field, model_validator
 from animama.app.model_catalog import RETIRED_BUILTIN_REPLACEMENTS
 from animama.app.safety.config import MAX_REMINDER_HOURS, MIN_REMINDER_HOURS, OperatorSafetyConfig, valid_reminder_hours
 from animama.app.safety.crisis_resources import CrisisResourceTableError, crisis_resource_table
+from animama.domain.user_file_processing import (
+    DEFAULT_USER_FILE_CHUNK_MAX_TOKENS,
+    MAX_USER_FILE_CHUNK_MAX_TOKENS,
+    MIN_USER_FILE_CHUNK_MAX_TOKENS,
+)
 
 
 def _env_text(name: str) -> str | None:
@@ -70,12 +76,9 @@ class Settings(BaseModel):
     animama_desktop_control_token: str | None = Field(
         default_factory=lambda: _env_text("ANIMAMA_DESKTOP_CONTROL_TOKEN"), repr=False
     )
-    # Compose retains its existing processing deployment; desktop explicitly
-    # disables it until main verifies the matching executable feature pack.
+    # The server processes uploads itself in every local composition; a
+    # self-host operator may turn processing off (uploads are still saved).
     animama_user_file_processing_enabled: bool = _env_bool("ANIMAMA_USER_FILE_PROCESSING_ENABLED", True)
-    animama_document_worker_instance_id: str | None = _env_text("ANIMAMA_DOCUMENT_WORKER_INSTANCE_ID")
-    animama_document_pack_version: str | None = _env_text("ANIMAMA_DOCUMENT_PACK_VERSION")
-    animama_docling_artifacts_path: Path | None = _env_path("ANIMAMA_DOCLING_ARTIFACTS_PATH")
     animama_parakeet_stt_enabled: bool = _env_bool("ANIMAMA_PARAKEET_STT_ENABLED", True)
     animama_sensevoice_stt_enabled: bool = _env_bool("ANIMAMA_SENSEVOICE_STT_ENABLED", True)
     # Where the speech-to-text sets (Parakeet and SenseVoice) come from: the
@@ -109,23 +112,14 @@ class Settings(BaseModel):
         os.getenv("ANIMAMA_USER_FILE_MAX_PROCESS_BYTES", str(10 * 1024 * 1024))
     )
     anima_user_file_processing_poll_seconds: float = float(os.getenv("ANIMAMA_USER_FILE_PROCESSING_POLL_SECONDS", "2"))
-    anima_user_file_processing_batch_size: int = int(os.getenv("ANIMAMA_USER_FILE_PROCESSING_BATCH_SIZE", "1"))
     anima_user_file_processing_lease_seconds: int = int(os.getenv("ANIMAMA_USER_FILE_PROCESSING_LEASE_SECONDS", "300"))
     anima_user_file_processing_max_attempts: int = int(os.getenv("ANIMAMA_USER_FILE_PROCESSING_MAX_ATTEMPTS", "3"))
-    anima_user_file_docling_timeout_seconds: int = int(os.getenv("ANIMAMA_USER_FILE_DOCLING_TIMEOUT_SECONDS", "120"))
-    anima_user_file_docling_enable_ocr: bool = _env_bool("ANIMAMA_USER_FILE_DOCLING_ENABLE_OCR", False)
-    anima_user_file_docling_do_table_structure: bool = _env_bool(
-        "ANIMAMA_USER_FILE_DOCLING_DO_TABLE_STRUCTURE",
-        True,
-    )
-    anima_user_file_docling_accelerator: str = os.getenv("ANIMAMA_USER_FILE_DOCLING_ACCELERATOR", "cpu")
-    anima_user_file_docling_num_threads: int = int(os.getenv("ANIMAMA_USER_FILE_DOCLING_NUM_THREADS", "4"))
-    anima_user_file_docling_table_mode: str = os.getenv("ANIMAMA_USER_FILE_DOCLING_TABLE_MODE", "fast")
-    anima_user_file_docling_warmup: bool = _env_bool("ANIMAMA_USER_FILE_DOCLING_WARMUP", True)
-    anima_user_file_chunk_max_tokens: int = int(os.getenv("ANIMAMA_USER_FILE_CHUNK_MAX_TOKENS", "800"))
-    # A tiktoken encoding name for chunk sizing only; tokenization runs offline.
-    anima_user_file_chunk_tokenizer_model: str = (
-        _env_text("ANIMAMA_USER_FILE_CHUNK_TOKENIZER_MODEL") or "text-embedding-3-small"
+    # Each upload is parsed in a child process; past either limit the file fails with a reason.
+    anima_user_file_parse_timeout_seconds: float = _env_float("ANIMAMA_USER_FILE_PARSE_TIMEOUT_SECONDS", 120.0)
+    anima_user_file_parse_memory_mb: int = int(os.getenv("ANIMAMA_USER_FILE_PARSE_MEMORY_MB", "1024"))
+    # The chunk size in cl100k_base tokens, heading path included; counted offline.
+    anima_user_file_chunk_max_tokens: int = int(
+        os.getenv("ANIMAMA_USER_FILE_CHUNK_MAX_TOKENS", str(DEFAULT_USER_FILE_CHUNK_MAX_TOKENS))
     )
     anima_memory_file_max_bytes: int = int(os.getenv("ANIMAMA_MEMORY_FILE_MAX_BYTES", str(32 * 1024)))
     anima_chat_compaction_enabled: bool = _env_bool("ANIMAMA_CHAT_COMPACTION_ENABLED", True)
@@ -225,6 +219,22 @@ class Settings(BaseModel):
                     "Model default %s names retired %s; using %s", field, configured, replacement
                 )
                 setattr(self, field, replacement)
+        return self
+
+    @model_validator(mode="after")
+    def validate_user_file_parse_limits(self) -> Settings:
+        """Reject parse limits that would fail every upload, and a chunk size outside the chunker's range."""
+
+        if not 0 < self.anima_user_file_parse_timeout_seconds < math.inf:
+            raise ValueError("ANIMAMA_USER_FILE_PARSE_TIMEOUT_SECONDS must be a positive number of seconds")
+        if self.anima_user_file_parse_memory_mb <= 0:
+            raise ValueError("ANIMAMA_USER_FILE_PARSE_MEMORY_MB must be a positive number of megabytes")
+        chunk_max_tokens = self.anima_user_file_chunk_max_tokens
+        if not MIN_USER_FILE_CHUNK_MAX_TOKENS <= chunk_max_tokens <= MAX_USER_FILE_CHUNK_MAX_TOKENS:
+            raise ValueError(
+                "ANIMAMA_USER_FILE_CHUNK_MAX_TOKENS must be between "
+                f"{MIN_USER_FILE_CHUNK_MAX_TOKENS} and {MAX_USER_FILE_CHUNK_MAX_TOKENS} tokens"
+            )
         return self
 
     @model_validator(mode="after")

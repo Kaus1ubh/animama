@@ -1,5 +1,3 @@
-"use client";
-
 import type { Client } from "@animama/runtime-contracts/sdk";
 import { getI18n } from "react-i18next";
 import { publicResourceUrl } from "@/lib/resource-urls";
@@ -16,6 +14,7 @@ import {
   type PocketVoiceEncoderOptions,
 } from "./voice-cloning-encoder";
 import { PocketVoiceCloningError } from "./voice-cloning-error";
+import { isRecord } from "@/lib/records";
 
 const logger = createLogger("PocketVoiceCatalogBuilder");
 const DEFAULT_SAMPLE_RATE = 24000;
@@ -72,10 +71,6 @@ type EncodeVoiceResponse = {
   embedding: Float32Array;
   embeddingShape: [number, number, number];
 };
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
-}
 
 function isPocketCatalogWorkerSuccessMessage(
   message: PocketCatalogWorkerMessage,

@@ -253,7 +253,7 @@ async def test_upload_user_file_content_promotes_exact_bytes_to_private_storage(
     async def fake_spool(*_args, **_kwargs) -> SpooledUpload:
         return SpooledUpload(stream=BytesIO(payload), size_bytes=len(payload), sha256="unused")
 
-    def fake_put(locator, content, *, content_type, content_length):  # noqa: ANN001, ANN202
+    def fake_put(locator, content, *, content_type, content_length):
         captured.update(
             locator=locator,
             payload=content.read(),

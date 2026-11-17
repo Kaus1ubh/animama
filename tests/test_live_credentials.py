@@ -95,24 +95,25 @@ def _cached_values(client: OpenAIChatCompletionsModelClient) -> str:
     """Everything a cached SDK client could hold that might carry a key."""
 
     return repr(
-        [
-            (sdk.api_key, dict(sdk._custom_headers), sdk.auth_headers)  # noqa: SLF001
-            for sdk in client._clients_by_connection.values()  # noqa: SLF001
-        ]
+        [(sdk.api_key, dict(sdk._custom_headers), sdk.auth_headers) for sdk in client._clients_by_connection.values()]
     )
 
 
+# The vLLM preset runs on this computer; its key was saved for that origin.
+C1_ORIGIN = {"ANIMAMA_CONNECTION_C1_ORIGIN": "http://127.0.0.1:8000"}
+
+
 async def test_chat_completions_uses_a_replaced_key_on_the_next_request(recording_server: _RecordingServer) -> None:
-    store = RuntimeCredentialStore({"ANIMAMA_CONNECTION_C1_API_KEY": OLD})
+    store = RuntimeCredentialStore({"ANIMAMA_CONNECTION_C1_API_KEY": OLD, **C1_ORIGIN})
     client = _chat_client(store)
     connection = _owner_connection("vllm", credential_env="ANIMAMA_CONNECTION_C1_API_KEY")
 
     await _collect(client.stream(_spec(connection=connection, structured_output_transport=None)))
-    store.replace({"ANIMAMA_CONNECTION_C1_API_KEY": NEW}, generation=1)
+    store.replace({"ANIMAMA_CONNECTION_C1_API_KEY": NEW, **C1_ORIGIN}, generation=1)
     await _collect(client.stream(_spec(connection=connection, structured_output_transport=None)))
 
     assert recording_server.authorizations == [f"Bearer {OLD}", f"Bearer {NEW}"]
-    assert len(client._clients_by_connection) == 1  # noqa: SLF001 - the pool is reused
+    assert len(client._clients_by_connection) == 1  # The pool is reused
     assert OLD not in _cached_values(client)
     assert NEW not in _cached_values(client)
     await client.aclose()
@@ -190,7 +191,7 @@ async def test_responses_client_resolves_the_key_per_stream(monkeypatch: pytest.
 
 
 async def test_embedder_follows_replacement_and_removal(recording_server: _RecordingServer) -> None:
-    store = RuntimeCredentialStore({"ANIMAMA_CONNECTION_C1_API_KEY": OLD})
+    store = RuntimeCredentialStore({"ANIMAMA_CONNECTION_C1_API_KEY": OLD, **C1_ORIGIN})
     connection = _owner_connection("vllm", credential_env="ANIMAMA_CONNECTION_C1_API_KEY")
     row = _spec(connection=connection).model_provider
     embedder = ConnectionEmbedder(
@@ -201,7 +202,7 @@ async def test_embedder_follows_replacement_and_removal(recording_server: _Recor
     )
 
     await embedder.embed_texts(["a"])
-    store.replace({"ANIMAMA_CONNECTION_C1_API_KEY": NEW}, generation=1)
+    store.replace({"ANIMAMA_CONNECTION_C1_API_KEY": NEW, **C1_ORIGIN}, generation=1)
     await embedder.embed_texts(["a"])
     store.replace({}, generation=2)
     with pytest.raises(ModelClientProviderError):
@@ -213,12 +214,12 @@ async def test_embedder_follows_replacement_and_removal(recording_server: _Recor
 def test_memory_manager_runs_on_a_replaced_key() -> None:
     runtime = _memory_manager_runtime(None)
     store = RuntimeCredentialStore({"OPENAI_API_KEY": OLD})
-    runtime._credentials = StoreModelCredentialResolver(store)  # noqa: SLF001
+    runtime._credentials = StoreModelCredentialResolver(store)
 
     store.replace({"OPENAI_API_KEY": NEW}, generation=1)
-    connection, credential = runtime._require_model()  # noqa: SLF001
+    connection, credential = runtime._require_model()
 
-    assert runtime._client(connection, credential).api_key == NEW  # noqa: SLF001
+    assert runtime._client(connection, credential).api_key == NEW
 
 
 def test_registry_default_resolver_follows_the_process_store(set_runtime_credentials: Any) -> None:
@@ -229,9 +230,9 @@ def test_registry_default_resolver_follows_the_process_store(set_runtime_credent
     chat = registry.get("OpenAIHTTPAgent")
     set_runtime_credentials(OPENAI_API_KEY=NEW)
 
-    assert chat._credentials.resolve(builtin_openai_connection()).api_key == NEW  # type: ignore[union-attr]  # noqa: SLF001
+    assert chat._credentials.resolve(builtin_openai_connection()).api_key == NEW  # type: ignore[union-attr]
     set_runtime_credentials()
-    assert chat._credentials.resolve(builtin_openai_connection()).api_key is None  # type: ignore[union-attr]  # noqa: SLF001
+    assert chat._credentials.resolve(builtin_openai_connection()).api_key is None  # type: ignore[union-attr]
 
 
 def test_trace_export_key_follows_the_process_store() -> None:
@@ -242,23 +243,23 @@ def test_trace_export_key_follows_the_process_store() -> None:
     follow_trace_export_key()
     exporter = processors.default_exporter()
     runtime_credentials.replace({"OPENAI_API_KEY": NEW}, generation=runtime_credentials.snapshot().generation + 1)
-    assert exporter._api_key == NEW  # noqa: SLF001
+    assert exporter._api_key == NEW
     runtime_credentials.replace({}, generation=runtime_credentials.snapshot().generation + 1)
-    assert exporter._api_key == ""  # noqa: SLF001
+    assert exporter._api_key == ""
     assert NEW not in repr(vars(exporter))
 
 
 def test_memory_manager_refuses_a_removed_key() -> None:
     runtime = _memory_manager_runtime(None)
     store = RuntimeCredentialStore({"OPENAI_API_KEY": OLD})
-    runtime._credentials = StoreModelCredentialResolver(store)  # noqa: SLF001
+    runtime._credentials = StoreModelCredentialResolver(store)
 
-    _connection, credential = runtime._require_model()  # noqa: SLF001
+    _connection, credential = runtime._require_model()
     store.replace({}, generation=1)
 
     assert credential.api_key == OLD
     with pytest.raises(MemoryManagerRuntimeConfigurationError):
-        runtime._require_model()  # noqa: SLF001
+        runtime._require_model()
 
 
 def test_elevenlabs_client_carries_only_the_current_key(set_runtime_credentials: Any) -> None:
@@ -268,9 +269,9 @@ def test_elevenlabs_client_carries_only_the_current_key(set_runtime_credentials:
     second = elevenlabs_service.get_elevenlabs_client()
     set_runtime_credentials()
 
-    assert first._client_wrapper.get_headers()["xi-api-key"] == OLD  # noqa: SLF001
-    assert second._client_wrapper.get_headers()["xi-api-key"] == NEW  # noqa: SLF001
-    shared = elevenlabs_service._elevenlabs_http_client()  # noqa: SLF001
+    assert first._client_wrapper.get_headers()["xi-api-key"] == OLD
+    assert second._client_wrapper.get_headers()["xi-api-key"] == NEW
+    shared = elevenlabs_service._elevenlabs_http_client()
     assert OLD not in repr(dict(shared.headers)) and NEW not in repr(dict(shared.headers))
     with pytest.raises(Exception) as caught:
         elevenlabs_service.get_elevenlabs_client()
@@ -281,13 +282,13 @@ def test_elevenlabs_voice_access_cache_does_not_survive_a_key_change(set_runtime
     from animama.server.runtime_credentials import runtime_credentials
 
     set_runtime_credentials(ELEVENLABS_API_KEY=OLD)
-    elevenlabs_service._store_voice_access_cache_success("voice-1")  # noqa: SLF001
-    assert elevenlabs_service._get_voice_access_cache_entry("voice-1") is not None  # noqa: SLF001
+    elevenlabs_service._store_voice_access_cache_success("voice-1")
+    assert elevenlabs_service._get_voice_access_cache_entry("voice-1") is not None
 
     runtime_credentials.replace({"ELEVENLABS_API_KEY": NEW}, generation=runtime_credentials.snapshot().generation + 1)
 
-    assert elevenlabs_service._get_voice_access_cache_entry("voice-1") is None  # noqa: SLF001
-    assert elevenlabs_service._ELEVENLABS_VOICE_ACCESS_CACHE == {}  # noqa: SLF001
+    assert elevenlabs_service._get_voice_access_cache_entry("voice-1") is None
+    assert elevenlabs_service._ELEVENLABS_VOICE_ACCESS_CACHE == {}
 
 
 def test_scrub_removes_only_credential_names() -> None:

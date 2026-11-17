@@ -19,9 +19,9 @@ from typing import Any
 
 import anthropic
 
+from animama.adapters.model_clients.openai_errors import sanitize_provider_error_message
 from animama.app.model_clients import ModelClientError, ModelClientProviderError, ModelClientTimeoutError
 
-from ..openai_errors import sanitize_provider_error_message
 from .support import ANTHROPIC_API, ANTHROPIC_MESSAGES_HTTP_PROVIDER_TYPE, ANTHROPIC_PROVIDER, clean_str
 
 _MAX_APP_RETRIES = 1

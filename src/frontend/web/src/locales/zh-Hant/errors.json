@@ -158,7 +158,9 @@
   "modelConfiguration": {
     "bad_request": "伺服器拒絕了請求。",
     "context_exceeded": "請求超出了模型的上下文視窗。",
+    "credential_insecure_transport": "金鑰只透過 https 或傳往這台電腦的 http 傳輸。請使用 https 或本機伺服器。",
     "credential_missing": "此連線需要金鑰才能使用。",
+    "credential_origin_mismatch": "此金鑰屬於另一個位址。供應商的金鑰只傳送到該供應商的 API，連線的金鑰只傳送到與它一同儲存的位址。",
     "credential_rejected": "伺服器拒絕了金鑰。",
     "detectionNotRunning": "{{baseUrl}} 上沒有正在執行的服務。請啟動 {{server}} 後重試。",
     "invalid_base_url": "基礎 URL 無效。",

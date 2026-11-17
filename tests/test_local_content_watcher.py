@@ -20,14 +20,14 @@ def test_watcher_classifies_registered_roots_without_resolving_symlinks(tmp_path
     watcher = ContentWatcher(included_root=included, local_root=local)
 
     # The initial snapshot records the link itself but never enters it.
-    assert linked.absolute() in watcher._signatures  # noqa: SLF001
-    assert (linked / "kept.vrma").absolute() not in watcher._signatures  # noqa: SLF001
+    assert linked.absolute() in watcher._signatures
+    assert (linked / "kept.vrma").absolute() not in watcher._signatures
 
-    assert watcher._classify_changed_path(str(linked / "wave.vrma")) == (  # noqa: SLF001
+    assert watcher._classify_changed_path(str(linked / "wave.vrma")) == (
         ContentSource.LOCAL,
         "gestures/wave.vrma",
     )
-    assert watcher._classify_changed_path(str(outside / "wave.vrma")) is None  # noqa: SLF001
+    assert watcher._classify_changed_path(str(outside / "wave.vrma")) is None
 
 
 def test_watcher_ignores_reads_but_records_durable_file_changes(tmp_path: Path) -> None:
@@ -42,28 +42,28 @@ def test_watcher_ignores_reads_but_records_durable_file_changes(tmp_path: Path) 
 
     # Opening/reading a runtime file does not change its durable signature.
     assert existing.read_bytes() == b"original"
-    assert watcher._record_if_changed(str(existing)) is None  # noqa: SLF001
+    assert watcher._record_if_changed(str(existing)) is None
 
     existing.write_bytes(b"updated bytes")
-    assert watcher._record_if_changed(str(existing)) == (  # noqa: SLF001
+    assert watcher._record_if_changed(str(existing)) == (
         ContentSource.LOCAL,
         "gestures/wave.vrma",
     )
-    assert watcher._record_if_changed(str(existing)) is None  # noqa: SLF001
+    assert watcher._record_if_changed(str(existing)) is None
 
     created = local / "gestures" / "point.vrma"
     created.write_bytes(b"new")
-    assert watcher._record_if_changed(str(created)) == (  # noqa: SLF001
+    assert watcher._record_if_changed(str(created)) == (
         ContentSource.LOCAL,
         "gestures/point.vrma",
     )
 
     created.unlink()
-    assert watcher._record_if_changed(str(created)) == (  # noqa: SLF001
+    assert watcher._record_if_changed(str(created)) == (
         ContentSource.LOCAL,
         "gestures/point.vrma",
     )
-    assert watcher._record_if_changed(str(created)) is None  # noqa: SLF001
+    assert watcher._record_if_changed(str(created)) is None
 
 
 def test_watcher_ignores_hidden_paths_that_the_scanner_never_reads(tmp_path: Path) -> None:
@@ -84,13 +84,13 @@ def test_watcher_ignores_hidden_paths_that_the_scanner_never_reads(tmp_path: Pat
         if not path.exists():
             path.write_bytes(b"journal bytes")
         # Mutation journals, staging and restores change on every Local write.
-        assert watcher._record_if_changed(str(path)) is None  # noqa: SLF001
+        assert watcher._record_if_changed(str(path)) is None
 
     # An interrupted multi-file save marker is the one hidden name scans report.
     marker = local / "scene-effects" / "scene" / ".animama-operation"
     marker.parent.mkdir(parents=True)
     marker.write_text("{}")
-    assert watcher._record_if_changed(str(marker)) == (  # noqa: SLF001
+    assert watcher._record_if_changed(str(marker)) == (
         ContentSource.LOCAL,
         "scene-effects/scene/.animama-operation",
     )

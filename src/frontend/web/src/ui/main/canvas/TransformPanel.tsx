@@ -1,5 +1,3 @@
-"use client";
-
 import { MathUtils } from "three";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";

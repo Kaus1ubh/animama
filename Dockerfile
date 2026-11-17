@@ -15,10 +15,11 @@ RUN --mount=type=cache,id=animama-pnpm-linux-${TARGETARCH}-node22-pnpm10.33.0,ta
 COPY src/frontend ./
 COPY models /models
 COPY LICENSE /LICENSE
+# Package builds write the upstream notices for third-party code they contain.
+COPY licenses/third-party /licenses/third-party
 COPY content/included /content/included
 COPY docs/safety /docs/safety
 ENV NODE_ENV=production \
-    VITE_APP_ENV=production \
     VITE_DISABLE_WEBUI_TELEMETRY=true \
     ANIMAMA_BROWSER_MODEL_DIR=/opt/animama/browser-models
 # Explicit verified input, never a download during build. Only dist enters runtime.
@@ -30,19 +31,23 @@ RUN --mount=from=browser_models,target=/opt/animama/browser-models \
 FROM python:3.12-slim AS base
 ARG TARGETARCH
 WORKDIR /app
+# ALEMBIC_CONFIG lets `alembic` commands run in the container find the backend's
+# migration config without `-c`.
 ENV UV_PROJECT_ENVIRONMENT=/opt/venv \
     UV_LINK_MODE=copy \
     PATH="/opt/venv/bin:/root/.local/bin:$PATH" \
-    PYTHONPATH=/app/src:/app/src/agents/src
+    PYTHONPATH=/app/src \
+    ALEMBIC_CONFIG=/app/src/backend/alembic.ini
 RUN apt-get update -y \
     && apt-get install -y --no-install-recommends curl build-essential \
     && rm -rf /var/lib/apt/lists/*
 RUN pip install --no-cache-dir uv==0.11.28
-COPY pyproject.toml uv.lock alembic.ini LICENSE ./
+COPY pyproject.toml uv.lock LICENSE ./
 RUN touch README.md
 
 FROM base AS source
-COPY alembic ./alembic
+COPY src/backend/alembic.ini ./src/backend/alembic.ini
+COPY src/backend/migrations ./src/backend/migrations
 COPY content/included ./content/included
 COPY src/backend/animama ./src/backend/animama
 COPY src/backend/packaging/hatch_build.py src/backend/packaging/shared_catalogs.py ./src/backend/packaging/
@@ -52,24 +57,13 @@ COPY src/frontend/web/src/assets/vrm/animations/manifest.json \
 
 FROM base AS animama-server-development
 RUN --mount=type=cache,id=animama-uv-linux-${TARGETARCH}-py312-uv0.11.28,target=/root/.cache/uv,sharing=locked \
-    uv sync --frozen --no-dev --no-install-project
+    uv sync --frozen --no-dev --extra documents --no-install-project
 COPY --from=source /app /app
 RUN --mount=type=cache,id=animama-uv-linux-${TARGETARCH}-py312-uv0.11.28,target=/root/.cache/uv,sharing=locked \
-    uv sync --frozen --no-dev
+    uv sync --frozen --no-dev --extra documents
 EXPOSE 8000
 CMD ["python", "-m", "animama.server.compose_entrypoint"]
 
 FROM animama-server-development AS animama-server
 COPY --from=web-builder /app/web/dist /opt/animama/web
 ENV ANIMAMA_WEB_ROOT=/opt/animama/web
-
-FROM base AS animama-file-worker
-RUN apt-get update -y \
-    && apt-get install -y --no-install-recommends libglib2.0-0 libgl1 libgomp1 libxcb1 \
-    && rm -rf /var/lib/apt/lists/*
-RUN --mount=type=cache,id=animama-uv-linux-${TARGETARCH}-py312-uv0.11.28,target=/root/.cache/uv,sharing=locked \
-    uv sync --frozen --no-dev --extra file-worker --no-install-project
-COPY --from=source /app /app
-RUN --mount=type=cache,id=animama-uv-linux-${TARGETARCH}-py312-uv0.11.28,target=/root/.cache/uv,sharing=locked \
-    uv sync --frozen --no-dev --extra file-worker
-CMD ["python", "-m", "animama.workers.user_file_processing"]

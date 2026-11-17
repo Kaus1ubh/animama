@@ -5,13 +5,13 @@ import {
 } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 
-import { useRuntimeAdmission } from "@web/app/runtime/RuntimeAdmissionProvider";
-import { FirstRunAgeConfirmation } from "@web/app/local-runtime/setup/FirstRunAgeConfirmation";
-import { HostedAgeConfirmation } from "@web/app/hosted-runtime/HostedAgeConfirmation";
+import { useRuntimeAdmission } from "@/app/runtime/RuntimeAdmissionProvider";
+import { FirstRunAgeConfirmation } from "@/app/local-runtime/setup/FirstRunAgeConfirmation";
+import { HostedAgeConfirmation } from "@/app/hosted-runtime/HostedAgeConfirmation";
 import {
   unavailableReasonText,
   unavailableRouteReason,
-} from "@web/app/runtime/route-admission";
+} from "@/app/runtime/route-admission";
 import { AppShellPage } from "@/ui/app/AppShellPage";
 import { AppShell } from "@/ui/app/AppShell";
 import { ContentPreviewDockProvider } from "@/ui/content-preview/ContentPreviewDockProvider";

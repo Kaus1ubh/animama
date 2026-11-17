@@ -31,7 +31,7 @@ LEGACY = {
 
 
 @pytest.fixture(autouse=True)
-async def _cleanup(async_session):  # noqa: ANN001, ANN202
+async def _cleanup(async_session):
     yield
     await async_session.rollback()
     await async_session.execute(delete(ORMContentCatalogItem).where(ORMContentCatalogItem.owner_user_id == OWNER))
@@ -44,7 +44,7 @@ def _png() -> bytes:
     return image.getvalue()
 
 
-def _write(content, name: str, definition: dict[str, Any]) -> bytes:  # noqa: ANN001
+def _write(content, name: str, definition: dict[str, Any]) -> bytes:
     descriptor = {
         "schema_version": 1,
         "content_type": "avatar_effect",
@@ -64,11 +64,11 @@ def _write(content, name: str, definition: dict[str, Any]) -> bytes:  # noqa: AN
     return raw
 
 
-def _service(content, async_session) -> ContentTransitionService:  # noqa: ANN001
+def _service(content, async_session) -> ContentTransitionService:
     return ContentTransitionService(content=content, bindings=SQLAlchemyContentTransitionBindings(async_session))
 
 
-async def _effects(catalog) -> dict[str, CatalogContentEntry]:  # noqa: ANN001
+async def _effects(catalog) -> dict[str, CatalogContentEntry]:
     return {
         item.logical_key: item
         for item in await catalog.list_visible(user_id=OWNER)
@@ -76,7 +76,7 @@ async def _effects(catalog) -> dict[str, CatalogContentEntry]:  # noqa: ANN001
     }
 
 
-async def test_local_v1_effect_converts_in_place_keeping_identity_and_original(async_session, tmp_path) -> None:  # noqa: ANN001
+async def test_local_v1_effect_converts_in_place_keeping_identity_and_original(async_session, tmp_path) -> None:
     paths, catalog, content, _, _ = package_services(async_session, tmp_path)
     raw = _write(content, "mark", LEGACY)
     await content.rescan(user_id=OWNER)
@@ -114,7 +114,7 @@ async def test_local_v1_effect_converts_in_place_keeping_identity_and_original(a
     assert (again.id, again.revision_sha256) == (after.id, after.revision_sha256)
 
 
-async def test_malformed_v1_effect_is_recorded_and_left_untouched(async_session, tmp_path) -> None:  # noqa: ANN001
+async def test_malformed_v1_effect_is_recorded_and_left_untouched(async_session, tmp_path) -> None:
     paths, catalog, content, _, _ = package_services(async_session, tmp_path)
     raw = _write(content, "broken", {**LEGACY, "placement": "behind-head"})
     _write(content, "mark", LEGACY)
@@ -133,7 +133,7 @@ async def test_malformed_v1_effect_is_recorded_and_left_untouched(async_session,
     assert converted["definition"]["schema"] == "animama/avatar-effect/2"
 
 
-async def test_unconverted_effect_is_refused_at_preview_and_reported_by_projection(async_session, tmp_path) -> None:  # noqa: ANN001
+async def test_unconverted_effect_is_refused_at_preview_and_reported_by_projection(async_session, tmp_path) -> None:
     from animama.app.services.typed_content_batch_service import CatalogTypedRoot, TypedContentBatchResolver
     from animama.app.services.typed_content_service import TypedContentService
     from animama.domain.content_documents import ContentDocumentError

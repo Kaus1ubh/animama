@@ -1,18 +1,4 @@
 {
-  "background": {
-    "apply": "应用",
-    "applying": "正在应用...",
-    "back": "返回背景设置",
-    "canvasSize": "{{width}} x {{height}}",
-    "description": "调整所选虚拟形象背景的裁剪和缩放。",
-    "heading": "编辑媒体",
-    "hint": "拖动以调整位置，缩放以适应实时虚拟形象画布。",
-    "liveCanvas": "实时画布",
-    "reset": "重置",
-    "title": "调整 {{name}} 背景的大小",
-    "zoomIn": "放大背景",
-    "zoomOut": "缩小背景"
-  },
   "canvas": {
     "camera": {
       "axis": "{{label}} {{axis}}",
@@ -150,6 +136,7 @@
       },
       "select": "选择模型",
       "toasts": {
+        "effortUpdateFailed": "无法保存推理强度",
         "selectFirst": "请先选择模型再聊天。",
         "unsupported": "此模型暂不支持直接聊天。",
         "updateFailed": "无法更新模型"

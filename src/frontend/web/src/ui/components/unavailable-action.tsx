@@ -1,5 +1,3 @@
-"use client";
-
 import { Slot } from "@radix-ui/react-slot";
 import { useId, type ComponentProps, type ReactElement } from "react";
 

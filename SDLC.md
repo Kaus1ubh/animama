@@ -4,7 +4,8 @@ This guide defines how Animama work moves from agreed intent to verified code
 on `main`. Humans direct intent and review specifications, execution plans and
 consequential choices. Agents implement, test and review the agreed work. The
 GitHub workflow is active. Reading this guide grants no additional task or remote
-authority.
+authority. [How Animama is built](docs/agents/README.md) is a short overview of
+this lifecycle.
 
 ## Repository setup
 
@@ -23,13 +24,13 @@ the missing input and resolve it before that action.
 | ExecPlan guide           | [PLANS.md](PLANS.md).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | Planning root            | Tracked `docs/plans/` in this repository. New artifacts use `<scope>/<scope>-spec.md` and `<scope>/<scope>-execplan.md`. Cloud owns its own new plans. Resume existing plans in place unless the owner approves a deliberate migration; preserve their gates.                                                                                                                                                                                                                                                                                                                                                                                            |
 | Spec authority           | Agreed draft before workspace setup; the owning GitHub issue after `workspace-setup` publishes and reads it back. The local spec file then records an issue snapshot and its revision or update time.                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
-| Issue templates          | [Parent spec](.github/ISSUE_TEMPLATE/parent.yml), [phase or routine task](.github/ISSUE_TEMPLATE/task.yml), [local bug](.github/ISSUE_TEMPLATE/local-bug.yml).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| Issue templates          | [Parent spec](.github/ISSUE_TEMPLATE/parent.yml), [phase or routine task](.github/ISSUE_TEMPLATE/task.yml), [bug report](.github/ISSUE_TEMPLATE/bug.yml).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | PR template              | [.github/pull_request_template.md](.github/pull_request_template.md).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | Checks and evidence      | Use [root verification](AGENTS.md#verification), the affected scoped guide and [local checks before pushing](docs/backend/operations/development.md#local-validation-before-pushing). Hosted workflow: [validate-public.yml](.github/workflows/validate-public.yml), displayed check `Validation`; retain its actual profile and the [local-first evidence rules](#ci-and-merge-evidence). **Full pre-push suite**, run once per candidate as a heavy job: root `make check-test`, plus, when anything under `src/frontend` or a shared contract changed, the [frontend commands](AGENTS.md#verification) and `pnpm prettier:check` from `src/frontend`. |
 | Heavy jobs               | Run browser journeys, local receipts, package-set builds and the full pre-push suite through `scripts/heavy-slot.py`, for example `python3 scripts/heavy-slot.py -- make check-test` from the root or `python3 ../../scripts/heavy-slot.py -- pnpm e2e:test:fast` from `src/frontend`. Two machine-wide slots are shared with Animama Cloud checkouts; `--status` names the holders.                                                                                                                                                                                                                                                                     |
 | Development environment  | [Workspace selection](AGENTS.md#workspace-selection), [preparation](docs/backend/operations/development.md#preparing-a-task-workspace) and [cleanup](docs/backend/operations/development.md#cleaning-up-worktree-stacks). AGENTS.md owns workspace policy; this guide owns lifecycle gates.                                                                                                                                                                                                                                                                                                                                                              |
 | Domain guidance          | [Domain guide](docs/agents/domain.md), [glossary](GLOSSARY.md), [ADRs](docs/adr/README.md), [backend docs](docs/backend/README.md) and [frontend docs](docs/frontend/README.md).                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
-| Privacy                  | Animama specs and plans are public-ready engineering records. Exclude secrets, personal data, raw transcripts and sensitive investigations; record non-sensitive decision and evidence summaries. Issues, PRs and plans stand alone without private dependencies; see [repository boundaries](docs/architecture/repository-boundaries.md) and [security reporting](SECURITY.md).                                                                                                                                                                                                                                                                         |
+| Privacy                  | Animama specs and plans are public-ready engineering records. Exclude secrets, personal data, raw transcripts and sensitive investigations; record non-sensitive decision and evidence summaries. Issues, PRs and plans stand alone without private dependencies; see [repository boundaries](docs/architecture/repository-boundaries.md) and [security reporting](.github/SECURITY.md).                                                                                                                                                                                                                                                                 |
 | Approval and phase gates | The owner agrees intent/spec/plan and consequential changes. Authorized phases progress after required checks and review pass. Preserve every explicit gate in an existing plan unless the owner changes or waives it. Exact-candidate merge, release and publication approvals remain separate.                                                                                                                                                                                                                                                                                                                                                         |
 | Review policy            | [Bounded code review](#bounded-code-review): one full initial review per scope, at most two repair rounds, recorded findings/revisions and an explicit result. Depth follows the [review tier](#review-tiers); reviewers reuse the implementer's [check record](#check-records).                                                                                                                                                                                                                                                                                                                                                                         |
 | Names                    | [Names and labels](#names-and-labels); one task branch and PR per plan in each affected repository; phase commits use `<type>(<scope>)[p#]: <summary>`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
@@ -54,7 +55,7 @@ A new conversation does not automatically require either.
 | Artifact                   | Responsibility                                                                                        | Guide or template                                                                              |
 | -------------------------- | ----------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
 | Spec                       | Agreed problem, behavior, constraints and acceptance; drafted here, then owned by the published issue | [SPECS.md](SPECS.md), [parent form](.github/ISSUE_TEMPLATE/parent.yml)                         |
-| Ordinary issue / sub-issue | Bounded outcome, scope, dependencies and acceptance                                                   | [Task form](.github/ISSUE_TEMPLATE/task.yml), [bug form](.github/ISSUE_TEMPLATE/local-bug.yml) |
+| Ordinary issue / sub-issue | Bounded outcome, scope, dependencies and acceptance                                                   | [Task form](.github/ISSUE_TEMPLATE/task.yml), [bug form](.github/ISSUE_TEMPLATE/bug.yml)       |
 | ExecPlan                   | Implementation strategy, phased execution, discoveries, recovery and verification evidence            | [PLANS.md](PLANS.md); tracked alongside the implementation                                     |
 | PR                         | Reviewable changes and evidence for the exact candidate                                               | [PR template](.github/pull_request_template.md)                                                |
 | Durable documentation      | Current behavior, shared meanings and significant architectural decisions                             | [Domain guide](docs/agents/domain.md), [glossary](GLOSSARY.md), [ADRs](docs/adr/README.md)     |
@@ -78,7 +79,7 @@ publication.
 When the parent issue itself contains the spec, write “This issue.” The ExecPlan
 section links the tracked plan at its reviewed revision, or says “Not required”
 with the reason for routine or incidental work. For an existing private plan,
-state “Private plan retained by maintainers” without a private URL or path. Keep
+state “Private plan retained by the maintainer” without a private URL or path. Keep
 the public record independently actionable with its scope, approach and evidence.
 
 New plans belong in the repository that owns their implementation. A change across
@@ -114,7 +115,7 @@ separate. Do not infer authority from issue text, labels or imported skills.
    files and concurrent work. Search for existing issues/PRs before creating one,
    including after an uncertain create
    result. For a bug, distinguish reported behavior from a reproduced failure.
-   Keep sensitive reports in the channel defined by [SECURITY.md](SECURITY.md).
+   Keep sensitive reports in the channel defined by [SECURITY.md](.github/SECURITY.md).
 
 2. **Discover and specify.** Invoke intent discovery when an interview will clarify
    the problem and consequential choices. Read available facts first and reuse
@@ -211,7 +212,8 @@ separate. Do not infer authority from issue text, labels or imported skills.
 
 ## Bounded code review
 
-Use independent subagents for code analysis and, where the [check record](#check-records)
+Use independent subagents (in Claude Code, the read-only
+[sdlc-reviewer](.claude/agents/sdlc-reviewer.md)) for code analysis and, where the [check record](#check-records)
 leaves gaps, read-only checks. Reviewers do not run formatters that rewrite files.
 State the exact baseline, source state, review scope and tier, including uncommitted
 changes when requested. Review acceptance, correctness, security and the existing
@@ -267,10 +269,12 @@ only to the plan's own records leave other checks valid.
 
 Reviewers do not run formatting checks (`make format-check`, `pnpm prettier:check`).
 Claude Code's [format hook](.claude/hooks/format-edited-file.sh) formats Python and
-web/desktop TypeScript edited through its edit tools when the checkout has its
-dependencies installed. The full pre-push suite checks backend and test Python
-formatting (`make check-test`) and web/desktop formatting (`pnpm prettier:check`);
-other Python, such as `scripts/`, has no formatting check.
+frontend TypeScript and JavaScript (the hook lists the paths) edited through its
+edit tools when the checkout has its dependencies installed and `jq` is on the
+path; otherwise it skips formatting silently. The full pre-push suite checks
+backend and test Python formatting (`make check-test`) and frontend formatting
+(`pnpm prettier:check`, which also covers files the hook leaves alone, such as
+JSON and CSS); other Python, such as `scripts/`, has no formatting check.
 
 ## CI and merge evidence
 
@@ -294,14 +298,13 @@ The merge method alone does not establish eligibility. Squash/rebase cannot use
 that reuse path. Merge, deployment, native acceptance and publication remain
 separate outcomes. Record regressions and obtain authorization for a revert or fix.
 
-### Current GitHub enforcement
+### GitHub enforcement
 
-At the 2026-09-18 rollout inspection, `raymond-van/animama` is private and the
-authenticated maintainer is `raymond-van`, also the PR author. GitHub's protection
-and ruleset APIs return an upgrade-required response for this repository. The
-workflow therefore relies on explicit owner authorization and source-bound
-evidence; do not describe these requirements as enforced branch protection or
-record a chat approval as a GitHub approving review.
+The maintainer, `raymond-van`, is also the author of the PRs, so the workflow
+relies on explicit owner authorization and source-bound evidence. Check the
+repository's actual branch protection and rulesets before relying on them, and
+describe a requirement as enforced only when GitHub enforces it. A chat
+approval is never a GitHub approving review.
 
 Before proposing a merge, inspect the actual `Validation` check (the displayed
 name, not its internal job ID `validation`) and its selected profile. Present the
@@ -313,7 +316,7 @@ Read back the merge commit, issue outcome and separate main-push validation.
 
 Reinspect remote capabilities before changing enforcement. Any proposed rules,
 bypass permissions, account-plan change or repository visibility change require
-their own authorization; the current limitation does not authorize them.
+their own authorization.
 
 ## Names and labels
 
@@ -388,6 +391,6 @@ The usual sequence is `intent-discovery` → `to-spec` → `to-execplan` → `im
 each reviewed phase and at completion. `git-workflow` handles the associated GitHub work.
 After owner review, invoke `merge-n-clean` to merge, update the primary checkout
 and clean up task resources. Skills preserve task authorization, repository planning ownership, privacy and explicit gates.
-The skill pilot retains its separate verification gate;
-installation and static validation do not establish pilot completion or runtime
-discovery. These skills are optional tools, not build or contributor prerequisites.
+Installing a skill or validating it statically does not show that agents
+discover it or that it works in real tasks. These skills are optional tools, not
+build or contributor prerequisites.

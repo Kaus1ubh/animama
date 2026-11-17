@@ -13,11 +13,11 @@ from __future__ import annotations
 
 from typing import Any
 
-from ...domain.archive import Archive, ArchivePassage
-from ...logging import get_logger
-from ..ports.archive_port import ArchiveRepository
-from ..ports.text_embedder import TextEmbedder
-from ..ports.uow_port import UnitOfWork
+from animama.app.ports.archive_port import ArchiveRepository
+from animama.app.ports.text_embedder import TextEmbedder
+from animama.app.ports.uow_port import UnitOfWork
+from animama.domain.archive import Archive, ArchivePassage
+from animama.logging import get_logger
 
 
 class ArchiveService:

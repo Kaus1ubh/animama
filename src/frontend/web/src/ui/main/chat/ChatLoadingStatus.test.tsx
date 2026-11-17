@@ -32,7 +32,7 @@ const fixture = vi.hoisted(() => ({
 vi.mock("@/ui/app/AnimaRouteProviders", () => ({
   useMountedAnimaRuntimeContent: () => fixture.mounted,
 }));
-vi.mock("@/hooks/use-pocket-tts-runtime", () => ({
+vi.mock("@/hooks/usePocketTtsRuntime", () => ({
   POCKET_LOADING_STEP_COUNT: 5,
   usePocketTtsRuntime: () => fixture.pocket,
 }));

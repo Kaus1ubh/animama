@@ -50,7 +50,7 @@ async def test_idle_pool_members_are_finite_separate_from_ai_gestures_and_drop_a
     endless = gesture("endless", {"loop": True})
 
     class Store(_Store):
-        def open_verified_file(self, **facts):  # noqa: ANN003, ANN202
+        def open_verified_file(self, **facts):
             return VerifiedContentFile(BytesIO(clip), len(clip), facts["expected_sha256"], facts["media_type"])
 
     def idle_root(item: CatalogContentEntry, cells: list[str]) -> RuntimeContentRootSelection:
@@ -126,11 +126,11 @@ class _Catalog:
         self.entries = entries
         self.invalidations: list[tuple[ContentSource, tuple[str, ...]]] = []
 
-    async def list_visible(self, *, user_id: str):  # noqa: ANN202
+    async def list_visible(self, *, user_id: str):
         assert user_id == "owner"
         return self.entries
 
-    async def mark_scan_required(self, *, source, relative_paths):  # noqa: ANN001, ANN202
+    async def mark_scan_required(self, *, source, relative_paths):
         self.invalidations.append((source, relative_paths))
 
 
@@ -138,7 +138,7 @@ class _Store:
     def __init__(self, changed_paths: set[str] | None = None) -> None:
         self.changed_paths = changed_paths or set()
 
-    def open_verified_file(self, **facts):  # noqa: ANN003, ANN202
+    def open_verified_file(self, **facts):
         if facts["relative_path"] in self.changed_paths:
             raise ContentIntegrityError("changed")
         return VerifiedContentFile(
@@ -194,7 +194,7 @@ async def test_idle_gestures_preserve_distinct_authored_config_for_the_same_soun
         )
 
     class Store(_Store):
-        def open_verified_file(self, **facts):  # noqa: ANN003, ANN202
+        def open_verified_file(self, **facts):
             return VerifiedContentFile(BytesIO(clip), len(clip), facts["expected_sha256"], facts["media_type"])
 
     catalog = _Catalog([*gestures, sound])
@@ -333,7 +333,7 @@ def _count_worker_calls(monkeypatch: pytest.MonkeyPatch) -> list[str]:
     calls: list[str] = []
     to_thread = asyncio.to_thread
 
-    async def counted(function, /, *args, **kwargs):  # noqa: ANN001, ANN002, ANN003, ANN202
+    async def counted(function, /, *args, **kwargs):
         calls.append(getattr(function, "__name__", repr(function)))
         return await to_thread(function, *args, **kwargs)
 
@@ -352,7 +352,7 @@ async def test_compile_verifies_every_member_in_one_worker_call(monkeypatch: pyt
             super().__init__()
             self.opened: list[str] = []
 
-        def open_verified_file(self, **facts):  # noqa: ANN003, ANN202
+        def open_verified_file(self, **facts):
             self.opened.append(facts["relative_path"])
             return super().open_verified_file(**facts)
 
@@ -418,10 +418,10 @@ async def test_idle_roots_reuse_cached_facts_for_bytes_the_compile_verified(monk
     )
 
     class Store(_Store):
-        def open_verified_file(self, **facts):  # noqa: ANN003, ANN202
+        def open_verified_file(self, **facts):
             return VerifiedContentFile(BytesIO(clip), len(clip), facts["expected_sha256"], facts["media_type"])
 
-    async def compile_idle():  # noqa: ANN202
+    async def compile_idle():
         return await RuntimeContentClosureCompiler(catalog=_Catalog([breathe]), store=Store()).compile(  # type: ignore[arg-type]
             user_id="owner",
             loadout_revision=1,
@@ -461,12 +461,12 @@ async def test_cached_idle_facts_never_admit_motion_that_failed_verification() -
     )
 
     class Store(_Store):
-        def open_verified_file(self, **facts):  # noqa: ANN003, ANN202
+        def open_verified_file(self, **facts):
             if facts["relative_path"] in self.changed_paths:
                 raise ContentIntegrityError("changed")
             return VerifiedContentFile(BytesIO(clip), len(clip), facts["expected_sha256"], facts["media_type"])
 
-    async def compile_with(store: _Store):  # noqa: ANN202
+    async def compile_with(store: _Store):
         return await RuntimeContentClosureCompiler(catalog=_Catalog([sway]), store=store).compile(  # type: ignore[arg-type]
             user_id="owner", loadout_revision=1, selections=(selection,)
         )

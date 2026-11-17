@@ -360,7 +360,7 @@ async def test_delete_catalog_failure_restores_original_files_and_registration(
 
 async def test_save_publication_is_invisible_and_rescan_waits_until_the_owned_commit(
     workflow: _Workflow,
-    async_session_factory,  # noqa: ANN001
+    async_session_factory,
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

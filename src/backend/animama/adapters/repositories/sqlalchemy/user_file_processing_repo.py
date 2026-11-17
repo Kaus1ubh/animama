@@ -4,10 +4,11 @@ from __future__ import annotations
 
 from copy import deepcopy
 from datetime import UTC, datetime, timedelta
-from typing import Any
+from typing import Any, cast
 
-from sqlalchemy import and_, delete, desc, func, or_, select, text
+from sqlalchemy import CursorResult, and_, delete, desc, func, or_, select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.sql.elements import ColumnElement
 
 from animama.app.ports.user_file_processing_port import UserFileProcessingRepository
 from animama.domain.search_terms import WEB_SEARCH_CLAUSE_PATTERN, substring_pattern
@@ -28,6 +29,7 @@ from animama.domain.user_file_processing import (
     JOB_STATUS_RUNNING,
     JOB_STATUS_SUCCEEDED,
     JOB_TYPE_PROCESS_FILE,
+    PROCESSING_INTERRUPTED_ERROR,
     ClaimedUserFileProcessingJob,
     UserFileChunkDraft,
     UserFileProcessingInfo,
@@ -39,12 +41,69 @@ from animama.domain.user_file_processing import (
 from animama.orm.user_file import ORMUserFile
 from animama.orm.user_file_chunk import ORMUserFileChunk
 from animama.orm.user_file_processing_job import ORMUserFileProcessingJob
+from animama.utils.clock import utc_now
 
 SEARCHABLE_FILE_STATUSES = (STATUS_READY, STATUS_READY_KEYWORD_ONLY)
 
+CHUNK_WRITE_BATCH = 32
+"""Chunks per flush when storing a processed file.
 
-def _utcnow() -> datetime:
-    return datetime.now(UTC)
+pgvector encodes each vector on the event loop; at this size a batch of
+1536-dimension vectors takes a few milliseconds, and the flush in between lets
+other requests run.
+"""
+
+
+def _chunk_id_prefix(file_id: str) -> str:
+    return f"chunk-{file_id}-"
+
+
+def _chunk_id(file_id: str, chunk_index: int) -> str:
+    """A chunk's stable id; ``_COPY_CHUNKS_SQL`` builds the same form."""
+
+    return f"{_chunk_id_prefix(file_id)}{chunk_index:06d}"
+
+
+# Copy a file's chunks to another file of the same owner, inside the database.
+# Vectors are kept only when they come from the current embeddings model, and a
+# chunk's own "filename" and "extension" metadata, where present, name the target.
+_COPY_CHUNKS_SQL = text("""
+    INSERT INTO user_file_chunk (
+        id, file_id, user_id, chunk_index, text, embedding_text, embedding, embedding_model_id,
+        char_count, token_estimate, metadata
+    )
+    SELECT
+        CAST(:id_prefix AS text) || CASE
+            WHEN c.chunk_index < 1000000 THEN lpad(CAST(c.chunk_index AS text), 6, '0')
+            ELSE CAST(c.chunk_index AS text)
+        END,
+        CAST(:target_file_id AS text),
+        c.user_id,
+        c.chunk_index,
+        c.text,
+        c.embedding_text,
+        CASE WHEN c.embedding_model_id = CAST(:embedding_model_id AS text) THEN c.embedding END,
+        CASE
+            WHEN c.embedding_model_id = CAST(:embedding_model_id AS text) AND c.embedding IS NOT NULL
+            THEN c.embedding_model_id
+        END,
+        c.char_count,
+        c.token_estimate,
+        CAST(
+            CASE
+                WHEN jsonb_typeof(m.metadata) = 'object' THEN jsonb_set(
+                    jsonb_set(m.metadata, '{filename}', to_jsonb(CAST(:filename AS text)), false),
+                    '{extension}',
+                    to_jsonb(CAST(:extension AS text)),
+                    false
+                )
+                ELSE m.metadata
+            END AS json
+        )
+    FROM user_file_chunk c,
+        LATERAL (SELECT COALESCE(CAST(c.metadata AS jsonb), CAST('{}' AS jsonb)) AS metadata) AS m
+    WHERE c.user_id = :user_id AND c.file_id = :source_file_id
+""")
 
 
 def _as_aware_utc(value: datetime | None) -> datetime | None:
@@ -246,7 +305,7 @@ class SQLAlchemyUserFileProcessingRepository(UserFileProcessingRepository):
             status=job.status,
             attempts=job.attempts,
             max_attempts=job.max_attempts,
-            run_after=job.run_after or _utcnow(),
+            run_after=job.run_after or utc_now(),
             locked_by=job.locked_by,
             locked_at=job.locked_at,
             started_at=job.started_at,
@@ -284,6 +343,7 @@ class SQLAlchemyUserFileProcessingRepository(UserFileProcessingRepository):
             ORMUserFileProcessingJob.status == JOB_STATUS_QUEUED,
             ORMUserFileProcessingJob.run_after <= now,
         )
+        await self._fail_interrupted_last_attempts(stale_running, now=now)
 
         stmt = (
             select(ORMUserFileProcessingJob, ORMUserFile)
@@ -328,6 +388,57 @@ class SQLAlchemyUserFileProcessingRepository(UserFileProcessingRepository):
             declared_size_bytes=file_obj.declared_size_bytes,
         )
 
+    async def _fail_interrupted_last_attempts(self, stale_running: ColumnElement[bool], *, now: datetime) -> None:
+        """Fail running jobs whose lease expired on their last attempt.
+
+        The claim never takes such a job again, so without this its file would
+        stay at Processing forever. A file keeps its status while newer work for
+        it is still queued or running, for example a forced reprocess.
+        """
+
+        expired = (
+            select(ORMUserFileProcessingJob.id, ORMUserFileProcessingJob.file_id)
+            .where(
+                ORMUserFileProcessingJob.job_type == JOB_TYPE_PROCESS_FILE,
+                stale_running,
+                ORMUserFileProcessingJob.attempts >= ORMUserFileProcessingJob.max_attempts,
+            )
+            .with_for_update(skip_locked=True)
+        )
+        rows = (await self._s.execute(expired)).all()
+        if not rows:
+            return
+        await self._s.execute(
+            update(ORMUserFileProcessingJob)
+            .where(ORMUserFileProcessingJob.id.in_([job_id for job_id, _file_id in rows]))
+            .values(
+                status=JOB_STATUS_FAILED,
+                finished_at=now,
+                locked_at=None,
+                locked_by=None,
+                last_error=PROCESSING_INTERRUPTED_ERROR,
+            )
+            .execution_options(synchronize_session=False)
+        )
+        newer_work = (
+            select(ORMUserFileProcessingJob.id)
+            .where(
+                ORMUserFileProcessingJob.file_id == ORMUserFile.id,
+                ORMUserFileProcessingJob.status.in_(ACTIVE_PROCESSING_JOB_STATUSES),
+            )
+            .exists()
+        )
+        await self._s.execute(
+            update(ORMUserFile)
+            .where(
+                ORMUserFile.id.in_({file_id for _job_id, file_id in rows}),
+                ORMUserFile.status == STATUS_PROCESSING,
+                ~newer_work,
+            )
+            .values(status=STATUS_FAILED, last_error=PROCESSING_INTERRUPTED_ERROR)
+            .execution_options(synchronize_session=False)
+        )
+
     async def replace_chunks_and_mark_success(
         self,
         *,
@@ -350,22 +461,27 @@ class SQLAlchemyUserFileProcessingRepository(UserFileProcessingRepository):
             raise ValueError(f"user file not found: {file_id}")
 
         await self._s.execute(delete(ORMUserFileChunk).where(ORMUserFileChunk.file_id == file_id))
-        for chunk in sorted(chunks, key=lambda item: item.chunk_index):
-            self._s.add(
-                ORMUserFileChunk(
-                    id=f"chunk-{file_id}-{chunk.chunk_index:06d}",
-                    file_id=file_id,
-                    user_id=user_id,
-                    chunk_index=chunk.chunk_index,
-                    text=chunk.text,
-                    embedding_text=chunk.embedding_text if chunk.embedding_text != chunk.text else None,
-                    embedding=chunk.embedding,
-                    embedding_model_id=embedding_model_id if chunk.embedding is not None else None,
-                    char_count=chunk.char_count,
-                    token_estimate=chunk.token_estimate,
-                    metadata_=dict(chunk.metadata),
+        ordered = sorted(chunks, key=lambda item: item.chunk_index)
+        for start in range(0, len(ordered), CHUNK_WRITE_BATCH):
+            for chunk in ordered[start : start + CHUNK_WRITE_BATCH]:
+                self._s.add(
+                    ORMUserFileChunk(
+                        id=_chunk_id(file_id, chunk.chunk_index),
+                        file_id=file_id,
+                        user_id=user_id,
+                        chunk_index=chunk.chunk_index,
+                        text=chunk.text,
+                        embedding_text=chunk.embedding_text if chunk.embedding_text != chunk.text else None,
+                        embedding=chunk.embedding,
+                        embedding_model_id=embedding_model_id if chunk.embedding is not None else None,
+                        char_count=chunk.char_count,
+                        token_estimate=chunk.token_estimate,
+                        metadata_=dict(chunk.metadata),
+                    )
                 )
-            )
+            # Encoding vectors for pgvector runs on the event loop; one flush per
+            # small batch lets other requests run while each batch is written.
+            await self._s.flush()
 
         metadata_updates = dict(file_metadata_updates or {})
         if "processing" in metadata_updates:
@@ -441,42 +557,25 @@ class SQLAlchemyUserFileProcessingRepository(UserFileProcessingRepository):
         if source_file is None:
             return None
 
-        chunk_stmt = (
-            select(ORMUserFileChunk)
-            .where(
-                ORMUserFileChunk.user_id == user_id,
-                ORMUserFileChunk.file_id == source_file.id,
-            )
-            .order_by(ORMUserFileChunk.chunk_index)
-        )
-        source_chunks = list((await self._s.execute(chunk_stmt)).scalars())
-        if not source_chunks:
-            return None
-
         await self._s.execute(delete(ORMUserFileChunk).where(ORMUserFileChunk.file_id == file_id))
-        for chunk in source_chunks:
-            current_model = embedding_model_id is not None and chunk.embedding_model_id == embedding_model_id
-            vector = chunk.embedding if current_model else None
-            chunk_metadata = deepcopy(chunk.metadata_ or {})
-            if "filename" in chunk_metadata:
-                chunk_metadata["filename"] = file_obj.original_filename
-            if "extension" in chunk_metadata:
-                chunk_metadata["extension"] = file_obj.normalized_extension
-            self._s.add(
-                ORMUserFileChunk(
-                    id=f"chunk-{file_id}-{chunk.chunk_index:06d}",
-                    file_id=file_id,
-                    user_id=user_id,
-                    chunk_index=chunk.chunk_index,
-                    text=chunk.text,
-                    embedding_text=chunk.embedding_text,
-                    embedding=list(vector) if vector is not None else None,
-                    embedding_model_id=embedding_model_id if vector is not None else None,
-                    char_count=chunk.char_count,
-                    token_estimate=chunk.token_estimate,
-                    metadata_=chunk_metadata,
-                )
-            )
+        # One statement copies the chunks inside the database: vectors never pass
+        # through Python, so a large file cannot stall the event loop.
+        copied = await self._s.execute(
+            _COPY_CHUNKS_SQL,
+            {
+                "target_file_id": file_id,
+                "id_prefix": _chunk_id_prefix(file_id),
+                "user_id": user_id,
+                "source_file_id": source_file.id,
+                "embedding_model_id": embedding_model_id,
+                "filename": file_obj.original_filename,
+                "extension": file_obj.normalized_extension,
+            },
+        )
+        chunk_count = cast(CursorResult[Any], copied).rowcount
+        if chunk_count == 0:
+            # The source's chunks went away meanwhile; the caller parses the file instead.
+            return None
 
         source_metadata = deepcopy(source_file.metadata_ or {})
         target_metadata = deepcopy(file_obj.metadata_ or {})
@@ -493,7 +592,7 @@ class SQLAlchemyUserFileProcessingRepository(UserFileProcessingRepository):
             if "extension" in parser_metadata:
                 parser_metadata["extension"] = file_obj.normalized_extension
         processing_metadata["content_reused"] = True
-        processing_metadata["chunk_count"] = len(source_chunks)
+        processing_metadata["chunk_count"] = chunk_count
         target_metadata["processing"] = processing_metadata
 
         file_obj.status = source_file.status
@@ -504,7 +603,7 @@ class SQLAlchemyUserFileProcessingRepository(UserFileProcessingRepository):
 
         job_metadata = dict(job_obj.metadata_ or {})
         job_metadata["content_reused"] = True
-        job_metadata["chunk_count"] = len(source_chunks)
+        job_metadata["chunk_count"] = chunk_count
         job_metadata["file_status"] = source_file.status
         job_obj.status = JOB_STATUS_SUCCEEDED
         job_obj.finished_at = processed_at
@@ -526,6 +625,7 @@ class SQLAlchemyUserFileProcessingRepository(UserFileProcessingRepository):
         error: str,
         now: datetime,
         retry_delay_seconds: int,
+        retryable: bool = True,
     ) -> UserFileProcessingJob:
         job_obj = await self._s.get(ORMUserFileProcessingJob, job_id)
         file_obj = await self._s.get(ORMUserFile, file_id)
@@ -539,7 +639,8 @@ class SQLAlchemyUserFileProcessingRepository(UserFileProcessingRepository):
         job_obj.locked_at = None
         job_obj.locked_by = None
 
-        if job_obj.attempts >= job_obj.max_attempts:
+        # Content that cannot be read fails now; retrying would only delay the reason.
+        if not retryable or job_obj.attempts >= job_obj.max_attempts:
             job_obj.status = JOB_STATUS_FAILED
             job_obj.finished_at = now
             file_obj.status = STATUS_FAILED
@@ -553,6 +654,26 @@ class SQLAlchemyUserFileProcessingRepository(UserFileProcessingRepository):
         await self._s.flush()
         await self._s.refresh(job_obj)
         return self._job_to_domain(job_obj)
+
+    async def release_claimed_job(self, *, job_id: str, worker_id: str, now: datetime) -> bool:
+        result = await self._s.execute(
+            update(ORMUserFileProcessingJob)
+            .where(
+                ORMUserFileProcessingJob.id == job_id,
+                ORMUserFileProcessingJob.status == JOB_STATUS_RUNNING,
+                ORMUserFileProcessingJob.locked_by == worker_id,
+            )
+            .values(
+                status=JOB_STATUS_QUEUED,
+                # The claim counted an attempt that never got to finish.
+                attempts=func.greatest(ORMUserFileProcessingJob.attempts - 1, 0),
+                locked_by=None,
+                locked_at=None,
+                run_after=now,
+            )
+            .execution_options(synchronize_session=False)
+        )
+        return cast(CursorResult[Any], result).rowcount > 0
 
     async def delete_chunks_for_file(self, *, user_id: str, file_id: str) -> None:
         await self._s.execute(

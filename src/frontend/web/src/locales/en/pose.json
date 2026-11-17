@@ -118,11 +118,6 @@
     "unavailable": "Unavailable"
   },
   "clip": {
-    "advanced": {
-      "body": "Select a keyframe or event on the timeline to edit it. Gesture and Reaction releases retain the complete sequence JSON when saved.",
-      "description": "Timing and event data are edited directly in the typed action timeline.",
-      "title": "Clip data"
-    },
     "anchors": {
       "root": "Root"
     },

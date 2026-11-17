@@ -1,5 +1,3 @@
-"use client";
-
 import { EyeIcon, EyeOffIcon } from "lucide-react";
 import { useTranslation } from "react-i18next";
 

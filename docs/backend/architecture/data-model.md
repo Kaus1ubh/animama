@@ -51,22 +51,24 @@ the same Postgres instance. Keep that total below the database's
 `max_connections` with headroom for migrations, admin tools, and maintenance
 workers.
 
-## Development schema and initialization
+## Schema and migrations
 
-Alembic revision `baseline_20260908` creates the complete current accountless
-local schema from `alembic/versions/0001_baseline.sql`. The SQL creates
-the tables, constraints, indexes, runtime-worker heartbeats and content mutation
-receipts directly.
-It does not import live ORM metadata. During development, update ORM/database
-definitions and the baseline SQL directly as needed; do not add Alembic
-revisions. Update seeds or application defaults for data changes. The owner
-decides when to reset an existing development database to apply the current
-baseline; ordinary startup does not reapply edited baseline SQL.
+Alembic revision `baseline_20260908` creates the accountless local schema
+released in desktop 0.1.2 from `src/backend/migrations/versions/0001_baseline.sql`.
+The SQL creates the tables, constraints, indexes, runtime-worker heartbeats and
+content mutation receipts directly, without importing live ORM metadata. Later
+schema changes are revisions on top of it; the first,
+`reasoning_effort_20261112`, adds `anima_chat_profiles.reasoning_effort`.
+Database bootstrap (desktop startup, or `./reset.sh` for a Compose stack) runs
+`alembic upgrade head`, bringing an existing database forward. The baseline SQL
+and merged revisions are never edited
+([ADR 0035](../../adr/0035-released-schema-changes-use-forward-migrations.md)).
+Update seeds or application defaults for data changes.
 
 The baseline creates and seeds the singleton installation settings row with a
 new UUIDv4 principal in the same migration transaction. The principal is not a
 fixed seed identity. Alembic ensures extensions before product DDL. The data-only
-SQL seeds in `alembic/seeds/` run after migrations through the shared database
+SQL seeds in `src/backend/migrations/seeds/` run after migrations through the shared database
 bootstrap service used by Compose reset and desktop. Catalog seeds and
 application owner/default/starter bootstrap
 retain their separate responsibilities and idempotence.
@@ -344,7 +346,10 @@ to `model_providers.id` such as `OpenAIHTTPAgent:gpt-6-luna` or an owner row's
 retired rather than deleted. Normal
 `chat:sse` uses this row when a request does not pass an explicit
 `model_provider_id`, and the frontend model selector updates it through
-`PATCH /v1/animas/{anima_id}/chat-profile`.
+`PATCH /v1/animas/{anima_id}/chat-profile`. The nullable `reasoning_effort`
+stores the owner's effort for that model (null for the model's default); the
+composer reads it and sends the effort with each turn, and a model change
+clears it.
 
 ### Model Providers
 
@@ -495,7 +500,7 @@ another interruption.
 
 The baseline includes run kind, task state, the Responses cursor,
 approval feedback, old/new descriptions, applied Version and Undo audit fields.
-During development, schema changes update the ORM and baseline SQL directly.
+Schema changes add an Alembic revision.
 Databases outside the supported revision graph require their matching checkout
 or an explicitly disposable reset; a routine restart does not add missing
 schema or discard data.
@@ -526,9 +531,8 @@ paths, and anima-scope cached paths all ignore rows with `deleted_at IS NOT
 NULL`. A virtual root is used instead of a persisted root row; `parent_id = NULL`
 means the top level of the selected scope.
 
-The baseline includes the memory-manager open-run index. During development,
-changes to this invariant update the ORM and baseline SQL directly; existing
-databases require an owner-directed reset to receive a changed baseline.
+The baseline includes the memory-manager open-run index. Changes to this
+invariant add an Alembic revision.
 
 The application path is:
 
@@ -837,9 +841,11 @@ Current APIs list only non-`deleted` files for the resolved request principal.
 
 `ORMUserFileProcessingJob` is the durable Postgres-backed processing queue. Jobs
 store `file_id`, `user_id`, `queued`/`running`/terminal status, attempts,
-`run_after`, lease fields, timestamps, last error, and metadata. Parser workers
-claim jobs with row leases and retry failed conversions up to the configured max
-attempts.
+`run_after`, lease fields, timestamps, last error, and metadata. The server's
+upload processing runner claims jobs with row leases. A failure that a retry
+cannot fix fails the job at once; others retry up to the configured max
+attempts, and a job whose lease expired on its last attempt fails as
+interrupted.
 
 `ORMUserFileChunk` stores searchable chunks extracted from uploaded files.
 Chunks denormalize `user_id`, keep deterministic `chunk_index` per file, store
@@ -861,24 +867,26 @@ fresh processing. The `(user_id, embedding_model_id)` index finds chunks that
 do not match the owner's Embeddings role. Search compares only vectors from
 the current role; other chunks wait for the re-embedding task.
 
-For Docling-parsed formats, chunk metadata is compacted before persistence.
-Stable metadata keys are `parser`, `chunker`, `headings`, `captions`, `origin`,
-`doc_items`, `doc_item_count`, and `token_count`. `doc_items` stores a bounded
-summary of source item refs/labels/text/page hints, while `doc_item_count`
-records the original Docling item count. Docling's contextualized text is
-stored only in `embedding_text` and is never returned by public APIs.
+Chunk metadata holds `chunk_type`, the `headings` path, a PDF chunk's `pages`,
+and `table_index`, `row_start` and `row_end` for rows of one table (see
+[chunking](../features/user-files.md#chunking)). The heading path is prefixed
+only to `embedding_text`, which is never returned by public APIs. Chunks that
+the retired Docling parser stored keep its compacted keys (`parser`, `chunker`,
+`headings`, `captions`, `origin`, `doc_items`, `doc_item_count` and
+`token_count`) until their file is reprocessed.
 
 The original-file, chunk, and queue tables are part of the accountless Alembic
-baseline. Disabling or removing the desktop document pack retains those rows.
-Queued work resumes when a worker returns; live running leases block removal.
+baseline. Turning processing off retains those rows, and queued work resumes
+when it is turned back on.
 
 `ORMRuntimeWorkerHeartbeat` stores one row per worker kind, with `instance_id`
-and UTC `heartbeat_at`. The document worker upserts its liveness every five
-seconds and renews only running jobs with its own `locked_by`. Shutdown clears
-only its own instance's heartbeat, so an older worker cannot erase replacement
-liveness. No provider key, process path, or local account is stored here.
-The public capability endpoint compares the expected instance and uses a
-twenty-second freshness threshold; queue leases retain their separate timeout.
+and UTC `heartbeat_at`. The server's upload processing runner upserts the
+`document-processing` row every five seconds and renews only running jobs with
+its own `locked_by`. Stopping clears only its own instance's heartbeat, so an
+older process cannot erase a replacement's liveness. No provider key, process
+path, or local account is stored here. The public capability endpoint compares
+the row with the running server's own runner and uses a twenty-second
+freshness threshold; queue leases retain their separate timeout.
 
 ### Archive
 

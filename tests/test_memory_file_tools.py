@@ -12,6 +12,7 @@ import pytest_asyncio
 from sqlalchemy import delete, select
 
 from animama.adapters.memory_patch import AgentsSDKV4AMemoryPatchPlanner
+from animama.adapters.parsers.dispatch import parse_user_file
 from animama.adapters.repositories.sqlalchemy.memory_entry_repo import SQLAlchemyMemoryEntryRepository
 from animama.adapters.repositories.sqlalchemy.uow import SQLAlchemyUnitOfWork
 from animama.adapters.repositories.sqlalchemy.user_file_processing_repo import SQLAlchemyUserFileProcessingRepository
@@ -37,8 +38,10 @@ from animama.app.services.memory_entry_service import (
     MemoryEntryNotFoundError,
     MemoryEntryService,
 )
+from animama.app.services.user_file_chunking import chunk_parsed_user_file_document
 from animama.domain.memory_episode import MEMORY_EPISODE_LOG_ENTRY_KIND
 from animama.domain.user_file import STATUS_READY, STATUS_UPLOADED
+from animama.domain.user_file_processing import DEFAULT_USER_FILE_CHUNK_MAX_TOKENS
 from animama.orm import ORMMemoryEntry, ORMMemoryEntryVersion
 from animama.orm.user_file import ORMUserFile
 from animama.orm.user_file_chunk import ORMUserFileChunk
@@ -106,7 +109,7 @@ class _AllowAnimaRepository:
         return self.anima
 
 
-def _memory_service(async_session, *, animas: _AllowAnimaRepository | None = None) -> MemoryEntryService:  # noqa: ANN001
+def _memory_service(async_session, *, animas: _AllowAnimaRepository | None = None) -> MemoryEntryService:
     return MemoryEntryService(
         memory_entries=SQLAlchemyMemoryEntryRepository(async_session),
         uow=SQLAlchemyUnitOfWork(async_session),
@@ -123,7 +126,7 @@ class _FakeEmbedder:
 
 
 def _tool_service(
-    async_session,  # noqa: ANN001
+    async_session,
     *,
     include_user_files: bool = False,
     include_embedder: bool = False,
@@ -137,7 +140,7 @@ def _tool_service(
     )
 
 
-def _native_tool_service(async_session) -> DirectChatMemoryToolService:  # noqa: ANN001
+def _native_tool_service(async_session) -> DirectChatMemoryToolService:
     memory_entries = _memory_service(async_session)
     return DirectChatMemoryToolService(
         memory_entries=memory_entries,
@@ -146,7 +149,7 @@ def _native_tool_service(async_session) -> DirectChatMemoryToolService:  # noqa:
 
 
 async def _put_user_file(
-    async_session,  # noqa: ANN001
+    async_session,
     relative_path: str,
     content: str,
     *,
@@ -173,7 +176,7 @@ def _now() -> datetime:
 
 
 async def _insert_uploaded_file_chunk(
-    async_session,  # noqa: ANN001
+    async_session,
     *,
     file_id: str,
     text: str | list[str],
@@ -634,7 +637,7 @@ async def test_memory_search_can_exclude_episodes_before_result_limit(async_sess
     }
 
 
-async def _search_memory_results(async_session, query: str) -> list[dict[str, Any]]:  # noqa: ANN001
+async def _search_memory_results(async_session, query: str) -> list[dict[str, Any]]:
     search = _loads(
         await _tool_service(async_session).execute(
             tool_name=MEMORY_TOOL_SEARCH_MEMORY_FILES,
@@ -647,11 +650,11 @@ async def _search_memory_results(async_session, query: str) -> list[dict[str, An
     return cast(list[dict[str, Any]], search["memory_results"])
 
 
-async def _search_memory_paths(async_session, query: str) -> list[str]:  # noqa: ANN001
+async def _search_memory_paths(async_session, query: str) -> list[str]:
     return [result["path"] for result in await _search_memory_results(async_session, query)]
 
 
-async def _put_episode_log(async_session, relative_path: str, text: str) -> None:  # noqa: ANN001
+async def _put_episode_log(async_session, relative_path: str, text: str) -> None:
     await _put_user_file(
         async_session,
         relative_path,
@@ -1536,6 +1539,44 @@ async def test_read_uploaded_file_chunks_rejects_one_oversized_legacy_chunk(asyn
 
 
 @pytest.mark.asyncio
+async def test_every_chunk_of_a_fixed_width_report_fits_one_read(async_session) -> None:
+    """A cl100k token can cover a long run of spaces, so chunks also hold at most four characters per token.
+
+    Without that cap, 800 tokens of this report would be about 40,000 characters, which the read tool,
+    estimating four characters per token, refuses as larger than one read.
+    """
+
+    rows = [f"Item {index}{' ' * 600}{index * 37:>8}  2026-01-{index % 28 + 1:02d}" for index in range(300)]
+    document = parse_user_file(payload="\n".join(rows).encode(), filename="report.txt", extension=".txt")
+    chunks = chunk_parsed_user_file_document(document)
+    assert len(chunks) > 1
+    assert all(estimate_text_tokens(chunk.text) <= DEFAULT_USER_FILE_CHUNK_MAX_TOKENS for chunk in chunks)
+    await _insert_uploaded_file_chunk(
+        async_session,
+        file_id="file-report",
+        original_filename="report.txt",
+        text=[chunk.text for chunk in chunks],
+    )
+    service = _tool_service(
+        async_session,
+        include_user_files=True,
+        allowed_uploaded_files={"file-report": "report.txt"},
+    )
+
+    for index, chunk in enumerate(chunks):
+        result = _loads(
+            await service.execute(
+                tool_name=MEMORY_TOOL_READ_UPLOADED_FILE_CHUNKS,
+                arguments={"file_name": "report.txt", "start_chunk": index, "chunk_count": 1},
+                context=_context(),
+                tool_call_id=f"call-read-{index}",
+            )
+        )
+        assert result["ok"] is True, result
+        assert result["files"][0]["chunks"] == [{"chunk_index": index, "text": chunk.text}]
+
+
+@pytest.mark.asyncio
 async def test_memory_apply_patch_uses_current_version_internally_and_audits_ai_metadata(async_session) -> None:
     await _put_user_file(async_session, "profile.md", "Name: Ray\nFavorite color: blue\n")
 
@@ -2038,7 +2079,7 @@ async def test_native_apply_patch_rejects_stale_planned_version_without_mutation
     delegate = AgentsSDKV4AMemoryPatchPlanner(memory_entries=memory_entries)
 
     class _StalePlanner:
-        async def plan_v4a_operation(self, **kwargs):  # noqa: ANN003
+        async def plan_v4a_operation(self, **kwargs):
             candidate = await delegate.plan_v4a_operation(**kwargs)
             assert candidate.target_entry_id is not None
             await memory_entries.patch_entry(
@@ -2081,7 +2122,7 @@ _SELF_MEMORIES = "[self]/MEMORIES.md"
 _MEMORIES_BODY = "# Memories\n\n## Our story\nWe met at the lake.\n"
 
 
-def _anima_tool_service(async_session) -> DirectChatMemoryToolService:  # noqa: ANN001
+def _anima_tool_service(async_session) -> DirectChatMemoryToolService:
     memory_entries = _memory_service(async_session, animas=_AllowAnimaRepository())
     return DirectChatMemoryToolService(
         memory_entries=memory_entries,
@@ -2099,7 +2140,7 @@ def _anima_context(
     return replace(_native_context() if native else _context(), anima_memories=turn), turn
 
 
-async def _put_anima_memories(async_session, content: str, *, anima_id: str = "anima-1") -> None:  # noqa: ANN001
+async def _put_anima_memories(async_session, content: str, *, anima_id: str = "anima-1") -> None:
     await _memory_service(async_session, animas=_AllowAnimaRepository()).put_file_by_path(
         user_id="user-1",
         anima_id=anima_id,
@@ -2111,7 +2152,7 @@ async def _put_anima_memories(async_session, content: str, *, anima_id: str = "a
     )
 
 
-async def _anima_memories(async_session, *, anima_id: str = "anima-1") -> ORMMemoryEntry:  # noqa: ANN001
+async def _anima_memories(async_session, *, anima_id: str = "anima-1") -> ORMMemoryEntry:
     stored: ORMMemoryEntry | None = await async_session.scalar(
         select(ORMMemoryEntry).where(
             ORMMemoryEntry.user_id == "user-1",

@@ -1,2 +1,2 @@
 /** Shared presentation implementation. */
-export * from "@animama/product-ui/components";
+export { Textarea } from "@animama/product-ui/components";

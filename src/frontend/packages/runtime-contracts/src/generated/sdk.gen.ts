@@ -312,7 +312,7 @@ export const planAvatar = <ThrowOnError extends boolean = false>(options: Option
 /**
  * Update Anima Chat Profile
  *
- * Update the anima-level direct chat model selector.
+ * Update the anima-level direct chat model and reasoning effort selector.
  */
 export const updateAnimaChatProfileV1AnimasAnimaIdChatProfilePatch = <ThrowOnError extends boolean = false>(options: Options<UpdateAnimaChatProfileV1AnimasAnimaIdChatProfilePatchData, ThrowOnError>) => (options.client ?? client).patch<UpdateAnimaChatProfileV1AnimasAnimaIdChatProfilePatchResponses, UpdateAnimaChatProfileV1AnimasAnimaIdChatProfilePatchErrors, ThrowOnError>({
     requestValidator: async (data) => await zUpdateAnimaChatProfileV1AnimasAnimaIdChatProfilePatchData.parseAsync(data),

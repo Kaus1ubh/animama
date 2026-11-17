@@ -143,12 +143,14 @@
     }
   },
   "composer": {
+    "removeUnreadableFiles": "送信するには、読み取れないファイルを削除してください",
     "send": "メッセージを送信",
     "sending": "メッセージを送信中",
     "speechUnavailable": "オフライン音声認識は利用できません",
     "stop": "停止",
     "stopVoice": "音声モードを停止",
-    "voiceMode": "音声モード"
+    "voiceMode": "音声モード",
+    "waitingForFiles": "ファイルの準備ができるのを待っています"
   },
   "conversation": {
     "label": "会話"
@@ -172,6 +174,8 @@
       "avatarSessionExpired": "このアバターのセッションの有効期限が切れました。再読み込みしてから、もう一度メッセージを送信してください。",
       "chatLoadFailed": "チャットを読み込めませんでした。",
       "chatLoading": "チャットを読み込み中です。",
+      "filesNotReady": "添付ファイルの準備がまだできていません。",
+      "filesUnreadable": "送信する前に、読み取れないファイルを削除してください。",
       "missingAnima": "Anima が見つかりません。",
       "modelNotDirect": "このモデルはまだ直接チャットに使用できません。",
       "modelsLoading": "モデルを読み込み中です。",

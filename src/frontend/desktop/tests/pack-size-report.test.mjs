@@ -61,13 +61,6 @@ function fixture() {
         archive_bytes: 80,
         minimum_peak_free_bytes: 2000,
       },
-      {
-        schema: "animama-feature-pack/1",
-        id: "document-processing",
-        installed_bytes: 900,
-        archive_bytes: 90,
-        minimum_peak_free_bytes: 2000,
-      },
     ],
   };
   put("runtime/pack-catalog.json", JSON.stringify(catalog));
@@ -87,10 +80,7 @@ describe("pack size reporting", () => {
   it("measures the core and excluded payload and reports exact catalog archives", async () => {
     const f = fixture();
     const report = await measure(f.target, f.manifest);
-    expect(Object.keys(report.packs).sort()).toEqual([
-      "document-processing",
-      "expanded-included-content",
-    ]);
+    expect(Object.keys(report.packs)).toEqual(["expanded-included-content"]);
     expect(existsSync(path.join(f.root, "core-feasibility.tar.zst"))).toBe(
       true,
     );
@@ -102,7 +92,6 @@ describe("pack size reporting", () => {
       download_bytes: 80,
       minimum_peak_free_bytes: 2000,
     });
-    expect(report.packs["document-processing"].download_bytes).toBe(90);
     expect(
       readFileSync(path.join(f.root, "size-report.md"), "utf8"),
     ).not.toContain("; compressed");
@@ -115,12 +104,13 @@ describe("pack size reporting", () => {
     expect(
       existsSync(path.join(f.root, "expanded-input-feasibility.tar.zst")),
     ).toBe(false);
-    for (const id of ["expanded-included-content", "document-processing"])
-      expect(report.packs[id]).toEqual({
+    expect(report.packs).toEqual({
+      "expanded-included-content": {
         installed_bytes: null,
         download_bytes: null,
         state: "deferred",
-      });
+      },
+    });
   });
   it("reports approved archive catalogs in the signed release report", () => {
     const f = fixture();
@@ -130,7 +120,7 @@ describe("pack size reporting", () => {
     f.put("Animama-0.1.0-arm64.dmg", "dmg");
     f.put("Animama-0.1.0-arm64.zip", "zip");
     const report = releaseSizes(app, f.root, f.manifest, f.catalog);
-    expect(report.packs["document-processing"].download_bytes).toBe(90);
+    expect(Object.keys(report.packs)).toEqual(["expanded-included-content"]);
     expect(report.packs["expanded-included-content"]).toMatchObject({
       installed_bytes: 800,
       download_bytes: 80,

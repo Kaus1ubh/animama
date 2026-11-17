@@ -1,5 +1,3 @@
-"use client";
-
 import { useProductApiClient } from "@animama/product-ui";
 import { useEffect, useMemo, useState } from "react";
 import { PerspectiveCamera } from "three";

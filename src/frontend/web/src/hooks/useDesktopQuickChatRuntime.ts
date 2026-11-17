@@ -1,5 +1,3 @@
-"use client";
-
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getI18n } from "react-i18next";
 import { toast } from "sonner";
@@ -7,8 +5,12 @@ import { toast } from "sonner";
 import { useRuntimePlatform } from "@/platform/RuntimePlatformProvider";
 import type { PyChatResponse } from "@/lib/content/catalogTypes";
 import type { ChatMessage } from "@/ui/main/chat/useChatSession";
-import type { ChatCrisisSupport } from "@animama/product-ui/chat";
+import type {
+  ChatAttachmentHold,
+  ChatCrisisSupport,
+} from "@animama/product-ui/chat";
 import type { AiNoticeKind } from "@/lib/safety/aiNotice";
+import { isRecord } from "@/lib/records";
 
 const QUICK_CHAT_RENDER_READY_FALLBACK_MS = 150;
 const QUICK_CHAT_BASE_HEIGHT_PX = 760;
@@ -39,6 +41,12 @@ export type DesktopQuickChatSnapshot = {
   animaId: string;
   /** Names the Anima in mirrored memory cue details. */
   animaName?: string | null;
+  /**
+   * Whether the main window's upload tray holds a send. Quick Chat has no
+   * tray, so it shows the hold on its send control, says why and keeps its
+   * draft.
+   */
+  attachmentHold: ChatAttachmentHold;
   chatId: string | null;
   input: string;
   inputPlaceholder: string;
@@ -110,10 +118,6 @@ type DesktopQuickChatConsumerControls = {
   snapshot: DesktopQuickChatSnapshot | null;
 };
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
-}
-
 function createQuickChatRuntimeMessage(
   type: DesktopQuickChatRuntimeMessage["type"],
   animaId: string,
@@ -139,6 +143,12 @@ function isMemoryEntryId(value: unknown): value is string {
     typeof value === "string" && /^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/.test(value)
   );
 }
+
+const ATTACHMENT_HOLDS: ReadonlySet<unknown> = new Set<ChatAttachmentHold>([
+  "none",
+  "waiting",
+  "blocked",
+]);
 
 /** Exported for tests: unknown command types from the Quick Chat window are ignored. */
 export function isQuickChatCommand(
@@ -180,6 +190,7 @@ export function isQuickChatSnapshot(
   ) {
     return false;
   }
+  if (!ATTACHMENT_HOLDS.has(value.attachmentHold)) return false;
   if (!(typeof value.chatId === "string" || value.chatId === null)) {
     return false;
   }

@@ -92,7 +92,7 @@ The avatar runtime is split into four layers:
 4. **Chat/SSE integration layer**  
    Files:
    - `src/frontend/web/src/ui/main/chat/useChatSession.ts`
-   - `src/frontend/web/src/query/mutations/useChatSse.ts`
+   - `src/frontend/packages/product-ui/src/query/mutations/useChatSse.ts`
    - `src/frontend/web/src/ui/main/chat/ChatInterface.tsx`  
      Converts chat lifecycle + SSE events into avatar store updates.
 
@@ -261,7 +261,9 @@ Important behavior:
 - Clips can define optional `fadeIn` and `fadeOut` playback envelopes. Fade-in
   blends from the current normalized avatar pose into the sampled clip, while
   fade-out blends sampled clip output back to the app default pose path
-  (`relaxedRest` today) before automatic playback resumes. Pose clip events are
+  (`relaxedRest` today) before automatic playback resumes. A bone position the
+  fade's target leaves out (usually the hips) fades to rest rather than holding
+  its offset, so a clip ends without a jump. Pose clip events are
   not newly dispatched during fade-out; active VFX events remain owned by the
   clip and clear when their event duration expires or when the clip fully
   stops.
@@ -795,6 +797,58 @@ from `src/frontend/web`:
   with pack sounds contains licensed audio, so keep it out of Git and public
   channels. Requires `ffmpeg` with libx264. Frames render on the GPU on macOS
   (about real time) and with SwiftShader elsewhere.
+  - `--sheet <takes.json>` (repeatable) records scripted takes for trailers
+    and reviews; the format is documented in
+    `web/scripts/animation-reel-sheet.mjs`. A take lists Gesture and Reaction
+    cues on its own clock: a Gesture plays on the clip player and a Reaction
+    on the reaction layer beside it, as chat plays them together. A Gesture
+    can start part-way through (`from` a clip time or beat id), or `beat` and
+    `beatAt` land a named beat on a take time; events still running at the
+    start point restart there, and earlier sounds are dropped. `until` stops
+    a clip with its fade; without it a talking-scoped Reaction is held for
+    `--talk` seconds or, in a take that speaks, until the speech ends. A take
+    may also speak a recorded voice take:
+    `speech` names the audio and its ElevenLabs `with-timestamps` response
+    (or alignment). The app's lip-sync planner plans the whole take at once,
+    and the take drives the mouth, tag expressions, speech gesture timeline
+    and talking hands as chat does, with talking hands off while a Gesture
+    plays. `shaping` picks viseme presets or ARKit mouth mixes, `gain`
+    widens the mouth and `lead` moves it ahead of the sound (the planned
+    mouth peaks about a frame after the audio). `face` cues add expression
+    weights over the face for a window, ramping in and out, and `mood` cues
+    set the feelings chat would report, which drive the emotion face and
+    posture. A take can set its own `avatar`, `camera` and `duration`.
+    `enter` replaces a Gesture cue's own fade-in. A `vrma` cue plays a VRM
+    Animation file as the app plays a VRMA Gesture, and a take's `root` keys
+    move the Avatar on the floor. A camera can also stand still at a
+    `position` and `target` in metres, or ease between timed `keys`, so
+    several takes share one scene and their layers stack.
+  - `--avatar-file <file.vrm>` reads a local VRM in place (lilToon included);
+    keep third-party Avatars and their reels out of the repository.
+  - `--camera pip` frames the desktop PiP window's default preset (record at
+    its 3:4 shape, such as `--size 1080x1440`), `--camera face` a face
+    close-up that follows the head; `--camera landing` the landing
+    page hero close-up and `landing:<stop>` any landing stop, using its tall
+    framing when the frame is narrower than 4:5.
+  - `--out` picks the format: `.mp4` (H.264 with the label, `--no-label` to
+    hide it), `.mov` (ProRes 4444 with alpha) or a folder of PNG frames with
+    alpha plus `audio.wav` and `takes.json` (frame ranges). The alpha formats
+    have no label and a transparent background (Scene Effects still draw);
+    `--background <css>` sets one for any format. ProRes needs `ffmpeg` with
+    `prores_ks`.
+- `pnpm -s animation:combo [--avatar-file <file.vrm>]... [--avatar annie|andrew]... [--port <n>] [--no-open]`
+  (both Included Avatars by default) opens a live page for trying combinations before recording them: pick any
+  Included Gesture (optionally from a beat) and Reaction, with start delays
+  and a Reaction hold, and play them together on the chosen Avatar as chat
+  does, with their effects but no sounds. Ticked Included Avatar Effects stay
+  on over them and ticked Particle Effects replay whenever they end; both
+  share the app's effect limits with the clips' own effects, so the page can
+  drop a clip particle the recording would keep. The expression panel lists every
+  expression and ARKit shape the Avatar has with its live weight, and its
+  sliders add weight over the face. "Copy cue sheet" gives the setup as an
+  `animation:reel --sheet` take (Gesture, Reaction and face cues, the Avatar
+  file and camera; ticked effects are not part of it). Avatar files are read in place, and the page writes
+  nothing.
 - `pnpm -s content:tune` opens the owner's tuning page for Included Gestures
   and the Reaction ladder (see [Tuning Included content](#tuning-included-content)).
 - `pnpm -s animation:save <items.json>` saves clips as Local Gestures through
@@ -1913,7 +1967,7 @@ about 75% → 45% of a core idle, and about 26% at the idle rate.
 
 The Avatar is idle when the interaction phase is `idle` and
 `avatar.isMotionActive()` is false: an `idle` animation state, no reaction clip
-and no Avatar or particle effect. `AvatarCanvasActor` writes this into the
+and no Avatar or particle effect (finishing particles included). `AvatarCanvasActor` writes this into the
 scene's `SceneFrameDemand` after each update. Window pointer, wheel and key
 input, and in PiP the desktop cursor feed, keep the full rate for
 `SCENE_INPUT_ACTIVE_MS` (1.5 s) so cursor look-at stays smooth. Scenes with a

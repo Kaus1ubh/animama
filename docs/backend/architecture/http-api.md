@@ -32,7 +32,8 @@ Local setup and host/key administration schemas remain in the server composition
   and first-run completion.
 - `product_http/routes/runtime_capabilities.py` (shared): owner-protected
   optional feature availability, as each composition's ports report it; the
-  local report (`server/runtime_capabilities.py`) includes document-worker liveness.
+  local report (`server/runtime_capabilities.py`) includes the liveness of the
+  server's upload processing runner.
 - `server/routers/desktop_control.py`: private pack-removal preflight, never
   included in public OpenAPI or mounted in self-host composition.
 - `product_http/routes/animas.py` (shared): Anima list, reads, edits,
@@ -137,11 +138,12 @@ Local setup and host/key administration schemas remain in the server composition
   "local_filesystem_administration": true,
   "native_features": true,
   "user_file_processing": {
-    "enabled": false,
-    "worker_state": "disabled",
-    "last_heartbeat_at": null,
+    "enabled": true,
+    "worker_state": "ready",
+    "last_heartbeat_at": "2026-11-12T18:40:18Z",
     "pack_id": "document-processing",
-    "supported_extensions": []
+    "supported_extensions": [".csv", ".docx", ".htm", ".html", ".json", ".md",
+      ".org", ".pdf", ".pptx", ".rst", ".tsv", ".txt", ".xlsx", ".xml"]
   },
   "offline_speech_enabled": false,
   "offline_speech_asset_version": null,
@@ -177,7 +179,7 @@ local server package, so any composition can return the same contract; the local
 router is a thin adapter. `runtime_kind` is presentation metadata (`desktop`,
 `self_hosted_web` or `hosted`), not an authentication mode or a feature gate;
 the local composition never reports `hosted`. Capability schema version 2 is
-exported in `local-http` contract version 21.0.0. `chat`, `model_selection` and
+exported in `local-http` contract version 23.0.0. `chat`, `model_selection` and
 `model_role_selection` admit chat and choices from the composition's catalog,
 independently of provider administration. The local adapter reports them true.
 `provider_credentials` and `local_filesystem_administration` describe owner key
@@ -197,12 +199,14 @@ request none. The Library's Preview action and Avatar portraits do not depend on
 `model_configuration` is true when the composition's
 catalog policy enables owner models, which only the local composition does; the
 local-only [model configuration routes](#model-configuration) exist only then.
-The shared `GET /v1/model-roles` report is served by every composition. The
-self-host composition returns a null document `pack_id`; the Electron
-supervisor supplies pack-dependent settings. An enabled worker is `starting`
-until its expected instance has a heartbeat, `ready` for twenty seconds after
-that heartbeat, then `stale`. Enabled work may queue while
-starting/stale. A disabled capability returns `409` with
+The shared `GET /v1/model-roles` report is served by every composition. Every
+local composition [processes uploads in its server](../features/user-files.md#in-server-processing):
+`user_file_processing.enabled` follows `ANIMAMA_USER_FILE_PROCESSING_ENABLED`
+(default `true`), and `worker_state` is `starting` until the server's
+processing runner has a heartbeat, `ready` for twenty seconds after that
+heartbeat, then `stale`. `pack_id` is a fixed `document-processing` label on
+desktop and null in self-host; it names no installable pack. Enabled work may
+queue while starting/stale. A disabled capability returns `409` with
 `{"detail":{"code":"file_processing_unavailable"}}` from explicit process
 requests before repository lookup or enqueue. Original-file upload/finalization
 and existing indexed-file search still work. React checks fresh capability
@@ -283,12 +287,13 @@ search backend, used by tool-capable models without hosted search (see
 
 `POST /_desktop/feature-packs/{pack_id}:removal-check` is a separate supervisor
 contract. Only a valid per-launch `X-Animama-Desktop-Control` token reaches it;
-all other requests and unknown pack IDs return 404. The bounded response has
+all other requests and unknown or retired pack IDs (such as
+`document-processing`) return 404. The bounded response has
 `schema_version`, `pack_id`, nullable `source_version`/`pack_version`, `removable`,
 and at most 32 `{kind, id, label}` blockers. Kinds cover Anima/loadout references,
-runtime and preview leases, content operations, and live document jobs. It never
-returns filesystem roots. Electron repeats preflight after draining renderers
-and stopping the worker, before switching pack pointers. Catalog withdrawal
+runtime and preview leases, and content operations. It never
+returns filesystem roots. Electron repeats preflight after draining renderers,
+before switching pack pointers. Catalog withdrawal
 reuses the same reference checks at restart, except that Included items' own
 edges into the pack are rebuilt from the new scan rather than blocking (an
 optional sound drops; a required dependency becomes invalid); readiness fails
@@ -296,14 +301,19 @@ closed on conflict.
 
 ## Model Assets
 
-The shared downloader installs files listed in the release's packaged catalog
+The shared downloader manages files listed in the release's packaged catalog
 (`animama/resources/model-assets.v1.json`, schema `animama-asset-catalog/1`).
 Requests name assets by catalog ID only; the release URL is never accepted from
 or returned to the browser. All routes use the admitted installation principal.
+The final release turns local downloads off (`MODEL_DOWNLOADS_OFFERED`):
+assets installed earlier then keep working and can be removed, and nothing new
+is downloaded.
 
-- `GET /v1/model-assets` returns `{"assets": [...], "free_bytes": N}` for every
+- `GET /v1/model-assets` returns
+  `{"assets": [...], "free_bytes": N, "downloads_offered": true}` for every
   catalog entry. `free_bytes` is the store filesystem's free space, or `null`
-  when it cannot be measured.
+  when it cannot be measured. `downloads_offered` is false once downloads have
+  ended; it is optional, and an absent value means true.
 - `GET /v1/model-assets/{asset_id}` returns one state: `id`, `status`
   (`not_installed`, `downloading`, `installed` or `failed`), `size_bytes` (all
   files), `required_free_bytes` (size plus 64 MiB headroom), `media_type`
@@ -317,7 +327,11 @@ or returned to the browser. All routes use the admitted installation principal.
   `asset_size_invalid`, `asset_hash_invalid`, `asset_store_failed` or
   `asset_insufficient_space`).
 - `POST /v1/model-assets/{asset_id}:install` returns `202` with the current
-  state. It is idempotent: concurrent calls share one download and an installed
+  state. An installed asset returns `202` as installed. While downloads are not
+  offered, an asset that is not installed returns
+  `409 {"detail": {"code": "model_downloads_ended", "details": {}}}` before
+  any requirement or free-space check, and nothing is fetched or staged. Otherwise it is
+  idempotent: concurrent calls share one download and an installed
   asset stays installed. A retry resumes from staged bytes. With less free
   space than the remaining bytes plus 64 MiB, nothing is
   fetched and the state is `failed` with `asset_insufficient_space`
@@ -831,9 +845,14 @@ The model selector write API is:
 - `PATCH /v1/animas/{anima_id}/chat-profile`
 
 The request body is `{ "default_model_provider_id": "<catalog row id>" }`,
-for example `OpenAIHTTPAgent:gpt-6-luna` or an owner row's `owner:<hex>` id.
-The route verifies anima ownership and an active `model_providers` row of kind
-`chat` before updating the profile; other rows return `400`.
+for example `OpenAIHTTPAgent:gpt-6-luna` or an owner row's `owner:<hex>` id,
+with an optional `reasoning_effort`. The route verifies anima ownership and an
+active `model_providers` row of kind `chat` before updating the profile; other
+rows return `400`. A `reasoning_effort` string must be one of the row's
+supported efforts (else `400`), and null clears it. Omitting it keeps the saved
+effort when the model is unchanged and clears it when the model changes. The
+response's `chat_profile.reasoning_effort` is the saved value, null meaning the
+model's default.
 
 ## Chat SSE
 
@@ -1123,6 +1142,20 @@ A connection's `credential` takes one of three modes:
   built-in Anthropic connection reads it;
 - `{"mode": "managed"}`: read the key from `ANIMAMA_CONNECTION_<ID>_API_KEY`,
   derived from the connection ID, which the desktop vault sets.
+
+A key that a connection names is sent only to its own origin (the built-in
+OpenAI connection keeps the operator's `OPENAI_BASE_URL`). A provider variable's key goes only to
+that provider's API (`PROVIDER_CREDENTIAL_ORIGINS` in
+`app/model_clients/credential_store.py`). An `ANIMAMA_CONNECTION_<NAME>_API_KEY`
+key goes only to the origin in `ANIMAMA_CONNECTION_<NAME>_ORIGIN`, which the
+desktop vault delivers with the key and a self-hosted operator sets. No such
+key is sent over plain HTTP unless the host is this computer. A connection whose key
+cannot be sent to its base URL reports `credential_state: "missing"`. Create and
+update refuse `400 credential_insecure_transport` for any key over plain HTTP to
+another computer, and `400 credential_origin_mismatch` for a provider key at
+another origin or an operator's connection key whose `_ORIGIN` differs. A
+managed key moved to another origin is accepted and reports `missing` until the
+owner enters it again.
 
 Removal is soft: rows and connections become inactive because chat profiles
 and chat history still reference them. When Animas or role preferences use the
@@ -1517,8 +1550,10 @@ and backend debug search. It exposes:
   opaque local locator, file existence, and exact size; mark the row
   `uploaded`.
 - `POST /v1/files/{file_id}:process`: enqueue or reuse a durable processing job
-  for the current user's finalized file. The API process only enqueues; parsing
-  runs in the `animama-file-worker` process.
+  for the current user's finalized file and wake the server's processing
+  runner. The request only enqueues; the runner parses the file afterwards in
+  a bounded child process. Returns `409` `file_processing_unavailable` while
+  processing is turned off.
 - `POST /v1/files/debug/search`: search current-user processed chunks in
   `keyword`, `semantic`, or `hybrid` mode. Keyword search uses PostgreSQL
   full-text search. Semantic search embeds the query with the Embeddings role
@@ -1546,7 +1581,7 @@ Macro-enabled Office files, executables, scripts, installers, and archives remai
 blocked.
 
 See [user files](../features/user-files.md) for the end-to-end local upload
-flow, parser worker lifecycle, statuses, configuration, and debug UI behavior.
+flow, in-server processing, statuses, configuration, and debug UI behavior.
 
 ## Archives
 

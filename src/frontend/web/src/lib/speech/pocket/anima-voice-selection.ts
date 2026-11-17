@@ -28,7 +28,6 @@ function clampEmotionIntensity(value: number | null | undefined): 1 | 2 | 3 {
   if (value <= 1) return 1;
   if (value >= 3) return 3;
   return 2;
-  // return Math.round(value) as 1 | 2 | 3;
 }
 
 export function buildPocketAnimaVoiceKey(

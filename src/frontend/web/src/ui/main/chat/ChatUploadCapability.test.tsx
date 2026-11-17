@@ -2,6 +2,8 @@ import type { ReactNode } from "react";
 import { renderToStaticMarkup } from "@/test/runtime-markup";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import type { ChatAttachmentHold } from "@animama/product-ui/chat";
+
 import { hostedExclusionReasons } from "@/app/runtime/route-admission";
 import type { UserFileUploadUppy } from "@/hooks/useUserFileUpload";
 import { ChatInterfaceView } from "@/ui/main/chat/ChatInterface";
@@ -46,20 +48,25 @@ vi.mock("@/ui/components/chat-input", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/ui/components/chat-input")>()),
   ChatInput: ({
     leadingActions,
+    actions,
     children,
   }: {
     leadingActions?: ReactNode;
+    actions?: ReactNode;
     children?: ReactNode;
   }) => (
     <>
       {leadingActions}
       {children}
+      {actions}
     </>
   ),
   ChatInputDictation: () => null,
   ChatInputFileUploadButton: () => <button>Attach files</button>,
   ChatInputModelSelector: () => null,
-  ChatInputSubmit: () => null,
+  ChatInputSubmit: ({ attachmentHold }: { attachmentHold?: string }) => (
+    <output>Send hold: {attachmentHold ?? "none"}</output>
+  ),
   ChatInputTextArea: () => null,
 }));
 vi.mock("@/ui/components/chat-input-file-tray", () => ({
@@ -70,9 +77,10 @@ vi.mock("./ChatFileDropOverlay", () => ({
     enabled ? <div>Drop files</div> : null,
 }));
 
-function render() {
+function render(attachmentHold?: ChatAttachmentHold) {
   return renderToStaticMarkup(
     <ChatInterfaceView
+      attachmentHold={attachmentHold}
       animaId="annie"
       animaName="Annie"
       activeChat={null}
@@ -138,5 +146,12 @@ describe("chat file upload entry points", () => {
     expect(html).toContain(
       `id="${reasonId}" class="sr-only">${hostedExclusionReasons.chat_file_uploads}<`,
     );
+  });
+
+  it("give the send control the attachments' hold", () => {
+    fixture.capabilities = { chat_file_uploads: true };
+    expect(render()).toContain("Send hold: none");
+    expect(render("waiting")).toContain("Send hold: waiting");
+    expect(render("blocked")).toContain("Send hold: blocked");
   });
 });

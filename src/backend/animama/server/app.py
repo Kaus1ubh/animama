@@ -38,6 +38,7 @@ from animama.server.runtime_credentials import (
     scrub_credential_environment,
 )
 from animama.server.telemetry import setup_telemetry
+from animama.server.user_file_processing import start_user_file_processing, stop_user_file_processing
 
 logger = logging.getLogger(__name__)
 
@@ -124,6 +125,7 @@ def create_local_app(
             if state is None or not lifecycle.ready:
                 raise HTTPException(status_code=503, detail="runtime_starting")
             from alembic.script import ScriptDirectory
+
             from animama.runtime.resources import alembic_config
 
             return {
@@ -161,6 +163,13 @@ def create_local_app(
             perform_initial_scan=False,
         )
         start_embedding_refresh(application, session_factory=get_async_session_factory(application))
+        # Uploads are processed in this process unless the operator turned processing off.
+        start_user_file_processing(
+            application,
+            session_factory=get_async_session_factory(application),
+            paths=paths,
+            runtime_settings=local_settings,
+        )
         _start_automatic_episode_processing(application, owner_id=state.principal_id)
         # A bounded repair state may still use the existing bootstrap API. The
         # owner is established by completed service bootstrap, never that API's
@@ -169,6 +178,7 @@ def create_local_app(
 
     @application.on_event("shutdown")
     async def stop_accountless_runtime() -> None:  # pragma: no cover - startup IO
+        await stop_user_file_processing(application)
         await stop_automatic_episode_processing(application)
         await stop_embedding_refresh(application)
         await close_model_asset_service(application)
@@ -181,7 +191,8 @@ def create_local_app(
         try:
             configure_logging()
         except Exception:
-            pass
+            # Serving continues with the default handlers; say why file logs are missing.
+            logger.warning("Logging configuration failed; using default handlers", exc_info=True)
 
     @application.on_event("startup")
     async def warn_companion_safety_overrides() -> None:
@@ -195,6 +206,7 @@ def create_local_app(
 
             await init_model_client_registry(application)
         except Exception:
+            logger.warning("Model client registry failed to start; model calls are unavailable", exc_info=True)
             application.state.model_client_registry = None
 
     @application.on_event("shutdown")
@@ -204,17 +216,7 @@ def create_local_app(
 
             await close_model_client_registry(application)
         except Exception:
-            pass
-
-    @application.on_event("startup")
-    async def init_voice_providers() -> None:  # pragma: no cover - simple IO
-        if os.getenv("ANIMAMA_ENABLE_VOICE"):
-            try:
-                from animama.server.voice_providers import ensure_voice_providers
-
-                await ensure_voice_providers()
-            except Exception:
-                pass
+            logger.warning("Model client registry did not close cleanly", exc_info=True)
 
     lifecycle = install_local_http(
         application,

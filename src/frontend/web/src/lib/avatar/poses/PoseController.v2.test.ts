@@ -139,6 +139,154 @@ describe("PoseController with animaPoseClip/2.0", () => {
     expect(applied.weights.happy).toBe(0);
   });
 
+  describe("hip offsets", () => {
+    const hipsX = (pose: VRMPose) => pose.hips?.position?.[0] ?? 0;
+    const shifted = (x: number) =>
+      clip({
+        id: "shift",
+        name: "Shift",
+        fadeIn: { duration: 0.2, easing: "linear" },
+        fadeOut: { duration: 0.2, easing: "linear" },
+        hipsPosition: { x: [{ beat: "start", v: x }] },
+      });
+
+    it("fades a clip's hip offset back to rest as it stops", () => {
+      const { vrm, applied } = stubVrm();
+      const controller = new PoseController(vrm);
+      controller.playAnimaPoseClip(shifted(0.02));
+      controller.update(0.5);
+      const offset = hipsX(applied.pose);
+      expect(offset).not.toBe(0);
+      expect(controller.stopClip()).toBe(false);
+      controller.update(0.1);
+      expect(hipsX(applied.pose)).toBeCloseTo(offset / 2, 5);
+      controller.update(0.09);
+      expect(Math.abs(hipsX(applied.pose))).toBeLessThan(
+        Math.abs(offset) * 0.1,
+      );
+    });
+
+    it("fades an inherited hip offset to rest when the new clip has no hip motion", () => {
+      const { vrm, applied } = stubVrm();
+      const controller = new PoseController(vrm);
+      applied.pose = { hips: { position: [0.02, 0, 0] } };
+      controller.playAnimaPoseClip(
+        clip({ fadeIn: { duration: 0.2, easing: "linear" } }),
+      );
+      controller.update(0.1);
+      expect(hipsX(applied.pose)).toBeCloseTo(0.01, 5);
+      controller.update(0.1);
+      expect(hipsX(applied.pose)).toBeCloseTo(0, 5);
+    });
+
+    it("fades into the hip offset a clip keys, not to rest", () => {
+      const { vrm, applied } = stubVrm();
+      const controller = new PoseController(vrm);
+      applied.pose = { hips: { position: [0.04, 0, 0] } };
+      controller.playAnimaPoseClip(shifted(0.02));
+      controller.update(0.1);
+      const halfway = hipsX(applied.pose);
+      controller.update(0.1);
+      const keyed = hipsX(applied.pose);
+      expect(keyed).not.toBe(0);
+      expect(halfway).toBeCloseTo((0.04 + keyed) / 2, 5);
+    });
+
+    it("fades any other positioned bone to rest too", () => {
+      const { vrm, applied } = stubVrm();
+      const controller = new PoseController(vrm);
+      applied.pose = { leftShoulder: { position: [0, 0.01, 0] } };
+      controller.playAnimaPoseClip(
+        clip({ fadeIn: { duration: 0.2, easing: "linear" } }),
+      );
+      controller.update(0.1);
+      expect(applied.pose.leftShoulder?.position?.[1]).toBeCloseTo(0.005, 5);
+    });
+  });
+
+  describe("effects at the end", () => {
+    const withEvents = (
+      events: AnimaPoseClipV2["events"],
+      overrides: Partial<AnimaPoseClipV2> = {},
+    ) => clip({ events, ...overrides });
+    const recording = () => {
+      const intensities: number[] = [];
+      const particleClears: string[] = [];
+      const { vrm } = stubVrm();
+      const controller = new PoseController(vrm);
+      controller.setClipEventSink({
+        applyAvatarVFX: () => undefined,
+        clearAvatarVFX: () => undefined,
+        setAvatarVFXIntensity: (_event, _context, intensity) => {
+          intensities.push(Number(intensity.toFixed(3)));
+        },
+        applyParticleVFX: () => undefined,
+        clearParticleVFX: (event, _context, options) => {
+          particleClears.push(
+            `${event.id}:${options?.finish ? "finish" : "now"}`,
+          );
+        },
+      });
+      return { controller, intensities, particleClears };
+    };
+    const blush = {
+      id: "blush",
+      time: 0,
+      kind: "avatar_vfx" as const,
+      effectId: "blush",
+    };
+    const roses = {
+      id: "roses",
+      time: 0,
+      kind: "particle_vfx" as const,
+      effectId: "roses",
+    };
+
+    it("fades a clip's Avatar Effects out with it", () => {
+      const { controller, intensities } = recording();
+      controller.playAnimaPoseClip(
+        withEvents([blush], { fadeOut: { duration: 0.2, easing: "linear" } }),
+      );
+      controller.update(0.5);
+      controller.stopClip();
+      controller.update(0.1);
+      expect(intensities.at(-1)).toBe(0.5);
+    });
+
+    it("lets a clip's particles finish when it fades out, ends or is replaced", () => {
+      const fading = recording();
+      fading.controller.playAnimaPoseClip(
+        withEvents([roses], { fadeOut: { duration: 0.2, easing: "linear" } }),
+      );
+      fading.controller.update(0.5);
+      fading.controller.stopClip();
+      fading.controller.update(0.2);
+      expect(fading.particleClears).toEqual(["roses:finish"]);
+
+      const ended = recording();
+      ended.controller.playAnimaPoseClip(withEvents([roses]));
+      ended.controller.update(1.1);
+      expect(ended.particleClears).toEqual(["roses:finish"]);
+
+      const replaced = recording();
+      replaced.controller.playAnimaPoseClip(withEvents([roses]));
+      replaced.controller.playAnimaPoseClip(
+        clip({ fadeIn: { duration: 0.2, easing: "linear" } }),
+      );
+      expect(replaced.particleClears).toEqual(["roses:finish"]);
+    });
+
+    it("removes a clip's particles at once when stopped without a fade", () => {
+      const { controller, particleClears } = recording();
+      controller.playAnimaPoseClip(withEvents([roses]));
+      controller.update(0.5);
+      controller.stopClip({ immediate: true });
+      controller.playAnimaPoseClip(withEvents([roses]));
+      controller.stopClip();
+      expect(particleClears).toEqual(["roses:now", "roses:now"]);
+    });
+  });
+
   it("replaces a playing clip and reports only its own expressions", () => {
     const { vrm } = stubVrm();
     const controller = new PoseController(vrm);

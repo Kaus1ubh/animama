@@ -12,7 +12,6 @@
     "pip": false,
     "quick_chat": false,
     "offline_dictation": false,
-    "document_processing": false,
     "expanded_content": false,
     "pack_interruption": false,
     "update_preserves_local_state": false,

@@ -131,9 +131,11 @@ export type AnimaPoseClipEventSink = {
     event: AnimaPoseClipParticleVFXEvent,
     context: AnimaPoseClipEventContext,
   ) => void | Promise<void>;
+  /** `finish` lets the effect's particles live out their life (a normal end). */
   clearParticleVFX?: (
     event: AnimaPoseClipParticleVFXEvent,
     context: AnimaPoseClipEventContext,
+    options?: { finish?: boolean },
   ) => void | Promise<void>;
   playSfx?: (
     event: AnimaPoseClipSFXEvent,
@@ -432,7 +434,8 @@ export class PoseController {
     const hasPoseKeyframes = program.hasPose;
     const hadActivePose = hasPoseKeyframes && this._activePoseId !== null;
     if (hasPoseKeyframes) this._clearActivePoseState(true);
-    this._clearActiveClipState(true, false);
+    // The clip it replaces lets its particles finish under this one's fade-in.
+    this._clearActiveClipState(true, false, fadeInDurationSec > 0);
     if (hadActivePose) {
       this._resetHumanoidToRestPose();
     }
@@ -475,6 +478,7 @@ export class PoseController {
       return false;
     }
 
+    // A requested stop with no fade ends everything now; a fade-out finishes in update.
     this._clearActiveClipState(true, true);
     return true;
   }
@@ -506,7 +510,7 @@ export class PoseController {
       this._clearExpiredClipEventEffects(nextElapsedSec);
       this._sampleClipEventEnvelopes(nextElapsedSec);
       if (this._isCurrentClipFadeComplete(this._clipState.fadeOutDurationSec)) {
-        this.stopClip({ immediate: true });
+        this._clearActiveClipState(true, true, true);
       }
       return;
     }
@@ -525,13 +529,14 @@ export class PoseController {
       this._clipState.fadeInSourceSample = null;
     }
 
+    // A clip that reaches its end finishes, letting its particles live out their life.
     if (finite && nextElapsedSec >= horizon) {
-      this.stopClip({ immediate: true });
+      this._clearActiveClipState(true, true, true);
       return;
     }
     if (shouldAnimaPoseClipAutoComplete(clip, nextElapsedSec)) {
       if (!this._beginClipFadeOutIfAvailable()) {
-        this.stopClip({ immediate: true });
+        this._clearActiveClipState(true, true, true);
       }
     }
   }
@@ -789,17 +794,30 @@ export class PoseController {
     });
   }
 
-  /** Send each fading Avatar Effect event's envelope value to the sink. */
+  /**
+   * Send each fading Avatar Effect event's envelope value to the sink; while
+   * the clip fades out, its Avatar Effects fade with it.
+   */
   private _sampleClipEventEnvelopes(playbackTimeSec: number): void {
     const handler = this._clipEventSink?.setAvatarVFXIntensity;
     if (!handler) return;
+    const clip = this._clipState.clip;
+    const fadingOut = this._clipState.phase === "fadeOut" && clip !== null;
+    const fadeOutScale = fadingOut
+      ? 1 -
+        easeProgress(
+          this._getCurrentClipFadeProgress(this._clipState.fadeOutDurationSec),
+          resolveClipFadeTransition(clip.fadeOut).easing,
+        )
+      : 1;
     for (const activeEffect of this._clipState.activeEventEffects.values()) {
       const { event, context } = activeEffect;
       if (event.kind !== "avatar_vfx") continue;
-      const intensity = sampleAnimaPoseClipAvatarVFXIntensity(
+      const envelope = sampleAnimaPoseClipAvatarVFXIntensity(
         event,
         playbackTimeSec - context.playbackTime,
       );
+      const intensity = fadingOut ? (envelope ?? 1) * fadeOutScale : envelope;
       if (intensity === undefined || intensity === activeEffect.intensity) {
         continue;
       }
@@ -816,20 +834,21 @@ export class PoseController {
         activeEffect.clearAtPlaybackTime !== null &&
         activeEffect.clearAtPlaybackTime <= playbackTimeSec
       ) {
-        this._clearClipEventEffect(activeEffect.context.appliedId);
+        this._clearClipEventEffect(activeEffect.context.appliedId, true);
       }
     }
   }
 
-  private _clearAllClipEventEffects(): void {
+  private _clearAllClipEventEffects(finish = false): void {
     for (const appliedId of Array.from(
       this._clipState.activeEventEffects.keys(),
     )) {
-      this._clearClipEventEffect(appliedId);
+      this._clearClipEventEffect(appliedId, finish);
     }
   }
 
-  private _clearClipEventEffect(appliedId: string): void {
+  /** `finish` lets a Particle Effect's particles live out their life. */
+  private _clearClipEventEffect(appliedId: string, finish = false): void {
     const activeEffect = this._clipState.activeEventEffects.get(appliedId);
     if (!activeEffect) return;
     this._clipState.activeEventEffects.delete(appliedId);
@@ -854,7 +873,9 @@ export class PoseController {
         return;
       }
       this._invokeClipEventHandler(event, context, () =>
-        handler(event, context),
+        finish
+          ? handler(event, context, { finish: true })
+          : handler(event, context),
       );
       return;
     }
@@ -951,9 +972,10 @@ export class PoseController {
       const progress = this._getCurrentClipFadeProgress(
         this._clipState.fadeInDurationSec,
       );
+      const sourceSample = this._clipState.fadeInSourceSample ?? {};
       return interpolateSamples(
-        this._clipState.fadeInSourceSample ?? {},
-        sample,
+        sourceSample,
+        withRestPositions(sample, sourceSample),
         progress,
         easeProgress(progress, transition.easing),
         transition,
@@ -968,7 +990,10 @@ export class PoseController {
       const sourceSample = this._clipState.fadeOutSourceSample ?? sample;
       const targetSample =
         this._clipState.fadeOutTargetSample ??
-        this._createDefaultPoseSample(getSampleExpressionNames(sourceSample));
+        withRestPositions(
+          this._createDefaultPoseSample(getSampleExpressionNames(sourceSample)),
+          sourceSample,
+        );
       return interpolateSamples(
         sourceSample,
         targetSample,
@@ -1010,8 +1035,9 @@ export class PoseController {
     this._clipState.fadeInSourceSample = null;
     this._clipState.fadeOutSourceSample = fadeOutSourceSample;
     this._clipState.fadeOutDurationSec = fadeOutDurationSec;
-    this._clipState.fadeOutTargetSample = this._createDefaultPoseSample(
-      currentExpressionNames,
+    this._clipState.fadeOutTargetSample = withRestPositions(
+      this._createDefaultPoseSample(currentExpressionNames),
+      fadeOutSourceSample,
     );
     this._applyClipSampleAtTime(this._clipState.elapsedSec);
     return true;
@@ -1202,12 +1228,14 @@ export class PoseController {
     this._activePoseId = null;
   }
 
+  /** `finish`: a normal end, so the clip's particles live out their life. */
   private _clearActiveClipState(
     restoreExpressions: boolean,
     resetHumanoid: boolean,
+    finish = false,
   ): void {
     this._clipState.eventAbort?.abort();
-    this._clearAllClipEventEffects();
+    this._clearAllClipEventEffects(finish);
     if (restoreExpressions && this._vrm && !this._isDisposed) {
       this._restoreClipExpressionBaseline();
     }
@@ -1498,6 +1526,27 @@ function mergeClipHumanoidSamples(
     pose[boneName] = cloneVRMPoseTransform(overlayTransform);
   }
   return pose;
+}
+
+/**
+ * `target` plus the rest position (a zero offset in normalized pose space)
+ * for each bone that `source` positions and `target` does not. Interpolation
+ * holds a position present on one side only, so without this a fade would
+ * keep such an offset (usually the hips) and it would snap back to rest on
+ * the frame the clip ends.
+ */
+function withRestPositions(
+  target: AnimaPoseClipSample,
+  source: AnimaPoseClipSample,
+): AnimaPoseClipSample {
+  let humanoid: VRMPose | null = null;
+  for (const bone of getSampleHumanoidBoneNames(source.humanoid ?? {})) {
+    if (!source.humanoid?.[bone]?.position || target.humanoid?.[bone]?.position)
+      continue;
+    humanoid ??= { ...target.humanoid };
+    humanoid[bone] = { ...target.humanoid?.[bone], position: [0, 0, 0] };
+  }
+  return humanoid ? { ...target, humanoid } : target;
 }
 
 function clamp01(value: number): number {

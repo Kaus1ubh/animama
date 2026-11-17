@@ -1,1 +1,4 @@
-export * from "@animama/product-ui/anima-profile";
+export {
+  createAnimaPresentationObjectUrl,
+  resolveAnimaPresentationImageRequest,
+} from "@animama/product-ui/anima-profile";

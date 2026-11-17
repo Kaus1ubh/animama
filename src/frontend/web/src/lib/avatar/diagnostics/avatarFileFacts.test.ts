@@ -4,6 +4,7 @@ import {
   readTestAvatarBytes,
   VRM0_FIXTURE_ID,
 } from "../motion-authoring/testing/includedAvatars";
+import { dummyThumbVrmBytes } from "../testing/dummyThumbVrm";
 import { encodeGlb as glb } from "../testing/glb";
 import {
   avatarFileIssues,
@@ -226,6 +227,56 @@ describe("avatarFileIssues", () => {
     expect(avatarFileIssues(facts)).toEqual([
       { code: "morph_target_names_mismatched", params: { count: 2 } },
     ]);
+  });
+
+  it("reports humanoid bones the loader moves to the bones the mesh follows", () => {
+    const facts = readAvatarFileFacts(dummyThumbVrmBytes());
+    expect(facts?.humanoidBones).toEqual({ remapped: 3, unweighted: 0 });
+    expect(avatarFileIssues(facts)).toEqual([
+      { code: "humanoid_bones_remapped", params: { count: 3 } },
+    ]);
+  });
+
+  it("reports humanoid bones that move nothing and have no counterpart", () => {
+    const facts = readAvatarFileFacts(
+      dummyThumbVrmBytes({ vrm: 0, counterpart: "none" }),
+    );
+    expect(facts?.humanoidBones).toEqual({ remapped: 0, unweighted: 3 });
+    expect(avatarFileIssues(facts)).toEqual([
+      { code: "humanoid_bones_unweighted", params: { count: 3 } },
+    ]);
+  });
+
+  it("reads the Included Avatars' skin weights and finds every bone in use", async () => {
+    for (const id of ["Andrew", "Annie"] as const) {
+      const facts = readAvatarFileFacts(await readTestAvatarBytes(id));
+      expect(facts?.humanoidBones).toEqual({ remapped: 0, unweighted: 0 });
+    }
+  });
+
+  it("leaves humanoid bones unreported when it cannot read the weights", () => {
+    const bytes = dummyThumbVrmBytes();
+    const view = new DataView(bytes.buffer);
+    const jsonLength = view.getUint32(12, true);
+    const json = JSON.parse(
+      new TextDecoder().decode(bytes.subarray(20, 20 + jsonLength)),
+    );
+    const bin = bytes.subarray(20 + jsonLength + 8);
+    const meshopt = structuredClone(json);
+    meshopt.bufferViews[2].extensions = { EXT_meshopt_compression: {} };
+    expect(readAvatarFileFacts(glb(meshopt, bin))?.humanoidBones).toBeNull();
+    // Draco keeps the skin in its compressed stream: accessors without views.
+    const draco = structuredClone(json);
+    draco.accessors.forEach((accessor: Record<string, unknown>) => {
+      delete accessor.bufferView;
+    });
+    draco.meshes[0].primitives[0].extensions = {
+      KHR_draco_mesh_compression: { bufferView: 0, attributes: {} },
+    };
+    expect(readAvatarFileFacts(glb(draco, bin))?.humanoidBones).toBeNull();
+    expect(
+      readAvatarFileFacts(glb({ asset: { version: "2.0" } }))?.humanoidBones,
+    ).toBeNull();
   });
 
   it("reports an unreadable file", () => {

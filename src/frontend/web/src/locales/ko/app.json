@@ -98,7 +98,9 @@
       "offlineSpeechMissing": "받아쓰기와 음성 모드를 사용하려면 설정에서 오프라인 음성 인식을 설치하세요.",
       "transcriptionFailed": "오프라인 전사에 실패했습니다",
       "unmuteFailed": "음성 모드 음소거를 해제하지 못했습니다",
-      "webSpeechUnsupported": "이 브라우저는 Web Speech API를 지원하지 않습니다"
+      "webSpeechUnsupported": "이 브라우저는 Web Speech API를 지원하지 않습니다",
+      "offlineSpeechEnded": "오프라인 음성 인식이 설치되어 있지 않고 더 이상 다운로드할 수 없어 받아쓰기와 음성 모드에서 사용할 수 없습니다.",
+      "languageSpeechEnded": "이 언어의 오프라인 음성 인식이 설치되어 있지 않고 더 이상 다운로드할 수 없어 받아쓰기와 음성 모드에서 사용할 수 없습니다."
     }
   },
   "featurePacks": {
@@ -214,7 +216,6 @@
     "originalSavedNotQueued": "원본을 저장했지만 처리가 대기열에 추가되지 않았습니다.",
     "processingNotQueuedAfterUpload": "업로드는 완료되었지만 처리를 대기열에 추가하지 못했습니다.",
     "processingUnavailable": "처리가 대기열에 추가되지 않았습니다. 문서 처리를 사용할 수 있게 되면 라이브러리에서 원본을 처리할 수 있습니다.",
-    "processingUnavailableDesktop": "문서 처리를 사용할 수 없습니다. 설정에서 팩을 설치한 후 라이브러리에서 파일을 처리하세요.",
     "queuedForProcessing": "파일을 업로드하고 처리 대기열에 추가했습니다.",
     "rejected": "이 파일은 업로드할 수 없습니다.",
     "restrictions": {

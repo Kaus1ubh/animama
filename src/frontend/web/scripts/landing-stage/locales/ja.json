@@ -1,0 +1,182 @@
+{
+  "site": {
+    "title": "Animama — まるで生きているような AI コンパニオン",
+    "sceneDescription": "3D で動く Anima の {name} が歩いてきて手を振り、スクロールに合わせてジェスチャーや感情、記憶を見せてくれます。"
+  },
+  "header": {
+    "site": "サイト",
+    "home": "ホーム",
+    "about": "概要",
+    "download": "ダウンロード",
+    "docs": "ドキュメント",
+    "logIn": "ログイン",
+    "signUp": "新規登録",
+    "requestBetaAccess": "ベータ版に申し込む",
+    "requestAccess": "申し込む",
+    "menu": "メニュー",
+    "avatar": "アバター",
+    "darkMode": "ダークモード",
+    "language": "言語",
+    "currentLanguage": "言語：{{language}}",
+    "switchToLight": "ライトモードに切り替え",
+    "switchToDark": "ダークモードに切り替え"
+  },
+  "page": {
+    "skipToContent": "本文へスキップ",
+    "avatars": "アバター",
+    "loadingAvatar": "{{name}} を読み込み中…",
+    "features": "機能",
+    "previousReaction": "前のリアクション",
+    "nextReaction": "次のリアクション",
+    "readDocs": "ドキュメントを読む",
+    "watchTrailer": "トレーラーを見る",
+    "trailerTitle": "Animama ローンチトレーラー"
+  },
+  "stops": {
+    "hero": {
+      "label": "はじめに",
+      "title": "あなたの Anima に出会おう",
+      "body": "動いて、感じて、覚えてくれる AI コンパニオン。",
+      "links": {
+        "gestures": "動いて",
+        "emotion": "感じて",
+        "memory": "覚えてくれる"
+      }
+    },
+    "gestures": {
+      "label": "ふるまい",
+      "title": "ボディランゲージ",
+      "body": "おちゃめなおふざけから、ロマンチックなしぐさまで。{name} は話しながら、**300種類以上の個性豊かなジェスチャーとリアクション**を使い分けます。"
+    },
+    "emotion": {
+      "label": "感情",
+      "title": "気持ちが、すぐ顔に出る",
+      "body": "24の感情が、一緒に過ごすうちに揺れ動き、育っていきます。"
+    },
+    "memory": {
+      "label": "記憶",
+      "title": "{name} は小さなことも覚えている",
+      "body": "猫の名前も、金曜の発表会も。{name} から聞いてくれるので、覚えておかなくても大丈夫。"
+    },
+    "download": {
+      "label": "ダウンロード",
+      "title": "デスクトップで {name} に会おう",
+      "body": "macOS と Windows で利用できます。",
+      "beta": {
+        "label": "ベータ",
+        "body": "macOS と Windows でクローズドベータを実施中。"
+      }
+    }
+  },
+  "clips": {
+    "lean-in-coy": "はにかみ",
+    "soul-leaves-body": "魂が抜ける",
+    "flustered-fan": "照れてパタパタ",
+    "innocent-whistle": "とぼけて口笛",
+    "finger-heart-pose": "指ハート",
+    "double-peace-pop": "ダブルピース",
+    "dramatic-swoon": "大げさに失神",
+    "snicker-laugh": "クスクス笑い",
+    "offer-a-rose": "バラを贈る",
+    "air-guitar": "エアギター",
+    "beckon": "手招き",
+    "brush-off-shoulders": "肩のホコリ払い",
+    "ohohoho-noble-laugh": "高笑い",
+    "nervous-head-scratch": "頭ポリポリ"
+  },
+  "memory": {
+    "updated": "記憶を更新しました",
+    "hint": "リボンを選ぶとページがめくれます。どのページも、読んで、編集して、元に戻せるファイルです。",
+    "openFile": "{{file}} を開く",
+    "ribbon": "{{page}}、{{file}}",
+    "pages": {
+      "profile": "あなた",
+      "identity": "わたし",
+      "memories": "思い出"
+    },
+    "user": {
+      "profile": "今日、子猫を迎えたよ！名前はミソ。",
+      "identity": "今週は締め切りだらけで、何から手をつければいいかわからない。",
+      "memories": "金曜日の発表会、どうだったか報告するね！"
+    },
+    "profile": {
+      "basics": "基本情報",
+      "basicsLine": "サム。トロント在住、東部時間。",
+      "people": "身近な人",
+      "peopleLine": "妹のアナ。6月に結婚予定。",
+      "peopleNew": "ミソ。新しく迎えた子猫。"
+    },
+    "memories": {
+      "story": "ふたりの話",
+      "storyLine": "出会いは試験期間。どちらも紅茶でなんとか乗り切っていた。",
+      "threads": "続きのある話",
+      "threadsLine": "6月のアナの結婚式：スピーチを手伝う。",
+      "threadsNew": "サムの発表会は金曜日。どうだったか聞くと約束した。"
+    }
+  },
+  "avatars": {
+    "Annie": {
+      "pronouns": {
+        "subject": "彼女",
+        "object": "彼女",
+        "possessive": "彼女の"
+      },
+      "identity": {
+        "essence": {
+          "heading": "人となり",
+          "line": "あたたかくて好奇心旺盛な相棒。一緒に考えを声に出し、ぼんやりしたアイデアを次の一歩に変えてくれる。"
+        },
+        "speakingStyle": {
+          "heading": "話し方",
+          "line": "短く自然な文。提案する前に、聞いた話をまず言葉にして返す。ユーモアはやさしく。"
+        }
+      },
+      "replies": {
+        "profile": "ミソ！ようこそ、おちびちゃん。最初の一週間のこと、ぜんぶ聞かせて。",
+        "identity": "一度にぜんぶ来ちゃったんだね。小さく分けてみよう。一番早い締め切りはどれ？",
+        "memories": "約束ね。金曜日、ちゃんと報告してね。わたしから一番に聞くから。"
+      },
+      "notebook": {
+        "profile": "あなたが教えてくれた、あなたのこと。どの Anima も共有するページで、あなたも編集できます。",
+        "identity": "わたしが誰で、どう話すか。いつでも書き直せるページです。わたしからは変えません。",
+        "memories": "ふたりの思い出：約束、内輪ネタ、小さな記念日。おしゃべりしながら、このページに書いていきます。"
+      }
+    },
+    "Andrew": {
+      "pronouns": {
+        "subject": "彼",
+        "object": "彼",
+        "possessive": "彼の"
+      },
+      "identity": {
+        "essence": {
+          "heading": "人となり",
+          "line": "人なつっこくて、のんびりした大学生。一緒にあれこれ考えて答えを見つけるのが好き。"
+        },
+        "speakingStyle": {
+          "heading": "話し方",
+          "line": "気さくでわかりやすい。考えながら話し、いい質問を返す。ちょっとした自虐ネタも。"
+        }
+      },
+      "replies": {
+        "profile": "マジで、ミソ！いい名前じゃん。よし、全部教えて。どんな子？",
+        "identity": "うわ、その気持ちわかる。まず全部書き出して、一番小さいのから片づけようか？",
+        "memories": "絶対だよ！金曜日、全部聞かせてね。応援してる。"
+      },
+      "notebook": {
+        "profile": "君が話してくれた、君のこと。どの Anima も共有するページで、君も編集できるよ。",
+        "identity": "僕が誰で、どう話すか。いつでも書き直していいよ。僕は変えないから。",
+        "memories": "ここまでのふたりの話：予定、内輪ネタ、大事な日。話しながらメモしていくよ。"
+      }
+    }
+  },
+  "footer": {
+    "label": "フッター",
+    "about": "概要",
+    "privacy": "プライバシー",
+    "terms": "利用規約",
+    "safety": "安全について",
+    "contact": "お問い合わせ",
+    "notices": "サードパーティー表記"
+  }
+}

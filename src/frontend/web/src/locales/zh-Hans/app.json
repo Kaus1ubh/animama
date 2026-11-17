@@ -98,7 +98,9 @@
       "offlineSpeechMissing": "请在设置中安装离线语音识别，以使用听写和语音模式。",
       "transcriptionFailed": "离线转写失败",
       "unmuteFailed": "无法取消语音模式静音",
-      "webSpeechUnsupported": "此浏览器不支持 Web Speech API"
+      "webSpeechUnsupported": "此浏览器不支持 Web Speech API",
+      "offlineSpeechEnded": "离线语音识别未安装且已无法下载，因此听写和语音模式无法使用它。",
+      "languageSpeechEnded": "此语言的离线语音识别未安装且已无法下载，因此听写和语音模式无法使用它。"
     }
   },
   "featurePacks": {
@@ -214,7 +216,6 @@
     "originalSavedNotQueued": "已保存原始文件，但处理未加入队列。",
     "processingNotQueuedAfterUpload": "上传已完成，但无法将处理加入队列。",
     "processingUnavailable": "处理未加入队列。文档处理可用后，你可以在资源库中处理原始文件。",
-    "processingUnavailableDesktop": "文档处理不可用。请在设置中安装功能包，然后在资源库中处理该文件。",
     "queuedForProcessing": "文件已上传并加入处理队列。",
     "rejected": "无法上传此文件。",
     "restrictions": {

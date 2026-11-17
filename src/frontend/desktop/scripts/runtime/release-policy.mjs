@@ -145,10 +145,11 @@ export function validateReleasePolicy(
   if (!DISTRIBUTIONS.includes(distribution))
     throw new Error("ANIMAMA_RELEASE_DISTRIBUTION must be r2 or github");
   if (
-    policy?.schema !== "animama-release-policy/3" ||
+    policy?.schema !== "animama-release-policy/4" ||
     policy.channel !== "stable" ||
+    !["offered", "ended"].includes(policy.updates) ||
     Object.keys(policy).sort().join(",") !==
-      "channel,distribution_basis,distributions,redistribution_reviews,schema" ||
+      "channel,distribution_basis,distributions,redistribution_reviews,schema,updates" ||
     !policy.distribution_basis ||
     Object.keys(policy.distribution_basis).sort().join(",") !==
       "commercial,pocket_tts_onnx_license" ||
@@ -157,15 +158,14 @@ export function validateReleasePolicy(
     !validDistributions(policy.distributions)
   )
     throw new Error(
-      "Set the intended installer/update destinations (an R2 public HTTPS base URL and bucket, and a GitHub repository) and the noncommercial installer/update policy in runtime/release-policy.json; the release policy records a noncommercial PocketTTS distribution basis, candidates may remain private, and embedded tokens are not supported.",
+      "Set the intended installer/update destinations (an R2 public HTTPS base URL and bucket, and a GitHub repository), whether updates are offered or ended, and the noncommercial installer/update policy in runtime/release-policy.json; the release policy records a noncommercial PocketTTS distribution basis, candidates may remain private, and embedded tokens are not supported.",
     );
   const publisher = packs?.macos;
   if (
     !/^[A-Z0-9]{10}$/u.test(publisher?.team_id ?? "") ||
     typeof publisher?.signing_identity !== "string" ||
     !publisher.signing_identity.startsWith("Developer ID Application:") ||
-    !publisher.signing_identity.endsWith(`(${publisher.team_id})`) ||
-    !publisher.designated_requirement
+    !publisher.signing_identity.endsWith(`(${publisher.team_id})`)
   )
     throw new Error(
       "Configure the reviewed macOS publisher in runtime/feature-pack-releases.json; ad-hoc signing is not a release.",
@@ -204,13 +204,21 @@ export function validateReleasePolicy(
   if (
     !packReleases ||
     Object.keys(packReleases).sort().join(",") !==
-      "document-processing,expanded-included-content" ||
+      "expanded-included-content" ||
     Object.values(packReleases).some(
       (pack) => !["active", "deferred"].includes(pack?.release_status),
     )
   )
     throw new Error(
       "Every supported feature pack requires an explicit active or deferred release status.",
+    );
+  // A build that never checks for updates cannot keep a pack current either.
+  if (
+    policy.updates === "ended" &&
+    Object.values(packReleases).some((pack) => pack.release_status === "active")
+  )
+    throw new Error(
+      "Updates have ended in runtime/release-policy.json, so no feature pack can be active.",
     );
   return {
     policy,
@@ -226,12 +234,14 @@ export function validateReleasePolicy(
     distribution: selected,
     packReleaseBase: releaseTagBase(selected, `v${version}`),
     updatePolicy: {
-      schema: "animama-update-policy/2",
+      schema: "animama-update-policy/3",
       distribution:
         selected.name === "r2"
           ? { kind: "r2", base_url: selected.base_url }
           : { kind: "github", owner: selected.owner, repo: selected.repo },
       channel: "stable",
+      // Sealed into the signed runtime; an installed app has no other switch.
+      updates: policy.updates,
       // Installed apps accept updates only from their own platform's publisher.
       ...(target === "win32-x64"
         ? {

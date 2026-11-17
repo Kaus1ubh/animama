@@ -1,10 +1,11 @@
 from __future__ import annotations
 
-import importlib
 from typing import Any
 
+# Imported directly, not through importlib: PyInstaller bundles only modules it
+# can see, and a frozen runtime without pgvector cannot write vector columns.
+from pgvector.sqlalchemy import Vector
 from sqlalchemy import MetaData
-from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase
 
 # Naming convention for Alembic-friendly migrations (optional but helpful)
@@ -21,22 +22,7 @@ class Base(DeclarativeBase):
     metadata = MetaData(naming_convention=NAMING_CONVENTION)
 
 
-# Optional pgvector support (import at runtime; type-agnostic for mypy)
-try:  # pragma: no cover - optional dependency
-    _pgv = importlib.import_module("pgvector.sqlalchemy")
-    _Vector = getattr(_pgv, "Vector", None)
-except Exception:  # pragma: no cover - optional dependency
-    _Vector = None
-
-Vector: Any | None = _Vector
-
-
 def vector_type(dim: int | None = None) -> Any:
-    """Return a SQLAlchemy type to store embeddings.
+    """Return the pgvector column type that stores embeddings, with ``dim`` dimensions if given."""
 
-    - If pgvector is installed, returns Vector(dim) or Vector() if dim is None.
-    - Otherwise, returns JSONB as a fallback.
-    """
-    if Vector is not None:
-        return Vector(dim) if dim else Vector()
-    return JSONB
+    return Vector(dim) if dim else Vector()

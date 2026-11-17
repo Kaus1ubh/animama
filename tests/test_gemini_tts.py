@@ -400,7 +400,7 @@ def test_a_changed_key_builds_a_new_client(monkeypatch: pytest.MonkeyPatch) -> N
     assert built == ["key-one", "key-two"]
 
 
-async def test_local_runtime_capabilities_offer_gemini_voice(async_session, tmp_path) -> None:  # noqa: ANN001
+async def test_local_runtime_capabilities_offer_gemini_voice(async_session, tmp_path) -> None:
     app = FastAPI()
     app.state.runtime_settings = Settings(
         animama_content_root=tmp_path / "content",
@@ -414,7 +414,7 @@ async def test_local_runtime_capabilities_offer_gemini_voice(async_session, tmp_
     async def principal() -> RequestPrincipal:
         return RequestPrincipal(id="gemini-owner")
 
-    async def database():  # noqa: ANN202
+    async def database():
         yield async_session
 
     app.dependency_overrides[get_current_principal] = principal

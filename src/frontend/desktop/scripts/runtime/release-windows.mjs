@@ -16,6 +16,7 @@ import {
   sha256,
   writeJson,
 } from "./common.mjs";
+import { assertFuseWire } from "./fuses.mjs";
 import { windowsIcon } from "./icon.mjs";
 import { assertInventory, inventoryId } from "./inventory.mjs";
 import {
@@ -115,7 +116,7 @@ export async function releaseWindows(args = []) {
     );
   if (!rehearsal) verifyRedistributionReview(target.runtime, release);
   const catalog = readJson(path.join(target.runtime, "pack-catalog.json"));
-  // Feature packs are signed and published for macOS only so far.
+  // Feature packs are built and published for macOS only so far.
   if (release.activePackIds.length || catalog.entries.length)
     throw new Error(
       "Windows feature-pack releases are not implemented; keep every pack deferred",
@@ -188,6 +189,7 @@ export async function releaseWindows(args = []) {
   )
     throw new Error("Signed runtime identity mismatch");
   assertInventory(runtime, manifest.files);
+  assertFuseWire(path.join(app, WINDOWS_EXECUTABLE));
   const executable = builderFiles.get(WINDOWS_EXECUTABLE);
   if (!executable)
     throw new Error(

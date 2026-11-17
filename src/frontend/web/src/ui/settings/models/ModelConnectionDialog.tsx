@@ -46,6 +46,7 @@ import {
   SelectValue,
 } from "@/ui/components/select";
 import type {
+  CredentialChange,
   CredentialStatus,
   CredentialsBridge,
 } from "../../../../../shared/desktop-runtime";
@@ -59,6 +60,8 @@ import {
 
 import {
   detectionMessage,
+  keyOrigin,
+  keyOriginVariable,
   keyWouldTravelInsecurely,
   modelConfigurationErrorMessage,
 } from "./model-configuration-state";
@@ -179,6 +182,18 @@ export async function deleteConnectionKey(
   });
 }
 
+/** A desktop key, saved with the origin of the address it was entered for. */
+function connectionKeyChange(
+  env: string,
+  value: string,
+  baseUrl: string | null | undefined,
+): CredentialChange {
+  const origin = keyOrigin(baseUrl);
+  return origin
+    ? { connection: env, value, origin }
+    : { connection: env, value };
+}
+
 /** Why a saved connection's key was not stored, from main's reported status. */
 function keyFailureMessage(error: unknown, env: string | null): string {
   const statuses = (error as { statuses?: CredentialStatus[] }).statuses ?? [];
@@ -278,11 +293,24 @@ function ModelConnectionFields({
     ? Boolean(draft.key.trim()) || (savedManagedKey && !draft.removeKey)
     : Boolean(draft.envName.trim());
   const insecure = sendsKey && keyWouldTravelInsecurely(draft.baseUrl);
+  const draftOrigin = keyOrigin(draft.baseUrl);
+  // A saved desktop key goes only to the origin it was entered for, so a new
+  // origin needs the key again (or no key).
+  const keyForAnotherAddress =
+    managedKeys &&
+    savedManagedKey &&
+    !draft.removeKey &&
+    !draft.key.trim() &&
+    draftOrigin !== null &&
+    draftOrigin !== keyOrigin(connection?.base_url);
+  const originVariable = managedKeys ? null : keyOriginVariable(draft.envName);
   const timeout = draft.timeout.trim() ? Number(draft.timeout) : null;
   const valid =
     Boolean(draft.name.trim()) &&
     Boolean(draft.baseUrl.trim()) &&
-    (timeout === null || (Number.isFinite(timeout) && timeout > 0));
+    (timeout === null || (Number.isFinite(timeout) && timeout > 0)) &&
+    !insecure &&
+    !keyForAnotherAddress;
   const change = (patch: Partial<Draft>) =>
     setDraft((current) => ({ ...current, ...patch }));
   const setSaving = (next: boolean) => {
@@ -332,13 +360,17 @@ function ModelConnectionFields({
     }
     const key = draft.key.trim();
     setDraft((current) => ({ ...current, key: "" }));
-    // The connection no longer names its variable once the key is removed.
-    const removedEnv = draft.removeKey ? connection?.credential_env : null;
+    // A save that drops the connection's variable deletes its desktop key,
+    // including one withheld because it was entered for another address.
+    const removedEnv =
+      connection?.credential_env && !saved.credential_env
+        ? connection.credential_env
+        : null;
     try {
       if (managedKeys && bridge) {
         if (key && saved.credential_env)
           await applyCredentialChanges(bridge, [
-            { connection: saved.credential_env, value: key },
+            connectionKeyChange(saved.credential_env, key, saved.base_url),
           ]);
         else if (removedEnv) await deleteConnectionKey(bridge, removedEnv);
         await refreshCredentialDependents(queryClient, ownerId);
@@ -488,6 +520,11 @@ function ModelConnectionFields({
               {t("connectionForm.removeSavedKey")}
             </label>
           ) : null}
+          {keyForAnotherAddress ? (
+            <p className="text-destructive text-xs" role="alert">
+              {t("connectionForm.keyForAnotherAddress")}
+            </p>
+          ) : null}
           <p className="text-muted-foreground text-xs">{t("keys.encrypted")}</p>
         </div>
       ) : (
@@ -510,9 +547,19 @@ function ModelConnectionFields({
             {connection?.credential_env
               ? connection.credential_state === "configured"
                 ? t("connectionForm.env.set")
-                : t("connectionForm.env.notSet")
+                : originVariable
+                  ? t("connectionForm.env.notUsable")
+                  : t("connectionForm.env.notSet")
               : t("connectionForm.env.setVariable")}
           </p>
+          {originVariable && draftOrigin ? (
+            <p className="text-muted-foreground text-xs">
+              {t("connectionForm.env.origin", {
+                variable: originVariable,
+                origin: draftOrigin,
+              })}
+            </p>
+          ) : null}
         </div>
       )}
       {insecure ? (

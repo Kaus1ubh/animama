@@ -1,3 +1,7 @@
+"""Translates provider-neutral model-client requests into OpenAI Responses SDK arguments:
+input items, tools, text format, continuation and server-side compaction.
+"""
+
 from __future__ import annotations
 
 import json
@@ -19,6 +23,7 @@ from openai.types.responses.response_create_params import (
 from openai.types.responses.response_input_param import ApplyPatchCall, ApplyPatchCallOutput
 from openai.types.shared.reasoning_effort import ReasoningEffort
 
+from animama.adapters.model_clients._common import jsonable, openai_cache_breakpoint_text_part
 from animama.app.model_clients import (
     MODEL_CLIENT_TOOL_CALL_ITEM_TYPE,
     MODEL_CLIENT_TOOL_RESULT_ITEM_TYPE,
@@ -31,7 +36,6 @@ from animama.app.model_clients.prompt import (
 )
 from animama.domain.model_connection import BUILTIN_OPENAI_CONNECTION_ID
 
-from .._common import jsonable, openai_cache_breakpoint_text_part
 from .support import (
     OPENAI_RESPONSES_ASSISTANT_PHASES,
     OPENAI_RESPONSES_ASSISTANT_PHASES_KEY,

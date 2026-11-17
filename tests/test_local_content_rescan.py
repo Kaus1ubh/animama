@@ -29,7 +29,7 @@ def _glb() -> bytes:
     )
 
 
-async def test_rescan_handles_add_edit_rename_invalid_and_delete(async_session, tmp_path: Path) -> None:  # noqa: ANN001
+async def test_rescan_handles_add_edit_rename_invalid_and_delete(async_session, tmp_path: Path) -> None:
     paths = initialize_local_runtime(
         Settings(animama_content_root=tmp_path / "content", animama_data_root=tmp_path / "data")
     )

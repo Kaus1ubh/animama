@@ -63,7 +63,7 @@ endpoint.
 
 ```text
 app/model_catalog.py (built-in rows)  |  App Settings → Models (owner rows)
-    -> alembic/seeds/01-seed-model-providers.sql  |  /v1/model-connections/{id}/models
+    -> src/backend/migrations/seeds/01-seed-model-providers.sql  |  /v1/model-connections/{id}/models
     -> model_connections + model_providers tables
     -> GET /v1/model-providers (filtered by the composition's ModelCatalogPolicy)
     -> generated frontend client + useModelProviders()
@@ -92,7 +92,7 @@ is the public projection of those rows; only tests use it, and the API never
 falls back to it.
 
 The generated post-schema seed
-`alembic/seeds/01-seed-model-providers.sql` upserts the built-in connections
+`src/backend/migrations/seeds/01-seed-model-providers.sql` upserts the built-in connections
 and then the built-in rows after Alembic creates the tables. It updates only
 `source='builtin'` rows, never changes `hidden`, `early_compaction`, `source`
 or `connection_id`, and retires built-in rows missing from the catalog. Owner
@@ -221,9 +221,10 @@ defaults: label and logo, default base URL (local presets derive the host from
 variable, timeout and `ModelConnectionCompatibility`. Settings read presets
 from `GET /v1/model-connection-presets`; chat-failure hints in
 `packages/product-ui/src/chat/chat-failure.ts` name local presets. A suggested
-key variable must also be allowed by `KNOWN_PROVIDER_CREDENTIAL_ENVS` in
-`app/model_clients/credentials.py`; otherwise owners use
-`ANIMAMA_CONNECTION_<NAME>_API_KEY`.
+key variable must also be listed with its provider's origin in
+`PROVIDER_CREDENTIAL_ORIGINS` (`app/model_clients/credential_store.py`), and its
+key then goes only to that origin; otherwise owners use
+`ANIMAMA_CONNECTION_<NAME>_API_KEY` with its `_ORIGIN`.
 
 When a server differs in a way the existing options cannot express, add a
 compatibility option and apply it in
@@ -249,8 +250,8 @@ the provider's lifecycle. This is a larger change:
 5. decide whether the provider shares an existing transcript standard or needs
    a new `api_standard` mapping in `app/chat/api_standard.py`; a new standard
    or model-client profile also extends the `chats` `api_standard` and
-   `last_model_client` CHECK constraints in the ORM and
-   `alembic/versions/0001_baseline.sql`;
+   `last_model_client` CHECK constraints in the ORM and a new Alembic
+   revision;
 6. translate structured output, reasoning, tools, usage, errors, retries, and
    terminal stream events explicitly, mapping failures to the neutral
    categories in `app/model_clients/error_categories.py`;
@@ -368,14 +369,14 @@ represented faithfully, either:
 
 - mark the missing dimension in `pricing_notes` and document the estimate's
   limitation; or
-- extend the domain, ORM, baseline SQL, mapper, serializer, estimator, seed, and
-  tests before claiming complete pricing support.
+- extend the domain, ORM (with an Alembic revision), mapper, serializer,
+  estimator, seed, and tests before claiming complete pricing support.
 
 Unknown pricing must remain explicitly unpriced, never zero.
 
 ### 5. Regenerate And Apply The Seed
 
-Update `alembic/seeds/01-seed-model-providers.sql` from
+Update `src/backend/migrations/seeds/01-seed-model-providers.sql` from
 `serialize_model_provider_catalog()` and `serialize_builtin_model_connections()`
 and run the catalog parity test. Do not hand-edit only the SQL while leaving the
 Python source stale. Removing an entry retires its row on the next seed run; the

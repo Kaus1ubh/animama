@@ -9,9 +9,12 @@ fi
 
 cd "$CLAUDE_PROJECT_DIR"
 
-# Commit as the repository owner instead of the cloud session's default identity.
-git config user.name "Raymond Van"
-git config user.email "raymondxvan@gmail.com"
+# Commit under the identity the cloud environment supplies, if it supplies one;
+# otherwise the session's default identity is used.
+if [ -n "${ANIMAMA_GIT_USER_NAME:-}" ] && [ -n "${ANIMAMA_GIT_USER_EMAIL:-}" ]; then
+  git config user.name "$ANIMAMA_GIT_USER_NAME"
+  git config user.email "$ANIMAMA_GIT_USER_EMAIL"
+fi
 
 # Same dependency set as `make sync`.
 make sync

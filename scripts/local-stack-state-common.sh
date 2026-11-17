@@ -25,7 +25,7 @@ selectors = (
     "COMPOSE_PROJECT_NAME", "APP_HOST", "APP_SCHEME", "WEB_SERVER_PORT",
     "PGADMIN_PORT", "DOZZLE_PORT", "ANIMAMA_INCLUDED_CONTENT_HOST_PATH",
     "ANIMAMA_LOCAL_CONTENT_HOST_PATH", "ANIMAMA_DATA_HOST_PATH",
-    "ANIMAMA_DOCLING_CACHE_HOST_PATH", "ANIMAMA_CONTENT_ROOT", "ANIMAMA_DATA_ROOT",
+    "ANIMAMA_CONTENT_ROOT", "ANIMAMA_DATA_ROOT",
     "HOST_UID", "HOST_GID", "ANIMAMA_CONNECTION_KEYS_FILE",
 )
 # Compose always emits an inferred project name. Import it only when the caller
@@ -319,4 +319,25 @@ animama_state_validate_tar_paths() {
       *) animama_state_die "archive contains a link or special filesystem entry" ;;
     esac
   done < <(tar -tvzf "$archive")
+}
+
+# Replace the private data root with a backup's data archive. Backups omit
+# installed model assets, so this installation's installed sets stay in place
+# (once downloads have ended they could not be downloaded again). Staged
+# downloads do not.
+animama_state_replace_data_root() {
+  local archive="$1"
+  local root="$ANIMAMA_STATE_DATA_ROOT"
+  local kept="${root}/.restore-model-assets"
+  # A kept copy left by an interrupted restore is already the one to keep.
+  if [ -d "${root}/internal/model-assets" ] && [ ! -e "$kept" ]; then
+    mv -- "${root}/internal/model-assets" "$kept"
+  fi
+  find "$root" -mindepth 1 -maxdepth 1 ! -name .restore-model-assets -exec rm -rf -- {} +
+  tar -xzf "$archive" -C "$root"
+  if [ -d "$kept" ]; then
+    mkdir -p "${root}/internal"
+    rm -rf -- "${root}/internal/model-assets"
+    mv -- "$kept" "${root}/internal/model-assets"
+  fi
 }

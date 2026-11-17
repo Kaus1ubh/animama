@@ -19,7 +19,7 @@ from tests.test_anima_materializer import _required, creation, owned_gesture  # 
 from tests.typed_loadout_support import LoadoutFixture, add_typed_item
 
 
-async def _owned_reaction(async_session, user_id: str, name: str) -> CatalogContentEntry:  # noqa: ANN001
+async def _owned_reaction(async_session, user_id: str, name: str) -> CatalogContentEntry:
     """Add one owner Reaction; the creation fixture's owner cleanup retires it."""
 
     row = await add_typed_item(
@@ -32,7 +32,7 @@ async def _owned_reaction(async_session, user_id: str, name: str) -> CatalogCont
     return _required(await SQLAlchemyContentCatalog(async_session).get_visible_item(user_id=user_id, item_id=row.id))
 
 
-async def _sources(async_session, user_id: str, size: int):  # noqa: ANN001, ANN202
+async def _sources(async_session, user_id: str, size: int):
     """``size`` configured owner Gestures with distinct semantic keys and ``size`` owner Reactions, one per cell."""
 
     suffix = uuid4().hex[:8]

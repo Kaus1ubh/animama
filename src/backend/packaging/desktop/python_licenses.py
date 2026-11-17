@@ -35,20 +35,51 @@ def declared_license(
     return "SEE-NOTICE" if notices else "NOASSERTION"
 
 
+NOTICE_NAME_TOKENS = ("license", "licence", "copying", "notice", "copyright")
+MAX_NOTICE_BYTES = 4 * 1024 * 1024
+
+
+def is_notice_file(file: importlib.metadata.PackagePath, declared: set[str]) -> bool:
+    """Whether an installed file is a licence or notice text.
+
+    A file counts when its name says so, or when the distribution's metadata
+    declares it with ``License-File``. Declared files sit in ``.dist-info/licenses/``
+    (PEP 639) or, in older wheels, at the top of ``.dist-info``, under any name:
+    pypdfium2 declares PDFium's bundled components as files such as
+    ``BUILD_LICENSES/freetype.txt``.
+    """
+
+    if any(token in file.name.lower() for token in NOTICE_NAME_TOKENS):
+        return True
+    parts = file.parts
+    if len(parts) < 2 or not parts[0].endswith(".dist-info"):
+        return False
+    relative = "/".join(parts[1:])
+    return relative in declared or (parts[1] == "licenses" and "/".join(parts[2:]) in declared)
+
+
+def read_notice(path: Path) -> str:
+    """A notice's text: UTF-8, or Latin-1 for older notices such as FreeType's, which every byte decodes."""
+
+    data = path.read_bytes()
+    try:
+        return data.decode("utf-8")
+    except UnicodeDecodeError:
+        return data.decode("latin-1")
+
+
 def dependency_licenses() -> list[dict[str, object]]:
     result = []
     for distribution in sorted(importlib.metadata.distributions(), key=lambda item: item.metadata["Name"].lower()):
         name = distribution.metadata["Name"]
+        declared_files = {value.strip() for value in distribution.metadata.get_all("License-File") or []}
         texts = []
         for file in sorted(distribution.files or [], key=str):
             # Includes bundled native library notices under wheel dist-info.
-            if any(token in file.name.lower() for token in ("license", "copying", "notice", "copyright")):
+            if is_notice_file(file, declared_files):
                 candidate = Path(distribution.locate_file(file))
-                if candidate.is_file() and candidate.stat().st_size < 4 * 1024 * 1024:
-                    try:
-                        texts.append({"path": str(file), "text": candidate.read_text(encoding="utf-8")})
-                    except UnicodeError:
-                        continue
+                if candidate.is_file() and candidate.stat().st_size < MAX_NOTICE_BYTES:
+                    texts.append({"path": str(file), "text": read_notice(candidate)})
         declared = declared_license(distribution.metadata, texts)
         result.append(
             {

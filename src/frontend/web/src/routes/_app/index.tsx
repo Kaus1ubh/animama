@@ -5,7 +5,7 @@ import { resolveSelectedAnimaId } from "@/lib/animas/anima-management-search";
 import { useAnimas } from "@/query/hooks/useAnimas";
 import { useUserSettings } from "@/query/hooks/useUserSettings";
 import { AppShellPage } from "@/ui/app/AppShellPage";
-import { useRuntimeAdmission } from "@web/app/runtime/RuntimeAdmissionProvider";
+import { useRuntimeAdmission } from "@/app/runtime/RuntimeAdmissionProvider";
 import { Button } from "@/ui/components/button";
 import { EmptyAnimaRoster } from "@/ui/animas/EmptyAnimaRoster";
 

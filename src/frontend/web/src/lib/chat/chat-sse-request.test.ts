@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { buildChatSseRequestBody } from "./chat-sse-request";
+import { buildChatSseRequestBody } from "@animama/product-ui/chat";
 
 describe("buildChatSseRequestBody", () => {
   it("includes the selected Hugging Face model-provider row exactly", () => {

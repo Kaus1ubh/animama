@@ -1,5 +1,3 @@
-"use client";
-
 import {
   SCENE_BACKGROUND_DIRECTIONS,
   SCENE_BACKGROUND_ITEM_ROTATION_MODES,
@@ -17,7 +15,7 @@ import {
   Panel,
   SelectControl,
 } from "../controls";
-import type { SceneBackgroundDraftController } from "./use-scene-vfx-drafts";
+import type { SceneBackgroundDraftController } from "./useSceneVFXDrafts";
 
 export function SceneBackgroundPanel({
   controller,

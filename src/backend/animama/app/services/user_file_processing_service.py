@@ -2,23 +2,20 @@
 
 from __future__ import annotations
 
-import csv
+import asyncio
 import hashlib
-import json
-import math
 import time
 from collections.abc import Iterable
 from dataclasses import dataclass
-from datetime import UTC, datetime
-from io import StringIO
 from typing import Any
 from uuid import uuid4
-from xml.etree import ElementTree
 
+from animama.app.ports.private_file_storage import PrivateFileStorage, PrivateFileUnavailableError
 from animama.app.ports.text_embedder import TextEmbedder
 from animama.app.ports.uow_port import UnitOfWork
-from animama.app.ports.user_file_parser_port import UserFileParser
+from animama.app.ports.user_file_parser_port import UserFileParser, UserFileParseRejectedError
 from animama.app.ports.user_file_processing_port import UserFileProcessingRepository
+from animama.app.services.user_file_chunking import chunk_parsed_user_file_document
 from animama.app.services.user_file_overview import (
     build_user_file_overview,
     fallback_user_file_overview,
@@ -33,13 +30,14 @@ from animama.domain.user_file import (
     STATUS_UPLOADED,
 )
 from animama.domain.user_file_processing import (
+    DEFAULT_USER_FILE_CHUNK_MAX_TOKENS,
     JOB_STATUS_SUCCEEDED,
     JOB_TYPE_PROCESS_FILE,
+    NO_SEARCHABLE_TEXT_ERROR,
     SEARCH_MODE_HYBRID,
     SEARCH_MODE_KEYWORD,
     SEARCH_MODE_SEMANTIC,
     ClaimedUserFileProcessingJob,
-    ParsedUserFileDocument,
     SearchMode,
     UserFileChunkDraft,
     UserFileProcessingInfo,
@@ -47,6 +45,7 @@ from animama.domain.user_file_processing import (
     UserFileSearchResult,
 )
 from animama.logging import get_logger
+from animama.utils.clock import utc_now
 
 PROCESSABLE_FILE_STATUSES = {
     STATUS_UPLOADED,
@@ -56,10 +55,10 @@ PROCESSABLE_FILE_STATUSES = {
     STATUS_FAILED,
 }
 
-LIGHTWEIGHT_EXTENSIONS = frozenset({".txt", ".rst", ".org", ".json", ".tsv", ".xml"})
-DEFAULT_TARGET_CHARS = 2500
-DEFAULT_OVERLAP_CHARS = 250
 RRF_K = 60
+
+TRANSIENT_PARSER_METADATA = frozenset({"pdf_pages"})
+"""Parser metadata that only chunking reads, left out of the file's stored processing metadata."""
 
 
 class UserFileProcessingServiceError(Exception):
@@ -84,6 +83,47 @@ class UserFileProcessingConflictError(UserFileProcessingServiceError):
 
 class UserFileProcessingUnavailableError(UserFileProcessingServiceError):
     """Raised when semantic search dependencies are unavailable."""
+
+
+def is_retryable_processing_failure(error: BaseException) -> bool:
+    """Return whether a failed processing attempt may succeed when retried.
+
+    A missing, empty or oversized upload, a file without searchable text and
+    content the parser rejects fail the same way every time, so they fail the
+    file at once. Anything else (a database or provider hiccup, a parser crash
+    in this process) is retried with backoff.
+    """
+
+    return not isinstance(error, UserFileProcessingValidationError | UserFileParseRejectedError)
+
+
+def read_claimed_upload(
+    storage: PrivateFileStorage,
+    claimed: ClaimedUserFileProcessingJob,
+    *,
+    max_process_bytes: int,
+) -> bytes | None:
+    """Read a claimed upload's private bytes, at most one byte past the processing limit.
+
+    One extra byte is enough for :meth:`UserFileProcessingService.complete_claimed_job`
+    to report an oversized upload without holding an arbitrarily large document
+    in memory. A file that is missing or no longer its recorded size returns
+    ``None``, which fails the job for good. Any other read error (a permission
+    problem, an unavailable disk) propagates, so the job is retried. This blocks
+    on file IO; async callers run it in a thread.
+    """
+
+    expected_size = claimed.stored_size_bytes or claimed.declared_size_bytes
+    try:
+        with storage.open_bounded(claimed.storage_locator, expected_size_bytes=expected_size) as stored:
+            return stored.stream.read(max_process_bytes + 1)
+    except PrivateFileUnavailableError as exc:
+        get_logger("app.services.user_file_processing").warning(
+            "User-file upload is missing or changed",
+            file_id=claimed.job.file_id,
+            error_type=exc.__class__.__name__,
+        )
+        return None
 
 
 @dataclass(frozen=True, slots=True)
@@ -113,198 +153,6 @@ def new_user_file_processing_job_id() -> str:
     return f"job-{uuid4().hex}"
 
 
-def _utcnow() -> datetime:
-    return datetime.now(UTC)
-
-
-def estimate_tokens(text: str) -> int:
-    """Estimate token count without importing tokenizer dependencies."""
-
-    stripped = text.strip()
-    if not stripped:
-        return 0
-    return max(1, math.ceil(len(stripped) / 4))
-
-
-def parse_lightweight_user_file(*, payload: bytes, filename: str, extension: str) -> ParsedUserFileDocument:
-    """Parse simple formats with stdlib checks instead of invoking Docling."""
-
-    text = _decode_text_payload(payload)
-    normalized_extension = extension.lower()
-    metadata: dict[str, Any] = {
-        "parser": "stdlib",
-        "filename": filename,
-        "extension": normalized_extension,
-    }
-
-    if normalized_extension == ".json":
-        try:
-            parsed = json.loads(text)
-        except json.JSONDecodeError as exc:
-            raise UserFileProcessingValidationError(f"Invalid JSON document: {exc.msg}") from exc
-        return ParsedUserFileDocument(
-            text=json.dumps(parsed, indent=2, sort_keys=True, ensure_ascii=False),
-            parser_name="stdlib-json",
-            metadata={**metadata, "format": "json"},
-        )
-
-    if normalized_extension == ".xml":
-        try:
-            ElementTree.fromstring(text)
-        except ElementTree.ParseError as exc:
-            raise UserFileProcessingValidationError("Invalid XML document") from exc
-        return ParsedUserFileDocument(
-            text=text.strip(),
-            parser_name="stdlib-xml",
-            metadata={**metadata, "format": "xml"},
-        )
-
-    if normalized_extension == ".tsv":
-        rows = list(csv.reader(StringIO(text), delimiter="\t"))
-        table = _rows_to_markdown_table(rows)
-        return ParsedUserFileDocument(
-            text=table,
-            parser_name="stdlib-tsv",
-            metadata={**metadata, "format": "tsv", "table_only": True, "row_count": len(rows)},
-            tables=[{"table_index": 0, "rows": rows, "source": "tsv"}],
-        )
-
-    return ParsedUserFileDocument(
-        text=text.strip(),
-        parser_name="stdlib-text",
-        metadata={**metadata, "format": normalized_extension.lstrip(".") or "text"},
-    )
-
-
-def _decode_text_payload(payload: bytes) -> str:
-    try:
-        return payload.decode("utf-8")
-    except UnicodeDecodeError:
-        return payload.decode("utf-8", errors="replace")
-
-
-def _rows_to_markdown_table(rows: list[list[str]]) -> str:
-    if not rows:
-        return ""
-    width = max(len(row) for row in rows)
-    normalized = [[cell.strip() for cell in row] + [""] * (width - len(row)) for row in rows]
-    header = normalized[0]
-    lines = [
-        "| " + " | ".join(header) + " |",
-        "| " + " | ".join("---" for _ in header) + " |",
-    ]
-    for row in normalized[1:]:
-        lines.append("| " + " | ".join(row) + " |")
-    return "\n".join(lines)
-
-
-def chunk_parsed_user_file_document(
-    document: ParsedUserFileDocument,
-    *,
-    target_chars: int = DEFAULT_TARGET_CHARS,
-    overlap_chars: int = DEFAULT_OVERLAP_CHARS,
-) -> list[UserFileChunkDraft]:
-    """Split parsed text into deterministic prose or table-oriented chunks."""
-
-    if document.metadata.get("table_only") and document.tables:
-        table_chunks = _chunk_tables(document, target_chars=target_chars)
-        if table_chunks:
-            return table_chunks
-
-    text = _normalize_chunk_text(document.text)
-    if not text:
-        return []
-
-    chunks: list[UserFileChunkDraft] = []
-    start = 0
-    index = 0
-    text_length = len(text)
-    while start < text_length:
-        end = min(text_length, start + target_chars)
-        if end < text_length:
-            boundary = text.rfind("\n\n", start + target_chars // 2, end)
-            if boundary == -1:
-                boundary = text.rfind("\n", start + target_chars // 2, end)
-            if boundary != -1 and boundary > start:
-                end = boundary
-        chunk_text = text[start:end].strip()
-        if chunk_text:
-            chunks.append(_chunk_draft(index, chunk_text, {**document.metadata, "chunk_type": "prose"}))
-            index += 1
-        if end >= text_length:
-            break
-        next_start = max(end - overlap_chars, start + 1)
-        start = next_start
-    return chunks
-
-
-def _chunk_tables(document: ParsedUserFileDocument, *, target_chars: int) -> list[UserFileChunkDraft]:
-    chunks: list[UserFileChunkDraft] = []
-    chunk_index = 0
-    for table_index, table in enumerate(document.tables or []):
-        rows = table.get("rows")
-        if not isinstance(rows, list) or not rows:
-            continue
-        header = rows[0]
-        body_rows = rows[1:] or []
-        group: list[list[str]] = []
-        row_start = 1
-        for offset, row in enumerate(body_rows, start=1):
-            candidate = [header, *group, row]
-            candidate_text = _rows_to_markdown_table([[str(cell) for cell in r] for r in candidate])
-            if group and len(candidate_text) > target_chars:
-                chunk_text = _rows_to_markdown_table([[str(cell) for cell in r] for r in [header, *group]])
-                chunks.append(
-                    _chunk_draft(
-                        chunk_index,
-                        chunk_text,
-                        {
-                            **document.metadata,
-                            "chunk_type": "table",
-                            "table_index": table.get("table_index", table_index),
-                            "row_start": row_start,
-                            "row_end": offset - 1,
-                        },
-                    )
-                )
-                chunk_index += 1
-                group = [row]
-                row_start = offset
-            else:
-                group.append(row)
-        if group or not body_rows:
-            chunk_text = _rows_to_markdown_table([[str(cell) for cell in r] for r in [header, *group]])
-            chunks.append(
-                _chunk_draft(
-                    chunk_index,
-                    chunk_text,
-                    {
-                        **document.metadata,
-                        "chunk_type": "table",
-                        "table_index": table.get("table_index", table_index),
-                        "row_start": row_start if body_rows else 0,
-                        "row_end": row_start + len(group) - 1 if group else 0,
-                    },
-                )
-            )
-            chunk_index += 1
-    return chunks
-
-
-def _normalize_chunk_text(text: str) -> str:
-    return "\n".join(line.rstrip() for line in text.replace("\r\n", "\n").replace("\r", "\n").split("\n")).strip()
-
-
-def _chunk_draft(index: int, text: str, metadata: dict[str, Any]) -> UserFileChunkDraft:
-    return UserFileChunkDraft(
-        chunk_index=index,
-        text=text,
-        char_count=len(text),
-        token_estimate=estimate_tokens(text),
-        metadata=dict(metadata),
-    )
-
-
 class UserFileProcessingService:
     """Coordinate user-file processing queue, worker, and debug search use cases."""
 
@@ -315,11 +163,13 @@ class UserFileProcessingService:
         uow: UnitOfWork,
         max_attempts: int = 3,
         processing_enabled: bool = True,
+        chunk_max_tokens: int = DEFAULT_USER_FILE_CHUNK_MAX_TOKENS,
     ) -> None:
         self._processing = processing
         self._uow = uow
         self._max_attempts = max(1, max_attempts)
         self._processing_enabled = processing_enabled
+        self._chunk_max_tokens = chunk_max_tokens
         self._log = get_logger("app.services.user_file_processing")
 
     async def list_processing_info(self, *, user_id: str, file_ids: list[str]) -> dict[str, UserFileProcessingInfo]:
@@ -371,7 +221,7 @@ class UserFileProcessingService:
             file_id=file_id,
             job_type=JOB_TYPE_PROCESS_FILE,
             max_attempts=self._max_attempts,
-            run_after=_utcnow(),
+            run_after=utc_now(),
             metadata={"force": force},
         )
         created = await self._processing.create_processing_job(job=job, set_file_processing=True)
@@ -394,11 +244,11 @@ class UserFileProcessingService:
         claimed = await self._processing.claim_next_job(
             worker_id=worker_id,
             lease_seconds=lease_seconds,
-            now=_utcnow(),
+            now=utc_now(),
             limit_file_id=limit_file_id,
         )
-        if claimed is not None:
-            await self._uow.commit()
+        # Commit even without a claim: claiming also fails interrupted last attempts.
+        await self._uow.commit()
         return claimed
 
     async def complete_claimed_job(
@@ -412,8 +262,12 @@ class UserFileProcessingService:
     ) -> UserFileProcessingJob:
         """Parse, chunk and (when embeddings are on) embed a claimed upload.
 
-        With embeddings off the file is ready for keyword search; only an
-        embedding failure marks it ``ready_keyword_only``.
+        ``parser`` reads every format; this service never parses upload bytes
+        itself. Chunks follow the document's headings (see
+        :mod:`animama.app.services.user_file_chunking`). Chunking and the
+        overview run in a worker thread so a large document does not stall the
+        server's other requests. With embeddings off the file is ready for
+        keyword search; only an embedding failure marks it ``ready_keyword_only``.
         """
 
         if payload is None:
@@ -431,7 +285,7 @@ class UserFileProcessingService:
                 user_id=claimed.job.user_id,
                 file_id=claimed.job.file_id,
                 sha256=content_sha256,
-                processed_at=_utcnow(),
+                processed_at=utc_now(),
                 embedding_model_id=embedder.model_id if embedder is not None else None,
             )
             if reused is not None:
@@ -453,20 +307,13 @@ class UserFileProcessingService:
             user_id=claimed.job.user_id,
             extension=extension,
             byte_count=len(payload),
-            parser="stdlib" if extension in LIGHTWEIGHT_EXTENSIONS else "docling",
+            parser=type(parser).__name__,
         )
-        if extension in LIGHTWEIGHT_EXTENSIONS:
-            parsed = parse_lightweight_user_file(
-                payload=payload,
-                filename=claimed.original_filename,
-                extension=extension,
-            )
-        else:
-            parsed = await parser.parse(
-                payload=payload,
-                filename=claimed.original_filename,
-                extension=extension,
-            )
+        parsed = await parser.parse(
+            payload=payload,
+            filename=claimed.original_filename,
+            extension=extension,
+        )
         self._log.info(
             "User-file parsing finished",
             job_id=claimed.job.id,
@@ -474,46 +321,33 @@ class UserFileProcessingService:
             user_id=claimed.job.user_id,
             parser=parsed.parser_name,
             text_chars=len(parsed.text),
-            parser_chunk_count=len(parsed.chunks) if parsed.chunks is not None else None,
             duration_seconds=round(time.perf_counter() - parse_started, 3),
         )
 
-        if parsed.chunks is not None:
-            chunks = parsed.chunks
-            self._log.info(
-                "User-file parser-provided chunks selected",
-                job_id=claimed.job.id,
-                file_id=claimed.job.file_id,
-                user_id=claimed.job.user_id,
-                chunk_count=len(chunks),
-            )
-        else:
-            chunk_started = time.perf_counter()
-            self._log.info(
-                "User-file fallback chunking started",
-                job_id=claimed.job.id,
-                file_id=claimed.job.file_id,
-                user_id=claimed.job.user_id,
-                parser=parsed.parser_name,
-            )
-            chunks = chunk_parsed_user_file_document(parsed)
-            self._log.info(
-                "User-file fallback chunking finished",
-                job_id=claimed.job.id,
-                file_id=claimed.job.file_id,
-                user_id=claimed.job.user_id,
-                chunk_count=len(chunks),
-                duration_seconds=round(time.perf_counter() - chunk_started, 3),
-            )
+        chunk_started = time.perf_counter()
+        self._log.info(
+            "User-file chunking started",
+            job_id=claimed.job.id,
+            file_id=claimed.job.file_id,
+            user_id=claimed.job.user_id,
+            parser=parsed.parser_name,
+        )
+        chunks = await asyncio.to_thread(chunk_parsed_user_file_document, parsed, max_tokens=self._chunk_max_tokens)
+        self._log.info(
+            "User-file chunking finished",
+            job_id=claimed.job.id,
+            file_id=claimed.job.file_id,
+            user_id=claimed.job.user_id,
+            chunk_count=len(chunks),
+            duration_seconds=round(time.perf_counter() - chunk_started, 3),
+        )
         if not chunks:
-            raise UserFileProcessingValidationError("No searchable text was extracted from the uploaded file")
+            raise UserFileProcessingValidationError(NO_SEARCHABLE_TEXT_ERROR)
 
         overview_warning: str | None = None
         try:
-            overview = build_user_file_overview(
-                filename=claimed.original_filename,
-                document=parsed,
-                chunks=chunks,
+            overview = await asyncio.to_thread(
+                build_user_file_overview, filename=claimed.original_filename, document=parsed
             )
         except Exception as exc:
             message = str(exc).strip() or exc.__class__.__name__
@@ -525,10 +359,8 @@ class UserFileProcessingService:
                 user_id=claimed.job.user_id,
                 error=message,
             )
-            overview = fallback_user_file_overview(
-                filename=claimed.original_filename,
-                document=parsed,
-                chunks=chunks,
+            overview = await asyncio.to_thread(
+                fallback_user_file_overview, filename=claimed.original_filename, document=parsed
             )
 
         embedding_warning: str | None = None
@@ -591,7 +423,9 @@ class UserFileProcessingService:
             "source_extension": extension,
             "embedded": embedding_model_id is not None,
             "warnings": processing_warnings,
-            "parser_metadata": parsed.metadata,
+            "parser_metadata": {
+                key: value for key, value in parsed.metadata.items() if key not in TRANSIENT_PARSER_METADATA
+            },
         }
         completed = await self._processing.replace_chunks_and_mark_success(
             job_id=claimed.job.id,
@@ -602,7 +436,7 @@ class UserFileProcessingService:
             file_status=file_status,
             processing_metadata=processing_metadata,
             file_metadata_updates={"overview": serialize_user_file_overview(overview)},
-            processed_at=_utcnow(),
+            processed_at=utc_now(),
             embedding_model_id=embedding_model_id,
         )
         await self._uow.commit()
@@ -613,18 +447,41 @@ class UserFileProcessingService:
         *,
         claimed: ClaimedUserFileProcessingJob,
         error: str,
+        retryable: bool = True,
     ) -> UserFileProcessingJob:
+        """Record a failed attempt; see :func:`is_retryable_processing_failure` for ``retryable``.
+
+        A retryable failure is queued again with backoff until the attempt
+        limit; otherwise the job and its file fail now with ``error``.
+        """
+
         retry_delay = _retry_delay_seconds(claimed.job.attempts)
         updated = await self._processing.mark_job_failure(
             job_id=claimed.job.id,
             user_id=claimed.job.user_id,
             file_id=claimed.job.file_id,
             error=error,
-            now=_utcnow(),
+            now=utc_now(),
             retry_delay_seconds=retry_delay,
+            retryable=retryable,
         )
         await self._uow.commit()
         return updated
+
+    async def release_claimed_job(self, *, claimed: ClaimedUserFileProcessingJob, worker_id: str) -> bool:
+        """Return a job this worker stopped processing to the queue now, without spending its attempt.
+
+        Only a job still running under ``worker_id`` is released; its file stays
+        at Processing. Returns whether the job was released.
+        """
+
+        released = await self._processing.release_claimed_job(
+            job_id=claimed.job.id,
+            worker_id=worker_id,
+            now=utc_now(),
+        )
+        await self._uow.commit()
+        return released
 
     async def delete_chunks_for_file(self, *, user_id: str, file_id: str) -> None:
         await self._processing.delete_chunks_for_file(user_id=user_id, file_id=file_id)
@@ -820,7 +677,6 @@ def _retry_delay_seconds(attempts: int) -> int:
 
 
 __all__ = [
-    "LIGHTWEIGHT_EXTENSIONS",
     "PROCESSABLE_FILE_STATUSES",
     "ProcessFileResult",
     "UserFileProcessingConflictError",
@@ -830,9 +686,8 @@ __all__ = [
     "UserFileProcessingUnavailableError",
     "UserFileProcessingValidationError",
     "UserFileSearchResults",
-    "chunk_parsed_user_file_document",
-    "estimate_tokens",
+    "is_retryable_processing_failure",
     "new_user_file_processing_job_id",
-    "parse_lightweight_user_file",
+    "read_claimed_upload",
     "search_user_file_chunks",
 ]

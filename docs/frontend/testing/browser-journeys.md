@@ -159,7 +159,11 @@ pnpm e2e:check      # Type-check all browser test sources, including inactive on
 node --test scripts/e2e/*.test.mjs
 ```
 
-Unexpected browser `pageerror` events fail active tests and remain in the evidence.
+Unexpected browser `pageerror` events and
+[Content Security Policy](../architecture/auth-server.md#content-security-policy)
+violations reported by the page or a running worker fail active tests and remain
+in the evidence; a refusal while a worker is still starting shows only in
+DevTools. Development stacks send no policy, so only built stacks check it.
 The runner records per-project locking, source identity, traces, request failures,
 and an exact content ownership ledger under ignored `.animama-e2e/runs/`.
 Created catalog items must still be cleaned up using their recorded ID, revision,

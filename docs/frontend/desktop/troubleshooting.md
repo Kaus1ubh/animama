@@ -34,13 +34,13 @@ backend log before deciding on a repair.
 | `legacy_profile_conflict`, `legacy_profile_invalid`                                                 | Preserve both old `Anima` and new `Animama` trees. Do not merge them; ask for a reviewed recovery procedure.                                                                  |
 | `unsupported_postgresql_major`, `postgres_ownership_mismatch`                                       | Stop. The app owns a specific PostgreSQL 16 cluster; pointing it at another database or replacing its binaries is not an upgrade.                                             |
 | `database_initialization_incomplete`, `database_version_mismatch`, `installation_principal_missing` | Preserve data and inspect the bootstrap logs. Never generate a replacement owner over existing owner-scoped rows.                                                             |
-| `database_schema_mismatch`                                                                          | The profile schema differs from this build (often an edited development baseline). Retry cannot fix it. Development: quit, then archive the profile: `pnpm desktop:mac:reset` on macOS, or rename `%LOCALAPPDATA%\Animama` on Windows. |
+| `database_schema_mismatch`                                                                          | The profile schema differs from this build at the same revision (a development database or a 0.1.3 preview profile, built while the baseline was edited in place). Retry cannot fix it. Development: quit, then archive the profile: `pnpm desktop:mac:reset` on macOS, or rename `%LOCALAPPDATA%\Animama` on Windows. |
 | `content_startup_failed`                                                                            | Inspect the backend log for the reconciliation error. A constraint failure on a development profile needs the same archive (`pnpm desktop:mac:reset`, or renaming `%LOCALAPPDATA%\Animama` on Windows); otherwise fix it and Retry. |
 | `pre_migration_backup_failed`                                                                       | Check disk space and logs. No migration was started; retry only after the snapshot can be verified.                                                                           |
 | `migration_failed`, `migration_recovery_required`, `migration_journal_invalid`                      | Preserve the current database and snapshot. Retry the same intended version only after resolving the cause; do not reset, auto-restore or downgrade.                          |
 | `backend_start_failed`, `backend_readiness_mismatch`, `runtime_command_failed`                      | Inspect recent child logs; check for a complete matching app and adequate disk space. Escalate repeated errors rather than deleting state.                                    |
 | `pack_in_use`, `pack_cleanup_pending`, `pack_download_failed`                                       | Follow [Feature packs](feature-packs.md#remove-safely). Do not erase directories or change download hashes.                                                                   |
-| `pack_signature_invalid`, `pack_file_invalid`, `pack_catalog_incompatible`                          | Stop using those pack files. Use only the app's compatible install/repair controls; if blocked, preserve evidence and contact support. Never run an unsigned document worker. |
+| `pack_file_invalid`, `pack_catalog_incompatible`                                                    | Stop using those pack files. Use only the app's compatible install/repair controls; if blocked, preserve evidence and contact support.                                        |
 
 ## Application listener and renderer access
 
@@ -99,8 +99,8 @@ for native hook permissions.
 Offline speech installs in place from Voice settings; see
 [Speech model downloads](feature-packs.md#speech-model-downloads). An
 interrupted download resumes with **Retry download**. To reinstall, remove GPU
-acceleration first, then the CPU model, and download again. "Speech recognition
-is in use" means another window still has the model loaded for dictation or
+acceleration first, then the CPU model, and download again; after the final
+release a removed set cannot be installed again. "Speech recognition is in use" means another window still has the model loaded for dictation or
 Voice Mode: stop it or close that window and retry. Directories left by the
 retired `parakeet-stt*` speech packs are deleted automatically at startup; do
 not move model files into `packs/` or the data directory by hand.
@@ -110,12 +110,12 @@ not move model files into `packs/` or the data directory by hand.
 A failed turn shows a notice beside your message naming the connection that
 failed. Connection key changes report their failures in App Settings → Models.
 
-| Error or symptom                                                   | Safe next action                                                                                                                                                                                                                         |
-| ------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| "Animama couldn't reach … Is … running at …?"                      | Start the server and load the model, or correct the connection's base URL in App Settings → Models. The app reaches local servers at `127.0.0.1`.                                                                                        |
-| "The conversation is too long for …" (category `context_exceeded`) | Send a shorter message, choose a model with a larger context window, or have the server load the model with a larger window and record that window on the model.                                                                         |
-| `connection_credentials_full` (the 32-key limit)                   | Remove the key from a connection you no longer use, then retry. Nothing was saved or sent.                                                                                                                                              |
-| `credential_connection_invalid`, `credential_changes_invalid`      | Main refused a malformed key change (a variable outside `ANIMAMA_CONNECTION_<ID>_API_KEY`, more than eight changes, or one target twice). Nothing changed; reopen Settings and retry, and report repeated failures with the app version. |
+| Error or symptom                                                                           | Safe next action                                                                                                                                                                                                                                                                               |
+| ------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| "Animama couldn't reach … Is … running at …?"                                              | Start the server and load the model, or correct the connection's base URL in App Settings → Models. The app reaches local servers at `127.0.0.1`.                                                                                                                                              |
+| "The conversation is too long for …" (category `context_exceeded`)                         | Send a shorter message, choose a model with a larger context window, or have the server load the model with a larger window and record that window on the model.                                                                                                                               |
+| `connection_credentials_full` (the 32-key limit)                                           | Remove the key from a connection you no longer use, then retry. Nothing was saved or sent.                                                                                                                                                                                                     |
+| `credential_connection_invalid`, `credential_changes_invalid`, `credential_origin_invalid` | Main refused a malformed key change (a variable outside `ANIMAMA_CONNECTION_<ID>_API_KEY`, an origin that is not a plain `scheme://host[:port]`, more than eight changes, or one target twice). Nothing changed; reopen Settings and retry, and report repeated failures with the app version. |
 
 DeepSeek, Hugging Face and Gemini keys saved by earlier builds are dropped when
 the vault loads; they never make it `vault_unreadable`. Re-enter a DeepSeek or
@@ -128,7 +128,9 @@ checks.
 
 ## Update failures
 
-A failed check or download leaves the current app available. Retry the offered
+The final release never checks for updates, so it shows none of these
+failures. In other builds, a failed check or download leaves the current app
+available. Retry the offered
 action after resolving network or disk problems. A changed candidate requires
 a fresh check. An active pack operation or incompatible in-use content can
 block an update; do not clear those guards by deleting files.

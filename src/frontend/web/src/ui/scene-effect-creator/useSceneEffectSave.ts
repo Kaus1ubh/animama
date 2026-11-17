@@ -1,5 +1,3 @@
-"use client";
-
 import { getI18n } from "react-i18next";
 
 import { contentSaveFieldError } from "@/lib/content/contentSaveErrors";

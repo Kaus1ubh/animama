@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { buildDirectElevenLabsRealtimeWsUrl } from "@/hooks/use-elevenlabs-tts-runtime";
+import { buildDirectElevenLabsRealtimeWsUrl } from "@/hooks/useElevenLabsTtsRuntime";
 
 describe("ElevenLabs realtime TTS runtime", () => {
   it("builds Text to Dialogue websocket URLs from the provided session", () => {

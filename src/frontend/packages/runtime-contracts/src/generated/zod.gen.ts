@@ -1759,6 +1759,10 @@ export const zPyAnimaChatProfileResponse = z.object({
     ])),
     default_model_provider_id: z.string(),
     metadata: z.optional(z.record(z.string(), z.unknown())),
+    reasoning_effort: z.optional(z.union([
+        z.string(),
+        z.null()
+    ])),
     updated_at: z.optional(z.union([
         z.iso.datetime(),
         z.null()
@@ -1769,7 +1773,11 @@ export const zPyAnimaChatProfileResponse = z.object({
  * PyAnimaChatProfileUpdateRequest
  */
 export const zPyAnimaChatProfileUpdateRequest = z.object({
-    default_model_provider_id: z.string().min(1)
+    default_model_provider_id: z.string().min(1),
+    reasoning_effort: z.optional(z.union([
+        z.string().max(16),
+        z.null()
+    ]))
 });
 
 /**
@@ -4052,6 +4060,7 @@ export const zPyModelAssetState = z.object({
  */
 export const zPyModelAssetList = z.object({
     assets: z.array(zPyModelAssetState),
+    downloads_offered: z.optional(z.boolean()).default(true),
     free_bytes: z.union([
         z.int(),
         z.null()

@@ -2629,6 +2629,12 @@ export type PyAnimaChatProfileResponse = {
         [key: string]: unknown;
     };
     /**
+     * Reasoning Effort
+     *
+     * Reasoning effort the owner chose for the default model; null means the model's default_reasoning_effort, else its first supported effort.
+     */
+    reasoning_effort?: string | null;
+    /**
      * Updated At
      */
     updated_at?: string | null;
@@ -2644,6 +2650,12 @@ export type PyAnimaChatProfileUpdateRequest = {
      * Active model-provider catalog row id to use for this anima's direct chat profile.
      */
     default_model_provider_id: string;
+    /**
+     * Reasoning Effort
+     *
+     * Reasoning effort to save for this model; it must be one of the model's supported_reasoning_efforts. Null clears it. Omitted keeps the saved effort when the model is unchanged and clears it when the model changes.
+     */
+    reasoning_effort?: string | null;
 };
 
 /**
@@ -6627,6 +6639,10 @@ export type PyModelAssetList = {
      * Assets
      */
     assets: Array<PyModelAssetState>;
+    /**
+     * Downloads Offered
+     */
+    downloads_offered?: boolean;
     /**
      * Free Bytes
      */
@@ -14277,7 +14293,7 @@ export type InstallModelAssetV1ModelAssetsAssetIdInstallPostData = {
 
 export type InstallModelAssetV1ModelAssetsAssetIdInstallPostErrors = {
     /**
-     * The asset is being removed (model_asset_busy), or a required asset is not installed (model_asset_requires, details.requires).
+     * The asset is being removed (model_asset_busy), a required asset is not installed (model_asset_requires, details.requires), or downloads are no longer offered (model_downloads_ended).
      */
     409: unknown;
     /**

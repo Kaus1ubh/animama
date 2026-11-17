@@ -1,7 +1,6 @@
 import * as THREE from "three";
 import type { VRMHumanBoneName } from "@pixiv/three-vrm";
 
-import { createWebI18n } from "@/i18n/web-i18n";
 import { Avatar } from "@/lib/avatar";
 import {
   chatCanvasFilter,
@@ -43,6 +42,7 @@ import {
   type StageController,
   type StageState,
 } from "./controller";
+import { PAGE_NAMESPACES, createLandingI18n, initialLocale } from "./i18n";
 import { mountOverlay } from "./overlay";
 import {
   PLAIN_BACKDROP,
@@ -50,6 +50,7 @@ import {
   PUZZLE_EFFECT_SOURCES,
   STAGE_AVATARS,
   STAGE_STOPS,
+  TALL_ASPECT,
   type StageCamera,
   type StageStop,
   stopClips,
@@ -77,8 +78,6 @@ import {
 
 /** How quickly the camera catches up with the scroll position (per second). */
 const CAMERA_FOLLOW = 5;
-/** Viewports narrower than this aspect ratio use each stop's `tall` framing. */
-const TALL_ASPECT = 0.8;
 /** Least space between the hero's text and the top of her head, in pixels. */
 const HERO_TEXT_GAP_PX = 14;
 /** Pause before a stop's first clip, in seconds; the next clip follows at once. */
@@ -983,8 +982,13 @@ async function start() {
     Math.max(0, SLOW_ARRIVAL_MS - performance.now()),
   );
   ui.hud.hidden = devParam("hud") === null;
-  // The app's components read their labels from its English catalogs.
-  mountOverlay(ui.overlay, controller, await createWebI18n("en"));
+  // The page's words and its app components' labels, in the visitor's
+  // language.
+  mountOverlay(
+    ui.overlay,
+    controller,
+    await createLandingI18n(initialLocale(), PAGE_NAMESPACES),
+  );
   if (openingStop > 0)
     window.scrollTo({ top: openingStop * window.innerHeight });
   // Captions and camera follow the scroll while the Avatar loads.

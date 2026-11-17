@@ -1,42 +1,45 @@
 # Desktop feature packs
 
-Feature packs add optional local capabilities that need Electron's pack
-manager: a verified archive, an atomic version switch and a service restart.
-The installation owner remains the same when a pack is installed, removed or
-reinstalled. No online Animama account is required. **No production pack release
-is available.** The producer emits catalog entries only for active, approved
-exact inputs, and both current packs are deferred. Archive packs download from
+Feature packs add optional local content that needs Electron's pack
+manager: a verified data-only archive, an atomic version switch and a service
+restart. The installation owner remains the same when a pack is installed,
+removed or reinstalled. No online Animama account is required. **No production
+pack release is available.** The producer emits catalog entries only for active,
+approved exact inputs, and the one current pack is deferred. A release policy that ends
+updates, as the final release's does, forbids an active pack. Archive packs download from
 the [selected distribution](releases.md#distribution-selection), which must
 serve its pinned objects publicly before a download can succeed.
 
 Offline speech recognition (Parakeet and SenseVoice-Small), the downloadable
 Pocket voices and the voice-cloning encoder are not packs. The backend installs
 them in place, without restarting services or reloading windows; see
-[Speech model downloads](#speech-model-downloads).
+[Speech model downloads](#speech-model-downloads). Uploaded files need no pack
+either: the core app reads and indexes every accepted format itself (see
+[User files](../../backend/features/user-files.md#in-server-processing)).
 
 ## What each pack adds
 
-| Name in Settings                     | Catalog ID                  | Behavior without it                                                                                                                |
-| ------------------------------------ | --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| Expanded Included content (deferred) | `expanded-included-content` | Not offered in the first release. Both core starters retain their required content.                                                |
-| Document processing (deferred)       | `document-processing`       | Not offered in the first release. Originals can still be uploaded and stored; new extraction/indexing requests remain unavailable. |
+| Name in Settings                     | Catalog ID                  | Behavior without it                                                                 |
+| ------------------------------------ | --------------------------- | ----------------------------------------------------------------------------------- |
+| Expanded Included content (deferred) | `expanded-included-content` | Not offered in the first release. Both core starters retain their required content. |
 
 The non-portable [Mixamo-motion pack](../../backend/operations/mixamo-motion-pack.md)
 and [comedy sound pack](../../backend/operations/comedy-sound-pack.md) are not
 feature packs: feature packs are public downloads, so they are bundled in the
 audited runtime instead and never offered in Settings.
 
-Both packs are deferred from the initial catalog and hidden in Settings on a
+The expanded pack is deferred from the initial catalog and hidden in Settings on a
 fresh installation. If old pack files remain, recovery/removal controls stay
 visible in the general recovery list.
 When released, the expanded pack makes content selectable; it never equips an Anima
 automatically. Its read-only Included entries are not user-owned Local files.
-When released, the document pack contains an independently signed worker. The
-expanded pack is data only; no pack lets the renderer execute a downloaded command.
+Packs carry data only: the catalog accepts no platform build, signature or
+executable file, and no pack lets the renderer execute a downloaded command.
 
-Startup deletes the directories and partial downloads of the retired
-`parakeet-stt` and `parakeet-stt-webgpu` speech packs. Install offline speech
-again from the Voice settings described below.
+Startup deletes the directories of retired packs: the `parakeet-stt` and
+`parakeet-stt-webgpu` speech packs, with their partial downloads, and
+`document-processing`, since the core app processes uploads itself. Install
+offline speech again from the Voice settings described below.
 
 ## Install and retry
 
@@ -51,8 +54,7 @@ Activation/removal closes
 the product windows while services switch packs, then reopens the main app at
 its previous route. Independent recovery remains available throughout.
 Your database, owner and saved local origin are preserved. The app verifies
-every required file's size and hash, including notices, before activating anything. Document
-workers also require the pinned publisher signature on every launch.
+every required file's size and hash, including notices, before activating anything.
 
 **Cancel** stops a download. Archive downloads resume from verified ETag/range
 metadata. A failed install keeps the previous working version. Network errors
@@ -64,20 +66,23 @@ start during a pack change.
 ## Remove safely
 
 Select **Remove**, then **Confirm removal**. A pack cannot be removed while an
-Anima references its content, a preview/runtime lease remains valid, content
-work is active, or a document job is running. Settings lists affected content.
+Anima references its content, a preview/runtime lease remains valid or content
+work is active. Settings lists affected content.
 Choose different content or remove the relevant optional selection, close
 previews and let outstanding leases expire, then retry. Do not delete pack
 directories by hand to bypass these checks.
 
-Removing the document pack keeps
-originals and queued jobs; they can resume after reinstalling a compatible
-worker. Removing expanded content withdraws its catalog entries. Local creations
+Removing expanded content withdraws its catalog entries. Local creations
 and unrelated content are not deleted. `pack_cleanup_pending` means a pack is
 inactive but some files could not be removed; close applications using those
 files and retry Remove.
 
 ## Speech model downloads
+
+The final release turns these downloads off: sets, voices and the encoder
+installed earlier keep working and can be removed, the app says downloads have
+ended where it offered one, and dictation says a missing model can no longer be
+downloaded. Until then they work as described below.
 
 App Settings → **Voice** → **Speech-to-Text** shows **Offline speech
 recognition** with one section per model, under the languages it understands;
@@ -133,9 +138,10 @@ creating another clone requires downloading it again.
 ## Offline use and app upgrades
 
 Installed speech models are served by the installation-owned FastAPI listener
-from the app's data directory and work offline. Document-worker models/tokenizers are packaged rather than
-downloaded on demand. Processing stages that use a configured remote provider
-still need that provider. Remote chat/voice services need their own connectivity.
+from the app's data directory and work offline. Uploaded files are read and
+chunked offline, and nothing is downloaded for them; embedding uses the
+configured Embeddings model, and without it files stay searchable by keyword.
+Remote chat/voice services need their own connectivity.
 
 Pack versions are bound to compatible app versions. Use **Install compatible
 version** when offered. An app update that would strand referenced expanded

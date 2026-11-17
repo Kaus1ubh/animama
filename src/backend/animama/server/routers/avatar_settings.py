@@ -16,8 +16,7 @@ from animama.app.services.avatar_settings_service import AvatarSettingsService
 from animama.domain.request_principal import RequestPrincipal
 from animama.product_http.ports import ProductContent, ReadContent, WriteContent
 from animama.product_http.routes.content import raise_content_mutation
-
-from ..deps import get_current_principal
+from animama.server.deps import get_current_principal
 
 router = APIRouter(tags=["typed-content"])
 

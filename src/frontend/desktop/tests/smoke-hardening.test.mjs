@@ -1,0 +1,217 @@
+import {
+  mkdirSync,
+  mkdtempSync,
+  realpathSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import { afterEach, describe, expect, it } from "vitest";
+import { MAX_WINDOWS_DATA_ROOT as appBudget } from "../src/main-process/runtime/paths.ts";
+import { debuggingSwitches } from "../src/main-process/security/debugging-switches.ts";
+import { desktopRoot } from "../scripts/runtime/common.mjs";
+import {
+  debuggingLaunches,
+  debuggingLaunchesRefused,
+  MAX_WINDOWS_DATA_ROOT,
+  profileUnused,
+  smokeCopyDirectory,
+} from "../scripts/runtime/smoke-hardening.mjs";
+import { hardeningSmokeChecks } from "../scripts/runtime/smoke-policy.mjs";
+import {
+  desktopCapabilityChecks,
+  fileSurvivedRestart,
+} from "../scripts/runtime/smoke-journey.mjs";
+import {
+  assertWindowsCopyFits,
+  windowsCopyLocation,
+} from "../scripts/runtime/smoke-windows.mjs";
+
+const roots = [];
+afterEach(() => {
+  for (const root of roots.splice(0))
+    rmSync(root, { recursive: true, force: true });
+});
+
+function profile() {
+  const root = mkdtempSync(path.join(tmpdir(), "animama-smoke-profile-"));
+  roots.push(root);
+  return root;
+}
+
+describe("installed-artifact smoke hardening", () => {
+  it("launches every switch the packaged guard refuses, with and without a value", () => {
+    for (const name of debuggingSwitches) {
+      expect(debuggingLaunches).toContain(`--${name}`);
+      expect(
+        debuggingLaunches.some((arg) => arg.startsWith(`--${name}=`)),
+      ).toBe(true);
+    }
+    expect(
+      debuggingLaunches.every((arg) =>
+        debuggingSwitches.includes(arg.slice(2).split("=")[0]),
+      ),
+    ).toBe(true);
+  });
+
+  it("passes only when every launch exits promptly with a failure and leaves nothing", () => {
+    const userData = profile();
+    const launches = [];
+    const check = (result, options = {}) =>
+      debuggingLaunchesRefused({
+        executable: "/Applications/Animama.app/Contents/MacOS/Animama",
+        env: { PATH: "/usr/bin:/bin" },
+        userData,
+        noInstalledProcesses: () => true,
+        spawn: (_executable, args) => {
+          launches.push(args[0]);
+          return typeof result === "function" ? result(args[0]) : result;
+        },
+        settleMs: 50,
+        ...options,
+      });
+
+    expect(check({ status: 1 })).toBe(true);
+    expect(launches).toEqual(debuggingLaunches);
+    expect(check((arg) => ({ status: arg === "--inspect-wait" ? 0 : 1 }))).toBe(
+      false,
+    );
+    // A launch that never exits is killed at the timeout and has no status.
+    expect(check({ status: null, signal: "SIGTERM" })).toBe(false);
+    expect(check({ status: null, error: new Error("spawn failed") })).toBe(
+      false,
+    );
+    expect(check({ status: 1 }, { noInstalledProcesses: () => false })).toBe(
+      false,
+    );
+    // Even Chromium's debugging-port file shows start-up got too far.
+    writeFileSync(path.join(userData, "DevToolsActivePort"), "0\n");
+    expect(check({ status: 1 })).toBe(false);
+  });
+
+  it("makes the copy in a new folder outside the checkout", () => {
+    const base = realpathSync(profile());
+    const directory = smokeCopyDirectory(base, "animama-smoke-copy-");
+
+    expect(path.dirname(directory)).toBe(base);
+    expect(profileUnused(directory)).toBe(true);
+    expect(profileUnused(path.join(base, "absent"))).toBe(true);
+    expect(() =>
+      smokeCopyDirectory(desktopRoot, "animama-smoke-copy-"),
+    ).toThrow("outside the checkout");
+  });
+
+  it("keeps the Windows throwaway profile within the app's data-root budget", () => {
+    expect(MAX_WINDOWS_DATA_ROOT).toBe(appBudget);
+    const made = [];
+    const make = (base, prefix) => {
+      made.push(base);
+      return path.win32.join(base, `${prefix}Ab12Cd`);
+    };
+    const resolve = (value) => value;
+
+    expect(
+      windowsCopyLocation("C:\\Users\\smoke\\AppData\\Local", {
+        make,
+        resolve,
+      }),
+    ).toEqual({
+      directory: "C:\\Users\\smoke\\AppData\\Local\\am-smoke-Ab12Cd",
+      profile: "C:\\Users\\smoke\\AppData\\Local\\am-smoke-Ab12Cd\\p",
+    });
+    // Profile folder names of up to 29 characters fit.
+    const local = (name) => `C:\\Users\\${name}\\AppData\\Local`;
+    expect(() =>
+      assertWindowsCopyFits(local("x".repeat(29)), resolve),
+    ).not.toThrow();
+    expect(() => assertWindowsCopyFits(local("x".repeat(30)), resolve)).toThrow(
+      "shorter profile folder name",
+    );
+    const long = local("x".repeat(40));
+    expect(() => windowsCopyLocation(long, { make, resolve })).toThrow(
+      "shorter profile folder name",
+    );
+    // Nothing is created when the path would not fit.
+    expect(made).toEqual(["C:\\Users\\smoke\\AppData\\Local"]);
+  });
+
+  it("makes publication require every hardening check", () => {
+    expect(hardeningSmokeChecks).toEqual([
+      "exact_fuse_wire",
+      "publisher_signature",
+      "sealed_update_policy",
+      "debugging_switches_refused",
+      "copy_fuse_wire",
+      "copy_updates_unavailable",
+      "canonical_profile_untouched",
+    ]);
+  });
+});
+
+describe("installed-artifact smoke journey", () => {
+  it("expects a running core upload processor and no automatic optional download", () => {
+    const capabilities = {
+      runtime_kind: "desktop",
+      offline_speech_enabled: false,
+      user_file_processing: { enabled: true, worker_state: "ready" },
+    };
+    expect(desktopCapabilityChecks(capabilities)).toEqual({
+      no_automatic_optional_download: true,
+      core_upload_processing: true,
+    });
+    for (const user_file_processing of [
+      { enabled: false, worker_state: "disabled" },
+      { enabled: true, worker_state: "starting" },
+      { enabled: true, worker_state: "stale" },
+    ])
+      expect(
+        desktopCapabilityChecks({ ...capabilities, user_file_processing }),
+      ).toEqual({
+        no_automatic_optional_download: true,
+        core_upload_processing: false,
+      });
+    expect(
+      desktopCapabilityChecks({
+        ...capabilities,
+        offline_speech_enabled: true,
+      }),
+    ).toEqual({
+      no_automatic_optional_download: false,
+      core_upload_processing: true,
+    });
+    expect(desktopCapabilityChecks(undefined)).toEqual({
+      no_automatic_optional_download: false,
+      core_upload_processing: false,
+    });
+  });
+
+  it("expects the processed file, not the finalized upload, after a restart", () => {
+    // Processing records the content hash, so the finalized upload has none yet.
+    const processed = {
+      status: "ready",
+      sha256: "a".repeat(64),
+      chunk_count: 1,
+    };
+    expect(fileSurvivedRestart(processed, { ...processed })).toBe(true);
+    expect(
+      fileSurvivedRestart(processed, {
+        ...processed,
+        status: "ready_keyword_only",
+      }),
+    ).toBe(true);
+    for (const persisted of [
+      { ...processed, sha256: null },
+      { ...processed, chunk_count: 0 },
+      { ...processed, status: "processing" },
+      undefined,
+    ])
+      expect(fileSurvivedRestart(processed, persisted)).toBe(false);
+    expect(
+      fileSurvivedRestart(
+        { ...processed, sha256: null },
+        { ...processed, sha256: null },
+      ),
+    ).toBe(false);
+  });
+});

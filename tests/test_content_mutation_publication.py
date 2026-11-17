@@ -89,7 +89,7 @@ def test_restart_after_private_directory_creation_leaves_no_public_destination(
     destination = journal.local_root / "reaction"
     original = Path.mkdir
 
-    def create_then_stop(path: Path, *args, **kwargs) -> None:  # noqa: ANN002, ANN003
+    def create_then_stop(path: Path, *args, **kwargs) -> None:
         original(path, *args, **kwargs)
         if path.name.endswith("-directory"):
             raise InterruptedError("process stopped before recording private inode")

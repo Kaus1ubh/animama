@@ -15,7 +15,7 @@ vi.mock("@tanstack/react-router", async (original) => ({
   useNavigate: () => vi.fn(),
   useRouterState: () => "/",
 }));
-vi.mock("@web/app/runtime/RuntimeAdmissionProvider", () => ({
+vi.mock("@/app/runtime/RuntimeAdmissionProvider", () => ({
   useRuntimeAdmission: () => ({
     admission: {
       status: "ready",
@@ -26,10 +26,10 @@ vi.mock("@web/app/runtime/RuntimeAdmissionProvider", () => ({
     controller: { confirmAge: vi.fn(), signOut: vi.fn() },
   }),
 }));
-vi.mock("@web/app/local-runtime/LocalRuntimeProvider", () => ({
+vi.mock("@/app/local-runtime/LocalRuntimeProvider", () => ({
   useLocalRuntime: () => ({ state: { status: "loading" } }),
 }));
-vi.mock("@web/app/runtime/route-admission", () => ({
+vi.mock("@/app/runtime/route-admission", () => ({
   unavailableRouteReason: () => null,
   unavailableReasonText: () => "",
 }));

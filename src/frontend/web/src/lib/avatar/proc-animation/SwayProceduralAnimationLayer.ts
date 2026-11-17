@@ -14,6 +14,11 @@ import {
   retargetVrm1AuthoredPositionOffsetToVrm0,
   retargetVrm1AuthoredQuaternionOffsetToVrm0,
 } from "../poses/poseRetargeting";
+import {
+  sanitizeActivationWeight,
+  sanitizeLag,
+  sanitizeNonNegativeNumber,
+} from "./layerParams";
 
 const DEG_TO_RAD = Math.PI / 180;
 const TAU = Math.PI * 2;
@@ -562,24 +567,6 @@ export class SwayProceduralAnimationLayer implements ProceduralAnimationLayer<"s
   }
 }
 
-function sanitizeNonNegativeNumber(
-  value: number | undefined,
-  fallback: number,
-): number {
-  if (typeof value !== "number" || !Number.isFinite(value)) return fallback;
-  return Math.max(0, value);
-}
-
-function sanitizeLag(value: number | undefined, fallback: number): number {
-  if (typeof value !== "number" || !Number.isFinite(value)) return fallback;
-  return THREE.MathUtils.clamp(value, 0, 1);
-}
-
 function smootherstep(value: number): number {
   return value * value * value * (value * (value * 6 - 15) + 10);
-}
-
-function sanitizeActivationWeight(value: number | undefined): number {
-  if (typeof value !== "number" || !Number.isFinite(value)) return 1;
-  return THREE.MathUtils.clamp(value, 0, 1);
 }

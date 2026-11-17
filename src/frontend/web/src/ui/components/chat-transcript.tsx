@@ -1,2 +1,7 @@
 /** Shared presentation implementation. */
-export * from "@animama/product-ui/components";
+export {
+  ChatTranscript,
+  ChatTranscriptContent,
+  ChatTranscriptEmptyState,
+  ChatTranscriptScrollButton,
+} from "@animama/product-ui/components";

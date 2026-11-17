@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 import {
   POCKET_LOADING_STEP_COUNT,
   usePocketTtsRuntime,
-} from "@/hooks/use-pocket-tts-runtime";
+} from "@/hooks/usePocketTtsRuntime";
 import {
   AUTOMATIC_EPISODE_PROCESSING_POLL_MS,
   useAutomaticEpisodeProcessing,

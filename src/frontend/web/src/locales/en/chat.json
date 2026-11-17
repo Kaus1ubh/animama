@@ -1,18 +1,4 @@
 {
-  "background": {
-    "apply": "Apply",
-    "applying": "Applying...",
-    "back": "Back to background settings",
-    "canvasSize": "{{width}} x {{height}}",
-    "description": "Adjust the crop and zoom for the selected avatar background.",
-    "heading": "Edit media",
-    "hint": "Drag to reposition and zoom to fit the live avatar canvas.",
-    "liveCanvas": "Live canvas",
-    "reset": "Reset",
-    "title": "Resize {{name}} background",
-    "zoomIn": "Zoom in background",
-    "zoomOut": "Zoom out background"
-  },
   "canvas": {
     "camera": {
       "axis": "{{label}} {{axis}}",
@@ -152,6 +138,7 @@
       },
       "select": "Select model",
       "toasts": {
+        "effortUpdateFailed": "Failed to save reasoning effort",
         "selectFirst": "Select a model before chatting.",
         "unsupported": "This model is not available for direct chat yet.",
         "updateFailed": "Failed to update model"

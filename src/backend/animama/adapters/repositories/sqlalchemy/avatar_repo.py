@@ -10,14 +10,14 @@ from sqlalchemy import or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from animama.adapters.mappers.avatar_map import avatar_domain_to_orm, avatar_orm_to_domain
+from animama.app.ports.avatar_port import AvatarRepository
 from animama.domain.anima_definition import AnimaDefinitionError
+from animama.domain.avatar import Avatar, AvatarNameConflictError
 from animama.domain.content_catalog import CatalogContentEntry, ContentKind, ContentSource, ContentStatus
+from animama.orm.anima import ORMAnima
+from animama.orm.avatar import ORMAvatar
 
-from ....app.ports.avatar_port import AvatarRepository
-from ....domain.avatar import Avatar, AvatarNameConflictError
-from ....orm.anima import ORMAnima
-from ....orm.avatar import ORMAvatar
-from ...mappers.avatar_map import avatar_domain_to_orm, avatar_orm_to_domain
 from .content_catalog_repo import SQLAlchemyContentCatalog
 
 

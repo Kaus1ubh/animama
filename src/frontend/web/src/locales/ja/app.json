@@ -98,7 +98,9 @@
       "offlineSpeechMissing": "音声入力と音声モードを使うには、設定でオフライン音声認識をインストールしてください。",
       "transcriptionFailed": "オフライン文字起こしに失敗しました",
       "unmuteFailed": "音声モードのミュートを解除できませんでした",
-      "webSpeechUnsupported": "このブラウザーは Web Speech API に対応していません"
+      "webSpeechUnsupported": "このブラウザーは Web Speech API に対応していません",
+      "offlineSpeechEnded": "オフライン音声認識はインストールされておらず、ダウンロードもできなくなったため、音声入力と音声モードでは使えません。",
+      "languageSpeechEnded": "この言語のオフライン音声認識はインストールされておらず、ダウンロードもできなくなったため、音声入力と音声モードでは使えません。"
     }
   },
   "featurePacks": {
@@ -214,7 +216,6 @@
     "originalSavedNotQueued": "元のファイルを保存しましたが、処理はキューに追加されませんでした。",
     "processingNotQueuedAfterUpload": "アップロードは完了しましたが、処理をキューに追加できませんでした。",
     "processingUnavailable": "処理はキューに追加されませんでした。ドキュメント処理が利用可能になったら、ライブラリから元のファイルを処理できます。",
-    "processingUnavailableDesktop": "ドキュメント処理を利用できません。設定でパックをインストールしてから、ライブラリでファイルを処理してください。",
     "queuedForProcessing": "ファイルをアップロードし、処理のキューに追加しました。",
     "rejected": "このファイルはアップロードできません。",
     "restrictions": {

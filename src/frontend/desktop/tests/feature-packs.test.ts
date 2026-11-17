@@ -36,30 +36,15 @@ import {
   type PackTransition,
 } from "../src/main-process/feature-packs/manager.js";
 import { RuntimeError } from "../src/main-process/runtime/errors.js";
-import { runCommand } from "../src/main-process/runtime/processes.js";
-import {
-  DOCUMENT_EXECUTABLE,
-  verifyExecutablePack,
-} from "../src/main-process/feature-packs/signature.js";
 import {
   buildFeaturePacks,
   buildPackArchive,
   inventoryPack,
 } from "../scripts/runtime/feature-pack-build.js";
-import {
-  exportWorkerInput,
-  importWorkerInput,
-} from "../scripts/runtime/worker-input.js";
-
-// Command-boundary tests prove the verification policy, not a native signature.
-vi.mock("../src/main-process/runtime/processes.js", () => ({
-  runCommand: vi.fn(async () => ""),
-}));
 
 const roots: string[] = [];
 const servers: Server[] = [];
 afterEach(async () => {
-  vi.mocked(runCommand).mockReset().mockResolvedValue("");
   for (const server of servers.splice(0)) {
     server.closeAllConnections();
     await new Promise<void>((resolve) => server.close(() => resolve()));
@@ -68,65 +53,6 @@ afterEach(async () => {
     await rm(root, { recursive: true, force: true });
 });
 
-describe("feature-packs executable custody", () => {
-  it.skipIf(process.platform !== "darwin")(
-    "requires the pinned OS publisher and Gatekeeper assessment after inventory verification",
-    async () => {
-      const root = await temporary();
-      const bytes = Buffer.from("feedfacf00000000", "hex");
-      const file = path.join(root, DOCUMENT_EXECUTABLE);
-      await mkdir(path.dirname(file), { recursive: true });
-      await writeFile(file, bytes, { mode: 0o755 });
-      const input = await fixture();
-      const manifest: PackManifest = {
-        ...input.manifest,
-        id: "document-processing",
-        platform: "darwin",
-        architecture: "arm64",
-        installed_bytes: bytes.length,
-        signing: {
-          publisher: "TESTTEAM01",
-          requirement: "identifier com.animama.document-worker",
-        },
-        files: [
-          {
-            path: DOCUMENT_EXECUTABLE,
-            size_bytes: bytes.length,
-            sha256: sha(bytes),
-            media_type: "application/octet-stream",
-            mode: "0755",
-          },
-        ],
-      };
-      await verifyExecutablePack(root, manifest);
-      const calls = vi.mocked(runCommand).mock.calls;
-      expect(calls).toHaveLength(3);
-      expect(calls[0]?.[0]).toBe("/usr/bin/codesign");
-      expect(calls[0]?.[1]).toEqual([
-        "--verify",
-        "--strict",
-        "-R",
-        '=anchor apple generic and certificate leaf[subject.OU] = "TESTTEAM01"',
-        file,
-      ]);
-      expect(calls[1]?.[1]).toContain("--deep");
-      expect(calls[1]?.[1]).toContain(
-        '=(anchor apple generic and certificate leaf[subject.OU] = "TESTTEAM01") and (identifier com.animama.document-worker)',
-      );
-      expect(calls[2]?.[0]).toBe("/usr/sbin/spctl");
-      vi.mocked(runCommand).mockRejectedValueOnce(
-        new Error("invalid signature"),
-      );
-      await expect(verifyExecutablePack(root, manifest)).rejects.toThrow(
-        "pack_signature_invalid",
-      );
-      vi.mocked(runCommand).mockClear();
-      await writeFile(file, "corrupt");
-      await expect(verifyExecutablePack(root, manifest)).rejects.toThrow();
-      expect(runCommand).not.toHaveBeenCalled();
-    },
-  );
-});
 async function temporary(): Promise<string> {
   const root = await mkdtemp(
     path.join(await realpath(tmpdir()), "animama-packs-test-"),
@@ -219,6 +145,8 @@ async function manager(
     root?: string;
     transition?: (change: PackTransition) => Promise<void>;
     freeBytes?: bigint;
+    /** The catalog's entries; the given manifest alone by default. */
+    entries?: PackManifest[];
   } = {},
 ) {
   const root = options.root ?? (await temporary());
@@ -226,7 +154,11 @@ async function manager(
   const instance = new FeaturePackManager({
     root: path.join(root, "packs"),
     downloads: path.join(root, "downloads"),
-    catalog: { entries: [manifest], development: true, distribution: null },
+    catalog: {
+      entries: options.entries ?? [manifest],
+      development: true,
+      distribution: null,
+    },
     freeBytes: async () => options.freeBytes ?? 100_000_000_000n,
     onProgress: progress,
     transition: options.transition ?? (async (change) => change.commit()),
@@ -350,9 +282,10 @@ describe("feature-packs catalog and authority", () => {
     await writeFile(
       path.join(root, "update-policy.json"),
       JSON.stringify({
-        schema: "animama-update-policy/2",
+        schema: "animama-update-policy/3",
         distribution: r2,
         channel: "stable",
+        updates: "offered",
         team_id: "TESTTEAM01",
       }),
     );
@@ -387,7 +320,7 @@ describe("feature-packs catalog and authority", () => {
       }),
     ).toThrow();
   });
-  it("rejects case/Unicode aliases and missing executable publisher metadata", async () => {
+  it("rejects case/Unicode aliases, executable packs and the retired document pack", async () => {
     const { manifest } = await fixture();
     for (const names of [
       ["A/file", "a/other"],
@@ -401,9 +334,18 @@ describe("feature-packs catalog and authority", () => {
         }),
       ).toThrow("pack_path_collision");
     }
+    // Packs carry data only: no platform build, publisher or executable file.
+    for (const variant of [
+      { platform: "darwin", architecture: "arm64" },
+      { signing: { publisher: "TESTTEAM01", requirement: "identifier x" } },
+      { files: [{ ...manifest.files[0], mode: "0755" }] },
+    ] satisfies Partial<PackManifest>[])
+      expect(() => validateManifest({ ...manifest, ...variant })).toThrow(
+        "pack_manifest_invalid",
+      );
     expect(() =>
       validateManifest({ ...manifest, id: "document-processing" }),
-    ).toThrow("pack_signature_required");
+    ).toThrow("feature_pack_invalid");
   });
 });
 
@@ -805,13 +747,14 @@ describe("feature-packs download and recovery", () => {
     await expect(
       result.instance.install("expanded-included-content"),
     ).rejects.toThrow("pack_insufficient_disk");
-    await expect(
-      result.instance.install("document-processing"),
-    ).rejects.toThrow("pack_unpublished");
-    expect(() => result.instance.install("../../arbitrary")).toThrow(
-      "feature_pack_invalid",
-    );
+    for (const id of ["../../arbitrary", "document-processing"])
+      expect(() => result.instance.install(id)).toThrow("feature_pack_invalid");
     await result.instance.close();
+    const unpublished = await manager(input.manifest, { entries: [] });
+    await expect(
+      unpublished.instance.install("expanded-included-content"),
+    ).rejects.toThrow("pack_unpublished");
+    await unpublished.instance.close();
   });
 });
 
@@ -836,16 +779,16 @@ describe("feature-pack catalog bounds and retired packs", () => {
       });
     };
     expect((await write([manifest])).entries).toHaveLength(1);
-    // Two entries pass the length limit (then fail only the duplicate-ID check);
-    // three exceed it.
+    // One pack is supported, so a second entry exceeds the limit.
     await expect(write([manifest, manifest])).rejects.toThrow(
-      "pack_catalog_incompatible",
-    );
-    await expect(write([manifest, manifest, manifest])).rejects.toThrow(
       "pack_catalog_invalid",
     );
-    // The retired speech model packs are no longer catalog entries.
-    for (const id of ["parakeet-stt", "parakeet-stt-webgpu"])
+    // Retired packs are no longer catalog entries.
+    for (const id of [
+      "parakeet-stt",
+      "parakeet-stt-webgpu",
+      "document-processing",
+    ])
       await expect(write([{ ...manifest, id }])).rejects.toThrow(
         "feature_pack_invalid",
       );
@@ -855,12 +798,14 @@ describe("feature-pack catalog bounds and retired packs", () => {
     const first = await manager(input.manifest);
     await first.instance.install("expanded-included-content");
     await first.instance.close();
-    // An installation that once had the retired speech model packs.
+    // An installation that once had the retired speech model packs and the
+    // retired document-processing pack.
     const pointerFile = path.join(first.root, "packs/active.json");
     const saved = JSON.parse(await readFile(pointerFile, "utf8"));
     const retired = [
       "packs/parakeet-stt/versions/0.1.0-0123456789abcdef",
       "packs/parakeet-stt-webgpu/versions/0.1.1-fedcba9876543210",
+      "packs/document-processing/versions/0.1.0-00112233445566ff",
       `downloads/parakeet-stt.${"c".repeat(64)}.objects`,
       `downloads/parakeet-stt-webgpu.${"d".repeat(64)}.objects`,
     ];
@@ -889,13 +834,16 @@ describe("feature-pack catalog bounds and retired packs", () => {
             directory: "0.1.1-fedcba9876543210",
             digest: "b".repeat(64),
           },
+          "document-processing": {
+            directory: "0.1.0-00112233445566ff",
+            digest: "f".repeat(64),
+          },
         },
       }),
     );
     const restarted = await manager(input.manifest, { root: first.root });
     expect(restarted.instance.list().map((status) => status.id)).toEqual([
       "expanded-included-content",
-      "document-processing",
     ]);
     expect(restarted.instance.list()[0]).toMatchObject({ state: "installed" });
     expect(Object.keys(restarted.instance.activePacks())).toEqual([
@@ -904,7 +852,8 @@ describe("feature-pack catalog bounds and retired packs", () => {
     for (const relative of [
       "packs/parakeet-stt",
       "packs/parakeet-stt-webgpu",
-      ...retired.slice(2),
+      "packs/document-processing",
+      ...retired.filter((name) => name.startsWith("downloads/")),
     ])
       await expect(stat(path.join(first.root, relative))).rejects.toThrow();
     for (const relative of kept)
@@ -939,67 +888,6 @@ describe("feature-packs build artifacts", () => {
       });
     await writeFile(output, await tarBytes(entries));
   };
-  it.skipIf(process.platform !== "darwin")(
-    "reuses exact reviewed helper bytes without rebuilding or silently approving a candidate",
-    async () => {
-      const root = await temporary();
-      const input = path.join(root, "signed-input");
-      const executable = path.join(input, DOCUMENT_EXECUTABLE);
-      await mkdir(path.dirname(executable), { recursive: true });
-      const nativeBytes = Buffer.from("feedfacf00000000", "hex");
-      await writeFile(executable, nativeBytes, { mode: 0o755 });
-      const options = {
-        root: input,
-        exchange: path.join(root, "exchange"),
-        appVersion: "0.1.0",
-        writeTar,
-        release: {
-          release_base_url:
-            "https://github.com/example/animama/releases/download/v0.1.0",
-          macos: {
-            team_id: "TESTTEAM01",
-            designated_requirement: "identifier com.animama.document-worker",
-          },
-          packs: {
-            "document-processing": {
-              version: "0.1.0",
-              approved_inventory_sha256: null as string | null,
-              license_refs: ["fixture"],
-            },
-          },
-        },
-      };
-      await exportWorkerInput(options);
-      const review = JSON.parse(
-        await readFile(
-          path.join(options.exchange, "worker-review.json"),
-          "utf8",
-        ),
-      );
-      expect(review.release_approved).toBe(false);
-      await expect(importWorkerInput(options)).rejects.toThrow(
-        "reviewed inventory",
-      );
-      // This is a fixture-only approval. OS verification remains mocked at the command boundary.
-      options.release.packs["document-processing"].approved_inventory_sha256 =
-        review.inventory_sha256;
-      await writeFile(
-        path.join(input, "old-build-marker"),
-        "keep until verified",
-      );
-      await importWorkerInput(options);
-      expect(await readFile(executable)).toEqual(nativeBytes);
-      expect(await readdir(input)).not.toContain("old-build-marker");
-      await writeFile(
-        path.join(options.exchange, "document-worker-input.tar.zst"),
-        "tampered",
-      );
-      await expect(importWorkerInput(options)).rejects.toThrow(
-        "archive changed",
-      );
-      expect(await readFile(executable)).toEqual(nativeBytes);
-    },
-  );
   it("round-trips the actual archive before returning measured release metadata", async () => {
     const input = await fixture();
     const root = await temporary();
@@ -1025,41 +913,33 @@ describe("feature-packs build artifacts", () => {
     const inputs = path.join(root, "expanded");
     await mkdir(inputs);
     await writeFile(path.join(inputs, "fixture.json"), "{}");
-    const release = {
-      release_base_url:
-        "https://github.com/example/animama/releases/download/v0.1.0",
-      macos: { team_id: null, designated_requirement: null },
-      packs: Object.fromEntries(
-        ["expanded-included-content", "document-processing"].map((id) => [
-          id,
-          {
-            release_status: "active" as const,
-            version: "0.1.0",
-            approved_inventory_sha256: null as string | null,
-            license_refs: ["fixture-only"],
-          },
-        ]),
-      ),
-    };
-    const options = {
-      inputs: {
-        "expanded-included-content": inputs,
-        "document-processing": path.join(root, "missing-worker"),
-      },
+    const options: Parameters<typeof buildFeaturePacks>[0] = {
+      inputs: { "expanded-included-content": inputs },
       output: path.join(root, "archives"),
       catalog: path.join(root, "pack-catalog.json"),
       appVersion: "0.1.0",
-      release,
-      budgets: Object.fromEntries(
-        ["expanded-included-content", "document-processing"].map((id) => [
-          id,
-          { installed_bytes: 100_000, download_bytes: null },
-        ]),
-      ),
+      release: {
+        release_base_url:
+          "https://github.com/example/animama/releases/download/v0.1.0",
+        packs: {
+          "expanded-included-content": {
+            release_status: "active",
+            version: "0.1.0",
+            approved_inventory_sha256: null,
+            license_refs: ["fixture-only"],
+          },
+        },
+      },
+      budgets: {
+        "expanded-included-content": {
+          installed_bytes: 100_000,
+          download_bytes: null,
+        },
+      },
       writeTar,
-    } as Parameters<typeof buildFeaturePacks>[0];
+    };
     expect((await buildFeaturePacks(options)).entries).toEqual([]);
-    const files = await inventoryPack(inputs, "expanded-included-content");
+    const files = await inventoryPack(inputs);
     options.release.packs[
       "expanded-included-content"
     ].approved_inventory_sha256 = sha(Buffer.from(JSON.stringify(files)));
@@ -1116,49 +996,36 @@ describe("feature-packs build artifacts", () => {
     const inputs = path.join(root, "expanded");
     await mkdir(inputs);
     await writeFile(path.join(inputs, "fixture.json"), "{}");
-    const files = await inventoryPack(inputs, "expanded-included-content");
-    const packs = Object.fromEntries(
-      ["expanded-included-content", "document-processing"].map((id) => [
-        id,
-        {
-          release_status:
-            id === "expanded-included-content"
-              ? ("active" as const)
-              : ("deferred" as const),
-          version: "0.1.0",
-          approved_inventory_sha256:
-            id === "expanded-included-content"
-              ? sha(Buffer.from(JSON.stringify(files)))
-              : null,
-          license_refs: ["fixture-only"],
-        },
-      ]),
-    );
-    const options = {
-      inputs: {
-        "expanded-included-content": inputs,
-        "document-processing": path.join(root, "missing-worker"),
-      },
+    const files = await inventoryPack(inputs);
+    const options: Parameters<typeof buildFeaturePacks>[0] = {
+      inputs: { "expanded-included-content": inputs },
       output: path.join(root, "archives"),
       catalog: path.join(root, "pack-catalog.json"),
       appVersion: "0.2.0",
       release: {
         release_base_url: "https://downloads.example.test/desktop/v0.2.0",
         distribution: {
-          kind: "r2" as const,
+          kind: "r2",
           base_url: "https://downloads.example.test/desktop",
         },
-        macos: { team_id: null, designated_requirement: null },
-        packs,
+        packs: {
+          "expanded-included-content": {
+            release_status: "active",
+            version: "0.1.0",
+            approved_inventory_sha256: sha(Buffer.from(JSON.stringify(files))),
+            license_refs: ["fixture-only"],
+          },
+        },
       },
-      budgets: Object.fromEntries(
-        ["expanded-included-content", "document-processing"].map((id) => [
-          id,
-          { installed_bytes: 100_000, download_bytes: null },
-        ]),
-      ),
+      budgets: {
+        "expanded-included-content": {
+          installed_bytes: 100_000,
+          download_bytes: null,
+        },
+      },
       writeTar,
-    } as Parameters<typeof buildFeaturePacks>[0];
+    };
+    const packs = options.release.packs;
     const [entry] = (await buildFeaturePacks(options)).entries;
     expect(entry.url).toBe(
       "https://downloads.example.test/desktop/v0.2.0/expanded-included-content-0.1.0-data-only.tar.zst",

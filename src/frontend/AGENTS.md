@@ -151,8 +151,8 @@ or migration behavior.
   `@animama/runtime-contracts/default-client`.
 - Wrap API access in `web/src/query/hooks/*` or
   `web/src/query/mutations/*`.
-- Use `queryKeys` from `web/src/query/keys.ts`; do not create ad-hoc key
-  shapes.
+- Use `queryKeys` (`packages/product-ui/src/query/keys.ts`, imported in web as
+  `@/query/keys`); do not create ad-hoc key shapes.
 - Gate owner-scoped queries with admitted runtime readiness and the neutral owner
   context. Use the session cache key separately from the server owner ID. Shared
   feature code must not import the local provider or installation endpoints.
@@ -202,7 +202,7 @@ or migration behavior.
   or credential defaults; local configuration and telemetry stay in `web`.
 - Public package builds emit ESM/declarations and enforce that bundled inputs
   stay inside their own source tree. Cross-package imports use declared exports;
-  no package may import `web`, `server`, `desktop`, `@/`, or `@web/` code. Keep
+  no package may import `web`, `server`, `desktop` or `@/` code. Keep
   runtime imports explicit and ship any package CSS/assets through its exports.
 
 ### Chat And SSE Runtime
@@ -218,9 +218,9 @@ or migration behavior.
 - The avatar pipeline is UI/store -> `AvatarCanvasActor` -> `Avatar`.
 - Gesture, emotion, and interaction-phase changes should flow through
   `avatar-runtime-store`.
-- STT is coordinated by `use-dictation` and provider/runtime helpers under
+- STT is coordinated by `useDictation` and provider/runtime helpers under
   `web/src/hooks/voice` and `web/src/lib/voice`.
-- TTS is coordinated by `use-tts-playback`, provider helpers, Pocket runtime,
+- TTS is coordinated by `useTtsPlayback`, provider helpers, Pocket runtime,
   and ElevenLabs runtime.
 - Respect browser feature detection and secure-context requirements.
 
@@ -274,7 +274,11 @@ or migration behavior.
 - Only unpackaged external-stack development loads `ANIMAMA_DESKTOP_WEB_URL`
   or `http://localhost:8000`. Explicit `ANIMAMA_DESKTOP_DEV_RUNTIME_ROOT` and
   `ANIMAMA_DESKTOP_DEV_USER_DATA` support isolated supervised testing; packaged
-  builds reject web-URL, development, and sandbox overrides.
+  builds reject web-URL, development, and sandbox overrides, except a
+  throwaway `ANIMAMA_DESKTOP_DEV_USER_DATA` while their Node inspector runs,
+  which only the release smoke's inspect-enabled copy can do. Packaged builds
+  carry the reviewed fuse wire and quit on debugging switches; see
+  `../../docs/frontend/desktop/platforms.md#packaged-hardening`.
 - The version-2 preload exposes runtime actions and status-only credentials.
   Provider values travel only into main, encrypted storage, and provider child
   environments; no readback, arbitrary paths/commands, or browser persistence.
@@ -283,12 +287,12 @@ or migration behavior.
 - Optional packs use the embedded app-matched catalog and fixed IDs only.
   Renderer IPC must not accept pack URLs, paths, versions, hashes, or commands.
   Offline speech models are not packs: the backend model-asset service installs
-  the Parakeet and SenseVoice sets from the fixed shared model origin (ADRs 0012
-  and 0029). Keep strict zstd/USTAR checks for
-  archive packs and the shared atomic transition/rollback barrier. The separate document-worker pack must pass pinned OS-signature
-  verification on install and every launch, even with an unsigned development
-  core; never add an unsigned-worker bypass. See the staging guide for release
-  input approvals, producer commands, and the outstanding native artifact gates.
+  the Parakeet and SenseVoice sets from the fixed shared model origin until the
+  final release turns downloads off (ADRs 0012 and 0029). Keep strict zstd/USTAR checks for
+  archive packs and the shared atomic transition/rollback barrier. Packs carry
+  data only: the catalog refuses platform builds, publishers and executable
+  files. See the staging guide for release input approvals, producer commands,
+  and the outstanding native artifact gates.
 - Platform dev builds are documented in `../../docs/frontend/desktop/platforms.md`.
 - `pnpm desktop:mac` requires a complete fresh stage and audit, explicitly
   disables signing (`identity: null`), and rechecks the packaged inventory. Unlicensed decorative SFX
@@ -367,7 +371,9 @@ If backend schemas changed:
 
 - Read the backend agent guide before regenerating clients.
 - Regenerate client: `pnpm openapi-ts`
-- Format generated output: `pnpm prettier`
+- Leave the generated output unformatted (`.prettierignore` excludes it);
+  `pnpm openapi-ts:check` compares it with a fresh generation through formatted
+  copies.
 
 For smaller changes, run the smallest meaningful subset and state what was not
 run.
@@ -388,11 +394,11 @@ Exercise both named Compose selections for rendered browser acceptance.
 Prefer minimal, surgical diffs in:
 
 - `web/src/ui/main/chat/useChatSession.ts`
-- `web/src/query/mutations/useChatSse.ts`
-- `web/src/hooks/use-dictation.ts`
-- `web/src/hooks/use-tts-playback.ts`
-- `web/src/hooks/use-elevenlabs-tts-runtime.ts`
-- `web/src/hooks/use-pocket-tts-runtime.ts`
+- `packages/product-ui/src/query/mutations/useChatSse.ts`
+- `web/src/hooks/useDictation.ts`
+- `web/src/hooks/useTtsPlayback.ts`
+- `web/src/hooks/useElevenLabsTtsRuntime.ts`
+- `web/src/hooks/usePocketTtsRuntime.ts`
 - `web/src/ui/main/canvas/AvatarCanvasActor.tsx`
 - `web/src/lib/avatar/**`
 - `web/src/lib/speech/**`

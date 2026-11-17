@@ -10,6 +10,11 @@ import {
   type ProceduralAnimationRuntimeContext,
 } from "./types";
 import { retargetVrm1AuthoredQuaternionOffsetToVrm0 } from "../poses/poseRetargeting";
+import {
+  sanitizeActivationWeight,
+  sanitizeLag,
+  sanitizeNonNegativeNumber,
+} from "./layerParams";
 
 const DEG_TO_RAD = Math.PI / 180;
 const TAU = Math.PI * 2;
@@ -243,22 +248,4 @@ export class BreathingProceduralAnimationLayer implements ProceduralAnimationLay
     this._offsetScratchByBone.set(boneName, offset);
     return offset;
   }
-}
-
-function sanitizeNonNegativeNumber(
-  value: number | undefined,
-  fallback: number,
-): number {
-  if (typeof value !== "number" || !Number.isFinite(value)) return fallback;
-  return Math.max(0, value);
-}
-
-function sanitizeLag(value: number | undefined, fallback: number): number {
-  if (typeof value !== "number" || !Number.isFinite(value)) return fallback;
-  return THREE.MathUtils.clamp(value, 0, 1);
-}
-
-function sanitizeActivationWeight(value: number | undefined): number {
-  if (typeof value !== "number" || !Number.isFinite(value)) return 1;
-  return THREE.MathUtils.clamp(value, 0, 1);
 }

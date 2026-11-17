@@ -36,9 +36,10 @@ identity and resume below; a closed, unmerged PR is not a successful merge.
 Reconcile an uncertain response by reading the PR, not blindly repeating the merge.
 
 The owner's merge request also confirms that the PR's owner checks are done. After
-the merge, close the parent and any phase issues the PR delivered that are still
-open (for example, only referenced with `Refs #N`), each with a comment naming the
-PR. Leave open only issues for work the PR explicitly deferred.
+the merge, close any phase issues the PR delivered that are still open, each with
+a comment naming the PR, and close the parent when the PR delivers the whole plan.
+A partial delivery referenced with `Refs #N` leaves the parent open. Leave open
+issues for work the PR explicitly deferred.
 
 ## 2. Update the primary checkout
 

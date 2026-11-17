@@ -675,6 +675,10 @@ export default interface Resources {
         "face_parts_whole_body_head_missing": "One mesh part holds the whole body, but no forward-facing part of it skinned to the head bone moves when the model blinks or opens its mouth, so its face cannot be found and Avatar Effects on the face are skipped.",
         "file_unavailable": "The Avatar file could not be downloaded.",
         "file_unreadable": "The Avatar file is not a readable glTF or VRM file.",
+        "humanoid_bones_remapped_one": "{{count}} humanoid bone pointed at a bone that moves no part of the model, so Animama uses the bone beside it that the mesh follows.",
+        "humanoid_bones_remapped_other": "{{count}} humanoid bones pointed at bones that move no part of the model, so Animama uses the bones beside them that the mesh follows.",
+        "humanoid_bones_unweighted_one": "{{count}} humanoid bone moves no part of the model, and no bone beside it that the mesh follows could replace it, so motion on it does not show.",
+        "humanoid_bones_unweighted_other": "{{count}} humanoid bones move no part of the model, and no bones beside them that the mesh follows could replace them, so motion on them does not show.",
         "iris_hide_unavailable": "Content asked to hide the irises (Fcl_EYE_Iris_Hide), but no iris mesh part of this Avatar can be hidden: none was found, or it shares a mesh part with the face skin.",
         "landmarks_anchor_missing": "No head was found to anchor face landmarks.",
         "landmarks_eyes_missing": "No eyes were found on the face, so eye effects are unavailable.",
@@ -1080,6 +1084,7 @@ export default interface Resources {
           "verifying": "Download complete. Verifying voice cloning…"
         },
         "downloading": "Downloading voice cloning…",
+        "downloadsEnded": "Voice cloning needs a model that can no longer be downloaded. Saved clones keep working.",
         "errors": {
           "cancelFailed": "The download could not be cancelled. Try again.",
           "cancelled": "Download cancelled. Your sample is ready to retry.",
@@ -1173,6 +1178,7 @@ export default interface Resources {
         "downloadFailed": "{{voice}} could not be downloaded. Open the voice list to retry.",
         "downloading": "Downloading {{voice}}… {{percent}}",
         "libraryFailed": "Saved voices could not be loaded.",
+        "notDownloadable": "{{voice}} can no longer be downloaded, so replies use the default voice.",
         "notProvided": "{{voice}} is not available here, so replies use the default voice.",
         "savedUnavailable": "Saved voice unavailable",
         "sectionLabel": "PocketTTS voice",
@@ -1286,9 +1292,11 @@ export default interface Resources {
         },
         "browserStartFailed": "Failed to start browser dictation",
         "failed": "Dictation failed",
+        "languageSpeechEnded": "Offline speech recognition for this language is not installed and can no longer be downloaded, so dictation and Voice Mode cannot use it.",
         "languageSpeechMissing": "Install offline speech recognition for this language in Settings to use dictation and Voice Mode.",
         "localWebSpeechNotEnabled": "Local browser speech recognition could not be enabled",
         "localWebSpeechUnsupported": "Local-only browser speech recognition is not supported",
+        "offlineSpeechEnded": "Offline speech recognition is not installed and can no longer be downloaded, so dictation and Voice Mode cannot use it.",
         "offlineSpeechFailed": "Offline speech recognition failed",
         "offlineSpeechMissing": "Install offline speech recognition in Settings to use dictation and Voice Mode.",
         "transcriptionFailed": "Offline transcription failed",
@@ -1409,7 +1417,6 @@ export default interface Resources {
       "originalSavedNotQueued": "Original saved; processing was not queued.",
       "processingNotQueuedAfterUpload": "Upload completed, but processing could not be queued.",
       "processingUnavailable": "Processing was not queued. You can process the original from Library once document processing is available.",
-      "processingUnavailableDesktop": "Document processing is unavailable. Install the pack in Settings, then process the file from Library.",
       "queuedForProcessing": "File uploaded and queued for processing.",
       "rejected": "File cannot be uploaded.",
       "restrictions": {
@@ -1425,20 +1432,6 @@ export default interface Resources {
     }
   },
   "chat": {
-    "background": {
-      "apply": "Apply",
-      "applying": "Applying...",
-      "back": "Back to background settings",
-      "canvasSize": "{{width}} x {{height}}",
-      "description": "Adjust the crop and zoom for the selected avatar background.",
-      "heading": "Edit media",
-      "hint": "Drag to reposition and zoom to fit the live avatar canvas.",
-      "liveCanvas": "Live canvas",
-      "reset": "Reset",
-      "title": "Resize {{name}} background",
-      "zoomIn": "Zoom in background",
-      "zoomOut": "Zoom out background"
-    },
     "canvas": {
       "camera": {
         "axis": "{{label}} {{axis}}",
@@ -1578,6 +1571,7 @@ export default interface Resources {
         },
         "select": "Select model",
         "toasts": {
+          "effortUpdateFailed": "Failed to save reasoning effort",
           "selectFirst": "Select a model before chatting.",
           "unsupported": "This model is not available for direct chat yet.",
           "updateFailed": "Failed to update model"
@@ -3576,7 +3570,9 @@ export default interface Resources {
     "modelConfiguration": {
       "bad_request": "The server rejected the request.",
       "context_exceeded": "The request was larger than the model's context window.",
+      "credential_insecure_transport": "Keys are sent only over https, or plain http to this computer. Use https or a local server.",
       "credential_missing": "This connection needs a key before it can be used.",
+      "credential_origin_mismatch": "This key belongs to another address. A provider's key goes only to that provider's API, and a connection key only to the address saved with it.",
       "credential_rejected": "The server rejected the key.",
       "detectionNotRunning": "Nothing is running at {{baseUrl}}. Start {{server}} and try again.",
       "invalid_base_url": "The base URL is not valid.",
@@ -4609,11 +4605,14 @@ export default interface Resources {
       "editDescription": "An OpenAI-compatible server such as Ollama, LM Studio, llama.cpp or a cloud provider.",
       "env": {
         "notSet": "Not set on the server yet. Set it to your API key.",
+        "notUsable": "Not usable yet. Set this variable to your API key on the server, and add the line below.",
+        "origin": "Also set {{variable}}={{origin}} on the server, so the key is sent only to this address.",
         "set": "Set on the server.",
         "setVariable": "Set this variable to your API key on the server."
       },
       "hideAdvanced": "Hide advanced options",
-      "insecureKey": "This address uses plain http on another computer, so the key would cross the network unencrypted. Use https or a local server.",
+      "insecureKey": "Keys are sent only over https, or plain http to this computer. Use https or a local server.",
+      "keyForAnotherAddress": "The saved key was entered for another address. Enter the key again for this address, or remove it.",
       "keyNotDeleted": "The connection's saved key could not be deleted.",
       "keyNotStored": "The connection was saved, but its key was not stored. {{reason}}",
       "keyNotStoredRetry": "The connection was saved, but its key was not stored. Retry from Edit.",
@@ -4717,6 +4716,9 @@ export default interface Resources {
       "saveFailed": "The {{role}} model could not be saved.",
       "unavailable": "The chosen model is unavailable, so the default is used.",
       "unavailableChoice": "{{model}} (unavailable)"
+    },
+    "downloadsEnded": {
+      "note": "Animama no longer offers model downloads. Anything already downloaded keeps working; chat, Avatars and the built-in voices need no downloads."
     },
     "embeddings": {
       "current": "Stored files and archives are embedded with this model.",
@@ -5573,11 +5575,6 @@ export default interface Resources {
       "unavailable": "Unavailable"
     },
     "clip": {
-      "advanced": {
-        "body": "Select a keyframe or event on the timeline to edit it. Gesture and Reaction releases retain the complete sequence JSON when saved.",
-        "description": "Timing and event data are edited directly in the typed action timeline.",
-        "title": "Clip data"
-      },
       "anchors": {
         "root": "Root"
       },
@@ -6297,13 +6294,9 @@ export default interface Resources {
         "remove": "Remove"
       },
       "cleanupPending": "The pack is no longer active, but some files remain. Close applications using those files, then retry Remove.",
-      "inUse": "Finish active document jobs, close content previews, and unequip this pack’s entries in each Anima’s Behavior before retrying.",
+      "inUse": "Close content previews and unequip this pack’s entries in each Anima’s Behavior before retrying.",
       "noCompatiblePack": "No compatible released pack is included in this app’s catalog.",
       "packs": {
-        "documentProcessing": {
-          "description": "Extracts and indexes uploaded documents. Removing it preserves your originals and queued work.",
-          "name": "Document processing"
-        },
         "expandedIncludedContent": {
           "description": "Adds selectable content to Included. It never changes your Anima’s Behavior automatically.",
           "name": "Expanded Included content"
@@ -6849,8 +6842,10 @@ export default interface Resources {
     },
     "languageNotice": {
       "speechToText": "To use offline speech recognition in {{language}}, download its model.",
+      "speechToTextEnded": "Offline speech recognition in {{language}} needs a model that can no longer be downloaded.",
       "speechToTextEnglishOnly": "Parakeet recognizes English only. To speak to your Animas in {{language}}, choose SenseVoice.",
       "speechToTextModel": "To use SenseVoice, download its model.",
+      "speechToTextModelEnded": "SenseVoice needs a model that can no longer be downloaded.",
       "speechToTextModelUnavailable": "SenseVoice is not available on this server.",
       "speechToTextUnavailable": "Offline speech recognition in {{language}} is not available on this server.",
       "textToSpeech": "Pocket TTS speaks English only. To hear your Animas in {{language}}, choose ElevenLabs or Gemini."
@@ -6977,6 +6972,7 @@ export default interface Resources {
       "fallback": {
         "customMissing": "Custom PocketTTS voice is selected but no custom voice has been uploaded.",
         "downloadFailed": "The voice \"{{voice}}\" could not be downloaded, so the default voice is used. The download is retried on the next reply or when you pick the voice again.",
+        "downloadsEnded": "The voice \"{{voice}}\" can no longer be downloaded, so the default voice is used.",
         "unknownVoice": "The saved voice \"{{voice}}\" is no longer available, so the default voice is used. Choose another voice in Behavior → Voices."
       },
       "sample": {

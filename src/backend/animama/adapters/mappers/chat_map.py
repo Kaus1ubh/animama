@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from typing import Any
 
-from ...domain.chat import Chat
-from ...domain.usage import Usage, UsageInputDetails, UsageOutputDetails
-from ...orm.chats import ORMChat
+from animama.domain.chat import Chat
+from animama.domain.usage import Usage, UsageInputDetails, UsageOutputDetails
+from animama.orm.chats import ORMChat
 
 
 def _usage_from_chat_orm(orm: ORMChat) -> Usage:

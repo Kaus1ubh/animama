@@ -1,5 +1,3 @@
-"use client";
-
 import { Loader2, Plus } from "lucide-react";
 import { type FormEvent, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";

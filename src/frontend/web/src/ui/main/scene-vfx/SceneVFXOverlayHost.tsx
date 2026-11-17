@@ -1,5 +1,3 @@
-"use client";
-
 import { cn } from "@/lib/utils";
 import { useSceneVFXStore } from "@/stores/scene-vfx-store";
 import { SceneVFXOverlayLayers } from "./SceneVFXLayers";

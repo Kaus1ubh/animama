@@ -1,5 +1,3 @@
-"use client";
-
 import DashboardModal from "@uppy/react/dashboard-modal";
 import { useUppyState } from "@uppy/react";
 import {
@@ -33,7 +31,6 @@ import {
 import { cn } from "@/lib/utils";
 import { useUserFiles } from "@/query/hooks/useUserFiles";
 import { useRuntimeCapabilities } from "@/query/hooks/useRuntimeCapabilities";
-import { DesktopFeaturePacksPanel } from "@/ui/settings/DesktopFeaturePacksPanel";
 import { useDeleteUserFile } from "@/query/mutations/useDeleteUserFile";
 import { useProcessUserFile } from "@/query/mutations/useProcessUserFile";
 import { Button } from "@/ui/components/button";
@@ -309,17 +306,9 @@ export function LibraryChatUploadsDebugPanel() {
   return (
     <div id="chat-upload-debug-tools" className="mt-6 scroll-mt-32 space-y-6">
       {!processingEnabled ? (
-        <div className="space-y-3">
-          <p className="text-muted-foreground text-sm">
-            Originals are saved, but extraction and indexing require document
-            processing. Existing indexed files remain searchable.
-          </p>
-          <DesktopFeaturePacksPanel only="document-processing" />
-        </div>
-      ) : capabilities.data?.user_file_processing.worker_state !== "ready" ? (
-        <p className="text-muted-foreground text-sm" role="status">
-          Document worker {capabilities.data?.user_file_processing.worker_state}
-          . Queued jobs are retained until it is ready.
+        <p className="text-muted-foreground text-sm">
+          Upload processing is unavailable. Originals are saved, and files
+          indexed earlier remain searchable.
         </p>
       ) : null}
       <DashboardModal

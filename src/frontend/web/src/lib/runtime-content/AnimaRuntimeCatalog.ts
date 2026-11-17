@@ -68,6 +68,7 @@ import {
   runtimeContentDownloadUrl,
   preparedRuntimeResourceUrls,
 } from "./runtimeContentDelivery";
+import { isRecord } from "@/lib/records";
 
 const MAX_EAGER_PRELOAD_BYTES = 64 * 1024 * 1024;
 const logger = createLogger("AnimaRuntimeCatalog");
@@ -1269,10 +1270,6 @@ function positiveNumber(value: unknown): number | undefined {
 function positiveInteger(value: unknown): number | undefined {
   const parsed = positiveNumber(value);
   return parsed === undefined ? undefined : Math.floor(parsed);
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return Boolean(value && typeof value === "object" && !Array.isArray(value));
 }
 
 function hasMissingEventReferences(

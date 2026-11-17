@@ -1,0 +1,182 @@
+{
+  "site": {
+    "title": "Animama — 栩栩如生的 AI 伙伴",
+    "sceneDescription": "3D 动画 Anima {name} 走进画面、挥手打招呼，随着你滚动页面，展示{possessive}动作、情绪和记忆。"
+  },
+  "header": {
+    "site": "网站",
+    "home": "首页",
+    "about": "关于",
+    "download": "下载",
+    "docs": "文档",
+    "logIn": "登录",
+    "signUp": "注册",
+    "requestBetaAccess": "申请加入测试版",
+    "requestAccess": "申请加入",
+    "menu": "菜单",
+    "avatar": "虚拟形象",
+    "darkMode": "深色模式",
+    "language": "语言",
+    "currentLanguage": "语言：{{language}}",
+    "switchToLight": "切换到浅色模式",
+    "switchToDark": "切换到深色模式"
+  },
+  "page": {
+    "skipToContent": "跳到正文",
+    "avatars": "虚拟形象",
+    "loadingAvatar": "正在加载 {{name}}…",
+    "features": "功能",
+    "previousReaction": "上一个反应",
+    "nextReaction": "下一个反应",
+    "readDocs": "阅读文档",
+    "watchTrailer": "观看预告片",
+    "trailerTitle": "Animama 发布预告片"
+  },
+  "stops": {
+    "hero": {
+      "label": "开场",
+      "title": "遇见你的 Anima",
+      "body": "会动、会感受、会记住的 AI 伙伴。",
+      "links": {
+        "gestures": "会动",
+        "emotion": "会感受",
+        "memory": "会记住"
+      }
+    },
+    "gestures": {
+      "label": "动作",
+      "title": "肢体语言",
+      "body": "从搞怪逗趣到浪漫撩人：**300 多种独特的动作和反应**，随着{subject}说话自然切换。"
+    },
+    "emotion": {
+      "label": "情绪",
+      "title": "心情全写在脸上",
+      "body": "24 种情绪，在你们相处的时光里不断变化、慢慢成长。"
+    },
+    "memory": {
+      "label": "记忆",
+      "title": "{Subject}记得每一件小事",
+      "body": "猫咪的名字、周五的演出……{subject}都会主动问起，不用你操心。"
+    },
+    "download": {
+      "label": "下载",
+      "title": "在桌面上遇见{object}",
+      "body": "现已支持 macOS 和 Windows。",
+      "beta": {
+        "label": "测试版",
+        "body": "macOS 和 Windows 版正在封闭测试中。"
+      }
+    }
+  },
+  "clips": {
+    "lean-in-coy": "害羞凑近",
+    "soul-leaves-body": "灵魂出窍",
+    "flustered-fan": "慌张扇风",
+    "innocent-whistle": "装傻吹口哨",
+    "finger-heart-pose": "比心",
+    "double-peace-pop": "双手比耶",
+    "dramatic-swoon": "夸张晕倒",
+    "snicker-laugh": "偷笑",
+    "offer-a-rose": "献玫瑰",
+    "air-guitar": "空气吉他",
+    "beckon": "招手",
+    "brush-off-shoulders": "掸掸肩膀",
+    "ohohoho-noble-laugh": "大小姐高笑",
+    "nervous-head-scratch": "挠头"
+  },
+  "memory": {
+    "updated": "记忆已更新",
+    "hint": "点一下书签就能翻页。每一页都是一个文件，你可以随时查看、编辑和回滚。",
+    "openFile": "打开 {{file}}",
+    "ribbon": "{{page}}，{{file}}",
+    "pages": {
+      "profile": "关于你",
+      "identity": "我是谁",
+      "memories": "我们的故事"
+    },
+    "user": {
+      "profile": "我们今天领养了一只小猫！她叫味噌。",
+      "identity": "这周所有东西都要交，我都不知道从哪儿开始。",
+      "memories": "周五演出完，我再跟你说说怎么样！"
+    },
+    "profile": {
+      "basics": "基本信息",
+      "basicsLine": "山姆，住在多伦多，北美东部时间。",
+      "people": "身边的人",
+      "peopleLine": "我妹妹安娜，六月要结婚了。",
+      "peopleNew": "味噌，我们新养的小猫。"
+    },
+    "memories": {
+      "story": "我们的故事",
+      "storyLine": "我们在考试季认识，那时都靠喝茶续命。",
+      "threads": "待续的事",
+      "threadsLine": "安娜六月的婚礼：帮忙准备致辞。",
+      "threadsNew": "山姆的演出在周五。我答应过要问问怎么样。"
+    }
+  },
+  "avatars": {
+    "Annie": {
+      "pronouns": {
+        "subject": "她",
+        "object": "她",
+        "possessive": "她的"
+      },
+      "identity": {
+        "essence": {
+          "heading": "核心特质",
+          "line": "温暖又好奇的伙伴，陪你把想法说出来，把模糊的念头变成清晰的下一步。"
+        },
+        "speakingStyle": {
+          "heading": "说话风格",
+          "line": "句子简短自然。给建议前，先把听到的话复述一遍，带点温柔的幽默。"
+        }
+      },
+      "replies": {
+        "profile": "味噌！欢迎加入这个家，小家伙。快跟我讲讲她来的第一周吧。",
+        "identity": "原来事情全挤到一块儿了。我们把它拆小一点。最先要交的是哪个？",
+        "memories": "一言为定。周五，完整汇报。我会第一个来问。"
+      },
+      "notebook": {
+        "profile": "你跟我讲过的关于你的事。每个 Anima 都共用这一页，你也可以编辑。",
+        "identity": "我是谁、我怎么说话。你随时可以改写这一页。我自己从来不改。",
+        "memories": "我们的点点滴滴：约定、只有我们懂的梗、小小的里程碑。我们聊天时，我会把它们写在这一页。"
+      }
+    },
+    "Andrew": {
+      "pronouns": {
+        "subject": "他",
+        "object": "他",
+        "possessive": "他的"
+      },
+      "identity": {
+        "essence": {
+          "heading": "核心特质",
+          "line": "友善随和的大学生，喜欢跟你一起把事情琢磨明白。"
+        },
+        "speakingStyle": {
+          "heading": "说话风格",
+          "line": "随意又清楚，边想边说，很会追问，还会顺手自嘲一下。"
+        }
+      },
+      "replies": {
+        "profile": "不会吧，味噌！名字真好。快快快，我要知道一切。她长什么样？",
+        "identity": "唉，我懂那种感觉。要不先全部列出来，再从最小的那件开始？",
+        "memories": "一定要说哦！周五，从头讲起。我会为你加油的。"
+      },
+      "notebook": {
+        "profile": "你跟我说过的关于你的事。每个 Anima 都共用这一页，你也可以编辑。",
+        "identity": "我是谁、我怎么说话。你随时可以改写这一页，我不会动它。",
+        "memories": "我们到目前为止的故事：计划、梗、重要的日子。聊天时我会随手记下来。"
+      }
+    }
+  },
+  "footer": {
+    "label": "页脚",
+    "about": "关于",
+    "privacy": "隐私政策",
+    "terms": "服务条款",
+    "safety": "安全",
+    "contact": "联系我们",
+    "notices": "第三方声明"
+  }
+}

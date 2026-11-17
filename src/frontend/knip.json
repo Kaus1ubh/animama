@@ -42,7 +42,7 @@
         "tests/**/*.{ts,tsx}",
         "public/**/*.js"
       ],
-      "paths": { "@/*": ["./src/*"], "@web/*": ["./src/*"] },
+      "paths": { "@/*": ["./src/*"] },
       "typescript": {
         "config": ["tsconfig.json", "tsconfig.app.json", "tsconfig.node.json"]
       },
@@ -129,8 +129,7 @@
         "scripts/runtime/ci-keychain.mjs",
         "scripts/runtime/ci-smoke.mjs",
         "scripts/runtime/publish-macos.mjs",
-        "scripts/runtime/native-build.mjs",
-        "scripts/runtime/worker-input.mjs"
+        "scripts/runtime/native-build.mjs"
       ],
       "project": [
         "*.ts",

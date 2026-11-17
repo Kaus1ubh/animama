@@ -1,3 +1,7 @@
+"""Maps model-provider catalog entries between registry rows, ORM rows, the domain type and
+the public ``/v1/model-providers`` row.
+"""
+
 from __future__ import annotations
 
 from collections.abc import Mapping

@@ -245,7 +245,7 @@ lines above the chat input (`ChatLoadingStatus.tsx`) show one line for each item
 still in progress: the Avatar until its first posed frame, then animations and effects
 with completed/total members, the PocketTTS model during its first load with
 its setup step (the worker's five status stages, matched by text in
-`use-pocket-tts-runtime.ts`), Parakeet while dictation or Voice Mode starts,
+`usePocketTtsRuntime.ts`), Parakeet while dictation or Voice Mode starts,
 and any Parakeet CPU/GPU or Voice Clone encoder download, wherever it was
 started (`ui/app/ModelDownloads.tsx`). Local reads say "Loading"; downloads say
 "Downloading", with size and progress. Where the runtime reports

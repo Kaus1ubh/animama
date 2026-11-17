@@ -10,8 +10,19 @@ from pathlib import Path
 from uuid import uuid4
 
 import pytest
+from alembic.script import ScriptDirectory
 from sqlalchemy import create_engine
 from sqlalchemy.engine import make_url
+
+from animama.runtime.resources import alembic_config
+
+
+def alembic_head() -> str:
+    """The revision that bootstrap brings a database to."""
+
+    head = ScriptDirectory.from_config(alembic_config()).get_current_head()
+    assert head is not None
+    return head
 
 
 @pytest.fixture(scope="module")
@@ -85,7 +96,7 @@ def migrated_database(migration_postgres: str) -> Iterator[str]:
         }
         environment["ANIMAMA_DATABASE_URL"] = target.render_as_string(hide_password=False)
         result = subprocess.run(
-            [sys.executable, "-m", "alembic", "upgrade", "head"],
+            [sys.executable, "-m", "alembic", "-c", "src/backend/alembic.ini", "upgrade", "head"],
             cwd=Path(__file__).resolve().parents[1],
             env=environment,
             capture_output=True,

@@ -1,5 +1,3 @@
-"use client";
-
 import {
   createContext,
   useCallback,
@@ -23,7 +21,6 @@ import {
 } from "@/lib/theme/appearance-overrides";
 
 import type {
-  PyAnimaDispatchOptions,
   PyAnimaSettings,
   PyAnimaSettingsUpdate,
   PyUserSettings,
@@ -37,6 +34,7 @@ import {
   themesEquivalent,
   type SettingsPreferences,
 } from "@/lib/settings/preferences";
+import type { ChatFeatureChoice } from "@/lib/chat/chat-request-options";
 import { createLogger } from "@/lib/logger";
 import { useEnhancedRenderingStore } from "@/lib/avatar/enhanced-rendering/enhancedRendering";
 import { useAnimaSettings } from "@/query/hooks/useAnimaSettings";
@@ -70,10 +68,12 @@ export type SettingsContextValue = {
   updateAnimaPreferences: (
     patch: SettingsPreferences,
   ) => Promise<PyAnimaSettings | undefined>;
-  chatRequestOptions: PyAnimaDispatchOptions | null;
-  setChatRequestOverrides: Dispatch<
-    SetStateAction<Partial<PyAnimaDispatchOptions>>
-  >;
+  /**
+   * The Chat features chosen in the composer for one Anima's model. Kept in
+   * this provider so leaving and reopening the chat page keeps it; not saved.
+   */
+  chatFeatureChoice: ChatFeatureChoice | null;
+  setChatFeatureChoice: Dispatch<SetStateAction<ChatFeatureChoice | null>>;
   chatMarkdownEnabled: boolean;
   /** Saves `presentation.render_markdown` in app preferences. */
   setChatMarkdownEnabled: (enabled: boolean) => void;
@@ -211,9 +211,8 @@ export function SettingsProvider({
     [logger, animaPreferences, resolvedAnimaId, updateAnimaSettings, userId],
   );
 
-  const [chatRequestOverrides, setChatRequestOverrides] = useState<
-    Partial<PyAnimaDispatchOptions>
-  >({});
+  const [chatFeatureChoice, setChatFeatureChoice] =
+    useState<ChatFeatureChoice | null>(null);
   // Persisted app preference; rendering Markdown stays on unless turned off.
   const chatMarkdownEnabled =
     userPreferences?.presentation?.render_markdown !== false;
@@ -253,32 +252,6 @@ export function SettingsProvider({
     },
     [logger, t, updateUserPreferences],
   );
-
-  const chatRequestOptions = useMemo(() => {
-    const entries: Array<[string, boolean | string | string[]]> = [];
-    for (const [key, value] of Object.entries(chatRequestOverrides)) {
-      if (typeof value === "boolean") {
-        entries.push([key, value]);
-        continue;
-      }
-      if (typeof value === "string" && value.trim()) {
-        entries.push([key, value.trim()]);
-        continue;
-      }
-      if (Array.isArray(value)) {
-        const normalized = Array.from(
-          new Set(
-            value
-              .map((item) => String(item).trim())
-              .filter((item) => item.length > 0),
-          ),
-        );
-        entries.push([key, normalized]);
-      }
-    }
-    if (entries.length === 0) return null;
-    return Object.fromEntries(entries) as PyAnimaDispatchOptions;
-  }, [chatRequestOverrides]);
 
   const pendingTheme = useRef<string | null>(null);
   const appliedSettingsTheme = useRef<string | null>(null);
@@ -363,15 +336,15 @@ export function SettingsProvider({
       updateAnimaSettings,
       updateUserPreferences,
       updateAnimaPreferences,
-      chatRequestOptions,
-      setChatRequestOverrides,
+      chatFeatureChoice,
+      setChatFeatureChoice,
       chatMarkdownEnabled,
       setChatMarkdownEnabled,
       enhancedRenderingEnabled,
       setEnhancedRenderingEnabled,
     }),
     [
-      chatRequestOptions,
+      chatFeatureChoice,
       chatMarkdownEnabled,
       setChatMarkdownEnabled,
       enhancedRenderingEnabled,
@@ -393,7 +366,6 @@ export function SettingsProvider({
       userSettings,
       userSettingsQuery.isLoading,
       userSettingsQuery.isSuccess,
-      setChatRequestOverrides,
     ],
   );
 

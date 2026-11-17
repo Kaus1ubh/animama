@@ -1,2 +1,6 @@
 /** Shared presentation implementation. */
-export * from "@animama/product-ui/components";
+export {
+  Avatar,
+  AvatarFallback,
+  AvatarImage,
+} from "@animama/product-ui/components";

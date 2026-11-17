@@ -43,7 +43,7 @@ def request_headers(*, mutation: bool = False) -> dict[str, str]:
     return headers
 
 
-def format_failure(resp, *, prefix: str) -> str:  # noqa: ANN001
+def format_failure(resp, *, prefix: str) -> str:
     """Keep load-test failures useful without echoing private response bodies."""
 
     status = getattr(resp, "status_code", None)
@@ -63,7 +63,7 @@ def format_failure(resp, *, prefix: str) -> str:  # noqa: ANN001
     return f"{prefix}_{status} code={code} retry_after={retry_after}"
 
 
-def _response_json(resp, *, operation: str) -> dict[str, Any]:  # noqa: ANN001
+def _response_json(resp, *, operation: str) -> dict[str, Any]:
     try:
         payload = resp.json()
     except Exception as exc:
@@ -106,7 +106,7 @@ def _source_roots(options: dict[str, Any], avatar: dict[str, Any]) -> list[dict[
     return list(unique.values())
 
 
-def load_creation_template(client) -> dict[str, Any]:  # noqa: ANN001
+def load_creation_template(client) -> dict[str, Any]:
     """Resolve one current catalog-backed creation template through the application origin."""
 
     with client.get(
@@ -223,7 +223,7 @@ class AccountlessAnimaUser(HttpUser):
 
 
 def stream_sse_until_completed(
-    resp,  # noqa: ANN001
+    resp,
     *,
     on_event: Callable[[str, dict[str, Any] | None, str | None], None] | None = None,
 ) -> tuple[bool, str | None, float, dict[str, Any] | None]:

@@ -67,9 +67,8 @@ from typing import Any
 from animama.app.services.anima_identity_memory import ANIMA_SELF_MEMORIES_ALIAS
 from animama.app.services.anima_starter_service import STARTER_ANIMA_SPECS
 from animama.app.voice_emotional_tone import ELEVENLABS_EMOTIONAL_TONE_VALUES
-
-from ..core.inputs import EvalInputError, read_json, require_unique, required_text
-from ..core.loadouts import Loadout, load_loadout
+from scripts.evals.core.inputs import EvalInputError, read_json, require_unique, required_text
+from scripts.evals.core.loadouts import Loadout, load_loadout
 
 __all__ = [
     "AREAS",

@@ -3,11 +3,6 @@ name: Signed macOS desktop
 on:
   workflow_dispatch:
     inputs:
-      operation:
-        description: Prepare a helper for inventory review, or build a release from reviewed inputs
-        type: choice
-        options: [release, prepare-worker]
-        default: release
       publish:
         description: Request a public testing preview, then stable promotion after separate native acceptance
         type: boolean
@@ -23,7 +18,7 @@ permissions:
   actions: read
 
 concurrency:
-  group: desktop-macos-${{ inputs.operation }}
+  group: desktop-macos-release
   cancel-in-progress: false
 
 env:
@@ -59,50 +54,7 @@ jobs:
       pull-requests: read
     uses: ./.github/workflows/validate-public.yml
 
-  prepare-worker:
-    if: inputs.operation == 'prepare-worker'
-    needs: source-validation
-    runs-on: macos-15 # Native arm64; macOS runners cannot host Docker testcontainers.
-    environment: desktop-macos-signing
-    timeout-minutes: 120
-    steps:
-      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
-        with:
-          ref: ${{ github.sha }}
-          lfs: true
-          persist-credentials: false
-      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
-        with:
-          node-version: "24.15.0"
-          package-manager-cache: false
-      - uses: astral-sh/setup-uv@cec208311dfd045dd5311c1add060b2062131d57 # v8.0.0
-        with:
-          version: "0.11.28"
-      - run: npm install --global pnpm@10.33.0
-      - run: pnpm install --frozen-lockfile
-        working-directory: src/frontend
-      - name: Import CI-only signing credentials
-        run: node src/frontend/desktop/scripts/runtime/ci-keychain.mjs setup
-        env:
-          ANIMAMA_MACOS_CERTIFICATE_BASE64: ${{ secrets.ANIMAMA_MACOS_CERTIFICATE_BASE64 }}
-          ANIMAMA_MACOS_CERTIFICATE_PASSWORD: ${{ secrets.ANIMAMA_MACOS_CERTIFICATE_PASSWORD }}
-          ANIMAMA_APPLE_ID: ${{ secrets.ANIMAMA_APPLE_ID }}
-          ANIMAMA_APPLE_APP_PASSWORD: ${{ secrets.ANIMAMA_APPLE_APP_PASSWORD }}
-      - run: pnpm desktop:runtime:document-worker -- --platform darwin --arch arm64
-        working-directory: src/frontend
-      - uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
-        with:
-          name: reviewed-worker-candidate
-          path: src/frontend/desktop/release/worker-input/
-          compression-level: 0
-          if-no-files-found: error
-          retention-days: 30
-      - name: Remove signing credentials
-        if: always()
-        run: node src/frontend/desktop/scripts/runtime/ci-keychain.mjs cleanup
-
   build:
-    if: inputs.operation == 'release'
     needs: source-validation
     runs-on: macos-15
     environment: desktop-macos-signing

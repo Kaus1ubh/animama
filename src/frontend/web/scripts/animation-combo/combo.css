@@ -1,0 +1,237 @@
+:root {
+  --bg: #f4f3ef;
+  --panel: #ffffff;
+  --text: #1f1f1d;
+  --muted: #6b6a64;
+  --line: #dddbd3;
+  --accent: #3b6fd8;
+  --accent-soft: #e4ecfb;
+  --meter: #f2b84b;
+  --error: #b42318;
+  font-family:
+    system-ui,
+    -apple-system,
+    "Segoe UI",
+    sans-serif;
+  color-scheme: light;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+body {
+  margin: 0;
+  height: 100vh;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 13px;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: 1fr 380px;
+  height: 100vh;
+}
+
+.stage-area {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.stage-host {
+  box-shadow: 0 1px 8px rgb(0 0 0 / 12%);
+}
+
+.status {
+  position: absolute;
+  left: 16px;
+  bottom: 8px;
+  margin: 0;
+}
+
+.status.error {
+  color: var(--error);
+}
+
+.panel {
+  overflow-y: auto;
+  background: var(--panel);
+  border-left: 1px solid var(--line);
+  padding: 12px 14px 24px;
+}
+
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+h2 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.row {
+  display: flex;
+  align-items: end;
+  gap: 8px;
+}
+
+.grow {
+  flex: 1;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.field input[type="number"] {
+  width: 76px;
+}
+
+select,
+input,
+button,
+textarea {
+  font: inherit;
+  color: var(--text);
+}
+
+select[size] {
+  width: 100%;
+}
+
+.check {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.transport {
+  flex-direction: row;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+button {
+  padding: 5px 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel);
+  cursor: pointer;
+}
+
+button.primary {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #fff;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.small {
+  margin: 0;
+  font-size: 12px;
+}
+
+.effect-list {
+  max-height: 210px;
+  overflow-y: auto;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 4px;
+}
+
+.effect {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 4px;
+  border-radius: 4px;
+}
+
+.effect.is-on {
+  background: var(--accent-soft);
+}
+
+.effect-kind {
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.expression-list {
+  display: grid;
+  gap: 2px;
+}
+
+.expression-heading {
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.expression {
+  display: grid;
+  grid-template-columns: 1fr 110px 34px;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 4px;
+  border-radius: 4px;
+}
+
+.expression.is-set {
+  background: var(--accent-soft);
+}
+
+.expression-name {
+  position: relative;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-variant-numeric: tabular-nums;
+}
+
+/* The live weight, drawn under the name. */
+.expression-name::before {
+  content: "";
+  position: absolute;
+  inset: auto auto 0 0;
+  height: 3px;
+  width: calc(var(--live, 0) * 100%);
+  background: var(--meter);
+}
+
+.expression-value {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+
+.sheet {
+  width: 100%;
+  margin-top: 10px;
+  font-family: ui-monospace, monospace;
+  font-size: 11px;
+}

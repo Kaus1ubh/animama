@@ -21,6 +21,7 @@ const manager = vi.hoisted(() => ({
   mutate: vi.fn(),
   blockedReason: null as string | null,
   offered: true,
+  downloadsOffered: true,
   /** Local runtimes administer their own model installation. */
   capabilities: {
     offline_speech_enabled: false,
@@ -42,7 +43,7 @@ vi.mock("@/lib/speech/offline-stt/clients", () => ({
     return manager.offered;
   },
 }));
-vi.mock("@/hooks/use-pocket-voice-downloads", () => ({
+vi.mock("@/hooks/usePocketVoiceDownloads", () => ({
   usePocketVoiceDownloads: () => ({
     availability: () => null,
     install: manager.mutate,
@@ -53,7 +54,11 @@ vi.mock("@/query/hooks/useModelAssets", async (importOriginal) => ({
   // The real operator-managed check reads the mocked runtime capabilities.
   ...(await importOriginal<typeof import("@/query/hooks/useModelAssets")>()),
   useModelAssets: () => ({
-    data: { assets: manager.assets, free_bytes: 40 * 1024 ** 3 },
+    data: {
+      assets: manager.assets,
+      free_bytes: 40 * 1024 ** 3,
+      downloads_offered: manager.downloadsOffered,
+    },
     retryAssetIds: manager.retryAssetIds,
   }),
 }));
@@ -72,6 +77,9 @@ vi.mock("@/query/mutations/useModelAssetActions", () => ({
     blockedReason: manager.blockedReason,
   }),
 }));
+
+const ENDED_NOTE =
+  "Animama no longer offers model downloads. Anything already downloaded keeps working; chat, Avatars and the built-in voices need no downloads.";
 
 const set = (
   id: string,
@@ -102,6 +110,9 @@ describe("model change errors", () => {
     expect(modelChangeErrorText(new Error("/private/path"))).not.toContain(
       "/private",
     );
+    expect(
+      modelChangeErrorText({ detail: { code: "model_downloads_ended" } }),
+    ).toBe(ENDED_NOTE);
   });
 
   it("words the feature pack guard in the UI Locale", async () => {
@@ -285,5 +296,44 @@ describe("operator-managed speech models", () => {
     const html = renderToStaticMarkup(<VoiceCloneSettings />);
     expect(html).not.toContain(managedNote);
     expect(html).toContain("Download voice cloning");
+  });
+});
+
+describe("after model downloads have ended", () => {
+  const encoder = set("pocket-tts-voice-cloning-encoder", 39_768_446);
+  beforeEach(() => {
+    manager.downloadsOffered = false;
+    manager.retryAssetIds = new Set();
+    manager.blockedReason = null;
+  });
+  afterEach(() => {
+    manager.downloadsOffered = true;
+  });
+
+  it("reports the end to the speech recognition panels", () => {
+    manager.assets = [set("parakeet-stt", 631_000_000)];
+    let props!: OfflineSpeechDownloadsViewProps;
+    function Probe() {
+      props = useOfflineSpeechDownloads("parakeet");
+      return null;
+    }
+    renderToStaticMarkup(<Probe />);
+    expect(props.downloadsEnded).toBe(true);
+  });
+
+  it("explains a voice cloning model that was never installed, without a download", () => {
+    manager.assets = [{ ...encoder, status: "not_installed" }];
+    const html = renderToStaticMarkup(<VoiceCloneSettings />);
+    expect(html).toContain("Not available");
+    expect(html).toContain(ENDED_NOTE);
+    expect(html).not.toContain("<button");
+    expect(html).not.toContain("37.9 MB download");
+  });
+
+  it("keeps an installed voice cloning model removable", () => {
+    manager.assets = [{ ...encoder, status: "installed" }];
+    const html = renderToStaticMarkup(<VoiceCloneSettings />);
+    expect(html).toContain("Remove voice cloning");
+    expect(html).not.toContain(ENDED_NOTE);
   });
 });

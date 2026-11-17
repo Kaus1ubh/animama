@@ -2,6 +2,7 @@ import type {
   KeyboardEvent as ReactKeyboardEvent,
   MouseEvent as ReactMouseEvent,
 } from "react";
+import { isRecord } from "@/lib/records";
 
 export type DesktopShortcutAction =
   | "press_to_talk"
@@ -126,10 +127,6 @@ export type DesktopShortcutIssue =
         | "mouse_press_to_talk_only";
     }
   | { reason: "in_use"; action: DesktopShortcutAction };
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
-}
 
 function normalizeBoolean(value: unknown): boolean | undefined {
   return value === true ? true : undefined;

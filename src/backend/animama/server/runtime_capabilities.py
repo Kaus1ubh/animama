@@ -26,6 +26,7 @@ from animama.orm.runtime_worker import ORMRuntimeWorkerHeartbeat
 from animama.server.config import Settings, settings
 from animama.server.model_assets import parakeet_availability, sensevoice_availability
 from animama.server.model_roles import composition_model_policy
+from animama.server.user_file_processing import get_user_file_processing_runner
 from animama.server.web_search import composition_web_search_enabled, web_search_credential_state
 
 
@@ -42,7 +43,7 @@ def get_runtime_settings(request: Request) -> Settings:
 
 
 async def local_runtime_capabilities(app: FastAPI, session: AsyncSession) -> RuntimeCapabilities:
-    """Describe the local app; a stale worker may still accept durable jobs, an absent pack may not."""
+    """Describe the local app; enabled processing accepts durable jobs even while its processor is stale."""
 
     runtime_settings = runtime_settings_for(app)
     enabled = runtime_settings.animama_user_file_processing_enabled
@@ -50,8 +51,9 @@ async def local_runtime_capabilities(app: FastAPI, session: AsyncSession) -> Run
     last_heartbeat_at = None
     if enabled:
         heartbeat = await session.get(ORMRuntimeWorkerHeartbeat, "document-processing")
-        expected = runtime_settings.animama_document_worker_instance_id
-        if heartbeat is None or (expected and heartbeat.instance_id != expected):
+        # Only this server's own processor counts, not a row another process left behind.
+        runner = get_user_file_processing_runner(app)
+        if heartbeat is None or runner is None or heartbeat.instance_id != runner.instance_id:
             state = "starting"
         else:
             last_heartbeat_at = heartbeat.heartbeat_at

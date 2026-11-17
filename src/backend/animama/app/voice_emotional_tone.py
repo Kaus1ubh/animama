@@ -50,15 +50,6 @@ ELEVENLABS_TONE_TO_CANONICAL_EMOTION: dict[str, str] = {
 
 ELEVENLABS_EMOTIONAL_TONE_VALUES: tuple[str, ...] = tuple(dict.fromkeys(CANONICAL_EMOTION_TO_ELEVENLABS_TONE.values()))
 
-VOICE_EMOTIONAL_TONE_VALUES: tuple[str, ...] = tuple(
-    dict.fromkeys(
-        (
-            *CANONICAL_EMOTION_TO_ELEVENLABS_TONE.keys(),
-            *CANONICAL_EMOTION_TO_ELEVENLABS_TONE.values(),
-        )
-    )
-)
-
 
 @dataclass(frozen=True, slots=True)
 class ElevenLabsEmotionalTone:
@@ -166,7 +157,6 @@ __all__ = [
     "DEFAULT_ELEVENLABS_TONE_KEY",
     "ELEVENLABS_TONE_TO_CANONICAL_EMOTION",
     "ELEVENLABS_EMOTIONAL_TONE_VALUES",
-    "VOICE_EMOTIONAL_TONE_VALUES",
     "ElevenLabsEmotionalTone",
     "normalize_elevenlabs_emotional_tone",
     "validate_voice_emotional_tone",

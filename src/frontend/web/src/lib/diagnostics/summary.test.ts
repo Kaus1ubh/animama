@@ -9,7 +9,11 @@ describe("buildDiagnosticsSummary", () => {
       platform: "darwin",
       runtime: { state: "error", code: "migration_failed" },
       featurePacks: [
-        { id: "document-processing", state: "installed", version: "1.2.0" },
+        {
+          id: "expanded-included-content",
+          state: "installed",
+          version: "1.2.0",
+        },
       ],
       providers: [
         { provider: "openai", configured: true },
@@ -23,7 +27,7 @@ describe("buildDiagnosticsSummary", () => {
         "Platform: darwin",
         "Runtime: error (migration_failed)",
         "Feature packs:",
-        "- document-processing: installed 1.2.0",
+        "- expanded-included-content: installed 1.2.0",
         "Provider keys configured:",
         "- openai: yes",
         "- elevenlabs: no",
@@ -45,14 +49,14 @@ describe("buildDiagnosticsSummary", () => {
       ],
       featurePacks: [
         {
-          id: "document-processing",
+          id: "expanded-included-content",
           state: "failed",
-          error: "/private/path/worker.log",
+          error: "/private/path/pack.log",
         },
       ],
     };
     const summary = buildDiagnosticsSummary(input);
-    expect(summary).not.toMatch(/sk-secret|Users|private|backup|worker\.log/);
+    expect(summary).not.toMatch(/sk-secret|Users|private|backup|pack\.log/);
   });
 
   it("strips characters that could smuggle free-form text into identifiers", () => {

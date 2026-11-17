@@ -1,5 +1,3 @@
-"use client";
-
 import type {
   AvatarVFXAppliedEffectSnapshot,
   AvatarVFXApplyMode,
@@ -49,7 +47,7 @@ import {
   vfxTextureLayouts,
   vfxTexturePivots,
 } from "./helpers";
-import type { VFXCatalogDraftController } from "./use-vfx-catalog-drafts";
+import type { VFXCatalogDraftController } from "./useVFXCatalogDrafts";
 
 export function CatalogEffectCard({
   effect,

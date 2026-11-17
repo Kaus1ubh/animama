@@ -1,5 +1,3 @@
-"use client";
-
 import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
 import { tags } from "@lezer/highlight";
 

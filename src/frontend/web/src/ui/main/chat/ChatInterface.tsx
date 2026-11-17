@@ -1,6 +1,6 @@
-"use client";
-
 import { ChatConversation } from "@animama/product-ui/components";
+import type { ChatAttachmentHold } from "@animama/product-ui/chat";
+import { useUppyState } from "@uppy/react";
 
 import {
   ChatTranscript,
@@ -41,14 +41,14 @@ import { PromptSuggestion } from "./PromptSuggestion";
 import { MemoryCue } from "./MemoryCue";
 import { SkipSpeechButton } from "./SkipSpeechButton";
 import { useFirstChatSuggestions } from "./useFirstChatSuggestions";
-import { useDictation } from "@/hooks/use-dictation";
+import { useDictation } from "@/hooks/useDictation";
 import {
   ChatLoadingStatusLines,
   useChatLoadingStatus,
   type ChatLoadingStatus,
 } from "./ChatLoadingStatus";
 import { useQueryClient } from "@tanstack/react-query";
-import { useDesktopVoiceShortcuts } from "@/hooks/use-desktop-voice-shortcuts";
+import { useDesktopVoiceShortcuts } from "@/hooks/useDesktopVoiceShortcuts";
 import {
   useDesktopQuickChatOwner,
   type DesktopQuickChatPromptSuggestion,
@@ -64,6 +64,8 @@ import {
   mergeChatAttachedFileIds,
   selectableChatUserFiles,
 } from "@/lib/user-files/chat-attachments";
+import { resolveChatAttachmentHold } from "@/lib/user-files/chat-attachment-hold";
+import type { UserFileUploadStatusFile } from "@/lib/user-files/upload-card-status";
 import { queryKeys } from "@/query/keys";
 import { useUserFiles } from "@/query/hooks/useUserFiles";
 import { useRuntimeCapabilities } from "@/query/hooks/useRuntimeCapabilities";
@@ -125,6 +127,8 @@ type ChatInterfaceViewProps = {
   activeMode?: "dictation" | "voice" | null;
   /** Names the Anima in memory cue details. */
   animaName?: string | null;
+  /** Whether the tray's uploads hold a typed message; the send control says why. */
+  attachmentHold?: ChatAttachmentHold;
   autoFocusInput?: boolean;
   canChat: boolean;
   /** What the Anima route is still loading or downloading; null outside one. */
@@ -145,6 +149,8 @@ type ChatInterfaceViewProps = {
   input: string;
   inputPlaceholder: string;
   isAwaitingStreamingAnimationFinalization: boolean;
+  /** A model restore or confirmed switch is saving; the model picker waits for it. */
+  isConfirmingModelSwitch?: boolean;
   isDictationPreparing?: boolean;
   isMicCaptureActive?: boolean;
   isStreaming: boolean;
@@ -214,6 +220,7 @@ export function ChatInterfaceView({
   activeChat,
   activeMode = null,
   animaName = null,
+  attachmentHold = "none",
   autoFocusInput = false,
   canChat,
   loadingStatus = null,
@@ -230,6 +237,7 @@ export function ChatInterfaceView({
   input,
   inputPlaceholder,
   isAwaitingStreamingAnimationFinalization,
+  isConfirmingModelSwitch = false,
   isDictationPreparing = false,
   isMicCaptureActive = false,
   isStreaming,
@@ -497,7 +505,9 @@ export function ChatInterfaceView({
                     activeChat={activeChat}
                     animaId={animaId}
                     closeSignal={modelSelectorCloseSignal}
-                    disabled={isStreaming}
+                    // An effort save names the current model, so it must not
+                    // overtake a model switch that is still saving.
+                    disabled={isStreaming || isConfirmingModelSwitch}
                     onIncompatibleModelSelect={onIncompatibleModelSelect}
                     onModelChange={onModelChange}
                   />
@@ -505,7 +515,7 @@ export function ChatInterfaceView({
                     disabled={!activeMode && (!canChat || !speechAvailable)}
                     engineDetails={speechEngines.dictation}
                   />
-                  <ChatInputSubmit />
+                  <ChatInputSubmit attachmentHold={attachmentHold} />
                 </>
               }
             >
@@ -623,6 +633,28 @@ export const ChatInterface = ({
     return mergeChatAttachedFileIds(uploadedIds, selectedExistingFileIds);
   }, [fileUploadUppy, selectedExistingFileIds]);
 
+  // Sending waits until the Anima can read every new upload in the tray.
+  const uploadProcessingEnabled =
+    useRuntimeCapabilities().data?.user_file_processing?.enabled === true;
+  const userFileRows = userFilesQuery.data;
+  const holdFor = useCallback(
+    (trayFiles: Record<string, UserFileUploadStatusFile>) =>
+      resolveChatAttachmentHold({
+        files: Object.values(trayFiles),
+        backendFiles: userFileRows,
+        processingEnabled: uploadProcessingEnabled,
+      }),
+    [uploadProcessingEnabled, userFileRows],
+  );
+  const attachmentHold = useUppyState(fileUploadUppy, (state) =>
+    holdFor(state.files),
+  );
+  // Each send reads the tray afresh, like `getAttachedFileIds`.
+  const getAttachmentHold = useCallback(
+    () => holdFor(fileUploadUppy.getState().files),
+    [fileUploadUppy, holdFor],
+  );
+
   const {
     activeChat,
     input,
@@ -648,6 +680,7 @@ export const ChatInterface = ({
   } = useChatSession({
     animaId,
     getAttachedFileIds,
+    getAttachmentHold,
     openDraftChatRoute,
     routeChatId: chatId,
     replaceChatRoute,
@@ -937,9 +970,16 @@ export const ChatInterface = ({
   const handleSubmitWithDictation = useCallback(() => {
     endTypingActivityNow();
     handleSubmit();
+    // A held message stays in the composer, so dictation keeps adding to it.
+    if (getAttachmentHold() !== "none") return;
     dictationBaseRef.current = "";
     clearDictationBuffers();
-  }, [clearDictationBuffers, endTypingActivityNow, handleSubmit]);
+  }, [
+    clearDictationBuffers,
+    endTypingActivityNow,
+    getAttachmentHold,
+    handleSubmit,
+  ]);
 
   const handleInputChange = useCallback(
     (e: ChangeEvent<HTMLTextAreaElement>) => {
@@ -1027,6 +1067,7 @@ export const ChatInterface = ({
       activeChat,
       animaId,
       animaName,
+      attachmentHold,
       chatId,
       input,
       inputPlaceholder,
@@ -1052,6 +1093,7 @@ export const ChatInterface = ({
       activeChat,
       activeMode,
       animaName,
+      attachmentHold,
       canChat,
       chatMarkdownEnabled,
       chatId,
@@ -1159,6 +1201,7 @@ export const ChatInterface = ({
         activeChat={activeChat}
         activeMode={activeMode}
         animaName={animaName}
+        attachmentHold={attachmentHold}
         canChat={canChat}
         loadingStatus={loadingStatus}
         contentWarning={contentWarning}
@@ -1176,6 +1219,7 @@ export const ChatInterface = ({
         isAwaitingStreamingAnimationFinalization={
           isAwaitingStreamingAnimationFinalization
         }
+        isConfirmingModelSwitch={isConfirmingModelSwitch}
         isDictationPreparing={isDictationPreparing}
         isMicCaptureActive={isMicCaptureActive}
         isStreaming={isStreaming}

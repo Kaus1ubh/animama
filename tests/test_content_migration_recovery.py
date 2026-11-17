@@ -24,6 +24,7 @@ from animama.server.local_installation_bootstrap import create_local_installatio
 from animama.server.local_runtime import initialize_local_runtime
 from tests.content_package_helpers import package_services, reviewed_export, reviewed_import, vrma
 from tests.migration_database_helpers import (
+    alembic_head,
     migrated_database as migrated_database,
     migration_postgres as migration_postgres,
 )
@@ -33,7 +34,7 @@ def _settings(url: str, root: Path) -> Settings:
     return Settings(animama_database_url=url, animama_content_root=root / "content", animama_data_root=root / "data")
 
 
-async def _bootstrap(database: LocalDatabase, settings: Settings):  # noqa: ANN202
+async def _bootstrap(database: LocalDatabase, settings: Settings):
     """Run the real factory, including defaults; empty Included has no starters."""
     service = create_local_installation_bootstrap_service(
         session_factory=database.session_factory(),
@@ -78,7 +79,7 @@ async def test_reviewed_package_replay_after_fresh_bootstrap_preserves_later_cha
         assert state.content_ready
         owner = state.principal_id
         async with first.session_factory()() as session:
-            assert await session.scalar(text("SELECT version_num FROM alembic_version")) == "baseline_20260908"
+            assert await session.scalar(text("SELECT version_num FROM alembic_version")) == alembic_head()
             paths, catalog, content, saves, packages = package_services(session, tmp_path)
             saved = await saves.save_standalone(**_command(owner))
             exported = await reviewed_export(packages, user_id=owner, root_item_id=saved.item.id)

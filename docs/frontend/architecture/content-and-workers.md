@@ -37,7 +37,7 @@ tree. Production and embedded-desktop builds copy the exact inventory into
 of the developer store. These required distribution copies remain local to the
 artifact and retain their notices. The offline speech-to-text sets (Parakeet
 and SenseVoice-Small) are kept outside the web build: packaged desktop and built
-self-host download them as backend model assets. See
+self-host download them as backend model assets until the final release. See
 [shared model setup](../../backend/operations/model-assets.md) for acquisition,
 platform-specific storage, offline reuse and cleanup.
 
@@ -62,7 +62,11 @@ retain their existing root-relative paths. Optional manifests and notices ship
 with the application; optional model bytes require separate verified provisioning.
 Neither helper turns private catalog or API bytes into static resources. The
 [hosted artifact contract](../../../contracts/hosted-web.md#static-application-format-a5-producer--consumer-contract)
-owns the closed inventories, MIME/cache/range behavior and worker CSP.
+owns the closed inventories, MIME/cache/range behavior and worker CSP; local
+builds serve [their own policy](auth-server.md#content-security-policy), which
+also allows `data:` connections. A
+new worker loads from the application origin or a `blob:` URL, a new worklet
+from the application origin only, and neither may evaluate strings.
 
 ## Included content
 

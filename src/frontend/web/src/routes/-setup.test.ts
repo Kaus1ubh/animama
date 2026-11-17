@@ -68,7 +68,7 @@ vi.mock("@/platform/env", async (importOriginal) => {
     },
   };
 });
-vi.mock("@web/app/local-runtime/LocalRuntimeProvider", () => ({
+vi.mock("@/app/local-runtime/LocalRuntimeProvider", () => ({
   useLocalRuntime: () => ({
     state: {
       status: "ready",

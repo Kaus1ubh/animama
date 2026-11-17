@@ -391,7 +391,11 @@ export function pythonEnvironment() {
   };
 }
 
-/** Create or refresh the locked build interpreter outside the repository's .venv. */
+/**
+ * Create or refresh the locked build interpreter outside the repository's .venv:
+ * the core dependencies, the `documents` extra the upload parse child imports,
+ * and PyInstaller.
+ */
 export function syncBuildEnvironment() {
   assertPrivatePythonInstallDir();
   run(
@@ -402,6 +406,8 @@ export function syncBuildEnvironment() {
       readJson(path.join(sourceRoot, "source-manifest.json")).python,
       "--frozen",
       "--no-default-groups",
+      "--extra",
+      "documents",
       "--group",
       "desktop-build",
     ],

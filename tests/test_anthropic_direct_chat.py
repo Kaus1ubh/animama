@@ -513,7 +513,7 @@ class _ContinuationRecordingClient:
     def __init__(self) -> None:
         self.seen: list[Any] = []
 
-    async def stream(self, spec: Any):  # noqa: ANN201
+    async def stream(self, spec: Any):
         self.seen.append(spec)
         if len(self.seen) == 1:
             final = ModelClientFinal(

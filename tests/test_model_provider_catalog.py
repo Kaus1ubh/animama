@@ -55,7 +55,7 @@ PRICE_COLUMNS = (
 )
 # Retired built-ins are chat rows, so only chat-model roles can name them.
 CHAT_ROLE_PREFERENCE_PATHS = tuple(path for role, path in ROLE_PREFERENCE_PATHS.items() if role != ROLE_EMBEDDINGS)
-SEED_SQL_PATH = Path("alembic/seeds/01-seed-model-providers.sql")
+SEED_SQL_PATH = Path("src/backend/migrations/seeds/01-seed-model-providers.sql")
 SEED_COLUMNS = (
     "id",
     "model",
@@ -257,6 +257,8 @@ def _render_retired_builtin_remap() -> str:
         "-- current built-in row on the same API, so existing installations keep chatting.\n"
         "UPDATE anima_chat_profiles AS profile SET\n"
         "    default_model_provider_id = remap.replacement_id,\n"
+        # The saved effort belongs to the retired model; the new one starts at its default.
+        "    reasoning_effort = NULL,\n"
         "    updated_at = CURRENT_TIMESTAMP\n"
         + remap_from
         + "WHERE profile.default_model_provider_id = remap.retired_id;\n"
@@ -733,7 +735,7 @@ def test_model_provider_orm_metadata_is_registered() -> None:
     assert table.c.regional_processing_uplift_factor.nullable
 
 
-async def _apply_seed_sql(session) -> None:  # noqa: ANN001
+async def _apply_seed_sql(session) -> None:
     connection = await session.connection()
     raw = await connection.get_raw_connection()
     await raw.driver_connection.execute(SEED_SQL_PATH.read_text(encoding="utf-8"))

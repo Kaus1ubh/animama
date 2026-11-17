@@ -211,7 +211,7 @@ a new independent companion; it does not restore conversations or other private 
 ### Voice choices
 
 Voice precedes Identity and reuses Loadout's searchable PocketTTS picker, samples,
-downloads and named Voice Cloning library. Initial choices come from application
+voice availability and named Voice Cloning library. Initial choices come from application
 preferences; unsupported or temporary Pocket voices use Eve. Each provider keeps
 its draft configuration when switching. An ElevenLabs choice requires a voice ID.
 Review shows the selected provider and voice. The application speech on/off setting

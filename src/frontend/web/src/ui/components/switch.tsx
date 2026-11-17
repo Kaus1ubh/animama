@@ -1,6 +1,5 @@
 // Adapted from shadcn/ui (MIT): apps/v4/registry/new-york-v4/ui/switch.tsx.
 // See licenses/third-party/adapted-code.md.
-"use client";
 
 import * as React from "react";
 import * as SwitchPrimitive from "@radix-ui/react-switch";

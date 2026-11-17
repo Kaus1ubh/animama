@@ -1,9 +1,8 @@
 # Frozen local backend
 
 The frontend workspace's `desktop:runtime:stage` orchestrates this packaging
-directory. It uses the pinned `desktop-build` group in a separate Python 3.12
-environment. Docling/Torch are excluded from core; the optional document pack
-uses its own `file-worker` extra and freeze environment.
+directory. It uses the pinned `desktop-build` group and the `documents` extra
+(the upload parsers) in a separate Python 3.12 environment.
 
 `animama-runtime.spec` builds a PyInstaller onedir executable. Its entrypoint
 delegates to `animama.runtime.cli`. Commands are:
@@ -16,7 +15,7 @@ animama-runtime database bootstrap
 animama-runtime content rescan
 animama-runtime content audit
 animama-runtime worker avatar-cleanup
-animama-runtime worker user-files
+animama-runtime parse-upload
 animama-runtime audit-resources
 ```
 
@@ -26,11 +25,9 @@ No command accepts a password, provider secret, or content path as an argument.
 and owned-process start token. FastAPI serves the built UI and product routes
 through the same admission boundary as self-host. `content audit`
 uses `ANIMAMA_DESKTOP_INCLUDED_ROOT`; it reads the typed starter closure without
-a database. `worker user-files` exits 69 with `feature_unavailable` when no pack
-is available. After main verifies the installed inventory and OS publisher, it
-supplies a fixed helper root/path/digest through the child environment. The CLI
-rechecks containment, file type and SHA-256, then uses `os.execve` with
-`PYINSTALLER_RESET_ENVIRONMENT=1`. It accepts no arbitrary caller command.
+a database. Only the server starts `parse-upload`, once per uploaded file: the
+child reads the file from standard input with network access blocked and
+writes one JSON answer, while the server enforces its time and memory limits.
 
 The supervisor supplies a private expected PGDATA, build ID, renderer capability,
 desktop control token, immutable Included source array, and writable
@@ -43,33 +40,23 @@ control admission. Readiness includes the exact PID/start token and local HTTP
 schema so main verifies its own child before granting renderer access. These
 controls are excluded from OpenAPI and absent in self-host composition.
 `audit-resources` reports `local_http_schema_version: 1`, matching the
-`animama-desktop-runtime/2` resource manifest. See backend operations for
-inputs.
-
-`animama-document-worker.spec` independently freezes the parser worker.
-`document_worker_resources.py` prepares Docling's layout weights (default
-Transformers engine only) and TableFormer weights, a tiktoken cache and dependency
-notices at build time. The entrypoint uses only
-`sys._MEIPASS/document-resources`, enables offline Hugging Face/transformers
-loading, and disables unbundled OCR. The separate builder at
-`src/frontend/desktop/scripts/runtime/document-worker.mjs` requires reviewed
-Apple signing configuration before any work; it signs, notarizes, staples and
-verifies `Animama Document Worker.app` before auditing conversion. No unsigned
-worker development path exists. Actual native build/conversion and size evidence
-remain gated until signing credentials and reviewed inputs are supplied.
+`animama-desktop-runtime/2` resource manifest. It also fails when the
+embedding columns are not pgvector vectors, which means PyInstaller missed
+a dynamically imported package; import such packages statically. See backend
+operations for inputs.
 
 `archive_feature_pack.py` is a build-only deterministic USTAR writer. It emits
 only inventoried regular files after containment/size/hash checks. It is not a
 runtime extractor; Electron's bounded zstd/USTAR pipeline owns installation.
 
 `animama.runtime.resources.RESOURCE_INPUTS` is the single map for migrations,
-the data-only SQL seeds in `alembic/seeds/`, and frontend-owned manifest inputs.
+the data-only SQL seeds in `src/backend/migrations/seeds/`, and frontend-owned manifest inputs.
 Source execution knows the checkout layout; frozen execution resolves package resources and fails if one
 is missing. Prompt code ships in the backend package, and versioned starter
 policy uses package resources. The spec includes the complete Alembic tree: the
-single `baseline_20260908` revision and its `0001_baseline.sql`. During development,
-update ORM/database definitions and the baseline SQL directly; do not add
-revisions. Restage after changing these resources. Existing
+frozen `baseline_20260908` revision with its `0001_baseline.sql`, and every later
+revision, which bootstrap applies to an existing profile
+([ADR 0035](../../../docs/adr/0035-released-schema-changes-use-forward-migrations.md)). Restage after changing these resources. Existing
 profiles/backups with a removed pre-release revision need the matching old app
 or checkout, or an explicitly disposable fresh profile; bootstrap must not stamp
 or silently reset them. `database bootstrap` uses Alembic's Python API

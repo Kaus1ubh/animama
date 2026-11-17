@@ -24,9 +24,9 @@ production readiness or publication rights.
 | 0007 | [Repository-owned specifications and execution plans](0007-repository-owned-planning.md)                                                           | accepted                                                      |
 | 0008 | [Non-overridable companion guardrail](0008-non-overridable-companion-guardrail.md)                                                                 | accepted; placement amended by 0023 and on 2026-10-25                           |
 | 0009 | [Shared user memory and per-Anima relationship memory](0009-shared-user-memory-and-per-anima-relationship-memory.md)                               | accepted; partly superseded by 0034                           |
-| 0010 | [Shared voice model objects and optional downloads](0010-shared-model-object-distribution.md)                                                      | accepted; partly superseded by 0012                           |
-| 0011 | [Application-owned companion features and composition catalog policy](0011-application-owned-companion-features-and-composition-catalog-policy.md) | accepted                                                      |
-| 0012 | [Parakeet speech models as backend model assets](0012-backend-parakeet-model-assets.md)                                                            | accepted                                                      |
+| 0010 | [Shared voice model objects and optional downloads](0010-shared-model-object-distribution.md)                                                      | accepted; partly superseded by 0012 and 0036; amended on 2026-11-04 |
+| 0011 | [Application-owned companion features and composition catalog policy](0011-application-owned-companion-features-and-composition-catalog-policy.md) | accepted; amended on 2026-09-30 and 2026-11-03                |
+| 0012 | [Parakeet speech models as backend model assets](0012-backend-parakeet-model-assets.md)                                                            | accepted; amended on 2026-11-04; partly superseded by 0036    |
 | 0013 | [Native Windows desktop packaging](0013-native-windows-desktop-packaging.md)                                                                       | accepted                                                      |
 | 0014 | [Track-based Anima Pose Clips organised by beats](0014-track-based-anima-pose-clips.md)                                                            | accepted; partly superseded by 0016 and 0019                  |
 | 0015 | [One Avatar Effect definition source and model-agnostic face parts](0015-avatar-effect-definition-source-and-face-parts.md)                        | accepted                                                      |
@@ -43,12 +43,14 @@ production readiness or publication rights.
 | 0026 | [One built-in Idle pool per Anima replaces Idle Style content](0026-built-in-idle-pool-per-anima.md)                                               | accepted                                                      |
 | 0027 | [Risk-tiered review and a single suite run per candidate](0027-risk-tiered-review-and-single-suite-run.md)                                         | accepted; amends 0006                                         |
 | 0028 | [Browser-cacheable runtime revision members](0028-cacheable-runtime-revision-members.md)                                                           | accepted; amended on 2026-10-28                               |
-| 0029 | [SenseVoice-Small for Japanese, Korean and Chinese offline speech recognition](0029-sensevoice-offline-speech-recognition.md)                      | accepted; amended by 0031                                     |
+| 0029 | [SenseVoice-Small for Japanese, Korean and Chinese offline speech recognition](0029-sensevoice-offline-speech-recognition.md)                      | accepted; amended by 0031 and on 2026-11-04                   |
 | 0030 | [An Anima's Gestures are its binding rows](0030-anima-gestures-are-binding-rows.md)                                                                | accepted                                                      |
 | 0031 | [The offline speech engine is the owner's choice](0031-offline-speech-engine-is-the-owners-choice.md)                                              | accepted; amends 0024 and 0029                                |
 | 0032 | [VRM stays the Avatar container; ARKit shapes are a face capability](0032-vrm-container-with-arkit-face-shapes.md)                                 | accepted                                                      |
 | 0033 | [Digest-keyed URLs for Included content files](0033-digest-keyed-included-content-file-urls.md)                                                    | proposed                                                      |
 | 0034 | [Automatic episode processing and the profile in every turn](0034-automatic-episode-processing-and-profile-context.md)                             | accepted; partly supersedes 0009                              |
+| 0035 | [Released schemas change only through forward migrations](0035-released-schema-changes-use-forward-migrations.md)                                 | accepted                                                      |
+| 0036 | [Uploads are processed in the core server without Docling](0036-uploads-processed-in-core-server.md)                                               | accepted; partly supersedes 0010 and 0012                     |
 
 ## When and how to record a decision
 
@@ -62,9 +64,11 @@ implementation details and task progress belong in their existing records.
    landing concurrent additions and repair links if an unaccepted record is renumbered.
 3. Write concise context, decision and rationale, with evidence. Include alternatives
    and consequences when they explain a real trade-off; do not invent past deliberation.
-4. Mark unresolved choices `proposed`. An AI agent may accept a supported record
-   without separate confirmation from Raymond. Record the decision basis;
-   this grants no authority to make otherwise unauthorized product or architecture changes.
+4. Mark unresolved choices `proposed`. An AI agent may mark a record `accepted`
+   only when it records a decision the owner already made or a contract the
+   system already implements; a new choice stays `proposed` until the owner
+   decides it. Record the decision basis; this grants no authority to make
+   otherwise unauthorized product or architecture changes.
 5. Add the record and its status to this index. Correct current documentation
    made incomplete or misleading by the decision; an ADR is not a usage guide.
 

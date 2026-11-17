@@ -13,6 +13,7 @@ from pathlib import Path, PurePosixPath
 from tempfile import SpooledTemporaryFile
 from typing import BinaryIO, Protocol, cast
 
+from animama.app.ports.private_file_storage import PrivateFileUnavailableError
 from animama.utils.files import is_directory, is_link, open_no_follow, replace
 
 
@@ -36,7 +37,7 @@ class PrivateFilePathError(ValueError):
     """An opaque private locator violated the configured storage boundary."""
 
 
-class PrivateFileNotFoundError(Exception):
+class PrivateFileNotFoundError(PrivateFileUnavailableError):
     """A registered private file is no longer present."""
 
 
@@ -44,7 +45,7 @@ class PrivateFileReadError(Exception):
     """A private file could not be read completely."""
 
 
-class PrivateFileSizeMismatchError(Exception):
+class PrivateFileSizeMismatchError(PrivateFileUnavailableError):
     """A private file differs from its trusted database size."""
 
     def __init__(self, *, expected_size_bytes: int, actual_size_bytes: int) -> None:

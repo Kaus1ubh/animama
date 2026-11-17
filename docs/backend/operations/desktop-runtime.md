@@ -2,8 +2,8 @@
 
 This is the desktop composition (macOS arm64 and Windows 11 x64) of the same
 accountless backend used by the local Compose stack. Electron supervises private PostgreSQL 16, the frozen
-FastAPI application, upload cleanup and an optional independently frozen document
-worker. FastAPI serves the production React files on the saved loopback origin;
+FastAPI application and upload cleanup. FastAPI processes uploaded files itself
+and serves the production React files on the saved loopback origin;
 there is no Vite server or external Python/Node installation in the installed app.
 Signed release acceptance remains pending. Windows has an unsigned development
 package and installer and builds signed local candidates; Windows updates and
@@ -36,9 +36,7 @@ its own processes. An occupied port or PID record does not establish ownership.
 Provider and model-connection key changes apply without a restart. Main writes
 the vault, then sends the whole saved set to the running FastAPI with
 `PUT /_desktop/credentials` (see
-[local HTTP components](local-http-components.md)). It then restarts only the
-document worker, if its pack is active, because that worker embeds with keys
-from its environment. A failed delivery is retried once. A second failure
+[local HTTP components](local-http-components.md)). A failed delivery is retried once. A second failure
 falls back to the restart path below from the vault, even when the drain
 reports busy, so FastAPI never keeps a key the vault no longer has. A batch
 that would store more than 32 connection keys, or a failed vault write, is
@@ -90,7 +88,12 @@ closed because its database password cannot be silently regenerated.
 
 Besides the OpenAI, Anthropic, ElevenLabs and Gemini keys, the vault holds a `connections` map of
 model-connection keys under their managed names, `ANIMAMA_CONNECTION_<ID>_API_KEY`
-derived from the connection id. It stores at most 32 connection keys in a file
+derived from the connection id. Each model-connection key keeps the origin of
+the address it was entered for (the web-search key has none), and main delivers
+it beside the key as `ANIMAMA_CONNECTION_<ID>_ORIGIN`; the backend sends the
+key only to that origin, so a connection moved to another address needs its key
+entered again. The origin is not a secret and is not added to log redaction.
+The vault stores at most 32 connection keys in a file
 of at most 512 KiB, and one batch changes at most eight keys, one per provider
 or connection. A vault beyond those bounds is `vault_unreadable`. Provider
 entries for `deepseek`, `huggingface` and `gemini` that earlier builds wrote
@@ -116,16 +119,12 @@ These are private composition inputs, not end-user configuration switches:
 | `ANIMAMA_DATABASE_URL`, `ANIMAMA_DESKTOP_PGDATA`                                                                  | Supervisor-owned loopback connection and expected cluster path. Never pass the password in argv or logs. |
 | `ANIMAMA_PUBLIC_ORIGIN`, `ANIMAMA_WEB_ROOT` | Exact saved loopback origin and packaged React build root. |
 | `ANIMAMA_DESKTOP_RENDERER_CAPABILITY` | Per-launch renderer admission cookie; never a private-control credential. |
-| `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `ELEVENLABS_API_KEY`, `GEMINI_API_KEY`, `ANIMAMA_CONNECTION_<ID>_API_KEY` | Saved vault keys at spawn for FastAPI (which moves them into its runtime store and removes them from its environment) and the document worker; withheld from the cleanup worker and `database` commands; redacted from logs. |
+| `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `ELEVENLABS_API_KEY`, `GEMINI_API_KEY`, `ANIMAMA_CONNECTION_<ID>_API_KEY` | Saved vault keys at spawn for FastAPI, which moves them into its runtime store and removes them from its environment; withheld from the cleanup worker, `database` commands and upload parse children; redacted from logs. |
 | `ANIMAMA_PROCESS_START_TOKEN` | Fresh owned-child UUID returned with its PID in private readiness. |
 | `ANIMAMA_PARAKEET_SOURCE` | `asset-store`: FastAPI installs and serves the speech-to-text sets (Parakeet and SenseVoice) from its own model-asset store, without a restart. |
 | `ANIMAMA_DESKTOP_CONTROL_TOKEN`, `ANIMAMA_DESKTOP_BUILD_ID`                                                       | Separate private readiness credential and expected build.                                                |
 | `ANIMAMA_INCLUDED_CONTENT_SOURCES_JSON`                                                                           | Ordered bounded `{id, version, root, pack_id}` sources, core first; `pack_id` is `expanded-included-content` or a private pack (`mixamo-motion`, `wow-comedy-sfx`). |
 | `ANIMAMA_LOCAL_CONTENT_ROOT`, `ANIMAMA_DATA_ROOT`                                                                 | Writable Local and private-data roots.                                                                   |
-| `ANIMAMA_USER_FILE_PROCESSING_ENABLED`                                                                            | Whether the verified document pack is active; false in core alone.                                       |
-| `ANIMAMA_DOCUMENT_WORKER_INSTANCE_ID`, `ANIMAMA_DOCUMENT_PACK_VERSION`                                            | Expected heartbeat instance and active version for lifecycle checks.                                     |
-| `ANIMAMA_DOCUMENT_WORKER_EXECUTABLE`, `ANIMAMA_DOCUMENT_WORKER_ROOT`, `ANIMAMA_DOCUMENT_WORKER_EXECUTABLE_SHA256` | Fixed, verified helper delegation inputs; not browser-supplied.                                          |
-| `ANIMAMA_DOCLING_ARTIFACTS_PATH`                                                                                  | Worker-only bundled model location.                                                                      |
 | `ANIMAMA_DISABLE_WEBUI_TELEMETRY`, `OTEL_SDK_DISABLED`, `OPENAI_AGENTS_DISABLE_TRACING` | Always set: no telemetry export, and no Agents SDK traces from any Memory Manager run, whatever its connection. |
 
 Desktop does not set `ANIMAMA_LOCAL_MODEL_HOST`, so the Ollama, LM Studio,
@@ -144,37 +143,35 @@ The packaged `animama-runtime` command parser is in `animama/runtime/cli.py`:
 | `content rescan`                       | Reconcile registered roots for the required installation owner.                                                        |
 | `content audit`                        | Resolve the actual starter closure at `ANIMAMA_DESKTOP_INCLUDED_ROOT`.                                                 |
 | `worker avatar-cleanup`                | Owned upload cleanup process.                                                                                          |
-| `worker user-files`                    | Delegate only to the fixed verified helper; absent inputs return `feature_unavailable`, never a core Docling fallback. |
+| `parse-upload`                         | Started by FastAPI for each uploaded file: reads it from standard input within the parse limits and answers on standard output. Not for manual use. |
 
 These operations are not a recipe for connecting a second process to live
 desktop data. Use the supervisor and documented stage/audit commands. Keep
 resource inspection and mutation separate, and preserve ownership/manifest checks
 for any support action. Build details are in the [packaging README](../../../src/backend/packaging/desktop/README.md).
 
-## Optional worker and content transitions
+## Upload processing and content transitions
 
-`GET /v1/runtime-capabilities` separates availability from document-worker
-liveness (`disabled`, `starting`, `ready`, `stale`). The worker renews its own
-heartbeat every five seconds; a missing matching heartbeat becomes stale after
-twenty seconds. Enabled work can queue durably while starting/stale. Disabled
-processing rejects new process requests before enqueue; originals and existing
-indexed chunks remain. See [User files](../features/user-files.md).
+FastAPI processes uploaded files itself. It reads each one in a `parse-upload`
+child of the frozen runtime, under the parse time and memory limits and without
+network access or credentials, then chunks and embeds it. The supervisor does
+not set `ANIMAMA_USER_FILE_PROCESSING_ENABLED`, so processing is always on, and
+`GET /v1/runtime-capabilities` reports the processor's liveness as
+`worker_state`. Parsing and token counting work offline (`cl100k_base` comes
+from the encoding file bundled with llama-index); embedding uses the Embeddings
+role's model connection, and files are searched by keyword while that role is
+off. See [User files](../features/user-files.md#in-server-processing).
 
-Pack removal checks running document leases, Anima/content references, preview
-leases and content operations before and after quiescing. An atomic pointer
-switch is followed by reconciliation/readiness; failure rolls back the previous
-mount. Queued jobs remain for reinstallation. Desktop model/tokenizer resources
-are packaged offline; embedding uses the Embeddings role's model connection, and
-files are searched by keyword while that role is off.
-The signed worker is verified on installation and every launch, even with an
-unsigned development core. No unsigned-helper or arbitrary-path fallback exists.
+Pack removal checks Anima/content references, runtime and preview leases and
+content operations before and after quiescing. An atomic pointer switch is followed by
+reconciliation/readiness; failure rolls back the previous mount. Packs carry
+data only; no pack contains executable code.
 
 ## Migration snapshots and recovery
 
-The `baseline_20260908` revision initializes fresh databases. During development,
-schema changes update the ORM and baseline SQL directly without new Alembic
-revisions; existing databases do not automatically receive an edited baseline.
-Databases stamped with unsupported revision IDs have no forward upgrade through
+The `baseline_20260908` revision creates the schema released in desktop 0.1.2,
+and later revisions upgrade a profile in place during database bootstrap, after a
+pre-migration snapshot. Databases stamped with unsupported revision IDs have no forward upgrade through
 this graph. Preserve an old profile and its matching app/checkout if its data
 matters; use a separate disposable fresh profile for
 current native validation. Do not relabel an old database with `alembic stamp`,
@@ -182,8 +179,9 @@ automatically purge it, or treat its snapshot as restore-compatible with the new
 history. See [Database operations](development.md#database) for the reset and
 Local/private-file boundary.
 
-Because an edited baseline keeps the same Alembic head, the runtime manifest
-also records `database_schema_sha256`. Staging bootstraps a disposable profile
+Because a schema can differ at the same Alembic head (for example a profile
+from the 0.1.3 preview, built while the baseline was still edited in place),
+the runtime manifest also records `database_schema_sha256`. Staging bootstraps a disposable profile
 database with the bundled PostgreSQL and frozen backend, then hashes its
 `pg_dump --schema-only --no-owner --no-privileges --no-comments` output with
 version headers and per-run `\restrict` keys removed. The supervisor hashes
@@ -191,8 +189,8 @@ the profile the same way and stops with `database_schema_mismatch` before
 launching any service if the digests differ. It checks a profile already at the
 packaged head before bootstrap, so seeds never run against a stale schema, and
 checks a fresh or upgraded profile after bootstrap.
-A future real migration must therefore produce the same schema as a fresh
-baseline. If content reconciliation fails at backend startup, `/_desktop/health`
+Every revision must therefore leave an upgraded profile with exactly the
+schema of a fresh database, including column order. If content reconciliation fails at backend startup, `/_desktop/health`
 returns a terminal `content_startup_failed` and the supervisor reports it
 immediately instead of waiting for the readiness deadline.
 

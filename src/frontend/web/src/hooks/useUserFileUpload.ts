@@ -1,5 +1,3 @@
-"use client";
-
 import { useProductApiClient } from "@animama/product-ui";
 
 import Uppy from "@uppy/core";
@@ -316,11 +314,16 @@ export function useUserFileUpload({
         anima_stage: "uploaded",
         anima_error: undefined,
       });
-      // A saved original is a successful upload even when optional processing is absent.
+      // A saved original is a successful upload even when processing is off.
+      // An unreadable capability still tries the enqueue, which the server
+      // refuses while processing is off, so the card never waits for nothing.
       const capabilities = shouldProcess
         ? await fetchRuntimeCapabilities(apiClient).catch(() => null)
         : null;
-      if (shouldProcess && capabilities?.user_file_processing.enabled) {
+      if (
+        shouldProcess &&
+        capabilities?.user_file_processing.enabled !== false
+      ) {
         setAnimaFileMeta(uppy, file.id, {
           anima_stage: "processing",
           anima_error: undefined,
@@ -358,9 +361,11 @@ export function useUserFileUpload({
             error,
             t("uploads.processingNotQueuedAfterUpload"),
           );
+          // The original stays saved, but nothing will process it: fail the
+          // card with the reason so the composer stops waiting for it.
           setAnimaFileMeta(uppy, file.id, {
-            anima_stage: "uploaded",
-            anima_error: undefined,
+            anima_stage: "failed",
+            anima_error: message,
           });
           logger.warn("Process", "Upload process request failed", {
             ...safeFileLogFields(uppy.opts.id, file, fileId),
@@ -376,12 +381,7 @@ export function useUserFileUpload({
         toast.success(
           t("uploads.originalSaved"),
           shouldProcess
-            ? {
-                description:
-                  capabilities?.runtime_kind === "desktop"
-                    ? t("uploads.processingUnavailableDesktop")
-                    : t("uploads.processingUnavailable"),
-              }
+            ? { description: t("uploads.processingUnavailable") }
             : undefined,
         );
       }

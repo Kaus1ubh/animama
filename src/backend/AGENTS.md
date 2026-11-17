@@ -134,11 +134,18 @@ Use services, ports, repositories, and mappers for new persistence behavior.
 Some routes use ORM models directly; keep changes local there unless you
 are intentionally refactoring the route.
 
-During development, do not add Alembic revisions. Change the ORM/database
-definitions and `alembic/versions/0001_baseline.sql` together when schema changes
-require it; update seeds or application defaults directly for data changes.
-The owner decides when to reset an existing development database. Keep Alembic
-baseline initialization and database bootstrap in place.
+Change the schema with a new revision in `src/backend/migrations/versions/`,
+together with the ORM change. Name the file `NNNN_<topic>.py` and the revision
+`<topic>_<YYYYMMDD>` (at most 32 characters), with the current head as its
+`down_revision`. Write it with Alembic operations or SQL, without importing the
+ORM, so it upgrades an existing database in place and leaves it with the same
+schema as a fresh one. Never edit `0001_baseline.sql`, which is frozen at the
+schema released in desktop 0.1.2, or a merged revision: installed profiles
+already carry them ([ADR 0035](../../docs/adr/0035-released-schema-changes-use-forward-migrations.md)).
+`tests/test_alembic_fresh_install.py` compares the migrated schema with the ORM:
+tables, columns, types, nullability, server defaults, indexes, and unique and
+foreign-key constraints. It does not compare CHECK constraints or index
+predicates, so check a revision against those by hand. Update seeds or application defaults directly for data changes.
 
 The local Alembic graph owns the entire accountless local schema. It contains no
 hosted identity tables or foreign keys. A future hosted composition must use a
@@ -164,13 +171,17 @@ optional sources can be withdrawn only after reference and lease checks. Keep
 the ordinary single Included root behavior when desktop source variables are
 absent.
 
-Optional document processing is admitted by the service, not just the renderer.
-An absent desktop pack retains originals and rejects enqueue with
-`file_processing_unavailable`; starting/stale enabled workers may queue durable
-work. Keep heartbeat instance matching, own-job lease renewal, and private
-removal preflight separate from the public owner-protected capability endpoint.
-Core must never fall back to importing Docling or execute an arbitrary worker
-path. See the desktop packaging README for the fixed signed-helper contract.
+Every local composition processes uploads inside the server.
+`server/user_file_processing.py` runs one durable job at a time and parses each
+file in a `parse-upload` child (`adapters/parsers/parse_child.py`) under time
+and memory limits with network access blocked; never parse upload bytes in the
+server process. Parser libraries come from the `documents` extra, which the
+hosted composition does not need. Admission stays in the service, not just the
+renderer: `ANIMAMA_USER_FILE_PROCESSING_ENABLED=false` keeps originals and
+rejects enqueue with `file_processing_unavailable`, while an enabled but
+starting or stale processor still accepts durable work. Keep heartbeat instance
+matching and own-job lease renewal separate from the public owner-protected
+capability endpoint.
 
 ## API Contracts
 
@@ -232,7 +243,7 @@ Run from the repository root.
 ```bash
 make sync
 uv run python -m animama.server.native_entrypoint
-uv run alembic upgrade head
+uv run alembic -c src/backend/alembic.ini upgrade head
 uv run pytest -q
 uv run ruff check
 make check-test

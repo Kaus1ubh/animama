@@ -19,7 +19,11 @@ export type PackFile = {
   media_type: string;
   mode: "0644" | "0755";
 };
-/** One archive pack: a signed-or-data-only tree delivered as an exact `.tar.zst`. */
+/**
+ * One archive pack: a data-only tree delivered as an exact `.tar.zst`. The
+ * format keeps its platform, architecture, signing and mode fields, which
+ * validation fixes to data-only, unsigned and `0644`.
+ */
 export type PackManifest = {
   schema: "animama-feature-pack/1";
   id: FeaturePackId;
@@ -250,23 +254,8 @@ export function validateManifest(
   )
     throw new RuntimeError("pack_manifest_invalid");
   downloadUrl(item.url, { development, distribution });
-  if (item.id === "document-processing") {
-    if (
-      !item.signing ||
-      item.platform === "data-only" ||
-      item.architecture === "data-only"
-    )
-      throw new RuntimeError("pack_signature_required");
-    keys(item.signing, ["publisher", "requirement"]);
-    if (
-      typeof item.signing.publisher !== "string" ||
-      !/^[A-Z0-9]{10}$/u.test(item.signing.publisher) ||
-      typeof item.signing.requirement !== "string" ||
-      item.signing.requirement.length < 1 ||
-      item.signing.requirement.length > 2048
-    )
-      throw new RuntimeError("pack_signature_required");
-  } else if (
+  // Packs carry data only: no platform build, publisher or executable file.
+  if (
     item.signing !== null ||
     item.platform !== "data-only" ||
     item.architecture !== "data-only"
@@ -286,8 +275,7 @@ export function validateManifest(
       !SHA.test(file.sha256) ||
       typeof file.media_type !== "string" ||
       !/^[\w.+-]+\/[\w.+-]+(?:; charset=utf-8)?$/u.test(file.media_type) ||
-      !["0644", "0755"].includes(file.mode) ||
-      (item.id !== "document-processing" && file.mode !== "0644")
+      file.mode !== "0644"
     )
       throw new RuntimeError("pack_manifest_invalid");
     previous = file.path;

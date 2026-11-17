@@ -862,11 +862,15 @@ export class Avatar {
    * holds. Read every frame, so it reads cached state and allocates nothing.
    */
   isMotionActive(): boolean {
+    const particles = this.particleVFXController?.getSnapshot();
     return (
       this.state !== "idle" ||
       this.isClipActive() ||
       Boolean(this.reactionClipPlayer?.isActive()) ||
-      (this.particleVFXController?.getSnapshot().activeCount ?? 0) > 0 ||
+      // Finishing particles still move.
+      (particles
+        ? particles.activeCount + particles.finishingCount > 0
+        : false) ||
       (this.vfxController?.getObservationSnapshot().activeEffects.length ?? 0) >
         0
     );
@@ -1273,6 +1277,7 @@ export class Avatar {
    */
   resetAnimations(): void {
     this.reactionClipPlayer?.clear(null, { immediate: true });
+    this.particleVFXController?.clearFinishingEffects();
     this.expressionController?.clearExpressionOverlay();
     this._vrmaRestPoseTransition = null;
     this._stopCoordinatedPoseClip({
@@ -2879,8 +2884,9 @@ export class Avatar {
       NonNullable<AnimaPoseClipEventSink["clearParticleVFX"]>
     >[0],
     context: AnimaPoseClipEventContext,
+    options?: { finish?: boolean },
   ): void => {
-    this._clearClipOwnedParticleVFX(context);
+    this._clearClipOwnedParticleVFX(context, options);
   };
 
   private _applyReactionClipAvatarVFX = async (
@@ -2917,8 +2923,9 @@ export class Avatar {
       NonNullable<AnimaPoseClipEventSink["clearParticleVFX"]>
     >[0],
     context: AnimaPoseClipEventContext,
+    options?: { finish?: boolean },
   ): void => {
-    this._clearClipOwnedParticleVFX(context);
+    this._clearClipOwnedParticleVFX(context, options);
   };
 
   private async _applyClipOwnedAvatarVFX(
@@ -3058,9 +3065,12 @@ export class Avatar {
     }
   }
 
-  private _clearClipOwnedParticleVFX(context: AnimaPoseClipEventContext): void {
+  private _clearClipOwnedParticleVFX(
+    context: AnimaPoseClipEventContext,
+    options?: { finish?: boolean },
+  ): void {
     this._clipOwnedParticleVFXIds.delete(context.appliedId);
-    this.particleVFXController?.clearEffect(context.appliedId);
+    this.particleVFXController?.clearEffect(context.appliedId, options);
   }
 
   private _clearTrackedClipVFX(): void {
@@ -3073,6 +3083,7 @@ export class Avatar {
       this.particleVFXController?.clearEffect(appliedId);
     }
     this._clipOwnedParticleVFXIds.clear();
+    this.particleVFXController?.clearFinishingEffects();
   }
 
   private _wasClipOwnedAvatarVFXCancelled(appliedId: string): boolean {

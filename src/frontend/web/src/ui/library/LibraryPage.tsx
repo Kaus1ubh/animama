@@ -1,5 +1,3 @@
-"use client";
-
 import { useLibrarySharingFlow } from "@/query/hooks/useLibrarySharingFlow";
 import { LibrarySharingDialog } from "./LibrarySharingDialog";
 import { LibraryBig } from "lucide-react";
@@ -109,8 +107,8 @@ export function LibraryPage({
   const uploadsUnavailable =
     useRuntimeFeatureUnavailableReason("chat_file_uploads");
   // Chat Uploads also manages document processing. Where uploads are withheld,
-  // the section names a withheld processor too; a local runtime without the
-  // document worker still offers uploads and never shows this reason.
+  // the section names a withheld processor too; a local runtime that turns
+  // processing off still offers uploads and never shows this reason.
   const documentsUnavailable =
     useRuntimeCapabilities().data?.user_file_processing?.enabled === false
       ? hostedExclusionReasons.document_processing

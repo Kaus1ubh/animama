@@ -118,7 +118,7 @@ jobs:
         id: uv-sync
         if: contains(fromJSON('["full","selective","backend-only","frontend-only","docs","backend","web"]'), steps.select.outputs.mode)
         run: |
-          python3 "$GITHUB_WORKSPACE/scripts/ci/check.py" uv-sync -- uv sync --frozen --python 3.12.13
+          python3 "$GITHUB_WORKSPACE/scripts/ci/check.py" uv-sync -- uv sync --frozen --python 3.12.13 --extra documents
       - name: Ensure the typed-content audit prerequisite exists
         id: rg-setup
         if: contains(fromJSON('["full","selective","backend-only","frontend-only","docs","backend","web"]'), steps.select.outputs.mode)

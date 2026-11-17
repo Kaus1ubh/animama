@@ -2,7 +2,7 @@ import { atomicWrite, readSmallJsonFile } from "../runtime/atomic-file.js";
 
 /**
  * Where the owner last left the PiP window on this machine: the display it
- * was on, its top-left corner in screen coordinates and its size scale. Screen
+ * was on, its top-left corner in screen coordinates and its size. Screen
  * coordinates only mean something for this machine's displays, so placement is
  * saved in the desktop profile rather than in App settings.
  */
@@ -10,7 +10,8 @@ export type PipPlacement = {
   displayId: number;
   x: number;
   y: number;
-  sizeScale: number;
+  width: number;
+  height: number;
 };
 
 export type PipRect = {
@@ -26,8 +27,15 @@ export type PipDisplay = {
   workArea: PipRect;
 };
 
-/** Version of the placement file; any other content is ignored. */
-export const PIP_PLACEMENT_VERSION = 1;
+/** Version of the placement file this app writes. */
+export const PIP_PLACEMENT_VERSION = 2;
+/**
+ * Version 1 saved a size scale of a 420 × 560 window instead of a size, so it
+ * could not keep a shape the owner gave PiP by dragging its edges. It is still
+ * read at the size it described.
+ */
+const VERSION_1_PLACEMENT = 1;
+const VERSION_1_FULL_SIZE = { width: 420, height: 560 };
 const MAX_PLACEMENT_BYTES = 1024;
 
 function isFiniteNumber(value: unknown): value is number {
@@ -39,28 +47,43 @@ function isInteger(value: unknown): value is number {
   return Number.isInteger(value);
 }
 
+function isPositiveInteger(value: unknown): value is number {
+  return isInteger(value) && value > 0;
+}
+
 /**
- * The saved placement, or `null` when the file is missing or is not a
- * current-version placement. Invalid content is only ignored here; the next
- * move replaces it.
+ * The saved placement, or `null` when the file is missing or is not a valid
+ * current or version-1 placement. Invalid content is only ignored here; the
+ * next move or resize replaces it. The size is as saved; the caller fits it to
+ * its own size limits.
  */
 export function readPipPlacement(file: string): PipPlacement | null {
   const saved = readSmallJsonFile(file, MAX_PLACEMENT_BYTES);
   if (!saved || typeof saved !== "object") return null;
-  const { version, displayId, x, y, sizeScale } = saved as Record<
-    string,
-    unknown
-  >;
+  const { version, displayId, x, y, width, height, sizeScale } =
+    saved as Record<string, unknown>;
+  if (!isInteger(displayId) || !isInteger(x) || !isInteger(y)) return null;
   if (
-    version !== PIP_PLACEMENT_VERSION ||
-    !isInteger(displayId) ||
-    !isInteger(x) ||
-    !isInteger(y) ||
-    !isFiniteNumber(sizeScale)
+    version === PIP_PLACEMENT_VERSION &&
+    isPositiveInteger(width) &&
+    isPositiveInteger(height)
   ) {
-    return null;
+    return { displayId, x, y, width, height };
   }
-  return { displayId, x, y, sizeScale };
+  if (
+    version === VERSION_1_PLACEMENT &&
+    isFiniteNumber(sizeScale) &&
+    sizeScale > 0
+  ) {
+    return {
+      displayId,
+      x,
+      y,
+      width: Math.round(VERSION_1_FULL_SIZE.width * sizeScale),
+      height: Math.round(VERSION_1_FULL_SIZE.height * sizeScale),
+    };
+  }
+  return null;
 }
 
 /** Save the placement atomically in the private profile directory. */
@@ -71,8 +94,11 @@ export function writePipPlacement(file: string, placement: PipPlacement): void {
   );
 }
 
-/** Move `bounds` the least distance that keeps it inside `area`. */
-function keepInside(bounds: PipRect, area: PipRect): PipRect {
+/**
+ * Move `bounds` the least distance that keeps it inside `area`; a side longer
+ * than the area's starts at its left or top edge.
+ */
+export function movePipBoundsInside(bounds: PipRect, area: PipRect): PipRect {
   const clamp = (value: number, min: number, max: number) =>
     Math.max(min, Math.min(max, value));
   return {
@@ -82,9 +108,21 @@ function keepInside(bounds: PipRect, area: PipRect): PipRect {
   };
 }
 
+/** Shrink `bounds` to fit `area` if it is larger, then move it inside. */
+function keepInside(bounds: PipRect, area: PipRect): PipRect {
+  return movePipBoundsInside(
+    {
+      ...bounds,
+      width: Math.min(bounds.width, area.width),
+      height: Math.min(bounds.height, area.height),
+    },
+    area,
+  );
+}
+
 /**
- * The saved position at `size`, moved back inside its display's work area if
- * that area has since shrunk; `null` when that display is no longer connected.
+ * The saved position at `size`, kept inside its display's work area if that
+ * area has since shrunk; `null` when that display is no longer connected.
  */
 export function resolveSavedPipBounds(
   placement: PipPlacement,

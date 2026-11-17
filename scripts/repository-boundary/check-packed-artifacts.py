@@ -27,6 +27,22 @@ from pathlib import Path, PurePosixPath
 ROOT = Path(__file__).resolve().parents[2]
 FIXTURES = Path(__file__).with_name("consumers")
 PACKAGES = ("@animama/runtime-contracts", "@animama/product-ui", "@animama/discover-client")
+# A line each package's third-party notice must carry for the code it contains
+# (licenses/third-party/adapted-code.md lists the files).
+THIRD_PARTY_NOTICES = {
+    "@animama/runtime-contracts": "Copyright (c) Hey API",
+    "@animama/product-ui": "Copyright (c) 2023 shadcn",
+}
+# The licence texts the wheel's dist-info must carry, each with a line it must
+# contain: the AGPL and the upstream licences of the backend code adapted from
+# Letta and the OpenAI Agents SDK (licenses/third-party/adapted-code.md).
+WHEEL_LICENSES = {
+    "LICENSE": "GNU AFFERO GENERAL PUBLIC LICENSE",
+    "licenses/third-party/adapted-code.md": "src/backend/animama/domain/usage.py",
+    "licenses/third-party/code-Apache-2.0.txt": "Apache License",
+    "licenses/third-party/code-letta-LICENSE.txt": "Apache License",
+    "licenses/third-party/code-openai-agents-LICENSE.txt": "Copyright (c) 2025 OpenAI",
+}
 # Wall time of each consumer step in run order, reported in summary.json.
 PHASES: list[dict] = []
 
@@ -89,6 +105,11 @@ def inspect_tarball(path: Path) -> dict:
                     raise ValueError(f"Source dependency in packed manifest: {name}={version}")
         if not any(path.endswith(".d.ts") for path in files):
             raise ValueError(f"Missing declarations: {metadata['name']}")
+        if not files.get("dist/LICENSE", b"").strip():
+            raise ValueError(f"Missing licence: {metadata['name']}")
+        required = THIRD_PARTY_NOTICES.get(metadata["name"])
+        if required and required.encode() not in files.get("dist/THIRD_PARTY_NOTICES.md", b""):
+            raise ValueError(f"Missing third-party notice: {metadata['name']}")
         if metadata["name"] == "@animama/product-ui" and "./styles.css" not in exports:
             raise ValueError("Product UI must export its CSS")
         for name, data in files.items():
@@ -100,13 +121,17 @@ def inspect_tarball(path: Path) -> dict:
 
 
 def inspect_wheel(path: Path) -> dict:
-    """Require an ordinary installable wheel, never an editable source redirect."""
+    """Require an ordinary installable wheel with its licence texts, never an editable source redirect."""
     with zipfile.ZipFile(path) as archive:
         names = archive.namelist()
         if not any(name.startswith("animama/domain/") for name in names):
             raise ValueError("Wheel does not contain the shared domain package")
         if any(name.endswith(".pth") or "__editable__" in name for name in names):
             raise ValueError("Editable import redirects are not an artifact boundary")
+        licences = {name.split(".dist-info/licenses/", 1)[1]: name for name in names if ".dist-info/licenses/" in name}
+        for licence, line in WHEEL_LICENSES.items():
+            if licence not in licences or line.encode() not in archive.read(licences[licence]):
+                raise ValueError(f"Wheel is missing licence text: {licence}")
         return {"name": path.name, "files": len(names), "sha256": digest(path)}
 
 

@@ -47,7 +47,7 @@ function backendFile(
 }
 
 describe("resolveUserFileUploadCardStatus", () => {
-  it("keeps a saved original idle while optional processing is unavailable", () => {
+  it("keeps a saved original idle until its processing is queued", () => {
     expect(
       resolveUserFileUploadCardStatus({
         uppyFile: uppyFile({
@@ -161,6 +161,42 @@ describe("resolveUserFileUploadCardStatus", () => {
 
     expect(resolved.id).toBe("uploaded");
     expect(resolved.active).toBe(false);
+  });
+
+  it("shows a processing request that failed after the original was saved", () => {
+    // The backend row stays `uploaded`, which cannot say why nothing processes it.
+    const resolved = resolveUserFileUploadCardStatus({
+      uppyFile: uppyFile({
+        meta: {
+          file_id: "file-1",
+          anima_stage: "failed",
+          anima_error: "Upload completed, but processing could not be queued.",
+        },
+      }),
+      backendFile: backendFile("uploaded"),
+    });
+
+    expect(resolved).toMatchObject({
+      id: "failed",
+      tone: "destructive",
+      error: "Upload completed, but processing could not be queued.",
+    });
+  });
+
+  it("keeps later backend progress over an earlier failed processing request", () => {
+    // A request that timed out may still have queued the job.
+    expect(
+      resolveUserFileUploadCardStatus({
+        uppyFile: uppyFile({
+          meta: {
+            file_id: "file-1",
+            anima_stage: "failed",
+            anima_error: "Network error.",
+          },
+        }),
+        backendFile: backendFile("ready"),
+      }).id,
+    ).toBe("ready");
   });
 
   it("uses local errors over non-terminal transient state", () => {

@@ -2,9 +2,14 @@
 
 The release tools build signed macOS 15+ Apple-silicon candidates and support
 guarded updates, upgrade snapshots and installed-artifact smoke tests.
-**No accepted public release is available.** Fresh matching artifacts, complete
-starter inputs, inventory review, minimum-OS/native acceptance and a real forward
-upgrade remain required. Unit tests do not approve redistribution or publication.
+Signed macOS preview builds 0.1.0 to 0.1.4 and stable releases 0.1.4 and 0.1.5
+are published; the macOS update feed (`latest-mac.yml`) serves 0.1.5.
+Animama's prebuilt distribution ends before 2027-01-01: the final
+release will never check for updates, and
+[Ending distribution](#ending-distribution) is the owner's runbook for it and
+the cut-off. Fresh matching artifacts, inventory review, minimum-OS/native
+acceptance and a real forward upgrade remain required for each release. Unit tests do not
+approve redistribution or publication.
 Windows 11 x64 has the same tooling: a signed candidate builder
 ([Build a signed Windows candidate](#build-a-signed-windows-candidate)), guarded
 updates through its per-user installer, installed-artifact smoke and
@@ -17,6 +22,12 @@ Initial publication runs manually from reviewed `main` inputs. Start with the
 the tooling reference. CI publication remains unconfigured.
 
 ## What people see
+
+A build whose sealed `runtime/update-policy.json` says `"updates": "ended"`,
+as the final release does, never checks for updates: it verifies no publisher,
+creates no updater session, makes no feed request and shows no update row or
+notice, as an unpackaged build does. Nothing read at run time turns checks back
+on. The rest of this section describes a build that offers updates.
 
 A signed, configured app checks its release feed 15 seconds after startup. Offline checks time out without blocking the application. Settings →
 General also offers **Check for updates**. A notice offers **Download update**;
@@ -34,7 +45,8 @@ only the platform's feed (`<base_url>/latest-mac.yml` on macOS,
 only the configured repository's releases and asset CDN. Archive packs follow
 the same rule. Backend model-asset downloads, including the speech-to-text
 sets, always use the fixed `https://downloads.animama.ai/models/` origin, with
-no redirects. R2 app downloads
+no redirects; the final release downloads none (see
+[downloaded model assets](../../backend/operations/model-assets.md#downloaded-model-assets)). R2 app downloads
 also follow no redirects. No Animama account or token
 is required for the installed application.
 
@@ -46,7 +58,8 @@ refreshes the feed before downloading, so a changed candidate needs another
 check. Its requests carry only `Accept`, `Accept-Encoding`, `Cache-Control` and
 the library's fixed `User-Agent` (`electron-builder`): the session drops the
 library's per-installation staged-rollout ID and Chromium's language header,
-and a feed that sets `stagingPercentage` is refused. Each platform's update
+and a feed that sets `stagingPercentage` is refused. The published previews
+0.1.0 to 0.1.2 predate that change, so their checks still send both. Each platform's update
 must come from its own publisher, sealed into
 `runtime/update-policy.json` at staging: on macOS the Apple Team ID, on Windows
 the Authenticode certificate subject and identity-validation EKU.
@@ -63,12 +76,12 @@ the Authenticode certificate subject and identity-validation EKU.
   new version. If the installer cannot start, the services restart and the
   current version keeps running.
 
-At startup an installed app first checks its own signature against the sealed
-publisher; a build that fails offers no updates. Do not copy options from a
+At startup an installed app that offers updates first checks its own signature
+against the sealed publisher; a build that fails offers no updates. Do not copy options from a
 newer updater version without checking its API.
 
 Before both download and restart, the supervisor checks free space, active pack
-operations, document jobs, and expanded-content references. An update that would
+operations and expanded-content references. An update that would
 strand referenced expanded content is blocked. The required free space is two
 download archives, two installed app copies, twice the current PGDATA byte count,
 and a 256 MiB reserve. Existing data or packs are never assumed reclaimable.
@@ -128,8 +141,8 @@ explicit publication decision; these commands do not select one.
 
 | Input                                             | Required operator decision                                                                                                                                                                                     |
 | ------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `desktop/runtime/release-policy.json`             | Both distributions (R2 public base URL and bucket; GitHub `owner`/`repo`), stable channel, one human redistribution receipt per target                                                                         |
-| `desktop/runtime/feature-pack-releases.json`      | Approved active-pack hashes, explicit deferred-pack status, Apple Team ID, Developer ID identity, document-helper designated requirement. Pack URLs are derived from the selected distribution, never set here |
+| `desktop/runtime/release-policy.json`             | Both distributions (R2 public base URL and bucket; GitHub `owner`/`repo`), stable channel, `updates` (`offered`, or `ended` for the final release, which also forbids an active pack), one human redistribution receipt per target |
+| `desktop/runtime/feature-pack-releases.json`      | Approved active-pack hashes, explicit deferred-pack status, Apple Team ID, Developer ID identity. Pack URLs are derived from the selected distribution, never set here |
 | `feature-pack-releases.json` `windows`            | Artifact Signing endpoint, account and certificate profile, and the certificate subject and identity-validation EKU every Windows signature must carry. None is a secret                                       |
 | `desktop/runtime/windows-signing.lock.json`       | The Windows SDK `signtool` and Artifact Signing client library, pinned by version and SHA-256                                                                                                                  |
 | `desktop/runtime/macos-acceptance.example.json`   | Template only; a reviewer must supply the actual DMG hash, date, identity, prior signed version, and completed checks                                                                                          |
@@ -149,61 +162,32 @@ passed native ONNX/Electron/input-hook/audio acceptance. Keep the release gate
 closed until those exact signed binaries pass; if a specific exception is needed,
 record why and repeat signing, size, and acceptance checks for the new artifact.
 
-## Build and preserve the reviewed helper
+## Build a signed macOS candidate
 
 The release input configures Team ID `9XHPMZ723L` and identity
-`Developer ID Application: RAYMOND VAN (9XHPMZ723L)`, plus a pinned
-document-worker designated requirement. Set the local notarization Keychain
-profile name in `ANIMAMA_MACOS_NOTARY_PROFILE`; passwords and signing private
-keys remain outside the repository. Configuration does not prove a successful
-signed build or authorize reuse of changed inventory bytes.
+`Developer ID Application: RAYMOND VAN (9XHPMZ723L)`. Set the local
+notarization Keychain profile name in `ANIMAMA_MACOS_NOTARY_PROFILE`; passwords
+and signing private keys remain outside the repository. Configuration does not
+prove a successful signed build or authorize reuse of changed inventory bytes.
 
 Electron Builder receives the certificate name `RAYMOND VAN (9XHPMZ723L)`;
-direct `codesign` calls use the full identity. The worker uses a native launcher
-and explicitly signed Resources payload; see
-[Runtime staging](runtime-staging.md#separate-document-worker). Core and worker
-audits compare every shipped Mach-O deployment target with macOS 15. Rebuild
+direct `codesign` calls use the full identity. The core audit compares every
+shipped Mach-O deployment target with macOS 15 (see
+[Runtime staging](runtime-staging.md#native-verification)). Rebuild
 incompatible inputs; do not suppress timestamping or patch headers to claim
 compatibility.
 
 Run native builds on Apple silicon with the pinned toolchain from the staging
 guide. Configure an existing notarization Keychain profile and set its name in
 `ANIMAMA_MACOS_NOTARY_PROFILE`; never put passwords in source or shell history.
-Commands below run from `src/frontend`.
-
-```sh
-pnpm desktop:runtime:document-worker -- --platform darwin --arch arm64
-```
-
-The document pack is deferred from the first release. For a future activation,
-the producer freezes the helper, signs and notarizes it, staples it,
-verifies its publisher, and runs the frozen conversion probe. It also
-exports `desktop/release/worker-input/`: a strict archive, candidate manifest,
-and `worker-review.json` marked **unapproved**. Review the payload inventory and
-record its hash in the pack release inputs. Preserve that exact archive.
-
-Rebuilding a signed helper changes signature/timestamp bytes, invalidating the
-reviewed hash. To reuse the reviewed helper on another build runner, transfer the
-three files together to the same derived directory and run:
-
-```sh
-node desktop/scripts/runtime/worker-input.mjs import
-pnpm desktop:runtime:stage -- --platform darwin --arch arm64
-pnpm desktop:runtime:audit -- --platform darwin --arch arm64
-```
-
-Import requires the recorded approval, exact archive hash/size, strict extraction,
-full inventory, and pinned OS signature. It replaces only derived helper build
-input after verification. It neither approves a candidate nor weakens executable
-pack verification. Keep private CI artifacts available until all dependent
-release builds finish; an expired artifact requires a new review of any rebuilt
-bytes. The first release has no active pack: expanded Included content and
-document processing are explicitly deferred from it and must be absent from its catalog and release artifacts.
+Commands below run from `src/frontend`. The first release has no active pack:
+expanded Included content is explicitly deferred from it and must be absent
+from its catalog and release artifacts.
 
 To retain a pack across known compatible app versions, set its optional
 `app_versions` list and immutable original `release_tag` in the pack release
 inputs before building the predecessor. Keep those fields, pack version,
-inventory, license references, signing identity and archive bytes identical in
+inventory, license references and archive bytes identical in
 the successor. The builder then emits the same manifest/pointer; a signed
 successor catalog explicitly approves it for the new app. Defaults remain this
 app version/tag only. Never change the bytes at an existing release URL, claim
@@ -223,7 +207,6 @@ Mach-O files/bundles, adds the review receipt, recomputes the runtime manifest,
 and only then seals the outer app. It notarizes and staples the app, builds the
 DMG/update ZIP, notarizes both, signs/staples the DMG, and verifies Gatekeeper.
 Updating runtime hashes after the outer signature would invalidate the seal.
-The helper and core must use the same pinned Apple Team ID.
 
 To exercise signing without a review receipt or Apple submission, for example
 after an Electron or electron-builder upgrade:
@@ -347,16 +330,21 @@ Log in normally and verify that the test account has no app/profile data; do not
 impersonate its session or change HOME. A privately transferred DMG is sufficient
 for the core smoke. No public GitHub visibility or signing credential is needed
 in the test account.
-The harness refuses an existing `Animama` or `Anima` profile or installed test app.
-It never resets data, changes HOME, or sets packaged developer overrides.
+The harness refuses an existing `Animama` or `Anima` profile or installed test
+app, and on macOS an existing `Animama Safe Storage` Keychain item. It never
+resets data or changes HOME, and the installed app never runs with a developer
+override.
 Provide `ANIMAMA_SMOKE_OPENAI_KEY` explicitly for two short real starter chats;
 the harness does not load developer `.env` files. Those API calls incur provider
 usage. The key travels through the normal setup UI into the encrypted vault.
 After checking restart persistence, the harness deletes this temporary OpenAI
 credential through the normal vault API and verifies absence after another
-restart. Failure paths attempt the same cleanup before shutdown; a failed
-cleanup fails the smoke and reports the required manual removal. It never
-changes the source key or any other account's vault. Real provider calls require
+restart. Failure paths attempt the same cleanup before shutdown, and a failed
+cleanup fails the smoke. The key only ever lives in the journey copy's
+throwaway profile, which the harness deletes; the smoke reports a manual
+removal only when it cannot delete that copy folder or, on macOS, the Keychain
+item the copy created. It never changes the source key or any other account's
+vault. Real provider calls require
 explicit authorization for the scoped smoke and its temporary credential cleanup.
 
 ```sh
@@ -365,15 +353,34 @@ pnpm desktop:smoke:mac -- --artifact desktop/release/publish/Animama-<version>-a
 
 The smoke rejects empty and all-whitespace names before completing named setup.
 Required-name evidence gates publication.
-The harness checks the signed DMG and contained app, installs into the absent
-`~/Applications/Animama.app`, launches with a system-only PATH, verifies child
-executables belong to app resources and that its update check passes the
-publisher check, and tests setup, a provider key applied
-without a window or backend restart, provider status, local HTTP
-rejection, core capabilities, both starter chats, exact typed bytes, private
-upload, restart persistence, temporary-key removal, and owned shutdown. It leaves the profile and app
-intact for inspection. A missing provider or failed journey is a failure, not a
-skipped success.
+The harness checks the signed DMG and contained app and installs into the
+absent `~/Applications/Animama.app`. It then checks the installed app without
+debugging it: its fuse wire, its publisher signature (the requirement its
+updater checks), its sealed `runtime/update-policy.json` (which the final
+release's policy makes `"updates": "ended"`), and two launches per
+debugging switch (with and without a value), each of which must exit promptly
+with a failure and leave no process running and its profile absent or
+empty.
+
+The journey runs on a copy that the harness makes in a new private folder
+outside the checkout and the publish folders (the temporary folder on macOS, a
+short folder under `%LOCALAPPDATA%` on Windows): the installed app with
+only Node's inspect switches turned on (so the test driver can attach) and an
+ad-hoc signature. A packaged app accepts the throwaway
+`ANIMAMA_DESKTOP_DEV_USER_DATA` profile only while its inspector runs, so only
+this copy can use it. The copy launches with a system-only PATH, its child
+executables must belong to its own resources, and its update check must report
+`unavailable`, because its signature no longer matches the publisher, and
+the installed app's profile must stay absent or empty. The journey tests
+setup, a provider key applied without a window or backend restart,
+provider status, local HTTP rejection, core capabilities (including a ready
+upload processor), both starter chats, exact typed bytes, a private upload
+processed until searchable, restart persistence, temporary-key removal,
+and owned shutdown. Afterwards the harness deletes the copy and its profile, and
+on macOS the Keychain item the copy created; the installed app stays for
+inspection. Publication requires every check, the hardening ones included
+(`hardeningSmokeChecks` in `smoke-policy.mjs`). A missing provider or failed
+journey is a failure, not a skipped success.
 
 ### Fresh-account smoke in a local VM
 
@@ -456,15 +463,19 @@ override the golden VM name and key file. Do not run the helper while a stage or
 `desktop:mac` pack is running: a clone uses four cores and 8 GB of memory.
 
 This satisfies the fresh-account smoke gate. It proves the same as a host test
-account: the exact signed, notarized DMG verifies, installs and completes the
-required-name journey in a never-used macOS account. The clone is also a
+account: the exact signed, notarized DMG verifies and installs in a never-used
+macOS account, the installed app carries the expected fuse wire, publisher
+signature and update policy and refuses every debugging switch, and the
+journey copy completes the required-name journey. The clone is also a
 never-used system, apart from the golden VM's Command Line Tools, Node.js and
-guest agent; the app runs with a system-only PATH. The smoke proves nothing about real
-GPU behavior (the guest has a paravirtualized GPU), audio or microphone, physical
-displays, the quarantine/Gatekeeper first-launch path, a signed upgrade or any
-macOS version other than the golden VM's. Those remain manual acceptance on a
-real Mac. A golden VM with a macOS 15 restore image would cover the declared
-minimum OS.
+guest agent; the copy runs with a system-only PATH. The smoke proves nothing
+about the signed app running beyond its debugging-switch refusal: its hardened
+runtime and entitlements (the copy's ad-hoc signature drops both), its own
+updater's publisher self-check at run time, real GPU behavior (the guest has a
+paravirtualized GPU), audio or microphone, physical displays, the
+quarantine/Gatekeeper first-launch path, a signed upgrade or any macOS version
+other than the golden VM's. Those remain manual acceptance on a real Mac. A
+golden VM with a macOS 15 restore image would cover the declared minimum OS.
 
 On Windows, use a separate standard (non-administrator) Windows account that
 has never run Animama: no `%LOCALAPPDATA%\Animama`, no
@@ -479,11 +490,19 @@ pnpm desktop:smoke:windows -- --artifact desktop/release/publish/Animama-<versio
 ```
 
 It checks the installer's signature, installs it silently for that user,
-checks the installed `Animama.exe` signature and runtime inventory, and runs
-the same journey with a system-only PATH. Each recorded child must run from the
-installed runtime inside its process guard. After every quit, no process from
-the install folder may remain. The report binds `installer_sha256` and the
-runtime build ID.
+checks the installed `Animama.exe` signature, runtime inventory, fuse wire,
+sealed update policy and debugging-switch refusal, and runs the same journey on
+a copy with a throwaway profile and a system-only PATH. Each recorded child
+must run from the copy's runtime inside its process guard. After every quit,
+no process from the copy may remain. The copy and its profile live in a short
+`am-smoke-*` folder under `%LOCALAPPDATA%`, so the profile fits the app's
+70-character data-root limit; before installing anything the harness refuses an
+account whose profile folder name is longer than 29 characters, and it deletes
+the folder afterwards. The copy's changed `Animama.exe` carries an invalid
+Authenticode signature, so its updates are unavailable, and Smart App Control or
+an application-control policy may block it; run the smoke where neither
+applies. The report binds
+`installer_sha256` and the runtime build ID.
 
 `desktop/release/smoke-name/` contains sanitized smoke and categorical
 renderer request/response reports. They retain no URLs, principal/chat IDs,
@@ -498,8 +517,9 @@ renderer capture cannot observe it.
 
 On a clean test Mac, check avatar animation, PocketTTS, microphone permission,
 PiP, quick chat, offline dictation after installing offline speech in Voice
-settings (with no backend restart or window reload), any active expanded content,
-document conversion, interrupted pack installation/recovery, and an actual
+settings (with no backend restart or window reload; for the final release,
+after upgrading the previous release with offline speech already installed),
+any active expanded content, interrupted pack installation/recovery, and an actual
 prompted upgrade preserving the principal, chats, content, provider status,
 database, and compatible pack. Confirm no unintended provider/model downloads.
 Use a normal Finder/LaunchServices app launch for macOS permission checks; a
@@ -523,7 +543,7 @@ On a clean Windows 11 test machine, the Windows receipt
 With the current embedded catalog, pack installation needs the selected
 distribution to serve anonymous public URLs before native download acceptance
 can finish. A private destination does not add private download support; failures must remain recoverable and must
-not block the core app. No token, feed override or unsigned-worker bypass is allowed.
+not block the core app. No token or feed override is allowed.
 Public preview and QA feeds are currently not authorized. A different private
 testing transport would require separate design/approval, not a build flag.
 If the owner later approves public distribution, after the required-name smoke
@@ -569,8 +589,8 @@ stack. It checks blank-name rejection and successful named setup in one run.
 After the maintainer/main guard, `source-validation` reuses
 `.github/workflows/validate-public.yml` from the same commit. Its single
 `Validation` job always executes the full backend/static and portable product
-contract for release callers before either the release build or `prepare-worker`
-can reach signing credentials. Local receipts and routine-change reductions are
+contract for release callers before the release build can reach signing
+credentials. Local receipts and routine-change reductions are
 not substitutes for this release gate. Checkout uses
 the dispatch's immutable `github.sha` throughout; this gate does not consult a
 previous branch run or assume a moving `main` is validated. Release secrets are
@@ -613,9 +633,8 @@ printing them, stores the notary profile, and restores/deletes its Keychain in a
 always-run cleanup step. Signing credentials are not available to test/build
 steps through environment variables and are never artifact inputs.
 
-If CI publication is configured, the initial release does not dispatch
-`prepare-worker` or import a document helper because document processing is
-deferred. After committing reviewed core inputs, dispatch `release`. The workflow checks/tests,
+If CI publication is configured, dispatch the workflow after committing
+reviewed core inputs. The workflow checks/tests,
 stages/audits, signs the candidate, and runs the required-name fresh-profile smoke. With
 `publish=false` it stops there. With `publish=true`, a protected preview job first
 requires explicit approval for public testing. It publishes the immutable
@@ -624,11 +643,6 @@ version objects) without changing the stable feed. The stable
 publication job then waits at a different protected environment while you test
 native behavior and the actual upgrade. Only approve it after supplying the exact
 manual receipt. Inspect artifacts at each gate; do not approve in anticipation.
-
-For a future document-pack activation, dispatch `prepare-worker`, preserve and
-review its private Actions artifact, then update the release workflow to import
-that exact approved run before marking the pack active. Never reuse a helper by
-filename or rebuild it after its inventory approval.
 
 The `distribution` workflow input (default `r2`) sets
 `ANIMAMA_RELEASE_DISTRIBUTION` for every job. The workflow does not yet run the
@@ -764,6 +778,64 @@ it. Never replace a published object.
 The canonical generated evidence is the complete tree in `desktop/release/publish`,
 with `SHA256SUMS.txt` and `signing-report.json`. See the [evidence map](release-process.md#evidence-and-actual-artifact-names)
 for the required-name smoke and network report paths.
+
+## Ending distribution
+
+Animama's prebuilt desktop downloads, update feed and model objects at
+`downloads.animama.ai` end before 2027-01-01. Until then, current source
+offers updates and model downloads, and releases follow the usual process. The
+speech setup scripts already default to Hugging Face. The owner runs these
+steps, each with its own approval:
+
+1. **Final release (macOS).** In one PR, turn both switches off: set
+   `"updates": "ended"` in `desktop/runtime/release-policy.json`, set
+   `MODEL_DOWNLOADS_OFFERED` to `False` in
+   `src/backend/animama/server/model_assets.py`, and update
+   `test_local_composition_offers_downloads_until_the_final_release` in
+   `tests/test_model_assets.py`, and reword the documents that describe current
+   source as offering updates and downloads. With updates ended, staging
+   refuses an active pack. After that PR merges, build from `main`: stage `darwin-arm64`, review
+   `runtime/licenses/inventory.json` and `THIRD_PARTY_NOTICES.txt`, and record
+   a fresh `darwin-arm64` receipt
+   ([exact artifact review](redistribution-review.md#exact-artifact-review)).
+   Run the dependency audits, build the signed candidate, and run the smoke,
+   whose `sealed_update_policy` check binds the installed app to the ended
+   policy. Build the candidate with the default R2 distribution: the VM guest
+   smoke selects R2, so a GitHub-built candidate fails `sealed_update_policy`
+   there. In native acceptance, the pack checks need no
+   attestation while no pack is active. Check offline dictation by upgrading
+   the previous release with offline speech already installed, which is also
+   the forward upgrade. Publish stable with the feed promoted last. No Windows
+   build is released.
+2. **Transition.** Keep the feed and version folders published for about four
+   weeks, ending no later than 2026-12-31, so earlier installs are offered the
+   final release.
+3. **Cut-off.**
+   - Merge a documentation change that puts the README, installation and
+     release pages in the past tense, and turn off the landing site's download
+     page.
+   - Disconnect the custom domain `downloads.animama.ai` from the
+     `animama-releases` bucket in the Cloudflare dashboard. Keep the bucket,
+     its retention locks and the disabled `r2.dev` URL, so the domain can be
+     reconnected.
+   - From another network, check that the feed
+     (`https://downloads.animama.ai/desktop/latest-mac.yml`), a version's DMG
+     and a model object no longer answer `200`; purge any exact URL the edge
+     still serves.
+   - Revoke the R2 write token.
+   - Record the outcome on the publication tracking issue.
+   - Keep `animama.ai` and the `downloads` host name registered and never point
+     the name at anything else: installs that never took the final release
+     keep requesting it, fail their update checks quietly and show download
+     errors.
+4. **Animama Cloud follow-ups.** Its landing download links, hosted privacy
+   terms, operator dashboard download analytics and its copy of
+   `included-content-attribution.txt` need the same change, and its next
+   repin admits `local-http` 23 and `runtime-contracts` 0.23.0.
+
+Before the cut-off, a revert restores updates and downloads for a new build;
+after it, reconnecting the custom domain restores service while the bucket
+exists.
 
 ## Recovery and retention
 

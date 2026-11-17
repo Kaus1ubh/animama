@@ -48,7 +48,7 @@ def test_mutation_policy_never_treats_path_placement_as_ownership() -> None:
     assert not ContentAccessPolicy.can_mutate(entry=entry, user_id="owner-b")
 
 
-async def test_catalog_hides_owner_files_but_exposes_network_shared_files(async_session) -> None:  # noqa: ANN001
+async def test_catalog_hides_owner_files_but_exposes_network_shared_files(async_session) -> None:
     token = uuid.uuid4().hex
     owned_locator = f"gestures/{token}-owned.vrma"
     shared_locator = f"gestures/{token}-shared.vrma"

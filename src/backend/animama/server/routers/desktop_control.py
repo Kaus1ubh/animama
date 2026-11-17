@@ -13,7 +13,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from animama.adapters.repositories.sqlalchemy.feature_pack_removal_repo import (
     content_operations_idle,
-    document_job_blockers,
     included_source_blockers,
 )
 from animama.app.model_clients.credential_store import CredentialStoreError
@@ -40,9 +39,9 @@ async def feature_pack_removal_check(
 ) -> dict[str, object]:
     """Bounded preflight; the later drained restart repeats catalog custody checks."""
 
+    # A retired id (such as document-processing) is refused like an unknown one.
     if pack_id not in FEATURE_PACK_IDS:
         raise HTTPException(status_code=404, detail="Not Found")
-    runtime = get_runtime_settings(request)
     paths = getattr(request.app.state, "local_runtime_paths", None)
     if paths is None:
         raise HTTPException(status_code=503, detail="runtime_starting")
@@ -70,21 +69,11 @@ async def feature_pack_removal_check(
                 )
                 if len(blockers) >= 32:
                     break
-    elif pack_id == "document-processing":
-        blockers = await document_job_blockers(
-            session, now=now, lease_seconds=runtime.anima_user_file_processing_lease_seconds
-        )
     return {
         "schema_version": 1,
         "pack_id": pack_id,
         "source_version": sources[0].version if sources else None,
-        "pack_version": (
-            runtime.animama_document_pack_version
-            if pack_id == "document-processing"
-            else sources[0].version
-            if sources
-            else None
-        ),
+        "pack_version": sources[0].version if sources else None,
         "removable": not blockers,
         "blockers": [asdict(item) for item in sorted(blockers, key=lambda item: (item.kind, item.id))[:32]],
     }

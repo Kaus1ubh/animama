@@ -67,6 +67,12 @@ class UserFileProcessingRepository(Protocol):
         now: datetime,
         limit_file_id: str | None = None,
     ) -> ClaimedUserFileProcessingJob | None:
+        """Lease the next due job, after failing jobs whose last attempt was interrupted.
+
+        A running job whose lease expired is claimed again while attempts
+        remain; on its last attempt it fails with ``PROCESSING_INTERRUPTED_ERROR``.
+        """
+
         raise NotImplementedError
 
     async def replace_chunks_and_mark_success(
@@ -114,7 +120,21 @@ class UserFileProcessingRepository(Protocol):
         error: str,
         now: datetime,
         retry_delay_seconds: int,
+        retryable: bool = True,
     ) -> UserFileProcessingJob:
+        """Requeue a failed attempt after a delay, or fail the job and its file.
+
+        The job fails at once when ``retryable`` is false or no attempt remains.
+        """
+
+        raise NotImplementedError
+
+    async def release_claimed_job(self, *, job_id: str, worker_id: str, now: datetime) -> bool:
+        """Return a job still running under ``worker_id`` to the queue, giving back its attempt.
+
+        Returns whether the job was released.
+        """
+
         raise NotImplementedError
 
     async def delete_chunks_for_file(self, *, user_id: str, file_id: str) -> None:
