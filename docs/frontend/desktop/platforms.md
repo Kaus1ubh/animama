@@ -245,7 +245,7 @@ The output is deterministic, so an unchanged source reproduces identical files.
 | Target                             | Current status                                                                                  |
 | ---------------------------------- | ----------------------------------------------------------------------------------------------- |
 | macOS 15+, arm64                   | Development packaging implemented; fresh-source native, minimum-OS and signed acceptance remain |
-| Windows 11, x64                    | Development package, installer and signed release tooling implemented; clean-machine acceptance and a real signed upgrade remain |
+| Windows 11, x64                    | Development package, installer and signed release tooling implemented; 0.1.6 stable published after a signed upgrade from 0.1.5; clean-machine acceptance remains |
 | Linux                              | External-stack development only; packaging deferred beyond the current supported release        |
 | Intel/universal macOS, Windows ARM | Not supported                                                                                   |
 

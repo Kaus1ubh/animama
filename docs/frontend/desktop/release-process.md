@@ -5,7 +5,9 @@ uses separate preview and stable publication commands. `raymond-van` is the
 configured maintainer. CI publication is not configured as the release path.
 
 Signed macOS previews 0.1.0 to 0.1.4 and stable releases 0.1.4 and 0.1.5 are
-published; the macOS update feed (`latest-mac.yml`) serves 0.1.5.
+published; the macOS update feed (`latest-mac.yml`) serves 0.1.5. Windows 0.1.6
+is published as a preview and as the first Windows stable release; the Windows
+update feed (`latest.yml`) serves 0.1.6.
 Before distribution ends, a final release turns update checks and model
 downloads off; [Ending distribution](releases.md#ending-distribution) covers it
 and the cut-off. A local signed candidate can be built before the

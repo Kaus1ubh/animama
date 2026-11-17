@@ -1,21 +1,21 @@
 # Install and use Animama Desktop
 
-Animama 0.1.5 is the current stable macOS release, and installed apps receive
-later stable versions through its update feed. Signed preview builds 0.1.0 to
-0.1.4 have also been published for testing.
+Animama 0.1.5 is the current stable macOS release and 0.1.6 the current stable
+Windows release; installed apps receive later stable versions through their
+platform's update feed. Signed macOS preview builds 0.1.0 to 0.1.4 and the
+Windows 0.1.6 preview have also been published for testing.
 Animama's prebuilt downloads, update feed and model downloads end before
 2027-01-01; before then, a final release stops checking for updates and
 explains what has changed. Installed apps keep working afterwards: chat,
-Avatars and the three built-in voices need nothing from Animama's servers. No
-Windows installer is published. Developers should use
-[Platform builds](platforms.md).
+Avatars and the three built-in voices need nothing from Animama's servers.
+Developers building from source should use [Platform builds](platforms.md).
 
 ## Supported target
 
 | Platform                                     | Current position                                                                                  |
 | -------------------------------------------- | ------------------------------------------------------------------------------------------------- |
 | Apple silicon Mac, macOS 15 or later         | Signed previews published. macOS 15 and clean-machine testing are part of each release's acceptance. |
-| Windows 11 x64 (build 22000 or later)        | Per-user installer built from source; no installer is published, and clean-machine acceptance and a real signed upgrade remain open. |
+| Windows 11 x64 (build 22000 or later)        | Signed per-user installer published; 0.1.6 is the first stable release, accepted by installing it over signed 0.1.5. Clean-machine and build-22000 testing remain open. |
 | Intel Mac, universal Mac, Windows ARM, Linux | No supported self-contained release.                                                              |
 
 The installed app contains its own local services and database. It does not
