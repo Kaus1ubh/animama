@@ -1150,14 +1150,21 @@ async def test_storing_and_reusing_embedded_chunks_keeps_the_event_loop_responsi
     assert reuse_stall < max(0.1, reuse_elapsed / 4)
     async with async_session_factory() as session:
         copies = (
-            (await session.execute(select(ORMUserFileChunk).where(ORMUserFileChunk.file_id == "file-duplicate")))
+            (
+                await session.execute(
+                    select(ORMUserFileChunk)
+                    .where(ORMUserFileChunk.file_id == "file-duplicate")
+                    # Without ORDER BY, PostgreSQL may return rows in any order.
+                    .order_by(ORMUserFileChunk.chunk_index)
+                )
+            )
             .scalars()
             .all()
         )
     assert len(copies) == len(chunks)
     assert all(copy.embedding_model_id == "test:embedding" and copy.embedding is not None for copy in copies)
     assert {copy.metadata_["filename"] for copy in copies} == {"file-duplicate.txt"}
-    assert copies[0].id == "chunk-file-duplicate-000000"
+    assert [copy.id for copy in copies] == [f"chunk-file-duplicate-{index:06d}" for index in range(len(chunks))]
 
 
 async def test_complete_claimed_job_reads_every_format_through_the_injected_parser() -> None:

@@ -37,7 +37,17 @@ before(async () => {
         webgpuBaseUrl: "/onnx/models/parakeet-webgpu",
       }),
     },
-    optimizeDeps: { entries: [path.join(webRoot, fixture, "main.tsx")] },
+    // With `publicDir` off, Vite answers public-asset requests such as the
+    // shell's `/brand/*.png` with the root `index.html` and pre-transforms
+    // its entry. Scan that page too: on a cold cache its imports (such as
+    // `zod/v4/core`) are otherwise found late, and Vite's reload then lands
+    // on the real app, because the fixture has replaced its URL.
+    optimizeDeps: {
+      entries: [
+        path.join(webRoot, fixture, "main.tsx"),
+        path.join(webRoot, "index.html"),
+      ],
+    },
     resolve: shared.config.resolve,
     server: {
       host: "127.0.0.1",
