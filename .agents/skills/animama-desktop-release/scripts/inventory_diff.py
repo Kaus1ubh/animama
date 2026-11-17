@@ -136,4 +136,6 @@ def main(old_path: str, new_path: str) -> int:
 if __name__ == "__main__":
     if len(sys.argv) != 3:
         sys.exit(__doc__)
+    # Windows writes redirected output in the ANSI code page, which has no "→".
+    sys.stdout.reconfigure(encoding="utf-8")
     sys.exit(main(sys.argv[1], sys.argv[2]))

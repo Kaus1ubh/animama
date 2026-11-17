@@ -78,10 +78,13 @@ under `desktop/` are relative to `src/frontend`.
 3. **Preflight.** Check the host, signing identity, notarization profile,
    credential files (presence only), pinned Gitleaks, free disk space and heavy
    slots ([macOS](references/commands.md#preflight),
-   [Windows](references/commands.md#windows)). Report every missing input at
+   [Windows](references/commands.md#windows-preflight)). Report every missing input at
    once, and ask the owner for the notarization profile name if it is unset.
 4. **Model inputs.** Run the release-only bootstrap into the persistent model
    store. It verifies existing sets and downloads only missing pinned inputs.
+   On Windows, verify each set instead when the store is complete: the
+   bootstrap re-encodes the voices, which drift there
+   ([commands](references/commands.md#windows-model-inputs)).
 5. **Dependency audit.** Run the four documented audits and check that Electron
    is on the latest release of its major. A blocking advisory needs either an
    upgrade on a separate task branch (stop and propose it) or the owner's
@@ -89,7 +92,8 @@ under `desktop/` are relative to `src/frontend`.
    `accepted-advisories.txt`.
 6. **Packs, stage and audit.** Fetch both private packs with the read token.
    Then stage, with both packs required, through a heavy slot, and run the
-   runtime audit.
+   runtime audit. On Windows, run them from Git Bash without a heavy slot
+   ([commands](references/commands.md#windows-packs-stage-and-audit)).
 7. **Redistribution review (owner gate).** Compare the staged inventory hash with
    the target's receipt in `desktop/runtime/release-policy.json`. If it matches,
    go to step 8. Otherwise:
@@ -119,7 +123,8 @@ under `desktop/` are relative to `src/frontend`.
    - **macOS:** run `desktop:dist:mac` with the notarization profile. It signs,
      notarizes and staples the app, DMG and ZIP, and checks Gatekeeper. If it
      stalls during signing, ask the owner to check for a Keychain access prompt.
-   - **Windows:** run `desktop:dist:windows` after the owner confirms the spend.
+   - **Windows:** run `desktop:dist:windows` after the owner confirms the spend
+     ([commands](references/commands.md#windows-signed-build-and-evidence)).
 
    Then check the [evidence](references/commands.md#check-the-candidate):
    `release_ready`, the recorded distribution, checksums, sizes and a clean tree
@@ -139,13 +144,18 @@ under `desktop/` are relative to `src/frontend`.
         frozen-runtime provider checks.
     - On the owner's go-ahead, run the [VM smoke](references/commands.md#fresh-account-smoke)
       and report its result. Without the golden VM, give the owner the
-      test-account handoff there. Check that the reports bind the candidate's
-      DMG/installer hash and runtime build ID.
+      test-account handoff there. On Windows, the owner runs it in a standard
+      test account with `scripts/smoke-windows-account.ps1`
+      ([commands](references/commands.md#windows-fresh-account-smoke)).
+      Check that the reports bind the candidate's DMG/installer hash and
+      runtime build ID.
 12. **Publish (owner gate, only on request).**
     - **Preview:** run the publisher's preview stage.
     - **Stable:** only after the owner's native acceptance. First rerun the
       dependency audit and the Electron check, and present the results. Then
-      publish with the owner's acceptance JSON.
+      publish with the owner's acceptance JSON. A target's first stable needs
+      an older signed build of that target, with a migratable schema, to
+      upgrade from ([Windows](references/commands.md#windows-publication-and-the-first-stable)).
 
     Verify every published object anonymously
     ([commands](references/commands.md#publication)). A preview publish is

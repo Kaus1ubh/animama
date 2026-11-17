@@ -406,52 +406,420 @@ On Windows, run `pnpm desktop:dist:windows -- --signing-rehearsal`.
 Run these on the Windows 11 x64 build host, preparing it as in
 [runtime staging](../../../../docs/frontend/desktop/runtime-staging.md#native-windows-build)
 and the [signed Windows build](../../../../docs/frontend/desktop/releases.md#build-a-signed-windows-candidate).
-The macOS sections above apply, with these differences.
+The macOS sections above apply, with these differences:
 
-**Preflight:**
+- **Use Git Bash for pnpm, stage, build and scan.**
+  - Launched from PowerShell 7, the stage's child Windows PowerShell 5.1
+    inherits a module path where `Get-Acl` cannot load, and the stage fails.
+  - Do not export `MSYS_NO_PATHCONV=1` in a shell that runs pnpm: it breaks the
+    Corepack pnpm shim. The PowerShell blocks below are for checks only.
+- **No heavy slots.** `scripts/heavy-slot.py` does not run on native Windows.
+  Check that no other build is running ([preflight](#windows-preflight)), then
+  run each stage or build directly.
+- **Network.** This host's network has dropped connections during the stage,
+  the build and GitHub calls. Retry a failed fetch, push or `gh` call. Each
+  section below lists the fixes that are safe.
+
+### Windows environment
+
+Create `.animama-drafts/desktop-release/release.env` in the release worktree
+for Git Bash. Like the macOS file, it holds names and paths only:
+
+```bash
+export ANIMAMA_RELEASE_DISTRIBUTION=r2
+export ANIMAMA_MODEL_ROOT='C:\Users\<user>\animama-models'
+export ANIMAMA_GITLEAKS='C:\animama-build\tools\gitleaks-8.30.1\gitleaks.exe'
+```
+
+Keep the model root outside `%LOCALAPPDATA%\Animama` and `C:\animama-build`.
+
+On the current host, the owner-only credential files are in
+`%USERPROFILE%\.config\animama\animama-windows-credentials\`, which is `"$HOME/.config/animama/animama-windows-credentials"` in
+Git Bash. A release uses:
+
+- `mixamo-read.env` for the pack fetch;
+- `smoke-openai.env` for the smoke;
+- `r2-publish.env` for publication.
+
+Never load `mixamo-publish.env` or `dev-secrets.env` for a release step.
+
+### Windows preflight
+
+In PowerShell:
 
 ```powershell
-git config --get core.autocrlf
+Get-CimInstance Win32_OperatingSystem | ForEach-Object { "$($_.Caption) $($_.OSArchitecture)" }
+git -C <release> config --get core.autocrlf
 az account show --query user.name -o tsv
+$acct = az resource list --resource-type Microsoft.CodeSigning/codeSigningAccounts --query "[?name=='<account>'] | [0].id" -o tsv
+(az rest --method get --url "https://management.azure.com$acct/certificateProfiles/<certificate_profile>?api-version=2024-09-30-preview" | ConvertFrom-Json).properties.certificates | Select-Object subjectName, status, expiryDate
+(Get-FileHash -Algorithm SHA256 'C:\Program Files (x86)\Windows Kits\10\bin\10.0.26100.0\x64\signtool.exe').Hash.ToLower()
+dotnet --list-runtimes | Select-String 'Microsoft.NETCore.App 8\.'
+node --version; pnpm --version; py -3.12 --version; uv --version
+(Get-MpComputerStatus).SmartAppControlState
 Get-PSDrive C
 ```
 
-`core.autocrlf` must print `false`.
+`<account>` and `<certificate_profile>` come from the `windows` entry in
+`desktop/runtime/feature-pack-releases.json`.
 
-**Environment:**
+Check each result:
 
-- Set `ANIMAMA_RELEASE_DISTRIBUTION` and `ANIMAMA_MODEL_ROOT` in each shell:
-  `$env:NAME = "value"` in PowerShell, or `export` in Git Bash.
-- Keep the model root outside `%LOCALAPPDATA%\Animama` and `C:\animama-build`,
-  for example `$env:USERPROFILE\animama-models`.
-- Ask the owner where this host keeps its owner-only pack read-token file, and
-  load it for the fetch commands only.
+- **Host:** Windows 11, 64-bit.
+- **Checkout:** `core.autocrlf` prints `false`.
+- **Signing:**
+  - `az account show` prints a sign-in. It is an email address, so don't copy it
+    into reports.
+  - The active certificates' `subjectName` equals `certificate_subject`.
+  - The `signtool.exe` hash equals the one in
+    `desktop/runtime/windows-signing.lock.json`.
+  - A .NET 8 runtime is installed.
+- **Toolchain:** Node 24, the pnpm version in `src/frontend/package.json`
+  `packageManager`, and Python 3.12.
+- **Smoke:** Smart App Control is `Off`, or it would block the smoke's
+  modified app copy.
 
-**Commands:**
-
-- **Model inputs:** run `py -3 scripts/models/release_inputs.py` with that root.
-- **Packs, stage, audit and build:** use the sequence in
-  [Windows candidates](../../../../docs/frontend/desktop/release-process.md#windows-candidates).
-- **Unsigned installers:** build them with `pnpm desktop:win:installer` while
-  iterating.
-
-**Receipt:**
-
-- Hash the staged inventory with `Get-FileHash -Algorithm SHA256`.
-- The receipt target is `win32-x64`.
-
-**Smoke:** the owner runs it in a separate standard account that has never run
-Animama. That account needs read and write access to this checkout, and its
-reports land in this checkout:
+**Credential files:** check that they're present and print their variable names
+only, never their values:
 
 ```powershell
-pnpm desktop:smoke:windows -- --artifact desktop/release/publish/Animama-<version>-x64-setup.exe --setup name
+foreach ($f in 'mixamo-read.env', 'r2-publish.env', 'smoke-openai.env') {
+  $path = Join-Path "$env:USERPROFILE\.config\animama\animama-windows-credentials" $f
+  if (Test-Path $path) { "${f}: " + ((Get-Content $path | ForEach-Object { if ($_ -match '^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=') { $Matches[1] } }) -join ', ') } else { "$f MISSING" }
+}
 ```
 
-**Scan:** use the pinned `windows_x64` Gitleaks build.
+**Gitleaks:** `scanner-pins.json` pins the archive's digest, not the executable's.
+To check the installed copy:
 
-**Publication:** `publish-windows.mjs` takes the same options; stable needs
-`ANIMAMA_WINDOWS_ACCEPTANCE`.
+1. Download the pinned `windows_x64` archive into a new empty folder.
+2. Check the archive's SHA-256 against the pin.
+3. Compare the `gitleaks.exe` inside it with the installed one.
 
-**Evidence names:** Windows files carry a `-win32-x64` suffix, for example
+```powershell
+$dl = '<new empty folder>'
+Invoke-WebRequest -UseBasicParsing 'https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_windows_x64.zip' -OutFile "$dl\gitleaks.zip"
+(Get-FileHash -Algorithm SHA256 "$dl\gitleaks.zip").Hash.ToLower()
+Add-Type -AssemblyName System.IO.Compression.FileSystem
+$z = [IO.Compression.ZipFile]::OpenRead("$dl\gitleaks.zip"); $s = ($z.Entries | Where-Object Name -eq 'gitleaks.exe').Open()
+$zipped = -join ([Security.Cryptography.SHA256]::Create().ComputeHash($s) | ForEach-Object { $_.ToString('x2') }); $s.Close(); $z.Dispose()
+$zipped -eq (Get-FileHash -Algorithm SHA256 'C:\animama-build\tools\gitleaks-8.30.1\gitleaks.exe').Hash.ToLower()
+```
+
+If the installed copy is missing, ask before downloading it.
+
+**Running builds:** this lists build processes; the list must be empty:
+
+```powershell
+Get-CimInstance Win32_Process | Where-Object { $_.Name -match '^(python\d*|uv|signtool|cl|link|meson|ninja|7za|makensis|postgres|app-builder)\.exe$' } | Select-Object Name, ProcessId, CommandLine
+```
+
+Also check the `node.exe` command lines for a stage, build or scan.
+
+### Windows model inputs
+
+When every set is already in the store, verify each set instead of running
+`release_inputs.py`. That helper re-encodes the 24 VCTK voices. On Windows the
+encoder's output differs from the recorded hashes, and it rewrites
+`scripts/voices/encoded-state-hashes.json` with CRLF line endings, which the
+stage then refuses. Never rehash. From `<release>` in Git Bash, after
+`. .animama-drafts/desktop-release/release.env`:
+
+```bash
+for s in parakeet parakeet_webgpu browser_speech pocket_cloning pocket_voices sensevoice sensevoice_webgpu; do py -3.12 -I scripts/models/$s.py verify || echo "FAILED: $s"; done
+git checkout -- scripts/voices/encoded-state-hashes.json   # only if a bootstrap touched it
+```
+
+Acquire a missing set with that set's `acquire` operation, for example
+`py -3.12 -I scripts/models/sensevoice.py acquire`.
+
+### Windows dependency audit
+
+Run the four audit commands in
+[Commands and inputs](../../../../docs/frontend/desktop/release-process.md#commands-and-inputs)
+from `<release>` in Git Bash. To list the full audit's `desktop>electron`
+entries:
+
+```bash
+pnpm -C src/frontend audit --json > .animama-drafts/desktop-release/pnpm-audit.json
+node -e "const j=require('./.animama-drafts/desktop-release/pnpm-audit.json'); for (const a of Object.values(j.advisories)) for (const p of new Set(a.findings.flatMap(f=>f.paths))) if (p.startsWith('desktop>electron')) console.log(a.module_name, a.github_advisory_id, p)"
+```
+
+`pip-audit` evaluates platform markers on the machine it runs on, so it covers
+the Windows-only packages there. `torch` and `torchvision` left the lockfile with
+#879. If `grep -c '^name = "torch"' uv.lock` finds them again, audit their
+`+cpu` builds separately: `pip-audit` skips them.
+
+### Windows packs, stage and audit
+
+From `<release>/src/frontend` in Git Bash:
+
+```bash
+. ../../.animama-drafts/desktop-release/release.env
+creds="$HOME/.config/animama/animama-windows-credentials"
+(set -a; . "$creds/mixamo-read.env"; set +a; pnpm desktop:mixamo-motion fetch && pnpm desktop:private-pack --pack wow-comedy-sfx fetch)
+(cd desktop/node_modules/electron && node install.js)
+git -C ../.. rev-parse HEAD > ../../.animama-drafts/desktop-release/staged-commit
+ANIMAMA_REQUIRE_MIXAMO_MOTION=1 ANIMAMA_REQUIRE_WOW_COMEDY_SFX=1 pnpm desktop:runtime:stage -- --platform win32 --arch x64 > ../../.animama-drafts/desktop-release/stage.log 2>&1
+pnpm desktop:runtime:audit -- --platform win32 --arch x64 > ../../.animama-drafts/desktop-release/audit.log 2>&1
+```
+
+`pnpm install` skips Electron's binary, and the stage's `desktop-build` step
+fetches it late, after the backend build. `node install.js` fetches it first
+and checks it against Electron's `checksums.json`.
+
+The audit must report the fresh cluster's `vector` extension. The stage's
+`backend-resource-audit` step also fails without pgvector.
+
+Fix these stage failures, then stage again:
+
+- **`Get-Acl` … could not be loaded:** the stage was started from PowerShell 7.
+  Use Git Bash.
+- **CRLF copies of LF files:** restore the named file. See
+  [Windows model inputs](#windows-model-inputs).
+- **`curl: (35)` or `CRYPT_E_REVOCATION_OFFLINE` while downloading a native
+  source:** copy that file from an earlier worktree's
+  `desktop/.desktop-runtime/downloads/`. `downloadVerified` checks every cached
+  file against `native-components.win32-x64.lock.json`.
+- **Electron failed to install correctly:** run `node install.js` as above.
+
+### Windows redistribution review
+
+Hash the staged inventory with `sha256sum` in Git Bash or
+`Get-FileHash -Algorithm SHA256`. The receipt target is `win32-x64`.
+
+- **Baseline:** `scripts/inventory_diff.py` writes UTF-8 itself, so
+  `py -3.12 -I` works with redirected output. Diff against the last reviewed
+  `win32-x64` inventory. If that review is old, also diff against the other
+  target's newest reviewed inventory, which the owner can supply; that separates
+  platform differences from source changes.
+- **Expected platform differences from `darwin-arm64`:**
+  - Windows adds `msvc-runtime`, `pywin32`, `pywin32-ctypes`, `pefile` and
+    `tzdata`, and has no `macholib` or `uvloop`.
+  - Many Python components' notice text differs, because Windows wheels carry
+    their own licence files.
+  - Web chunk names differ.
+  - The generated `content/included-core/inventory.json` differs, but every
+    content and model file matches.
+- **Upload parser notices.** lxml statically links GNU libiconv when this prints
+  a count above 0:
+
+  ```bash
+  strings -n 3 desktop/.desktop-runtime/win32-x64/runtime/backend/_internal/lxml/etree.cp312-win_amd64.pyd | grep -c -x -E 'MULELAO-1|ARMSCII-8|GEORGIAN-ACADEMY|UCS-4-INTERNAL'
+  ```
+
+  To list the licence files a component contributes to the notices (for
+  pypdfium2, 18 of them):
+
+  ```bash
+  notices=desktop/.desktop-runtime/win32-x64/runtime/licenses/THIRD_PARTY_NOTICES.txt
+  n=$(grep -n -F '(pypi:pypdfium2@<version>)' "$notices" | head -1 | cut -d: -f1)
+  awk -v s="$n" 'NR>s && /^=+$/ {exit} NR>=s && /^--- / {print}' "$notices"
+  ```
+
+  A `--- end of FTL.TXT ---` line is part of FreeType's text, not a file.
+- **Receipt check:** after writing the receipt, from `desktop`:
+
+  ```bash
+  node --input-type=module -e "import { loadReleasePolicy, verifyRedistributionReview } from './scripts/runtime/release-policy.mjs'; const r = loadReleasePolicy({ target: 'win32-x64', distribution: 'r2' }); verifyRedistributionReview('.desktop-runtime/win32-x64/runtime', r); console.log('receipt OK', r.review.inventory_sha256)"
+  ```
+
+- **Tests:** `pnpm desktop:test -- runtime-packaging windows-release` has one
+  known Windows failure, "stops staging when the frontend install does not
+  match its lockfile". It also fails on `main`, so report it rather than
+  treating it as caused by the receipt.
+- **Windows-only release:** when the version is already on `main`, the PR is
+  `build: record the Windows <version> redistribution review` and holds only
+  the receipt and the narrowed docs note.
+
+### Windows signed build and evidence
+
+After the owner confirms the spend, from `<release>/src/frontend` in Git Bash:
+
+```bash
+. ../../.animama-drafts/desktop-release/release.env
+git -C ../.. rev-parse HEAD > ../../.animama-drafts/desktop-release/build-commit
+pnpm desktop:dist:windows > ../../.animama-drafts/desktop-release/dist-windows.log 2>&1
+```
+
+In the log, a `SignTool Error` about the timestamp server, followed by
+`retrying 1 unsigned file(s)`, is a retried timestamp failure. Each retry
+spends another signature. Then check the evidence:
+
+```bash
+cd desktop/release/publish
+node -e "const r=require('./signing-report-win32-x64.json'); const s={}; for (const f of r.files) s[f.signer+'/'+f.status]=(s[f.signer+'/'+f.status]||0)+1; console.log(JSON.stringify({ready:r.release_ready, version:r.app_version, distribution:r.distribution.kind, signed_files:r.signed_files, files:s, pinned:r.files.filter(f=>f.signer==='animama').every(f=>f.subject===r.certificate_subject&&f.timestamped), installer:r.installer.sha256, build:r.runtime_build_id}))"
+sha256sum -c SHA256SUMS-win32-x64.txt
+node -p "const s=require('./size-report-win32-x64.json'); JSON.stringify({download:s.download_bytes, installed:s.installed_bytes, failures:s.validation.failures})"
+git -C ../../../../.. status --short && git -C ../../../../.. rev-parse HEAD
+```
+
+The output must show:
+
+- `ready: true`;
+- every file `Valid`, with `pinned: true`. The `vendor` files are
+  Microsoft-signed runtime DLLs whose signatures were kept;
+- every checksum `OK`;
+- an installer of at most 750 MiB and an installed size of at most 1.5 GiB;
+- a clean tree at the merged commit.
+
+Record the installer's SHA-256, its size and the runtime build ID.
+
+When the other target already published this version, compare the shared file
+before publishing. A `404` means nothing is published there yet:
+
+```bash
+curl -fsS -o <scratch>/backend-model-assets.json "https://downloads.animama.ai/desktop/v<version>/backend-model-assets.json?noCache=$RANDOM$RANDOM"
+cmp backend-model-assets.json <scratch>/backend-model-assets.json && echo identical
+```
+
+### Windows release scan
+
+From `<release>/src/frontend` in Git Bash, with `release.env` loaded:
+
+```bash
+pnpm desktop:release:scan > ../../.animama-drafts/desktop-release/scan.log 2>&1
+node -p "const r=require('./desktop/release/publish/release-scan.json'); JSON.stringify({result:r.result, canary:r.scanner.canary, coverage:r.coverage, findings:r.findings.length})"
+```
+
+Each `models/<modelId>/` directory gets its own receipt.
+
+### Windows fresh-account smoke
+
+The owner runs it in a separate standard account that has never run Animama.
+`scripts/smoke-windows-account.ps1` checks:
+
+- that the account is not an administrator;
+- the four profile folders;
+- Node 24 and the pinned pnpm;
+- the installer and write access to the checkout.
+
+It then loads only `ANIMAMA_SMOKE_OPENAI_KEY` from a key file, without
+printing it, runs `pnpm desktop:smoke:windows` against the candidate, and
+clears the key.
+
+1. **Place the script.** Copy it to
+   `<release>/.animama-drafts/desktop-release/smoke-windows-account.ps1`. It
+   finds the checkout by walking up from its own folder. Run it once in the
+   build account: it must refuse with "this account is an administrator".
+2. **Give the test account the key.** Grant it read access to the one key file
+   rather than copying the file, and remove the grant after the smoke. The test
+   account reaches the file by its full path, using Windows' default
+   traverse right; the rest of the build account's profile stays closed:
+
+   ```powershell
+   $key = "$env:USERPROFILE\.config\animama\animama-windows-credentials\smoke-openai.env"
+   icacls $key /grant '<test account>:(R)'
+   ```
+
+   After the smoke:
+
+   ```powershell
+   icacls $key /remove:g '<test account>'
+   ```
+
+3. **Owner runs it.** The owner switches user (Win+L, **Switch user**, never
+   **Sign out**), signs in to the test account and opens Windows PowerShell
+   without "Run as administrator":
+
+   ```powershell
+   powershell -NoProfile -ExecutionPolicy Bypass -File "<release>\.animama-drafts\desktop-release\smoke-windows-account.ps1" -KeyFile "<build account profile>\.config\animama\animama-windows-credentials\smoke-openai.env"
+   ```
+
+   The Animama windows open and close on their own for several minutes, and
+   must not be touched.
+4. **Reused test account.** If the script lists earlier Animama folders, the
+   owner first uninstalls the old app in that account (Settings → Apps). Then
+   the owner renames the listed folders aside, never deleting them, and runs
+   the script again.
+5. **Verify the reports** from `<release>/src/frontend/desktop/release`:
+
+   ```bash
+   node -e "const s=require('./smoke-name/smoke-report.json'), n=require('./smoke-name/network-report.json'), r=require('./publish/signing-report-win32-x64.json'); console.log(JSON.stringify({passed:s.passed, checks:Object.keys(s.checks).length, failed:Object.entries(s.checks).filter(([,v])=>v!==true).map(([k])=>k), installer:s.installer_sha256===r.installer.sha256, build:s.runtime_build_id===r.runtime_build_id, network_violations:n.violations}))"
+   ```
+
+   The output must show `passed: true`, no failed checks, both bindings `true`
+   and no network violations. Then remove the key grant.
+
+### Windows native checks
+
+Install the candidate in the account the owner chooses. If any of these paths
+exists, ask the owner; never reset a profile:
+
+```powershell
+foreach ($p in "$env:LOCALAPPDATA\Animama", "$env:LOCALAPPDATA\Programs\Animama", "$env:APPDATA\Animama", "$env:APPDATA\Anima") { "${p}: " + (Test-Path -LiteralPath $p) }
+$installer = '<release>\src\frontend\desktop\release\publish\Animama-<version>-x64-setup.exe'
+(Get-FileHash -Algorithm SHA256 $installer).Hash.ToLower()
+$p = Start-Process -FilePath $installer -PassThru; $p.WaitForExit(300000); $p.ExitCode
+```
+
+The normal installer installs for the account and opens Animama. Check:
+
+- `Animama.exe`, `animama-runtime.exe` and `postgres.exe` run from
+  `%LOCALAPPDATA%\Programs\Animama`;
+- PostgreSQL and the backend listen only on `127.0.0.1`;
+- a plain `GET` to the backend gets `403`.
+
+A locally copied installer skips SmartScreen; that check needs a browser
+download.
+
+**Checklist for the owner:**
+
+- Install, first-run setup, and both starter chats.
+- Avatar animation and the Pocket TTS voice.
+- Microphone, and offline dictation after installing Parakeet in the app.
+- Picture-in-picture, quick chat and global shortcuts.
+- A `.txt`, a `.docx` and a text PDF answered from.
+- Restart, and the data is kept.
+- Uninstall and reinstall.
+- SmartScreen on a downloaded installer.
+
+**Uninstall:** the uninstaller asks whether to delete `%LOCALAPPDATA%\Animama`,
+with **No** preselected. Answering **Yes** deletes the profile, so tell the
+owner which answer the check needs. Uninstalling always leaves
+`%LOCALAPPDATA%\animama-updater\installer.exe`, a copy of the installer kept
+for differential updates.
+
+### Windows publication and the first stable
+
+`publish-windows.mjs` takes the same options as `publish-macos.mjs`; stable
+needs `ANIMAMA_WINDOWS_ACCEPTANCE`. Load `r2-publish.env` from the credential
+folder for that one command, and verify every object as in
+[publication](#publication). Windows publication has not been exercised yet:
+0.1.5 was kept local.
+
+- **First stable.** Stable acceptance needs `prior_signed_version`: an older
+  signed Windows build whose used profile the owner upgraded. The older build
+  must use a database schema the new release can migrate:
+  - Compare `alembic_head` and `database_schema_sha256` in the runtime
+    manifests.
+  - Profiles from before the baseline froze at 0.1.2 stop with
+    `database_schema_mismatch`
+    ([ADR 0035](../../../../docs/adr/0035-released-schema-changes-use-forward-migrations.md)).
+    So the unpublished signed 0.1.1 Windows candidates cannot serve; signed
+    0.1.5 is the first valid base.
+  - The digest differs between platforms at the same head, so compare Windows
+    only with Windows.
+- **SmartScreen.** The acceptance check needs a browser download, so publish
+  the preview first, then promote the same build.
+- **Shared folder.** When the other target already published the same version,
+  the Windows files carry their `-win32-x64` suffix. Only
+  `backend-model-assets.json` is shared, and it must match byte for byte.
+
+### Preserve a Windows candidate
+
+Keep a candidate that a later version will upgrade from. While the publisher
+may still run from the release worktree, copy rather than move. From
+`<release>/src/frontend/desktop/release`:
+
+```bash
+dest=<primary>/.animama-drafts/desktop-release/<version>/win32-x64-$(git -C ../../../.. rev-parse --short=9 HEAD)
+mkdir -p "$dest/logs" && cp -a publish smoke-name dependency-audit review signing-report.json "$dest/"
+cp -a ../../../../.animama-drafts/desktop-release/*.log "$dest/logs/"
+(cd "$dest/publish" && sha256sum -c --quiet SHA256SUMS-win32-x64.txt && echo "copy OK")
+```
+
+### Evidence names
+
+Windows files carry a `-win32-x64` suffix, for example
 `SHA256SUMS-win32-x64.txt`.
