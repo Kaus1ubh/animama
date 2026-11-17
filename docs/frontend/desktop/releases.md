@@ -3,7 +3,9 @@
 The release tools build signed macOS 15+ Apple-silicon candidates and support
 guarded updates, upgrade snapshots and installed-artifact smoke tests.
 Signed macOS preview builds 0.1.0 to 0.1.4 and stable releases 0.1.4 and 0.1.5
-are published; the macOS update feed (`latest-mac.yml`) serves 0.1.5.
+are published; the macOS update feed (`latest-mac.yml`) serves 0.1.5. Windows
+0.1.6 is published as a preview and as the first Windows stable release; the
+Windows update feed (`latest.yml`) serves 0.1.6.
 Animama's prebuilt distribution ends before 2027-01-01: the final
 release will never check for updates, and
 [Ending distribution](#ending-distribution) is the owner's runbook for it and
@@ -13,8 +15,10 @@ approve redistribution or publication.
 Windows 11 x64 has the same tooling: a signed candidate builder
 ([Build a signed Windows candidate](#build-a-signed-windows-candidate)), guarded
 updates through its per-user installer, installed-artifact smoke and
-publication. No Windows release has been published, and a real signed Windows
-upgrade has not been run. Release commands use isolated native profiles; they
+publication. Windows 0.1.6 was accepted by installing it over a used, signed
+0.1.5 installation; no earlier Windows release served a feed, so the in-app
+update prompt is first exercised from 0.1.6 to a later release. Release
+commands use isolated native profiles; they
 do not reset or create Compose stacks.
 
 Initial publication runs manually from reviewed `main` inputs. Start with the
