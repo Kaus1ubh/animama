@@ -23,9 +23,9 @@
       "reviewed_on": "2026-11-16"
     },
     "win32-x64": {
-      "inventory_sha256": "59bee33b3ab90d4472815161b89998655730404dc34735ec3237b4c97c3974df",
+      "inventory_sha256": "cdcfb0d54d37269f579143f1bc5dcdebbf5c519491edcde5cd2fc929aaf955ee",
       "reviewed_by": "raymond-van",
-      "reviewed_on": "2026-11-16"
+      "reviewed_on": "2026-11-17"
     }
   }
 }
