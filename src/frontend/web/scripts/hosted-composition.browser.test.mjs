@@ -59,7 +59,16 @@ before(async () => {
         webgpuBaseUrl: "/onnx/models/parakeet-webgpu",
       }),
     },
-    optimizeDeps: { entries: [path.join(webRoot, fixture, "main.tsx")] },
+    // Some tests reach the app's own entry, which imports Zod's runtime
+    // config. Scan it at startup too: a dependency found only after the
+    // first page loads makes Vite re-bundle and reload mid-test on a cold
+    // cache, as in CI.
+    optimizeDeps: {
+      entries: [
+        path.join(webRoot, fixture, "main.tsx"),
+        path.join(webRoot, "src/main.local.tsx"),
+      ],
+    },
     resolve: shared.config.resolve,
     server: {
       host: "127.0.0.1",
