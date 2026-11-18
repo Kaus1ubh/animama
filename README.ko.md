@@ -1,0 +1,200 @@
+<p align="center">
+  <img src="docs/assets/readme-banner.jpg" alt="Animama" width="100%">
+</p>
+
+<p align="center">
+  <a href="https://youtu.be/LKHQR8zyUx8">
+    <img src="https://img.youtube.com/vi/LKHQR8zyUx8/maxres2.jpg" alt="Animama 출시 트레일러 보기" width="560">
+  </a>
+</p>
+
+<p align="center">
+  <a href="https://youtu.be/PyLr3oXcPdk">둘러보기 영상</a> ·
+  <a href="https://docs.animama.ai/ko/">문서</a> ·
+  <a href="https://discord.gg/pUHHRrZ2xg">Discord</a>
+  <br>
+  README: <a href="README.md">English</a> ·
+  <a href="README.ja.md">日本語</a> ·
+  <a href="README.zh-Hans.md">简体中文</a>
+</p>
+
+# Animama
+
+새로운 책상 친구, Anima를 소개합니다. Animama는 매력적이고 표정이 풍부한
+컴패니언을 화면 한쪽에 데려와, 일할 때도 놀 때도 바쁜 하루를 보낼 때도 곁을
+지켜 줍니다.
+
+## 기능
+
+### 나의 Anima
+
+- **개성:** Anima마다 고유한 정체성과 목소리가 있습니다.
+- **기억:** 대화가 끝나도 이어지는 장기 기억. Anima가 사용자에 대한 정보와 함께한
+  시간을 메모로 남깁니다. 메모는 파일이라 직접 읽고, 편집하고, 이전 상태로 되돌릴
+  수 있습니다.
+- **감정:** 함께하는 시간에 따라 변하는 24가지 감정을 얼굴, 몸, 목소리로
+  표현합니다.
+- **제스처:** 대화하면서 고르는 몸짓. 엉뚱한 장난부터 로맨틱한 몸짓까지, 300가지가
+  넘는 제스처와 리액션이 들어 있습니다.
+- **리액션:** 모든 감정에 '약함'부터 '매우 강함'까지 네 단계의 표정이 있고,
+  애니메이션풍 효과가 함께 나옵니다.
+
+### 앱
+
+- **프라이버시와 셀프 호스팅:** 자신의 API 키나 로컬 모델(Ollama, LM Studio,
+  llama.cpp, vLLM)로 내 컴퓨터에서 실행됩니다. 셀프 호스팅해 브라우저에서 쓰거나
+  데스크톱 앱을 직접 빌드할 수 있습니다.
+- **나만의 Anima로:** Anima의 정체성, 기억, 행동을 마음에 들 때까지 편집할 수
+  있습니다.
+- **VRM 아바타:** VRM 0.x 또는 1.0 아바타라면 무엇이든 쓸 수 있으며, VRoid Studio
+  아바타가 가장 잘 맞습니다. VRChat 아바타는
+  [Animama Avatar Converter](https://github.com/raymond-van/animama-avatar-converter)로,
+  다른 3D 모델은 Blender에서
+  [VRM Add-on for Blender](https://github.com/saturday06/VRM-Addon-for-Blender)로
+  변환할 수 있습니다.
+- **음성 모드:** 말이 끝나는 시점을 자동으로 감지해 핸즈프리로 대화할 수
+  있습니다. 음성 처리는 모두 로컬에서 실행할 수도 있습니다.
+- **화면 속 화면:** Anima가 다른 창 위, 화면 한쪽에 떠 있습니다. 빠른 채팅과 전역
+  단축키도 쓸 수 있습니다.
+- **크리에이터 도구:** 제스처, 리액션, 아바타·파티클·장면 효과를 앱에서 직접
+  만들 수 있습니다. 포함된 [스킬](.agents/skills)을 쓰면 AI 코딩 에이전트에게
+  설명만으로 만들게 할 수도 있습니다.
+- **언어:** 앱과 음성 입력이 English, 日本語, 한국어, 简体中文을 지원합니다.
+
+## 다운로드
+
+| 플랫폼 | 요구 사항 | 설치 파일 | 크기 |
+| --- | --- | --- | --- |
+| macOS | macOS 15 이상, Apple 실리콘 | [Animama-0.1.5-arm64.dmg](https://downloads.animama.ai/desktop/v0.1.5/Animama-0.1.5-arm64.dmg) | 418 MB(설치 후 889 MB) |
+| Windows | Windows 11 x64, 빌드 22000 이상 | [Animama-0.1.6-x64-setup.exe](https://downloads.animama.ai/desktop/v0.1.6/Animama-0.1.6-x64-setup.exe) | 377 MB(설치 후 988 MB) |
+
+Windows에서는 Animama가 새로 나온 앱이라 SmartScreen에 "Windows의 PC 보호"가
+표시될 수 있습니다. **추가 정보**를 선택하고 게시자가 Raymond Van인지 확인한 뒤
+**실행**을 선택하세요.
+
+## AI
+
+Animama는 BYOK(Bring Your Own Key) 방식입니다. 처음 설정할 때나 **앱 설정**에서
+원하는 제공자의 API 키를 추가하세요. 키는 암호화되어 내 컴퓨터에 저장됩니다.
+
+### 채팅
+
+OpenAI의 GPT-6 Luna나 Anthropic의 Claude Haiku 5.5를 추천합니다. 둘 다 비용이
+낮아서 몇 달러어치 API 사용량으로도 오래 쓸 수 있습니다. OpenRouter와 그 밖의
+OpenAI 호환 엔드포인트도 쓸 수 있습니다.
+
+로컬 모델(Ollama, LM Studio, llama.cpp, vLLM)은 실험적으로 지원합니다. 추론
+엔진은 엄격한 JSON 출력을, 모델은 도구 호출을 지원해야 합니다.
+
+### 음성 인식(STT)
+
+음성 인식은 내 컴퓨터에서 실행됩니다. 영어는 Parakeet, 일본어·한국어·중국어는
+SenseVoice를 씁니다. 말하는 동안 글자가 바로 표시되는 GPU(WebGPU) 버전을
+추천합니다. 먼저 앱에서 CPU 버전을 다운로드하세요.
+
+### 음성 합성(TTS)
+
+가장 표현력 있는 목소리를 원한다면 [ElevenLabs](https://elevenlabs.io)를
+추천합니다. 무료 요금제로도 매달 약 20분 분량의 음성을 쓸 수 있고,
+[보이스 라이브러리](https://elevenlabs.io/voice-library)에서 목소리를 고를 수
+있습니다.
+
+Pocket TTS는 기본 내장된 무료 엔진으로, 내 컴퓨터에서 실행되며 음성 복제도
+지원합니다.
+
+## 셀프 호스팅
+
+<details>
+<summary><h3>데스크톱</h3></summary>
+
+데스크톱 앱을 직접 빌드합니다. 서명되지 않은 빌드이므로 내 컴퓨터에서만
+쓰세요. 자세한 내용은 [데스크톱 빌드](docs/frontend/desktop/platforms.md)(영문)를
+참고하세요.
+
+<details>
+<summary><h4>macOS</h4></summary>
+
+Xcode 명령줄 도구, Node 24, pnpm, uv, Git LFS가 설치된 Apple 실리콘 Mac이
+필요합니다.
+
+```bash
+git clone https://github.com/raymond-van/animama.git
+cd animama
+git lfs pull
+python3 scripts/models/browser_speech.py acquire
+cd src/frontend
+pnpm install --frozen-lockfile
+pnpm desktop:mac:build:run
+```
+
+앱은 `src/frontend/desktop/release/mac/Animama.app`에 만들어집니다.
+
+</details>
+
+<details>
+<summary><h4>Windows</h4></summary>
+
+Visual Studio 2022(MSVC v143 14.44 도구 집합, Windows SDK 10.0.26100), Node 24,
+pnpm, uv, Git LFS가 설치된 Windows 11 x64가 필요합니다. PowerShell에서
+실행하세요.
+
+```powershell
+git clone -c core.autocrlf=false https://github.com/raymond-van/animama.git
+cd animama
+git lfs pull
+py -3 scripts/models/browser_speech.py acquire
+cd src/frontend
+pnpm install --frozen-lockfile
+pnpm desktop:runtime:stage -- --platform win32 --arch x64
+pnpm desktop:runtime:audit -- --platform win32 --arch x64
+pnpm desktop:win:installer
+```
+
+설치 파일은 `src/frontend/desktop/release/`에 만들어집니다.
+
+</details>
+
+</details>
+
+<details>
+<summary><h3>웹</h3></summary>
+
+Animama를 내 컴퓨터에서 서버로 실행하고 브라우저에서 사용합니다. macOS 또는
+Linux(Windows는 WSL), Docker와 Compose, Git LFS, Python 3.11 이상이 필요합니다.
+
+```bash
+git clone https://github.com/raymond-van/animama.git
+cd animama
+git lfs pull
+python3 scripts/models/browser_speech.py acquire  # 선택 사항: Pocket TTS와 Smart Turn
+ANIMAMA_WEB_BUILD_MODE=production ./reset.sh
+```
+
+그런 다음 <http://localhost:8000>을 엽니다. API 키는 체크아웃 밖에 둔 환경
+파일로 서버에 전달합니다. 방법은
+[자격 증명](docs/backend/operations/development.md#credentials-and-nonsecret-configuration)(영문)을 참고하세요.
+
+서버는 내 컴퓨터에서만 연결을 받습니다. 다른 기기에서 접속하려면 직접 구성한
+TLS와 인증을 앞단에 두세요.
+
+</details>
+
+## 감사의 말
+
+- [Pocket TTS](https://github.com/kyutai-labs/pocket-tts)(Kyutai): 기기에서 실행되는
+  음성 합성
+- [Smart Turn](https://github.com/pipecat-ai/smart-turn)(Pipecat): 말이 끝났는지
+  감지
+- [Parakeet](https://huggingface.co/nvidia/parakeet-tdt-0.6b-v2)(NVIDIA)와
+  [SenseVoice](https://github.com/FunAudioLLM/SenseVoice)(FunAudioLLM): 음성 인식
+- [three-vrm](https://github.com/pixiv/three-vrm)과
+  [VRoid](https://vroid.com/en)(pixiv): 아바타 렌더링과 기본 제공 아바타
+- [Mochiya Avatar Tools](https://github.com/mochiya-labs/unity-avatar-tools)와
+  [three-liltoon](https://github.com/mochiya-labs/three-liltoon)(Mochiya Labs):
+  VRChat 아바타 변환과 lilToon 머티리얼
+- [three.quarks](https://github.com/Alchemist0823/three.quarks): 파티클 효과
+- [Lapwing](https://booth.pm/ko/items/4993931) ©kuji
+
+## 스타 히스토리
+
+[![스타 수 추이 차트](https://api.star-history.com/svg?repos=raymond-van/animama&type=Date)](https://www.star-history.com/#raymond-van/animama&Date)

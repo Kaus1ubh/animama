@@ -864,9 +864,30 @@
       "review": "prepared-not-release-approved"
     },
     {
+      "path": "README.ja.md",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Translation of README.md; Raymond Van original-work attestation and source review",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "README.ko.md",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Translation of README.md; Raymond Van original-work attestation and source review",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
       "path": "README.md",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "README.zh-Hans.md",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Translation of README.md; Raymond Van original-work attestation and source review",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
@@ -11081,6 +11102,23 @@
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
       "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "docs/assets/readme-banner.jpg",
+      "candidate_license": "LicenseRef-pixiv-VRoidPreset; Lapwing (VN3) shown with the licensor's permission; no reuse licence granted",
+      "basis": "Animama renderer still for the README banner: the Annie and Andrew starters and VRoid sample avatars H and M (pixiv VRoid terms), with Lapwing (©kuji, VN3 v1.00), shown with kuji's permission for this still; the Lapwing model is not distributed",
+      "copyright": [
+        "pixiv VRoid Project",
+        "2026 Raymond Van",
+        "kuji"
+      ],
+      "evidence": [
+        "licenses/third-party/art-vroid-review.json"
+      ],
+      "notices": [
+        "licenses/third-party/art-NOTICES.md"
+      ],
       "review": "prepared-not-release-approved"
     },
     {
