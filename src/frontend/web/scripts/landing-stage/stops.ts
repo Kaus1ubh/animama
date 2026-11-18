@@ -482,8 +482,8 @@ export const SITE = {
    * site's CSP admits), and the poster in the page's `static/` folder.
    */
   trailer: {
-    url: "https://youtu.be/LKHQR8zyUx8",
-    embed: "https://www.youtube-nocookie.com/embed/LKHQR8zyUx8",
+    url: "https://youtu.be/8ji_NNOfsP8",
+    embed: "https://www.youtube-nocookie.com/embed/8ji_NNOfsP8",
     poster: "/trailer-poster.jpg",
   },
   /** A 1200×630 still of the hero, in the page's `static/` folder. */
