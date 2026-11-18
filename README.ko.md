@@ -20,46 +20,49 @@
 
 # Animama
 
-새로운 책상 친구, Anima를 소개합니다. Animama는 매력적이고 표정이 풍부한
-컴패니언을 화면 한쪽에 데려와, 일할 때도 놀 때도 바쁜 하루를 보낼 때도 곁을
-지켜 줍니다.
+새로운 책상 친구, Anima를 소개합니다.
+
+Animama는 매력적이고 표정이 풍부한 컴패니언을 화면 한쪽에 데려와, 일할 때도 놀
+때도 바쁜 하루를 보낼 때도 곁을 지켜 줍니다.
 
 ## 기능
 
-### 나의 Anima
-
-- **개성:** Anima마다 고유한 정체성과 목소리가 있습니다.
-- **기억:** 대화가 끝나도 이어지는 장기 기억. Anima가 사용자에 대한 정보와 함께한
-  시간을 메모로 남깁니다. 메모는 파일이라 직접 읽고, 편집하고, 이전 상태로 되돌릴
-  수 있습니다.
-- **감정:** 함께하는 시간에 따라 변하는 24가지 감정을 얼굴, 몸, 목소리로
-  표현합니다.
-- **제스처:** 대화하면서 고르는 몸짓. 엉뚱한 장난부터 로맨틱한 몸짓까지, 300가지가
-  넘는 제스처와 리액션이 들어 있습니다.
-- **리액션:** 모든 감정에 '약함'부터 '매우 강함'까지 네 단계의 표정이 있고,
-  애니메이션풍 효과가 함께 나옵니다.
-
 ### 앱
 
-- **프라이버시와 셀프 호스팅:** 자신의 API 키나 로컬 모델(Ollama, LM Studio,
-  llama.cpp, vLLM)로 내 컴퓨터에서 실행됩니다. 셀프 호스팅해 브라우저에서 쓰거나
-  데스크톱 앱을 직접 빌드할 수 있습니다.
-- **나만의 Anima로:** Anima의 정체성, 기억, 행동을 마음에 들 때까지 편집할 수
-  있습니다.
-- **VRM 아바타:** VRM 0.x 또는 1.0 아바타라면 무엇이든 쓸 수 있으며, VRoid Studio
-  아바타가 가장 잘 맞습니다. VRChat 아바타는
+- **[프라이버시와 셀프 호스팅](https://docs.animama.ai/ko/self-host):** 자신의 API 키나 로컬
+  모델(Ollama, LM Studio, llama.cpp, vLLM)로 내 컴퓨터에서 실행됩니다. 셀프
+  호스팅해 브라우저에서 쓰거나 데스크톱 앱을 직접 빌드할 수 있습니다.
+- **[나만의 Anima로](https://docs.animama.ai/ko/animas):** Anima의 정체성, 기억, 행동을 마음에 들
+  때까지 편집할 수 있습니다.
+- **[VRM 아바타](https://docs.animama.ai/ko/avatars):** VRM 0.x 또는 1.0 아바타라면 무엇이든 쓸 수
+  있으며, VRoid Studio 아바타가 가장 잘 맞습니다. VRChat 아바타는
   [Animama Avatar Converter](https://github.com/raymond-van/animama-avatar-converter)로,
   다른 3D 모델은 Blender에서
   [VRM Add-on for Blender](https://github.com/saturday06/VRM-Addon-for-Blender)로
   변환할 수 있습니다.
-- **음성 모드:** 말이 끝나는 시점을 자동으로 감지해 핸즈프리로 대화할 수
-  있습니다. 음성 처리는 모두 로컬에서 실행할 수도 있습니다.
-- **화면 속 화면:** Anima가 다른 창 위, 화면 한쪽에 떠 있습니다. 빠른 채팅과 전역
-  단축키도 쓸 수 있습니다.
-- **크리에이터 도구:** 제스처, 리액션, 아바타·파티클·장면 효과를 앱에서 직접
-  만들 수 있습니다. 포함된 [스킬](.agents/skills)을 쓰면 AI 코딩 에이전트에게
-  설명만으로 만들게 할 수도 있습니다.
-- **언어:** 앱과 음성 입력이 English, 日本語, 한국어, 简体中文을 지원합니다.
+- **[음성 모드](https://docs.animama.ai/ko/voice):** 말이 끝나는 시점을 자동으로 감지해 핸즈프리로
+  대화할 수 있습니다. 음성 처리는 모두 로컬에서 실행할 수도 있습니다.
+- **[화면 속 화면](https://docs.animama.ai/ko/configuration#picture-in-picture):** Anima가 다른 창
+  위, 화면 한쪽에 떠 있습니다. 빠른 채팅과 전역 단축키도 쓸 수 있습니다.
+- **[크리에이터 도구](https://docs.animama.ai/ko/effects):** 제스처, 리액션, 아바타·파티클·장면
+  효과를 앱에서 직접 만들 수 있습니다. 포함된 [스킬](.agents/skills)을 쓰면 AI
+  코딩 에이전트에게 설명만으로 만들게 할 수도 있습니다.
+- **[언어](https://docs.animama.ai/ko/configuration#app-settings):** 앱과 음성 입력이 English,
+  日本語, 한국어, 简体中文을 지원합니다.
+
+### 나의 Anima
+
+- **[개성](https://docs.animama.ai/ko/animas#anima-instructions):** Anima마다 고유한 정체성과
+  목소리가 있습니다.
+- **[기억](https://docs.animama.ai/ko/memory):** 대화가 끝나도 이어지는 장기 기억. Anima가 사용자에
+  대한 정보와 함께한 시간을 메모로 남깁니다. 메모는 파일이라 직접 읽고,
+  편집하고, 이전 상태로 되돌릴 수 있습니다.
+- **[감정](https://docs.animama.ai/ko/emotions):** 함께하는 시간에 따라 변하는 24가지 감정을 얼굴,
+  몸, 목소리로 표현합니다.
+- **[제스처](https://docs.animama.ai/ko/behaviors#gestures):** 대화하면서 고르는 몸짓. 엉뚱한
+  장난부터 로맨틱한 몸짓까지, 300가지가 넘는 제스처와 리액션이 들어 있습니다.
+- **[리액션](https://docs.animama.ai/ko/behaviors#reactions):** 모든 감정에 '약함'부터 '매우
+  강함'까지 네 단계의 표정이 있고, 애니메이션풍 효과가 함께 나옵니다.
 
 ## 다운로드
 
@@ -72,35 +75,44 @@ Windows에서는 Animama가 새로 나온 앱이라 SmartScreen에 "Windows의 P
 표시될 수 있습니다. **추가 정보**를 선택하고 게시자가 Raymond Van인지 확인한 뒤
 **실행**을 선택하세요.
 
-## AI
+## AI 모델(BYOK)
 
-Animama는 BYOK(Bring Your Own Key) 방식입니다. 처음 설정할 때나 **앱 설정**에서
-원하는 제공자의 API 키를 추가하세요. 키는 암호화되어 내 컴퓨터에 저장됩니다.
+내 API 키를 쓰는 BYOK(Bring Your Own Key) 방식입니다. 처음 설정할 때나 **앱
+설정**에서 원하는 제공자의 API 키를 추가하세요. 키는 암호화되어 내 컴퓨터에
+저장됩니다.
 
-### 채팅
+### [채팅](https://docs.animama.ai/ko/#setup)
 
-OpenAI의 GPT-6 Luna나 Anthropic의 Claude Haiku 5.5를 추천합니다. 둘 다 비용이
-낮아서 몇 달러어치 API 사용량으로도 오래 쓸 수 있습니다. OpenRouter와 그 밖의
-OpenAI 호환 엔드포인트도 쓸 수 있습니다.
+추천 모델은 비용이 낮아서 몇 달러어치 API 사용량으로도 오래 쓸 수 있습니다.
 
-로컬 모델(Ollama, LM Studio, llama.cpp, vLLM)은 실험적으로 지원합니다. 추론
-엔진은 엄격한 JSON 출력을, 모델은 도구 호출을 지원해야 합니다.
+| 제공자 | 모델 |
+| --- | --- |
+| OpenAI | GPT-6 Luna(추천) |
+| Anthropic | Claude Haiku 5.5(추천) |
+| OpenRouter 또는 기타 OpenAI 호환 엔드포인트 | 자유롭게 선택 |
 
-### 음성 인식(STT)
+#### 로컬 모델
 
-음성 인식은 내 컴퓨터에서 실행됩니다. 영어는 Parakeet, 일본어·한국어·중국어는
-SenseVoice를 씁니다. 말하는 동안 글자가 바로 표시되는 GPU(WebGPU) 버전을
-추천합니다. 먼저 앱에서 CPU 버전을 다운로드하세요.
+Ollama, LM Studio, llama.cpp, vLLM을 쓸 수 있지만 실험적으로 지원합니다. 추론
+엔진은 엄격한 JSON 출력을, 모델은 도구 호출을 지원해야 합니다. 설정 방법은
+[로컬 모델 서버](docs/backend/operations/local-models.md)(영문)를 참고하세요.
 
-### 음성 합성(TTS)
+### [음성 인식(STT)](https://docs.animama.ai/ko/voice#speech-to-text)
 
-가장 표현력 있는 목소리를 원한다면 [ElevenLabs](https://elevenlabs.io)를
-추천합니다. 무료 요금제로도 매달 약 20분 분량의 음성을 쓸 수 있고,
-[보이스 라이브러리](https://elevenlabs.io/voice-library)에서 목소리를 고를 수
-있습니다.
+두 엔진 모두 내 컴퓨터에서 실행됩니다. 말하는 동안 글자가 바로 표시되는
+GPU(WebGPU) 버전을 추천합니다.
 
-Pocket TTS는 기본 내장된 무료 엔진으로, 내 컴퓨터에서 실행되며 음성 복제도
-지원합니다.
+| 엔진 | 언어 |
+| --- | --- |
+| Parakeet | 영어 |
+| SenseVoice | 일본어·한국어·중국어 |
+
+### [음성 합성(TTS)](https://docs.animama.ai/ko/voice#text-to-speech)
+
+| 엔진 | 비용 | 특징 |
+| --- | --- | --- |
+| [ElevenLabs](https://elevenlabs.io)(추천) | 무료 요금제로 매달 약 20분 | 가장 표현력 있는 목소리. [보이스 라이브러리](https://elevenlabs.io/voice-library)에서 고를 수 있습니다 |
+| Pocket TTS | 무료, 기본 내장 | 내 컴퓨터에서 실행되며 음성 복제도 지원합니다 |
 
 ## 셀프 호스팅
 
