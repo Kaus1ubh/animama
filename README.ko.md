@@ -1,10 +1,6 @@
 <p align="center">
-  <img src="docs/assets/readme-banner.jpg" alt="Animama" width="100%">
-</p>
-
-<p align="center">
   <a href="https://youtu.be/8ji_NNOfsP8">
-    <img src="https://img.youtube.com/vi/8ji_NNOfsP8/maxres2.jpg" alt="Animama 출시 트레일러 보기" width="560">
+    <img src="docs/assets/readme-trailer.jpg" alt="Animama 출시 트레일러 보기" width="560">
   </a>
 </p>
 
