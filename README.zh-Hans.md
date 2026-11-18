@@ -20,27 +20,29 @@
 
 # Animama
 
-你的新桌面伙伴，就是 Anima。Animama 会在屏幕一角放上一位迷人又富有表现力的伙伴，无论你在工作、娱乐，还是埋头熬过忙碌的一天，都有 Anima 陪在身边。
+你的新桌面伙伴，就是 Anima。
+
+Animama 会在屏幕一角放上一位迷人又富有表现力的伙伴，无论你在工作、娱乐，还是埋头熬过忙碌的一天，都有 Anima 陪在身边。
 
 ## 功能
 
-### 你的 Anima
-
-- **个性：** 每个 Anima 都有自己的身份设定和声音。
-- **记忆：** 跨对话的长期记忆。Anima 会记下关于你的信息和你们共度的时光，这些记录都是文件，你可以阅读、编辑和回滚。
-- **情绪：** 24 种情绪会随着相处而变化，并体现在表情、肢体和声音中。
-- **动作：** 说话时自然挑选的肢体语言，从搞怪逗趣到浪漫撩人。内置 300 多种动作和反应。
-- **反应：** 每种情绪都有从“轻微”到“极强”四个强度的表情，并配有动漫风格特效。
-
 ### 应用
 
-- **私密且可自托管：** 使用你自己的 API 密钥或本地模型（Ollama、LM Studio、llama.cpp、vLLM）在你的电脑上运行。可以自托管后在浏览器中使用，也可以自己构建桌面应用。
-- **按你的喜好打造：** 随心编辑 Anima 的身份设定、记忆和行为，直到恰到好处。
-- **VRM 虚拟形象：** 支持任何 VRM 0.x 或 1.0 虚拟形象，VRoid Studio 制作的效果最好。VRChat 虚拟形象可用 [Animama Avatar Converter](https://github.com/raymond-van/animama-avatar-converter)转换，其他 3D 模型可在 Blender 中用 [VRM Add-on for Blender](https://github.com/saturday06/VRM-Addon-for-Blender)转换。
-- **语音模式：** 自动检测你何时说完，无需动手即可对话。语音处理可以完全在本地运行。
-- **画中画：** Anima 浮在屏幕一角、其他窗口之上，还支持快速聊天和全局快捷键。
-- **创作工具：** 在应用中制作自己的动作、反应，以及形象特效、粒子特效和场景特效；也可以借助内置的[技能](.agents/skills)，向 AI 编程代理描述需求来生成。
-- **语言：** 应用和语音输入支持 English、日本語、한국어 和简体中文。
+- **[私密且可自托管](https://docs.animama.ai/zh-hans/self-host)：** 使用你自己的 API 密钥或本地模型（Ollama、LM Studio、llama.cpp、vLLM）在你的电脑上运行。可以自托管后在浏览器中使用，也可以自己构建桌面应用。
+- **[按你的喜好打造](https://docs.animama.ai/zh-hans/animas)：** 随心编辑 Anima 的身份设定、记忆和行为，直到恰到好处。
+- **[VRM 虚拟形象](https://docs.animama.ai/zh-hans/avatars)：** 支持任何 VRM 0.x 或 1.0 虚拟形象，VRoid Studio 制作的效果最好。VRChat 虚拟形象可用 [Animama Avatar Converter](https://github.com/raymond-van/animama-avatar-converter)转换，其他 3D 模型可在 Blender 中用 [VRM Add-on for Blender](https://github.com/saturday06/VRM-Addon-for-Blender)转换。
+- **[语音模式](https://docs.animama.ai/zh-hans/voice)：** 自动检测你何时说完，无需动手即可对话。语音处理可以完全在本地运行。
+- **[画中画](https://docs.animama.ai/zh-hans/configuration#picture-in-picture)：** Anima 浮在屏幕一角、其他窗口之上，还支持快速聊天和全局快捷键。
+- **[创作工具](https://docs.animama.ai/zh-hans/effects)：** 在应用中制作自己的动作、反应，以及形象特效、粒子特效和场景特效；也可以借助内置的[技能](.agents/skills)，向 AI 编程代理描述需求来生成。
+- **[语言](https://docs.animama.ai/zh-hans/configuration#app-settings)：** 应用和语音输入支持 English、日本語、한국어 和简体中文。
+
+### 你的 Anima
+
+- **[个性](https://docs.animama.ai/zh-hans/animas#anima-instructions)：** 每个 Anima 都有自己的身份设定和声音。
+- **[记忆](https://docs.animama.ai/zh-hans/memory)：** 跨对话的长期记忆。Anima 会记下关于你的信息和你们共度的时光，这些记录都是文件，你可以阅读、编辑和回滚。
+- **[情绪](https://docs.animama.ai/zh-hans/emotions)：** 24 种情绪会随着相处而变化，并体现在表情、肢体和声音中。
+- **[动作](https://docs.animama.ai/zh-hans/behaviors#gestures)：** 说话时自然挑选的肢体语言，从搞怪逗趣到浪漫撩人。内置 300 多种动作和反应。
+- **[反应](https://docs.animama.ai/zh-hans/behaviors#reactions)：** 每种情绪都有从“轻微”到“极强”四个强度的表情，并配有动漫风格特效。
 
 ## 下载
 
@@ -51,25 +53,39 @@
 
 在 Windows 上，由于 Animama 是新应用，SmartScreen 可能会提示“Windows 已保护你的电脑”。请选择**更多信息**，确认发布者为 Raymond Van，然后选择**仍要运行**。
 
-## AI
+## AI 模型（BYOK）
 
-Animama 采用自带密钥（BYOK）模式：在初始设置或**应用设置**中添加你所选服务商的 API 密钥。密钥会加密保存在你的电脑上。
+采用自带密钥（BYOK）模式：在初始设置或**应用设置**中添加你所选服务商的 API 密钥。密钥会加密保存在你的电脑上。
 
-### 聊天
+### [聊天](https://docs.animama.ai/zh-hans/#setup)
 
-推荐使用 OpenAI 的 GPT-6 Luna 或 Anthropic 的 Claude Haiku 5.5。两者成本都很低，几美元的 API 用量就能用很久。也支持 OpenRouter 和其他兼容 OpenAI 的接口。
+推荐的模型成本很低，几美元的 API 用量就能用很久。
 
-本地模型（Ollama、LM Studio、llama.cpp、vLLM）仍属实验性支持。推理引擎应支持严格的 JSON 输出，模型应支持工具调用。
+| 服务商 | 模型 |
+| --- | --- |
+| OpenAI | GPT-6 Luna（推荐） |
+| Anthropic | Claude Haiku 5.5（推荐） |
+| OpenRouter 或其他兼容 OpenAI 的接口 | 任选 |
 
-### 语音识别（STT）
+#### 本地模型
 
-语音识别在你的电脑上运行：英语使用 Parakeet，日语、韩语和中文使用 SenseVoice。推荐使用 GPU（WebGPU）版本，说话时文字会实时显示。请先在应用中下载 CPU 版本。
+可以使用 Ollama、LM Studio、llama.cpp 和 vLLM，但仍属实验性支持。推理引擎应支持严格的 JSON 输出，模型应支持工具调用。配置方法见[本地模型服务器](docs/backend/operations/local-models.md)（英文）。
 
-### 语音合成（TTS）
+### [语音识别（STT）](https://docs.animama.ai/zh-hans/voice#speech-to-text)
 
-想要最富表现力的声音，推荐使用 [ElevenLabs](https://elevenlabs.io)。免费套餐每月约含 20 分钟语音，可从其[声音库](https://elevenlabs.io/voice-library)中挑选声音。
+两种引擎都在你的电脑上运行。推荐使用 GPU（WebGPU）版本，说话时文字会实时显示。
 
-Pocket TTS 内置且免费，在你的电脑上运行，并支持语音克隆。
+| 引擎 | 语言 |
+| --- | --- |
+| Parakeet | 英语 |
+| SenseVoice | 日语、韩语、中文 |
+
+### [语音合成（TTS）](https://docs.animama.ai/zh-hans/voice#text-to-speech)
+
+| 引擎 | 费用 | 特点 |
+| --- | --- | --- |
+| [ElevenLabs](https://elevenlabs.io)（推荐） | 免费套餐每月约 20 分钟 | 最富表现力的声音，可从[声音库](https://elevenlabs.io/voice-library)挑选 |
+| Pocket TTS | 免费、内置 | 在你的电脑上运行，支持语音克隆 |
 
 ## 自托管
 

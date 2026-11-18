@@ -20,44 +20,50 @@
 
 # Animama
 
-Your new desk buddy is an Anima. Animama puts a charming and expressive
-companion in the corner of your screen, keeping you company while you work,
-play and power through the day.
+Your new desk buddy is an Anima.
+
+Animama puts a charming and expressive companion in the corner of your screen,
+keeping you company while you work, play and power through the day.
 
 ## Features
 
-### Your Anima
-
-- **Personality:** each Anima has their own identity and voice.
-- **Memories:** long-term memory across conversations. Your Anima keeps notes
-  about you and your time together, in files you can read, edit and roll back.
-- **Emotions:** 24 emotions that shift over your time together and show in
-  their face, body and voice.
-- **Gestures:** body language picked as they talk, from goofy antics to
-  romantic gestures. Over 300 gestures and reactions are included.
-- **Reactions:** an expression for every emotion at four intensities, from mild
-  to intense, with anime-style effects.
-
 ### The app
 
-- **Private and self-hostable:** runs on your computer with your own API keys
-  or a local model (Ollama, LM Studio, llama.cpp or vLLM). Self-host it in your
-  browser or build the desktop app yourself.
-- **Make them yours:** edit your Anima's identity, memories and behaviors until
-  they feel just right.
-- **VRM avatars:** bring any VRM 0.x or 1.0 avatar; VRoid Studio avatars work
-  best. Convert VRChat avatars with the
+- **[Private and self-hostable](https://docs.animama.ai/self-host):** runs on your computer with
+  your own API keys or a local model (Ollama, LM Studio, llama.cpp or vLLM).
+  Self-host it in your browser or build the desktop app yourself.
+- **[Make them yours](https://docs.animama.ai/animas):** edit your Anima's identity, memories and
+  behaviors until they feel just right.
+- **[VRM avatars](https://docs.animama.ai/avatars):** bring any VRM 0.x or 1.0 avatar; VRoid Studio
+  avatars work best. Convert VRChat avatars with the
   [Animama Avatar Converter](https://github.com/raymond-van/animama-avatar-converter),
   and other 3D models in Blender with the
   [VRM Add-on for Blender](https://github.com/saturday06/VRM-Addon-for-Blender).
-- **Voice mode:** talk hands-free with automatic end-of-turn detection. Voice
-  can run fully locally.
-- **Picture-in-picture:** your Anima floats in a corner above your other
-  windows, with quick chat and global shortcuts.
-- **Creator tools:** make your own Gestures, Reactions, and Avatar, Particle
-  and Scene Effects in the app, or describe one to an AI coding agent with the
-  included [skills](.agents/skills).
-- **Languages:** the app and voice input in English, 日本語, 한국어 and 简体中文.
+- **[Voice mode](https://docs.animama.ai/voice):** talk hands-free with automatic end-of-turn
+  detection. Voice can run fully locally.
+- **[Picture-in-picture](https://docs.animama.ai/configuration#picture-in-picture):** your Anima
+  floats in a corner above your other windows, with quick chat and global
+  shortcuts.
+- **[Creator tools](https://docs.animama.ai/effects):** make your own Gestures, Reactions, and
+  Avatar, Particle and Scene Effects in the app, or describe one to an AI coding
+  agent with the included [skills](.agents/skills).
+- **[Languages](https://docs.animama.ai/configuration#app-settings):** the app and voice input in
+  English, 日本語, 한국어 and 简体中文.
+
+### Your Anima
+
+- **[Personality](https://docs.animama.ai/animas#anima-instructions):** each Anima has their own
+  identity and voice.
+- **[Memories](https://docs.animama.ai/memory):** long-term memory across conversations. Your Anima
+  keeps notes about you and your time together, in files you can read, edit and
+  roll back.
+- **[Emotions](https://docs.animama.ai/emotions):** 24 emotions that shift over your time together
+  and show in their face, body and voice.
+- **[Gestures](https://docs.animama.ai/behaviors#gestures):** body language picked as they talk,
+  from goofy antics to romantic gestures. Over 300 gestures and reactions are
+  included.
+- **[Reactions](https://docs.animama.ai/behaviors#reactions):** an expression for every emotion at
+  four intensities, from mild to intense, with anime-style effects.
 
 ## Download
 
@@ -70,34 +76,44 @@ On Windows, SmartScreen may say "Windows protected your PC" because Animama is
 new. Select **More info**, check that the publisher is Raymond Van, then select
 **Run anyway**.
 
-## AI
+## AI Models (BYOK)
 
-Animama is bring-your-own-key: add API keys from the providers you choose
-during setup or in **App Settings**. Keys stay encrypted on your computer.
+Bring your own keys: add API keys from the providers you choose during setup or
+in **App Settings**. Keys stay encrypted on your computer.
 
-### Chat
+### [Chat](https://docs.animama.ai/#setup)
 
-We recommend OpenAI's GPT-6 Luna or Anthropic's Claude Haiku 5.5. Both are
-low-cost, and a few dollars of API usage goes a long way. OpenRouter and other
-OpenAI-compatible endpoints work too.
+The recommended models are low-cost, so a few dollars of API usage goes a long
+way.
 
-Local models (Ollama, LM Studio, llama.cpp, vLLM) are experimental. The
-inference engine should support strict JSON output, and the model should
-support tool calling.
+| Provider | Model |
+| --- | --- |
+| OpenAI | GPT-6 Luna (recommended) |
+| Anthropic | Claude Haiku 5.5 (recommended) |
+| OpenRouter or any OpenAI-compatible endpoint | Your choice |
 
-### STT
+#### Local models
 
-Speech recognition runs on your computer: Parakeet for English, SenseVoice for
-Japanese, Korean and Chinese. We recommend the GPU (WebGPU) version, which
-shows your words as you speak. Download the CPU version in the app first.
+Ollama, LM Studio, llama.cpp and vLLM work, but are experimental. The inference
+engine should support strict JSON output, and the model should support tool
+calling. [Local model servers](docs/backend/operations/local-models.md) covers setup.
 
-### TTS
+### [STT](https://docs.animama.ai/voice#speech-to-text)
 
-We recommend [ElevenLabs](https://elevenlabs.io) for the most expressive
-voices. Its free tier includes about 20 minutes of speech a month; pick voices
-from its [voice library](https://elevenlabs.io/voice-library).
+Both engines run on your computer. The GPU (WebGPU) version is recommended: it
+shows your words as you speak.
 
-Pocket TTS is built in and free, runs on your computer and can clone a voice.
+| Engine | Languages |
+| --- | --- |
+| Parakeet | English |
+| SenseVoice | Japanese, Korean, Chinese |
+
+### [TTS](https://docs.animama.ai/voice#text-to-speech)
+
+| Engine | Cost | Notes |
+| --- | --- | --- |
+| [ElevenLabs](https://elevenlabs.io) (recommended) | About 20 free minutes a month | The most expressive voices; pick from its [voice library](https://elevenlabs.io/voice-library) |
+| Pocket TTS | Free, built in | Runs on your computer and can clone a voice |
 
 ## Self-host
 
