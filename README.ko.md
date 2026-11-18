@@ -3,13 +3,13 @@
 </p>
 
 <p align="center">
-  <a href="https://youtu.be/LKHQR8zyUx8">
-    <img src="https://img.youtube.com/vi/LKHQR8zyUx8/maxres2.jpg" alt="Animama 출시 트레일러 보기" width="560">
+  <a href="https://youtu.be/8ji_NNOfsP8">
+    <img src="https://img.youtube.com/vi/8ji_NNOfsP8/maxres2.jpg" alt="Animama 출시 트레일러 보기" width="560">
   </a>
 </p>
 
 <p align="center">
-  <a href="https://youtu.be/PyLr3oXcPdk">둘러보기 영상</a> ·
+  <a href="https://youtu.be/sWw4bSrriDE">둘러보기 영상</a> ·
   <a href="https://docs.animama.ai/ko/">문서</a> ·
   <a href="https://discord.gg/pUHHRrZ2xg">Discord</a>
   <br>

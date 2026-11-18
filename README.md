@@ -3,13 +3,13 @@
 </p>
 
 <p align="center">
-  <a href="https://youtu.be/LKHQR8zyUx8">
-    <img src="https://img.youtube.com/vi/LKHQR8zyUx8/maxres2.jpg" alt="Watch the Animama launch trailer" width="560">
+  <a href="https://youtu.be/8ji_NNOfsP8">
+    <img src="https://img.youtube.com/vi/8ji_NNOfsP8/maxres2.jpg" alt="Watch the Animama launch trailer" width="560">
   </a>
 </p>
 
 <p align="center">
-  <a href="https://youtu.be/PyLr3oXcPdk">Walkthrough video</a> ·
+  <a href="https://youtu.be/sWw4bSrriDE">Walkthrough video</a> ·
   <a href="https://docs.animama.ai">Docs</a> ·
   <a href="https://discord.gg/pUHHRrZ2xg">Discord</a>
   <br>
