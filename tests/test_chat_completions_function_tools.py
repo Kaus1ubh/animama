@@ -76,7 +76,7 @@ def test_removing_strict_flags_still_omits_the_empty_required_list() -> None:
 
 
 def test_shaping_tools_leaves_the_callers_definitions_untouched() -> None:
-    # The Agents SDK hands over the schema objects its own tools keep using.
+    # A caller may keep using the definitions it passes in, as the Agents SDK's converter does.
     tools = [
         {
             "type": "function",
@@ -99,37 +99,6 @@ def test_shaping_tools_leaves_the_callers_definitions_untouched() -> None:
 
     assert tools == original
     assert "required" not in shaped[0]["function"]["parameters"]
-
-
-def test_nested_object_schemas_lose_empty_required_lists_and_data_values_keep_theirs() -> None:
-    empty_object = {"type": "object", "properties": {}, "required": [], "additionalProperties": False}
-    tools = [
-        {
-            "type": "function",
-            "function": {
-                "name": "configure",
-                "strict": True,
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "options": {**empty_object, "default": {"required": []}},
-                        "steps": {"type": "array", "items": empty_object},
-                    },
-                    "required": ["options", "steps"],
-                    "additionalProperties": False,
-                },
-            },
-        }
-    ]
-
-    shaped = function_tools_for_connection(tools, compatibility=ModelConnectionCompatibility())
-    parameters = shaped[0]["function"]["parameters"]
-
-    assert parameters["required"] == ["options", "steps"]
-    assert "required" not in parameters["properties"]["options"]
-    assert "required" not in parameters["properties"]["steps"]["items"]
-    # A default is a value the model may send, not a schema.
-    assert parameters["properties"]["options"]["default"] == {"required": []}
 
 
 def test_a_call_without_a_tool_list_passes_through() -> None:

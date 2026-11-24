@@ -22,9 +22,6 @@ from animama.domain.model_connection import (
 # reads the entry the last request wrote; the latest reply writes the next one.
 _CACHE_BREAKPOINT_REPLY_COUNT = 2
 
-# JSON Schema keywords whose values are data, so a schema rewrite leaves them alone.
-_SCHEMA_DATA_KEYWORDS = frozenset({"const", "default", "enum", "examples"})
-
 
 def create_chat_completion_kwargs(
     spec: ModelClientRequest, *, timeout: float | httpx2.Timeout | None
@@ -132,45 +129,31 @@ def function_tools_for_connection(tools: Any, *, compatibility: ModelConnectionC
     caller's definitions are left as they are.
     """
 
-    tools = tools_without_empty_required(tools)
+    if isinstance(tools, list):
+        tools = [_without_empty_required(tool) for tool in tools]
     if compatibility.strip_function_strict:
         return tools_without_function_strict(tools)
     return tools
 
 
-def tools_without_empty_required(tools: Any) -> Any:
-    """Omit empty ``required`` lists from function tool parameter schemas.
+def _without_empty_required(tool: Any) -> Any:
+    """Return ``tool`` without an empty ``required`` list on its parameter schema.
 
     A strict zero-argument tool is ``properties: {}`` beside ``required: []``.
     Groq's validator rejects that pair as "'required' present but 'properties'
     is missing" (#902). An absent ``required`` means the same as an empty one.
+    Only the parameter object itself is checked: no tool nests an object
+    without properties.
     """
 
-    if not isinstance(tools, list):
-        return tools
-    shaped_tools: list[Any] = []
-    for tool in tools:
-        function = tool.get("function") if isinstance(tool, dict) else None
-        if not isinstance(function, dict) or "parameters" not in function:
-            shaped_tools.append(tool)
-            continue
-        parameters = _without_empty_required(function["parameters"])
-        shaped_tools.append({**tool, "function": {**function, "parameters": parameters}})
-    return shaped_tools
-
-
-def _without_empty_required(schema: Any) -> Any:
-    """Return ``schema`` without empty ``required`` lists at any depth; never change ``schema`` itself."""
-
-    if isinstance(schema, list):
-        return [_without_empty_required(item) for item in schema]
-    if not isinstance(schema, dict):
-        return schema
-    return {
-        key: value if key in _SCHEMA_DATA_KEYWORDS else _without_empty_required(value)
-        for key, value in schema.items()
-        if not (key == "required" and value == [])
-    }
+    function = tool.get("function") if isinstance(tool, dict) else None
+    if not isinstance(function, dict):
+        return tool
+    parameters = function.get("parameters")
+    if not isinstance(parameters, dict) or parameters.get("required") != []:
+        return tool
+    shaped_parameters = {key: value for key, value in parameters.items() if key != "required"}
+    return {**tool, "function": {**function, "parameters": shaped_parameters}}
 
 
 def tools_without_function_strict(tools: Any) -> Any:
@@ -290,4 +273,4 @@ def _deepseek_thinking_config(spec: ModelClientRequest, *, reasoning_effort: str
     return {"type": "enabled"}
 
 
-__all__ = ["create_chat_completion_kwargs"]
+__all__ = ["create_chat_completion_kwargs", "function_tools_for_connection"]
