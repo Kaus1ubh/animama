@@ -10,7 +10,7 @@ writes them in its provider's format.
 
 from __future__ import annotations
 
-from collections.abc import Iterable, Mapping, Sequence
+from collections.abc import Iterable, Iterator, Mapping, Sequence
 from dataclasses import dataclass, field
 from math import ceil
 from typing import Any
@@ -142,6 +142,24 @@ def select_images(
     return tuple(selected)
 
 
+def resolved_parts(content: Iterable[Any], images: Mapping[str, ModelClientImage]) -> Iterator[ModelClientImage | str]:
+    """Yield a message's images (with their bytes) and non-empty texts, in order.
+
+    An image whose bytes ``images`` lacks yields its placeholder text instead,
+    so an adapter never writes a reference the provider cannot read.
+    """
+
+    for part in content:
+        if is_image_part(part):
+            image = images.get(str(part.get("file_id")))
+            if image is not None:
+                yield image
+                continue
+            part = placeholder_part(part)
+        if isinstance(part, Mapping) and part.get("type") == "text" and part.get("text"):
+            yield str(part["text"])
+
+
 def _content_parts(message: Mapping[str, Any]) -> list[Any]:
     content = message.get("content")
     return list(content) if isinstance(content, list | tuple) else []
@@ -163,5 +181,6 @@ __all__ = [
     "is_image_part",
     "message_text",
     "placeholder_part",
+    "resolved_parts",
     "select_images",
 ]

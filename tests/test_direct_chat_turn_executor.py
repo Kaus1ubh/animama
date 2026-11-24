@@ -3697,3 +3697,24 @@ async def test_prompt_previews_never_carry_image_bytes(
         content = f"bytes of {file_id}".encode()
         assert content.decode() not in logged
         assert base64.b64encode(content).decode() not in logged
+
+
+@pytest.mark.asyncio
+async def test_operator_moderation_reads_the_text_of_a_turn_with_images() -> None:
+    moderator = _StubModerator(ModelClientModeration(status="result"))
+    provider = _provider_on_its_connection(ANTHROPIC_MESSAGES_PROVIDER_TYPE)
+    provider.capabilities.accepts = ["text", "image"]
+    executor, _chats = _executor(
+        client=_ScriptedModelClient([ModelClientFinal(text=_structured_response(), usage=Usage())]),
+        provider=provider,
+        crisis_moderator=moderator,
+        image_loader=_FakeImageLoader(["file-1"]),
+    )
+
+    await _collect(
+        executor.stream_turn(
+            _request(user_message="What is this?", provider_moderation=True, attached_images=(_attached(),))
+        )
+    )
+
+    assert moderator.seen == ["What is this?"]

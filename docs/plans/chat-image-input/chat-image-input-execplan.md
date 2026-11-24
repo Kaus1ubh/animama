@@ -118,7 +118,7 @@ Provider facts, read from the official documentation on 2026-11-24:
 | | Anthropic Messages | OpenAI Responses and Chat Completions |
 | --- | --- | --- |
 | Formats | JPEG, PNG, GIF, WebP; first frame of an animation | PNG, JPEG, WebP, non-animated GIF |
-| Wire shape | `{"type": "image", "source": {"type": "base64", "media_type", "data"}}` | Responses `{"type": "input_image", "image_url": "data:…"}`; Chat Completions `{"type": "image_url", "image_url": {"url": "data:…"}}` |
+| Wire shape | `{"type": "image", "source": {"type": "base64", "media_type", "data"}}` | Responses `{"type": "input_image", "image_url": "data:…", "detail": "auto"}`; Chat Completions `{"type": "image_url", "image_url": {"url": "data:…"}}` |
 | Per image | 10 MB base64, 8000 × 8000 px | Rejected above 30,000 patches of 32 px after resizing |
 | Per request | 100 images (200k-context models) or 600; 128 MB. Above 20 images every image must fit 3,000 px a side | 1,500 images; 512 MB |
 | Tokens | `ceil(w/28) × ceil(h/28)`, capped at 1,568 or 4,784 by model tier | `ceil(w/32) × ceil(h/32) × 1.2` for current models |
@@ -137,7 +137,8 @@ canonical copy of at most 3.5 MiB (under 5 MB as base64). One estimate,
   items repaired; chat deletion moves to Phase 3 (D12).
 - [x] Phase 3: a turn with images is checked, saved and assembled without bytes.
   Two reviews; all findings repaired.
-- [ ] Phase 4: each adapter sends images.
+- [x] Phase 4: each adapter sends images. Two reviews; should-fix items
+  repaired. G1 confirms against real providers.
 - [ ] Phase 5: the composer accepts images.
 - [ ] Phase 6: chat and the Library show images.
 - [ ] Phase 7: documentation and decision record.
@@ -866,15 +867,103 @@ Checks: the listed test files; `uv run ruff check`.
 Completion: each adapter builds a valid image request; G1 confirms it against
 real providers.
 
-Check record, results and commits: to be recorded.
+Starting revision: `10c55b756` (the Phase 3 commit). Official references read
+on 2026-11-24: Responses `input_image` with a `data:` URL in `image_url`;
+Chat Completions `{"type": "image_url", "image_url": {"url": ...}}`, which
+also takes an optional `detail` and cache breakpoint; Anthropic `image` blocks
+with a base64 `source`. No difference from the provider table above; neither
+optional field is used.
+
+Built as planned:
+
+- `_common.image_data_url` writes the `data:` URL both OpenAI adapters use.
+- Responses: `_input_items_from_message` maps a user message's part list to
+  `input_image` and `input_text` parts; the cache breakpoint goes on the last
+  part (after review), and `_history_user_breakpoint_indexes` now counts user
+  messages with parts. A message with no text and no image produces no item.
+- Chat Completions: `_messages_for_spec` maps user part lists to `image_url`
+  and `text` parts; a message left with text only (every image a placeholder)
+  is sent as one string, for OpenAI-compatible servers whose templates expect
+  string content.
+- Anthropic: `_content_blocks` writes `image` blocks (user messages only) and
+  placeholders, so a history image also carries the history cache marker
+  after it.
+- No adapter logs its wire request; the operator crisis moderator still reads
+  the turn's text only (test added).
+
+Check record (working directory: the checkout root; working tree recorded under
+Code Review #1 Revisions):
+
+| Command | Result |
+| --- | --- |
+| `uv run --no-sync ruff format --check src/backend/animama tests` | exit 0 |
+| `uv run --no-sync ruff check` | exit 0 |
+| `uv run --no-sync mypy src/backend/animama tests` | exit 0, 913 files |
+| `uv run --no-sync python scripts/repository-boundary/check-python-imports.py` | exit 0 |
+| `uv run --no-sync python scripts/public-release/check_source.py` | exit 0 |
+| `timeout 1200 uv run --no-sync pytest -q -n 2` on the Phase 3 files plus `test_model_client_image_requests` and `test_provider_sdk_logging` (new) | exit 0, 766 passed |
+
+Not run: G1 (real providers) and the full pre-push suite (G3).
 
 #### Code Review #1 Findings
 
-To be recorded.
+Reviewed source: working tree `c028871e7a08` on `10c55b756`, high risk, one
+reviewer for analysis and checks. Pass, with no blocking findings. The wire
+shapes match the current official references; per-image base64 stays under 5
+MB and 20 images under Anthropic's 128 MB request limit; probes showed a
+Responses cursor sends only the new message and its images, tool rounds resend
+none, no-developer-role models keep the turn context in the text part, and the
+Utility runner never carries image bytes. All checks reran clean (761 passed,
+plus 944 in 43 more files that reach the adapters).
+
+Should fix:
+
+- **P4-A1.** With `ANIMAMA_DEBUG` on, the Anthropic SDK's DEBUG log writes each
+  request body, base64 images included, to Animama's log file and broadcast
+  stream. The default configuration is clean.
+- **P4-A2.** No Chat Completions test replayed a history image (the plan asks
+  for one on each adapter).
+
+Optional: the image walk repeated in three adapters (P4-A3); the Responses
+breakpoint skipped an image-last message (P4-A4); `image_data_url` missing from
+`__all__` (P4-A5); untested cursor, tool-tail and no-developer-role paths
+(P4-A6); images re-encoded on every round of a turn (P4-A7); the SDK types
+Responses `detail` as required (P4-A8).
 
 #### Code Review #1 Revisions
 
-To be recorded.
+Repair round 1 of 2.
+
+| Finding | Disposition | Change |
+| --- | --- | --- |
+| P4-A1 | Accepted | `logging_config` keeps the `anthropic` and `openai` loggers at INFO; `test_provider_sdk_logging` pins it with debug on. |
+| P4-A2 | Accepted | Chat Completions history test: the image message is replayed unmarked, the system message and reply keep their breakpoints. |
+| P4-A3 | Accepted | `image_parts.resolved_parts` yields each image or text once; the three adapters only shape it. |
+| P4-A4 | Accepted | The Responses breakpoint goes on the last part, whatever its type. |
+| P4-A5 | Accepted | Exported. |
+| P4-A6 | Accepted in part | Tests for the Responses cursor and the no-developer-role text part; the tool tail stays covered by the existing tool-round tests. |
+| P4-A8 | Accepted | Responses images carry `"detail": "auto"`, the documented default. |
+| P4-A7 | Not taken | Re-encoding costs memory only while a request is built; measure before caching. |
+
+Verification: the check record above, on working tree `59832d127e2d` (taken before this line was filled in).
+
+#### Code Review #2 Findings
+
+Reviewed source: working tree `8b6baf843768`, high risk, targeted recheck.
+Pass, with no blocking findings. With `ANIMAMA_DEBUG` on and real console,
+file and broadcast handlers, the first tree leaked image base64 from
+`anthropic._base_client` to all three and this tree leaks none; the new test
+fails on the first tree. The shared part walk behaves exactly as before across
+12 message shapes apart from the intended `detail` field and image-last
+breakpoint, both allowed by the Responses reference. All checks reran clean
+(766 passed, plus 774 in 35 more files).
+
+Optional, taken: **P4-A9**, the cursor test now checks the new message's text;
+**P4-A11**, plan text and counts; `_common.__all__` order (P4-A12). Not taken:
+the other P4-A12 nits and P4-A10 (an image-last message, which the app never
+builds).
+
+Phase commit: `feat(chat)[p4]: send chat images through every model adapter`.
 
 ### Phase 5: The composer accepts images
 
