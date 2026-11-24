@@ -194,6 +194,11 @@ your own TLS and authentication in front of it.
 
 </details>
 
+## Contributing
+
+Bug reports, feature ideas and pull requests are welcome. Read the
+[contributing guide](.github/CONTRIBUTING.md) before you open a pull request.
+
 ## Acknowledgements
 
 - [Pocket TTS](https://github.com/kyutai-labs/pocket-tts) by Kyutai: on-device

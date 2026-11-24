@@ -157,6 +157,11 @@ ANIMAMA_WEB_BUILD_MODE=production ./reset.sh
 
 </details>
 
+## コントリビュート
+
+バグ報告、機能の提案、プルリクエストを歓迎します。プルリクエストを送る前に
+[コントリビューションガイド](.github/CONTRIBUTING.md)（英語）をお読みください。
+
 ## 謝辞
 
 - [Pocket TTS](https://github.com/kyutai-labs/pocket-tts)（Kyutai）: デバイス上で動く音声合成
