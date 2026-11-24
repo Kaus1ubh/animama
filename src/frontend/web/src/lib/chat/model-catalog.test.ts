@@ -1,10 +1,12 @@
-import { describe, expect, it } from "vitest";
+import { getI18n } from "react-i18next";
+import { afterEach, describe, expect, it } from "vitest";
 
 import type { PyModelProviderCatalogItem } from "@animama/runtime-contracts/api-types";
 
 import {
   defaultReasoningEffort,
   effectiveReasoningEffort,
+  modelConnectionLabel,
   supportedReasoningEfforts,
 } from "./model-catalog";
 
@@ -86,5 +88,32 @@ describe("saved reasoning effort", () => {
     expect(
       effectiveReasoningEffort(row({ supported_reasoning_efforts: [] }), "low"),
     ).toBeNull();
+  });
+});
+
+describe("the connection a picker names", () => {
+  afterEach(async () => {
+    await getI18n().changeLanguage("en");
+  });
+
+  it("names the ChatGPT plan in the UI Locale, and other connections as saved", async () => {
+    const plan = {
+      model: "gpt-6-luna",
+      model_label: "GPT-6 Luna",
+      provider_label: "ChatGPT plan",
+      connection_name: "ChatGPT plan",
+      model_provider: "ChatGPTPlanResponsesHTTPAgent",
+    };
+    expect(modelConnectionLabel(plan)).toBe("ChatGPT plan");
+
+    await getI18n().changeLanguage("ja");
+    expect(modelConnectionLabel(plan)).toBe("ChatGPT プラン");
+    expect(
+      modelConnectionLabel({
+        ...plan,
+        model_provider: "OpenAIHTTPAgent",
+        connection_name: "Home Ollama",
+      }),
+    ).toBe("Home Ollama");
   });
 });

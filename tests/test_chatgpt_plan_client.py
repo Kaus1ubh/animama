@@ -14,7 +14,7 @@ import httpx2
 import pytest
 
 from animama.adapters.model_clients import MockModelClient
-from animama.adapters.model_clients.openai_responses import ChatGPTPlanResponsesModelClient
+from animama.adapters.model_clients.openai_responses import ChatGPTPlanResponsesModelClient, OpenAIResponsesModelClient
 from animama.adapters.model_clients.openai_responses.routes import CHATGPT_PLAN_ROUTE
 from animama.app.chat.api_standard import CHATGPT_PLAN_RESPONSES_PROVIDER_TYPE
 from animama.app.chat.direct_turn.provider_state import hosted_native_tools
@@ -28,6 +28,7 @@ from animama.app.model_clients import (
     ModelClientProviderOptions,
     ModelClientRequest,
     StaticModelClientRegistry,
+    uses_native_context_compaction,
 )
 from animama.app.model_clients.credentials import builtin_chatgpt_plan_connection
 from animama.app.model_clients.error_categories import model_error_category
@@ -310,6 +311,43 @@ async def test_a_plan_request_carries_only_what_the_route_takes(monkeypatch: pyt
     assert [tool["name"] for tool in namespace["tools"]] == ["memory_read"]
     assert body["reasoning"] == {"effort": "low"} and body["prompt_cache_key"] == "cache-key"
     assert session.purposes == ["interactive"]
+
+
+async def test_a_key_model_s_native_memory_edit_is_not_replayed_to_the_plan() -> None:
+    """R3.6: the route refuses `apply_patch`, so a chat moving from a key model leaves its edits out.
+
+    The edit is already applied and the reply after it stays in the history.
+    """
+
+    patch = '{"type": "update_file", "path": "MEMORIES.md", "diff": "+likes tea"}'
+    route = _Route(_completed([_message()]))
+    spec = _spec(
+        messages=(
+            {"role": "system", "content": "Be Lumi."},
+            {"role": "user", "content": "Remember that I like tea."},
+            {
+                "type": MODEL_CLIENT_TOOL_CALL_ITEM_TYPE,
+                "call_id": "patch_1",
+                "tool_type": "apply_patch",
+                "name": "apply_patch",
+                "arguments": patch,
+            },
+            {
+                "type": MODEL_CLIENT_TOOL_RESULT_ITEM_TYPE,
+                "call_id": "patch_1",
+                "tool_type": "apply_patch",
+                "status": "completed",
+                "output": "Updated MEMORIES.md",
+            },
+            {"role": "assistant", "content": "I'll remember that."},
+            {"role": "user", "content": "What do I like?"},
+        )
+    )
+
+    await _run(_client(route, _Session()), spec)
+
+    kinds = [item.get("type", item.get("role")) for item in route.body()["input"]]
+    assert kinds == ["user", "assistant", "user"]
 
 
 async def test_the_reply_comes_from_done_events_when_the_terminal_event_lists_none() -> None:
@@ -653,6 +691,13 @@ async def test_a_utility_prompt_completes_on_a_plan_model() -> None:
 
     assert result.text == "Garden Planning" and result.model_provider.id == row.id
     assert route.body()["store"] is False and session.purposes == ["interactive"]
+
+
+def test_a_plan_chat_fits_its_context_to_the_row_s_window() -> None:
+    """The route takes no server compaction, so the executor fits the prompt itself (Phase 6 step 1)."""
+
+    assert uses_native_context_compaction(ChatGPTPlanResponsesModelClient(session=_Session)) is False
+    assert uses_native_context_compaction(OpenAIResponsesModelClient(api_key="sk-test")) is True
 
 
 def test_the_registry_has_a_plan_client_only_where_the_composition_supplies_a_session(

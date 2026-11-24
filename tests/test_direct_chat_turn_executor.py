@@ -26,6 +26,7 @@ from animama.app.chat.api_standard import (
     ANTHROPIC_MESSAGES_PROVIDER_TYPE,
     CHAT_API_STANDARD_CHAT_COMPLETIONS,
     CHAT_API_STANDARD_RESPONSES,
+    CHATGPT_PLAN_RESPONSES_PROVIDER_TYPE,
     MODEL_CLIENT_OPENAI_CHAT_COMPLETIONS,
     MODEL_CLIENT_OPENAI_RESPONSES,
 )
@@ -74,7 +75,7 @@ from animama.app.safety.prompts import COMPANION_GUARDRAILS
 from animama.domain import AnimaChatProfile, ModelConnection, ModelProvider, ModelProviderCapabilities
 from animama.domain.chat import ChatMessage, MessageRole
 from animama.domain.events import EventType
-from animama.domain.model_connection import BUILTIN_ANTHROPIC_CONNECTION_ID
+from animama.domain.model_connection import BUILTIN_ANTHROPIC_CONNECTION_ID, BUILTIN_CHATGPT_PLAN_CONNECTION_ID
 from animama.domain.usage import Usage
 from animama.domain.user_file_processing import UserFileOutlineItem
 from animama.product_http.chat.sse_events import SseTextState, format_user_response_event
@@ -493,6 +494,14 @@ def _provider(
             native_tool_support=native_tool_support or [],
         ),
     )
+
+
+def _plan_provider() -> ModelProvider:
+    """A ChatGPT plan model on its own connection."""
+
+    provider = _provider(provider_type=CHATGPT_PLAN_RESPONSES_PROVIDER_TYPE)
+    provider.connection_id = BUILTIN_CHATGPT_PLAN_CONNECTION_ID
+    return provider
 
 
 def _profile() -> AnimaChatProfile:
@@ -1673,6 +1682,26 @@ async def test_direct_turn_responses_retries_stale_cursor_with_manual_context() 
             "resp_chat",
             None,
         ),
+        # A ChatGPT plan turn stores nothing at OpenAI and replays history instead (spec #919 R3.6).
+        (
+            _plan_provider(),
+            [
+                _history_message(
+                    "Responses reply from a key model.",
+                    data={
+                        "openai": {
+                            "provider": "OpenAIResponsesHTTPAgent",
+                            "response_id": "resp_1",
+                            "model": "gpt-test",
+                        }
+                    },
+                    model="gpt-test",
+                    model_provider="OpenAIResponsesHTTPAgent",
+                )
+            ],
+            "resp_chat",
+            None,
+        ),
     ],
 )
 async def test_direct_turn_responses_cursor_policy_for_provider_switching(
@@ -1692,6 +1721,33 @@ async def test_direct_turn_responses_cursor_policy_for_provider_switching(
 
     spec = model_client.seen_specs[0]
     assert (spec.continuation.cursor if spec.continuation else None) == expected_cursor
+
+
+@pytest.mark.asyncio
+async def test_a_plan_turn_replays_the_key_model_history_instead_of_its_cursor() -> None:
+    """Spec #919 R3.6: a chat moving from a key model to the plan sends its history, not the stored cursor."""
+
+    model_client = _FinalModelClient(_structured_response())
+    history = [
+        _history_message(
+            "Responses reply from a key model.",
+            data={"openai": {"provider": "OpenAIResponsesHTTPAgent", "response_id": "resp_1", "model": "gpt-test"}},
+            model="gpt-test",
+            model_provider="OpenAIResponsesHTTPAgent",
+        )
+    ]
+    executor, _chats = _executor(
+        client=model_client,
+        provider=_plan_provider(),
+        chat_manager=_FakeChatManager(history=history, openai_previous_response_id="resp_chat"),
+    )
+
+    await _collect(executor.stream_turn(_request()))
+
+    spec = model_client.seen_specs[0]
+    assert spec.continuation is None
+    replayed = [message.get("content") for message in spec.prompt.messages]
+    assert "Responses reply from a key model." in replayed
 
 
 @pytest.mark.asyncio
@@ -2937,6 +2993,8 @@ def _operator_moderation_tasks() -> list[asyncio.Task[Any]]:
 
 
 def _provider_on_its_connection(provider_type: str) -> ModelProvider:
+    if provider_type == CHATGPT_PLAN_RESPONSES_PROVIDER_TYPE:
+        return _plan_provider()
     provider = _provider(provider_type=provider_type)
     if provider_type == ANTHROPIC_MESSAGES_PROVIDER_TYPE:
         provider.connection_id = BUILTIN_ANTHROPIC_CONNECTION_ID
@@ -2975,6 +3033,7 @@ async def test_operator_moderation_adds_the_crisis_card_after_an_anthropic_reply
     [
         ("OpenAIResponsesHTTPAgent", True),
         ("OpenAIHTTPAgent", True),
+        (CHATGPT_PLAN_RESPONSES_PROVIDER_TYPE, True),
         (ANTHROPIC_MESSAGES_PROVIDER_TYPE, False),
     ],
 )

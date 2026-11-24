@@ -21,6 +21,7 @@ from animama.adapters.repositories.sqlalchemy.uow import SQLAlchemyUnitOfWork
 from animama.app.ports.chatgpt_plan_port import ChatGPTPlanModelListError, PlanModelListing
 from animama.app.services.chatgpt_plan_models import ChatGPTPlanModelCatalog, plan_model_row
 from animama.app.services.chatgpt_plan_session import ChatGPTPlanSessionService
+from animama.app.services.model_provider_catalog_service import ModelCatalogPolicy, ModelProviderCatalogService
 from animama.domain.chatgpt_plan import ChatGPTPlanUnavailableError
 from animama.domain.model_connection import BUILTIN_CHATGPT_PLAN_CONNECTION_ID
 from tests.chatgpt_plan_fakes import FakeOpenAIAuth
@@ -274,6 +275,31 @@ async def test_a_sign_out_during_a_refresh_leaves_no_plan_model_active(
 
     async_session.expire_all()
     assert set((await _plan_rows(async_session)).values()) == {False}
+
+
+@pytest.mark.usefixtures("plan_rows_cleanup")
+async def test_the_chat_picker_lists_plan_models_under_the_plan_with_search_per_row(
+    async_session: Any, signed_in: ChatGPTPlanSessionService
+) -> None:
+    """Phase 6: grouped under "ChatGPT plan", hosted search only where the account's listing has it (R3.5)."""
+
+    listing = _Listing()
+    listing.models = [_listing("gpt-6-luna"), _listing("gpt-5.6-terra", supports_search=False)]
+    await _catalog(async_session, signed_in, listing).refresh()
+    service = ModelProviderCatalogService(model_providers=SQLAlchemyModelProviderRepository(async_session))
+
+    local = {
+        item["model"]: item
+        for item in await service.list_public_catalog(ModelCatalogPolicy.local())
+        if item["model_provider"] == "ChatGPTPlanResponsesHTTPAgent"
+    }
+    hosted = await service.list_public_catalog(ModelCatalogPolicy())
+
+    assert {item["connection_name"] for item in local.values()} == {"ChatGPT plan"}
+    assert local["gpt-6-luna"]["requestable_native_tool_support"] == ["web_search"]
+    assert local["gpt-5.6-terra"]["requestable_native_tool_support"] == []
+    # The hosted composition's catalog never lists them.
+    assert not [item for item in hosted if item["model_provider"] == "ChatGPTPlanResponsesHTTPAgent"]
 
 
 @pytest.mark.usefixtures("plan_rows_cleanup")

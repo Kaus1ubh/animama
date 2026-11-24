@@ -12,8 +12,7 @@ import { queryKeys } from "@/query/keys";
 /** How often the status is read while the browser sign-in is pending. */
 export const CHATGPT_PLAN_PENDING_POLL_MS = 1_000;
 
-/** OpenAI's page where a person reviews their plan's usage and limits for each app. */
-export const CHATGPT_MANAGE_USAGE_URL = "https://chatgpt.com/settings/usage";
+export { CHATGPT_MANAGE_USAGE_URL } from "@animama/product-ui/chat";
 
 /** Whether this runtime offers signing in with a ChatGPT plan (the local composition). */
 export function useChatGPTPlanAvailable(): boolean {

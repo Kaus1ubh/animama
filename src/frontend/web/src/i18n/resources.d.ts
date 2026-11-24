@@ -1517,6 +1517,9 @@ export default interface Resources {
         "search": "Search uploaded files…",
         "uploading": "Uploading {{percent}}"
       },
+      "chatgptPlan": {
+        "using": "Using ChatGPT plan"
+      },
       "dictation": {
         "failed": "Dictation failed",
         "mute": "Mute Mic",

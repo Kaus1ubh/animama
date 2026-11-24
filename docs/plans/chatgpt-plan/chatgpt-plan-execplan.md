@@ -240,7 +240,8 @@ and the backend.
   manual check waits for G1 and G2.
 - [x] Phase 5: the plan connection and its model client (2026-11-24). Code
   Review #2 passed; the manual check waits for G1.
-- [ ] Phase 6: chat on plan models.
+- [x] Phase 6: chat on plan models (2026-11-24). Code Review #1's repairs
+  were verified by the coordinator; the manual check waits for G1.
 - [ ] Phase 7: roles, agreement and limits.
 - [ ] Phase 8: documentation and records.
 - [ ] Final integration review, G1 to G4, pull request.
@@ -1665,8 +1666,9 @@ Checks: the test files; from `src/frontend` `pnpm check`; the package-set
 
 Manual check (G1): on a real plan model an Anima replies with streaming, uses
 a memory tool and gets a title; one turn uses hosted search and a memory
-tool together; a chat started on a key model continues on the plan and
-back.
+tool together; a chat started on a key reasoning model, whose history holds
+a phased reply, a native memory edit and a tool call, continues on the plan
+and back.
 
 Completion: spec acceptance lines for chat, the indicator and chat
 continuity are met in tests, and the manual check passes.
@@ -1674,15 +1676,105 @@ continuity are met in tests, and the manual check passes.
 Recovery: an Anima on a plan model can be moved to any other model, and its
 chat continues there.
 
-Check record, results and commits: to be recorded.
+As built (2026-11-24, from `6d1fc8f73`):
+
+- Executor and continuity: Phase 5 already keyed every forbidden piece to
+  the OpenAI Responses provider type, so a plan turn carries no moderation
+  option, runs no operator check, reads no stored cursor (even one a key
+  model left), and its reply stores no OpenAI metadata, so the chat row's
+  cursor is cleared and the next key-model turn replays history. Plan and
+  key Responses models share the Responses standard, so a chat moves either
+  way. The plan client asks for no server compaction, so the executor fits
+  the prompt to the row's window. Tests pin each of these. A key model's
+  native memory edits are left out of a plan request's replayed history,
+  because the route refuses `apply_patch` (from review P6-R1-F1); the edits
+  are applied and the replies stay. Assistant phases from earlier key-model
+  replies are replayed as on a key; the G1 check of a chat moving from a key
+  model exercises both on the route.
+- Web search (R3.5): the catalog reports hosted search for a plan row only
+  when its listing supports it, so the picker's existing control shows
+  hosted search, the app's search or the reason neither is available.
+- The composer shows "Using ChatGPT plan" with **Manage usage** above the
+  input whenever the chat's model is a plan model, in chat and Quick Chat
+  (`ChatGPTPlanUsageNote`, reusing the card's link).
+- Failure notices in `product-ui` for the six plan codes in five locales: a
+  limit and an ineligible plan link to the usage page
+  (`CHATGPT_MANAGE_USAGE_URL` now lives in `product-ui`, and web re-exports
+  it); a required sign-in and plan use that is off name App Settings →
+  Models; an outage keeps OpenAI's wait; an unsupported request quotes the
+  route's own reason, the only notice that shows provider text (R5.3).
+- The chat picker groups plan models under "ChatGPT plan", named in the UI
+  Locale as App Settings names it.
+- `docs/frontend/runtime/chat.md` states the two exceptions the plan adds to
+  what a notice may show: the route's quoted reason and the usage link.
+- P4-R1-F10 (the chat picker's empty state): no change. The picker lists
+  every visible built-in model whether or not its key is set, so locally it
+  never shows an empty state; the app asks for a model in setup's AI step
+  and App Settings → Models, which both offer **Continue with ChatGPT**.
+- `userVisibleCodes.json` lists codes worded in the web `errors` catalog; the
+  plan's chat codes are worded in `product-ui`'s catalog, whose
+  completeness check covers them, so the list is unchanged.
+
+Check record, from the worktree root unless noted, on working tree
+`5c094ac3cc82be79a079fd571e72a19e6daed297` (hashed while this line still held a placeholder):
+
+| Check | Result |
+| --- | --- |
+| `python3 scripts/heavy-slot.py -- uv run pytest -q -n 2` on the executor, chat manager, companion safety, chat route, catalog and plan client and model tests | 347 passed |
+| `uv run ruff check`, `uv run ruff format --check`; `python3 scripts/heavy-slot.py -- uv run mypy src/backend/animama tests` | Passed; no issues in 930 files |
+| From `src/frontend`: `python3 ../../scripts/heavy-slot.py -- pnpm check`; `pnpm web:lint` | Exit 0; catalogs complete; lint clean |
+| From `src/frontend/packages/product-ui`: `pnpm check`, `pnpm test` | Exit 0; 50 passed |
+| From `src/frontend/web`: vitest on `src/ui/main/chat`, `src/lib`, `src/ui/settings`, `src/query`, `src/app/local-runtime`, `src/routes/-setup.test.ts`, `src/ui/components` | 387 files, 3981 passed, 2 skipped |
+| Prettier `--check` on the changed web, `product-ui` and locale files; `python3 scripts/public-release/check_source.py` | Formatted; every tracked file covered once |
+
+Not run: the full pre-push suite (G3), the package-set `compare` (on the
+final candidate; `product-ui` stays at the branch's 0.21.0), browser tests.
+Manual check (G1): pending the owner's sign-in.
 
 #### Code Review #1 Findings
 
-To be recorded.
+Independent review, standard tier, of working tree
+`5c094ac3cc82be79a079fd571e72a19e6daed297` against `6d1fc8f73`, reusing the
+check record (no covered file changed after its tree) and running one
+read-only reproduction. Result: blocked by F1 and F2. R3.4, the cursor
+rules, context fitting, R3.5, the indicator in both surfaces, the six
+notices, the link and detail safety, the `userVisibleCodes.json` reasoning
+and the product-ui version were found sound.
+
+| ID | Kind | Finding |
+| --- | --- | --- |
+| P6-R1-F1 | Required | R3.6: a key-model chat whose Anima saved a memory with native `apply_patch` replays `apply_patch_call` items to the plan route, which refuses that tool, so every later plan turn in the chat could fail. |
+| P6-R1-F2 | Required | `docs/frontend/runtime/chat.md` says no notice shows provider text and that the only link is the trial download; both are now false, and Phase 8 did not list the file. |
+| P6-R1-F3 | Optional | The picker names the plan's connection in English in every locale, while settings localize it. |
+| P6-R1-F4 | Optional | ja and zh notices leave the settings path unquoted, unlike the catalogs; ja says 利用 where the setting says 使用, and uses an ASCII colon. |
+| P6-R1-F5 | Optional | The English limit guidance says plan requests resume at reset, but chat is never paused; the person sends again. |
+| P6-R1-F6 | Optional | The plan cursor case does not check that history was replayed; the context test checks only the client flag. |
+| P6-R1-F7 | Optional | G1's continuity check should require a phased reasoning reply, a native memory edit and a tool call before the move. |
+| P6-R1-F8 | Optional | The P4-R1-F10 reasoning holds; no change. |
 
 #### Code Review #1 Revisions
 
-To be recorded.
+| ID | Disposition |
+| --- | --- |
+| P6-R1-F1 | Accepted: a route without `apply_patch` among its hosted tools drops replayed `apply_patch_call` items and their outputs; the API route keeps them. A request-shape test fails without the change. |
+| P6-R1-F2 | Accepted: the paragraph now states both exceptions. |
+| P6-R1-F3 | Accepted: `modelConnectionLabel` names a plan row's connection in the UI Locale; a test switches to ja. |
+| P6-R1-F4 | Accepted in ja, zh-Hans and zh-Hant. |
+| P6-R1-F5 | Accepted in all five locales: send again after the reset, or choose another model. |
+| P6-R1-F6 | Partly accepted: a test checks that a plan turn replays the key model's reply and sends no cursor. The executor's budgeting for clients without native compaction is covered by its existing tests, so the context test stays at the flag. |
+| P6-R1-F7 | Accepted: the manual check names all three. |
+| P6-R1-F8 | No change. |
+
+Repairs verified by the coordinator, as the review policy allows below the
+high-risk tier: each is a small, local change whose test was run, and the
+affected checks were rerun on working tree `bd87caa4838406b03f7742c509941c367afce031` (hashed
+while this line still held a placeholder): backend pytest on the eight
+affected files (399 passed), ruff and mypy (clean, 930 files),
+`pnpm packages:build`, `product-ui` check and tests (50 passed),
+`pnpm check` and `pnpm web:lint` (exit 0), vitest on the same directories
+(3982 passed, 2 skipped) and Prettier on the changed files.
+
+Commit: `feat(chat)[p6]: …` (this commit).
 
 ### Phase 7: Roles, agreement and limits
 

@@ -48,6 +48,7 @@ from .support import (
 )
 
 DEFAULT_WEB_SEARCH_CONTEXT_SIZE = "low"
+_APPLY_PATCH_ITEM_TYPES = frozenset({"apply_patch_call", "apply_patch_call_output"})
 # Native compaction runs once a stored chain reaches this many input tokens.
 # ANIMAMA_OPENAI_RESPONSES_COMPACTION_THRESHOLD_TOKENS sets it for the server.
 DEFAULT_RESPONSES_COMPACTION_THRESHOLD_TOKENS = 90_000
@@ -170,6 +171,10 @@ def responses_input_items(
                 cache_breakpoint=index in breakpoint_indexes,
             )
         )
+    if "apply_patch" not in route.hosted_tools:
+        # A chat that moved from a key model replays its native memory edits; this
+        # route refuses that tool. The edits are applied and the replies stay.
+        items = [item for item in items if cast(dict[str, Any], item).get("type") not in _APPLY_PATCH_ITEM_TYPES]
     items = items or [_easy_input_message("user", prompt_last_user_message(spec.prompt, fallback=""))]
     items = [_for_route(item, route) for item in items]
     if route.replay_reasoning:

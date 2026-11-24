@@ -17,8 +17,13 @@ type LabeledModel = Pick<
     >
   >;
 
-/** The connection a model runs on, so pickers group its models together. */
+/**
+ * The connection a model runs on, so pickers group its models together. The
+ * ChatGPT plan's connection is named in the UI Locale, as App Settings does.
+ */
 export function modelConnectionLabel(item: LabeledModel): string {
+  if (item.model_provider === CHATGPT_PLAN_PROVIDER_TYPE)
+    return getI18n().getFixedT(null, "models")("providers.chatgptPlan");
   return (
     item.connection_name?.trim() ||
     item.provider_label?.trim() ||

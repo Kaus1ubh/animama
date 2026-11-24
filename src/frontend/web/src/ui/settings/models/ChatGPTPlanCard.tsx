@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import type { PyChatGptPlanStatus } from "@animama/runtime-contracts/api-types";
 import { matchLocale } from "@animama/runtime-contracts/locale";
 import { readApiError } from "@/lib/errors/apiError";
+import { cn } from "@/lib/utils";
 import {
   CHATGPT_MANAGE_USAGE_URL,
   useChatGPTPlan,
@@ -307,14 +308,17 @@ function SignedIn({
 }
 
 /** **Manage usage**: ChatGPT's own usage settings, in the browser. */
-export function ManageUsageLink() {
+export function ManageUsageLink({ className }: { className?: string }) {
   const { t } = useTranslation("models");
   return (
     <a
       href={CHATGPT_MANAGE_USAGE_URL}
       target="_blank"
       rel="noreferrer"
-      className="text-foreground decoration-foreground/40 hover:decoration-foreground focus-visible:ring-ring inline-flex items-center gap-1 rounded-sm text-sm font-medium underline underline-offset-2 focus-visible:ring-2 focus-visible:outline-none"
+      className={cn(
+        "text-foreground decoration-foreground/40 hover:decoration-foreground focus-visible:ring-ring inline-flex items-center gap-1 rounded-sm text-sm font-medium underline underline-offset-2 focus-visible:ring-2 focus-visible:outline-none",
+        className,
+      )}
     >
       {t("chatgptPlan.manageUsage")}
       <ExternalLink className="size-3" aria-hidden />
