@@ -3503,6 +3503,31 @@ async def test_direct_turn_sends_attached_images_and_saves_only_their_references
 
 
 @pytest.mark.asyncio
+async def test_a_turn_with_an_image_emits_and_remembers_no_image_bytes() -> None:
+    episode_recorder = _FakeMemoryEpisodeRecorder()
+    model_client = _FinalModelClient(
+        _structured_response(speech="A cat.", remember="The user showed a photo of their cat.")
+    )
+    executor, chats = _executor(
+        client=model_client,
+        provider=_vision_provider(),
+        image_loader=_FakeImageLoader(["file-1"]),
+        memory_episode_recorder=episode_recorder,
+    )
+
+    events = await _collect(
+        executor.stream_turn(_request(user_message="What is this?", attached_images=(_attached(),)))
+    )
+
+    assert model_client.seen_specs[0].images["file-1"].content == b"bytes of file-1"
+    assert episode_recorder.calls, "the turn recorded an episode"
+    # Events, the saved turn and the episode memory never hold the bytes, raw or encoded.
+    observed = repr([events, chats.record_turn_calls, episode_recorder.calls])
+    assert "bytes of file-1" not in observed
+    assert base64.b64encode(b"bytes of file-1").decode() not in observed
+
+
+@pytest.mark.asyncio
 async def test_direct_turn_refuses_images_for_a_model_without_image_input() -> None:
     model_client = _FinalModelClient(_structured_response())
     executor, chats = _executor(client=model_client, image_loader=_FakeImageLoader(["file-1"]))

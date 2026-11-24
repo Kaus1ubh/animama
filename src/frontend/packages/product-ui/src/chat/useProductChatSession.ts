@@ -131,9 +131,9 @@ export type UseProductChatSessionArgs = {
    */
   getAttachmentHold?: () => ChatAttachmentHold;
   /**
-   * Called with a turn's attachments once the server accepts the turn (its
-   * reply stream starts), so the host can clear what it sent with them. A turn
-   * the server refuses keeps them in the composer.
+   * Called with a turn's attachments once the turn completes (the server has
+   * saved it), so the host can clear what it sent with them. A turn that is
+   * refused, fails or is stopped keeps them in the composer.
    */
   onAttachmentsSubmitted?: (fileIds: string[]) => void;
   /**
@@ -1188,10 +1188,6 @@ export function useProductChatSession({
           }),
           onFirstEvent: () => {
             if (ttsEnabled) markTtsStreamStarted?.(runId);
-            // The server accepted the turn; a refused one keeps its attachments.
-            if (attachedFileIds.length > 0) {
-              onAttachmentsSubmitted?.(attachedFileIds);
-            }
           },
           onAiNotice: (notice) => safetyRef.current?.onAiNotice?.(notice),
           onCrisisSupport: (card) => safetyRef.current?.onCrisisSupport?.(card),
@@ -1405,6 +1401,11 @@ export function useProductChatSession({
             // Completion finalizes run side-effects and caches both local user
             // text and fully streamed assistant text into query state.
             const completedRunId = data.run_id ?? runId;
+            // The server saved the turn with its attachments; a refused,
+            // failed or stopped turn keeps them in the composer.
+            if (attachedFileIds.length > 0) {
+              onAttachmentsSubmitted?.(attachedFileIds);
+            }
             logger.info("Chat", "SSE run completed", {
               animaId,
               chatId: data.chat_id ?? resolvedChatId,

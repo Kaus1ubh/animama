@@ -53,7 +53,7 @@ def attached_image_parts(request: DirectChatTurnRequest) -> list[dict[str, Any]]
 def user_message_text(request: DirectChatTurnRequest) -> str:
     """The saved text of the user's message, with a placeholder line per image.
 
-    Compaction, memory, search and copied text read this column, so each image
+    Compaction, memory and search read this column, so each image
     is named there.
     """
 

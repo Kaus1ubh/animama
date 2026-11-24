@@ -168,7 +168,7 @@ The saved user message refers to its images and never holds their bytes
 ([ADR 0038](../../adr/0038-chat-images-saved-as-references.md)):
 
 - `content` is the person's text followed by one `[Image: name]` line per
-  image, so memory, search, compaction and copied text see each image named.
+  image, so memory, search and compaction see each image named.
 - `data.images` lists each image (`file_id`, `name`, `width`, `height`) and
   `data.user_text` keeps the person's own text for the chat bubble.
 - `raw_provider_message` holds a part list: the image reference parts, then
@@ -177,12 +177,13 @@ The saved user message refers to its images and never holds their bytes
 When building a prompt, `select_images` keeps the newest 20 images in the
 fitted history, the current turn's first, and turns the rest into
 placeholders; a row that does not accept images gets placeholders for all of
-them. Context fitting counts each image's estimate. Just before each request
-`SessionBackedChatImageLoader` reads the referenced bytes of the owner's ready
-images from private storage. An image that is gone or whose bytes no longer
-match its record is sent as its placeholder; a read failure is logged by file
-ID, never with bytes. The adapters write the bytes in
-their provider's format ([model clients](model-client-providers.md#images)).
+them. Context fitting counts each image's estimate. Before the turn's first
+request that needs them, `SessionBackedChatImageLoader` reads the referenced
+bytes of the owner's ready images from private storage; the turn's later
+requests (tool rounds, a retry) reuse them. An image that is gone or whose
+bytes no longer match its record is sent as its placeholder; a read failure is
+logged by file ID, never with bytes. The adapters write the bytes in their
+provider's format ([model clients](model-client-providers.md#images)).
 
 Deleting a chat deletes the images only that chat's messages reference
 ([deletion](../features/user-files.md#deletion-and-recovery)).

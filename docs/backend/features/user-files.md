@@ -36,7 +36,7 @@ Frontend UI:
 
 - Chat composer paperclip button opens an attachment popover with **Upload from
   computer** first and a searchable list of the current user's existing
-  `ready`/`ready_keyword_only` files below it. New-upload IDs and selected
+  `ready`/`ready_keyword_only` documents and ready images below it. New-upload IDs and selected
   existing IDs are merged into `attached_file_ids` for the next `chat:sse`
   request.
 - `/library?section=chat-uploads` shows private upload status,
@@ -120,7 +120,9 @@ Allowed extensions:
 - tabular text: `.csv`, `.tsv`
 - rich documents: `.pdf`, `.docx`, `.pptx`, `.xlsx`
 
-The upload API rejects extensions outside the allowlist. Macro-enabled Office
+Chat images (`.png`, `.jpg`, `.jpeg`, `.webp`, `.gif`, up to 20 MiB) are also
+accepted; see [Chat Images](#chat-images). The upload API rejects every other
+extension. Macro-enabled Office
 files such as `.docm`, `.xlsm`, and `.pptm` remain blocked, along with
 executables, scripts, installers, and archive formats.
 
@@ -188,26 +190,20 @@ EXIF and GPS removed, a GIF's first frame, long edge at most 2,000 px. The copy
 is PNG when the source is PNG or GIF and the copy fits 3.5 MiB, otherwise JPEG
 (quality 90, stepping down to 50) with transparency flattened onto white. The
 row becomes `ready` with `metadata.image` (`width`, `height`, `media_type`),
-with no processing job, chunks or embeddings, and `search_uploaded_files`
-never returns it. An unreadable, too large or damaged image becomes `failed`
-with its reason in `last_error`, and its bytes are deleted. The storage write
-or delete runs under the row lock, so a delete during decoding wins. If
-`:finalize` stops after the upload was saved, `:process` stores the canonical
-copy for an image still at `uploaded`; for any other image it returns its state
-without a job, and the processing switch does not apply to images.
+with no processing job, chunks or embeddings, and `search_uploaded_files` never
+returns it. An unreadable or damaged image, one with too many pixels, or one too
+detailed to fit 3.5 MiB even at JPEG quality 50 becomes `failed` with its reason
+in `last_error`, and its bytes are deleted. The storage write or delete runs
+under the row lock, so a delete during decoding wins. If `:finalize` stops after
+the upload was saved, `:process` stores the canonical copy for an image still at
+`uploaded`; for any other image it returns its state without a job, and the
+processing switch does not apply to images.
 
-`GET /v1/files/{file_id}/content` serves the canonical copy only to its owner,
-`?variant=thumbnail` (128 px) or `?variant=preview` (320 px) a WebP copy
-cached in process. Missing or changed bytes are `409`
-`user_file_content_changed`.
-
-A `chat:sse` turn carries at most four images among its `attached_file_ids`.
-More is `400` `too_many_images`; an attached image that is deleted, failed or
-not ready is `400` `attached_image_unavailable`; any image for a model whose
-catalog capabilities do not accept `image` is `400`
-`model_does_not_accept_images`. The saved user message refers to its images
-instead of holding their bytes ([ADR 0038](../../adr/0038-chat-images-saved-as-references.md);
-see [direct chat](../runtime/chat.md#chat-images)).
+`GET /v1/files/{file_id}/content` serves the canonical copy, or a smaller
+copy, only to its owner ([HTTP API](../architecture/http-api.md)). A chat turn
+carries at most four images; how it refuses others and saves references
+instead of bytes is in [direct chat](../runtime/chat.md#chat-images) and
+[ADR 0038](../../adr/0038-chat-images-saved-as-references.md).
 
 ## Step-By-Step Upload And Processing Walkthrough
 
@@ -287,7 +283,8 @@ File statuses:
 - `pending_upload`: metadata row exists but its local file is not finalized.
 - `uploaded`: the promoted local file exists and passed finalize checks.
 - `processing`: at least one processing job has been enqueued.
-- `ready`: chunks are available, with vectors when embeddings are on.
+- `ready`: chunks are available, with vectors when embeddings are on; a chat
+  image is `ready` once stored and has none.
 - `ready_keyword_only`: chunks are available, but embedding failed. Re-embedding
   marks the file `ready` once every chunk has a vector.
 - `failed`: upload finalization or processing failed.
@@ -500,7 +497,8 @@ Processing loop:
 
 ## Data Model And Ownership
 
-`ORMUserFile` stores the original upload metadata. It is scoped by the generated
+`ORMUserFile` stores the upload's metadata (for a chat image, that of its
+canonical copy, which replaced the upload). It is scoped by the generated
 installation principal in `user_id` and uses backend-generated object keys. `ORMUserFileProcessingJob`
 stores durable processing work and lease metadata. `ORMUserFileChunk` stores
 searchable extracted chunks and denormalizes `user_id` for ownership filters.
@@ -549,7 +547,7 @@ expire. Reprocessing with `force=true` replaces chunks idempotently.
 
 ## Non-Goals
 
-The API keeps no original upload bytes to download: a chat image's
-canonical copy is served only to its owner, and agent tools never read file
-bytes; a model sees an image only inside a chat request. OCR, encrypted or password-protected documents and macro-enabled Office
-files are unsupported.
+The API serves no document bytes, and a chat image's canonical copy only to its
+owner; agent tools never read file bytes, and a model sees an image only inside
+a chat request. OCR, encrypted or password-protected documents and macro-enabled
+Office files are unsupported.

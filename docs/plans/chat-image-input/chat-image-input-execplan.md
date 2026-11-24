@@ -259,18 +259,33 @@ canonical copy of at most 3.5 MiB (under 5 MB as base64). One estimate,
     references it too (an image can be attached again from the Library).
 
 - 2026-11-24, agent (Phase 5), within R2.2:
-  - **D5, revised.** Images leave the composer once the server accepts the
-    turn (its reply stream delivers its first event), rather than after the
-    reply succeeds. The shared chat session reports the accepted turn's
-    attachments (`onAttachmentsSubmitted`) and the composer removes the
-    images among them. A turn the server refuses (for example
-    `attached_image_unavailable` or `runtime_remount_required`) keeps them,
-    so the failure guidance can say to remove or replace them. A turn that
-    fails after its stream starts keeps its images in history; they stay
-    ready in the Library and can be attached again.
+  - **D5, revised.** The shared chat session reports a turn's attachments
+    (`onAttachmentsSubmitted`) when the turn completes, which is when the
+    server has saved it, and the composer removes the images among them. A
+    turn that is refused (for example `attached_image_unavailable` or
+    `runtime_remount_required`), fails after its reply starts, or is stopped
+    keeps them, so the failure guidance can say to remove or replace them
+    and a resend carries them again. (Phase 5 first cleared them when the
+    send was accepted, then at the first stream event; the final review,
+    F-A2, showed a turn failing after that is never saved.)
   - **The product-ui version moves in Phase 5.** The session option and three
     chat failure codes change product-ui's declarations, so 0.21.0 lands
     here. Phase 6 ships in the same pull request and needs no second bump.
+
+- 2026-11-24, agent (final review), for the owner to confirm at pull request
+  review:
+  - **D13. Deleting an Anima leaves its chats' images.** The Anima's chats go
+    by database cascade, which does not run the chat-delete image cleanup
+    (D12), so their images stay in private storage and in the Library, as
+    document attachments do. The owner can delete them there. Cleaning them
+    up with the Anima needs another repository query (images referenced only
+    by that Anima's chats) that Cloud would also have to implement.
+
+- 2026-11-24, agent (final review), within R4.1: the spec lists copied text
+  among the readers that see an image's placeholder. The chat bubble shows
+  `data.user_text` (D7) and the app has no copy action for messages, so the
+  placeholder reaches compaction, memory and search, which is the part of
+  R4.1 that matters: no reader gets bytes.
 
 ## Phased implementation
 
@@ -1048,7 +1063,8 @@ Built as planned, with these details:
   guards the Library picker the same way, shows a muted tray note while an
   image is attached to a model known not to accept images, attaches pasted
   images (or says uploads are unavailable while a reply streams), and
-  removes the sent images once the server accepts the turn (D5, revised).
+  removes the sent images once the server accepts the turn (D5, revised;
+  moved to the turn's completion by the final review, F-A2).
 - Tray cards show a local preview of an image (an object URL of the picked
   file, released when the card goes) in a box that keeps its size while the
   preview loads.
@@ -1507,11 +1523,108 @@ Gates:
 - **G2.** Desktop check. Pasting and dragging in the Electron app need the
   owner's go-ahead before the agent drives the app, or the owner checks them.
   It includes pasting after "Copy Image" in Firefox and Safari and after a
-  Finder copy (P5-A15), and images and their dialog in Quick Chat (P6-A6).
+  Finder copy (P5-A15), images and their dialog in Quick Chat (P6-A6), and
+  Stop between a saved turn and its completion (Final Review #2).
 - **G3.** Owner agreement to the full pre-push run.
 
 Hosted validation stays off unless the owner starts a run; the pull request
 states which evidence is local.
+
+### Final Review #1 Findings
+
+Reviewed source: `853ddcd44` (clean) against `main` `c7b98f73a`, high risk,
+final integration mode, one reviewer; no checks of its own. Blocked. It found
+contracts, privacy, ownership and boundaries consistent and every acceptance
+criterion met or pending its gate, except one.
+
+- **F-A1** (blocking): no test showed that stream events or memory files
+  hold no image bytes, although the acceptance table cited one.
+- **F-A2** (should fix): images left the composer at the first stream event,
+  but a turn that fails after that is never saved, so a resend went without
+  them.
+- **F-A3** (should fix): deleting an Anima leaves its chats' images, and no
+  owner decision records it.
+- **F-A4** (should fix): `user-files.md` still listed only document
+  extensions, defined `ready` as having chunks, and said the picker offered
+  only searchable files.
+- **F-A5** (should fix): ADR 0038 said bytes are not cached between requests
+  (they are held for the turn), understated the Cloud consequence and named
+  the wrong finalize module; two docs said "copied text" names images.
+- **F-A6** (should fix): the pull request must carry Cloud's repin
+  obligations.
+- Optional: repeated refusal and byte-route text, "too large" for a pixel
+  refusal and a missing verb (F-A7); one 4,784-token estimate for every
+  provider can refuse a large image on a small local window (F-A8);
+  re-confirm provider request size limits (F-A9); a Responses cursor kept
+  after a switch to a row without image input (F-A10).
+
+### Final Review #1 Revisions
+
+Repair round 1 of 2.
+
+| Finding | Disposition | Change |
+| --- | --- | --- |
+| F-A1 | Accepted | The SSE route test and a new executor test assert that the bytes, raw or base64, appear in no stream event, saved turn or recorded episode. |
+| F-A2 | Accepted | `onAttachmentsSubmitted` fires on `run.completed`; tests cover a reply that starts and then fails (images kept) and a completed turn (images cleared). D5 and the frontend docs say so. |
+| F-A3 | Recorded for the owner | D13, to confirm at pull request review. |
+| F-A4 | Accepted | `user-files.md` lists image extensions and limits, `ready` for images, the picker's images, the copy's metadata and the non-goal. |
+| F-A5 | Accepted | ADR 0038 and the chat doc corrected. |
+| F-A6 | Accepted | The pull request lists Cloud's repin work: the two `NoUserFiles` methods and admitting local-http 24, runtime-contracts 0.24.0 and product-ui 0.21.0. |
+| F-A7 | Accepted | The refusal codes live in the chat doc and the byte route in the HTTP API doc; wording fixed. |
+| F-A8 | Recorded | Known limit below. |
+| F-A9 | Not taken | The limits were read from the providers' current documents at planning (Surprises & Discoveries); G1 does not change them. |
+| F-A10 | Recorded | Known limit below. |
+
+Check record (source tree `02b4101a620f`, before this record): from
+`src/frontend`, `pnpm packages:build`, `packages:check`, `packages:test`,
+`check`, `web:lint` exit 0 and `pnpm web:test` 6454 passed, 2 skipped;
+prettier `--check` exit 0; from the root, `ruff format --check` (913 files),
+`ruff check`, mypy on the two changed test files, and `pytest` on
+`test_anima_chat_sse.py` and `test_direct_chat_turn_executor.py` (248 passed)
+exit 0; the link script found no broken link.
+
+### Final Review #2 Findings
+
+Reviewed source: working tree `9bb55eae4393`, high risk, targeted recheck;
+the reviewer reran `chatAttachmentHold.test.tsx` (11 passed) and the image
+tests in the two backend files (21 passed). Pass. F-A1, F-A2, F-A4, F-A5 and
+F-A7 are resolved; the dispositions of F-A3 (D13), F-A6, F-A8, F-A9 and F-A10
+are sound. It traced the completion-time clearing through Stop, chat switches,
+error frames, interrupted streams, `runtime_remount_required`, structured and
+voice turns, and the optimistic and stand-in messages. Non-blocking:
+
+- **F-A11.** A code comment still said "copied text", and the chat doc said
+  bytes are read before each request (they are read once per turn).
+- **F-A12.** The failure list omitted an image too detailed to fit 3.5 MiB
+  at JPEG quality 50.
+- **F-A13.** The repair dropped `user-files.md`'s final newline.
+- Observation: a saved turn's images stay in the tray while the server
+  finishes speech, the title and compaction before `run.completed`; Stop in
+  that window keeps them, so a resend would send them again. Never losing an
+  unsaved image is the intended trade.
+
+### Final Review #2 Revisions
+
+Repair round 2 of 2.
+
+| Finding | Disposition | Change |
+| --- | --- | --- |
+| F-A11 | Accepted | The `message_builders.py` docstring drops "copied text"; `docs/backend/runtime/chat.md` says bytes load once per turn. |
+| F-A12 | Accepted | The failure list names it. |
+| F-A13 | Accepted | Newline restored. |
+| Observation | Recorded | G2's manual check includes Stop during that window. |
+
+### Final Review #3 Findings
+
+Reviewed source: working tree `089d1bdccf16`, high risk, the last targeted
+recheck. Pass: F-A11 to F-A13 are resolved and the records match the diff,
+apart from the F-A11 wording, corrected above. The reviewer reran, at the root
+on that tree, `ruff check` and `ruff format --check src/backend/animama tests`
+(913 files), a link check of the two changed docs and
+`git diff --check`, all exit 0, and confirmed the runs changed nothing. It
+also noted that spec R4.1 lists "copied text" among the placeholder's
+readers, while the bubble shows the person's own text (D7); see the
+Decision Log. The review budget is spent; no repair rounds remain.
 
 ## Validation and acceptance
 
@@ -1523,7 +1636,7 @@ Each #904 acceptance criterion and the evidence planned for it:
 | A model without image input is refused | Phase 3 API test; Phase 5 composer test |
 | Pick, paste and drag in web and desktop | Phase 5 manual check; G2 |
 | Thumbnails after reload; placeholder after delete | Phase 6 tests and manual check |
-| No EXIF or GPS; no bytes in rows, events, logs or memory files | Phase 1 and Phase 3 tests |
+| No EXIF or GPS; no bytes in rows, events, logs or memory files | Phase 1 and Phase 3 tests; final review tests for stream events and episode memory (F-A1) |
 | Replay, the 21st image, context fitting | Phase 3 tests |
 | Library lists images | Phase 6 test and manual check |
 | Suites and documentation | Final suite (G3); Phase 7 |
@@ -1541,4 +1654,17 @@ Each #904 acceptance criterion and the evidence planned for it:
 
 ## Outcomes & Retrospective
 
-To be recorded.
+Delivered in Phases 1 to 7; gates G1 to G3 remain with the owner.
+
+Known limits:
+
+- Deleting an Anima leaves its chats' images (D13, for the owner to confirm).
+- Every provider is estimated at up to 4,784 tokens an image. A local vision
+  model with a small window (for example 8k) can refuse a turn with one large
+  image as `context_window_exceeded`.
+- A Responses conversation keeps the images it received in OpenAI's stored
+  chain, and a cursor turn on a row without image input continues it.
+- Cloud must, when it adopts this release, add `image_file_ids_only_in_chat`
+  and `record_file_deleted` to its `NoUserFiles` port, or every hosted chat
+  delete fails, and admit local-http 24, runtime-contracts 0.24.0 and
+  product-ui 0.21.0.

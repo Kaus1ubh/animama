@@ -73,9 +73,9 @@ existing backend ID directly.
    mutations and shows toast feedback.
 
 The chat composer keeps document cards visible until the user removes them
-locally or leaves the chat surface. An image goes with one message: once the
-server accepts a turn (its reply stream starts), the composer removes the
-images that turn carried; a refused turn keeps them. Removing a new upload
+locally or leaves the chat surface. An image goes with one message: once a
+turn completes (the server has saved it), the composer removes the images that
+turn carried; a refused, failed or stopped turn keeps them. Removing a new upload
 card removes it from local Uppy state; removing a previously uploaded card
 removes its ID from local composer selection state. Neither action deletes the
 installation-owned backend file. Cards combine transient Uppy metadata for

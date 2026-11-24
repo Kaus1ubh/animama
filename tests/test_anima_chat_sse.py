@@ -5077,6 +5077,11 @@ async def test_chat_sse_sends_an_attached_image_beside_documents_and_saves_its_r
         "user_text": "What is this?",
     }
     assert "png bytes" not in json.dumps(user_row.raw_provider_message)
+    # The request carried the bytes; no stream event does, raw or encoded.
+    assert spec.images["sent-image"].content == b"png bytes"
+    body = "".join(chunks)
+    assert "png bytes" not in body
+    assert base64.b64encode(b"png bytes").decode() not in body
 
 
 @pytest.mark.asyncio

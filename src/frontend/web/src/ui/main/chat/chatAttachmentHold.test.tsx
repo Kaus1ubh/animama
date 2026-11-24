@@ -275,22 +275,67 @@ describe("a send held by its attachments", () => {
     expect(turn.body).toMatchObject({ attached_file_ids: ["file-ready"] });
   });
 
-  it("tells the host which attachments a turn carried once its reply starts", async () => {
+  it("tells the host which attachments a turn carried once the turn completes", async () => {
     attached = ["image-1", "file-doc"];
     const turn = await openTurn();
     expect(session().input).toBe("");
-    expect(submitted).toEqual([]);
-
+    const runId = (turn.body as { run_id: string }).run_id;
+    const stream = new TransformStream<Uint8Array, Uint8Array>();
+    const writer = stream.writable.getWriter();
+    const send = (data: unknown) =>
+      writer.write(
+        new TextEncoder().encode(`data: ${JSON.stringify(data)}\n\n`),
+      );
     await act(async () => {
       turn.respond(
-        new Response('data: {"type": "run_status"}\n\n', {
+        new Response(stream.readable, {
           headers: { "Content-Type": "text/event-stream" },
         }),
       );
+      await send({ text: "A red square.", run_id: runId });
+    });
+    await settleUntil(() =>
+      session().displayMessages.some((message) => message.role === "assistant")
+        ? true
+        : undefined,
+    );
+    // The reply has started, but the turn is not saved yet.
+    expect(submitted).toEqual([]);
+
+    await act(async () => {
+      await send({ chat_id: "chat-new", run_id: runId });
+      await writer.close();
     });
     await settleUntil(() => (submitted.length > 0 ? true : undefined));
 
     expect(submitted).toEqual([["image-1", "file-doc"]]);
+  });
+
+  it("keeps the attachments of a turn that fails after its reply starts", async () => {
+    attached = ["image-1"];
+    const turn = await openTurn();
+    const runId = (turn.body as { run_id: string }).run_id;
+
+    await act(async () => {
+      turn.respond(
+        new Response(
+          [
+            `data: ${JSON.stringify({ text: "A red", run_id: runId })}`,
+            `data: ${JSON.stringify({ error: "upstream failed", code: "provider_error", run_id: runId })}`,
+            "",
+            "",
+          ].join("\n\n"),
+          { headers: { "Content-Type": "text/event-stream" } },
+        ),
+      );
+    });
+    await settleUntil(() =>
+      session().displayMessages.some((message) => message.failure)
+        ? true
+        : undefined,
+    );
+
+    expect(submitted).toEqual([]);
   });
 
   it("keeps the attachments of a turn the server refuses", async () => {

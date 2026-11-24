@@ -30,8 +30,8 @@ that deleting an image remove its bytes (R3.3).
    message with images is saved as its text plus one reference part per
    image (the user-file ID, name, width and height). The message text names
    each image as an `[Image: name]` line for every reader without images
-   (memory, search, compaction, copied text), and `data` keeps the person's
-   own text for the chat bubble. Just before a request, the executor loads the
+   (memory, search, compaction), and `data` keeps the person's own text for
+   the chat bubble. Just before a request, the executor loads the
    referenced bytes from private storage into the request beside the prompt,
    and each adapter writes them in its provider's format. An image whose bytes
    are gone is sent as its placeholder line.
@@ -59,8 +59,9 @@ that deleting an image remove its bytes (R3.3).
 
 ## Consequences
 
-- Bytes are read from storage for each request that sends an image, at most
-  20 images per request (newest first), and are not cached between requests.
+- Bytes are read from storage once per turn and held in memory only for that
+  turn's requests (tool rounds and a retry), at most 20 images per request
+  (newest first).
 - A deleted or changed image leaves its reference: history shows a
   placeholder, the model sees the placeholder line, and the turn that attached
   it stays readable.
@@ -69,13 +70,16 @@ that deleting an image remove its bytes (R3.3).
 - OpenAI Responses conversations that OpenAI stores (`store: true`, used for
   the `previous_response_id` cursor) hold the images the provider received;
   that copy follows the provider's retention, not Animama's delete.
-- Animama Cloud's user-file port needs the two repository methods chat
-  deletion uses before its hosted chat delete can rely on them.
+- Animama Cloud must add the two repository methods chat deletion uses
+  (`image_file_ids_only_in_chat`, `record_file_deleted`) to its user-file port
+  when it adopts this release: the shared chat delete route calls them, so
+  without them every hosted chat delete fails.
 
 ## Evidence
 
 - Phases 1–4 of the execution plan, with their check records and reviews:
-  `content_image.py` (canonical copy), `user_file_service.py` (finalize and
-  `:process`), `app/model_clients/image_parts.py` (reference parts, selection,
-  placeholders), `app/chat/attached_images.py` and the three adapters'
-  `request.py`.
+  `content_image.py` (canonical copy), `server/routers/user_files.py`
+  (`_store_canonical_image` at finalize and `:process`) with
+  `user_file_service.py` (the locked storage write), `app/model_clients/image_parts.py`
+  (reference parts, selection, placeholders), `app/chat/attached_images.py`
+  and the three adapters' `request.py`.
