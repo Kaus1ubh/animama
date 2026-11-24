@@ -91,9 +91,9 @@ identify what was actually tested.
 Fresh resolution means an upstream release can break the frontend consumer
 without any change here. When the break lies outside the packed packages, hold
 the offending transitive dependency back with a `pnpm.overrides` entry in
-[consumers/frontend/package.json](consumers/frontend/package.json); the checker
-keeps fixture overrides beside its tarball overrides and refuses one that
-redirects a packed package. Current hold: `csstype` 3.2.3. Version 3.2.4 adds a
+[consumers/frontend/package.json](consumers/frontend/package.json). The checker
+keeps fixture overrides beside its tarball overrides, refuses an override whose
+target is a packed package and drops every other `pnpm` setting. Current hold: `csstype` 3.2.3. Version 3.2.4 adds a
 CSS `pathLength` property whose type conflicts with `framer-motion`'s own
 `MotionStyle` declarations, so `tsc` fails with TS2320 under `skipLibCheck: false`
 (`motion` 12.43.0 and 14.14.0 both do; #907). Remove the hold once a `motion`

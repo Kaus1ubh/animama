@@ -164,11 +164,19 @@ def consumer_package(fixture: dict, tarballs: dict[str, str]) -> dict:
     consumer for reasons outside these packages (see README.md).
     """
     held = fixture.get("pnpm", {}).get("overrides", {})
-    if redirected := sorted(set(held) & set(tarballs)):
+
+    def target(key: str) -> str:
+        # `parent>child@range` overrides `child`; a scope's leading @ is not a range.
+        name = key.rsplit(">", 1)[-1]
+        at = name.find("@", 1)
+        return name if at < 0 else name[:at]
+
+    if redirected := sorted(key for key in held if target(key) in tarballs):
         raise ValueError(f"Fixture overrides cannot replace packed packages: {', '.join(redirected)}")
     package = json.loads(json.dumps(fixture))
     package["dependencies"].update(tarballs)
-    package["pnpm"] = {**package.get("pnpm", {}), "overrides": {**held, **tarballs}}
+    # Only overrides: other pnpm settings could reshape a packed package's graph.
+    package["pnpm"] = {"overrides": {**held, **tarballs}}
     return package
 
 
