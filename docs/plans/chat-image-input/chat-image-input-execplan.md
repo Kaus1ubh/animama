@@ -135,7 +135,8 @@ canonical copy of at most 3.5 MiB (under 5 MB as base64). One estimate,
   Three reviews; all blocking findings repaired. P1-A13 moves to Phase 2.
 - [x] Phase 2: the owner can fetch image bytes. Two reviews; should-fix
   items repaired; chat deletion moves to Phase 3 (D12).
-- [ ] Phase 3: a turn with images is checked, saved and assembled without bytes.
+- [x] Phase 3: a turn with images is checked, saved and assembled without bytes.
+  Two reviews; all findings repaired.
 - [ ] Phase 4: each adapter sends images.
 - [ ] Phase 5: the composer accepts images.
 - [ ] Phase 6: chat and the Library show images.
@@ -678,15 +679,159 @@ Completion: a turn with images produces a prompt that holds references, a
 request that holds the bytes beside it, and rows and logs with neither bytes
 nor base64.
 
-Check record, results and commits: to be recorded.
+Starting revision: `26d435824` (the Phase 2 commit). Built as planned, with
+these choices:
+
+- **Where bytes enter.** `DirectChatTurnExecutor.stream` is the one place
+  every request of a turn passes through (tool rounds and the stale-cursor
+  retry that reloads history included). It loads the bytes of the image parts
+  in that request's prompt through the `ChatImageLoader`, caching them for the
+  turn, and sets `ModelClientRequest.images`. Loading after context fitting
+  happens naturally, because fitting rebuilds the prompt before dispatch.
+- **Loader.** `SessionBackedChatImageLoader` (product HTTP) opens a short read
+  session, reads only the owner's ready images whose stored copy still matches
+  its digest, and leaves anything else out (its placeholder is sent).
+- **Validation.** `app/chat/attached_images.py` splits a turn's attached ids
+  into images and others. An image that is failed, deleted or not ready, or a
+  fifth image, refuses the turn with HTTP 400 and `detail.code`
+  `attached_image_unavailable` or `too_many_images`; a model without image
+  input gives `model_does_not_accept_images`. An id naming no file of the
+  owner, another owner's image included, goes on with the documents, which
+  ignore it, so the route reveals nothing about other owners' files.
+- **Selection** runs in `_build_prompt`, so context fitting sees the same
+  choice. Prompt and history estimates count each image with the provider
+  estimate.
+- **D12.** `DELETE /v1/chats/{chat_id}` reads the images only that chat
+  references (`image_file_ids_only_in_chat`), deletes the chat, then deletes
+  those images' bytes and marks their rows deleted (`record_file_deleted`), as
+  `DELETE /v1/files/{file_id}` would, committing each image on its own. A
+  cleanup failure is logged and leaves the images not yet reached in the
+  Library. The hosted composition's null `UserFileProcessingRepository`
+  (Cloud's `NoUserFiles`) needs the two new methods at its next repin, or every
+  hosted chat delete fails; the pull request carries this follow-up.
+- **Known limit.** Deleting an Anima removes its chats through the database
+  cascade, without this cleanup; their images stay in the Library.
+- **Between Phases 3 and 4** a turn with images reaches adapters that do not
+  yet understand image parts (Responses drops the message, the others pass an
+  unknown part type). Both phases ship in one pull request.
+
+Check record (working directory: the checkout root; working tree recorded under
+Code Review #1 Revisions):
+
+| Command | Result |
+| --- | --- |
+| `uv run --no-sync ruff format --check src/backend/animama tests` | exit 0 |
+| `uv run --no-sync ruff check` | exit 0 |
+| `uv run --no-sync mypy src/backend/animama tests` | exit 0, 911 files |
+| `uv run --no-sync python scripts/repository-boundary/check-python-imports.py` | exit 0 |
+| `uv run --no-sync python scripts/public-release/check_source.py` (new files added with `git add -N`) | exit 0 |
+| `timeout 1200 uv run --no-sync pytest -q -n 2` on the 24 files below | exit 0, 751 passed |
+| `pnpm openapi-ts:check` (in `src/frontend`) | "Generated SDK is current (17 files)" |
+
+The 24 files: `test_model_client_image_parts` (new), `test_chat_image_loader`
+(new), `test_direct_chat_turn_executor`, `test_anima_chat_sse`,
+`test_turn_instruction_layout`, `test_direct_chat_context_window`,
+`test_context_budget`, `test_chats_api`, `test_product_http_chats`,
+`test_anthropic_direct_chat`, `test_direct_chat_model_clients`,
+`test_product_http_chat_turns`, `test_chat_compaction_service`,
+`test_model_call_boundary`, `test_anthropic_messages_client`,
+`test_openai_moderation_crisis_moderator`, `test_user_file_uploads`,
+`test_user_file_processing`, `test_content_image`,
+`test_product_http_inventory`, `test_accountless_repository_boundaries`,
+`test_openapi_export`, `test_memory_file_tools`, `test_product_http_consumer`.
+
+Not run: the full pre-push suite (G3).
 
 #### Code Review #1 Findings
 
-To be recorded.
+Reviewed source: working tree `23b10e88206a` on `26d435824`, high risk,
+initial review.
+
+The checks reviewer reproduced every recorded check (745 passed), ran 52 more
+files that reach the changed code (1,025 passed), found no flakiness in three
+runs, and probed two things the tests did not cover: with prompt previews on,
+no log record held image bytes or base64; and a history of 12 image turns
+fitted to small windows sent exactly the kept turns' images. The analysis
+reviewer confirmed that bytes live only in `ModelClientRequest.images` (no
+repr, preview, row or event carries them), that every chat request passes
+through `DirectChatTurnExecutor.stream`, that chats without images behave as
+before, and the ownership of validation, the loader and the D12 query.
+
+Blocking:
+
+- **P3-A1.** The four new files had no `licenses/source-review.json` entries.
+- **P3-C1.** The plan's log test (previews on, no image data) was missing.
+- **P3-C2.** The plan's trimming test was missing.
+
+Should fix:
+
+- **P3-A2.** History estimates counted earlier images at full cost even for a
+  model that receives their placeholders, so a text-only model's history was
+  trimmed far more than needed.
+- **P3-A3.** A weak estimate test, and the missing tests above.
+- **P3-A4.** The D12 query read every message of the owner on each chat
+  delete, with or without images.
+- **P3-A5 / P3-C4.** Cloud's hosted chat delete fails after its repin until
+  its null repository gains the new methods; this belongs in the pull request.
+- **P3-C3 / P3-A9.** Untested cleanup failures, and one commit for all images
+  could leave a ready row whose bytes were already deleted.
+
+Optional: a current-turn image whose bytes vanish after validation is answered
+with its placeholder, against the module text (P3-A6); image names in
+placeholders could open a turn-context tag (P3-A7); a loader-level failure
+ended the turn (P3-A8); the Phase 3-only adapter state and the Anima-deletion
+gap were not recorded (P3-A10, P3-A11); duplicated image-part code (P3-A12).
 
 #### Code Review #1 Revisions
 
-To be recorded.
+Repair round 1 of 2.
+
+| Finding | Disposition | Change |
+| --- | --- | --- |
+| P3-A1 | Accepted | Entries added; `check_source.py` passes with the files added to the index. |
+| P3-C1 | Accepted | `test_prompt_previews_never_carry_image_bytes` turns previews on and checks every log record for the bytes and their base64. |
+| P3-C2 | Accepted | `test_a_trimmed_history_sends_only_the_kept_turns_images` fits 12 image turns to a small window. |
+| P3-A2 | Accepted | Fitting passes `count_images=accepts_images`; the estimate test now uses a large image and checks both cases. |
+| P3-A4 | Accepted | The query starts from this chat's user messages and checks other chats with JSON containment only for those ids. |
+| P3-A5 / P3-C4 | Accepted | Recorded above for the pull request. |
+| P3-C3 / P3-A9 | Accepted | Each image is committed on its own; tests for a delete that reports failure (delete-pending) and one that raises (earlier images stay deleted). |
+| P3-A6 | Accepted | The module text says what is refused and what degrades. |
+| P3-A7 | Accepted | `image_placeholder` escapes `<`; test added. |
+| P3-A8 | Accepted | A loader failure is logged and the turn continues without images; test added. |
+| P3-A10, P3-A11 | Accepted | Recorded above. |
+| P3-A12 | Accepted in part | `attached_image_parts` builds the turn's parts once; `record_file_deleted` keeps its own two literals. |
+
+Verification: the check record above, on working tree `bcc30853a663` (taken before this line was filled in).
+
+#### Code Review #2 Findings
+
+Reviewed source: working tree `389831b046dc`, high risk, targeted recheck.
+Pass, with no blocking findings. Every accepted finding is fixed: the preview
+test fails when bytes or their base64 reach a log record; the trimming test
+fails without fitting; with images not counted, a text-only model kept 2 to 6
+of 10 image turns in small windows where it kept none before; the rewritten
+query handled owner scoping, roles, malformed data and shared images on
+PostgreSQL, and for a chat without images its inner search never ran. All
+checks reran clean (751 passed, SDK current, licence check passes).
+
+New, from the repair: **P3-C5**, the cleanup-failure test passed against the
+old single commit because it read inside the same transaction; **P3-C6**, the
+preview test captured DEBUG only on the root logger. Noted: the chat-image
+cleanup docstring overstated its guarantee for a failure between an image's
+byte delete and its commit, which `DELETE /v1/files/{file_id}` shares.
+
+#### Code Review #2 Revisions
+
+| Finding | Disposition | Change |
+| --- | --- | --- |
+| P3-C5 | Accepted | The test rolls back the session before its asserts, as the request's session would; per the reviewer's probe, the old single commit then fails it. |
+| P3-C6 | Accepted | The test captures DEBUG on the `anima` logger. |
+| Docstring | Accepted | `_delete_chat_images` names the remaining window. |
+
+Test and wording changes only, verified by rerunning the Phase 3 check set
+(751 passed).
+
+Phase commit: `feat(chat)[p3]: send and save chat turns with image references`.
 
 ### Phase 4: Each adapter sends images
 
