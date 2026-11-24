@@ -159,7 +159,9 @@ ANIMAMA_WEB_BUILD_MODE=production ./reset.sh
 
 ## 参与贡献
 
-欢迎提交 Bug 报告、功能建议和 Pull Request。提交 Pull Request 之前，请先阅读
+欢迎提交 Bug 报告、功能建议和 Pull Request。发现 Bug 时，请使用
+[Bug 报告表单](https://github.com/raymond-van/animama/issues/new?template=bug.yml)（英文）。
+提交 Pull Request 之前，请先阅读
 [贡献指南](.github/CONTRIBUTING.md)（英文）。
 
 ## 致谢

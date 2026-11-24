@@ -159,7 +159,9 @@ ANIMAMA_WEB_BUILD_MODE=production ./reset.sh
 
 ## コントリビュート
 
-バグ報告、機能の提案、プルリクエストを歓迎します。プルリクエストを送る前に
+バグ報告、機能の提案、プルリクエストを歓迎します。バグを見つけたら
+[バグ報告フォーム](https://github.com/raymond-van/animama/issues/new?template=bug.yml)（英語）からお知らせください。
+プルリクエストを送る前に
 [コントリビューションガイド](.github/CONTRIBUTING.md)（英語）をお読みください。
 
 ## 謝辞

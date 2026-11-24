@@ -195,7 +195,9 @@ TLS와 인증을 앞단에 두세요.
 
 ## 기여하기
 
-버그 제보, 기능 제안, 풀 리퀘스트를 환영합니다. 풀 리퀘스트를 열기 전에
+버그 제보, 기능 제안, 풀 리퀘스트를 환영합니다. 버그를 발견하면
+[버그 제보 양식](https://github.com/raymond-van/animama/issues/new?template=bug.yml)(영어)으로 알려 주세요.
+풀 리퀘스트를 열기 전에
 [기여 가이드](.github/CONTRIBUTING.md)(영어)를 읽어 주세요.
 
 ## 감사의 말
