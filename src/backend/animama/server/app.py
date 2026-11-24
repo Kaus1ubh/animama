@@ -16,7 +16,7 @@ from animama.local.database import LocalDatabase
 from animama.local.http.composition import install_local_http
 from animama.logging_config import configure_logging
 from animama.product_http.ports import ProductPorts, install_product_ports, model_role_resolver
-from animama.server.chatgpt_plan import close_chatgpt_plan_session
+from animama.server.chatgpt_plan import close_chatgpt_plan_session, install_chatgpt_plan_store_key
 from animama.server.config import Settings
 from animama.server.content_startup import start_content_runtime, stop_content_runtime
 from animama.server.deps import get_async_session_factory
@@ -83,6 +83,7 @@ def create_local_app(
     application = FastAPI(title="Animama Local Server", version="0.1.0")
     application.state.runtime_settings = local_settings
     application.state.local_http_config = http_config
+    install_chatgpt_plan_store_key(application)
     database = LocalDatabase(local_settings) if session_factory is None else None
     application.state.session_factory = session_factory
     if database is not None:

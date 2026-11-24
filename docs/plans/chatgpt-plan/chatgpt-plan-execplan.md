@@ -235,7 +235,7 @@ and the backend.
 - [x] Phase 1: sign-in core (2026-11-24). Code Review #3 passed.
 - [x] Phase 2: routes and the sign-in return (2026-11-24). Code Review #2
   passed.
-- [ ] Phase 3: desktop custody.
+- [x] Phase 3: desktop custody (2026-11-24). Code Review #2 passed.
 - [ ] Phase 4: settings and setup.
 - [ ] Phase 5: the plan connection and its model client.
 - [ ] Phase 6: chat on plan models.
@@ -1132,15 +1132,92 @@ out.
 Recovery: deleting the session file signs out. Losing the vault makes the
 file unreadable, which also means signed out.
 
-Check record, results and commits: to be recorded.
+As built (2026-11-24, from `70158c225`): `CredentialVault` gains an optional
+`chatgptPlanStoreKey` (32 bytes, hex) created by `chatgptPlanStoreKey()` on
+first use and saved with the vault's encrypted write; a malformed stored key
+makes the vault unreadable. It is part of `secrets()` and never of `list()`
+or `childEnvironment()`. The supervisor reads it after opening the vault and
+passes it as `ANIMAMA_CHATGPT_PLAN_STORE_KEY` to the FastAPI child only; if
+the vault cannot create it, main logs the error code and the backend reports
+sign-in unavailable. In the backend, `_ProcessStoreKey` in
+`server/chatgpt_plan.py` takes the key out of the process environment the
+first time an app is built and keeps it for every later app in the process,
+because the desktop `serve` command builds its app after importing the module
+that builds another. The key is not a `Settings` field, so no settings
+printout can carry it. Only 64 lower-case hex characters are accepted; a
+malformed value is logged without its value and ignored. The tests sit beside
+Phase 2's in `tests/test_chatgpt_plan_api.py`, including one that runs the
+`serve` command in a fresh interpreter, and in the desktop's
+`runtime-state.test.ts` and `runtime-supervisor.test.ts`.
+
+Check record, from the worktree root, on working tree
+`54c1a6eef48e51aa25569e4c46e4fbb58c07ab77` (hashed while this line still held
+a placeholder):
+
+| Check | Result |
+| --- | --- |
+| `uv run pytest -q` on `test_chatgpt_plan_api.py`, `test_chatgpt_plan_session.py`, `test_chatgpt_plan_store.py`, `test_local_app_composition.py`, `test_desktop_credentials_route.py`, `test_desktop_runtime_packaging.py`, `test_local_http_composition.py`, `test_local_http_wiring.py` and `test_runtime_capabilities.py` | 298 passed |
+| `uv run ruff check`; format check; full mypy (heavy slot); import boundary | Passed; 923 formatted; no issues in 923 files; 0 forbidden edges |
+| From `src/frontend`: `python3 ../../scripts/heavy-slot.py -- pnpm desktop:test` | 668 passed, 14 skipped |
+| From `src/frontend`: `pnpm --filter animama-desktop check` | No type errors |
+| Desktop prettier check on the four changed files | Formatted |
+| Removing the key's delivery to the FastAPI child, or the stored key's validation | The supervisor and vault tests fail |
+
+Not run: the full pre-push suite (G3); a packaged build, which is G2.
 
 #### Code Review #1 Findings
 
-To be recorded.
+Independent review, high-risk tier, against `70158c225`. The reviewer reran
+the recorded backend tests, the two desktop test files, lint, mypy and `tsc`
+on the changed files, and reproduced the desktop `serve` path in a fresh
+interpreter. Result: blocked by F1 and F2. The key was found never to reach
+the page, status, provider environments or other children, and the vault
+format to stay compatible in both directions.
+
+| ID | Kind | Finding |
+| --- | --- | --- |
+| P3-R1-F1 | Required | The desktop backend never got the key: `animama-runtime serve` imports the module that builds the default app, which removed the key from the environment, and then builds the app it serves from a fresh `Settings()` without it. Every packaged desktop would report sign-in unavailable. In-process tests could not see it. |
+| P3-R1-F2 | Required | No test covered a failed key creation: removing the supervisor's catch would stop the whole runtime on a Keychain or DPAPI write failure. |
+| P3-R1-F3 | Optional | Concurrent first use of the key was untested. |
+| P3-R1-F4 | Optional | Main logged nothing when key creation failed. |
+| P3-R1-F5 | Optional | The malformed-key log said sign-in was unavailable, which is untrue on a self-hosted installation. |
 
 #### Code Review #1 Revisions
 
-To be recorded.
+All accepted.
+
+| ID | Change |
+| --- | --- |
+| P3-R1-F1 | The backend takes the key once per process into `_ProcessStoreKey` and gives it to every app the process builds; the `Settings` field is gone. A test runs `serve` in a fresh interpreter with the launcher stubbed and checks the served app has the key and the environment does not. |
+| P3-R1-F2 | A supervisor test opens an older vault without a key while encryption fails: the runtime is ready, the FastAPI child gets no key and the vault is unchanged; a later start delivers the key. Removing the catch fails it. |
+| P3-R1-F3 | The vault test asks for the key twice at once and gets one. |
+| P3-R1-F4 | Main logs `chatgpt_plan_store_key_unavailable` with the error code. |
+| P3-R1-F5 | The log says the key is ignored. |
+
+After the repairs, on working tree
+`0631065137ab2e84d41c592a1b55ae5d0abc48d9`: the backend tests above plus
+`test_runtime_entry_policy.py`, all passed (299 in the recorded set); lint,
+format and full mypy passed; the import boundary held; `pnpm desktop:test`,
+669 passed and 14 skipped; `tsc` and prettier on the desktop files passed.
+
+#### Code Review #2 Findings
+
+Targeted recheck of working tree `0631065137ab2e84d41c592a1b55ae5d0abc48d9`.
+The reviewer reran 300 backend tests, the two desktop test files, `tsc`,
+lint and mypy on the changed files, and its fresh-interpreter reproduction,
+which now shows the served app holding the key and the environment clear.
+Result: pass.
+
+| ID | Kind | Finding |
+| --- | --- | --- |
+| P3-R2-F1 | Optional | A malformed key is logged once per app built, so twice on desktop. |
+| P3-R2-F2 | Optional | The round-1 check line named no tree. |
+
+#### Code Review #2 Revisions
+
+F2 accepted: the check line above names its tree. F1 not changed: the
+duplicate line carries no value and costs nothing, while logging once would
+add state for a case only a broken launcher produces.
 
 ### Phase 4: Settings and setup
 

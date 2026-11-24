@@ -2,9 +2,13 @@
 
 from __future__ import annotations
 
+import json
 import logging
 import os
-from collections.abc import AsyncIterator, Iterator, MutableMapping
+import subprocess
+import sys
+import textwrap
+from collections.abc import AsyncIterator, Callable, Iterator, MutableMapping
 from dataclasses import dataclass
 from pathlib import Path
 from types import SimpleNamespace
@@ -23,10 +27,12 @@ from animama.domain.chatgpt_plan import ChatGPTPlanAccount, ChatGPTPlanRecord, C
 from animama.local.http.assets import LocalAssets
 from animama.local.http.composition import install_local_http
 from animama.local.http.config import CAPABILITY_COOKIE, DesktopAccess, LocalHTTPConfig
+from animama.server import chatgpt_plan as chatgpt_plan_module
 from animama.server.app import create_local_app
 from animama.server.chatgpt_plan import (
     chatgpt_plan_return_uri,
     chatgpt_plan_session_for,
+    chatgpt_plan_store_key,
     chatgpt_plan_unavailable_reason,
 )
 from animama.server.config import Settings
@@ -387,6 +393,21 @@ def restored_environment() -> Iterator[None]:
     os.environ.update(saved)
 
 
+@pytest.fixture
+def store_key(monkeypatch: pytest.MonkeyPatch) -> Callable[[str | None], None]:
+    """Deliver a key as Electron main does, to a process that has not taken one yet."""
+
+    monkeypatch.setattr(chatgpt_plan_module, "_PROCESS_STORE_KEY", chatgpt_plan_module._ProcessStoreKey())
+
+    def deliver(value: str | None) -> None:
+        if value is None:
+            monkeypatch.delenv(chatgpt_plan_module.STORE_KEY_ENV, raising=False)
+        else:
+            monkeypatch.setenv(chatgpt_plan_module.STORE_KEY_ENV, value)
+
+    return deliver
+
+
 def _local_app(tmp_path: Path, *, desktop: bool) -> FastAPI:
     origin = f"http://127.0.0.1:{PORT}" if desktop else f"http://localhost:{PORT}"
     settings = Settings(
@@ -411,7 +432,10 @@ def test_the_local_app_offers_sign_in_on_its_loopback_origin(tmp_path: Path) -> 
     assert chatgpt_plan_return_uri(app) == f"http://127.0.0.1:{PORT}/auth/callback"
 
 
-async def test_a_desktop_app_without_its_key_reads_no_session_file(tmp_path: Path, restored_environment: None) -> None:
+async def test_a_desktop_app_without_its_key_reads_no_session_file(
+    tmp_path: Path, restored_environment: None, store_key: Callable[[str | None], None]
+) -> None:
+    store_key(None)
     app = _local_app(tmp_path, desktop=True)
     tokens = ChatGPTPlanTokens("access-1", "refresh-1", "id-1", expires_at=4e9, earliest_refresh_at=None)
     planted = ChatGPTPlanRecord(
@@ -500,3 +524,96 @@ def test_tracing_uses_the_exclusions(monkeypatch: pytest.MonkeyPatch) -> None:
     telemetry._instrument_fastapi(FastAPI())
 
     assert seen == {"excluded_urls": telemetry.fastapi_excluded_urls()}
+
+
+async def test_a_desktop_app_keeps_its_session_encrypted_under_the_vault_key(
+    tmp_path: Path, restored_environment: None, store_key: Callable[[str | None], None]
+) -> None:
+    key = "ab" * 32
+    store_key(key)
+    app = _local_app(tmp_path, desktop=True)
+    # A second app in the same process, as the desktop serve command builds, keeps the key.
+    assert chatgpt_plan_store_key(_local_app(tmp_path / "second", desktop=True)) == bytes.fromhex(key)
+    directory = tmp_path / "data" / "internal" / "chatgpt-plan"
+
+    try:
+        await chatgpt_plan_session_for(app).begin(redirect_uri=f"http://127.0.0.1:{PORT}/auth/callback")
+    finally:
+        await app.state.chatgpt_plan_identity.aclose()
+
+    assert chatgpt_plan_unavailable_reason(app) is None
+    assert sorted(item.name for item in directory.iterdir()) == ["session.bin"]
+    assert FileChatGPTPlanSessionStore(directory, key=bytes.fromhex(key)).load() is not None
+    # The key reaches no child process and no settings printout.
+    assert "ANIMAMA_CHATGPT_PLAN_STORE_KEY" not in os.environ
+    assert key not in repr(app.state.runtime_settings) and key not in repr(app.state.chatgpt_plan_session)
+
+
+@pytest.mark.parametrize("key", ["short", "zz" * 32, "AB" * 32 + "00"])
+def test_a_malformed_key_means_no_sign_in(
+    tmp_path: Path,
+    restored_environment: None,
+    key: str,
+    caplog: pytest.LogCaptureFixture,
+    store_key: Callable[[str | None], None],
+) -> None:
+    store_key(key)
+    app = _local_app(tmp_path, desktop=True)
+
+    assert chatgpt_plan_unavailable_reason(app) == "secure_storage_unavailable"
+    assert "ChatGPT plan store key" in caplog.text and key not in caplog.text
+
+
+def test_the_desktop_serve_command_hands_the_key_to_the_app_it_serves(tmp_path: Path) -> None:
+    """``animama-runtime serve`` imports the module-level app first, then builds the one it serves.
+
+    It runs in a fresh interpreter, as Electron main launches it: the module
+    import order there is what lost the key, and this test process has already
+    imported the app.
+    """
+
+    script = textwrap.dedent(
+        """
+        import json, os, sys
+        import animama.local.http.server as server
+        captured = {}
+        server.serve = lambda application, **options: captured.update(app=application)
+        from animama.runtime import cli
+        cli.main(["serve", "--host", "127.0.0.1", "--port", sys.argv[1]])
+        from animama.server.chatgpt_plan import chatgpt_plan_unavailable_reason
+        print(json.dumps({
+            "reason": chatgpt_plan_unavailable_reason(captured["app"]),
+            "key_in_environment": "ANIMAMA_CHATGPT_PLAN_STORE_KEY" in os.environ,
+        }))
+        """
+    )
+    environment = {
+        name: value
+        for name, value in os.environ.items()
+        if not name.startswith("ANIMAMA_") and name not in {"OPENAI_API_KEY", "ANTHROPIC_API_KEY"}
+    }
+    environment.update(
+        ANIMAMA_PUBLIC_ORIGIN=f"http://127.0.0.1:{PORT}",
+        ANIMAMA_DESKTOP_RENDERER_CAPABILITY="r" * 64,
+        ANIMAMA_DESKTOP_CONTROL_TOKEN="c" * 64,
+        ANIMAMA_WEB_ROOT=str(tmp_path / "web"),
+        ANIMAMA_DATA_ROOT=str(tmp_path / "data"),
+        ANIMAMA_CONTENT_ROOT=str(tmp_path / "content"),
+        ANIMAMA_PROCESS_START_TOKEN="start-token",
+        ANIMAMA_LOG_TO_FILE="0",
+        ANIMAMA_LOG_TO_CONSOLE="0",
+        OTEL_SDK_DISABLED="1",
+        ANIMAMA_CHATGPT_PLAN_STORE_KEY="ab" * 32,
+    )
+
+    result = subprocess.run(
+        [sys.executable, "-c", script, str(PORT)],
+        env=environment,
+        capture_output=True,
+        text=True,
+        timeout=120,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr[-2000:]
+    assert json.loads(result.stdout.strip().splitlines()[-1]) == {"reason": None, "key_in_environment": False}

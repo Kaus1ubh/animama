@@ -12,6 +12,9 @@ data root, and closed with the application.
 
 from __future__ import annotations
 
+import logging
+import os
+import re
 from pathlib import Path
 from typing import cast
 
@@ -26,6 +29,9 @@ from animama.local.http.config import LocalHTTPConfig
 from animama.server.schemas.chatgpt_plan import ChatGPTPlanUnavailableReason
 
 CALLBACK_PATH = "/auth/callback"
+STORE_KEY_ENV = "ANIMAMA_CHATGPT_PLAN_STORE_KEY"
+
+logger = logging.getLogger(__name__)
 
 
 class _NoSessionFile:
@@ -47,6 +53,42 @@ def chatgpt_plan_return_uri(app: FastAPI) -> str | None:
 
     authority = _config(app).sign_in_return_authority
     return f"http://{authority}{CALLBACK_PATH}" if authority is not None else None
+
+
+class _ProcessStoreKey:
+    """The session file's key as this process received it.
+
+    Desktop's Electron main passes it in the environment of this process only.
+    It is taken out of the environment the first time an app is built, so no
+    child process inherits it, and kept for every later app the process builds:
+    the desktop ``serve`` command builds a second app after importing the module
+    that builds the first.
+    """
+
+    def __init__(self) -> None:
+        self._value: str | None = None
+
+    def take(self) -> str | None:
+        value = os.environ.pop(STORE_KEY_ENV, None)
+        if value is not None and value.strip():
+            self._value = value.strip()
+        return self._value
+
+
+_PROCESS_STORE_KEY = _ProcessStoreKey()
+
+
+def install_chatgpt_plan_store_key(app: FastAPI) -> None:
+    """Give ``app`` the session file's key. A malformed key is logged without its value and ignored."""
+
+    value = _PROCESS_STORE_KEY.take()
+    key: bytes | None = None
+    if value is not None:
+        if re.fullmatch(r"[0-9a-f]{64}", value):
+            key = bytes.fromhex(value)
+        else:
+            logger.error("The ChatGPT plan store key is not 32 bytes of lower-case hex, so it is ignored")
+    app.state.chatgpt_plan_store_key = key
 
 
 def chatgpt_plan_store_key(app: FastAPI) -> bytes | None:
