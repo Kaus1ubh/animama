@@ -126,6 +126,34 @@ class PackedArtifactTests(unittest.TestCase):
         self.assertTrue(all(phase["seconds"] >= 0 for phase in packed.PHASES))
 
 
+class ConsumerPackageTests(unittest.TestCase):
+    """The fixture's own dependency holds survive the tarball overrides."""
+
+    tarballs = {name: f"file:artifacts/{name.split('/')[1]}-1.0.0.tgz" for name in packed.PACKAGES}
+
+    def test_fixture_overrides_are_kept_beside_tarball_overrides(self):
+        fixture = {"dependencies": {"react": "19.2.5"}, "pnpm": {"overrides": {"csstype": "3.2.3"}}}
+        package = packed.consumer_package(fixture, self.tarballs)
+        self.assertEqual(package["pnpm"]["overrides"], {"csstype": "3.2.3", **self.tarballs})
+        self.assertEqual(package["dependencies"], {"react": "19.2.5", **self.tarballs})
+        # The caller's fixture is left as read.
+        self.assertEqual(fixture["pnpm"]["overrides"], {"csstype": "3.2.3"})
+
+    def test_fixture_without_overrides_gets_only_the_tarballs(self):
+        package = packed.consumer_package({"dependencies": {}}, self.tarballs)
+        self.assertEqual(package["pnpm"], {"overrides": self.tarballs})
+
+    def test_fixture_cannot_redirect_a_packed_package(self):
+        fixture = {"dependencies": {}, "pnpm": {"overrides": {"@animama/product-ui": "0.1.0"}}}
+        with self.assertRaisesRegex(ValueError, "@animama/product-ui"):
+            packed.consumer_package(fixture, self.tarballs)
+
+    def test_checked_in_frontend_fixture_composes(self):
+        fixture = json.loads((packed.FIXTURES / "frontend/package.json").read_text())
+        package = packed.consumer_package(fixture, self.tarballs)
+        self.assertLessEqual(fixture.get("pnpm", {}).get("overrides", {}).items(), package["pnpm"]["overrides"].items())
+
+
 class WheelTests(unittest.TestCase):
     """The wheel must carry the AGPL and the upstream texts of its adapted code."""
 

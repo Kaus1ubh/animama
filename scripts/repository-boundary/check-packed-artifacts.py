@@ -156,6 +156,22 @@ def assert_no_checkout_links(directory: Path) -> None:
                 raise ValueError(f"Consumer resolves back into checkout: {path}")
 
 
+def consumer_package(fixture: dict, tarballs: dict[str, str]) -> dict:
+    """Point the fixture at the packed tarballs, keeping its own dependency holds.
+
+    Registry dependencies otherwise resolve fresh. A fixture override holds a
+    transitive dependency back only while an upstream release breaks a
+    consumer for reasons outside these packages (see README.md).
+    """
+    held = fixture.get("pnpm", {}).get("overrides", {})
+    if redirected := sorted(set(held) & set(tarballs)):
+        raise ValueError(f"Fixture overrides cannot replace packed packages: {', '.join(redirected)}")
+    package = json.loads(json.dumps(fixture))
+    package["dependencies"].update(tarballs)
+    package["pnpm"] = {**package.get("pnpm", {}), "overrides": {**held, **tarballs}}
+    return package
+
+
 def dependency_receipt(paths: list[Path], work: Path) -> dict:
     """Bind fresh-resolution evidence without claiming a frozen consumer build."""
     return {
@@ -219,13 +235,11 @@ def main() -> int:
     shutil.copytree(FIXTURES / "frontend", frontend)
     inputs = frontend / "artifacts"
     inputs.mkdir()
-    package = json.loads((frontend / "package.json").read_text())
-    overrides = {}
+    tarballs = {}
     for name, path in artifacts.items():
         shutil.copy2(path, inputs / path.name)
-        overrides[name] = f"file:artifacts/{path.name}"
-    package["dependencies"].update(overrides)
-    package["pnpm"] = {"overrides": overrides}
+        tarballs[name] = f"file:artifacts/{path.name}"
+    package = consumer_package(json.loads((frontend / "package.json").read_text()), tarballs)
     (frontend / "package.json").write_text(json.dumps(package, indent=2) + "\n")
     install = [
         "pnpm",
