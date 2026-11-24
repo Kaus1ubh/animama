@@ -200,7 +200,9 @@ Completion: the four checks pass on a committed tree, the review finds no
 open blocker, and the oracle test fails when `minimumSystemVersion` in
 `release-artifacts.mjs` is changed by hand (demonstrate once, then restore).
 
-Phase commit: `build(desktop)[p1]: accept Windows 10 and keep 0.1.6 updates`.
+Phase commit: `be41f4f9d`,
+`build(desktop)[p1]: accept Windows 10 and keep 0.1.6 updates`. Phase 2 builds
+from this commit.
 
 Check record (2026-11-24, macOS arm64 host, working directory
 `src/frontend`, uncommitted work; trees are working-tree hashes):
