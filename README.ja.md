@@ -14,6 +14,12 @@
   <a href="README.zh-Hans.md">简体中文</a>
 </p>
 
+<p align="center">
+  <b>お知らせ</b>
+  <br>
+  2026年11月18日 · Animama を正式リリースし、オープンソースとして公開しました
+</p>
+
 # Animama
 
 あなたの新しいデスクの相棒は Anima です。
@@ -160,7 +166,3 @@ ANIMAMA_WEB_BUILD_MODE=production ./reset.sh
 - [Mochiya Avatar Tools](https://github.com/mochiya-labs/unity-avatar-tools) と [three-liltoon](https://github.com/mochiya-labs/three-liltoon)（Mochiya Labs）: VRChat アバターの変換と lilToon マテリアル
 - [three.quarks](https://github.com/Alchemist0823/three.quarks): パーティクルエフェクト
 - [Lapwing](https://booth.pm/ja/items/4993931) ©kuji
-
-## スター履歴
-
-[![スター数の推移グラフ](https://api.star-history.com/svg?repos=raymond-van/animama&type=Date)](https://www.star-history.com/#raymond-van/animama&Date)

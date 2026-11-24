@@ -14,6 +14,12 @@
   <a href="README.zh-Hans.md">简体中文</a>
 </p>
 
+<p align="center">
+  <b>News</b>
+  <br>
+  November 18, 2026 · Animama has officially launched and is now open source
+</p>
+
 # Animama
 
 Your new desk buddy is an Anima.
@@ -206,7 +212,3 @@ your own TLS and authentication in front of it.
 - [three.quarks](https://github.com/Alchemist0823/three.quarks): particle
   effects
 - [Lapwing](https://booth.pm/ja/items/4993931) ©kuji
-
-## Star history
-
-[![Star history chart](https://api.star-history.com/svg?repos=raymond-van/animama&type=Date)](https://www.star-history.com/#raymond-van/animama&Date)
