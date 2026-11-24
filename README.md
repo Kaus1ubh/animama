@@ -196,8 +196,10 @@ your own TLS and authentication in front of it.
 
 ## Contributing
 
-Bug reports, feature ideas and pull requests are welcome. Read the
-[contributing guide](.github/CONTRIBUTING.md) before you open a pull request.
+Bug reports, feature ideas and pull requests are welcome. Found a bug? Use the
+[bug report form](https://github.com/raymond-van/animama/issues/new?template=bug.yml).
+Read the [contributing guide](.github/CONTRIBUTING.md) before you open a pull
+request.
 
 ## Acknowledgements
 
