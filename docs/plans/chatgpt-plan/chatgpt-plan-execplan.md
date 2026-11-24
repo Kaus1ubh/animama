@@ -4,9 +4,10 @@ Source agreement: [#919](https://github.com/raymond-van/animama/issues/919),
 published from the agreed [spec](chatgpt-plan-spec.md) at
 2026-11-24T18:25:43Z. The owner accepted the spec on 2026-11-24 including P1
 to P8, and it was revised the same day with this plan's D2, D5 and D6.
-Authorized scope: workspace setup and Phase 0. The owner approved this plan,
-including D1 to D14, on 2026-11-24 (G0) and authorized Phase 0 the same day.
-Phase 0's live trial needs G1. Later phases need the owner's go-ahead.
+Authorized scope: the whole plan. The owner approved it, including D1 to
+D14, on 2026-11-24 (G0), authorized Phase 0 the same day, and asked for the
+rest to be implemented after Phase 0 ("implement the execplan"). Gates G1 to
+G4 still apply where the phases name them.
 Planning baseline: `origin/main` at `1c7d7295e`, which the line numbers below
 refer to. Implementation base: `origin/main` at `c7b98f73a`; nothing the plan
 cites changed between the two.
@@ -185,7 +186,7 @@ differed, "Live trial" under Surprises & Discoveries says how.
 | Tools | Function and custom tools must be grouped in namespaces or supplied through `additional_tools` input items. Image generation, file search, Code Interpreter, computer use, hosted MCP and `tool_search` are unsupported. Web search depends on the model and account. |
 | Inputs | Text, images and files where the model accepts them. No audio or video input, Files upload or transcription. |
 | Errors | `subscription_sharing_usage_limit_exceeded` (429), `…_user_not_eligible` (403), `…_usage_unavailable` and `…_user_unavailable` (503), `…_unsupported_capability` (400), `…_route_not_supported` (403), `…_invalid_user` (401). Admission can fail before the stream with a bare `{"detail": …}` body. OpenAI never moves a request to another billing path. |
-| Plans | The developer documentation names Plus and Pro. The end-user page names Go, Plus, Pro and Business, where a Business admin must allow the app. Free is on neither list. Usage draws on the plan's existing allowance. |
+| Plans | The developer documentation names Plus and Pro. The end-user page names Go, Plus, Pro and Business, where a Business admin must allow the app. Free is on neither list. Usage draws on the plan's existing allowance. The Phase 0 trial confirmed sign-in and the route on a Go plan (the tier as the account holder stated it, 2026-11-24); Go's allowance was not reached. |
 | Limits | The Plus five-hour limit is shared across every app. A person can cap one app's weekly share in ChatGPT's settings. |
 | Interface | A one-time "You're using your ChatGPT plan" confirmation; **Continue with ChatGPT** to start; "Using ChatGPT plan" with **Manage usage** near the composer or model selector; **Manage usage** as the primary action at a limit. |
 | Terms | Effective 2026-11-04: requests originate from the person's own runtime; tokens are stored locally under their control; express consent before background use; the plan serves only the connected app; no charge to use it; OpenAI may suspend access. |
@@ -229,7 +230,7 @@ and the backend.
   reviewed, and the trial ran on a live account: 24 of the 25 requests G1
   allows, then a sign-out that OpenAI confirmed. Findings are under
   Surprises & Discoveries; the choices they settle are in the Decision Log.
-- [ ] Phase 1: sign-in core.
+- [x] Phase 1: sign-in core (2026-11-24). Code Review #3 passed.
 - [ ] Phase 2: routes and the sign-in return.
 - [ ] Phase 3: desktop custody.
 - [ ] Phase 4: settings and setup.
@@ -768,17 +769,158 @@ refreshes once under concurrent use and signs out, and every negative test in
 T2 to T6 that needs no HTTP route passes.
 
 Recovery: the record is one directory. Removing it signs the installation
-out, and nothing else refers to it.
+out at the next start (a running server keeps the record it read), and
+nothing else refers to it.
 
-Check record, results and commits: to be recorded.
+As built (2026-11-24, from `55e4a8c94`): `domain/chatgpt_plan.py` (record,
+status, purposes and error codes); `app/ports/chatgpt_plan_port.py` (the
+identity and store ports); `adapters/chatgpt_plan/openai_identity.py` and
+`session_store.py`; `app/services/chatgpt_plan_session.py`; and
+`tests/chatgpt_plan_fakes.py`, a fake of OpenAI's sign-in service that signs
+real ES256 ID tokens and plays the browser. Choices made while building:
+
+- The authorize URL sends `login_hint` for a returning account and no ID token
+  hint: the trial never tried an expired one, and a refusal would block
+  sign-in.
+- Only OpenAI's own OAuth refusal removes the tokens: a 400, 401 or 403 whose
+  JSON `error` is `invalid_grant`, `invalid_client` or `unauthorized_client`.
+  Anything else, including a proxy or bot-check page, keeps them (R2.3). On a
+  refresh the last two also drop the stored client id, so the next sign-in
+  registers again. A client id refused at authorization or at code exchange
+  is not dropped; G1 checks how OpenAI answers then.
+- After OpenAI could not be reached for a refresh, no other refresh is tried
+  for 30 seconds; inside the five-minute margin the still-valid token is used
+  meanwhile. A failed save never hands out a token.
+- Sign-out always removes the tokens and reports whether OpenAI confirmed the
+  revocation; an account whose tokens were already rejected has nothing to
+  revoke.
+- A sign-in by another account revokes the replaced session's refresh token
+  after the new record is saved. The same account's earlier grant is left to
+  expire, since revoking it might also end the new one; G1 can check that.
+- If saving a refreshed token set fails, its access token is not used and the
+  caller gets `temporarily_unavailable`; OpenAI has already rotated the
+  refresh token, so the next refresh asks for sign-in.
+- The usage-limit pause is kept in memory; a restart counts as a new try.
+- The identity client honours proxy settings, as the OpenAI SDK does; the
+  hosts stay fixed.
+- A storage error while reading or writing the session surfaces as
+  `temporarily_unavailable` and changes nothing; only a link, a non-file or
+  bytes that do not decode are discarded.
+- `cryptography` is declared beside `pyjwt[crypto]`, since the session store
+  imports it; the lock changed only its metadata. The `encrypt` extra stays so
+  existing commands resolve.
+- A restore also skips `./internal/chatgpt-plan` when it extracts, in
+  `scripts/local-stack-state-common.sh`, so an older archive cannot bring
+  tokens back.
+
+Check record, from the worktree root, on working tree
+`5d86e7d02243300cef41b924f62b4e097efd4390` (hashed while this line still held
+a placeholder):
+
+| Check | Result |
+| --- | --- |
+| `uv run pytest -q tests/test_chatgpt_plan_store.py tests/test_chatgpt_plan_identity.py tests/test_chatgpt_plan_session.py tests/test_local_state_scripts.py -p no:cacheprovider` | 78 passed |
+| `uv run ruff check` | All checks passed |
+| `uv run ruff format --check src/backend/animama tests` | 918 files already formatted |
+| `python3 scripts/heavy-slot.py -- uv run mypy src/backend/animama tests` | No issues in 918 files |
+| `uv lock --check` | Resolved, unchanged |
+| `bash -n scripts/backup-local.sh scripts/restore-local.sh scripts/local-stack-state-common.sh` | OK |
+| `uv run --no-sync python scripts/repository-boundary/check-python-imports.py` | 0 forbidden edges |
+| `python3 scripts/public-release/check_source.py` | Every tracked file covered once |
+| Extraction with `--exclude='./internal/chatgpt-plan'`, macOS bsdtar and Alpine GNU tar | The session directory is skipped |
+
+Not run: the full pre-push suite (G3).
 
 #### Code Review #1 Findings
 
-To be recorded.
+Independent review, high-risk tier, of working tree
+`7ff9a78a30f6a2794807ffd6e3c1ae758636c8a1` against `55e4a8c94`. The
+reviewer reran the record's checks and ran guard-removal experiments on a
+scratch copy. Result: blocked by F1 to F5. Layering, reuse of the file
+helpers, AES-GCM use, `repr` hygiene, host pinning, state handling and the
+backup and restore exclusions were found correct.
+
+| ID | Kind | Finding |
+| --- | --- | --- |
+| P1-R1-F1 | Required | The first read of the record could finish after a refresh had saved new tokens and overwrite them in memory, losing the rotated refresh token; on a fresh install it could change the host id between the authorize URL and the file. |
+| P1-R1-F2 | Required | Any error opening the file (too many open files, permission, I/O) deleted a valid session. |
+| P1-R1-F3 | Required | Rejection was decided by status code alone, so a proxy or bot-check 403, or a 404 during a deploy, ended a valid session. |
+| P1-R1-F4 | Required | A failed refresh was not shared: every waiting caller refreshed again, discarding a still-valid token and retrying a 429 at once. |
+| P1-R1-F5 | Required | No test covered write-before-use: setting the record before saving passed every test. |
+| P1-R1-F6 | Optional | `sign_in_pending` read false while a return was being completed. |
+| P1-R1-F7 | Optional | A same-account sign-in revoked the earlier grant, which might also end the new one. |
+| P1-R1-F8 | Optional | Nothing recovered from a client id OpenAI no longer accepts. |
+| P1-R1-F9 | Optional | A crash during a write could leave a temporary file with plaintext tokens that was never swept. |
+| P1-R1-F10 | Optional | Raw `OSError` escaped several service methods. |
+| P1-R1-F11 | Optional | Untested guards: an existing directory's mode, registration without a client id, revocation when the sign-in save fails, sign-out ending a pending attempt, a refreshed ID token for another subject, 408 as temporary. |
+| P1-R1-F12 | Optional | Proxy settings were ignored by the identity client. |
+| P1-R1-F13 | Optional | An unexpected purpose was treated as interactive. |
+| P1-R1-F14 | Optional | Recovery wording, and packaging of `jwt` and `cryptography` (G2). |
 
 #### Code Review #1 Revisions
 
-To be recorded.
+All accepted except F14's packaging note, which G2 covers as planned.
+
+| ID | Change |
+| --- | --- |
+| P1-R1-F1 | The first read assigns the record only if none was set while it waited. |
+| P1-R1-F2 | Only a link (`ELOOP`) is discarded at open; other errors propagate, the service reports `temporarily_unavailable`, and the next call reads again. |
+| P1-R1-F3 | Rejection needs a 400, 401 or 403 with an OAuth `error` of `invalid_grant`, `invalid_client` or `unauthorized_client`. |
+| P1-R1-F4 | A temporary failure sets a 30-second backoff checked before any refresh; a caller whose token is still valid gets it. |
+| P1-R1-F5 | A test shows the unsaved set is never handed out: the next call is refused with `sign_in_required`. |
+| P1-R1-F6 | The attempt is cleared in `finally`, so status stays pending until completion ends. |
+| P1-R1-F7 | Only another account's grant is revoked. |
+| P1-R1-F8 | `invalid_client` and `unauthorized_client` drop the stored client id. Narrowed in round 2. |
+| P1-R1-F9 | Every write sweeps `.session.*.tmp` files. Narrowed in round 2. |
+| P1-R1-F10 | Storage errors become `temporarily_unavailable`. |
+| P1-R1-F11 | Tests added for each. |
+| P1-R1-F12 | Proxy settings are honoured unless a test transport is injected. |
+| P1-R1-F13 | Any purpose other than `interactive` follows the background rule. |
+| P1-R1-F14 | The Recovery line says a running server keeps its record until restart. |
+
+Each new guard was removed in turn and a test failed, except a backoff check
+in the refresh-due test, which duplicated the one in the refresh itself and
+was removed. After the repairs: the four test files, 98 passed; `uv run ruff
+check`, passed; the format check, 918 files already formatted; mypy on the
+ten Phase 1 modules and tests, no issues.
+
+#### Code Review #2 Findings
+
+Targeted recheck of working tree `29fa8bedc4c309c442c31571cddeef3faea7464a`.
+F1 to F7 and F10 to F14 were resolved; two repairs regressed. Result:
+blocked.
+
+| ID | Kind | Finding |
+| --- | --- | --- |
+| P1-R2-F1 | Required | The sweep on read could remove the temporary file of a save running at the same time, so the save failed after OpenAI had rotated the refresh token. |
+| P1-R2-F2 | Required | Dropping the client id when a code exchange refused it left a signed-in account that could neither refresh nor be revoked. No test covered that path. |
+| P1-R2-F3 | Optional | The stale-token fallback could hand out a rejected session's token when saving its removal also failed. |
+| P1-R2-F4 | Optional | One assertion in the unsaved-token test could never fail. |
+| P1-R2-F5 | Optional | A client id refused at authorization or in the return is still kept: a G1 check. |
+
+#### Code Review #2 Revisions
+
+All accepted.
+
+| ID | Change |
+| --- | --- |
+| P1-R2-F1 | Only a save sweeps; the store test now expects a read to leave a leftover and the next save to remove it. |
+| P1-R2-F2 | The exchange path no longer drops the client id; only a refused refresh does, together with the tokens. |
+| P1-R2-F3 | The fallback applies only while the backoff set by an unreachable OpenAI is running, with a test. |
+| P1-R2-F4 | The assertion reads the session file's bytes. |
+| P1-R2-F5 | Recorded in the As-built notes as a G1 check. |
+
+Removing each round-2 guard fails a test. After the repairs: the four test
+files, 99 passed; `uv run ruff check`, passed; the format check, 918 files
+already formatted; mypy on the ten modules and tests, no issues.
+
+#### Code Review #3 Findings
+
+Final targeted recheck of working tree
+`314b2cdb72791a1c4acd4d7ef8c0dc4fcb1678fd`. The reviewer reran the tests,
+lint, mypy and the import-boundary check, replayed its race and failure
+experiments, and removed each round-2 guard. Result: pass, with no finding.
+The phase's review budget is spent.
 
 ### Phase 2: Routes and the sign-in return
 
