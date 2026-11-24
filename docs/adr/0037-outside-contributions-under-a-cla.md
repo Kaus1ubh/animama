@@ -3,7 +3,8 @@
 - Status: accepted (owner, 2026-11-24)
 - Recorded: 2026-11-24
 - Retrospective: no
-- Original decision date: 2026-11-24
+- Original decision date: 2026-11-24 (owner decision, tracked in
+  [#911](https://github.com/raymond-van/animama/issues/911))
 - Decision basis: Explicit owner decision
 
 ## Context

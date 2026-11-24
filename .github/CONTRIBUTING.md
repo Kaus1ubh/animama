@@ -36,8 +36,8 @@ Questions and conversation belong in the
 - Translation corrections from fluent speakers, in the app or the READMEs.
 - Fixes for VRM avatars that load or animate incorrectly. Say which avatar
   shows the problem and where it comes from.
-- Fixes for local model servers and OpenAI-compatible endpoints, which are
-  still experimental.
+- Fixes for local model servers (Ollama, LM Studio, llama.cpp and vLLM),
+  which are still experimental.
 - Corrections to the documentation in this repository.
 
 Two kinds of change are declined whatever their quality: anything that adds
