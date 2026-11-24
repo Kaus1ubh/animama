@@ -4257,6 +4257,18 @@ export type PyChatCreate = {
 };
 
 /**
+ * PyChatGPTPlanModels
+ *
+ * The plan's model rows after a refresh: their ids, active and listed by OpenAI for this account.
+ */
+export type PyChatGptPlanModels = {
+    /**
+     * Model Provider Ids
+     */
+    model_provider_ids: Array<string>;
+};
+
+/**
  * PyChatGPTPlanPreferences
  */
 export type PyChatGptPlanPreferences = {
@@ -12183,6 +12195,22 @@ export type GetChatgptPlanV1ChatgptPlanGetResponses = {
 };
 
 export type GetChatgptPlanV1ChatgptPlanGetResponse = GetChatgptPlanV1ChatgptPlanGetResponses[keyof GetChatgptPlanV1ChatgptPlanGetResponses];
+
+export type RefreshChatgptPlanModelsV1ChatgptPlanModelsRefreshPostData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/v1/chatgpt-plan/models:refresh';
+};
+
+export type RefreshChatgptPlanModelsV1ChatgptPlanModelsRefreshPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: PyChatGptPlanModels;
+};
+
+export type RefreshChatgptPlanModelsV1ChatgptPlanModelsRefreshPostResponse = RefreshChatgptPlanModelsV1ChatgptPlanModelsRefreshPostResponses[keyof RefreshChatgptPlanModelsV1ChatgptPlanModelsRefreshPostResponses];
 
 export type UpdateChatgptPlanPreferencesV1ChatgptPlanPreferencesPutData = {
     body: PyChatGptPlanPreferences;

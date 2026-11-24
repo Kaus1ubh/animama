@@ -2465,6 +2465,15 @@ export const zPyChatCreate = z.object({
 });
 
 /**
+ * PyChatGPTPlanModels
+ *
+ * The plan's model rows after a refresh: their ids, active and listed by OpenAI for this account.
+ */
+export const zPyChatGptPlanModels = z.object({
+    model_provider_ids: z.array(z.string())
+});
+
+/**
  * PyChatGPTPlanPreferences
  */
 export const zPyChatGptPlanPreferences = z.object({
@@ -7859,6 +7868,17 @@ export const zGetChatgptPlanV1ChatgptPlanGetData = z.object({
  * Successful Response
  */
 export const zGetChatgptPlanV1ChatgptPlanGetResponse = zPyChatGptPlanStatus;
+
+export const zRefreshChatgptPlanModelsV1ChatgptPlanModelsRefreshPostData = z.object({
+    body: z.optional(z.never()),
+    path: z.optional(z.never()),
+    query: z.optional(z.never())
+});
+
+/**
+ * Successful Response
+ */
+export const zRefreshChatgptPlanModelsV1ChatgptPlanModelsRefreshPostResponse = zPyChatGptPlanModels;
 
 export const zUpdateChatgptPlanPreferencesV1ChatgptPlanPreferencesPutData = z.object({
     body: zPyChatGptPlanPreferences,

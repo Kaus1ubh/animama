@@ -35,6 +35,15 @@
     },
     "loadFailed": "ChatGPT 플랜 상태를 불러오지 못했습니다.",
     "manageUsage": "사용량 관리",
+    "models": {
+      "description": "플랜에 포함된 모델은 OpenAI가 목록으로 제공합니다. 어떤 모델이든 숨길 수 있고, 플랜이 바뀌면 목록을 새로 고칠 수 있습니다.",
+      "none": "지금은 OpenAI가 이 플랜에 제공하는 모델이 없습니다.",
+      "refresh": "목록 새로 고침",
+      "refreshFailed": "모델 목록을 새로 고치지 못했습니다. 다시 시도하세요.",
+      "refreshed": "모델 목록을 업데이트했습니다.",
+      "refreshing": "새로 고치는 중…",
+      "title": "플랜의 모델"
+    },
     "notSignedIn": "로그인하지 않음",
     "openAgain": "로그인 페이지 다시 열기",
     "opensInBrowser": "(브라우저에서 열림)",
@@ -209,7 +218,8 @@
     },
     "saveFailed": "{{role}} 모델을 저장할 수 없습니다.",
     "unavailable": "선택한 모델을 사용할 수 없어 기본값을 사용합니다.",
-    "unavailableChoice": "{{model}} (사용할 수 없음)"
+    "unavailableChoice": "{{model}} (사용할 수 없음)",
+    "unavailableWaiting": "선택한 모델을 사용할 수 없어 다시 사용할 수 있을 때까지 기다립니다."
   },
   "embeddings": {
     "current": "저장된 파일과 아카이브가 이 모델로 임베딩되어 있습니다.",

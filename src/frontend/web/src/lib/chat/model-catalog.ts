@@ -92,6 +92,8 @@ export function modelDisplayName(
  */
 export const RESPONSES_PROVIDER_TYPE = "OpenAIResponsesHTTPAgent";
 export const CHAT_COMPLETIONS_PROVIDER_TYPE = "OpenAIHTTPAgent";
+/** Models the signed-in ChatGPT plan lists: OpenAI Responses through the plan (spec #919). */
+export const CHATGPT_PLAN_PROVIDER_TYPE = "ChatGPTPlanResponsesHTTPAgent";
 export type ModelProviderType =
   | typeof RESPONSES_PROVIDER_TYPE
   | typeof CHAT_COMPLETIONS_PROVIDER_TYPE

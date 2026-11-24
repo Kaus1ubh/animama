@@ -34,6 +34,7 @@ import {
   ANTHROPIC_DEFAULT_MODEL_ID,
   ANTHROPIC_MESSAGES_PROVIDER_TYPE,
   CHAT_COMPLETIONS_PROVIDER_TYPE,
+  CHATGPT_PLAN_PROVIDER_TYPE,
   RESPONSES_PROVIDER_TYPE,
   isChatModelRow,
   type ModelProviderType,
@@ -472,7 +473,11 @@ export function modelConfigurationErrorCode(error: unknown): string | null {
 export function modelApiLabel(
   model: Pick<PyConfiguredModel, "provider_type">,
 ): "Responses" | "Anthropic Messages" | "Chat Completions" {
-  if (model.provider_type === RESPONSES_PROVIDER_TYPE) return "Responses";
+  if (
+    model.provider_type === RESPONSES_PROVIDER_TYPE ||
+    model.provider_type === CHATGPT_PLAN_PROVIDER_TYPE
+  )
+    return "Responses";
   if (model.provider_type === ANTHROPIC_MESSAGES_PROVIDER_TYPE)
     return "Anthropic Messages";
   return "Chat Completions";
@@ -481,6 +486,7 @@ export function modelApiLabel(
 /** APIs whose own web search a chat request may ask for, as on the backend. */
 const HOSTED_SEARCH_PROVIDER_TYPES = new Set([
   RESPONSES_PROVIDER_TYPE,
+  CHATGPT_PLAN_PROVIDER_TYPE,
   ANTHROPIC_MESSAGES_PROVIDER_TYPE,
 ]);
 

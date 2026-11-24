@@ -359,6 +359,7 @@ ROUTES: tuple[RouteSpec, ...] = (
     _excluded("chatgpt_plan", "DELETE", "/v1/chatgpt-plan/sign-in", "cancel_chatgpt_plan_sign_in", "write"),
     _excluded("chatgpt_plan", "POST", "/v1/chatgpt-plan:sign-out", "sign_out_of_chatgpt_plan", "write"),
     _excluded("chatgpt_plan", "PUT", "/v1/chatgpt-plan/preferences", "update_chatgpt_plan_preferences", "write"),
+    _excluded("chatgpt_plan", "POST", "/v1/chatgpt-plan/models:refresh", "refresh_chatgpt_plan_models", "write"),
     _local("GET", "/auth/callback", "complete_chatgpt_plan_sign_in", "write"),
     # Web search settings
     _excluded("web_search.configuration", "GET", "/v1/web-search/settings", "get_web_search_settings", "read"),

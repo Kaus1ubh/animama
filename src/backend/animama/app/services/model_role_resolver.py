@@ -10,8 +10,11 @@ the environment:
 - **embeddings** — uploaded-file and archive search; off until chosen.
 
 An assignment that names a removed, hidden-kind or incapable row falls back to
-the default instead of failing the job. When the composition disables owner
-model configuration (hosted), only operator defaults apply.
+the default instead of failing the job. A ChatGPT plan model is the exception:
+while it is unavailable (signed out, or no longer listed for the account) the
+role waits, because falling back would move the job to another connection or
+key (spec #919 R5.2). When the composition disables owner model configuration
+(hosted), only operator defaults apply.
 """
 
 from __future__ import annotations
@@ -22,7 +25,12 @@ from typing import Any
 
 from animama.app.ports import ModelProviderRepository, UserSettingsRepository
 from animama.domain import ModelProvider
-from animama.domain.model_connection import MODEL_KIND_CHAT, MODEL_KIND_EMBEDDING, MODEL_SOURCE_OWNER
+from animama.domain.model_connection import (
+    BUILTIN_CHATGPT_PLAN_CONNECTION_ID,
+    MODEL_KIND_CHAT,
+    MODEL_KIND_EMBEDDING,
+    MODEL_SOURCE_OWNER,
+)
 from animama.logging import get_logger
 
 ROLE_CHAT = "chat"
@@ -101,10 +109,19 @@ class ModelRoleResolver:
         preferences = await self._preferences(owner_id)
         requested = role_preference(preferences, *ROLE_PREFERENCE_PATHS[role]) if self._owner_roles_enabled else None
         if requested is not None:
-            row = await self._usable_row(role, requested)
-            if row is not None:
+            row = await self._model_providers.get(requested)
+            if row is not None and usable_for_role(role, row):
                 return ResolvedModelRole(
                     role=role, model_provider=row, source=ROLE_SOURCE_OWNER, requested_id=requested
+                )
+            if row is not None and row.connection_id == BUILTIN_CHATGPT_PLAN_CONNECTION_ID:
+                self._log.info("ChatGPT plan model for the role is unavailable; the role waits", role=role)
+                return ResolvedModelRole(
+                    role=role,
+                    model_provider=None,
+                    source=ROLE_SOURCE_OFF,
+                    requested_id=requested,
+                    assignment_available=False,
                 )
             self._log.warning("Model role assignment unavailable; using the default", role=role)
         fallback = await self._default(owner_id, role)

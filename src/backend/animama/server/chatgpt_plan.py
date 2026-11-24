@@ -12,19 +12,21 @@ data root, and closed with the application.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
 import re
 from pathlib import Path
-from typing import cast
+from typing import Literal, cast
 
 from fastapi import FastAPI
 
 from animama.adapters.chatgpt_plan.openai_identity import OpenAIChatGPTPlanIdentity
+from animama.adapters.chatgpt_plan.openai_models import OpenAIChatGPTPlanModels
 from animama.adapters.chatgpt_plan.session_store import FileChatGPTPlanSessionStore
 from animama.app.ports.chatgpt_plan_port import ChatGPTPlanSessionStorePort
 from animama.app.services.chatgpt_plan_session import ChatGPTPlanSessionService
-from animama.domain.chatgpt_plan import ChatGPTPlanRecord
+from animama.domain.chatgpt_plan import ChatGPTPlanRecord, ChatGPTPlanUnavailableError
 from animama.local.http.config import LocalHTTPConfig
 from animama.server.schemas.chatgpt_plan import ChatGPTPlanUnavailableReason
 
@@ -122,9 +124,48 @@ def chatgpt_plan_session_for(app: FastAPI) -> ChatGPTPlanSessionService:
     return cast(ChatGPTPlanSessionService, service)
 
 
+def chatgpt_plan_models_for(app: FastAPI) -> OpenAIChatGPTPlanModels:
+    """Return the client that lists the account's models, creating it on first use."""
+
+    models = getattr(app.state, "chatgpt_plan_models", None)
+    if models is None:
+        models = OpenAIChatGPTPlanModels()
+        app.state.chatgpt_plan_models = models
+    return cast(OpenAIChatGPTPlanModels, models)
+
+
+def chatgpt_plan_models_lock(app: FastAPI) -> asyncio.Lock:
+    """The lock every refresh and withdrawal of the plan's model rows takes, one per app."""
+
+    lock = getattr(app.state, "chatgpt_plan_models_lock", None)
+    if lock is None:
+        lock = asyncio.Lock()
+        app.state.chatgpt_plan_models_lock = lock
+    return cast(asyncio.Lock, lock)
+
+
+async def chatgpt_plan_credential_state(app: FastAPI) -> Literal["configured", "missing"]:
+    """The plan connection's state for the model connection list: ``configured`` while the plan is usable."""
+
+    paths = getattr(app.state, "local_runtime_paths", None)
+    if getattr(paths, "data_internal_root", None) is None:
+        # Before startup resolved the private data root there is no session to read.
+        return "missing"
+    try:
+        status = await chatgpt_plan_session_for(app).status()
+    except ChatGPTPlanUnavailableError:
+        # An unreadable session file is reported on the plan's own card; the list still loads.
+        return "missing"
+    return "configured" if status.state == "signed_in" and status.plan_use_granted else "missing"
+
+
 async def close_chatgpt_plan_session(app: FastAPI) -> None:
     identity = getattr(app.state, "chatgpt_plan_identity", None)
     if identity is not None:
         await identity.aclose()
         app.state.chatgpt_plan_identity = None
         app.state.chatgpt_plan_session = None
+    models = getattr(app.state, "chatgpt_plan_models", None)
+    if models is not None:
+        await models.aclose()
+        app.state.chatgpt_plan_models = None

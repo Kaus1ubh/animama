@@ -35,6 +35,15 @@
     },
     "loadFailed": "ChatGPT プランの状態を読み込めませんでした。",
     "manageUsage": "利用量を管理",
+    "models": {
+      "description": "プランに含まれるモデルは OpenAI が一覧にします。どのモデルも非表示にでき、プランが変わったら一覧を更新できます。",
+      "none": "現在、このプランで OpenAI が一覧にしているモデルはありません。",
+      "refresh": "一覧を更新",
+      "refreshFailed": "モデルの一覧を更新できませんでした。もう一度お試しください。",
+      "refreshed": "モデルの一覧を更新しました。",
+      "refreshing": "更新しています…",
+      "title": "プランのモデル"
+    },
     "notSignedIn": "サインインしていません",
     "openAgain": "サインインページをもう一度開く",
     "opensInBrowser": "（ブラウザーで開きます）",
@@ -209,7 +218,8 @@
     },
     "saveFailed": "{{role}}モデルを保存できませんでした。",
     "unavailable": "選択したモデルを利用できないため、デフォルトが使われています。",
-    "unavailableChoice": "{{model}}（利用不可）"
+    "unavailableChoice": "{{model}}（利用不可）",
+    "unavailableWaiting": "選択したモデルを利用できないため、再び利用できるようになるまで待機します。"
   },
   "embeddings": {
     "current": "保存済みのファイルとアーカイブはこのモデルで埋め込まれています。",

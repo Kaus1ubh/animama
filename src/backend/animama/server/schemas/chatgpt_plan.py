@@ -46,6 +46,12 @@ class PyChatGPTPlanSignOut(BaseModel):
     confirmed: bool
 
 
+class PyChatGPTPlanModels(BaseModel):
+    """The plan's model rows after a refresh: their ids, active and listed by OpenAI for this account."""
+
+    model_provider_ids: list[str]
+
+
 class PyChatGPTPlanPreferences(BaseModel):
     model_config = ConfigDict(extra="forbid")
 

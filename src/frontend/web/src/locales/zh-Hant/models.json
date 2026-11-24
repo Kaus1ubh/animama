@@ -35,6 +35,15 @@
     },
     "loadFailed": "無法載入 ChatGPT 方案狀態。",
     "manageUsage": "管理用量",
+    "models": {
+      "description": "你的方案包含哪些模型由 OpenAI 列出。你可以隱藏其中任何一個，方案變更後可以重新整理列表。",
+      "none": "OpenAI 目前沒有為此方案列出任何模型。",
+      "refresh": "重新整理列表",
+      "refreshFailed": "無法重新整理模型列表。請再試一次。",
+      "refreshed": "模型列表已更新。",
+      "refreshing": "正在重新整理…",
+      "title": "方案中的模型"
+    },
     "notSignedIn": "未登入",
     "openAgain": "再次開啟登入頁面",
     "opensInBrowser": "（在瀏覽器中開啟）",
@@ -209,7 +218,8 @@
     },
     "saveFailed": "無法儲存{{role}}模型。",
     "unavailable": "所選模型無法使用，因此使用預設模型。",
-    "unavailableChoice": "{{model}}（無法使用）"
+    "unavailableChoice": "{{model}}（無法使用）",
+    "unavailableWaiting": "所選模型無法使用，因此會等到它再次可用。"
   },
   "embeddings": {
     "current": "已儲存的檔案和封存已使用此模型嵌入。",

@@ -12,26 +12,34 @@ Hosted never mounts these routes and reports ``chatgpt_plan = false``.
 
 from __future__ import annotations
 
-from collections.abc import Iterator
+import logging
+from collections.abc import Awaitable, Callable, Iterator
 from contextlib import contextmanager
 from dataclasses import asdict
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from fastapi.responses import HTMLResponse
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from animama.adapters.repositories.sqlalchemy.model_provider_repo import SQLAlchemyModelProviderRepository
+from animama.adapters.repositories.sqlalchemy.uow import SQLAlchemyUnitOfWork
+from animama.app.services.chatgpt_plan_models import ChatGPTPlanModelCatalog
 from animama.app.services.chatgpt_plan_session import ChatGPTPlanSessionService
 from animama.domain.chatgpt_plan import ChatGPTPlanSignInError, ChatGPTPlanStatus, ChatGPTPlanUnavailableError
 from animama.domain.request_principal import RequestPrincipal
 from animama.server.chatgpt_plan import (
     CALLBACK_PATH,
+    chatgpt_plan_models_for,
+    chatgpt_plan_models_lock,
     chatgpt_plan_return_uri,
     chatgpt_plan_session_for,
     chatgpt_plan_unavailable_reason,
 )
 from animama.server.chatgpt_plan_return_page import ReturnOutcome, return_page
-from animama.server.deps import get_current_principal
+from animama.server.deps import get_async_session, get_async_session_factory, get_current_principal
 from animama.server.schemas.chatgpt_plan import (
+    PyChatGPTPlanModels,
     PyChatGPTPlanPreferences,
     PyChatGPTPlanSignIn,
     PyChatGPTPlanSignInRequest,
@@ -39,6 +47,7 @@ from animama.server.schemas.chatgpt_plan import (
     PyChatGPTPlanStatus,
 )
 
+logger = logging.getLogger(__name__)
 router = APIRouter(tags=["chatgpt-plan"])
 
 # The only return fields the sign-in reads; anything else in the query is ignored.
@@ -52,6 +61,44 @@ _OUTCOMES: dict[str, ReturnOutcome] = {
 
 def _session(request: Request) -> ChatGPTPlanSessionService:
     return chatgpt_plan_session_for(request.app)
+
+
+def _model_catalog(request: Request, session: AsyncSession) -> ChatGPTPlanModelCatalog:
+    return ChatGPTPlanModelCatalog(
+        session=_session(request),
+        models=chatgpt_plan_models_for(request.app),
+        model_providers=SQLAlchemyModelProviderRepository(session),
+        uow=SQLAlchemyUnitOfWork(session),
+        lock=chatgpt_plan_models_lock(request.app),
+    )
+
+
+def get_chatgpt_plan_model_catalog(
+    request: Request, session: Annotated[AsyncSession, Depends(get_async_session)]
+) -> ChatGPTPlanModelCatalog:
+    """The plan's model rows for this request's session."""
+
+    return _model_catalog(request, session)
+
+
+ModelRefresh = Callable[[], Awaitable[None]]
+
+
+def get_chatgpt_plan_model_refresh(request: Request) -> ModelRefresh:
+    """The refresh the sign-in return runs, on its own session: the return has no request session."""
+
+    async def refresh() -> None:
+        try:
+            async with get_async_session_factory(request.app)() as session:
+                await _model_catalog(request, session).refresh()
+        except ChatGPTPlanUnavailableError as error:
+            # Plan use off, or OpenAI unreachable for the moment: nothing to list now.
+            logger.info("ChatGPT plan models were not listed after sign-in (%s)", error.code)
+        except Exception:
+            # The sign-in itself succeeded; settings can refresh the list later.
+            logger.warning("ChatGPT plan models could not be stored after sign-in", exc_info=True)
+
+    return refresh
 
 
 def _view(request: Request, current: ChatGPTPlanStatus) -> PyChatGPTPlanStatus:
@@ -118,12 +165,15 @@ async def cancel_chatgpt_plan_sign_in(
 
 @router.post("/v1/chatgpt-plan:sign-out", response_model=PyChatGPTPlanSignOut)
 async def sign_out_of_chatgpt_plan(
-    request: Request, principal: Annotated[RequestPrincipal, Depends(get_current_principal)]
+    request: Request,
+    principal: Annotated[RequestPrincipal, Depends(get_current_principal)],
+    catalog: Annotated[ChatGPTPlanModelCatalog, Depends(get_chatgpt_plan_model_catalog)],
 ) -> PyChatGPTPlanSignOut:
-    """End the session at OpenAI and remove the tokens; say whether OpenAI confirmed it."""
+    """End the session at OpenAI, remove the tokens and retire the plan's models; say whether OpenAI confirmed it."""
 
     with _session_errors():
         result = await _session(request).sign_out()
+    await catalog.withdraw()
     return PyChatGPTPlanSignOut(was_signed_in=result.was_signed_in, confirmed=result.confirmed)
 
 
@@ -142,8 +192,23 @@ async def update_chatgpt_plan_preferences(
     return _view(request, current)
 
 
+@router.post("/v1/chatgpt-plan/models:refresh", response_model=PyChatGPTPlanModels)
+async def refresh_chatgpt_plan_models(
+    request: Request,
+    principal: Annotated[RequestPrincipal, Depends(get_current_principal)],
+    catalog: Annotated[ChatGPTPlanModelCatalog, Depends(get_chatgpt_plan_model_catalog)],
+) -> PyChatGPTPlanModels:
+    """List the signed-in account's models again and store them (R3.1, "on request")."""
+
+    with _session_errors():
+        rows = await catalog.refresh()
+    return PyChatGPTPlanModels(model_provider_ids=[row.id for row in rows])
+
+
 @router.get(CALLBACK_PATH, include_in_schema=False, response_class=HTMLResponse)
-async def complete_chatgpt_plan_sign_in(request: Request) -> HTMLResponse:
+async def complete_chatgpt_plan_sign_in(
+    request: Request, refresh_models: Annotated[ModelRefresh, Depends(get_chatgpt_plan_model_refresh)]
+) -> HTMLResponse:
     """Finish the pending sign-in from OpenAI's return and show a fixed page.
 
     The handler reads only the known fields, refuses a repeated one, and
@@ -155,7 +220,8 @@ async def complete_chatgpt_plan_sign_in(request: Request) -> HTMLResponse:
     if all(len(request.query_params.getlist(name)) <= 1 for name in _RETURN_FIELDS):
         params = {name: request.query_params[name] for name in _RETURN_FIELDS if name in request.query_params}
         try:
-            await chatgpt_plan_session_for(request.app).complete(params)
+            # The account's models are stored before the sign-in reads as finished.
+            await chatgpt_plan_session_for(request.app).complete(params, after_sign_in=refresh_models)
             outcome = "signed_in"
         except ChatGPTPlanSignInError as error:
             outcome = _OUTCOMES.get(error.code, "failed")

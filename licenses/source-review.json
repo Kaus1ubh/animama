@@ -14648,6 +14648,13 @@
       "review": "prepared-not-release-approved"
     },
     {
+      "path": "src/backend/animama/adapters/chatgpt_plan/openai_models.py",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
       "path": "src/backend/animama/adapters/chatgpt_plan/session_store.py",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
@@ -15047,6 +15054,13 @@
       "review": "prepared-not-release-approved"
     },
     {
+      "path": "src/backend/animama/adapters/model_clients/openai_responses/chatgpt_plan_client.py",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
       "path": "src/backend/animama/adapters/model_clients/openai_responses/client.py",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
@@ -15068,7 +15082,21 @@
       "review": "prepared-not-release-approved"
     },
     {
+      "path": "src/backend/animama/adapters/model_clients/openai_responses/reasoning.py",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
       "path": "src/backend/animama/adapters/model_clients/openai_responses/request.py",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/backend/animama/adapters/model_clients/openai_responses/routes.py",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
       "copyright": "2026 Raymond Van",
@@ -16611,6 +16639,13 @@
     },
     {
       "path": "src/backend/animama/app/services/chat_title_generation_service.py",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/backend/animama/app/services/chatgpt_plan_models.py",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
       "copyright": "2026 Raymond Van",
@@ -25367,6 +25402,20 @@
     },
     {
       "path": "src/frontend/web/src/app/local-runtime/setup/setup-state.ts",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/app/local-runtime/setup/useChooseWhenReady.test.tsx",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/app/local-runtime/setup/useChooseWhenReady.ts",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
       "copyright": "2026 Raymond Van",
@@ -40988,6 +41037,13 @@
       "review": "prepared-not-release-approved"
     },
     {
+      "path": "src/frontend/web/src/ui/settings/models/ModelDefaultsSettings.test.ts",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
       "path": "src/frontend/web/src/ui/settings/models/ModelDefaultsSettings.tsx",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
@@ -43098,7 +43154,21 @@
       "review": "prepared-not-release-approved"
     },
     {
+      "path": "tests/test_chatgpt_plan_client.py",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
       "path": "tests/test_chatgpt_plan_identity.py",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "tests/test_chatgpt_plan_models.py",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
       "copyright": "2026 Raymond Van",

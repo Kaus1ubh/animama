@@ -767,6 +767,10 @@ describe("model row chips", () => {
     expect(
       modelApiLabel(model({ provider_type: "OpenAIResponsesHTTPAgent" })),
     ).toBe("Responses");
+    // A ChatGPT plan model uses Responses through the plan.
+    expect(
+      modelApiLabel(model({ provider_type: "ChatGPTPlanResponsesHTTPAgent" })),
+    ).toBe("Responses");
     expect(
       modelApiLabel(model({ provider_type: "AnthropicMessagesHTTPAgent" })),
     ).toBe("Anthropic Messages");

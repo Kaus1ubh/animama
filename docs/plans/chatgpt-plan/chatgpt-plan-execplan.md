@@ -238,7 +238,8 @@ and the backend.
 - [x] Phase 3: desktop custody (2026-11-24). Code Review #2 passed.
 - [x] Phase 4: settings and setup (2026-11-24). Code Review #2 passed; the
   manual check waits for G1 and G2.
-- [ ] Phase 5: the plan connection and its model client.
+- [x] Phase 5: the plan connection and its model client (2026-11-24). Code
+  Review #2 passed; the manual check waits for G1.
 - [ ] Phase 6: chat on plan models.
 - [ ] Phase 7: roles, agreement and limits.
 - [ ] Phase 8: documentation and records.
@@ -287,6 +288,21 @@ and the backend.
   location through its discovery document. The probe reads both from there
   and holds them to OpenAI's sign-in host; Phase 1 should do the same, before
   any code is exchanged.
+- 2026-11-24 (Phase 5): the SDK reads `OPENAI_ORG_ID`, `OPENAI_PROJECT_ID`
+  and `OPENAI_CUSTOM_HEADERS` again for every per-request copy, so replacing
+  a copy's default headers does not keep them off. The plan client's HTTP
+  client strips them on the way out (a request hook with a header
+  allowlist), and an explicit `Authorization` keeps the SDK from taking one
+  from `OPENAI_CUSTOM_HEADERS`.
+- 2026-11-24 (Phase 5): the evaluation tools (benchmark and gesture
+  selection) read every active chat row, and build their registry without
+  the app's session. They now leave plan rows out.
+- 2026-11-24 (Phase 5): an existing test-order leak, unchanged by this plan:
+  `test_seed_rerun_keeps_owner_rows_and_hidden_flags_and_retires_missing_builtins`
+  leaves the seeded rows active, so
+  `test_the_run_composition_reads_the_catalog_and_runs_chats_mock_client`
+  fails when it runs later on the same xdist worker. The pair fails alone in
+  that order. Recorded for the G3 run rather than fixed here.
 
 ### Live trial, 2026-11-24
 
@@ -459,6 +475,44 @@ What this changes:
     `supports_search_tool` (as its hosted-search support) and the
     `supported_reasoning_levels` the app already knows. Nothing else from
     the list is stored or logged.
+- 2026-11-24, agent, while building Phase 5. Implementation choices inside the
+  agreed behavior.
+  - **The session is checked where the token is taken.** A plan request asks
+    the session for a token before anything is sent, and fails with
+    `chatgpt_plan_sign_in_required` or `chatgpt_plan_use_not_granted` when it
+    cannot have one. Turn setup checks only that a plan row is on the plan
+    connection. A check at setup could pass and then the session end before
+    the request.
+  - **Model-client requests are the person's own.** Chat turns, their
+    compaction and their titles are the only model-client callers, so the
+    plan client asks for `interactive` tokens. The `background` purpose is
+    for the Memory Manager's plan mode (Phase 7).
+  - **Error categories.** A limit, an ineligible account and a required
+    sign-in get new categories (`usage_limit`, `not_eligible`,
+    `sign_in_required`); a temporary outage is `server_error` and an
+    unsupported request `bad_request`. A refused prompt that names
+    `context_length_exceeded` keeps its code, so the executor still fits
+    the context. Their notices come with Phase 6.
+  - **Reasoning replay is carried in the round's continuation**, keyed by the
+    call each reasoning item came before, as Anthropic carries its rounds.
+    The route profile's switch stays off.
+  - **Plan rows stay out of the evaluation tools**, which run outside the app
+    and have no session; the plan serves Animama's own features.
+  - **Setup chooses a plan model** when the plan becomes usable there, as
+    saving a key does: the model the system uses by default if the plan
+    lists it, else the plan's first.
+  - **A role assigned to an unavailable plan model waits** (from review
+    P5-R1-F4). Signing out, or OpenAI no longer listing the model, retires
+    its row; a role that names it, or inherits it from the chat role,
+    resolves to no model instead of the operator default, so its job does
+    not move to another connection (R5.2, D6). Other unavailable
+    assignments still fall back as before.
+  - **Bounded backoff** (from review P5-R1-F3). A temporary plan failure is
+    retried twice, after 1 and 2 seconds, or after OpenAI's `Retry-After`
+    when it asks for at most 10 seconds; a longer wait is reported with the
+    failure.
+  - **A sign-in reads as pending until its models are stored** (from review
+    P5-R1-F1), so the page that sees it finish finds them.
 
 ## Phased implementation
 
@@ -1438,15 +1492,143 @@ the point the content generation plan needs (D12).
 Recovery: plan rows are derived data. Signing out deactivates them, and a
 later sign-in restores them. The seed change is repeatable.
 
-Check record, results and commits: to be recorded.
+As built (2026-11-24, from `0ca53db71`):
+
+- Connection and seed: `chatgpt_plan` joins the built-in connections with a
+  preset the owner cannot select and no credential variable, the provider
+  type `ChatGPTPlanResponsesHTTPAgent` maps to the Responses standard, and
+  the seed's retirement statement skips the plan connection. The model
+  connection list reports the connection's state from the session.
+- Model sync: `ChatGPTPlanModelCatalog` lists the account's models
+  (`OpenAIChatGPTPlanModels`, keeping only the Decision Log's fields),
+  upserts `list` items as read-only rows that keep their hidden flag,
+  retires the rest, renews a refused token once, and retires every row at
+  sign-out. The sign-in return and `POST /v1/chatgpt-plan/models:refresh`
+  run it. Owner model routes (add, list available, probe) refuse the plan
+  connection; a plan row accepts only **Show in model lists**.
+- Requests: a `ResponsesRoute` profile says what an endpoint accepts. The
+  plan's route turns off the stored cursor, inline moderation, output
+  limits, `context_management` and `apply_patch`; sends later system text
+  as developer items; wraps function tools in the `animama` namespace and
+  names it on replayed calls; and offers hosted search only where the row
+  supports it. `ChatGPTPlanResponsesModelClient` reuses the Responses
+  client through four hooks (credential, renewal, error wording, success)
+  with one key-free SDK client at `https://api.openai.com/v1`, no SDK
+  retries, no redirects and only allowlisted headers. Final items come from
+  the done events when the terminal event lists none. Reasoning replay is
+  built behind the profile's switch, which is off.
+- Errors: plan codes and bare `detail` bodies become
+  `chatgpt_plan_usage_limit` (which sets the pause), `_not_eligible`,
+  `_unavailable` (retried with bounded backoff), `_unsupported_request`
+  (with the route's detail) and `_sign_in_required` (after one renewal and
+  retry). Provider messages lose JWTs and the request's own token.
+- Registry: the local composition registers the plan client with its
+  session; hosted registers none, and `ANIMAMA_LLM_SKIP` maps the type to
+  the mock. A Utility prompt completes on a plan row.
+- Settings and setup: the plan tab lists the plan's models under the
+  account card with the hidden-models toggle and **Refresh list** (no
+  adding or removing); the catalog is read again when the plan becomes
+  usable; setup chooses a plan model then. The client is regenerated for
+  the refresh route.
+
+Check record, from the worktree root unless noted, on working tree
+`a15249d784473c6d8bdda19dc783aef169c92799` (hashed while this line still held a placeholder):
+
+| Check | Result |
+| --- | --- |
+| `uv run pytest -q tests/test_chatgpt_plan_client.py` | 23 passed (the acceptance test of the plan request, errors, renewal, redirects, headers, reasoning switch both ways, Utility path, registry) |
+| Mutation checks on the plan client: header hook removed, explicit `Authorization` removed, redirects on, SDK retries on | Each fails a test |
+| `python3 scripts/heavy-slot.py -- uv run pytest -q -n 2` on the 76 test files that import the changed modules (model clients, errors, categories, plan code, `api_standard`, provider state, native tools, prompt runner, model configuration, evaluation tools) | 2005 passed, 1 failed: the existing order leak under Surprises & Discoveries |
+| `uv run ruff check`, `uv run ruff format --check` | Passed; 1050 files formatted |
+| `python3 scripts/heavy-slot.py -- uv run mypy src/backend/animama tests scripts/evals/core/catalog.py` | No issues in 931 files |
+| From `src/frontend`: `pnpm openapi-ts:check` | Generated SDK current |
+| From `src/frontend`: `python3 ../../scripts/heavy-slot.py -- pnpm check` | Exit 0; catalogs complete |
+| From `src/frontend`: `pnpm web:lint` | Passed |
+| From `src/frontend/web`: vitest on `src/ui/settings`, `src/lib/chat`, `src/query`, `src/app/local-runtime`, `src/routes/-setup.test.ts` | Passed (502 and 264 tests) |
+| Mutation checks on the plan tab's list and the sign-in refetch | Each fails its test |
+| Prettier `--check` on the changed web and locale files | Formatted |
+| `python3 scripts/public-release/check_source.py` | Every tracked file covered once |
+
+Not run: the full pre-push suite (G3), the package-set `compare` (on the
+final candidate), browser tests. Manual check (G1): pending the owner's
+sign-in, with the probe's `reasoning_replay` trial.
 
 #### Code Review #1 Findings
 
-To be recorded.
+Independent review, high-risk tier, of working tree
+`83ec15724762b7b4bb89742d42a809e52ec4efd7` against `0ca53db71` (the check
+record's tree plus its own hash line). A separate checks agent reran every
+affected check on that tree: all passed except the known order leak, which
+involves no plan rows. Result: blocked by F1 to F4. The request shape,
+credential handling, renewal under concurrency, the API-key path through the
+refactor, the seed, the hosted policy and the reasoning switch were found
+sound.
+
+| ID | Kind | Finding |
+| --- | --- | --- |
+| P5-R1-F1 | Required | The return cleared the pending attempt before storing the models, so a status poll in between refetched the catalog too early; polling then stopped, and the plan tab showed no models until **Refresh list**. |
+| P5-R1-F2 | Required | Setup's choice raced its two queries: when the connection list arrived before the catalog, the plan became ready with no model and nothing was chosen afterwards. |
+| P5-R1-F3 | Required | R5.3: a temporary failure was retried once at once, or not at all when `Retry-After` exceeded 2 seconds; with SDK retries off the plan had no backoff. |
+| P5-R1-F4 | Required | R5.2: a role assigned to a retired plan row (signed out, or no longer listed) fell back to the operator default, moving titles and compaction to the OpenAI key. |
+| P5-R1-F5 | Optional | Refresh and withdrawal were not serialized: a sign-out during a refresh could leave rows active, and two first refreshes could insert the same rows. |
+| P5-R1-F6 | Optional | The refresh route words most listing failures as temporarily unavailable, the toast is generic, and the route's and the client's codes for plan use that is off differ. |
+| P5-R1-F7 | Optional | An unreadable session made the whole model connection list fail. |
+| P5-R1-F8 | Optional | `ResponsesRoute.connection_id` was unused, and two constants held the plan's API address. |
+| P5-R1-F9 | Optional | The hosted-search test bypassed the real gate, and no client failure path was checked for tokens in logs. |
 
 #### Code Review #1 Revisions
 
-To be recorded.
+| ID | Disposition |
+| --- | --- |
+| P5-R1-F1 | Accepted: `complete()` takes an `after_sign_in` step that runs after the account is saved and outside the session lock; the sign-in reads as pending until it finishes, and the return passes the model refresh. The hook treats a pending sign-in as not yet usable. Tests: the session reports pending during the step and finished after it, also when it fails; a refused return runs none; the card test refetches only after pending clears (and fails without the change). |
+| P5-R1-F2 | Accepted: `useChooseWhenReady` remembers a provider that became ready and chooses its model as soon as one is known, once. Tests cover the late model, a provider ready before setup acted and one that stopped being ready. |
+| P5-R1-F3 | Accepted: the client's retry decision is a hook; the plan retries a temporary failure twice after 1 and 2 seconds, or after a `Retry-After` of at most 10 seconds, and reports a longer wait. Tests record the waits. The API-key path keeps its behaviour. |
+| P5-R1-F4 | Accepted: an unusable assignment on the plan connection resolves to no model with the choice reported unavailable, for each role and for roles inheriting the chat role. Settings word it as waiting rather than "the default is used". Recorded in the Decision Log. |
+| P5-R1-F5 | Accepted: one app-wide lock serializes refresh and withdrawal. A test with two database sessions shows a withdrawal during a gated refresh leaves no plan row active, and fails without the shared lock. |
+| P5-R1-F6 | Partly accepted: a refresh rereads the plan status, so a session OpenAI ended shows on the card (the catalog key already covered the status key; the explicit status invalidation only states it). The listing's answers for an ineligible account are undocumented and unobserved, so they keep the generic code. The route reports the session's own state (`chatgpt_plan_plan_use_not_granted`) for settings, while the client reports what a chat needs (`chatgpt_plan_use_not_granted`); the two vocabularies stay apart. |
+| P5-R1-F7 | Accepted: the connection list reads an unreadable session as `missing`; a test covers it. |
+| P5-R1-F8 | Accepted: the field is removed and the plan client uses the sign-in adapter's `API_BASE`. |
+| P5-R1-F9 | Accepted: the hosted-search test runs the turn's real gate for a row with and without search, and a test drives the renewal, detail, outage and limit failures and finds neither token in the logs or the error. |
+
+Repair check record, on working tree `75bf1287b6a8a6206a7b0da34042954fd8cca48e` (hashed while
+this line still held a placeholder):
+
+| Check | Result |
+| --- | --- |
+| `python3 scripts/heavy-slot.py -- uv run pytest -q -n 2` on the 82 test files importing the changed modules (now including model roles) | 2139 passed |
+| Mutation checks: no shared lock; the hook ignoring a pending sign-in | Each fails its test |
+| `uv run ruff check`, `uv run ruff format --check`; `python3 scripts/heavy-slot.py -- uv run mypy src/backend/animama tests scripts/evals/core/catalog.py` | Passed; no issues in 931 files |
+| From `src/frontend`: `python3 ../../scripts/heavy-slot.py -- pnpm check`, `pnpm web:lint` | Exit 0; lint clean; catalogs complete |
+| From `src/frontend/web`: vitest on `src/ui/settings`, `src/lib/chat`, `src/query`, `src/app/local-runtime`, `src/routes/-setup.test.ts` | 70 files, 533 tests passed |
+| Prettier `--check` on the changed web and locale files; `python3 scripts/public-release/check_source.py` | Formatted; every tracked file covered once |
+
+#### Code Review #2 Findings
+
+Targeted recheck, high-risk tier, of working tree
+`75bf1287b6a8a6206a7b0da34042954fd8cca48e` against the tree of Review #1.
+A separate checks agent reran every affected check on it: all passed (2139
+backend tests in the 82 files, 533 web tests, lint, types, catalogs, the
+generated client, formatting, source review), and the order leak did not
+occur. Result: pass. P5-R1-F1 to F5 and F7 to F9 are resolved; F6's
+reasons hold. The lock order between the session and the models lock,
+replays and cancels during the sign-in step, the API-key retry path and
+key saving in setup were found unchanged or sound.
+
+| ID | Kind | Finding |
+| --- | --- | --- |
+| P5-R2-F1 | Optional | A role that inherits a waiting plan chat model reads as `off` with its choice available, so settings say no model can do the job instead of that it waits. |
+| P5-R2-F2 | Optional | The status invalidation added for F6 was already covered by the catalog key; the revision overstated the change. |
+| P5-R2-F3 | Optional | `docs/backend/architecture/data-model.md` and `http-api.md` still say every unusable role assignment falls back. |
+
+#### Code Review #2 Revisions
+
+| ID | Disposition |
+| --- | --- |
+| P5-R2-F1 | Deferred to Phase 7 step 3, which gives the roles their reasons for the settings line. |
+| P5-R2-F2 | Accepted as a record correction: the F6 row now says the status read was already there. No code change. |
+| P5-R2-F3 | Accepted: both documents are on Phase 8's list. |
+
+Commit: `feat(models)[p5]: …` (this commit).
 
 ### Phase 6: Chat on plan models
 
@@ -1529,7 +1711,9 @@ and a new `tests/test_chatgpt_plan_background.py`:
    R3.2 changes the spec.
 3. Agreement (D5, D6): `local_memory_manager_model_usable` is false for a
    plan row without agreement or while paused, with a reason the settings
-   line can show. The token service enforces the same rule for the
+   line can show. The same reason reaches Utility and the Memory Manager
+   when they inherit a chat role that waits on an unavailable plan model
+   (P5-R2-F1). The token service enforces the same rule for the
    `background` purpose, so the check cannot be bypassed.
 4. The pause (R5.1): set by a limit error, cleared when an interactive plan
    request succeeds, and shown in the status and on the card.
@@ -1567,8 +1751,10 @@ Review tier: light; the final integration review covers it.
    and account-listed models.
 3. `docs/backend/model-catalog.md`,
    `docs/backend/runtime/model-client-providers.md` (the route profile and
-   its errors) and `docs/backend/runtime/chat.md` (crisis detection on plan
-   turns, R3.4).
+   its errors), `docs/backend/runtime/chat.md` (crisis detection on plan
+   turns, R3.4), and the role fallback in
+   `docs/backend/architecture/data-model.md` and `http-api.md`: a role on an
+   unavailable plan model waits (P5-R2-F3).
 4. `docs/backend/architecture/http-api.md`, `contracts/hosted-web.md` and the
    version prose in `docs/frontend/desktop/releases.md`.
 5. `docs/backend/operations/local-http-components.md` and

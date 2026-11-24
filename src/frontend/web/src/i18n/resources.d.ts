@@ -4581,6 +4581,15 @@ export default interface Resources {
       },
       "loadFailed": "Couldn't load the ChatGPT plan status.",
       "manageUsage": "Manage usage",
+      "models": {
+        "description": "OpenAI lists the models your plan includes. You can hide any of them, and refresh the list after your plan changes.",
+        "none": "OpenAI lists no models for this plan right now.",
+        "refresh": "Refresh list",
+        "refreshFailed": "Couldn't refresh the model list. Try again.",
+        "refreshed": "Model list updated.",
+        "refreshing": "Refreshing…",
+        "title": "Models in your plan"
+      },
       "notSignedIn": "Not signed in",
       "openAgain": "Open the sign-in page again",
       "opensInBrowser": "(opens in your browser)",
@@ -4758,7 +4767,8 @@ export default interface Resources {
       },
       "saveFailed": "The {{role}} model could not be saved.",
       "unavailable": "The chosen model is unavailable, so the default is used.",
-      "unavailableChoice": "{{model}} (unavailable)"
+      "unavailableChoice": "{{model}} (unavailable)",
+      "unavailableWaiting": "The chosen model is unavailable, so this waits until it is available again."
     },
     "downloadsEnded": {
       "note": "Animama no longer offers model downloads. Anything already downloaded keeps working; chat, Avatars and the built-in voices need no downloads."

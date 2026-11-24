@@ -35,6 +35,15 @@
     },
     "loadFailed": "无法加载 ChatGPT 套餐状态。",
     "manageUsage": "管理用量",
+    "models": {
+      "description": "你的套餐包含哪些模型由 OpenAI 列出。你可以隐藏其中任何一个，套餐变化后可以刷新列表。",
+      "none": "OpenAI 目前没有为此套餐列出任何模型。",
+      "refresh": "刷新列表",
+      "refreshFailed": "无法刷新模型列表。请重试。",
+      "refreshed": "模型列表已更新。",
+      "refreshing": "正在刷新…",
+      "title": "套餐中的模型"
+    },
     "notSignedIn": "未登录",
     "openAgain": "再次打开登录页面",
     "opensInBrowser": "（在浏览器中打开）",
@@ -209,7 +218,8 @@
     },
     "saveFailed": "无法保存{{role}}模型。",
     "unavailable": "所选模型不可用，因此使用默认模型。",
-    "unavailableChoice": "{{model}}（不可用）"
+    "unavailableChoice": "{{model}}（不可用）",
+    "unavailableWaiting": "所选模型不可用，因此会等到它再次可用。"
   },
   "embeddings": {
     "current": "已存储的文件和归档已使用此模型嵌入。",

@@ -29,7 +29,7 @@ import logging
 import secrets
 import time
 import uuid
-from collections.abc import Callable, Mapping
+from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
 
@@ -102,6 +102,8 @@ class ChatGPTPlanSessionService:
         self._failure: str | None = None
         self._paused = False
         self._refresh_retry_at = 0.0
+        # A completed sign-in whose follow-up (storing the account's models) is still running.
+        self._finishing = 0
 
     # --- reading ------------------------------------------------------------
 
@@ -116,7 +118,7 @@ class ChatGPTPlanSessionService:
             state=state,
             email=account.email if account else None,
             plan_use_granted=granted,
-            sign_in_pending=self._pending_attempt() is not None,
+            sign_in_pending=self._pending_attempt() is not None or self._finishing > 0,
             confirmation_due=state == "signed_in" and granted and account is not None and account.confirmed_at is None,
             background_agreed=bool(account and account.background_agreed),
             paused=self._paused,
@@ -196,8 +198,16 @@ class ChatGPTPlanSessionService:
     async def cancel(self) -> None:
         self._attempt = None
 
-    async def complete(self, params: Mapping[str, str]) -> ChatGPTPlanStatus:
-        """Finish the pending attempt from the sign-in return's query parameters."""
+    async def complete(
+        self, params: Mapping[str, str], *, after_sign_in: Callable[[], Awaitable[None]] | None = None
+    ) -> ChatGPTPlanStatus:
+        """Finish the pending attempt from the sign-in return's query parameters.
+
+        ``after_sign_in`` runs once the account is saved and before the sign-in
+        stops reading as pending, outside the session's lock so it can use the
+        new tokens: the return stores the account's models there, so a page
+        that sees the sign-in finish also finds the models.
+        """
 
         async with self._lock:
             attempt = self._attempt
@@ -218,6 +228,12 @@ class ChatGPTPlanSessionService:
                 # Consumed once, whatever happened. Until then status still reads as pending;
                 # the lock keeps a replayed return waiting until this one is done.
                 self._attempt = None
+            self._finishing += 1
+        try:
+            if after_sign_in is not None:
+                await after_sign_in()
+        finally:
+            self._finishing -= 1
         return await self.status()
 
     async def _complete(self, attempt: _Attempt, params: Mapping[str, str]) -> None:

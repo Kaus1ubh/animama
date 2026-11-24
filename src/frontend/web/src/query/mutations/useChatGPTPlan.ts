@@ -5,6 +5,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   beginChatgptPlanSignInV1ChatgptPlanSignInPost,
   cancelChatgptPlanSignInV1ChatgptPlanSignInDelete,
+  refreshChatgptPlanModelsV1ChatgptPlanModelsRefreshPost,
   signOutOfChatgptPlanV1ChatgptPlanSignOutPost,
   updateChatgptPlanPreferencesV1ChatgptPlanPreferencesPut,
 } from "@animama/runtime-contracts/sdk";
@@ -89,6 +90,29 @@ export function useSignOutOfChatGPTPlan() {
     // Awaited, so the card shows the signed-out state before the result's notice.
     onSettled: () =>
       Promise.all([
+        queryClient.invalidateQueries({ queryKey: keys.catalog }),
+        queryClient.invalidateQueries({ queryKey: keys.providers }),
+      ]),
+  });
+}
+
+/** List the account's models again; the catalog then shows what OpenAI lists now. */
+export function useRefreshChatGPTPlanModels() {
+  const apiClient = useProductApiClient();
+  const queryClient = useQueryClient();
+  const keys = useKeys();
+  return useMutation<void, unknown, void>({
+    mutationFn: async () => {
+      await refreshChatgptPlanModelsV1ChatgptPlanModelsRefreshPost({
+        client: apiClient,
+        responseValidator: undefined,
+        throwOnError: true,
+      });
+    },
+    // A refused refresh may mean OpenAI ended the session, which the status shows.
+    onSettled: () =>
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: keys.status }),
         queryClient.invalidateQueries({ queryKey: keys.catalog }),
         queryClient.invalidateQueries({ queryKey: keys.providers }),
       ]),

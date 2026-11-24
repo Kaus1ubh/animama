@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { CHATGPT_MANAGE_USAGE_URL } from "@/query/hooks/useChatGPTPlan";
+import { queryKeys } from "@/query/keys";
 import { ChatGPTPlanCard } from "./ChatGPTPlanCard";
 
 const SIGNED_OUT = {
@@ -344,6 +345,21 @@ describe("ChatGPTPlanCard", () => {
     await render(<ChatGPTPlanCard />);
     await click(button("Continue with ChatGPT"));
     expect(document.body.innerHTML).not.toContain(AUTHORIZE_URL);
+    const invalidate = vi.spyOn(client, "invalidateQueries");
+
+    // Signed in, but the return is still storing the account's models.
+    mocks.status = {
+      ...SIGNED_IN,
+      confirmation_due: true,
+      sign_in_pending: true,
+    };
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 1_200));
+    });
+    await settle();
+    expect(invalidate).not.toHaveBeenCalledWith({
+      queryKey: queryKeys.modelConfiguration.all("owner"),
+    });
 
     mocks.status = { ...SIGNED_IN, confirmation_due: true };
     await act(async () => {
@@ -355,5 +371,22 @@ describe("ChatGPTPlanCard", () => {
       "You're using your ChatGPT plan",
     );
     expect(document.body.innerHTML).not.toContain(AUTHORIZE_URL);
+    // The return stored the account's models, so the catalog is read again.
+    expect(invalidate).toHaveBeenCalledWith({
+      queryKey: queryKeys.modelConfiguration.all("owner"),
+    });
+    expect(invalidate).toHaveBeenCalledWith({
+      queryKey: queryKeys.modelProviders.all("owner"),
+    });
+  });
+
+  it("does not reread the catalog for an account already signed in", async () => {
+    mocks.status = SIGNED_IN;
+    const invalidate = vi.spyOn(client, "invalidateQueries");
+    await render(<ChatGPTPlanCard />);
+
+    expect(invalidate).not.toHaveBeenCalledWith({
+      queryKey: queryKeys.modelConfiguration.all("owner"),
+    });
   });
 });

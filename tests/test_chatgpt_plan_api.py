@@ -36,7 +36,11 @@ from animama.server.chatgpt_plan import (
     chatgpt_plan_unavailable_reason,
 )
 from animama.server.config import Settings
-from animama.server.routers.chatgpt_plan import router
+from animama.server.routers.chatgpt_plan import (
+    get_chatgpt_plan_model_catalog,
+    get_chatgpt_plan_model_refresh,
+    router,
+)
 from tests.chatgpt_plan_fakes import FakeOpenAIAuth
 
 PORT = 8765
@@ -89,8 +93,29 @@ def _app(tmp_path: Path, *, origin: str, desktop: bool, key: bytes | None, fake:
     app.state.chatgpt_plan_session = ChatGPTPlanSessionService(
         identity=identity, store=FileChatGPTPlanSessionStore(tmp_path / "internal" / "chatgpt-plan", key=key)
     )
+    app.state.model_catalog = _FakeModelCatalog()
+    app.dependency_overrides[get_chatgpt_plan_model_catalog] = lambda: app.state.model_catalog
+    app.dependency_overrides[get_chatgpt_plan_model_refresh] = lambda: app.state.model_catalog.refresh_after_sign_in
     install_local_http(app, config).mark_ready("installation-owner")
     return app
+
+
+class _FakeModelCatalog:
+    """The plan's model rows, without a database: records what the routes asked for."""
+
+    def __init__(self) -> None:
+        self.calls: list[str] = []
+
+    async def refresh(self) -> list[Any]:
+        self.calls.append("refresh")
+        return []
+
+    async def withdraw(self) -> int:
+        self.calls.append("withdraw")
+        return 0
+
+    async def refresh_after_sign_in(self) -> None:
+        self.calls.append("refresh after sign-in")
 
 
 @pytest_asyncio.fixture(params=["self-host", "desktop"])
@@ -116,6 +141,7 @@ async def test_a_sign_in_completes_through_the_return(installation: Installation
     assert page.headers["cache-control"] == "no-store" and page.headers["referrer-policy"] == "no-referrer"
     assert "default-src 'none'" in page.headers["content-security-policy"]
     assert 'lang="ja"' in page.text
+    assert installation.app.state.model_catalog.calls == ["refresh after sign-in"]
     after = (await installation.client.get("/v1/chatgpt-plan", headers=installation.page_headers())).json()
     assert (after["state"], after["email"], after["confirmation_due"]) == ("signed_in", "person@example.test", True)
 
@@ -289,6 +315,13 @@ async def test_sign_out_and_preferences(installation: Installation) -> None:
         "/v1/chatgpt-plan:sign-out", headers=installation.page_headers(mutation=True)
     )
     assert signed_out.json() == {"was_signed_in": True, "confirmed": True}
+    assert installation.app.state.model_catalog.calls[-1] == "withdraw"
+
+    refreshed = await installation.client.post(
+        "/v1/chatgpt-plan/models:refresh", headers=installation.page_headers(mutation=True)
+    )
+    assert refreshed.json() == {"model_provider_ids": []}
+    assert installation.app.state.model_catalog.calls[-1] == "refresh"
 
 
 async def test_responses_never_carry_a_token(installation: Installation) -> None:

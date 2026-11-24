@@ -16,7 +16,11 @@ from animama.local.database import LocalDatabase
 from animama.local.http.composition import install_local_http
 from animama.logging_config import configure_logging
 from animama.product_http.ports import ProductPorts, install_product_ports, model_role_resolver
-from animama.server.chatgpt_plan import close_chatgpt_plan_session, install_chatgpt_plan_store_key
+from animama.server.chatgpt_plan import (
+    chatgpt_plan_session_for,
+    close_chatgpt_plan_session,
+    install_chatgpt_plan_store_key,
+)
 from animama.server.config import Settings
 from animama.server.content_startup import start_content_runtime, stop_content_runtime
 from animama.server.deps import get_async_session_factory
@@ -212,7 +216,9 @@ def create_local_app(
         try:
             from animama.server.model_clients import init_model_client_registry
 
-            await init_model_client_registry(application)
+            await init_model_client_registry(
+                application, chatgpt_plan_session=lambda: chatgpt_plan_session_for(application)
+            )
         except Exception:
             logger.warning("Model client registry failed to start; model calls are unavailable", exc_info=True)
             application.state.model_client_registry = None

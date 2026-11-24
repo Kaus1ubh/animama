@@ -66,10 +66,11 @@ import {
   detectedModelsToAdd,
   ownerModelChoices,
   setupBuiltins,
-  type SetupBuiltin,
+  setupChatGPTPlan,
   type SetupBuiltinProvider,
   type SetupModelChoice,
 } from "./setup-state";
+import { useChooseWhenReady } from "./useChooseWhenReady";
 
 /** A model being added in the add-model dialog, optionally prefilled. */
 type ModelAdder = { connection: PyModelConnection; initialModelId?: string };
@@ -210,25 +211,6 @@ function useKeyPanel(): KeyPanel {
   return { ref, pending, setPending, busy, setBusy };
 }
 
-/**
- * Saving a built-in provider's key here chooses the model it offers,
- * replacing an earlier choice: the model set up last wins. A key that was
- * already set chooses nothing, so only explicit actions in this setup pick
- * the default.
- */
-function useChooseWhenKeySaved(
-  loaded: boolean,
-  { ready, modelId }: SetupBuiltin,
-  onChatModelChange: (id: string | null) => void,
-) {
-  const wasReady = useRef<boolean | null>(null);
-  useEffect(() => {
-    if (!loaded) return;
-    if (wasReady.current === false && modelId) onChatModelChange(modelId);
-    wasReady.current = ready;
-  }, [loaded, modelId, onChatModelChange, ready]);
-}
-
 /** How an inline connect form reports its typed key to the step. */
 type ConnectFormKeys = {
   controllerRef: Ref<DesktopCredentialsController>;
@@ -358,20 +340,21 @@ function ModelChooser({
       (model) => model.source === "builtin" && model.model_kind === "chat",
     );
 
-  useChooseWhenKeySaved(
-    connections.isSuccess,
-    builtins.openai,
-    onChatModelChange,
-  );
-  useChooseWhenKeySaved(
+  useChooseWhenReady(connections.isSuccess, builtins.openai, onChatModelChange);
+  useChooseWhenReady(
     connections.isSuccess,
     builtins.anthropic,
     onChatModelChange,
   );
+  // Signing in with a ChatGPT plan here chooses one of its models the same way,
+  // once the catalog lists them.
+  const plan = setupChatGPTPlan(items, allConnections, systemDefaultId);
+  useChooseWhenReady(connections.isSuccess, plan, onChatModelChange);
 
   // A choice that is no longer offered (removed, or its key removed) is dropped.
   const offered =
     chatModelId === null ||
+    plan.modelId === chatModelId ||
     Object.values(builtins).some(
       (builtin) => builtin.modelId === chatModelId,
     ) ||

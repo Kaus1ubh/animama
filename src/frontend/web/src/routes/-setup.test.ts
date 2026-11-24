@@ -23,6 +23,7 @@ import {
   ownerModelChoices,
   resolveSetupTtsProvider,
   setupBuiltins,
+  setupChatGPTPlan,
   setupStepPosition,
   setupTtsOptions,
   resolveSetupSttChoice,
@@ -745,6 +746,49 @@ describe("setup step logic", () => {
     expect(
       setupBuiltins(catalog, [builtinConnection], OPENAI_MODEL).anthropic,
     ).toEqual({ provider: "anthropic", ready: false, modelId: null });
+  });
+
+  it("chooses a plan model once the ChatGPT plan is usable, preferring the system default's model", () => {
+    const plan = (
+      credential_state: PyModelConnection["credential_state"],
+    ): PyModelConnection => ({
+      id: "chatgpt_plan",
+      name: "ChatGPT plan",
+      preset: "chatgpt_plan",
+      source: "builtin",
+      compatibility: {},
+      credential_state,
+      models: [],
+    });
+    const planRow = (slug: string) => ({
+      ...catalog.find((entry) => entry.id === OPENAI_MODEL)!,
+      id: `ChatGPTPlanResponsesHTTPAgent:${slug}`,
+      model: slug,
+      connection_id: "chatgpt_plan",
+      model_provider: "ChatGPTPlanResponsesHTTPAgent",
+    });
+    const items = [
+      ...catalog,
+      planRow("gpt-5.6-terra"),
+      planRow(catalog.find((entry) => entry.id === OPENAI_MODEL)!.model),
+    ];
+
+    expect(setupChatGPTPlan(items, [plan("configured")], OPENAI_MODEL)).toEqual(
+      {
+        ready: true,
+        modelId: `ChatGPTPlanResponsesHTTPAgent:${
+          catalog.find((entry) => entry.id === OPENAI_MODEL)!.model
+        }`,
+      },
+    );
+    expect(setupChatGPTPlan(items, [plan("configured")], null).modelId).toBe(
+      "ChatGPTPlanResponsesHTTPAgent:gpt-5.6-terra",
+    );
+    expect(setupChatGPTPlan(items, [plan("missing")], OPENAI_MODEL)).toEqual({
+      ready: false,
+      modelId: null,
+    });
+    expect(setupChatGPTPlan(items, [], OPENAI_MODEL).ready).toBe(false);
   });
 
   it("offers to add only detected models not yet added at that address", () => {

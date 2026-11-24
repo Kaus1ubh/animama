@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Protocol
 
-from animama.domain.chatgpt_plan import ChatGPTPlanRecord
+from animama.domain.chatgpt_plan import ChatGPTPlanPurpose, ChatGPTPlanRecord
 
 REJECTING_ERRORS = frozenset({"invalid_grant", "invalid_client", "unauthorized_client"})
 """OAuth error codes that refuse the grant itself; only these remove the tokens (R2.3)."""
@@ -108,3 +108,57 @@ class ChatGPTPlanSessionStorePort(Protocol):
     def save(self, record: ChatGPTPlanRecord) -> None:
         """Replace the record atomically; a failed write leaves the previous one intact."""
         ...
+
+
+@dataclass(frozen=True, slots=True)
+class PlanModelListing:
+    """One model the signed-in account's plan includes, as OpenAI lists it.
+
+    Only these fields are kept; the listing also carries another product's
+    prompts and settings, which are never stored or logged.
+    """
+
+    slug: str
+    display_name: str
+    listed: bool
+    """OpenAI marks a model meant for people to pick as ``visibility: list``."""
+    context_window: int | None
+    input_modalities: tuple[str, ...]
+    reasoning_efforts: tuple[str, ...]
+    supports_search: bool
+
+
+class ChatGPTPlanModelListError(Exception):
+    """The account's model list could not be read.
+
+    ``rejected_token`` is True when OpenAI refused the access token (401), so
+    the caller renews it once and tries again. ``code`` is a short, safe
+    identifier, never response text.
+    """
+
+    def __init__(self, code: str, *, rejected_token: bool = False) -> None:
+        super().__init__(code)
+        self.code = code
+        self.rejected_token = rejected_token
+
+
+class ChatGPTPlanModelListPort(Protocol):
+    """OpenAI's list of the models a signed-in ChatGPT account may use."""
+
+    async def list_models(self, access_token: str) -> list[PlanModelListing]: ...
+
+
+class ChatGPTPlanTokenSource(Protocol):
+    """What a plan model client needs from the session: tokens, and what the last request showed.
+
+    ``access_token`` and ``refresh_rejected`` raise ``ChatGPTPlanUnavailableError``
+    when the plan cannot serve a request of that purpose.
+    """
+
+    async def access_token(self, purpose: ChatGPTPlanPurpose) -> str: ...
+
+    async def refresh_rejected(self, stale_access_token: str, purpose: ChatGPTPlanPurpose) -> str: ...
+
+    async def record_usage_limit(self) -> None: ...
+
+    async def record_interactive_success(self) -> None: ...

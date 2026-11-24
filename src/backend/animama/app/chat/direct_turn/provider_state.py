@@ -26,6 +26,7 @@ from animama.domain import ModelProvider
 from animama.domain.chat import Chat
 from animama.domain.model_connection import (
     BUILTIN_ANTHROPIC_CONNECTION_ID,
+    BUILTIN_CHATGPT_PLAN_CONNECTION_ID,
     BUILTIN_OPENAI_CONNECTION_ID,
     MODEL_KIND_CHAT,
     MODEL_SOURCE_OWNER,
@@ -33,6 +34,7 @@ from animama.domain.model_connection import (
 
 from .constants import (
     ANTHROPIC_MESSAGES_PROVIDER,
+    CHATGPT_PLAN_PROVIDER,
     DIRECT_MEMORY_TOOL_SUPPORT_BY_PROVIDER,
     OPENAI_CHAT_COMPLETIONS_PROVIDER,
     OPENAI_RESPONSES_PREVIOUS_RESPONSE_UNRESOLVABLE_CODE,
@@ -123,6 +125,11 @@ def validate_model_provider_for_direct_turn(
         raise DirectChatTurnSetupError(
             f"Anthropic Messages is only available on the built-in Anthropic connection: {model_provider.id}"
         )
+    if (model_provider.provider_type == CHATGPT_PLAN_PROVIDER) != (
+        model_provider.connection_id == BUILTIN_CHATGPT_PLAN_CONNECTION_ID
+    ):
+        # Plan requests carry the ChatGPT plan's token, and the plan connection serves nothing else.
+        raise DirectChatTurnSetupError(f"The ChatGPT plan is only available on its own connection: {model_provider.id}")
     if not capabilities.supports_streaming:
         raise DirectChatTurnSetupError(f"Model provider does not support streaming chat turns: {model_provider.id}")
     # Structured output is not required: rows without a schema or JSON mode

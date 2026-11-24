@@ -601,6 +601,53 @@ async def test_a_sign_in_stays_pending_while_it_completes(harness: Harness, monk
     assert (await completing).sign_in_pending is False
 
 
+async def test_a_sign_in_stays_pending_until_its_follow_up_finishes(harness: Harness) -> None:
+    """The return stores the account's models before the sign-in reads as done (R3.1 at sign-in)."""
+
+    service = harness.service()
+    params = harness.fake.authorize(await service.begin(redirect_uri=REDIRECT))
+    seen: list[tuple[str, bool]] = []
+
+    async def follow_up() -> None:
+        status = await service.status()
+        seen.append((status.state, status.sign_in_pending))
+        # The follow-up can use the new session: it lists models with its token.
+        assert await service.access_token("interactive")
+
+    finished = await service.complete(params, after_sign_in=follow_up)
+
+    assert seen == [("signed_in", True)]
+    assert (finished.state, finished.sign_in_pending) == ("signed_in", False)
+
+
+async def test_a_failed_follow_up_still_finishes_the_sign_in(harness: Harness) -> None:
+    service = harness.service()
+    params = harness.fake.authorize(await service.begin(redirect_uri=REDIRECT))
+
+    async def follow_up() -> None:
+        raise RuntimeError("listing failed")
+
+    with pytest.raises(RuntimeError):
+        await service.complete(params, after_sign_in=follow_up)
+
+    status = await service.status()
+    assert (status.state, status.sign_in_pending) == ("signed_in", False)
+
+
+async def test_a_refused_return_runs_no_follow_up(harness: Harness) -> None:
+    service = harness.service()
+    await service.begin(redirect_uri=REDIRECT)
+    ran: list[bool] = []
+
+    async def follow_up() -> None:
+        ran.append(True)
+
+    with pytest.raises(ChatGPTPlanSignInError):
+        await service.complete({"state": "forged", "code": "x"}, after_sign_in=follow_up)
+
+    assert ran == []
+
+
 async def test_an_unknown_purpose_is_treated_as_background(harness: Harness) -> None:
     service = harness.service()
     await _sign_in(service, harness.fake)
