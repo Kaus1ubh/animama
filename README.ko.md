@@ -14,6 +14,12 @@
   <a href="README.zh-Hans.md">简体中文</a>
 </p>
 
+<p align="center">
+  <b>새 소식</b>
+  <br>
+  2026년 11월 18일 · Animama를 정식 출시하고 오픈소스로 공개했습니다
+</p>
+
 # Animama
 
 새로운 책상 친구, Anima를 소개합니다.
@@ -202,7 +208,3 @@ TLS와 인증을 앞단에 두세요.
   VRChat 아바타 변환과 lilToon 머티리얼
 - [three.quarks](https://github.com/Alchemist0823/three.quarks): 파티클 효과
 - [Lapwing](https://booth.pm/ko/items/4993931) ©kuji
-
-## 스타 히스토리
-
-[![스타 수 추이 차트](https://api.star-history.com/svg?repos=raymond-van/animama&type=Date)](https://www.star-history.com/#raymond-van/animama&Date)
