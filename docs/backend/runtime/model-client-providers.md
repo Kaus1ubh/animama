@@ -460,6 +460,12 @@ the defaults: no folding, every field sent and `openai_effort`.
   with a literal `reasoning_effort` for `high` and `max` (other values fail with
   `unsupported_reasoning_effort`); `omit` never sends an effort.
 
+Whatever the options, a function tool's parameter schema is sent without an
+empty `required` list: a zero-argument tool such as `memory_list_files` goes
+out as `{"type":"object","properties":{},"additionalProperties":false}`.
+Groq's strict validator rejects `properties: {}` beside `required: []`, and an
+absent `required` means the same as an empty one.
+
 JSON-mode rows (`structured_output_transport="json_object"`) receive
 `response_format={"type":"json_object"}` whatever the connection.
 

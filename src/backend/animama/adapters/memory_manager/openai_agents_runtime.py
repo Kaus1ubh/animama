@@ -19,7 +19,7 @@ from animama.adapters.model_clients.openai_chat_completions.connection_sdk impor
     keyless_request_headers,
     sdk_client_for_connection,
 )
-from animama.adapters.model_clients.openai_chat_completions.request import tools_without_function_strict
+from animama.adapters.model_clients.openai_chat_completions.request import function_tools_for_connection
 from animama.adapters.model_clients.openai_chat_completions.support import resolve_openai_base_url
 from animama.adapters.openai_agents import OpenAIAgentsRunner, OpenAIAgentsRunOutput
 from animama.app.chat.api_standard import ANTHROPIC_MESSAGES_PROVIDER_TYPE, OPENAI_RESPONSES_PROVIDER_TYPE
@@ -65,7 +65,7 @@ from animama.domain.memory_manager import (
     MemoryManagerReflectionTaskState,
     MemoryManagerRun,
 )
-from animama.domain.model_connection import ModelConnection
+from animama.domain.model_connection import ModelConnection, ModelConnectionCompatibility
 from animama.logging import get_logger
 
 from .episode_processing import load_episode_processing_batch, render_episode_processing_instructions
@@ -98,24 +98,26 @@ class _PatchOperation(BaseModel):
     diff: str
 
 
-class _WithoutFunctionStrict:
-    """SDK client view that drops ``strict`` from Chat Completions function tools.
+class _ConnectionFunctionTools:
+    """SDK client view that shapes Chat Completions function tools for the connection.
 
-    The Agents SDK always sends ``strict``; connections whose servers reject it
-    set ``strip_function_strict``, as the direct chat client already honors.
+    The Agents SDK builds its own tool definitions: always ``strict``, and with
+    an empty ``required`` list on a zero-argument tool. This view gives them the
+    form the direct chat client sends on the same connection.
     """
 
-    def __init__(self, client: AsyncOpenAI) -> None:
+    def __init__(self, client: AsyncOpenAI, compatibility: ModelConnectionCompatibility) -> None:
         self._client = client
+        self._compatibility = compatibility
         self.chat = SimpleNamespace(completions=SimpleNamespace(create=self._create))
 
     async def _create(self, **kwargs: Any) -> Any:
         if "tools" in kwargs:
-            kwargs["tools"] = tools_without_function_strict(kwargs["tools"])
+            kwargs["tools"] = function_tools_for_connection(kwargs["tools"], compatibility=self._compatibility)
         return await self._client.chat.completions.create(**kwargs)
 
-    def with_options(self, **options: Any) -> _WithoutFunctionStrict:
-        return _WithoutFunctionStrict(self._client.with_options(**options))
+    def with_options(self, **options: Any) -> _ConnectionFunctionTools:
+        return _ConnectionFunctionTools(self._client.with_options(**options), self._compatibility)
 
     def __getattr__(self, name: str) -> Any:
         return getattr(self._client, name)
@@ -511,9 +513,7 @@ class OpenAIAgentsMemoryManagerRuntime:
 
             model = OpenAIChatCompletionsModel(
                 self._model,
-                cast(AsyncOpenAI, _WithoutFunctionStrict(client))
-                if connection.compatibility.strip_function_strict
-                else client,
+                cast(AsyncOpenAI, _ConnectionFunctionTools(client, connection.compatibility)),
             )
             extra_args = {"prompt_cache_key": cache_key} if connection.compatibility.send_openai_extensions else None
             model_settings = ModelSettings(

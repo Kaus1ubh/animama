@@ -494,8 +494,10 @@ interruptions. The patch tool and continuity depend on the row's API:
   replays the run's stored user and assistant messages.
 
 The client reaches the row's connection with only that connection's key and
-timeout (connecting is capped at 10 seconds), honors its
-`strip_function_strict` option, sends `store` only on Responses, and sends
+timeout (connecting is capped at 10 seconds), gives Chat Completions function
+tools the form direct chat sends on that connection (its
+`strip_function_strict` option, and no empty `required` list), sends `store`
+only on Responses, and sends
 `prompt_cache_key` on Responses or when the connection's
 `send_openai_extensions` option is on. Agents SDK tracing, which exports to
 OpenAI, is disabled unless the row is on the built-in OpenAI connection; the

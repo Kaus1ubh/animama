@@ -22,6 +22,9 @@ from animama.domain.model_connection import (
 # reads the entry the last request wrote; the latest reply writes the next one.
 _CACHE_BREAKPOINT_REPLY_COUNT = 2
 
+# JSON Schema keywords whose values are data, so a schema rewrite leaves them alone.
+_SCHEMA_DATA_KEYWORDS = frozenset({"const", "default", "enum", "examples"})
+
 
 def create_chat_completion_kwargs(
     spec: ModelClientRequest, *, timeout: float | httpx2.Timeout | None
@@ -118,10 +121,56 @@ def _with_cache_breakpoint(message: dict[str, Any]) -> dict[str, Any]:
 
 
 def _tools_for_spec(spec: ModelClientRequest, *, compatibility: ModelConnectionCompatibility) -> Any:
-    tools = jsonable(spec.prompt.tools)
+    return function_tools_for_connection(jsonable(spec.prompt.tools), compatibility=compatibility)
+
+
+def function_tools_for_connection(tools: Any, *, compatibility: ModelConnectionCompatibility) -> Any:
+    """Shape Chat Completions function tools for the connection's server.
+
+    Direct chat and the Memory Manager's Agents SDK client both send their
+    tools through here, so a server sees one form of tool definition. The
+    caller's definitions are left as they are.
+    """
+
+    tools = tools_without_empty_required(tools)
     if compatibility.strip_function_strict:
         return tools_without_function_strict(tools)
     return tools
+
+
+def tools_without_empty_required(tools: Any) -> Any:
+    """Omit empty ``required`` lists from function tool parameter schemas.
+
+    A strict zero-argument tool is ``properties: {}`` beside ``required: []``.
+    Groq's validator rejects that pair as "'required' present but 'properties'
+    is missing" (#902). An absent ``required`` means the same as an empty one.
+    """
+
+    if not isinstance(tools, list):
+        return tools
+    shaped_tools: list[Any] = []
+    for tool in tools:
+        function = tool.get("function") if isinstance(tool, dict) else None
+        if not isinstance(function, dict) or "parameters" not in function:
+            shaped_tools.append(tool)
+            continue
+        parameters = _without_empty_required(function["parameters"])
+        shaped_tools.append({**tool, "function": {**function, "parameters": parameters}})
+    return shaped_tools
+
+
+def _without_empty_required(schema: Any) -> Any:
+    """Return ``schema`` without empty ``required`` lists at any depth; never change ``schema`` itself."""
+
+    if isinstance(schema, list):
+        return [_without_empty_required(item) for item in schema]
+    if not isinstance(schema, dict):
+        return schema
+    return {
+        key: value if key in _SCHEMA_DATA_KEYWORDS else _without_empty_required(value)
+        for key, value in schema.items()
+        if not (key == "required" and value == [])
+    }
 
 
 def tools_without_function_strict(tools: Any) -> Any:
