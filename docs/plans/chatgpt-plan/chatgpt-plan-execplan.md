@@ -1,0 +1,922 @@
+# Use a ChatGPT plan instead of an API key
+
+Source agreement: [#919](https://github.com/raymond-van/animama/issues/919),
+published from the agreed [spec](chatgpt-plan-spec.md) at
+2026-11-24T18:25:43Z. The owner accepted the spec on 2026-11-24 including P1
+to P8, and it was revised the same day with this plan's D2, D5 and D6.
+Authorized scope: workspace setup and Phase 0. The owner approved this plan,
+including D1 to D14, on 2026-11-24 (G0) and authorized Phase 0 the same day.
+Phase 0's live trial needs G1. Later phases need the owner's go-ahead.
+Planning baseline: `origin/main` at `1c7d7295e`, which the line numbers below
+refer to. Implementation base: `origin/main` at `c7b98f73a`; nothing the plan
+cites changed between the two.
+Workspace: worktree `chatgpt-plan`, branch `feat/chatgpt-plan`. No stack yet;
+Phase 2 starts a task stack and records its URL here.
+
+## Purpose and context
+
+After this plan, a person using the desktop app or a self-hosted stack on
+their own machine can choose **Continue with ChatGPT** in App Settings →
+Models or in first-run setup, sign in at OpenAI in their browser, and pick a
+model from their ChatGPT plan for an Anima's chat, the default chat model,
+Utility and the Memory Manager, with no API key. Tokens rest only on that
+machine. The app shows when the plan is in use, links to OpenAI's usage
+settings, stops cleanly at a usage limit and never moves a request to another
+connection by itself. Work the backend starts by itself uses the plan only
+after the person agrees. Hosted, embeddings, speech and image generation are
+out of scope. No database migration is expected.
+
+Orientation, from read-only surveys on 2026-11-24 (paths under
+`src/backend/animama` unless they start with `src/frontend`, `tests`, `docs`,
+`scripts` or `contracts`; line numbers at `1c7d7295e`):
+
+- **Admission.** `local/http/admission.py` `LocalHTTPAdmission` (L55) admits
+  every HTTP and WebSocket request, including `/health` and static files.
+  `Host` must equal `LocalHTTPConfig.authority` exactly or the answer is 421
+  (L131). `_browser_status` (L91) then requires `Origin`, when present, to
+  equal the public origin, `Sec-Fetch-Site` to be absent, `none` or
+  `same-origin`, and on desktop a matching `animama_renderer_capability`
+  cookie (401 otherwise). Only `/_desktop/*` takes another path, with its own
+  control token. OpenAI's return to `http://127.0.0.1:<port>/auth/callback` is
+  a cross-site navigation from the system browser, so today it is refused in
+  every mode: 403 for the fetch metadata, 401 on desktop for the cookie, and
+  421 on a stack whose origin is `http://localhost:<port>`.
+- **Origins.** Desktop uses `http://127.0.0.1:<saved port>`, stable across
+  launches (`src/frontend/desktop/src/main-process/runtime/supervisor.ts`
+  L321-345, `runtime/state.json`). A stack uses `ANIMAMA_PUBLIC_ORIGIN`,
+  default `http://localhost:8000` (`server/config.py` L69); `reset.sh` allows
+  loopback hosts only. In development Vite serves that origin and proxies to a
+  private FastAPI with the browser's `Host` unchanged.
+- **Serving.** `local/http/composition.py` `install_local_http` (L21)
+  registers the asset catch-all last (L90-95), so a router included earlier in
+  `server/app.py` `create_local_app` wins. `local/http/assets.py` answers a
+  navigation outside `_NO_FALLBACK_PREFIXES` (L90-103) with `index.html`, so
+  `/auth/callback` would return the app shell today. The development proxy
+  forwards only `/v1`, `/health` and telemetry
+  (`src/frontend/web/vite-plugins/local-api-proxy.ts` L34-48).
+- **Routes and capabilities.** `product_http/inventory.py` lists every route
+  in mount order as `_shared`, `_local` or `_excluded(capability)`, and
+  `tests/test_product_http_inventory.py` pins it.
+  `server/routers/model_configuration.py` is the local-only precedent, mounted
+  at `server/app.py` L100. `app/contracts/runtime_capabilities.py` (L56) and
+  `server/runtime_capabilities.py` (L45) define and fill capabilities,
+  `contracts/runtime-capabilities/hosted.json` holds the hosted values, and
+  `src/frontend/web/src/app/hosted-runtime/hosted-composition.ts` L527-545
+  refuses local-only ones.
+- **Contracts.** `contracts/versions.json` has `local-http` `23.0.0`; any
+  structural OpenAPI change needs a new major. `runtime-contracts` is `0.23.0`
+  and `product-ui` `0.20.0`; changed declarations need a version bump, checked
+  by `scripts/package-sets` `compare`. The chat image input plan (#904) also
+  plans `24.0.0`; whichever merges second takes the next major.
+- **Credentials today.** Keys live in the desktop vault
+  (`src/frontend/desktop/src/main-process/runtime/vault.ts`), one
+  `safeStorage`-encrypted blob at `secrets/vault.bin` that also holds the
+  generated `postgresPassword`. Electron main sends keys to the backend in the
+  spawn environment and through `PUT /_desktop/credentials`
+  (`server/routers/desktop_control.py` L141) into `RuntimeCredentialStore`
+  (`app/model_clients/credential_store.py`). Nothing flows from the backend to
+  Electron main. `backendEnvironment()` (`supervisor.ts` L222) carries
+  backend-only values such as the control token. A self-hosted backend reads
+  keys from its environment at startup.
+- **Private data.** `ANIMAMA_DATA_ROOT` is `<userData>/data` on desktop and
+  the `data` volume in a stack; `server/local_runtime.py` L85 lays out
+  `internal/…`. `adapters/content_store/mutations.py` `persist` (L225) is the
+  atomic owner-only write (`utils/files.py` `open_no_follow`,
+  `sync_directory`, `replace`). `scripts/backup-local.sh` L98 archives the
+  whole data tree except listed paths.
+- **Catalog.** Connections and models are rows in `model_connections` and
+  `model_providers` (unique on `connection_id, provider_type, model, source`).
+  Built-in ones come from `app/model_catalog.py` through the repeatable seed
+  `src/backend/migrations/seeds/01-seed-model-providers.sql`, which runs at
+  every start and deactivates any `builtin` row missing from the catalog
+  (L165). Row ids are `<provider_type>:<model>`. Anthropic is the precedent
+  for a built-in connection: `domain/model_connection.py` L17-20,
+  `app/model_clients/credentials.py` L97-142, `app/model_connection_presets.py`,
+  `app/services/model_configuration_service.py` `_provider_type` (L569) and
+  `app/chat/direct_turn/provider_state.py`
+  `validate_model_provider_for_direct_turn` (L90). `ModelCatalogPolicy`
+  (`app/services/model_provider_catalog_service.py` L19) offers the hosted
+  composition the `openai` connection only.
+- **Selections.** An Anima's model is
+  `anima_chat_profiles.default_model_provider_id`, a foreign key to
+  `model_providers.id`. Roles are owner preferences read by
+  `app/services/model_role_resolver.py`, whose `suits_role` (L149) already
+  limits Embeddings to embedding models. A missing credential is found at
+  request time, not at selection, and the public model list carries no
+  credential state.
+- **Responses adapter.** `adapters/model_clients/openai_responses/client.py`
+  refuses any connection but `openai` (L159), resolves the key once per stream
+  and makes a per-request view of one key-free `AsyncOpenAI` with
+  `with_options(api_key=…)` (L406). `request.py` `create_response_kwargs`
+  (L53) sends `store` (true unless told otherwise), `moderation` when crisis
+  detection is on, `previous_response_id`, `context_management`,
+  `prompt_cache_key`, `reasoning` and flat function tools (L475). Tool rounds
+  inside a turn chain with `previous_response_id` even when `store` is false,
+  and replay by hand only after the provider rejects the cursor
+  (`app/chat/direct_turn/model_stream.py` L870). Reasoning items are never
+  replayed. `adapters/model_clients/openai_errors.py` classifies errors and
+  redacts `Bearer`, `sk-` and `hf_` shapes, but not a bare JWT.
+- **Behavior keyed by provider type.** The client registry
+  (`server/model_clients.py` L43), the chat-row cursor (`provider_state.py`
+  L294, `app/services/chat_manager.py` L69), inline moderation
+  (`provider_state.py` L218), native compaction
+  (`app/chat/direct_turn/constants.py` L18), hosted tools
+  (`app/model_provider_native_tools.py` L14) and the API standard
+  (`app/chat/api_standard.py` L32) switch on `provider_type`, not on the
+  connection.
+- **Other model users.** Titles and compaction run through
+  `app/services/direct_model_prompt_runner.py` on the Utility role. The Memory
+  Manager on Responses rows uses the OpenAI Agents SDK
+  (`adapters/memory_manager/openai_agents_runtime.py`): not streamed,
+  `store=True`, `previous_response_id`, native `apply_patch`. A Reflection is
+  owner-started. Automatic episode processing (`server/episode_processing.py`)
+  is the only model work the backend starts by itself; it reports
+  `needs_model` when `server/memory_manager.py`
+  `local_memory_manager_model_usable` (L126) is false.
+- **Desktop shell.** Any `https` link the page opens goes to the system
+  browser (`src/frontend/desktop/src/main-process/security/guards.ts`
+  L154-169); there is no host list. The preload exposes status-only
+  credentials.
+- **Settings UI.**
+  `src/frontend/web/src/ui/settings/models/ModelConnectionsSettings.tsx`
+  renders a `ConnectionCard` per connection with `BuiltinKey` (L679) for its
+  key; `model-configuration-state.ts` holds the provider tabs (L138) and
+  status text. `ModelDefaultsSettings.tsx` renders the role pickers from
+  `roleCandidates`. The chat picker is `ChatInputModelSelector`
+  (`src/frontend/web/src/ui/components/chat-input.tsx` L400), and
+  `src/frontend/web/src/ui/main/chat/ChatInterface.tsx` L413-547 lays out the
+  composer with a `role="status"` line. First-run setup is
+  `src/frontend/web/src/app/local-runtime/setup/SetupAiStep.tsx`. Chat
+  failures map codes to text in
+  `src/frontend/packages/product-ui/src/chat/chat-failure.ts` and can carry
+  an `https` link button.
+- **Localization.** Five locales. Model settings strings are in
+  `src/frontend/web/src/locales/<locale>/models.json`. `pnpm i18n:check`
+  enforces key and placeholder parity, and codes in `userVisibleCodes.json`
+  need wording in every catalog.
+- **Tests.** Backend fakes are `httpx.MockTransport`, `httpx2.MockTransport`
+  and `_FakeOpenAIClient` (`tests/test_model_client_registry.py` L85). Stacks
+  under test run `ANIMAMA_LLM_SKIP=1`, which registers `MockModelClient` for
+  every provider type. Journeys intercept routes with Playwright.
+- **Dependencies.** `openai` `3.39.0` has `NamespaceToolParam`, and its
+  function-call items carry `namespace`. `pyjwt` `2.15.1` and `cryptography`
+  `50.0.2` are locked as transitive dependencies; no backend module imports
+  them. `openai-agents` `0.24.0` has `tool_namespace`, `run_streamed` and a
+  `store` setting. The desktop bundle collects every `animama` submodule
+  (`src/backend/packaging/desktop/animama-runtime.spec` L45).
+- **Records.** `licenses/source-review.json` lists every tracked file; each
+  phase adds entries for its new files.
+
+OpenAI facts, read from the official documentation on 2026-11-24. The route
+is a preview, so Phase 0 confirms them against a live account.
+
+| Topic | Rule |
+| --- | --- |
+| Registration | The first sign-in sends `client_id=dynamic_agent_client`, `agent_name_hint` (the app's own name) and a stable `ext_agent_host_id`. The return carries the issued `client_id`, which later sign-ins reuse. There is no client secret. |
+| Authorization | System browser to `https://auth.openai.com/api/accounts/authorize` with PKCE `S256`, `state`, `nonce`, `resource=https://api.openai.com/v1` and scopes `openid profile email offline_access resource.invoke chatgpt.tokens.use.direct`. |
+| Return | An HTTP loopback URI on `127.0.0.1`, such as `http://127.0.0.1:<port>/auth/callback`. Only the port may vary later; `localhost` is not accepted. |
+| Tokens | Code exchange and refresh at `https://auth.openai.com/api/accounts/oauth/token`. Access tokens last one hour. Refresh tokens last 30 days and are replaced on every refresh. The response carries `earliest_refresh_at`. |
+| ID token | Validate the signature against OpenAI's JWKS, then issuer, audience (the issued client id), expiry and nonce. Plan use needs `chatgpt.tokens.use.direct` among the granted scopes. |
+| Sign-out | Revoke the refresh token at the discovery document's `revocation_endpoint`, then clear tokens. Keep the client id and host id. |
+| Models | `GET https://api.openai.com/v1/models` returns the account's `models[]` with `slug`, `display_name` and `visibility`. |
+| Inference | `POST /v1/responses` only, with `store: false` and `stream: true`. A request succeeded only once `response.completed` arrives. |
+| Rejected fields | `background`, `conversation`, `max_output_tokens`, `max_tool_calls`, `metadata`, `moderation`, `multi_agent`, `prompt`, `prompt_cache_retention`, `safety_identifier`, `temperature`, `top_logprobs`, `top_p`, `truncation`, `user`, `previous_response_id` over HTTP, and system-role input items. |
+| Tools | Function and custom tools must be grouped in namespaces or supplied through `additional_tools` input items. Image generation, file search, Code Interpreter, computer use, hosted MCP and `tool_search` are unsupported. Web search depends on the model and account. |
+| Inputs | Text, images and files where the model accepts them. No audio or video input, Files upload or transcription. |
+| Errors | `subscription_sharing_usage_limit_exceeded` (429), `…_user_not_eligible` (403), `…_usage_unavailable` and `…_user_unavailable` (503), `…_unsupported_capability` (400), `…_route_not_supported` (403), `…_invalid_user` (401). Admission can fail before the stream with a bare `{"detail": …}` body. OpenAI never moves a request to another billing path. |
+| Plans | The developer documentation names Plus and Pro. The end-user page names Go, Plus, Pro and Business, where a Business admin must allow the app. Free is on neither list. Usage draws on the plan's existing allowance. |
+| Limits | The Plus five-hour limit is shared across every app. A person can cap one app's weekly share in ChatGPT's settings. |
+| Interface | A one-time "You're using your ChatGPT plan" confirmation; **Continue with ChatGPT** to start; "Using ChatGPT plan" with **Manage usage** near the composer or model selector; **Manage usage** as the primary action at a limit. |
+| Terms | Effective 2026-11-04: requests originate from the person's own runtime; tokens are stored locally under their control; express consent before background use; the plan serves only the connected app; no charge to use it; OpenAI may suspend access. |
+| Remote hosts | A `127.0.0.1` return reaches the machine running the browser. OpenAI's guidance for a remote machine is to sign in locally and copy the credential file, which this plan does not build (spec P2). |
+
+The namespace tool shape comes from the pinned SDK's types:
+
+```text
+{"type": "namespace", "name": …, "description": …,
+ "tools": [{"type": "function", "name": …, "parameters": …}]}
+```
+
+## Threat model
+
+Assets: the access token, the rotating refresh token, the retained ID token,
+the desktop store key, the authorization code, and a pending attempt's `state`
+and PKCE verifier. Boundaries: the system browser and the backend (the
+sign-in return), the app page and the backend (`/v1`), the backend and
+OpenAI, the backend and its disk, logs and child processes, and Electron main
+and the backend.
+
+| # | Threat | Mitigation | Negative tests |
+| --- | --- | --- | --- |
+| T1 | The sign-in return exemption admits requests the normal checks refuse. | The exemption covers exactly `GET /auth/callback` over HTTP, and only when the installation's origin is a loopback `http` origin. `Host` must equal `127.0.0.1:<public port>`. No `Origin` and no body. `Sec-Fetch-Mode`, when present, must be `navigate` and `Sec-Fetch-Dest` must be `document`. A request that misses any condition gets the normal checks, and every other path is unchanged. | Other methods, a WebSocket, a body, an `Origin`, `Host` `localhost:<port>`, another port or `evil.test`, subresource fetch metadata, a non-loopback public origin, `/auth/callback/x` and `/auth/other` are refused as today. On desktop `/v1` without the cookie is still 401. |
+| T2 | Login CSRF or code injection: a page or local process drives the return with an attacker's code, or replays one. | One pending attempt at a time with a ten-minute life. A 256-bit `state` is compared in constant time and consumed once. The PKCE verifier and nonce never leave the backend. On reauthorization a returned client id must match the attempt. A wrong `state` neither completes nor cancels the pending attempt. | Missing, wrong, expired and reused `state`; a mismatched client id; a second return after success; an `access_denied` return. Each gets the fixed failure page and leaves the session unchanged. |
+| T3 | A token, code or the store key leaks through logs, errors, URLs, API responses, diagnostics, the page or backups. | Tokens exist only in the session service and its file. Status responses carry state, email and scopes. Secret fields use `repr=False`. Provider error text passes a redactor that knows JWT shapes and the current token values. The return handler never logs or reflects its query and answers with a static page marked `no-store` and `no-referrer`. The authorize URL, which can carry an ID token hint, is never logged. Backup and restore skip the session directory. | A sentinel token and code appear in no response body, `caplog`, captured stderr, exception chain, database row, stream event or diagnostics summary, on success and on each failure path. G2 scans a packaged profile's logs. |
+| T4 | A token is sent to the wrong host. | Access tokens go only to `https://api.openai.com`; refresh and ID tokens only to `https://auth.openai.com`. Both origins are constants, not settings, and ignore `OPENAI_BASE_URL`. Redirects are not followed. The plan client carries no organization, project or custom headers from the environment. | With `OPENAI_BASE_URL` set to another host the plan client still targets `api.openai.com`; a redirect response is an error; a discovery document that names another host for revocation is refused. |
+| T5 | A rotated refresh token is lost or used twice. | One refresh at a time. The new token set is written atomically before any request uses it. `earliest_refresh_at` is respected. A terminal refresh error clears tokens and asks for sign-in; a transient one does not. | Concurrent requests near expiry cause one refresh; an interrupted write leaves the previous file intact; each terminal error code clears tokens; a network error keeps them. |
+| T6 | Tokens at rest are readable by another user, or survive sign-out. | Directory mode 0700, file mode 0600, atomic replace, no symlink following. On desktop the file is AES-256-GCM ciphertext under a key that only the vault holds (D2). Sign-out revokes, then removes the token fields. A malformed or undecryptable file means signed out, and the file is removed. | File mode and symlink refusal; tampered ciphertext and a wrong key both mean signed out; sign-out leaves no token bytes on disk. |
+| T7 | The plan is used for work the person did not agree to, or spend moves silently to another connection. | Every token request names its purpose. `background` is refused without recorded agreement and while a usage limit pauses the plan. No code path retries a plan request on another connection. | Automatic episode processing on a plan model without agreement makes no request; after a limit error a background request is refused until an interactive one succeeds; a failed plan turn sends nothing to any other connection. |
+| T8 | The plan becomes a relay for other tools. | No route accepts a caller-supplied model request for the plan. Only the app's own features reach the plan client. | The inventory has no generic completion route; the status and preference routes accept fixed fields only. |
+
+## Progress
+
+- [x] Plan drafted on `feat/chatgpt-plan` from `origin/main` `1c7d7295e`.
+- [x] G0: the owner approved this plan, including D1 to D14 (2026-11-24).
+- [x] Workspace setup (2026-11-24): #919 published and read back, spec
+  snapshot and plan tracked, branch fast-forwarded to `c7b98f73a`, Python
+  dependencies installed. No stack started.
+- [ ] Phase 0: live trial of the route.
+- [ ] Phase 1: sign-in core.
+- [ ] Phase 2: routes and the sign-in return.
+- [ ] Phase 3: desktop custody.
+- [ ] Phase 4: settings and setup.
+- [ ] Phase 5: the plan connection and its model client.
+- [ ] Phase 6: chat on plan models.
+- [ ] Phase 7: roles, agreement and limits.
+- [ ] Phase 8: documentation and records.
+- [ ] Final integration review, G1 to G4, pull request.
+
+## Surprises & Discoveries
+
+- 2026-11-24 (planning): nothing is exempt from admission today, not even
+  `/health`. The sign-in return is the first browser route that needs a
+  different rule, so it gets its own threat model row (T1) and tests.
+- 2026-11-24 (planning): the plan route requires function tools inside a
+  namespace. The flat tools the adapter sends today would be refused, and a
+  tool call then returns with its namespace.
+- 2026-11-24 (planning): most of the Responses adapter's behavior that the
+  route forbids is keyed by provider type: the stored cursor, inline
+  moderation, native compaction and hosted tools. A separate provider type
+  avoids each of them without a connection check in every place (D3).
+- 2026-11-24 (planning): tool rounds inside one turn chain with
+  `previous_response_id` even for unstored requests. On the plan route every
+  tool round would fail once and retry, so the plan client replays by hand
+  from the first round.
+- 2026-11-24 (planning): the seed deactivates every `builtin` model row that
+  the static catalog lacks, at every start. Rows synced from an account would
+  be switched off on restart unless the seed skips the plan connection (D4).
+- 2026-11-24 (planning): the Memory Manager's Responses runtime is not
+  streamed and stores its responses. The route allows neither, so Phase 7
+  gives that runtime a plan mode.
+- 2026-11-24 (planning): a Reflection never runs by itself. Automatic episode
+  processing is the only model work the backend starts unprompted (D5).
+- 2026-11-24 (planning): nothing flows from the backend to Electron main, but
+  a refresh replaces the refresh token about hourly while the plan is in use.
+  Writing each new token into the vault would need a new channel (D2).
+- 2026-11-24 (planning): `scripts/backup-local.sh` archives the whole data
+  tree, so a session file there would enter backups unless excluded.
+- 2026-11-24 (planning): an earlier packaged check found `uvicorn.access`
+  lines in the desktop log although the access log is off. Phase 2 confirms
+  that no log line can carry the return's query string.
+- 2026-11-24 (planning): the OpenAI SDK retries a 429 by default. A usage
+  limit must stop, so the plan client sets no SDK retries.
+
+## Decision Log
+
+- 2026-11-24, owner: the spec is accepted as written, including P1 to P8. The
+  sign-in has its own spec, is delivered before content generation uses it,
+  uses the direct sign-in and serves local compositions only.
+- 2026-11-03, owner (standing instruction, recorded during #823): phases run
+  the checks their changes affect, not the full pre-push suite. The full suite
+  runs once on the final candidate after the owner agrees to the run (G3).
+- 2026-11-24, owner: plan approved with D1 to D14 as proposed (G0). The
+  spec's R2.1, R4.1, R4.2 and one acceptance line were revised the same day
+  to match D2, D5 and D6.
+- 2026-11-24, owner: workspace setup and Phase 0 authorized.
+- 2026-11-24, agent proposals, approved by the owner at G0. D2 and D5 changed
+  the wording of an accepted requirement. The rest are implementation choices
+  inside the agreed behavior.
+  - **D1. The backend owns the sign-in in both runtimes.** One Python
+    implementation of registration, exchange, validation, refresh and
+    revocation. Electron main only opens the browser, as it does for any link.
+  - **D2. Desktop custody: an encrypted file under a vault key.** The vault
+    gains one generated key. The backend writes the session as AES-256-GCM
+    ciphertext in its data directory. Spec R2.1 said the tokens rest "in the
+    desktop app's encrypted vault"; it now says they rest in a file encrypted
+    with a key held in the vault. The literal alternative was a
+    control route that Electron main polls so it can copy each refreshed
+    token set into the vault. It needs a new channel in a boundary that is
+    one-way today, moves tokens across loopback at every refresh, and loses
+    the session if the app stops between OpenAI's answer and the vault write.
+  - **D3. A separate provider type for plan models**, proposed name
+    `ChatGPTPlanResponsesHTTPAgent`, mapped to the existing Responses API
+    standard so a chat can move between key and plan models (R3.6). Its
+    client reuses the Responses request, stream and result code through a
+    route profile.
+  - **D4. Account-listed models are read-only built-in rows.** Sign-in and
+    refresh upsert one row per listed model under the plan connection, with
+    ids `<provider type>:<slug>`. Rows are active only while signed in, and
+    the seed leaves this connection's rows alone.
+  - **D5. Agreement gates work that starts by itself.** That is automatic
+    episode processing. A Reflection the person starts is their own action
+    and needs none, like a chat title. Spec R4.1 listed "the Memory Manager"
+    beside automatic episode processing; it and its acceptance line now name
+    automatic episode processing only.
+  - **D6. A plan-selected role that may not run does not run.** Without
+    agreement, or while paused, the job waits. It does not move to another
+    model, and spec R4.2 now says so.
+  - **D7. Agreement and the one-time confirmation live with the session**,
+    not in shared owner preferences, so they stay local, follow the account
+    and are asked again after a different account signs in.
+  - **D8. Web search.** OpenAI's hosted search is offered on a plan model
+    only if Phase 0 shows the route accepts it. Otherwise a plan model gets
+    the app's own web search like any other tool-calling model, and the
+    control explains when neither is available (R3.5).
+  - **D9. Context window.** Use the account list's own figure when it has
+    one, else the catalog's entry for the same model id, else 128,000 tokens.
+    Phase 0 records what the list contains.
+  - **D10. The return page speaks the installation's language**, from a small
+    backend table in the five locales, because the app page is not involved.
+  - **D11. The probe script is committed** as developer tooling, so the
+    preview route can be checked again when OpenAI changes it.
+  - **D12. One branch and one pull request.** The content generation plan can
+    start from this branch once Phase 5 passes review, or from `main` after
+    the merge.
+  - **D13. `pyjwt[crypto]` becomes a declared dependency.** It and
+    `cryptography` are already locked and installed; no new package enters
+    the lock.
+  - **D14. Sign-in is offered only when the installation's origin is a
+    loopback `http` origin**, which is how the backend knows the return can
+    reach it (spec P2). Anywhere else the app explains instead of starting.
+
+## Phased implementation
+
+Each phase starts from the previous phase's commit and writes its tests first.
+Phase 0's findings can change later steps; a finding that changes agreed
+behavior goes to the owner before the phase it affects. Phase 3 needs Phase 1.
+Phase 4 needs Phase 2. Phase 5 needs Phases 0 and 1. Phase 6 needs Phase 5.
+Phase 7 needs Phases 5 and 6. Phase 8 is last.
+
+Module names below are proposals; the implementing agent may adjust them
+within the repository's layering (domain, application services and ports,
+adapters, server composition).
+
+### Workspace setup
+
+After G0, in worktree `chatgpt-plan`:
+
+1. Merge `origin/main` if it moved. Run `uv sync --python 3.12.13 --extra
+   voice --extra viz --extra realtime --extra encrypt --extra documents
+   --all-packages --group dev`. Before the frontend phases run `pnpm install`
+   in `src/frontend`, and run `git lfs pull` before backend content tests.
+2. Publish the spec as the parent issue with the parent form's sections, read
+   it back, and record the issue and its capture time in the spec file and at
+   the top of this plan. Apply the type and triage labels the repository
+   defines, after checking they exist.
+3. Commit the spec snapshot and this plan as the plan's first commit.
+
+### Phase 0: Live trial of the route
+
+Review tier: standard. The probe is developer tooling, not product code, but
+it handles real tokens, so the review reads its secret handling closely.
+
+Requirements: spec checks C1 and C2. Informs D3, D4, D8 and D9.
+
+Gate: G1 before any request.
+
+Steps:
+
+1. Add `scripts/chatgpt_plan_probe.py`, one file using `httpx`, `jwt` and
+   `openai` from the project environment, with subcommands `sign-in`,
+   `models`, `requests`, `refresh` and `sign-out`. It listens on `127.0.0.1`
+   for its own `/auth/callback`. Its credential file path is a required
+   argument; the probe creates it with mode 0600 and refuses a path inside a
+   Git work tree. It prints field names, shapes and statuses, never token
+   values.
+2. Record these findings under Surprises & Discoveries, with no account
+   identifiers:
+   - the ID token's signing algorithm and claims;
+   - the fields of a `/v1/models` item;
+   - whether the route accepts a flat function tool, a namespace tool and an
+     `additional_tools` item, and how a call names its tool;
+   - image input, `reasoning.effort`, `prompt_cache_key`, `text.format`,
+     `tool_choice` and `parallel_tool_calls`;
+   - `context_management`, `web_search` and `apply_patch`;
+   - `include: ["reasoning.encrypted_content"]` and replay of the returned
+     reasoning item in a second request;
+   - the error body for a rejected field and for a wrong route;
+   - the refresh response's fields, and revocation.
+3. Decide D8, D9, the compaction path, native `apply_patch` and reasoning
+   replay from that evidence, and update Phases 5 to 7 where a finding
+   changes them.
+
+Checks: `uv run ruff check scripts/chatgpt_plan_probe.py`;
+`python3 scripts/public-release/check_source.py`.
+
+Completion: the findings are recorded, and no token is in the repository,
+this plan or the shell history.
+
+Recovery: `sign-out` revokes the session, the credential file can be deleted,
+and the app can be disconnected in ChatGPT's settings.
+
+Check record, results and commits: to be recorded.
+
+#### Code Review #1 Findings
+
+To be recorded.
+
+#### Code Review #1 Revisions
+
+To be recorded.
+
+### Phase 1: Sign-in core
+
+Review tier: high risk (authentication, secrets at rest, concurrency, a
+dependency declaration).
+
+Requirements: R1.2, R1.4, R1.5 (sign-out), R1.6, R2.1 (self-host), R2.2,
+R2.3. Threats T2 to T6.
+
+Steps, tests first in `tests/test_chatgpt_plan_identity.py`,
+`tests/test_chatgpt_plan_store.py` and `tests/test_chatgpt_plan_session.py`:
+
+1. `pyproject.toml`: declare `pyjwt[crypto]>=2.15.1,<3` and run `uv lock`.
+   The lock should change only its metadata.
+2. `domain/chatgpt_plan.py`: the account, the session record and its states,
+   with secret fields marked `repr=False`.
+3. `adapters/chatgpt_plan/openai_identity.py`: an `httpx` client with an
+   injectable transport, fixed OpenAI origins (T4) and no redirects. It
+   builds the authorize URL (PKCE, `state`, `nonce`, hints for a returning
+   account, `prompt=consent` when the person enables plan use later),
+   exchanges a code, refreshes, revokes, and validates an ID token against a
+   cached JWKS that is fetched again for an unknown key id.
+4. `adapters/chatgpt_plan/session_store.py`: the record at
+   `<data root>/internal/chatgpt-plan/`, written with the `persist` pattern
+   (directory 0700, file 0600, no symlinks). With a key it writes
+   AES-256-GCM ciphertext (`session.bin`); without one, JSON
+   (`session.json`). The record holds a schema version, the host id
+   (`urn:uuid:` version 4, created once and kept), and per account the issued
+   client id, email, scopes, tokens, expiry, `earliest_refresh_at`, the
+   retained ID token, the confirmation time and the background choice.
+5. `app/services/chatgpt_plan_session.py`: status; `begin` (one pending
+   attempt, ten minutes); `complete` (T2); `cancel`; `access_token(purpose)`
+   with a single-flight refresh that writes before use (T5) and refreshes
+   inside the last five minutes; the usage-limit pause; `sign_out`, which
+   revokes, clears tokens and reports whether OpenAI confirmed. One account
+   is active, and a new one replaces it only after validation (R1.6). A
+   malformed or undecryptable record means signed out.
+6. `scripts/backup-local.sh` and `scripts/restore-local.sh`: add
+   `./internal/chatgpt-plan` to both exclude lists, so a backup never holds
+   the session and a restore never extracts one. A restore replaces the data
+   tree, so it leaves the installation signed out; Phase 8 documents that.
+
+Checks: the three test files; `uv run ruff check`; `uv lock --check`;
+`bash -n scripts/backup-local.sh scripts/restore-local.sh`. Not run in this
+phase: the full pre-push suite.
+
+Completion: against a fake OpenAI, a sign-in completes, survives a restart,
+refreshes once under concurrent use and signs out, and every negative test in
+T2 to T6 that needs no HTTP route passes.
+
+Recovery: the record is one directory. Removing it signs the installation
+out, and nothing else refers to it.
+
+Check record, results and commits: to be recorded.
+
+#### Code Review #1 Findings
+
+To be recorded.
+
+#### Code Review #1 Revisions
+
+To be recorded.
+
+### Phase 2: Routes and the sign-in return
+
+Review tier: high risk (the admission boundary, the API contract, the
+generated client).
+
+Requirements: R1.1 (API), R1.4, R1.5, R1.7. Threats T1 to T3 and T8.
+
+Steps, tests first in `tests/test_local_http_admission.py`,
+`tests/test_chatgpt_plan_api.py`, `tests/test_product_http_inventory.py`,
+`tests/test_runtime_capabilities.py` and
+`src/frontend/web/tests/local-api-proxy.test.ts`:
+
+1. `local/http/config.py`: `LocalHTTPConfig` gains the sign-in return path
+   and derives its authority, `127.0.0.1:<port>`, only when the public origin
+   is `http` on `localhost` or `127.0.0.1` (D14). `server/local_http.py` sets
+   the path.
+2. `local/http/admission.py`: admit the return as T1 describes, tested before
+   the `Host` rule and only for the exact path. A request that misses a
+   condition falls through to the existing checks. `lifecycle.admit` still
+   applies.
+3. `local/http/assets.py`: add `/auth` to `_NO_FALLBACK_PREFIXES`, so no
+   `/auth/*` path returns the app shell.
+4. `server/routers/chatgpt_plan.py`, included in `create_local_app` after the
+   model configuration router. Every `/v1` route depends on
+   `get_current_principal`:
+   - `GET /v1/chatgpt-plan`: state, whether sign-in is available and why not,
+     the account's email, whether plan use is enabled, whether the
+     confirmation is due, the background choice and the pause.
+   - `POST /v1/chatgpt-plan/sign-in`: starts an attempt and returns the
+     authorize URL; refused with a code when sign-in is unavailable.
+   - `DELETE /v1/chatgpt-plan/sign-in`: cancels the attempt.
+   - `POST /v1/chatgpt-plan:sign-out`.
+   - `PUT /v1/chatgpt-plan/preferences`: records the confirmation and the
+     background choice.
+   - `GET /auth/callback`, outside the schema: completes the attempt and
+     answers with the static page (D10, T3).
+5. Keep the return out of OpenTelemetry instrumentation, and add a test that
+   the server writes no log line containing the return's query.
+6. `product_http/inventory.py`: `_excluded("chatgpt_plan", …)` rows for the
+   `/v1` routes and a `_local` row for the return, in mount order. Add the
+   `chatgpt_plan` capability (false by default, true locally, `false` in
+   `hosted.json` and in the test's permission list), and refuse it in
+   `hosted-composition.ts` with a test.
+7. `local-api-proxy.ts`: forward `/auth/callback` and fence other `/auth/*`
+   paths. Confirm Vite accepts `Host: 127.0.0.1:<port>`.
+8. Raise `local-http` to the next major in `contracts/versions.json`, run
+   `pnpm openapi-ts`, raise the runtime-contracts version and run
+   `pnpm packages:build`.
+9. Correct the two sentences this phase makes wrong: "Adding A Route" in
+   `docs/backend/operations/development.md` and the proxied paths in
+   `docs/frontend/architecture/auth-server.md`.
+
+Checks: the test files; `uv run ruff check`; from `src/frontend`
+`pnpm openapi-ts:check`, `pnpm check` and the proxy test; the package-set
+`compare` against a `main` baseline. Start a task stack with
+`./reset.sh --name chatgpt-plan --base-port <free port>` and send the T1
+request variants to it with `curl`, in development and built mode.
+
+Completion: a return with a valid `state` completes a sign-in against the
+fake OpenAI in development, built and desktop configurations; every T1 and T2
+variant is refused; the inventory and contract checks pass.
+
+Recovery: the exemption is one branch in admission and one config field.
+Removing the path from the config closes it.
+
+Check record, results and commits: to be recorded.
+
+#### Code Review #1 Findings
+
+To be recorded.
+
+#### Code Review #1 Revisions
+
+To be recorded.
+
+### Phase 3: Desktop custody
+
+Review tier: high risk (secrets, Electron main, the packaged runtime).
+
+Requirements: R2.1 (desktop). Threats T3 and T6. Follows D2.
+
+Steps, tests first in `src/frontend/desktop/tests/runtime-state.test.ts`,
+`src/frontend/desktop/tests/runtime-supervisor.test.ts`,
+`tests/test_chatgpt_plan_store.py` and `tests/test_local_app_composition.py`:
+
+1. `vault.ts`: an optional generated store key (32 random bytes), created on
+   first need and saved with the vault's existing atomic encrypted write. It
+   is part of `secrets()` for log redaction and never part of `list()` or
+   `childEnvironment()`.
+2. `supervisor.ts` `backendEnvironment()`: pass the key to the FastAPI child
+   only, as `ANIMAMA_CHATGPT_PLAN_STORE_KEY`.
+3. `server/config.py`: read and validate the key with `repr=False`, remove it
+   from the process environment in the desktop composition, and give it to
+   the session store. A desktop composition without the key reports sign-in
+   as unavailable; it never falls back to an unencrypted file.
+
+Checks: `pnpm desktop:test` from `src/frontend`; the backend test files;
+`uv run ruff check`.
+
+Completion: on desktop the session file is ciphertext, the key appears in no
+log, child environment or status, and a profile without the vault is signed
+out.
+
+Recovery: deleting the session file signs out. Losing the vault makes the
+file unreadable, which also means signed out.
+
+Check record, results and commits: to be recorded.
+
+#### Code Review #1 Findings
+
+To be recorded.
+
+#### Code Review #1 Revisions
+
+To be recorded.
+
+### Phase 4: Settings and setup
+
+Review tier: standard.
+
+Requirements: R1.1, R1.3, R1.4, R1.5, R1.6, R1.7 and the question in R4.1.
+
+Steps, tests first in Vitest specs beside the sources:
+
+1. Query hooks and mutations for the Phase 2 routes, beside the model
+   configuration ones. The status query polls each second while an attempt
+   is pending.
+2. `model-configuration-state.ts`: a "ChatGPT plan" entry in the Cloud tab
+   beside OpenAI, with "Signed in" and "Not signed in" status text.
+3. A plan card in `src/frontend/web/src/ui/settings/models/` with these
+   states: signed out (**Continue with ChatGPT**); waiting for the browser
+   (cancel, open again); signed in (email, plan use, **Manage usage**, the
+   background switch, sign out); plan use declined or not eligible (R1.4,
+   with a way to enable it later); unavailable (R1.7 or missing secure
+   storage). The card opens the authorize URL in a new browser context and
+   never logs it.
+4. The one-time confirmation (R1.3): "You're using your ChatGPT plan", what
+   uses it, where to manage usage, and an unchecked choice for automatic
+   memory updates. Confirming writes the preferences.
+5. `SetupAiStep.tsx`: the same card as a setup choice (spec P8).
+6. Text when sign-out could not be confirmed at OpenAI (R1.5).
+7. Strings in all five locales, then `pnpm i18n:extract`.
+
+Checks: the touched Vitest specs; from `src/frontend` `pnpm check`. Not run:
+`pnpm verify`, the browser tests.
+
+Manual check (G1, and G2 for desktop): a real sign-in in a task stack opened
+on the same machine, in built and development mode, and in the desktop app.
+This completes spec check C1's return test.
+
+Completion: each card state renders from a mocked status, and a real account
+signs in, stays signed in across a restart and signs out.
+
+Recovery: the card is additive. Hiding it leaves the Models section as it is
+today.
+
+Check record, results and commits: to be recorded.
+
+#### Code Review #1 Findings
+
+To be recorded.
+
+#### Code Review #1 Revisions
+
+To be recorded.
+
+### Phase 5: The plan connection and its model client
+
+Review tier: high risk (catalog persistence and the seed, the API contract,
+concurrency, outbound credentials).
+
+Requirements: R3.1, R3.2 (catalog), R5.2, R5.3. Threats T4, T7 and T8.
+
+Steps, tests first in `tests/test_chatgpt_plan_client.py`,
+`tests/test_chatgpt_plan_models.py`, `tests/test_model_provider_catalog.py`,
+`tests/test_model_error_categories.py` and
+`tests/test_model_key_destinations.py`:
+
+1. Connection: a `chatgpt_plan` id in `BUILTIN_CONNECTION_IDS`, a preset the
+   owner cannot select, a built-in connection with no credential variable,
+   the provider type (D3) and its entry in `app/chat/api_standard.py`. The
+   hosted catalog policy stays as it is, which excludes the connection.
+2. Seed: add the connection row, and make the deactivation statement skip
+   this connection. Update the renderer and the parity test.
+3. Model sync (D4, D9): at sign-in and on `POST
+   /v1/chatgpt-plan/models:refresh`, list the account's models, upsert rows
+   for those meant for display, deactivate rows no longer listed, and
+   deactivate all of them when the session ends. Rows accept only the
+   `hidden` change. The model connection list reports the plan connection's
+   credential state from the session. Add the refresh route to the inventory
+   and regenerate the client with `pnpm openapi-ts`.
+4. Validation: a plan row must be on the plan connection and needs a
+   signed-in session, with a code the page can explain. Owner model routes
+   refuse the plan connection.
+5. Client: registered in `build_model_client_registry` (the mock under
+   `ANIMAMA_LLM_SKIP`). The route profile sets `store` false; never sends a
+   cursor, `moderation`, limits or metadata; wraps function tools in one
+   namespace and maps returned names back; sends system text only as
+   `instructions`; and sends `context_management` and hosted tools only as
+   Phase 0 found. The SDK client is key-free, has a fixed base URL, takes no
+   headers from the environment and does no SDK retries. Each stream gets a
+   view keyed with the session's access token.
+6. Tool rounds replay by hand from the first round. If Phase 0 showed the
+   route returns encrypted reasoning, request it and replay it inside the
+   turn.
+7. Errors: map the plan error codes and the bare `detail` bodies to new
+   codes and categories for a limit, an ineligible account, a temporary
+   outage, an unsupported request and a required sign-in. A 401 forces one
+   refresh and one retry before any output. A limit sets the pause. Extend
+   `sanitize_provider_error_message` for JWT shapes and the current token
+   values (T3).
+8. Prove the Utility path: `DirectModelPromptRunner` completes a prompt on a
+   plan row.
+
+Checks: the test files, including the acceptance test that inspects the
+request built for a plan model; `tests/test_model_client_registry.py`;
+`uv run ruff check`; from `src/frontend` `pnpm openapi-ts:check` and the
+package-set `compare`. Not run: the full pre-push suite.
+
+Manual check (G1): refresh lists the account's models, and one direct prompt
+with a tool call succeeds on a real plan model.
+
+Completion: a feature that picks its own model can use a plan model. This is
+the point the content generation plan needs (D12).
+
+Recovery: plan rows are derived data. Signing out deactivates them, and a
+later sign-in restores them. The seed change is repeatable.
+
+Check record, results and commits: to be recorded.
+
+#### Code Review #1 Findings
+
+To be recorded.
+
+#### Code Review #1 Revisions
+
+To be recorded.
+
+### Phase 6: Chat on plan models
+
+Review tier: standard.
+
+Requirements: R3.2 (chat), R3.3 to R3.7, and R5.1 as chat shows it.
+
+Steps, tests first in `tests/test_direct_chat_turn_executor.py`,
+`tests/test_chat_manager.py`, `tests/test_companion_safety_chat.py` and the
+Vitest specs for the composer and the failure notice:
+
+1. Executor: a plan turn carries no moderation option and reads no cursor.
+   After it, the chat row holds no cursor, so the next key-model turn
+   replays history, and the reverse also works (R3.6, spec check C3). Context
+   fitting uses the row's window when native compaction is off.
+2. Web search per D8, reported through the model's requestable tools so the
+   picker's control explains itself (R3.5).
+3. The composer shows "Using ChatGPT plan" with **Manage usage** when the
+   selected model belongs to the plan connection, in chat and Quick Chat
+   (R3.7).
+4. Failure notices for the Phase 5 codes in `chat-failure.ts` and the
+   product-ui catalogs: a limit and an ineligible account carry a **Manage
+   usage** link, and a required sign-in names App Settings → Models. Add the
+   codes to `userVisibleCodes.json`.
+5. The chat picker groups plan models under "ChatGPT plan".
+
+When chat image input (#904) lands, plan rows send image parts through the
+shared request builder; this phase adds nothing for it.
+
+Checks: the test files; from `src/frontend` `pnpm check`; the package-set
+`compare` if a product-ui declaration changed.
+
+Manual check (G1): on a real plan model an Anima replies with streaming, uses
+a memory tool and gets a title; a chat started on a key model continues on
+the plan and back.
+
+Completion: spec acceptance lines for chat, the indicator and chat
+continuity are met in tests, and the manual check passes.
+
+Recovery: an Anima on a plan model can be moved to any other model, and its
+chat continues there.
+
+Check record, results and commits: to be recorded.
+
+#### Code Review #1 Findings
+
+To be recorded.
+
+#### Code Review #1 Revisions
+
+To be recorded.
+
+### Phase 7: Roles, agreement and limits
+
+Review tier: high risk (a background worker, the consent boundary,
+concurrency).
+
+Requirements: R3.2 (Utility, Memory Manager, Embeddings), R4.1, R4.2, R5.1.
+Threat T7. Follows D5 and D6.
+
+Steps, tests first in `tests/test_model_roles.py`,
+`tests/test_memory_manager.py`, `tests/test_automatic_episode_processing.py`
+and a new `tests/test_chatgpt_plan_background.py`:
+
+1. Role pickers offer plan models for the default chat model, Utility and
+   the Memory Manager, and never for Embeddings.
+2. Memory Manager on a plan row: a plan mode of the Agents SDK runtime that
+   streams, does not store, sends no cursor, puts its tools in a namespace,
+   uses the function form of memory edits unless Phase 0 showed native
+   `apply_patch` works, turns tracing off, and builds its client from the
+   session's token with no SDK retries. A request-capture test asserts that
+   none of the rejected fields is sent. If the SDK cannot meet the route's
+   rules, stop and bring the options to the owner, because removing the
+   Memory Manager from R3.2 changes the spec.
+3. Agreement (D5, D6): `local_memory_manager_model_usable` is false for a
+   plan row without agreement or while paused, with a reason the settings
+   line can show. The token service enforces the same rule for the
+   `background` purpose, so the check cannot be bypassed.
+4. The pause (R5.1): set by a limit error, cleared when an interactive plan
+   request succeeds, and shown in the status and on the card.
+5. A Reflection on a plan model runs as the person's own request.
+
+Checks: the test files; `uv run ruff check`; the touched Vitest specs. Not
+run: the full pre-push suite.
+
+Manual check (G1): with agreement, automatic episode processing runs on the
+plan; without it, it does not and says why; a Reflection runs either way.
+
+Completion: every T7 negative test passes, and the manual check matches.
+
+Recovery: withdrawing agreement or choosing another Memory Manager model
+takes effect on the next run.
+
+Check record, results and commits: to be recorded.
+
+#### Code Review #1 Findings
+
+To be recorded.
+
+#### Code Review #1 Revisions
+
+To be recorded.
+
+### Phase 8: Documentation and records
+
+Review tier: light; the final integration review covers it.
+
+1. A new ADR for sign-in credentials and the plan connection: D1 to D7, the
+   sign-in return's admission rule, and the alternatives considered.
+2. `GLOSSARY.md`: the Model connection entry now also covers a connection
+   whose credential is a sign-in; new entries for the ChatGPT plan connection
+   and account-listed models.
+3. `docs/backend/model-catalog.md`,
+   `docs/backend/runtime/model-client-providers.md` (the route profile and
+   its errors) and `docs/backend/runtime/chat.md` (crisis detection on plan
+   turns, R3.4).
+4. `docs/backend/architecture/http-api.md`, `contracts/hosted-web.md` and the
+   version prose in `docs/frontend/desktop/releases.md`.
+5. `docs/backend/operations/local-http-components.md` and
+   `docs/frontend/architecture/auth-server.md`: the return's admission rule.
+6. `docs/backend/operations/development.md` (the session file and what
+   backups skip), `docs/backend/operations/desktop-runtime.md` and
+   `docs/frontend/desktop/overview.md` (the store key and the file).
+7. `docs/frontend/features/model-settings.md`: signing in, the indicator,
+   limits and the background choice.
+8. Source-review entries for every new file.
+
+Check: the documentation links resolve;
+`python3 scripts/public-release/check_source.py`.
+
+## Final integration review
+
+One review of the combined change against the spec's acceptance criteria,
+covering Phase 8 and reusing phase evidence. After its repairs and the
+owner's agreement (G3), the full pre-push suite runs once on the final
+candidate through the heavy slot: `python3 scripts/heavy-slot.py -- make
+check-test`; from `src/frontend`, `python3 ../../scripts/heavy-slot.py --
+pnpm verify`, `pnpm web:test:browser`, `pnpm prettier:check` and
+`pnpm desktop:test`; and `pnpm e2e:test:fast` against a disposable built
+stack. Results go in the pull request.
+
+Gates:
+
+- **G0.** Owner review of this plan, including D1 to D14.
+- **G1.** A live account. Phase 0 and the manual checks in Phases 4 to 7 need
+  an eligible ChatGPT plan and the account holder signing in themself in
+  their own browser. The agent never handles the password. Plan usage is
+  bounded: at most 25 small requests in Phase 0 and 10 turns in each later
+  phase.
+- **G2.** Desktop check on a packaged development build with a fresh profile:
+  sign in, restart, chat on a plan model, sign out, then scan the profile's
+  logs and files for token and code values. The agent drives the app only
+  after the owner's go-ahead; otherwise the owner performs it. This is also
+  where a missing module in the frozen runtime would show.
+- **G3.** Owner agreement to the full pre-push run.
+- **G4.** Owner checks: the button's branding (the logo asset and its terms
+  under OpenAI's guidelines, or a text-only button), and whether the app's
+  privacy notice covers plan use (spec check C4).
+
+Hosted validation stays off unless the owner starts a run; the pull request
+states which evidence is local.
+
+Outside this repository: at its next repin, Animama Cloud admits the new
+`local-http` major and keeps `chatgpt_plan` false. No Cloud work is part of
+this plan.
+
+## Validation and acceptance
+
+Each spec acceptance criterion and the evidence planned for it:
+
+| Criterion | Evidence |
+| --- | --- |
+| Sign-in on desktop and a same-machine stack; stays signed in; sign-out | Phase 1 and 2 tests; Phase 4 manual check; G2 |
+| Tokens in no row, log, event, diagnostics, browser storage or URL | T3 tests in Phases 1, 2 and 5; G2 scan |
+| The request built for a plan model | Phase 5 request test; Phase 7 capture test |
+| A real plan model: streaming, a memory tool, a title; background work only after agreement | Phase 6 and 7 manual checks (G1) |
+| The indicator shows on plan models only | Phase 6 composer test |
+| Declined or ineligible sign-in, a limit, and no automatic switch | Phase 1, 5 and 7 tests with simulated errors |
+| No plan model for Embeddings; speech unchanged | Phase 7 role tests |
+| A chat continues across key and plan models | Phase 6 tests and manual check |
+| Hosted exposes neither routes nor interface | Phase 2 inventory, capability and hosted-composition tests |
+| Suites and documentation | Final suite (G3); Phase 8 |
+
+## Idempotence and recovery
+
+- No schema migration is planned. If a phase finds one is needed, it is a new
+  Alembic revision with the ORM change (ADR 0035), and the owner is told.
+- The seed change is repeatable, and account-listed rows are derived: a
+  sign-in rebuilds them.
+- The session is one directory under the data root. Deleting it signs out;
+  signing in again reuses nothing that must survive.
+- A sign-in attempt can be cancelled or left to expire. A failed or
+  interrupted refresh keeps the previous token set.
+- Every phase is a commit on the task branch and can be reverted alone in
+  reverse order. Reverting Phase 5 or later after Animas chose plan models
+  leaves those rows in the database; they become inactive, and each Anima
+  needs another model.
+- The task stack holds only test chats and can be removed with its volumes.
+  The probe's credential file is removed after `sign-out`.
+
+## Outcomes & Retrospective
+
+To be recorded.
