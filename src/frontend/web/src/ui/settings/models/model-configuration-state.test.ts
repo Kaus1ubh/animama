@@ -29,6 +29,7 @@ import {
   modelInUseUsage,
   modelLocationLabel,
   modelProviderLabel,
+  modelProviderPurpose,
   modelSettingsAvailability,
   builtinConnectionKey,
   ownerModelRules,
@@ -397,6 +398,7 @@ describe("Cloud and Local tabs", () => {
     expect(MODEL_LOCATION_PROVIDERS.cloud.map(modelProviderLabel)).toEqual([
       "OpenAI",
       "Anthropic",
+      "ChatGPT plan",
       "DeepSeek",
       "Hugging Face",
       "OpenRouter",
@@ -523,6 +525,29 @@ describe("Cloud and Local tabs", () => {
       "openrouter",
       "custom-cloud",
     ]);
+  });
+
+  it("offers the ChatGPT plan only where the runtime does, after the built-in keys", () => {
+    const ids = (available: boolean) =>
+      locationProviderGroups([], "cloud", false, available).map(
+        (group) => group.entry.id,
+      );
+    expect(ids(false)).not.toContain("chatgpt-plan");
+    expect(ids(true)).toEqual([
+      "openai",
+      "anthropic",
+      "chatgpt-plan",
+      "openrouter",
+      "custom-cloud",
+    ]);
+    const plan = locationProviderGroups([], "cloud", false, true)[2].entry;
+    expect(modelProviderLabel(plan)).toBe("ChatGPT plan");
+    expect(modelProviderPurpose(plan)).toContain("ChatGPT plan");
+    expect(
+      locationProviderGroups([], "local", false, true).map(
+        (group) => group.entry.id,
+      ),
+    ).not.toContain("chatgpt-plan");
   });
 
   it("keeps the chosen provider tab only while it is offered", () => {

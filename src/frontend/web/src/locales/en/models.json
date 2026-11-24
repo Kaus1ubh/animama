@@ -13,6 +13,49 @@
     "testing": "Testing…",
     "undo": "Undo"
   },
+  "chatgptPlan": {
+    "background": {
+      "description": "Animama turns episode notes into memories by itself. With this on, that work counts toward your plan's usage.",
+      "label": "Let automatic memory updates use my plan"
+    },
+    "beginFailed": "Couldn't start the sign-in. Try again.",
+    "confirmation": {
+      "background": "Also let automatic memory updates use my plan",
+      "backgroundHint": "You can change this later in App Settings → Models.",
+      "description": "Eligible AI requests in Animama now use your ChatGPT plan: chats with plan models, chat titles and summaries, and memory updates you start. Review and limit this usage in ChatGPT's settings.",
+      "gotIt": "Got it",
+      "title": "You're using your ChatGPT plan"
+    },
+    "continue": "Continue with ChatGPT",
+    "description": "Complete eligible AI requests in Animama with the usage included in your ChatGPT plan, without an API key. Animama charges nothing for it.",
+    "enablePlanUse": "Enable plan use",
+    "failure": {
+      "declined": "Sign-in was cancelled at OpenAI. You can try again, or use another model connection.",
+      "other": "Sign-in didn't complete. Try again."
+    },
+    "loadFailed": "Couldn't load the ChatGPT plan status.",
+    "manageUsage": "Manage usage",
+    "notSignedIn": "Not signed in",
+    "openAgain": "Open the sign-in page again",
+    "opensInBrowser": "(opens in your browser)",
+    "paused": "Paused after a usage limit: automatic memory updates wait until one of your own requests succeeds.",
+    "planUseOff": "This account is signed in, but plan use is off: it was declined, or the account's plan doesn't include it. You can enable it, or use another model connection.",
+    "planUseOn": "Eligible requests use your ChatGPT plan.",
+    "preferencesFailed": "Couldn't save that choice. Try again.",
+    "signedIn": "Signed in",
+    "signedInAs": "Signed in as {{email}}",
+    "signedOut": "Signed out of ChatGPT",
+    "signInRequired": "OpenAI ended this session. Sign in again to keep using your plan.",
+    "signOut": "Sign out",
+    "signOutFailed": "Couldn't sign out. Try again.",
+    "signOutUnconfirmed": "You're signed out in Animama, but OpenAI didn't confirm that the session ended. You can disconnect Animama in ChatGPT's settings.",
+    "title": "Use your ChatGPT plan",
+    "unavailable": {
+      "remoteOrigin": "Sign in from a browser on the computer running Animama: OpenAI can only send you back to that computer.",
+      "secureStorage": "Secure storage isn't available, so Animama can't keep a ChatGPT sign-in. Restart Animama and try again."
+    },
+    "waiting": "Finish signing in in your browser. This page continues by itself."
+  },
   "chips": {
     "appSearch": {
       "description": "Searches the web with this app's search service",
@@ -295,10 +338,12 @@
     }
   },
   "providers": {
+    "chatgptPlan": "ChatGPT plan",
     "connected": " (connected)",
     "custom": "Custom",
     "purpose": {
       "anthropic": "Chat with Anthropic's Claude models using your API key.",
+      "chatgptPlan": "Chat with the models your ChatGPT plan includes, without an API key.",
       "customCloud": "Connect any OpenAI-compatible cloud service.",
       "customLocal": "Connect any OpenAI-compatible server on this computer or your network.",
       "deepseek": "Chat with DeepSeek's models using your DeepSeek API key.",

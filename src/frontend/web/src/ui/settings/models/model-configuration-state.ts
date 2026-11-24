@@ -105,6 +105,7 @@ export function modelLocationLabel(location: ModelLocation): string {
 export type ModelProviderId =
   | "openai"
   | "anthropic"
+  | "chatgpt-plan"
   | "deepseek"
   | "huggingface"
   | "openrouter"
@@ -124,7 +125,7 @@ export type ModelProviderId =
 export type ModelProviderEntry = {
   id: ModelProviderId;
   presetId: string;
-  /** The provider's product name; `null` for the translated "Custom". */
+  /** The provider's product name; `null` when the UI Locale words it ("Custom", "ChatGPT plan"). */
   name: string | null;
   /** Shown with a Recommended tag (the built-in OpenAI and Anthropic connections). */
   recommended?: boolean;
@@ -133,6 +134,8 @@ export type ModelProviderEntry = {
 /** Presets of the release-managed connections, which the owner cannot edit or remove. */
 const OPENAI_PRESET = "openai";
 const ANTHROPIC_PRESET = "anthropic";
+/** The ChatGPT plan's built-in connection: a sign-in, not a key (spec #919). */
+export const CHATGPT_PLAN_PRESET = "chatgpt_plan";
 
 /** Providers on each tab, in display order. */
 export const MODEL_LOCATION_PROVIDERS: Record<
@@ -152,6 +155,8 @@ export const MODEL_LOCATION_PROVIDERS: Record<
       name: "Anthropic",
       recommended: true,
     },
+    // Named in the active UI Locale; shown only where the runtime offers it.
+    { id: "chatgpt-plan", presetId: CHATGPT_PLAN_PRESET, name: null },
     { id: "deepseek", presetId: "deepseek", name: "DeepSeek" },
     { id: "huggingface", presetId: "huggingface", name: "Hugging Face" },
     { id: "openrouter", presetId: "openrouter", name: "OpenRouter" },
@@ -179,6 +184,7 @@ const FLAGGED_PROVIDERS: ReadonlySet<ModelProviderId> = new Set([
 /** A provider tab's name: the product name, or "Custom" in the active UI Locale. */
 export function modelProviderLabel(entry: ModelProviderEntry): string {
   const t = getI18n().getFixedT(null, "models");
+  if (entry.id === "chatgpt-plan") return t("providers.chatgptPlan");
   return entry.name ?? t("providers.custom");
 }
 
@@ -190,6 +196,8 @@ export function modelProviderPurpose(entry: ModelProviderEntry): string {
       return t("providers.purpose.openai");
     case "anthropic":
       return t("providers.purpose.anthropic");
+    case "chatgpt-plan":
+      return t("providers.purpose.chatgptPlan");
     case "deepseek":
       return t("providers.purpose.deepseek");
     case "huggingface":
@@ -331,7 +339,9 @@ export type ModelProviderGroup<C> = {
  * location. Custom collects every custom connection whose address points
  * there, and unknown presets count as Custom. A flagged provider
  * (`FLAGGED_PROVIDERS`) is left out while its flag is off and it has no
- * connection.
+ * connection. The ChatGPT plan is offered only when `chatgptPlanAvailable`
+ * (the runtime reports `chatgpt_plan`); pass `undefined` as the flag to keep
+ * the build's own setting.
  */
 export function locationProviderGroups<
   C extends Pick<PyModelConnection, "source" | "preset" | "base_url">,
@@ -339,6 +349,7 @@ export function locationProviderGroups<
   connections: readonly C[],
   location: ModelLocation,
   flaggedProvidersEnabled: boolean = env.enableDeepseekHuggingface,
+  chatgptPlanAvailable: boolean = false,
 ): ModelProviderGroup<C>[] {
   return MODEL_LOCATION_PROVIDERS[location]
     .map((entry) => ({
@@ -351,9 +362,10 @@ export function locationProviderGroups<
     }))
     .filter(
       (group) =>
-        flaggedProvidersEnabled ||
-        !FLAGGED_PROVIDERS.has(group.entry.id) ||
-        group.connections.length > 0,
+        (flaggedProvidersEnabled ||
+          !FLAGGED_PROVIDERS.has(group.entry.id) ||
+          group.connections.length > 0) &&
+        (chatgptPlanAvailable || group.entry.id !== "chatgpt-plan"),
     );
 }
 

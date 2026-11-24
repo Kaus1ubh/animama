@@ -236,7 +236,8 @@ and the backend.
 - [x] Phase 2: routes and the sign-in return (2026-11-24). Code Review #2
   passed.
 - [x] Phase 3: desktop custody (2026-11-24). Code Review #2 passed.
-- [ ] Phase 4: settings and setup.
+- [x] Phase 4: settings and setup (2026-11-24). Code Review #2 passed; the
+  manual check waits for G1 and G2.
 - [ ] Phase 5: the plan connection and its model client.
 - [ ] Phase 6: chat on plan models.
 - [ ] Phase 7: roles, agreement and limits.
@@ -1259,15 +1260,110 @@ signs in, stays signed in across a restart and signs out.
 Recovery: the card is additive. Hiding it leaves the Models section as it is
 today.
 
-Check record, results and commits: to be recorded.
+As built (2026-11-24, from `bc5f28fab`): `useChatGPTPlan` (the status
+query, polling each second while a sign-in is pending) and its mutations;
+`ChatGPTPlanCard`, used on a "ChatGPT plan" provider tab after Anthropic in
+both App Settings → Models and setup's AI step, offered only where the
+runtime reports `chatgpt_plan`; and the one-time confirmation inside the
+card. The query key sits under `modelConfiguration`, so `product-ui` goes to
+0.21.0. Wording follows OpenAI's interface guidelines (checked 2026-11-24):
+"Use your ChatGPT plan", **Continue with ChatGPT**, "You're using your
+ChatGPT plan" with **Got it**, and **Manage usage** opening
+`https://chatgpt.com/settings/usage`. Choices made while building:
+
+- The button is text only, in the theme's foreground colour. Whether to use
+  the ChatGPT logo is G4.
+- The authorization URL stays in memory only, in the card while the sign-in
+  waits; the begin mutation keeps no result. It opens with
+  `window.open(…, "noopener,noreferrer")`, which desktop hands to the system
+  browser; the waiting state offers "Open the sign-in page again" for a
+  blocked popup.
+- The confirmation's choice for automatic memory updates starts unchecked;
+  the card keeps the same choice as a switch.
+- The card shows a declined or failed sign-in, plan use that is off (with
+  **Enable plan use**, which asks OpenAI for consent again), a session
+  OpenAI ended, the usage-limit pause and an unconfirmed sign-out. Where a
+  sign-in cannot start here, it says why in place of the action; a signed-in
+  account keeps its controls whatever the availability.
+- Choosing a plan model in setup arrives with the plan's models in Phase 5.
+
+Check record, from the worktree root unless noted, on working tree
+`1ec049fcc0aee88c48a174bea4181f98c3f17c13` (hashed while this line still held
+a placeholder):
+
+| Check | Result |
+| --- | --- |
+| From `src/frontend`: vitest on `src/ui/settings/models` and `src/app/local-runtime/setup` | 123 passed |
+| From `src/frontend`: `pnpm --filter animama-web lint` | Passed |
+| From `src/frontend`: `python3 ../../scripts/heavy-slot.py -- pnpm check` | Exit 0; no type errors; every catalog complete |
+| Prettier `--check` on the changed web, locale and `product-ui` files | Formatted |
+| `python3 scripts/public-release/check_source.py` | Every tracked file covered once |
+| Task stack in development mode, setup's AI step in the browser pane | The tab, card and waiting state render as designed; Cancel returns to **Continue with ChatGPT**; no authorize URL or state in container or file logs |
+
+Not run: `pnpm verify` and the browser tests. Manual check (G1, and G2 for
+desktop): pending the owner's sign-in, batched with the later phases'.
 
 #### Code Review #1 Findings
 
-To be recorded.
+Independent review, standard tier, of working tree
+`da4cb249e8d2f2c98ce34f339ff11308fc1eab34` against `bc5f28fab`, reusing the
+check record (only the plan changed since its tree) and rerunning the card
+and state tests. Result: blocked by F1 and F2. The authorization URL's
+handling, the translations' terms and the guideline wording were found
+sound.
+
+| ID | Kind | Finding |
+| --- | --- | --- |
+| P4-R1-F1 | Required | Where sign-in is unavailable (for example a self-hosted stack later moved behind an https origin), a signed-in account lost its sign-out, usage link and background switch, because the unavailable branch came first. |
+| P4-R1-F2 | Required | Tests did not cover the pause notice, the secure-storage wording, failures other than a decline, a begin failure or the polling. |
+| P4-R1-F3 | Optional | Sign-out did not wait for its refetch, so its notice briefly sat under the signed-in state. |
+| P4-R1-F4 | Optional | The begin mutation's result (the URL) stayed in the mutation cache; a spent URL could be reopened. |
+| P4-R1-F5 | Optional | Wording: "Settings → Models", ブラウザ, and "chat notes" against the catalogs' terms. |
+| P4-R1-F6 | Optional | A failed **Enable plan use** showed no failure, and the decline text did not mention another connection (R1.4). |
+| P4-R1-F7 | Optional | Accessibility: focus after a state change, the dialog's first focus on the external link, the switch's description, the heading level in setup. |
+| P4-R1-F8 | Optional | A failed poll replaced the card with "Couldn't load…". |
+| P4-R1-F9 | Optional | Small code points: an inline capability check, a positional `undefined`, a stale doc comment. |
+| P4-R1-F10 | Optional | R1.1 asks for the action wherever the app asks for a model and none is configured; the chat picker's empty state does not offer it. |
+| P4-R1-F11 | Optional | The Cloud provider strip may need checking at desktop width in `ja` and `ko`. |
 
 #### Code Review #1 Revisions
 
-To be recorded.
+| ID | Disposition |
+| --- | --- |
+| P4-R1-F1 | Accepted: the signed-in branches come first; the reason replaces only a sign-in action. A test covers it. |
+| P4-R1-F2 | Accepted: tests for each state, a begin failure worded from its reason, and polling from pending into the confirmation, with the URL absent from the page throughout. |
+| P4-R1-F3 | Accepted: sign-out's invalidations are awaited. |
+| P4-R1-F4 | Accepted: `gcTime: 0` on the begin mutation, and the card drops the URL once the sign-in stops pending. |
+| P4-R1-F5 | Accepted in all five locales, using each catalog's term for episode notes. |
+| P4-R1-F6 | Accepted: failures show in every sign-in state; the decline text offers another model connection. |
+| P4-R1-F7 | Accepted except focus after a state change: **Got it** takes first focus, the switch is described, setup uses a level-3 heading. Moving focus on each state change would steal it from someone reading. |
+| P4-R1-F8 | Accepted: the card renders from cached data. |
+| P4-R1-F9 | Accepted: the shared hook, and the parameter documented; the positional `undefined` stays, since it keeps the build's flag. |
+| P4-R1-F10 | Deferred to Phase 6, which already changes the chat picker; the final integration review checks it. |
+| P4-R1-F11 | Deferred to the G1 manual check; Phase 8 updates the provider count in the docs. |
+
+Removing the polling, the pause notice, the secure-storage wording, the
+signed-in precedence or the failure distinction each fails a test. After the
+repairs, on working tree `678bde070cb65581b07a72165a9bff11540a6248`: the
+settings and setup tests, 128 passed; lint, the frontend check (heavy slot)
+and prettier on the changed files passed.
+
+#### Code Review #2 Findings
+
+Targeted recheck of working tree `678bde070cb65581b07a72165a9bff11540a6248`,
+reusing the record for that exact tree. Result: pass; F1 to F11 resolved or
+acceptably dispositioned.
+
+| ID | Kind | Finding |
+| --- | --- | --- |
+| P4-R2-F1 | Optional | `gcTime: 0` applies only once the mutation has no observer, so the begin mutation's result (the URL) stays while the card is mounted. |
+| P4-R2-F2 | Optional | The round-1 check line named no tree. |
+
+#### Code Review #2 Revisions
+
+Both accepted and verified by the implementing agent as one-line changes:
+the card calls `begin.reset()` once it has taken the URL, and the check line
+names its tree. The card's tests, 12, still pass.
 
 ### Phase 5: The plan connection and its model client
 

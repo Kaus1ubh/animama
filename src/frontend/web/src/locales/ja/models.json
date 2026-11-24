@@ -13,6 +13,49 @@
     "testing": "テストしています…",
     "undo": "元に戻す"
   },
+  "chatgptPlan": {
+    "background": {
+      "description": "Animama はエピソードのメモを自動で記憶にまとめます。オンにすると、その処理もプランの利用量に含まれます。",
+      "label": "自動の記憶更新にもプランを使う"
+    },
+    "beginFailed": "サインインを開始できませんでした。もう一度お試しください。",
+    "confirmation": {
+      "background": "自動の記憶更新にもプランを使う",
+      "backgroundHint": "あとで「アプリ設定 → モデル」で変更できます。",
+      "description": "Animama の対象となる AI リクエストで ChatGPT プランが使われるようになりました。プランのモデルとのチャット、チャットのタイトルと要約、自分で始めた記憶の更新が対象です。この利用量は ChatGPT の設定で確認・制限できます。",
+      "gotIt": "OK",
+      "title": "ChatGPT プランを使用しています"
+    },
+    "continue": "ChatGPT で続ける",
+    "description": "API キーなしで、ChatGPT プランに含まれる利用量を使って Animama の対象となる AI リクエストを処理します。Animama での料金はかかりません。",
+    "enablePlanUse": "プランの使用を有効にする",
+    "failure": {
+      "declined": "OpenAI でサインインがキャンセルされました。もう一度試すか、別のモデル接続を使えます。",
+      "other": "サインインを完了できませんでした。もう一度お試しください。"
+    },
+    "loadFailed": "ChatGPT プランの状態を読み込めませんでした。",
+    "manageUsage": "利用量を管理",
+    "notSignedIn": "サインインしていません",
+    "openAgain": "サインインページをもう一度開く",
+    "opensInBrowser": "（ブラウザーで開きます）",
+    "paused": "利用上限に達したため一時停止中です。自動の記憶更新は、あなた自身のリクエストが成功するまで待機します。",
+    "planUseOff": "このアカウントはサインインしていますが、プランの使用はオフです。拒否されたか、アカウントのプランに含まれていません。有効にするか、別のモデル接続を使えます。",
+    "planUseOn": "対象となるリクエストは ChatGPT プランを使用します。",
+    "preferencesFailed": "選択を保存できませんでした。もう一度お試しください。",
+    "signInRequired": "OpenAI がこのセッションを終了しました。プランを使い続けるには、もう一度サインインしてください。",
+    "signOut": "サインアウト",
+    "signOutFailed": "サインアウトできませんでした。もう一度お試しください。",
+    "signOutUnconfirmed": "Animama ではサインアウトしましたが、OpenAI からセッション終了の確認がありませんでした。ChatGPT の設定で Animama の接続を解除できます。",
+    "signedIn": "サインイン済み",
+    "signedInAs": "{{email}} でサインイン中",
+    "signedOut": "ChatGPT からサインアウトしました",
+    "title": "ChatGPT プランを使う",
+    "unavailable": {
+      "remoteOrigin": "Animama を実行しているコンピューターのブラウザーからサインインしてください。OpenAI はそのコンピューターにしか戻れません。",
+      "secureStorage": "安全な保存領域を利用できないため、Animama は ChatGPT のサインインを保持できません。Animama を再起動してもう一度お試しください。"
+    },
+    "waiting": "ブラウザーでサインインを完了してください。このページは自動で先へ進みます。"
+  },
   "chips": {
     "appSearch": {
       "description": "このアプリの検索サービスでウェブを検索します",
@@ -285,6 +328,7 @@
     }
   },
   "providers": {
+    "chatgptPlan": "ChatGPT プラン",
     "connected": "（接続済み）",
     "custom": "カスタム",
     "purpose": {
@@ -298,7 +342,8 @@
       "openai": "API キーを使って OpenAI のモデルとチャットします。",
       "openrouter": "1 つの OpenRouter キーで、多くのプロバイダーのモデルとチャットします。",
       "vllm": "このコンピューターの vLLM が提供するモデルとチャットします。",
-      "anthropic": "API キーを使って Anthropic の Claude モデルとチャットします。"
+      "anthropic": "API キーを使って Anthropic の Claude モデルとチャットします。",
+      "chatgptPlan": "API キーなしで、ChatGPT プランに含まれるモデルとチャットします。"
     },
     "recommended": "おすすめ",
     "tabsLabel": "{{location}}のプロバイダー"

@@ -24,6 +24,7 @@ import {
   useModelConnections,
   useModelRoles,
 } from "@/query/hooks/useModelConfiguration";
+import { useChatGPTPlanAvailable } from "@/query/hooks/useChatGPTPlan";
 import { useModelProviders } from "@/query/hooks/useModelProviders";
 import { useRuntimeCapabilities } from "@/query/hooks/useRuntimeCapabilities";
 import {
@@ -40,6 +41,7 @@ import {
 import { ModelConnectionForm } from "@/ui/settings/models/ModelConnectionDialog";
 import { OwnerModelDialog } from "@/ui/settings/models/OwnerModelDialog";
 import { ModelLocationTabsList } from "@/ui/settings/models/ModelLocationTabsList";
+import { ChatGPTPlanCard } from "@/ui/settings/models/ChatGPTPlanCard";
 import { ModelProviderTabsList } from "@/ui/settings/models/ModelProviderTabsList";
 import {
   baseUrlHost,
@@ -384,8 +386,15 @@ function ModelChooser({
     presets.data?.find((preset) => preset.id === id);
   const openAdder = (next: ModelAdder) => setAdder(next);
 
+  // Setup offers the ChatGPT plan sign-in as one of its choices (spec P8).
+  const chatgptPlan = useChatGPTPlanAvailable();
   const groups = {
-    cloud: locationProviderGroups(allConnections, "cloud"),
+    cloud: locationProviderGroups(
+      allConnections,
+      "cloud",
+      undefined,
+      chatgptPlan,
+    ),
     local: locationProviderGroups(allConnections, "local"),
   };
   const activeProvider = (where: SetupModelLocation) =>
@@ -421,6 +430,15 @@ function ModelChooser({
     const items =
       groups[where].find((group) => group.entry.id === entry.id)?.connections ??
       [];
+    if (entry.id === "chatgpt-plan")
+      return (
+        <>
+          <p className="text-muted-foreground text-xs">
+            {modelProviderPurpose(entry)}
+          </p>
+          <ChatGPTPlanCard headingLevel={3} />
+        </>
+      );
     const builtin = Object.values(builtins).find(
       (candidate) => candidate.provider === entry.presetId,
     );

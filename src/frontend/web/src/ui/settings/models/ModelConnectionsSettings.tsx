@@ -18,6 +18,7 @@ import {
   useModelConnectionPresets,
   useModelConnections,
 } from "@/query/hooks/useModelConfiguration";
+import { useChatGPTPlanAvailable } from "@/query/hooks/useChatGPTPlan";
 import { useRuntimeCapabilities } from "@/query/hooks/useRuntimeCapabilities";
 import {
   useRemoveModel,
@@ -70,6 +71,7 @@ import {
 } from "./ModelConnectionDialog";
 import { ModelInfoDialog } from "./ModelInfoDialog";
 import { ModelLocationTabsList } from "./ModelLocationTabsList";
+import { ChatGPTPlanCard } from "./ChatGPTPlanCard";
 import { ModelProviderTabsList } from "./ModelProviderTabsList";
 import { OwnerModelDialog, ShowModelButton } from "./OwnerModelDialog";
 
@@ -115,6 +117,7 @@ export function ModelConnectionsSettings({
     capabilities.data,
   );
   const search = capabilities.data?.web_search;
+  const chatgptPlan = useChatGPTPlanAvailable();
   const presets = useModelConnectionPresets(enabled);
   const connections = useModelConnections(enabled);
   const removeConnection = useRemoveModelConnection();
@@ -265,6 +268,16 @@ export function ModelConnectionsSettings({
     location: ModelLocation,
     { entry, connections: items }: ModelProviderGroup<PyModelConnection>,
   ) => {
+    // Signing in with a ChatGPT plan takes no key or address, so it has its own card.
+    if (entry.id === "chatgpt-plan")
+      return (
+        <>
+          <p className="text-muted-foreground text-xs">
+            {modelProviderPurpose(entry)}
+          </p>
+          <ChatGPTPlanCard disabled={disabled} />
+        </>
+      );
     const custom = entry.presetId === "custom";
     const preset = presetById(entry.presetId);
     const form = (onCancel?: () => void) =>
@@ -351,7 +364,12 @@ export function ModelConnectionsSettings({
   };
 
   const tabContent = (location: ModelLocation) => {
-    const groups = locationProviderGroups(all, location);
+    const groups = locationProviderGroups(
+      all,
+      location,
+      undefined,
+      chatgptPlan,
+    );
     const active = defaultLocationProvider(groups, providerTab[location]);
     return (
       <Tabs
