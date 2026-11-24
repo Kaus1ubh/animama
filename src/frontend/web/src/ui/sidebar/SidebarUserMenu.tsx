@@ -1,9 +1,13 @@
 import { Settings } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { cn } from "@/lib/utils";
 import { useUserProfile } from "@/query/hooks/useUserProfile";
+import {
+  clearAppSettingsRequest,
+  useAppSettingsHost,
+} from "@/stores/app-settings-request-store";
 import { Avatar, AvatarFallback } from "@/ui/components/avatar";
 import {
   DropdownMenu,
@@ -43,6 +47,11 @@ export function SidebarUserMenu() {
   const profile = useUserProfile();
   const [menuOpen, setMenuOpen] = useState(false);
   const [applicationSettingsOpen, setApplicationSettingsOpen] = useState(false);
+  // Other surfaces (a composer hint, the desktop menu) open App Settings here.
+  const settingsRequest = useAppSettingsHost();
+  useEffect(() => {
+    if (settingsRequest) setApplicationSettingsOpen(true);
+  }, [settingsRequest]);
   const [usageOpen, setUsageOpen] = useState(false);
   const [accountError, setAccountError] = useState<string | null>(null);
   const controller = useOptionalRuntimeController();
@@ -161,7 +170,14 @@ export function SidebarUserMenu() {
       </DropdownMenu>
       <ApplicationSettingsModal
         open={applicationSettingsOpen}
-        onOpenChange={setApplicationSettingsOpen}
+        onOpenChange={(next) => {
+          setApplicationSettingsOpen(next);
+          // Closing before the setting could be shown withdraws the request.
+          if (!next && settingsRequest)
+            clearAppSettingsRequest(settingsRequest);
+        }}
+        reveal={settingsRequest}
+        onRevealed={clearAppSettingsRequest}
       />
       {account ? (
         <AccountUsage

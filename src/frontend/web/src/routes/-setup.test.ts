@@ -23,6 +23,7 @@ import {
   ownerModelChoices,
   resolveSetupTtsProvider,
   setupBuiltins,
+  setupChatModelReady,
   setupStepPosition,
   setupTtsOptions,
   resolveSetupSttChoice,
@@ -745,6 +746,32 @@ describe("setup step logic", () => {
     expect(
       setupBuiltins(catalog, [builtinConnection], OPENAI_MODEL).anthropic,
     ).toEqual({ provider: "anthropic", ready: false, modelId: null });
+  });
+
+  it("counts a chat model as ready only when its connection can reply", () => {
+    const connections = [anthropicConnection, builtinConnection, ollama];
+    // The system default (OpenAI, key set) and a keyless local model can reply.
+    expect(setupChatModelReady(catalog, connections, OPENAI_MODEL)).toBe(true);
+    expect(
+      setupChatModelReady(
+        catalog,
+        connections,
+        "OpenAIHTTPAgent:conn-ollama:qwen3:8b",
+      ),
+    ).toBe(true);
+    // Anthropic's key is not set, and without any model nothing can reply.
+    expect(setupChatModelReady(catalog, connections, HAIKU)).toBe(false);
+    expect(setupChatModelReady(catalog, connections, null)).toBe(false);
+    // With OpenAI's key missing, the untouched system default cannot reply.
+    expect(
+      setupChatModelReady(
+        catalog,
+        [{ ...builtinConnection, credential_state: "missing" }],
+        OPENAI_MODEL,
+      ),
+    ).toBe(false);
+    // A model the lists do not describe is not reported.
+    expect(setupChatModelReady(catalog, connections, "unlisted")).toBe(true);
   });
 
   it("offers to add only detected models not yet added at that address", () => {

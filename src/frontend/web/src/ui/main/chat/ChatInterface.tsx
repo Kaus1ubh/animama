@@ -16,6 +16,7 @@ import {
   ChatInputModelSelector,
   ChatInputSubmit,
   ChatInputTextArea,
+  type ChatModelSelectorControl,
 } from "@/ui/components/chat-input";
 import { ChatInputFileTray } from "@/ui/components/chat-input-file-tray";
 import { useAnima } from "@/query/hooks/useAnima";
@@ -39,6 +40,8 @@ import { useChatSession, type ChatMessage } from "./useChatSession";
 import { useCrisisCardCornerBottom } from "./crisisCardCorner";
 import { PromptSuggestion } from "./PromptSuggestion";
 import { MemoryCue } from "./MemoryCue";
+import { ChatModelKeyNotice } from "./ChatModelKeyNotice";
+import { useAnimaModelKeyState } from "./useAnimaModelKeyState";
 import { SkipSpeechButton } from "./SkipSpeechButton";
 import { useFirstChatSuggestions } from "./useFirstChatSuggestions";
 import { useDictation } from "@/hooks/useDictation";
@@ -68,7 +71,9 @@ import { resolveChatAttachmentHold } from "@/lib/user-files/chat-attachment-hold
 import type { UserFileUploadStatusFile } from "@/lib/user-files/upload-card-status";
 import { queryKeys } from "@/query/keys";
 import { useUserFiles } from "@/query/hooks/useUserFiles";
+import { useOperatorManagedModelAssets } from "@/query/hooks/useModelAssets";
 import { useRuntimeCapabilities } from "@/query/hooks/useRuntimeCapabilities";
+import { useAppSettingsOpener } from "@/stores/app-settings-request-store";
 import {
   useRuntimeFeatureEnabled,
   useRuntimeFeatureUnavailableReason,
@@ -310,6 +315,21 @@ export function ChatInterfaceView({
     locale: i18n.resolvedLanguage,
     capabilities: capabilities.data,
   });
+  // Where the owner installs this installation's speech models, mic controls
+  // that cannot capture speech lead to Speech-to-Text in App Settings instead
+  // of going dead. Downloads stay there; Quick Chat has no App Settings.
+  const operatorManagedModels = useOperatorManagedModelAssets();
+  const openAppSettings = useAppSettingsOpener();
+  const openSpeechSettings =
+    !speechAvailable &&
+    !operatorManagedModels &&
+    !quickChatSurface &&
+    openAppSettings
+      ? () => openAppSettings("stt-provider")
+      : null;
+  const speechSetupDetails = [t("composer.speechSetup.detail")];
+  const modelKeyState = useAnimaModelKeyState(animaId);
+  const modelSelector = useRef<ChatModelSelectorControl>(null);
   const { data: anima } = useAnima(animaId);
   const { data: modelCatalog } = useModelProviders();
   const activeModel = modelCatalog?.find(
@@ -451,15 +471,29 @@ export function ChatInterfaceView({
                 ))}
               </div>
             ) : null}
+            {/* Quick Chat is too small for it and keeps the marked button. */}
+            {modelKeyState && !quickChatSurface ? (
+              <ChatModelKeyNotice
+                animaName={animaName ?? t("header.anima.fallback")}
+                state={modelKeyState}
+                disabled={isStreaming || isConfirmingModelSwitch}
+                selector={() => modelSelector.current}
+              />
+            ) : null}
             <ChatInput
               variant="default"
               value={input}
               onChange={onInputChange}
               onSubmit={onSubmit}
-              onVoice={onVoiceModeStart}
-              voiceAvailable={speechAvailable}
-              voiceModeDetails={speechEngines.voiceMode}
-              micShortcuts={chatShortcuts}
+              onVoice={openSpeechSettings ?? onVoiceModeStart}
+              voiceAvailable={speechAvailable || Boolean(openSpeechSettings)}
+              voiceModeDetails={
+                openSpeechSettings
+                  ? speechSetupDetails
+                  : speechEngines.voiceMode
+              }
+              // A set-up control starts nothing, so it names no shortcut.
+              micShortcuts={openSpeechSettings ? null : chatShortcuts}
               loading={isStreaming}
               onStop={onStop}
               activeMicMode={activeMode}
@@ -505,15 +539,21 @@ export function ChatInterfaceView({
                     activeChat={activeChat}
                     animaId={animaId}
                     closeSignal={modelSelectorCloseSignal}
+                    controlRef={modelSelector}
                     // An effort save names the current model, so it must not
                     // overtake a model switch that is still saving.
                     disabled={isStreaming || isConfirmingModelSwitch}
+                    keyMissing={Boolean(modelKeyState)}
                     onIncompatibleModelSelect={onIncompatibleModelSelect}
                     onModelChange={onModelChange}
                   />
                   <ChatInputDictation
-                    disabled={!activeMode && (!canChat || !speechAvailable)}
+                    disabled={
+                      !activeMode &&
+                      (!canChat || (!speechAvailable && !openSpeechSettings))
+                    }
                     engineDetails={speechEngines.dictation}
+                    onSetUp={activeMode ? null : openSpeechSettings}
                   />
                   <ChatInputSubmit attachmentHold={attachmentHold} />
                 </>

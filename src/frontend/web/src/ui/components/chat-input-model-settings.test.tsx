@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { act } from "react";
+import { act, createRef } from "react";
 import type { ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -10,7 +10,10 @@ import type {
 } from "@animama/runtime-contracts/api-types";
 
 import type { ChatFeatureChoice } from "@/lib/chat/chat-request-options";
-import { ChatInputModelSelector } from "./chat-input";
+import {
+  ChatInputModelSelector,
+  type ChatModelSelectorControl,
+} from "./chat-input";
 
 (
   globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
@@ -468,6 +471,48 @@ describe("chat model picker settings", () => {
     expect(onIncompatibleModelSelect).toHaveBeenCalledWith(haiku);
     expect(fixture.save).not.toHaveBeenCalled();
     expect(popover().getAttribute("aria-label")).toBe("Select model");
+  });
+
+  it("marks the button, still without a label, when the model has no key", async () => {
+    await renderPicker(LUNA, { keyMissing: true }, false);
+
+    expect(trigger().getAttribute("aria-label")).toBe(
+      "Model and reasoning: OpenAI: gpt-6-luna has no API key",
+    );
+    expect(trigger().textContent).toBe("");
+    expect(trigger().querySelector(".lucide-triangle-alert")).not.toBeNull();
+    expect(
+      trigger().querySelector('[aria-label="openai provider"]'),
+    ).toBeNull();
+  });
+
+  it("lets the composer open the model list and switch as the list does", async () => {
+    const control = createRef<ChatModelSelectorControl>();
+    const onIncompatibleModelSelect = vi.fn();
+    await renderPicker(LUNA, { controlRef: control }, false);
+
+    await act(async () => control.current!.openModels());
+    expect(popover().getAttribute("aria-label")).toBe("Select model");
+    expect(row("claude-haiku-5-5")).not.toBeNull();
+
+    await act(async () => control.current!.select(haiku));
+    expect(modelSaves()).toEqual([HAIKU]);
+
+    // An open chat on another API still asks first, as choosing in the list does.
+    unmountPicker();
+    fixture.save.mockClear();
+    await renderPicker(
+      LUNA,
+      {
+        controlRef: control,
+        activeChat: { id: "chat-1", api_standard: "responses" },
+        onIncompatibleModelSelect,
+      },
+      false,
+    );
+    await act(async () => control.current!.select(haiku));
+    expect(onIncompatibleModelSelect).toHaveBeenCalledWith(haiku);
+    expect(fixture.save).not.toHaveBeenCalled();
   });
 
   it("explains unavailable web search and omits a slider for fixed models", async () => {

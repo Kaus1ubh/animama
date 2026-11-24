@@ -112,6 +112,7 @@
       "empty": "未找到模型。",
       "fallbackLabel": "模型",
       "features": "聊天功能",
+      "keyMissing": "{{model}} 没有 API 密钥",
       "needsWindow": "请在“应用设置 → 模型”中设置其上下文窗口",
       "noFeatures": "此模型没有可选功能。",
       "noProfile": "没有聊天配置",
@@ -146,11 +147,21 @@
       "unavailableShort": "模型不可用",
       "webSearch": "网络搜索"
     },
+    "modelKey": {
+      "choose": "选择模型",
+      "notice": "{{anima}} 使用 {{model}}，但 {{provider}} 还没有 API 密钥。",
+      "settings": "模型设置",
+      "use": "使用 {{model}}"
+    },
     "speechEngines": {
       "offline": "{{engine}} {{variant}}",
       "stt": "STT：{{stt}}",
       "tts": "TTS：{{tts}}",
       "ttsOff": "关闭"
+    },
+    "speechSetup": {
+      "detail": "语音识别需要模型。选择后将打开应用设置 → 语音。",
+      "title": "设置语音识别"
     }
   },
   "header": {

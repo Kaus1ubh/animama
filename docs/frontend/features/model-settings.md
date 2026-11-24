@@ -98,7 +98,9 @@ Keys depend on where the app runs:
   voice is offered, the same way. All edit the same vault state as App
   Settings → API Keys (OpenAI, Anthropic, ElevenLabs and Gemini): saved status lives in the
   `desktopCredentials` query cache, so a save in any panel updates the others.
-  Other connections take a write-only key field. The connection is saved first
+  Other connections take a write-only key field, which a new connection to a
+  provider that expects a key must fill before it can be saved (self-hosted:
+  the name of its variable). The connection is saved first
   with a managed key; the key is then stored in the encrypted vault under
   `ANIMAMA_CONNECTION_<ID>_API_KEY`, with the origin of the connection's
   address, through `credentials.apply` and applies immediately, without a
@@ -226,7 +228,12 @@ so the chat picker's Web search control updates. See
 The chat input's picker and the Chat default list only chat models: embedding
 models never appear, hidden models only while an Anima still uses one, and owner
 models without a context window are disabled with a hint. An Anima whose model
-was removed shows a warning in the picker. Opening a chat restores the row it
+was removed shows a warning in the picker. An Anima whose model is on a
+connection with no key (a starter Anima after setup chose no model, for
+example) shows the same warning and, in the main window, a notice above the
+composer (`ChatModelKeyNotice`): it names the model and offers to switch to the Chat
+default when that can reply, else the only model that can, or to open the
+model list when there are several, and it opens App Settings → Models. Opening a chat restores the row it
 last used by `last_model_provider_id`, falling back to the model name for older
 chats. A chat keeps the API standard of its first turn (`responses`,
 `chat_completions` or `anthropic_messages`); choosing a model of another
