@@ -163,16 +163,12 @@ def consumer_package(fixture: dict, tarballs: dict[str, str]) -> dict:
     transitive dependency back only while an upstream release breaks a
     consumer for reasons outside these packages (see README.md).
     """
+    if "resolutions" in fixture:
+        raise ValueError("Hold fixture dependencies with pnpm.overrides, not resolutions")
     held = fixture.get("pnpm", {}).get("overrides", {})
-
-    def target(key: str) -> str:
-        # `parent>child@range` overrides `child`; a scope's leading @ is not a range.
-        name = key.rsplit(">", 1)[-1]
-        at = name.find("@", 1)
-        return name if at < 0 else name[:at]
-
-    if redirected := sorted(key for key in held if target(key) in tarballs):
-        raise ValueError(f"Fixture overrides cannot replace packed packages: {', '.join(redirected)}")
+    # Any selector form (`name@range`, `parent>name`) still names the package.
+    if redirected := sorted(key for key in held if any(name in key for name in tarballs)):
+        raise ValueError(f"Fixture overrides cannot name packed packages: {', '.join(redirected)}")
     package = json.loads(json.dumps(fixture))
     package["dependencies"].update(tarballs)
     # Only overrides: other pnpm settings could reshape a packed package's graph.

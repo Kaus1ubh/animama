@@ -144,16 +144,24 @@ class ConsumerPackageTests(unittest.TestCase):
         self.assertEqual(package["pnpm"], {"overrides": self.tarballs})
 
     def test_fixture_cannot_redirect_a_packed_package(self):
-        for key in ("@animama/product-ui", "@animama/product-ui@<1", "react>@animama/runtime-contracts@*"):
+        keys = (
+            "@animama/product-ui",
+            "@animama/product-ui@<1",
+            "@animama/product-ui@>=0.1.0",
+            "react>@animama/runtime-contracts@*",
+            "@animama/discover-client@1>csstype",
+        )
+        for key in keys:
             with self.subTest(key=key):
                 fixture = {"dependencies": {}, "pnpm": {"overrides": {key: "0.1.0"}}}
-                with self.assertRaisesRegex(ValueError, "cannot replace packed packages"):
+                with self.assertRaisesRegex(ValueError, "cannot name packed packages"):
                     packed.consumer_package(fixture, self.tarballs)
 
-    def test_a_hold_inside_a_packed_package_graph_is_allowed(self):
-        fixture = {"dependencies": {}, "pnpm": {"overrides": {"@animama/product-ui>csstype": "3.2.3"}}}
-        package = packed.consumer_package(fixture, self.tarballs)
-        self.assertEqual(package["pnpm"]["overrides"]["@animama/product-ui>csstype"], "3.2.3")
+    def test_fixture_resolutions_are_refused(self):
+        # pnpm reads `resolutions` as overrides too, outside the guard above.
+        fixture = {"dependencies": {}, "resolutions": {"csstype": "3.2.3"}}
+        with self.assertRaisesRegex(ValueError, "not resolutions"):
+            packed.consumer_package(fixture, self.tarballs)
 
     def test_only_overrides_carry_over_from_the_fixture(self):
         fixture = {"dependencies": {}, "pnpm": {"packageExtensions": {"@animama/product-ui": {"dependencies": {}}}}}
