@@ -7,6 +7,7 @@ import {
 import { isUserImageFile } from "@/lib/user-files/chat-images";
 import { isUserImageFileName } from "@/lib/user-files/uploads";
 import { cn } from "@/lib/utils";
+import { UserFileThumbnail } from "@/ui/components/user-file-thumbnail";
 import { useUserFiles } from "@/query/hooks/useUserFiles";
 import { Button } from "@/ui/components/button";
 import {
@@ -127,9 +128,13 @@ function ExistingFileCard({
         status: statusLabel,
       })}
     >
-      <div className="bg-success/10 text-success flex size-7 shrink-0 items-center justify-center rounded-md">
-        <CheckCircle2 className="size-3.5" aria-hidden="true" />
-      </div>
+      {isUserImageFile(file) ? (
+        <UserFileThumbnail fileId={file.file_id} className="size-7" />
+      ) : (
+        <div className="bg-success/10 text-success flex size-7 shrink-0 items-center justify-center rounded-md">
+          <CheckCircle2 className="size-3.5" aria-hidden="true" />
+        </div>
+      )}
       <div className="min-w-0 flex-1">
         <div className="text-foreground truncate text-xs font-medium">
           {file.original_filename}

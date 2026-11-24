@@ -1238,15 +1238,202 @@ narrow widths.
 Completion: images are visible wherever the message is; a deleted image
 leaves a placeholder; the package checks pass.
 
-Check record, results and commits: to be recorded.
+Starting revision: `a69b5f6e5` (the Phase 5 commit).
+
+Built as planned, with these details:
+
+- product-ui (still 0.21.0): `ChatDisplayImage` and
+  `ChatDisplayMessage.images`. History mapping reads `data.images` and shows
+  `data.user_text` beside them, skipping entries it cannot read (then the
+  saved text with its placeholders stays). The session option
+  `describeAttachedImages` names the images among a turn's attachments, so
+  the sent message shows them at once, and the stand-in history row written
+  after a completed turn carries the same `data`. `ChatConversation` gains
+  `renderUserAttachments`, drawn above the user bubble.
+  `queryKeys.userFileImages` caches image bytes apart from the file list, so
+  an upload's list refresh does not refetch them.
+- backend (after review, P6-A3): `GET /v1/files/{id}/content` also takes
+  `variant=preview`, a WebP at most 320 px (`PREVIEW_EDGE`) cached apart from
+  the 128 px thumbnail, so transcript previews stay sharp at twice their
+  size. The SDK is regenerated; `local-http` stays at the 24.0.0 this pull
+  request introduced.
+- web: `useUserFileImageUrl` reads `/v1/files/{id}/content` (thumbnail,
+  preview or original) through the protected same-origin fetch once the
+  runtime is admitted and holds a Blob URL; a 404 or 409 is `isGone` and a
+  422 is final, neither retried. `ChatMessageImages` shows the previews
+  (height 80 px, width from the stored aspect within 48 to 160 px), opens the
+  original in the shared dialog (inside the fullscreen element when the chat
+  is fullscreen, and returning focus to the thumbnail on close), and leaves a
+  labelled placeholder for a gone or failed image. Deleting a file
+  invalidates its image cache.
+- `UserFileThumbnail` shows a ready image in the composer card, the
+  composer's Library picker (with size and status instead of a chunk count,
+  P5-A9) and the Library's Chat Uploads row (`imageFileId`). The Library's
+  debug panel offers Process for an image only to finish one left at
+  `uploaded` (`canProcessLibraryUpload`).
+- Tests: history mapping (`display-message-mapping.test.ts`), the sent
+  message's images before and after history confirms it
+  (`chatAttachmentHold.test.tsx`), the transcript slot, image states, dialog
+  focus and fullscreen (`ChatMessageImages.test.tsx`), the hook's caching,
+  retries and delete invalidation (`useUserFileImageUrl.test.tsx`), the
+  helpers (`chat-images.test.ts`, `libraryUploads.test.ts`) and the preview
+  size (`test_content_thumbnails.py`, `test_user_file_uploads.py`). They
+  replace the planned `chat-lifecycle.test.mjs` and `message.test.tsx`
+  additions, which exercise neither the mapping nor the slot.
+- `docs/frontend/features/user-file-uploads.md` covers the picker's images
+  (P5-A16), the transcript images and the byte route.
+- Strings in all five locales.
+
+Check record after Code Review #1 repairs (working directory `src/frontend`
+unless noted; source tree `e3bfe7a06e8c`, taken before this record was
+written):
+
+| Command | Result |
+| --- | --- |
+| `pnpm packages:build`, `pnpm packages:check`, `pnpm packages:test` | exit 0 |
+| `pnpm check` | exit 0 |
+| `pnpm web:lint` | exit 0 |
+| `pnpm web:test` | exit 0, 6451 passed, 2 skipped, on an earlier tree before the last two component tests; the independent rerun below covers this tree |
+| `pnpm i18n:check` | exit 0 |
+| `pnpm openapi-ts:check` | exit 0, SDK current |
+| `pnpm exec prettier --check` on the touched web, product-ui and locale directories (from `web`) | exit 0 |
+| `uv run --no-sync ruff format --check src/backend/animama tests`, `ruff check` (root) | exit 0 |
+| `uv run --no-sync mypy src/backend/animama tests` (root) | exit 0, 913 files |
+| `uv run --no-sync python scripts/repository-boundary/check-python-imports.py` (root) | exit 0 |
+| `uv run --no-sync pytest -q -n 2` on `test_content_thumbnails`, `test_user_file_uploads`, `test_openapi_export`, `test_product_http_inventory`, `test_shared_product_contracts`, `test_content_image`, `test_typed_content_apis` (root) | exit 0, 154 passed |
+| `python3 scripts/public-release/check_source.py` (root) | exit 0 |
+
+The first record (tree `1bb350d2e28b`, before review) passed the frontend
+commands with 6444 web tests, confirmed by an independent rerun (all nine
+commands exit 0, on the same source).
+
+The package-set `compare` needs an exact commit: it runs against a build of
+the planning base `f612be08d` once Phase 6 is committed, and its result is
+recorded in this section before Phase 6 is marked complete.
+
+Manual check on the task stack (mock model) after rebuilding the packages in
+the web container: after a reload, earlier image turns show their thumbnails
+above the bubble; a thumbnail opens the image in the dialog; an image deleted
+through the API shows "Image no longer available" after a reload; a new turn
+shows its image with the message at once, in its aspect ratio; the Library
+lists ready images with thumbnails and a plain Ready status; the composer's
+Library picker shows thumbnails and "3 kB · Ready"; an image picked from it
+shows its thumbnail in the tray, is sent, appears in the transcript and
+leaves the composer. Desktop width and 900 px in the dark theme render
+correctly.
+
+After the repairs: a 1600 × 900 screenshot pasted on the stack returns a
+128 × 72 thumbnail and a 320 × 180 preview (WebP), and the transcript loads
+previews. The browser pane does not grant fullscreen, so the dialog inside a
+fullscreen chat is covered by its unit test only.
+
+Not checked here: the full pre-push suite (G3), Electron and Quick Chat (G2)
+and a real vision model (G1).
 
 #### Code Review #1 Findings
 
-To be recorded.
+Reviewed source: working tree `1bb350d2e28b` on `a69b5f6e5`, high risk, one
+analysis reviewer and an independent checks rerun (all commands exit 0).
+Pass, with no blocking findings. The reviewer confirmed the history mapping
+on six edge rows, that the sent message, the stand-in row and a refetch
+share one id and image shape, the session-scoped cache keys, the fetch
+boundary, i18n in five locales and that Cloud uses none of the changed APIs.
+
+Should fix:
+
+- **P6-A1.** The dialog opens without a Radix trigger, so closing it drops
+  keyboard focus to the page body.
+- **P6-A2.** In browser fullscreen (self-host) the dialog portals to `body`,
+  outside the fullscreen element: it is invisible but traps focus.
+- **P6-A3.** Transcript thumbnails stretch the 128 px thumbnail up to 160 ×
+  80 CSS px, so screenshots look blurry, most on high-density displays.
+- **P6-A4.** The hook's behavior (gone, retry, Blob URL release, cache key,
+  delete invalidation) and the dialog have no tests.
+
+Optional: record the `compare` result in Phase 6 (P6-A5); Quick Chat shows
+images in its own window, unchecked (P6-A6); the debug panel offers Process
+for images (P6-A7); no admission gate on the query (P6-A8); global `fetch`
+instead of the session transport (P6-A9); one thumbnail request per picker
+entry (P6-A10); the planned test files were replaced without a note
+(P6-A11); a 422 is retried (P6-A12).
 
 #### Code Review #1 Revisions
 
-To be recorded.
+Repair round 1 of 2.
+
+| Finding | Disposition | Change |
+| --- | --- | --- |
+| P6-A1 | Accepted | The opener is kept and focused in `onCloseAutoFocus`; a happy-dom test fails without it. |
+| P6-A2 | Accepted | The dialog portals into `document.fullscreenElement` when there is one; unit-tested. |
+| P6-A3 | Accepted | New `variant=preview` (320 px) on the byte route, used by the transcript; backend tests and SDK regeneration. |
+| P6-A4 | Accepted | `useUserFileImageUrl.test.tsx` covers the Blob URL and its release, the session key, 404/409 once, 422 once, 503 retried, and refetch after delete; the dialog test covers open and close. |
+| P6-A5 | Accepted | The `compare` result is recorded here before Phase 6 is ticked. |
+| P6-A6 | Accepted | G2 covers Quick Chat images and the dialog; Phase 7 notes it in `quick-chat.md`. |
+| P6-A7 | Accepted | The debug panel's Process is unavailable for images. |
+| P6-A8 | Accepted | The query waits for the admitted runtime's cache key. |
+| P6-A9 | Not taken | Session end cancels the query; the reference hook uses the same fetch. |
+| P6-A10 | Not taken | Measure before changing; an unobserved image query is dropped after five minutes, and reopening the picker then revalidates (a 304 from the server's cache). |
+| P6-A11 | Accepted | "Built as planned" lists the tests that replaced them. |
+| P6-A12 | Accepted | A 422 is final. |
+
+Verification: the check record above and the manual checks after the
+repairs. An independent rerun on tree `cea897be6459` (the repaired source
+with this record) passed every frontend command (`pnpm web:test` 6452
+passed, 2 skipped; `openapi-ts:check` current), backend format, lint, mypy
+(913 files) and boundary checks, 335 tests in ten affected backend files,
+and the licence check; the runs changed no tracked file.
+
+#### Code Review #2 Findings
+
+Reviewed source: working tree `cea897be6459`, high risk, targeted recheck.
+Pass, with no blocking findings. P6-A1 to A8, A11 and A12 are resolved; the
+reasons for P6-A9 and A10 hold (A10's wording was inexact). The reviewer
+confirmed that the Included and digest content routes still serve only the
+128 px thumbnail, so the year-long digest URLs of ADR 0033 are unchanged,
+that the cache keys cannot collide, that the contract versions raised in this
+pull request cover the new enum value, and that Cloud uses neither the route
+nor the preview size.
+
+- **P6-A13** (should fix, regression from P6-A7): the debug panel also
+  disabled Process for an image left at `uploaded`, whose only completion is
+  `:process` (D11).
+- **P6-A14** (optional): the thumbnail module's comments did not mention that
+  chat previews share its cache.
+- **P6-A15** (optional): no test asserted that the transcript asks for the
+  preview and the dialog for the original.
+- Optional: the preview comment held only up to about 2:1; the `web:test`
+  row named a tree it did not run on.
+
+#### Code Review #2 Revisions
+
+Repair round 2 of 2.
+
+| Finding | Disposition | Change |
+| --- | --- | --- |
+| P6-A13 | Accepted | `canProcessLibraryUpload` (in `libraryUploads.ts`, tested) offers Process for an image only at `uploaded`, whatever the processing switch says, and for documents as before. |
+| P6-A14 | Accepted | The module docstring and cache budget comment describe previews. |
+| P6-A15 | Accepted | The component test records each requested copy and asserts preview and original, never the thumbnail. |
+| Preview comment | Accepted | Qualified for wide images. |
+| Check record | Accepted | The `web:test` row names its tree. |
+
+Verification (source tree before this record): `pnpm check` and
+`pnpm web:lint` exit 0; Vitest on `src/lib/uploads`, `src/ui/main/chat`,
+`src/ui/library` and the hook test, 141 passed; prettier `--check` exit 0;
+`ruff format --check` (913 files) and `ruff check` exit 0;
+`test_content_thumbnails.py`, 13 passed.
+
+#### Code Review #3 Findings
+
+Reviewed source: working tree `d7dabc94bb12`, high risk, final targeted
+recheck; the reviewer reran the checks above on it with the same results.
+Pass. P6-A13 to A15, the preview comment and the record row are resolved, and
+the debug panel's refactor keeps the document behavior. Non-blocking: a stale
+"Built as planned" sentence about the debug panel (corrected in this record),
+the cache comment's "about 500 previews" is at the generous end (measured
+previews are 15 to 25 KB, so 330 to 540), and the panel's existing toast says
+"queued for processing" when it completes an image. No repair rounds remain;
+the comment and the debug-only toast are left as they are.
+
 
 ### Phase 7: Documentation and decision record
 
@@ -1266,9 +1453,11 @@ Review tier: light; the final integration review covers it.
 5. A new ADR recording D1 and D2 with the alternatives considered (inline
    bytes in saved messages, provider file uploads, a separate image store).
 6. Source-review entries for every new file.
+7. `docs/frontend/desktop/quick-chat.md`: Quick Chat shows a message's images
+   from the mirrored transcript (P6-A6).
 
-`docs/frontend/features/user-file-uploads.md` was updated in Phase 5 (P5-A8);
-Phase 6 adds thumbnails to it if needed.
+`docs/frontend/features/user-file-uploads.md` was updated in Phases 5 and 6
+(P5-A8, P5-A16).
 
 Check: the documentation links resolve.
 
@@ -1291,7 +1480,7 @@ Gates:
 - **G2.** Desktop check. Pasting and dragging in the Electron app need the
   owner's go-ahead before the agent drives the app, or the owner checks them.
   It includes pasting after "Copy Image" in Firefox and Safari and after a
-  Finder copy (P5-A15).
+  Finder copy (P5-A15), and images and their dialog in Quick Chat (P6-A6).
 - **G3.** Owner agreement to the full pre-push run.
 
 Hosted validation stays off unless the owner starts a run; the pull request

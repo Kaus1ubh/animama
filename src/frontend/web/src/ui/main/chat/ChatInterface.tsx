@@ -20,6 +20,7 @@ import {
 } from "@/ui/components/chat-input";
 import { ChatInputFileTray } from "@/ui/components/chat-input-file-tray";
 import {
+  attachedChatImages,
   attachedImageCount,
   chatImageRefusal,
   chatImageRefusalMessage,
@@ -46,6 +47,7 @@ import {
   type UserFileUploadUppy,
 } from "@/hooks/useUserFileUpload";
 import { addPastedImages, ChatFileDropOverlay } from "./ChatFileDropOverlay";
+import { ChatMessageImages } from "./ChatMessageImages";
 import { useChatSession, type ChatMessage } from "./useChatSession";
 import { useCrisisCardCornerBottom } from "./crisisCardCorner";
 import { PromptSuggestion } from "./PromptSuggestion";
@@ -365,6 +367,14 @@ export function ChatInterfaceView({
     [animaName, onOpenMemoryEntry, onSkipTts, skipTtsShortcut, spokenMessageId],
   );
 
+  const renderUserAttachments = useCallback(
+    (message: ChatMessage) =>
+      message.images?.length ? (
+        <ChatMessageImages images={message.images} />
+      ) : null,
+    [],
+  );
+
   return (
     <div
       ref={panelRef}
@@ -421,6 +431,7 @@ export function ChatInterfaceView({
                     layout={layout}
                     messageComponent={Message}
                     renderAssistantAccessory={renderAssistantAccessory}
+                    renderUserAttachments={renderUserAttachments}
                   />
                 </div>
               </>
@@ -717,6 +728,15 @@ export const ChatInterface = ({
     },
     [fileUploadUppy],
   );
+  // The sent message shows its images until history confirms it.
+  const describeAttachedImages = useCallback(
+    (fileIds: readonly string[]) =>
+      attachedChatImages(fileIds, {
+        trayFiles: Object.values(fileUploadUppy.getState().files),
+        rows: userFilesQuery.data ?? [],
+      }),
+    [fileUploadUppy, userFilesQuery.data],
+  );
   const removeExistingFile = useCallback((fileId: string) => {
     setSelectedExistingFileIds((current) =>
       current.filter((candidate) => candidate !== fileId),
@@ -794,6 +814,7 @@ export const ChatInterface = ({
     getAttachedFileIds,
     getAttachmentHold,
     onAttachmentsSubmitted: clearSubmittedImages,
+    describeAttachedImages,
     openDraftChatRoute,
     routeChatId: chatId,
     replaceChatRoute,

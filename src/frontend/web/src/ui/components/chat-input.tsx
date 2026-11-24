@@ -3,6 +3,8 @@ import { useModelProviders } from "@/query/hooks/useModelProviders";
 import { useRuntimeCapabilities } from "@/query/hooks/useRuntimeCapabilities";
 import { useUpdateAnimaChatProfile } from "@/query/mutations/useUpdateAnimaChatProfile";
 import { USER_FILE_UPLOAD_ACCEPT } from "@/lib/user-files/uploads";
+import { isUserImageFile } from "@/lib/user-files/chat-images";
+import { UserFileThumbnail } from "@/ui/components/user-file-thumbnail";
 import { Button } from "@/ui/components/button";
 import { attachmentSize } from "@/ui/components/chat-input-file-tray";
 import { Checkbox } from "@/ui/components/checkbox";
@@ -266,10 +268,17 @@ function ChatInputFileUploadButtonInner({
                           onSelect={() => onToggleExistingFile(file)}
                           className="items-start py-2"
                         >
-                          <FileText
-                            className="mt-0.5 size-4"
-                            aria-hidden="true"
-                          />
+                          {isUserImageFile(file) ? (
+                            <UserFileThumbnail
+                              fileId={file.file_id}
+                              className="mt-0.5 size-5"
+                            />
+                          ) : (
+                            <FileText
+                              className="mt-0.5 size-4"
+                              aria-hidden="true"
+                            />
+                          )}
                           <span className="min-w-0 flex-1">
                             <span className="block truncate">
                               {file.original_filename}
@@ -342,7 +351,7 @@ function searchUnavailableText(
   }
 }
 
-/** Size, chunk count and search status for an attached file. */
+/** Size, chunk count and search status for an attached file; an image has no chunks. */
 function attachmentDetails(
   t: TFunction<"chat">,
   formatters: LocaleFormatters,
@@ -352,6 +361,10 @@ function attachmentDetails(
     formatters,
     file.stored_size_bytes ?? file.declared_size_bytes,
   );
+  if (isUserImageFile(file)) {
+    const status = t("composer.files.ready");
+    return size ? t("composer.attach.imageDetails", { size, status }) : status;
+  }
   const values = {
     chunks: t("composer.attach.chunks", { count: file.chunk_count ?? 0 }),
     status:

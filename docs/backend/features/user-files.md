@@ -27,7 +27,7 @@ Backend API:
 - `POST /v1/memory/debug/search-memory-files`
 - `GET /v1/files`
 - `GET /v1/files/{file_id}`
-- `GET /v1/files/{file_id}/content` (a ready chat image's stored copy; `?variant=thumbnail` for a 128 px copy)
+- `GET /v1/files/{file_id}/content` (a ready chat image's stored copy; `?variant=thumbnail` for a 128 px copy, `?variant=preview` for a 320 px one)
 - `DELETE /v1/files/{file_id}`
 - `DELETE /v1/files/uploads/{file_id}`
 - `GET /v1/runtime-capabilities`

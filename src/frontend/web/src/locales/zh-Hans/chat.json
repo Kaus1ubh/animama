@@ -81,7 +81,8 @@
       "loadFailed": "无法加载已上传的文件。",
       "loading": "正在加载已上传的文件…",
       "search": "搜索已上传的文件…",
-      "uploading": "正在上传 {{percent}}"
+      "uploading": "正在上传 {{percent}}",
+      "imageDetails": "{{size}} · {{status}}"
     },
     "dictation": {
       "failed": "听写失败",
@@ -174,6 +175,14 @@
       "failed": "下载失败；选择即可重试",
       "whenSelected": "选择后即会下载"
     }
+  },
+  "images": {
+    "listLabel": "随此消息发送的图片",
+    "loadFailed": "无法加载图片",
+    "open": "打开 {{name}}",
+    "placeholderLabel": "{{name}}：{{reason}}",
+    "unavailable": "图片已不可用",
+    "unnamed": "图片"
   },
   "loadingStatus": {
     "avatar": "正在加载虚拟形象",

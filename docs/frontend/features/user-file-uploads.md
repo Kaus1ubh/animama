@@ -10,14 +10,20 @@ initialization succeeds.
 - Chat composer: the paperclip button opens an attachment popover. Its first
   row, **Upload from computer**, opens the browser file picker. Below that row,
   users can search and select installation uploads that are already `ready` or
-  `ready_keyword_only` and have chunks. New uploads and selected existing files
-  appear as compact cards above the text row. Their backend `file_id` values are
+  `ready_keyword_only` and have chunks, and ready images (which have none).
+  New uploads and selected existing files appear as compact cards above the
+  text row; an image card shows its thumbnail. Their backend `file_id` values are
   merged and sent as `attached_file_ids` with the next `chat:sse` request.
   On main chat routes, users can also drag files anywhere over the page and
   drop them to add those files to the same composer upload tray.
 - `/library?section=chat-uploads`: lists uploaded files, shows file and
   processing status, supports upload, selected deletion, process/reprocess
-  actions, and debug search.
+  actions, and debug search. A ready image's row shows its thumbnail.
+- Chat transcript: a user message shows the images sent with it above its
+  bubble (`ui/main/chat/ChatMessageImages.tsx`), read from the message's
+  `data.images` and, before history confirms the turn, from the composer
+  (`describeAttachedImages`). Each opens larger in a dialog; a deleted image
+  leaves a placeholder.
 
 The chat composer offers the attach button, drop overlay and upload tray, and
 the Library its Chat Uploads section, only when the admitted runtime
@@ -127,7 +133,12 @@ A saved original without processing stays `uploaded` and does not poll forever.
   `search_uploaded_files` only for current-user processed uploads with chunks.
 - Removing a chat composer card is local UI cleanup, not a delete request.
 - The frontend never receives or sends private filesystem paths or storage
-  locators.
+  locators. Image bytes are fetched from `GET /v1/files/{file_id}/content`
+  (`?variant=thumbnail` for small tiles, `?variant=preview` for the
+  transcript, no variant for the larger view) through the same-origin owner
+  boundary and shown as Blob URLs (`query/hooks/useUserFileImageUrl.ts`),
+  cached apart from the file list; deleting a file invalidates its cached
+  bytes.
 - The SDK exported by `@animama/runtime-contracts/sdk` is the API source for
   file requests; generated sources live in `packages/runtime-contracts/src/generated`.
   Do not hand-edit generated files.

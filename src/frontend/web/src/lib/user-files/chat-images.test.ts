@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { PyUserFileResponse } from "@/lib/content/catalogTypes";
 import {
+  attachedChatImages,
   attachedImageCount,
   chatImageRefusal,
   isUserImageFile,
@@ -162,5 +163,24 @@ describe("chat images in the composer", () => {
     expect(pastedImageFiles(clipboard("", [image, text]))).toEqual([image]);
     expect(pastedImageFiles(clipboard("Q3 total\t42", [image]))).toEqual([]);
     expect(pastedImageFiles(clipboard("", []))).toEqual([]);
+  });
+
+  it("describes the images a turn sent, from their rows or their tray uploads", () => {
+    const row = {
+      ...libraryFile("pick", "image"),
+      metadata: { kind: "image", image: { width: 400, height: 300 } },
+    };
+    expect(
+      attachedChatImages(["doc-1", "upload-1", "pick", "unknown"], {
+        trayFiles: [
+          { id: "uppy-1", name: "photo.jpg", meta: { file_id: "upload-1" } },
+          { id: "uppy-2", name: "notes.txt", meta: { file_id: "doc-1" } },
+        ],
+        rows: [row, libraryFile("doc-1")],
+      }),
+    ).toEqual([
+      { fileId: "upload-1", name: "photo.jpg" },
+      { fileId: "pick", name: "pick.png", width: 400, height: 300 },
+    ]);
   });
 });

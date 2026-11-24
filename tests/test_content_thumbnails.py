@@ -12,7 +12,12 @@ from sqlalchemy import delete
 from animama.adapters.content_store import FilesystemContentStore
 from animama.adapters.repositories.sqlalchemy.content_catalog_repo import SQLAlchemyContentCatalog
 from animama.app.services.content_catalog_service import ContentCatalogService
-from animama.app.services.content_thumbnails import THUMBNAIL_EDGE, ContentThumbnailError, thumbnail_file
+from animama.app.services.content_thumbnails import (
+    PREVIEW_EDGE,
+    THUMBNAIL_EDGE,
+    ContentThumbnailError,
+    thumbnail_file,
+)
 from animama.domain.content_catalog import VerifiedContentFile
 from animama.domain.request_principal import RequestPrincipal
 from animama.orm.content_catalog import ORMContentCatalogItem
@@ -54,6 +59,18 @@ def test_a_repeated_source_reuses_the_same_thumbnail_bytes() -> None:
 
     assert first.sha256 == second.sha256
     assert first.handle.read() == second.handle.read()
+
+
+def test_a_preview_is_larger_than_a_thumbnail_and_cached_apart_from_it() -> None:
+    source = _png(1600, 900, (10, 20, 30, 255))
+    thumbnail = thumbnail_file(_verified(source))
+    preview = thumbnail_file(_verified(source), edge=PREVIEW_EDGE)
+    again = thumbnail_file(_verified(source))
+
+    with Image.open(BytesIO(preview.handle.read())) as image:
+        assert image.size == (PREVIEW_EDGE, round(PREVIEW_EDGE * 900 / 1600))
+    assert preview.sha256 != thumbnail.sha256
+    assert again.sha256 == thumbnail.sha256
 
 
 def test_small_rasters_and_vector_art_are_returned_unchanged() -> None:

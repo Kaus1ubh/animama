@@ -38,6 +38,7 @@ import {
   chatRunMessageId,
   mapServerMessagesForDisplay,
   sortDisplayMessagesByCreatedAt,
+  type ChatDisplayImage,
   type ChatDisplayMessage,
 } from "../lib/chat/display-message-mapping";
 import type { ChatMemoryCue } from "../lib/chat/memory-cue";
@@ -135,6 +136,11 @@ export type UseProductChatSessionArgs = {
    * the server refuses keeps them in the composer.
    */
   onAttachmentsSubmitted?: (fileIds: string[]) => void;
+  /**
+   * The images among a turn's attachments, in order, so the sent message shows
+   * them before history confirms it. Documents are left out.
+   */
+  describeAttachedImages?: (fileIds: readonly string[]) => ChatDisplayImage[];
   openDraftChatRoute: () => void | Promise<void>;
   replaceChatRoute: (chatId: string) => void | Promise<void>;
   safety?: ChatSafetyEffects;
@@ -255,6 +261,7 @@ export function useProductChatSession({
   getAttachedFileIds,
   getAttachmentHold,
   onAttachmentsSubmitted,
+  describeAttachedImages,
   openDraftChatRoute,
   routeChatId = null,
   replaceChatRoute,
@@ -932,6 +939,12 @@ export function useProductChatSession({
         // The turn sends the attachments just checked: one added while the
         // chat is being created waits for the next turn.
         const attachedFileIds = getAttachedFileIds?.() ?? [];
+        const attachedImages = attachedFileIds.length
+          ? (describeAttachedImages?.(attachedFileIds) ?? [])
+          : [];
+        const imageFields = attachedImages.length
+          ? { images: attachedImages }
+          : {};
 
         const modelGate = chatModelSendGate(activeChat, activeModelProvider);
         if (!modelGate.ok) {
@@ -999,6 +1012,7 @@ export function useProductChatSession({
             id: chatRunMessageId(runId, "user"),
             role: "user",
             text: trimmed,
+            ...imageFields,
             createdAt: submittedAt,
             animateOnEnter: true,
           }),
@@ -1438,6 +1452,22 @@ export function useProductChatSession({
                 role: "user",
                 content: trimmed,
                 created_at: userCreatedAt,
+                // The images and the person's text, as history saves them.
+                ...(attachedImages.length
+                  ? {
+                      data: {
+                        images: attachedImages.map(
+                          ({ fileId, name, width, height }) => ({
+                            file_id: fileId,
+                            name,
+                            ...(width ? { width } : {}),
+                            ...(height ? { height } : {}),
+                          }),
+                        ),
+                        user_text: trimmed,
+                      },
+                    }
+                  : {}),
               },
             ];
             if (assistantTexts.length) {
@@ -1602,6 +1632,7 @@ export function useProductChatSession({
       getAttachedFileIds,
       getAttachmentHold,
       onAttachmentsSubmitted,
+      describeAttachedImages,
       logger,
       noticeAttachmentHold,
       patchChatTitleCaches,

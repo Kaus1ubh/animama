@@ -13176,7 +13176,7 @@ export type GetUserFileContentV1FilesFileIdContentGetData = {
         /**
          * Variant
          */
-        variant?: 'thumbnail' | null;
+        variant?: 'thumbnail' | 'preview' | null;
     };
     url: '/v1/files/{file_id}/content';
 };

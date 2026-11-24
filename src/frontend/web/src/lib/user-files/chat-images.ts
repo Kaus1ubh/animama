@@ -1,3 +1,4 @@
+import type { ChatDisplayImage } from "@animama/product-ui/chat";
 import type { TFunction } from "i18next";
 
 import type { PyUserFileResponse } from "@/lib/content/catalogTypes";
@@ -70,6 +71,52 @@ export function sentChatImages({
     .filter((file) => sent.has(file.file_id) && isUserImageFile(file))
     .map((file) => file.file_id);
   return { trayFileIds, existingFileIds };
+}
+
+/**
+ * The images among a turn's attachments, in order, as its sent message shows
+ * them: a file's row when the list has it, else its tray upload.
+ */
+export function attachedChatImages(
+  fileIds: readonly string[],
+  {
+    trayFiles,
+    rows,
+  }: {
+    trayFiles: Iterable<ChatTrayFile>;
+    rows: readonly Pick<
+      PyUserFileResponse,
+      "file_id" | "original_filename" | "metadata"
+    >[];
+  },
+): ChatDisplayImage[] {
+  const rowsById = new Map(rows.map((row) => [row.file_id, row]));
+  const trayByFileId = new Map<string, ChatTrayFile>();
+  for (const file of trayFiles) {
+    const fileId = file.meta?.file_id;
+    if (fileId) trayByFileId.set(fileId, file);
+  }
+  const images: ChatDisplayImage[] = [];
+  for (const fileId of fileIds) {
+    const row = rowsById.get(fileId);
+    const tray = trayByFileId.get(fileId);
+    const isImage = row
+      ? isUserImageFile(row)
+      : isUserImageFileName(tray?.name);
+    if (!isImage) continue;
+    const facts = row?.metadata?.image;
+    const size =
+      facts && typeof facts === "object"
+        ? (facts as { width?: unknown; height?: unknown })
+        : {};
+    images.push({
+      fileId,
+      name: row?.original_filename ?? tray?.name ?? "",
+      ...(typeof size.width === "number" ? { width: size.width } : {}),
+      ...(typeof size.height === "number" ? { height: size.height } : {}),
+    });
+  }
+  return images;
 }
 
 /**

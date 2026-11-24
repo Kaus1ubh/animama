@@ -1572,8 +1572,9 @@ uploads, processing jobs, and backend debug search. It exposes:
 - `GET /v1/files/{file_id}`: return one current-user file record or `404`.
 - `GET /v1/files/{file_id}/content`: return the stored copy (PNG or JPEG) of a
   current-user chat image that is `ready`, revalidated by its digest `ETag`;
-  `?variant=thumbnail` returns a WebP copy at most 128 px on its long edge, or
-  the stored copy when it is already that small. Other files are `404`; stored
+  `?variant=thumbnail` returns a WebP copy at most 128 px on its long edge and
+  `?variant=preview` one at most 320 px (the chat transcript's size), or the
+  stored copy when it is already that small. Other files are `404`; stored
   bytes that are missing or no longer match the record are `409`
   `user_file_content_changed`, and a storage read failure is `503`.
 - `DELETE /v1/files/{file_id}`: best-effort delete the local original and mark the row

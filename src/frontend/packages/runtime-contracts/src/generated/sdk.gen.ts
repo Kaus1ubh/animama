@@ -1370,8 +1370,9 @@ export const getUserFileV1FilesFileIdGet = <ThrowOnError extends boolean = false
  *
  * Return the stored copy of one of the current user's ready chat images.
  *
- * `variant=thumbnail` returns a copy at most 128 px on its long edge. The reply
- * is private and revalidated by its digest `ETag`. Documents and images that are
+ * `variant=thumbnail` returns a copy at most 128 px on its long edge, and
+ * `variant=preview` one at most 320 px for the chat transcript. The reply is
+ * private and revalidated by its digest `ETag`. Documents and images that are
  * not ready are not served.
  */
 export const getUserFileContentV1FilesFileIdContentGet = <ThrowOnError extends boolean = false>(options: Options<GetUserFileContentV1FilesFileIdContentGetData, ThrowOnError>) => (options.client ?? client).get<GetUserFileContentV1FilesFileIdContentGetResponses, GetUserFileContentV1FilesFileIdContentGetErrors, ThrowOnError>({

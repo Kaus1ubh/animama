@@ -1511,6 +1511,7 @@ export default interface Resources {
         "fileDetailsNoSize": "{{chunks}} · {{status}}",
         "files": "Files",
         "fromComputer": "Upload from computer",
+        "imageDetails": "{{size}} · {{status}}",
         "keywordOnly": "Keyword only",
         "loadFailed": "Uploaded files could not be loaded.",
         "loading": "Loading uploaded files…",
@@ -1610,6 +1611,14 @@ export default interface Resources {
         "failed": "Download failed; select to retry",
         "whenSelected": "Downloads when selected"
       }
+    },
+    "images": {
+      "listLabel": "Images sent with this message",
+      "loadFailed": "Image could not be loaded",
+      "open": "Open {{name}}",
+      "placeholderLabel": "{{name}}: {{reason}}",
+      "unavailable": "Image no longer available",
+      "unnamed": "Image"
     },
     "loadingStatus": {
       "avatar": "Loading avatar",

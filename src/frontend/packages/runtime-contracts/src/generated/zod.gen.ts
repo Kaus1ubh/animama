@@ -8265,7 +8265,7 @@ export const zGetUserFileContentV1FilesFileIdContentGetData = z.object({
     }),
     query: z.optional(z.object({
         variant: z.optional(z.union([
-            z.literal('thumbnail'),
+            z.enum(['thumbnail', 'preview']),
             z.null()
         ]))
     })),

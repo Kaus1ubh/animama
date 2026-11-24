@@ -81,7 +81,8 @@
       "loadFailed": "アップロード済みファイルを読み込めませんでした。",
       "loading": "アップロード済みファイルを読み込み中…",
       "search": "アップロード済みファイルを検索…",
-      "uploading": "アップロード中 {{percent}}"
+      "uploading": "アップロード中 {{percent}}",
+      "imageDetails": "{{size}} · {{status}}"
     },
     "dictation": {
       "failed": "音声入力に失敗しました",
@@ -174,6 +175,14 @@
       "failed": "ダウンロードに失敗しました。選択すると再試行します",
       "whenSelected": "選択するとダウンロードされます"
     }
+  },
+  "images": {
+    "listLabel": "このメッセージで送った画像",
+    "loadFailed": "画像を読み込めませんでした",
+    "open": "{{name}} を開く",
+    "placeholderLabel": "{{name}}：{{reason}}",
+    "unavailable": "画像はもうありません",
+    "unnamed": "画像"
   },
   "loadingStatus": {
     "avatar": "アバターを読み込み中",

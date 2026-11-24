@@ -912,6 +912,22 @@ async def test_content_thumbnail_is_a_small_copy(monkeypatch) -> None:
         assert max(thumbnail.size) <= 128
 
 
+@pytest.mark.asyncio
+async def test_content_preview_is_a_copy_sized_for_the_chat_transcript(monkeypatch) -> None:
+    stored = _jpeg((1600, 800))
+    _patch_service(monkeypatch, _FakeUserFileRepository([_ready_image(stored)]), _FakeUnitOfWork())
+    _FakeImageStorage(stored).install(monkeypatch)
+
+    response = await user_files_router.get_user_file_content(
+        "file-1", session=AsyncSession(), user=_user(), variant="preview"
+    )
+
+    assert response.status_code == 200
+    assert response.media_type == "image/webp"
+    with Image.open(BytesIO(await _body(response))) as preview:
+        assert preview.size == (320, 160)
+
+
 def _not_servable(case: str) -> UserFile:
     stored = _jpeg((40, 20))
     if case == "another-owner":

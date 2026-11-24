@@ -17,7 +17,12 @@ from animama.adapters.repositories.sqlalchemy.user_file_repo import SQLAlchemyUs
 from animama.app.ports.private_file_storage import PrivateFileUnavailableError
 from animama.app.services.content_file_validation import ContentFileInvalidError
 from animama.app.services.content_image import CanonicalChatImage, canonicalize_chat_image_stream
-from animama.app.services.content_thumbnails import ContentThumbnailError, thumbnail_file
+from animama.app.services.content_thumbnails import (
+    PREVIEW_EDGE,
+    THUMBNAIL_EDGE,
+    ContentThumbnailError,
+    thumbnail_file,
+)
 from animama.app.services.user_file_processing_service import (
     UserFileProcessingConflictError,
     UserFileProcessingNotFoundError,
@@ -498,12 +503,13 @@ async def get_user_file_content(
     session: SessionDep,
     user: UserDep,
     if_none_match: Annotated[str | None, Header(alias="If-None-Match")] = None,
-    variant: Annotated[Literal["thumbnail"] | None, Query()] = None,
+    variant: Annotated[Literal["thumbnail", "preview"] | None, Query()] = None,
 ) -> Response:
     """Return the stored copy of one of the current user's ready chat images.
 
-    `variant=thumbnail` returns a copy at most 128 px on its long edge. The reply
-    is private and revalidated by its digest `ETag`. Documents and images that are
+    `variant=thumbnail` returns a copy at most 128 px on its long edge, and
+    `variant=preview` one at most 320 px for the chat transcript. The reply is
+    private and revalidated by its digest `ETag`. Documents and images that are
     not ready are not served.
     """
 
@@ -520,9 +526,10 @@ async def get_user_file_content(
     except _STORAGE_READ_ERRORS as exc:
         _log.error("User image read failed", file_id=file_id, user_id=user.id, error=str(exc))
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Local file unavailable") from exc
-    if variant == "thumbnail":
+    if variant is not None:
+        edge = PREVIEW_EDGE if variant == "preview" else THUMBNAIL_EDGE
         try:
-            image = await asyncio.to_thread(thumbnail_file, image)
+            image = await asyncio.to_thread(thumbnail_file, image, edge=edge)
         except ContentThumbnailError as exc:
             raise HTTPException(status_code=422, detail={"code": "content_thumbnail_unsupported"}) from exc
     return local_file_response(image, if_none_match=if_none_match, revalidate=True)
