@@ -41,6 +41,10 @@ def _sse(*events: dict[str, Any]) -> httpx.Response:
     return httpx.Response(200, headers={"content-type": "text/event-stream"}, content=content.encode())
 
 
+# Unix seconds, the form the live token response uses. The value is made up.
+EARLIEST_REFRESH_AT = 1_800_000_000
+
+
 def _completed(*items: dict[str, Any]) -> httpx.Response:
     response = {"output": list(items), "usage": {"input_tokens": 3, "output_tokens": 1}}
     return _sse(
@@ -70,6 +74,7 @@ class FakeOpenAI:
             "token_endpoint": probe.TOKEN_URL,
         }
         self.revocation_status = 200
+        self.model_extra: dict[str, Any] = {}
         self.requests: list[httpx.Request] = []
         self.on_response: Callable[[dict[str, Any]], httpx.Response] = lambda body: _completed(
             {"type": "message", "role": "assistant"}
@@ -87,7 +92,7 @@ class FakeOpenAI:
             "id_token": self._jwt(aud=self.audience, nonce=self.nonce, email=EMAIL, email_verified=True),
             "token_type": "Bearer",
             "expires_in": 3600,
-            "earliest_refresh_at": "2026-01-01T00:00:00Z",
+            "earliest_refresh_at": EARLIEST_REFRESH_AT,
         }
         return tokens if self.scope is None else {**tokens, "scope": self.scope}
 
@@ -112,7 +117,7 @@ class FakeOpenAI:
             return httpx.Response(self.revocation_status)
         if url == f"{probe.API_BASE}/models":
             item = {"slug": "gpt-test", "display_name": "GPT Test", "visibility": "list", "context_window": 1000}
-            return httpx.Response(200, json={"models": [item]})
+            return httpx.Response(200, json={"models": [{**item, **self.model_extra}]})
         if url == f"{probe.API_BASE}/responses":
             return self.on_response(json.loads(request.content))
         return httpx.Response(403, json={"detail": "This route is not available for ChatGPT plan usage."})
@@ -421,7 +426,7 @@ def test_refresh_saves_the_replacement_token_and_keeps_the_old_one_on_failure(
     summary = probe.refresh_tokens(client, path, record)
 
     assert summary["refresh_token_rotated"] is True
-    assert summary["previous_earliest_refresh_at"] == "2026-01-01T00:00:00Z"
+    assert summary["previous_earliest_refresh_at"] == EARLIEST_REFRESH_AT
     assert summary["refreshed_at"] == _on_disk(path)["saved_at"]
     assert _on_disk(path)["refresh_token"] == "refresh-sentinel-1"
 
@@ -587,6 +592,7 @@ def test_trials_report_what_the_route_accepted_and_refused(
         "response.completed",
         ["message"],
     )
+    assert second.note == ""  # reasoning was replayed, so there is nothing to flag
     assert patched.item_types == ["apply_patch_call"] and patch_follow_up.terminal == "response.completed"
     assert searched.item_types == ["web_search_call", "message"]
     assert compaction.note.startswith("admission only")
@@ -608,9 +614,43 @@ def test_trials_report_what_the_route_accepted_and_refused(
     assert [item.get("type") for item in replayed[1:]] == ["reasoning", "function_call", "function_call_output"]
     assert replayed[2]["namespace"] == "probe" and replayed[1]["encrypted_content"] == "opaque"
     assert bodies[1]["include"] == ["reasoning.encrypted_content"]
+    # Low effort on a trivial call returned no reasoning item in the live trial, so the trial asks for more.
+    assert bodies[1]["reasoning"] == {"effort": "high"} and "17 times 23" in bodies[1]["input"][0]["content"]
     assert [item.get("type") for item in bodies[4]["input"][1:]] == ["apply_patch_call", "apply_patch_call_output"]
     assert bodies[4]["input"][1]["operation"] == {"type": "x"}
     assert "Search the web" in bodies[5]["input"][0]["content"]
+
+
+def test_a_reasoning_replay_that_replayed_no_reasoning_says_so(
+    tmp_path: Path, fake: FakeOpenAI, client: httpx.Client
+) -> None:
+    _, record = _signed_in(tmp_path, fake, client)
+    call = {"type": "function_call", "name": "record_note", "call_id": "call_1", "arguments": "{}"}
+
+    def respond(body: dict[str, Any]) -> httpx.Response:
+        answered = any(item.get("type") == "function_call_output" for item in body["input"])
+        return _completed({"type": "message", "role": "assistant"} if answered else call)
+
+    fake.on_response = respond
+    available = probe.trials(client, record["access_token"], "gpt-test", probe.redactor(record))
+
+    first, second = available["reasoning_replay"]()
+
+    assert first.encrypted_reasoning is False
+    assert second.note == "the first response held no encrypted reasoning item, so none was replayed"
+
+
+def test_the_model_list_shortens_long_text(fake: FakeOpenAI, client: httpx.Client) -> None:
+    # A real item carries another product's instructions, tens of thousands of characters long.
+    fake.model_extra = {"base_instructions": "x" * 5000, "model_messages": {"tools": ["y" * 300, "short"]}}
+
+    listed = probe.list_models(client, "access-token")
+    (item,) = listed["items"]
+
+    assert item["base_instructions"] == "<5000 characters>"
+    assert item["model_messages"] == {"tools": ["<300 characters>", "short"]}
+    assert (item["slug"], item["context_window"]) == ("gpt-test", 1000)
+    assert listed["item_fields"]["base_instructions"] == ["str"]
 
 
 def test_items_delivered_only_as_stream_events_are_still_seen(

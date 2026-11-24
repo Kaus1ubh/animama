@@ -168,7 +168,8 @@ Orientation, from read-only surveys on 2026-11-24 (paths under
   phase adds entries for its new files.
 
 OpenAI facts, read from the official documentation on 2026-11-24. The route
-is a preview, so Phase 0 confirms them against a live account.
+is a preview, so Phase 0 tried them against a live account. Where the trial
+differed, "Live trial" under Surprises & Discoveries says how.
 
 | Topic | Rule |
 | --- | --- |
@@ -224,8 +225,10 @@ and the backend.
 - [x] Workspace setup (2026-11-24): #919 published and read back, spec
   snapshot and plan tracked, branch fast-forwarded to `c7b98f73a`, Python
   dependencies installed. No stack started.
-- [ ] Phase 0: live trial of the route. The probe is built and reviewed
-  (Code Review #2 passed, 2026-11-24). The trial itself waits for G1.
+- [x] Phase 0: live trial of the route (2026-11-24). The probe was built and
+  reviewed, and the trial ran on a live account: 24 of the 25 requests G1
+  allows, then a sign-out that OpenAI confirmed. Findings are under
+  Surprises & Discoveries; the choices they settle are in the Decision Log.
 - [ ] Phase 1: sign-in core.
 - [ ] Phase 2: routes and the sign-in return.
 - [ ] Phase 3: desktop custody.
@@ -241,9 +244,9 @@ and the backend.
 - 2026-11-24 (planning): nothing is exempt from admission today, not even
   `/health`. The sign-in return is the first browser route that needs a
   different rule, so it gets its own threat model row (T1) and tests.
-- 2026-11-24 (planning): the plan route requires function tools inside a
-  namespace. The flat tools the adapter sends today would be refused, and a
-  tool call then returns with its namespace.
+- 2026-11-24 (planning): OpenAI's documentation requires function tools
+  inside a namespace, and a tool call then returns with its namespace. The
+  live trial found flat tools accepted all the same (see Live trial).
 - 2026-11-24 (planning): most of the Responses adapter's behavior that the
   route forbids is keyed by provider type: the stored cursor, inline
   moderation, native compaction and hosted tools. A separate provider type
@@ -279,6 +282,76 @@ and the backend.
   location through its discovery document. The probe reads both from there
   and holds them to OpenAI's sign-in host; Phase 1 should do the same, before
   any code is exchanged.
+
+### Live trial, 2026-11-24
+
+The Phase 0 probe ran against a live account on model `gpt-6-luna`: one
+sign-in, the model list, 24 route requests, one refresh and a sign-out that
+OpenAI confirmed. The credentials file was deleted afterwards. Nothing below
+identifies the account.
+
+Sign-in, tokens and the model list:
+
+| Subject | Observed |
+| --- | --- |
+| Registration | The first sign-in with `dynamic_agent_client` returned `client_id`, `code`, `iss`, `scope` and `state`. The discovery document matched the documented endpoints, and all six requested scopes were granted. |
+| Token response | `access_token`, `refresh_token`, `id_token`, `token_type`, `expires_in` (3600), `scope` and `earliest_refresh_at`. |
+| ID token | Signed with `RS256` and a key id. Claims: `iss`, `aud`, `sub`, `exp`, `iat`, `auth_time`, `nonce`, `at_hash`, `jti`, `sid`, `email`, `email_verified`, `name`, `given_name`, `family_name` and `https://api.openai.com/auth`. A refreshed ID token has no `nonce`. |
+| Access and refresh tokens | The access token is a JWT of about 2,100 characters (`RS256`, type `at+jwt`), valid for one hour. The refresh token is opaque, about 200 characters, and its length varies. |
+| Refresh | `earliest_refresh_at` is Unix seconds, 54 minutes after issue. A refresh sent about 50 minutes before that time was still accepted and replaced the refresh token. |
+| Sign-out | The revocation endpoint answered 200. |
+| Model list | `GET /v1/models` returned `models[]` with five items of 55 fields each. The useful ones: `slug`, `display_name`, `description`, `visibility` (`list` on three items, `hide` on two), `priority`, `context_window` (272,000 on every item), `max_context_window` (872,000), `input_modalities` (`text`, `image`), `supported_reasoning_levels` (`low` to `max`; one model adds `ultra`), `default_reasoning_level`, `supports_parallel_tool_calls`, `supports_search_tool`, `web_search_tool_type` and `apply_patch_tool_type` (`freeform`). |
+| Model list, other content | The list is written for Codex, OpenAI's coding client. Each item carries that client's instructions and message templates (`base_instructions`, `model_messages`), tens of thousands of characters an item. `available_in_plans` names about 28 plans, `free` and `go` among them on four items. That field describes the model; the trial did not test which plans may use this route. |
+
+Requests, each streamed and unstored:
+
+| Request | Result |
+| --- | --- |
+| A plain prompt | Completed. The stream includes a `response.metadata` event that the pinned SDK does not type, and `usage` carries an `attribution` field. |
+| `instructions` with a developer-role item | Accepted. |
+| A system-role input item | 400 with the body `{"detail": "System messages are not allowed"}`. |
+| A flat function tool | Accepted, although the documentation requires a namespace. The call has `name` and no `namespace`. |
+| A function tool in a namespace | Accepted. The call keeps the tool's own `name` and carries `namespace` as a separate field. |
+| An `additional_tools` developer item | Accepted. The call has no `namespace`. |
+| `tool_choice: "auto"` with `parallel_tool_calls: false` | Accepted. |
+| A tool round replayed by hand: the call with its `namespace`, then its output, with no cursor and no item ids | Accepted. |
+| `reasoning.effort` at `low` and `high` | Accepted. |
+| `include: ["reasoning.encrypted_content"]` | Accepted. No tool-calling request returned a reasoning item, at `low` or `high` effort, so no reasoning was replayed. The image request, which set neither field, returned a reasoning item with encrypted content. |
+| `prompt_cache_key` | Accepted. |
+| `text.format` with a strict JSON schema | Accepted and followed. |
+| An image as a data URL | Accepted and read correctly. |
+| `context_management` with a compaction entry | Admitted. The prompt was too short to compact, so compaction itself is untested. |
+| Hosted `web_search` | A search ran: a `web_search_call` item, then a message. That response's terminal event carried no output items; they arrived only as `response.output_item.done` events. |
+| Native `apply_patch` | 400 with the body `{"detail": "Unsupported tool type: apply_patch"}`. |
+| `max_output_tokens` | Accepted, although the documentation lists it as rejected. Whether it is applied was not tested. |
+| One request through the pinned SDK, with redirects off and no environment headers | Completed. |
+| `/v1/embeddings` and `/v1/moderations` | 401 with an `error` object of type `rejected_by_access_enforcement` and code `no_matching_rule`, not the documented 403 `subscription_sharing_route_not_supported`. |
+
+What this changes:
+
+- `adapters/model_clients/openai_responses/final.py` reads the final items
+  from the terminal event's `response.output`. On the hosted-search response
+  that list was empty or absent; the probe cannot tell which. The plan
+  client must fall back, in both cases, to the items it collected from
+  `response.output_item.done` (Phase 5 step 5).
+- The model list holds another product's prompts and is large. Model sync
+  keeps a few fields of the `list` items and never logs the response (Phase 5
+  step 3).
+- The catalog gives `gpt-6-luna` a 1,050,000-token window, and the plan's
+  list gives the same slug 272,000. A plan row uses the list's figure, so one
+  model has a smaller window on the plan than on a key.
+- A refused route answers 401. The trial never sent an expired or revoked
+  token, so it does not show how that 401 differs. Phase 5 step 7 keeps
+  its rule for every 401: one refresh and one retry.
+- No request produced a `subscription_sharing_*` error, so Phase 5's
+  mapping of those codes rests on the documentation.
+- `earliest_refresh_at` is a number, not a date string, and a refreshed ID
+  token has no `nonce` (Phase 1).
+- The route accepts two things the documentation says it refuses: flat
+  function tools and `max_output_tokens`. The plan client follows the
+  documentation, because a preview route may start enforcing it.
+- Reasoning replay is unproven. The route returns encrypted reasoning, but
+  no trial request returned it beside a tool call.
 
 ## Decision Log
 
@@ -347,6 +420,40 @@ and the backend.
   - **D14. Sign-in is offered only when the installation's origin is a
     loopback `http` origin**, which is how the backend knows the return can
     reach it (spec P2). Anywhere else the app explains instead of starting.
+- 2026-11-24, agent, from the Phase 0 trial (Phase 0 step 3). Each applies a
+  rule the approved plan already set, and none changes agreed behavior.
+  - **D8 settled: hosted web search is offered.** The route ran a hosted
+    search. A plan row offers it when its list item has `supports_search_tool`
+    true, and the app's own web search otherwise. Every listed item had
+    it true, so the other branch is untried.
+  - **D9 settled: the list's `context_window`.** Every item has one. A plan
+    row uses it, not `max_context_window` and not the catalog's figure for
+    the same slug. The fallbacks stay for an item without one.
+  - **Compaction: the app's own.** The trial showed only that
+    `context_management` is admitted, so plan rows do not send it. The plan's
+    provider type stays out of the native-compaction set, and a chat fits its
+    context to the row's window.
+  - **Memory edits: the function form.** The route refuses native
+    `apply_patch`, so no plan request declares it, in chat or in the Memory
+    Manager.
+  - **Reasoning replay: built, and on only once confirmed.** The route
+    returns encrypted reasoning, but no trial response held a reasoning
+    item beside a tool call, so its answer to a replayed one is unknown.
+    The route profile gets a switch for requesting and replaying
+    reasoning. It ships off, and the client then replays calls and outputs
+    only, as the adapter's hand replay does today. The switch turns on in
+    this plan only if Phase 5's manual check shows the route accepting a
+    replayed reasoning item. It is a setting in the code, not a retry at
+    run time.
+  - **Tools stay in a namespace.** Flat function tools were accepted, against
+    the documentation. The client still wraps them, so later enforcement
+    does not break it. A tool's `name` comes back unchanged with `namespace`
+    beside it, and a replayed call keeps both.
+  - **Synced rows.** Only items with `visibility` `list` become rows. A row
+    takes `slug`, `display_name`, `context_window`, `input_modalities`,
+    `supports_search_tool` (as its hosted-search support) and the
+    `supported_reasoning_levels` the app already knows. Nothing else from
+    the list is stored or logged.
 
 ## Phased implementation
 
@@ -421,7 +528,7 @@ and the app can be disconnected in ChatGPT's settings.
 Step 1 was built on 2026-11-24, starting from `4bb966a02`: the probe, and
 `tests/test_chatgpt_plan_probe.py`, which runs it against a fake OpenAI. The
 `requests` command has 20 named trials and sends at most 23 requests, inside
-G1's bound. Steps 2 and 3 wait for G1.
+G1's bound.
 
 To run the trial, from the worktree root, with a credentials path outside any
 Git work tree:
@@ -447,8 +554,8 @@ Check record, from the worktree root, on working tree
 | `uv run python scripts/chatgpt_plan_probe.py requests --credentials /nonexistent/plan.json --list` | 20 trial names, exit 0 |
 | Guard removal: 19 temporary mutations of the probe, restored byte-identical | Each made the test file fail |
 
-Not run: the full pre-push suite, and the live trial (G1). Commits: `4bb966a02`
-(the plan); the probe is the commit that carries this record.
+Not run at that point: the full pre-push suite, and the live trial (G1).
+Commits: `4bb966a02` (the plan) and `152db15a4` (the probe).
 
 #### Code Review #1 Findings
 
@@ -517,6 +624,93 @@ without it. These are small repairs below the high-risk tier, verified by the
 implementing agent with the check record above and not rechecked by the
 reviewer. Remaining repair budget: one round, unused.
 
+#### Trial record
+
+Steps 2 and 3 ran on 2026-11-24, starting from `152db15a4`. The account holder
+signed in in their own browser; the agent ran the commands and saw only the
+probe's redacted output. In order: `sign-in`, `models`, `requests --model
+gpt-6-luna` (22 requests), `requests --only reasoning_replay` (2 requests),
+`refresh` and `sign-out --delete`, which OpenAI confirmed. The saved outputs
+hold no JWT-shaped text, no command took a token as an argument, and the
+credentials file and its directory are gone. One request of G1's 25 was left
+unspent.
+
+The first run's reasoning trial returned no reasoning item, so the probe
+changed before the two-request rerun: that trial now asks for `high` effort on
+a prompt with a sum to work out, and says when nothing was replayed. It still
+returned none. The rerun, the refresh and the sign-out ran with that change
+applied and not yet committed. Two more changes followed what the trial
+showed: the `models` command prints a length in place of any text over 200
+characters, since each item carries tens of thousands of characters of another
+product's prompts, and the test fake gives `earliest_refresh_at` as Unix
+seconds. Three tests cover the changes, and each failed before its change.
+
+Findings are under "Live trial" in Surprises & Discoveries, and the choices
+of step 3 are in the Decision Log. Phases 1, 5, 6 and 7 were updated where a
+finding changed a step.
+
+Check record, from the worktree root, on working tree
+`a40da151310fe7e2206c50ae8d018f9d6fd7229a` (hashed while this line still
+held a placeholder for the tree name):
+
+| Check | Result |
+| --- | --- |
+| `uv run pytest -q tests/test_chatgpt_plan_probe.py -p no:cacheprovider` | 37 passed |
+| `uv run ruff check` | All checks passed |
+| `uv run ruff format --check src/backend/animama tests scripts/chatgpt_plan_probe.py` | 909 files already formatted |
+| `uv run mypy tests/test_chatgpt_plan_probe.py scripts/chatgpt_plan_probe.py` | No issues in 2 files |
+| `python3 scripts/public-release/check_source.py` | Every tracked file covered once |
+
+Not run: the full pre-push suite (G3).
+
+#### Code Review #3 Findings
+
+Targeted review, the last in this phase's budget, of the working tree above
+against baseline `152db15a4`: the trial findings against the probe's raw
+output, the decisions, the edits to later phases, the probe changes made
+after the trial, and the two round-2 repairs no reviewer had rechecked. The
+reviewer reused the check record and ran the tests on scratch copies with
+guards removed. Result: blocked by F1 to F3, all plan wording. The probe and
+test changes passed, the round-2 repairs hold, and the public record holds
+no secret, identifier or personal data.
+
+| ID | Kind | Finding |
+| --- | --- | --- |
+| P0-R3-F1 | Required | Phase 5 step 7 exempted a 401 of type `rejected_by_access_enforcement` from the refresh and retry. The trial saw that type only on refused routes and never sent an expired or revoked token, so the exemption could hide a required sign-in. |
+| P0-R3-F2 | Required | D8 keys hosted search on `supports_search_tool`, but "Synced rows" left that field out and said nothing else is stored. |
+| P0-R3-F3 | Required | The reasoning-replay confirmation could not run as written. It called an image with a tool the shape that returned a reasoning item, but the image request declared no tool, and the product cannot send an image at Phase 5. Nothing said what ships if the check confirms nothing, or whether the fallback is a retry or a setting. |
+| P0-R3-F4 | Optional | No test asserted that the "none was replayed" note is absent when reasoning was replayed. |
+| P0-R3-F5 | Optional | The probe's docstring still said `models` prints metadata as returned. |
+| P0-R3-F6 | Optional | The Agents SDK replays output items with their ids, and reasoning items, which Phase 0 did not try. Phase 7 step 2 did not say so. |
+| P0-R3-F7 | Optional | Precision: the size of the list's prompts; "empty" where the probe cannot tell empty from absent; which source the later commands ran from; that no `subscription_sharing_*` code was observed; T5 against the forced refresh. |
+| P0-R3-F8 | Optional | The test fake's refresh time was the literal value from the live response. |
+
+#### Code Review #3 Revisions
+
+All eight accepted.
+
+| ID | Change |
+| --- | --- |
+| P0-R3-F1 | The exemption is removed. Step 7 keeps one refresh and one retry for every 401, and the findings say what the trial did not observe. |
+| P0-R3-F2 | "Synced rows" takes `supports_search_tool` as the row's hosted-search support. D8 notes that every listed item had it true. |
+| P0-R3-F3 | Reasoning replay sits behind a route-profile switch that ships off, which leaves today's replay of calls and outputs. Phase 5's manual check runs the probe's `reasoning_replay` trial on each listed model, and the switch turns on only if the route accepts a replayed item. Step 6 says which items carry ids. |
+| P0-R3-F4 | The trials test asserts the note is empty when reasoning was replayed. Dropping the condition now fails it. |
+| P0-R3-F5 | The docstring describes the shortened output. |
+| P0-R3-F6 | Phase 7 step 2 names the difference and points its capture test and manual check at it. |
+| P0-R3-F7 | Each point is reworded in "Live trial", the trial record and Phase 1. |
+| P0-R3-F8 | The fake uses a made-up time. |
+
+F1 to F3 and F5 to F7 are wording, and F4 and F8 are one line each in the test
+file. The budget holds no further review, so the implementing agent verified
+them, as the review policy allows below the high-risk tier, and no reviewer
+has rechecked them. After the repairs, on working tree
+`ca21f873704c52e73bfbcbaa4591fb9cb9658eb6` (hashed while this line still held
+a placeholder): the probe's tests, 37 passed; `uv run ruff check`, passed; the
+format check, 909 files already formatted; mypy on the two files, no issues;
+`check_source.py`, every tracked file covered once. With the note's condition
+dropped in a scratch copy of the probe, the trials test fails. The trial
+record and these repairs are the commit that carries this section.
+
 ### Phase 1: Sign-in core
 
 Review tier: high risk (authentication, secrets at rest, concurrency, a
@@ -557,6 +751,13 @@ Steps, tests first in `tests/test_chatgpt_plan_identity.py`,
    `./internal/chatgpt-plan` to both exclude lists, so a backup never holds
    the session and a restore never extracts one. A restore replaces the data
    tree, so it leaves the installation signed out; Phase 8 documents that.
+
+From the Phase 0 trial: `earliest_refresh_at` arrives as Unix seconds. A
+refreshed ID token has no `nonce`, so the nonce is checked at sign-in only.
+The ID token also carries the person's name, which the status does not
+report. A refresh sent before `earliest_refresh_at` was accepted, so the
+forced refresh after a 401 (Phase 5 step 7) may run early; scheduled
+refreshes still wait for that time (T5).
 
 Checks: the three test files; `uv run ruff check`; `uv lock --check`;
 `bash -n scripts/backup-local.sh scripts/restore-local.sh`. Not run in this
@@ -765,11 +966,12 @@ Steps, tests first in `tests/test_chatgpt_plan_client.py`,
    this connection. Update the renderer and the parity test.
 3. Model sync (D4, D9): at sign-in and on `POST
    /v1/chatgpt-plan/models:refresh`, list the account's models, upsert rows
-   for those meant for display, deactivate rows no longer listed, and
-   deactivate all of them when the session ends. Rows accept only the
-   `hidden` change. The model connection list reports the plan connection's
-   credential state from the session. Add the refresh route to the inventory
-   and regenerate the client with `pnpm openapi-ts`.
+   for the items whose `visibility` is `list` from the fields the Decision
+   Log names, deactivate rows no longer listed, and deactivate all of them
+   when the session ends. The list response is never logged. Rows accept
+   only the `hidden` change. The model connection list reports the plan
+   connection's credential state from the session. Add the refresh route to
+   the inventory and regenerate the client with `pnpm openapi-ts`.
 4. Validation: a plan row must be on the plan connection and needs a
    signed-in session, with a code the page can explain. Owner model routes
    refuse the plan connection.
@@ -777,13 +979,18 @@ Steps, tests first in `tests/test_chatgpt_plan_client.py`,
    `ANIMAMA_LLM_SKIP`). The route profile sets `store` false; never sends a
    cursor, `moderation`, limits or metadata; wraps function tools in one
    namespace and maps returned names back; sends system text only as
-   `instructions`; and sends `context_management` and hosted tools only as
-   Phase 0 found. The SDK client is key-free, has a fixed base URL, takes no
-   headers from the environment and does no SDK retries. Each stream gets a
-   view keyed with the session's access token.
-6. Tool rounds replay by hand from the first round. If Phase 0 showed the
-   route returns encrypted reasoning, request it and replay it inside the
-   turn.
+   `instructions`; never sends `context_management` or `apply_patch`; and
+   declares hosted `web_search` only for a row that supports it. Final
+   items come from the terminal event when it has them and otherwise from
+   the `response.output_item.done` events, and stream events the SDK does
+   not type are ignored. The SDK client is key-free, has a fixed base URL,
+   takes no headers from the environment and does no SDK retries. Each
+   stream gets a view keyed with the session's access token.
+6. Tool rounds replay by hand from the first round: each call and its
+   output, without item ids. Requesting encrypted reasoning, and replaying
+   each returned reasoning item with the id the SDK requires, sits behind
+   a route-profile switch that is off until confirmed (Decision Log,
+   2026-11-24). Tests cover both settings.
 7. Errors: map the plan error codes and the bare `detail` bodies to new
    codes and categories for a limit, an ineligible account, a temporary
    outage, an unsupported request and a required sign-in. A 401 forces one
@@ -799,7 +1006,12 @@ request built for a plan model; `tests/test_model_client_registry.py`;
 package-set `compare`. Not run: the full pre-push suite.
 
 Manual check (G1): refresh lists the account's models, and one direct prompt
-with a tool call succeeds on a real plan model.
+with a tool call succeeds on a real plan model. The probe's
+`reasoning_replay` trial (D11) then runs once on each listed model, two
+requests each. If a response holds a reasoning item beside the tool call
+and the route accepts the follow-up, the reasoning switch turns on. If
+none does, the switch stays off and Outcomes records reasoning replay as
+unconfirmed.
 
 Completion: a feature that picks its own model can use a plan model. This is
 the point the content generation plan needs (D12).
@@ -829,10 +1041,12 @@ Vitest specs for the composer and the failure notice:
 
 1. Executor: a plan turn carries no moderation option and reads no cursor.
    After it, the chat row holds no cursor, so the next key-model turn
-   replays history, and the reverse also works (R3.6, spec check C3). Context
-   fitting uses the row's window when native compaction is off.
-2. Web search per D8, reported through the model's requestable tools so the
-   picker's control explains itself (R3.5).
+   replays history, and the reverse also works (R3.6, spec check C3). Native
+   compaction is off for plan rows, so context fitting uses the row's
+   window.
+2. Web search per D8: hosted search where the row supports it, reported
+   through the model's requestable tools so the picker's control explains
+   itself (R3.5).
 3. The composer shows "Using ChatGPT plan" with **Manage usage** when the
    selected model belongs to the plan connection, in chat and Quick Chat
    (R3.7).
@@ -849,8 +1063,9 @@ Checks: the test files; from `src/frontend` `pnpm check`; the package-set
 `compare` if a product-ui declaration changed.
 
 Manual check (G1): on a real plan model an Anima replies with streaming, uses
-a memory tool and gets a title; a chat started on a key model continues on
-the plan and back.
+a memory tool and gets a title; one turn uses hosted search and a memory
+tool together; a chat started on a key model continues on the plan and
+back.
 
 Completion: spec acceptance lines for chat, the indicator and chat
 continuity are met in tests, and the manual check passes.
@@ -884,12 +1099,15 @@ and a new `tests/test_chatgpt_plan_background.py`:
    the Memory Manager, and never for Embeddings.
 2. Memory Manager on a plan row: a plan mode of the Agents SDK runtime that
    streams, does not store, sends no cursor, puts its tools in a namespace,
-   uses the function form of memory edits unless Phase 0 showed native
-   `apply_patch` works, turns tracing off, and builds its client from the
+   uses the function form of memory edits because the route refuses native
+   `apply_patch`, turns tracing off, and builds its client from the
    session's token with no SDK retries. A request-capture test asserts that
-   none of the rejected fields is sent. If the SDK cannot meet the route's
-   rules, stop and bring the options to the owner, because removing the
-   Memory Manager from R3.2 changes the spec.
+   none of the rejected fields is sent. The Agents SDK replays output items
+   with their ids, and reasoning items too, which Phase 0 did not try: the
+   capture test records what it sends, and the manual check shows whether
+   the route accepts it. If the SDK cannot meet the route's rules, stop and
+   bring the options to the owner, because removing the Memory Manager from
+   R3.2 changes the spec.
 3. Agreement (D5, D6): `local_memory_manager_model_usable` is false for a
    plan row without agreement or while paused, with a reason the settings
    line can show. The token service enforces the same rule for the

@@ -10,8 +10,9 @@ It handles real tokens. They are written only to the credentials file named
 on the command line, which must sit outside any Git work tree and is created
 with owner-only permissions. Output names fields, shapes and statuses. It
 never prints a token, an authorization code, an email address or the
-account's identifiers. `models` prints OpenAI's model metadata as returned,
-so read that before pasting it anywhere.
+account's identifiers. `models` prints OpenAI's model metadata with any text
+over 200 characters replaced by its length; read it before pasting it
+anywhere.
 
 Run from the repository root, with an eligible ChatGPT plan:
 
@@ -625,6 +626,21 @@ def _bearer(token: str) -> dict[str, str]:
     return {"Authorization": f"Bearer {token}"}
 
 
+MODEL_TEXT_LIMIT = 200
+
+
+def _brief(value: Any) -> Any:
+    """Stand a length in for long text, such as the instructions a model item carries for another product."""
+
+    if isinstance(value, str) and len(value) > MODEL_TEXT_LIMIT:
+        return f"<{len(value)} characters>"
+    if isinstance(value, dict):
+        return {name: _brief(item) for name, item in value.items()}
+    if isinstance(value, list):
+        return [_brief(item) for item in value]
+    return value
+
+
 def list_models(client: httpx.Client, token: str) -> JsonObject:
     response = client.get(f"{API_BASE}/models", headers=_bearer(token))
     payload = _json_object(response)
@@ -640,7 +656,7 @@ def list_models(client: httpx.Client, token: str) -> JsonObject:
         "top_level_fields": sorted(payload),
         "count": len(items),
         "item_fields": {name: sorted(kinds) for name, kinds in sorted(item_fields.items())},
-        "items": items,
+        "items": [_brief(item) for item in items],
     }
 
 
@@ -812,6 +828,13 @@ READY_PROMPT: list[JsonObject] = [{"role": "user", "content": "Reply with the si
 NOTE_PROMPT: list[JsonObject] = [
     {"role": "user", "content": "Call the record_note tool with the note 'ok'. Do not answer in text."}
 ]
+THINK_PROMPT: list[JsonObject] = [
+    {
+        "role": "user",
+        "content": "Work out 17 times 23, then call the record_note tool with the product as the note. "
+        "Do not answer in text.",
+    }
+]
 SEARCH_PROMPT: list[JsonObject] = [
     {"role": "user", "content": "Search the web for today's date in UTC and answer with that date only."}
 ]
@@ -936,6 +959,19 @@ def trials(client: httpx.Client, token: str, model: str, redact: Redact) -> dict
             return [first]
         return [first, ask(f"{name}_follow_up", input=follow_up, tools=tools, **fields)]
 
+    def reasoning_replay() -> list[TrialResult]:
+        # Low effort on a trivial call returned no reasoning item, which left nothing to replay.
+        results = round_trip(
+            "reasoning_replay",
+            THINK_PROMPT,
+            [NOTE_NAMESPACE],
+            reasoning={"effort": "high"},
+            include=["reasoning.encrypted_content"],
+        )
+        if len(results) == 2 and not results[0].encrypted_reasoning:
+            results[1].note = "the first response held no encrypted reasoning item, so none was replayed"
+        return results
+
     image = base64.b64encode(red_square_png()).decode("ascii")
     return {
         "plain": lambda: [ask("plain")],
@@ -971,13 +1007,7 @@ def trials(client: httpx.Client, token: str, model: str, redact: Redact) -> dict
         ],
         "tool_round_trip": lambda: round_trip("tool_round_trip", NOTE_PROMPT, [NOTE_NAMESPACE]),
         "reasoning_effort": lambda: [ask("reasoning_effort", reasoning={"effort": "low"})],
-        "reasoning_replay": lambda: round_trip(
-            "reasoning_replay",
-            NOTE_PROMPT,
-            [NOTE_NAMESPACE],
-            reasoning={"effort": "low"},
-            include=["reasoning.encrypted_content"],
-        ),
+        "reasoning_replay": reasoning_replay,
         "prompt_cache_key": lambda: [ask("prompt_cache_key", prompt_cache_key="animama-probe")],
         "text_format": lambda: [
             ask(
