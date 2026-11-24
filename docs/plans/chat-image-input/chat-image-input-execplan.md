@@ -147,7 +147,9 @@ canonical copy of at most 3.5 MiB (under 5 MB as base64). One estimate,
   independent checks reruns; package-set compatibility passed against `main`.
 - [x] Phase 7: documentation and decision record (light tier; covered by the
   final integration review).
-- [ ] Final integration review, G1 to G3, pull request.
+- [x] Final integration review (three rounds, pass) and the full pre-push
+  suite (G3, passed).
+- [ ] G1 and G2 (owner), pull request.
 
 ## Surprises & Discoveries
 
@@ -1626,6 +1628,21 @@ also noted that spec R4.1 lists "copied text" among the placeholder's
 readers, while the bubble shows the person's own text (D7); see the
 Decision Log. The review budget is spent; no repair rounds remain.
 
+### Full pre-push suite (G3)
+
+The owner agreed on 2026-11-24. Run on `1d4b60b6d` (clean), each through
+`scripts/heavy-slot.py`:
+
+| Command | Result |
+| --- | --- |
+| `make check-test` (root) | exit 0: typed-content audit, ruff format (913 files) and lint, mypy (913 files), pytest 5715 passed, 30 skipped |
+| `pnpm verify && pnpm prettier:check` (`src/frontend`) | exit 0: `pnpm web:test` 6454 passed, 2 skipped; build and every Prettier check passed |
+| `pnpm web:test:browser` (`src/frontend`) | 139 of 140 passed; `animation-combo.browser.test.mjs` measured 1.16× real time (limit 1.15) while the backend suite ran beside it, then passed alone |
+| `pnpm e2e:test:fast` (`src/frontend`) against a disposable built stack (`ANIMAMA_LLM_SKIP=1`, production build, base port 8600) | exit 0, 40 passed in 6.3 minutes; the stack and its volume were removed afterwards |
+
+The full `pnpm e2e:test` is not required: this change touches no content
+packages, imports, cleanup or Anima content.
+
 ## Validation and acceptance
 
 Each #904 acceptance criterion and the evidence planned for it:
@@ -1639,7 +1656,7 @@ Each #904 acceptance criterion and the evidence planned for it:
 | No EXIF or GPS; no bytes in rows, events, logs or memory files | Phase 1 and Phase 3 tests; final review tests for stream events and episode memory (F-A1) |
 | Replay, the 21st image, context fitting | Phase 3 tests |
 | Library lists images | Phase 6 test and manual check |
-| Suites and documentation | Final suite (G3); Phase 7 |
+| Suites and documentation | Final suite (G3, passed); Phase 7 |
 
 ## Idempotence and recovery
 
@@ -1654,7 +1671,8 @@ Each #904 acceptance criterion and the evidence planned for it:
 
 ## Outcomes & Retrospective
 
-Delivered in Phases 1 to 7; gates G1 to G3 remain with the owner.
+Delivered in Phases 1 to 7; the full pre-push suite (G3) passed on
+`1d4b60b6d`. Gates G1 and G2 remain with the owner.
 
 Known limits:
 
