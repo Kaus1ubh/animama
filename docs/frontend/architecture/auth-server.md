@@ -102,8 +102,8 @@ document's. It allows:
 
 The exact Pocket TTS worker, `/tts/workers/inference-worker.js`, also allows
 `'unsafe-eval'`, because its pinned SentencePiece binding builds call wrappers at
-runtime (#698). Stored bytes (registered content files, previews, runtime members
-and package exports) carry `sandbox; default-src 'none'`, so they never run as a
+runtime (#698). Stored bytes (registered content files, previews, chat images, runtime
+members and package exports) carry `sandbox; default-src 'none'`, so they never run as a
 document in the application origin; images, media, models and fetches that load
 them are unaffected.
 

@@ -1,7 +1,7 @@
 # User Files
 
-User files are installation-owned uploaded documents. They are stored separately from
-anima archives and the memory filesystem. The upload API supports
+User files are installation-owned uploaded documents and chat images. They are
+stored separately from anima archives and the memory filesystem. The upload API supports
 upload, processing, listing, deletion, and debug retrieval validation. Uploaded
 files can be attached to direct chat turns by backend file ID after upload
 initialization. Processed attached chunks are available to direct chat through
@@ -171,9 +171,48 @@ Uploads are untrusted, and every refusal names its reason:
 - XML that declares any entity, in a `.xml` file or inside an Office package,
   is refused, and no external content is loaded.
 
+## Chat Images
+
+PNG, JPEG, WebP and GIF files (by extension, then by content) upload as chat
+images, up to 20 MiB (`MAX_USER_IMAGE_UPLOAD_BYTES`). HEIC and HEIF are
+refused at init with a message that names the format. `metadata.kind` is
+`"image"` from init, so every reader can tell an image from a document
+(`is_image_user_file`).
+
+An image is never processed. `:finalize` decodes it in the server
+(`app/services/content_image.py`), through the bounded reader content images
+use: at most 40 megapixels and 16,384 px a side, and only the PNG, JPEG, WebP
+and GIF decoders, at most two images at a time. It stores a canonical copy in
+place of the upload at the same locator: orientation applied, metadata such as
+EXIF and GPS removed, a GIF's first frame, long edge at most 2,000 px. The copy
+is PNG when the source is PNG or GIF and the copy fits 3.5 MiB, otherwise JPEG
+(quality 90, stepping down to 50) with transparency flattened onto white. The
+row becomes `ready` with `metadata.image` (`width`, `height`, `media_type`),
+with no processing job, chunks or embeddings, and `search_uploaded_files`
+never returns it. An unreadable, too large or damaged image becomes `failed`
+with its reason in `last_error`, and its bytes are deleted. The storage write
+or delete runs under the row lock, so a delete during decoding wins. If
+`:finalize` stops after the upload was saved, `:process` stores the canonical
+copy for an image still at `uploaded`; for any other image it returns its state
+without a job, and the processing switch does not apply to images.
+
+`GET /v1/files/{file_id}/content` serves the canonical copy only to its owner,
+`?variant=thumbnail` (128 px) or `?variant=preview` (320 px) a WebP copy
+cached in process. Missing or changed bytes are `409`
+`user_file_content_changed`.
+
+A `chat:sse` turn carries at most four images among its `attached_file_ids`.
+More is `400` `too_many_images`; an attached image that is deleted, failed or
+not ready is `400` `attached_image_unavailable`; any image for a model whose
+catalog capabilities do not accept `image` is `400`
+`model_does_not_accept_images`. The saved user message refers to its images
+instead of holding their bytes ([ADR 0038](../../adr/0038-chat-images-saved-as-references.md);
+see [direct chat](../runtime/chat.md#chat-images)).
+
 ## Step-By-Step Upload And Processing Walkthrough
 
-Chat and Library use the same upload lifecycle:
+Chat and Library use the same upload lifecycle. A chat image stops at step 3,
+where it becomes `ready` or `failed` ([Chat Images](#chat-images)):
 
 1. Uppy checks the browser allowlist and size, then calls
    `POST /v1/files/uploads` with filename, content type, and declared size.
@@ -485,6 +524,11 @@ search. The API attempts to delete the local file, tombstones the row as
 cleanup fails,
 and deletes stored chunks so debug search no longer returns them.
 
+Deleting a chat deletes the images its user messages reference unless a
+message in another chat references them too (an image can be attached again
+from the Library). Each image is deleted and committed on its own, like a file
+the person removed. Deleting an Anima leaves its chats' images in place.
+
 Pending uploads can be aborted with `DELETE /v1/files/uploads/{file_id}`. If the
 browser PUT fails, the pending row remains until abort or expiry cleanup is
 added later.
@@ -505,6 +549,7 @@ expire. Reprocessing with `force=true` replaces chunks idempotently.
 
 ## Non-Goals
 
-The API does not expose original download URLs or let agents read original
-bytes. OCR, encrypted or password-protected documents and macro-enabled Office
+The API keeps no original upload bytes to download: a chat image's
+canonical copy is served only to its owner, and agent tools never read file
+bytes; a model sees an image only inside a chat request. OCR, encrypted or password-protected documents and macro-enabled Office
 files are unsupported.

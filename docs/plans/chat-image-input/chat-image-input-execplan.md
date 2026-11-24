@@ -143,8 +143,10 @@ canonical copy of at most 3.5 MiB (under 5 MB as base64). One estimate,
   repaired. G1 confirms against real providers.
 - [x] Phase 5: the composer accepts images. Re-tiered high risk; two
   reviews and an independent checks rerun; all blocking findings repaired.
-- [ ] Phase 6: chat and the Library show images.
-- [ ] Phase 7: documentation and decision record.
+- [x] Phase 6: chat and the Library show images. Three reviews and two
+  independent checks reruns; package-set compatibility passed against `main`.
+- [x] Phase 7: documentation and decision record (light tier; covered by the
+  final integration review).
 - [ ] Final integration review, G1 to G3, pull request.
 
 ## Surprises & Discoveries
@@ -1307,9 +1309,13 @@ The first record (tree `1bb350d2e28b`, before review) passed the frontend
 commands with 6444 web tests, confirmed by an independent rerun (all nine
 commands exit 0, on the same source).
 
-The package-set `compare` needs an exact commit: it runs against a build of
-the planning base `f612be08d` once Phase 6 is committed, and its result is
-recorded in this section before Phase 6 is marked complete.
+Package-set compatibility (P5-A1, P6-A5), after the Phase 6 commit
+`c55d06737`, through `scripts/heavy-slot.py`, using this branch's tooling:
+`build.py build` of `main` at `c7b98f73a` (the branch's merge base) and of
+`c55d06737` (214 files each, format 3), then `build.py compare` of the two:
+exit 0, "Compatibility policy passed". The candidate set carries product-ui
+0.21.0 and runtime-contracts 0.24.0 against 0.20.0 and 0.23.0 on `main`. The
+sets themselves were scratch output and are not kept.
 
 Manual check on the task stack (mock model) after rebuilding the packages in
 the web container: after a reload, earlier image turns show their thumbnails
@@ -1434,6 +1440,9 @@ previews are 15 to 25 KB, so 330 to 540), and the panel's existing toast says
 "queued for processing" when it completes an image. No repair rounds remain;
 the comment and the debug-only toast are left as they are.
 
+Phase commit: `c55d06737` `feat(chat)[p6]: show sent images in chat and the
+Library`.
+
 
 ### Phase 7: Documentation and decision record
 
@@ -1460,6 +1469,24 @@ Review tier: light; the final integration review covers it.
 (P5-A8, P5-A16).
 
 Check: the documentation links resolve.
+
+Done as planned, plus the stored-bytes policy list in
+`docs/frontend/architecture/auth-server.md` (moved here from Phase 2, P2-A5):
+`docs/backend/features/user-files.md` (a Chat Images section, the walkthrough,
+chat deletion, non-goals), `docs/backend/runtime/chat.md` (Chat Images),
+`model-client-providers.md` (Images, the image token estimate, image
+references in `raw_provider_message`), `prompt-caching.md` (Images),
+`docs/frontend/runtime/chat.md` (Images in chat),
+`docs/frontend/features/model-settings.md`, `docs/frontend/desktop/quick-chat.md`,
+and [ADR 0038](../../adr/0038-chat-images-saved-as-references.md) with its
+index row and source-review entry. The ADR records that a Responses
+conversation OpenAI stores keeps the images it received.
+
+Check record (root): a script resolving every relative link and heading
+anchor in the changed Markdown files, the ADR, `user-file-uploads.md` and
+`http-api.md` reported no broken link;
+`python3 scripts/public-release/check_source.py` exit 0. Review: the final
+integration review covers this phase (light tier).
 
 ## Final integration review
 
