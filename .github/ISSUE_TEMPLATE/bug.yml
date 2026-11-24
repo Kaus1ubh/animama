@@ -23,7 +23,7 @@ body:
     id: version
     attributes:
       label: Animama version
-      description: "App Settings → About shows it, for example 0.1.6. For a source build or a self-hosted server, give the commit too."
+      description: "App Settings → About shows it, for example 0.1.6. If Animama does not start, use the version in the installer's file name. For a source build or a self-hosted server, give the commit too."
     validations:
       required: true
   - type: textarea
@@ -48,13 +48,13 @@ body:
     id: diagnostics
     attributes:
       label: Diagnostics summary
-      description: "In Animama, open App Settings → About, select Copy summary beside Diagnostics and paste it here. It lists versions, your platform, component status and recent warnings and errors. It never includes keys, file paths, chats or memories. Skip this if Animama does not start."
+      description: "In Animama, open App Settings → About, select Copy summary beside Diagnostics and paste it here. It lists versions, your platform, component status, which providers have a key set, and recent activity, warnings and errors with their times. It never includes keys, file paths, chats or memories. Skip this if Animama does not start."
       render: text
   - type: input
     id: model
     attributes:
       label: Chat provider and model
-      description: "For problems with replies, memory or voice: the provider and model you use, for example OpenAI GPT-6 Luna or Ollama with its model name. Name the voice engine too if speech is involved."
+      description: "For problems with replies, memory or voice: the provider and model you use, for example OpenAI GPT-6 Luna or Ollama with its model name. If speech is involved, name the Speech-to-Text or Text-to-Speech provider too."
   - type: textarea
     id: environment
     attributes:
