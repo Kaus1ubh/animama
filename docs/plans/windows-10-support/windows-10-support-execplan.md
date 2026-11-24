@@ -58,7 +58,10 @@ Windows 10 install cannot rely on electron-updater's default check.
       been run.
 - [ ] Phase 2: native evidence on Windows 11 and Windows 10 (gate G1). Not
       started; needs the Windows build host and a Windows 10 22H2 VM.
-- [ ] Phase 3: documentation and decision record. Not started; waits for G1.
+- [ ] Phase 3: documentation and decision record. Written ahead of G1 by the
+      owner's decision of 2026-11-24. The README build-host line stays
+      provisional until Phase 2 step 5; everything is revisited if G1 changes
+      the outcome.
 - [ ] Final integration review and the single full pre-push run.
 
 ## Surprises & Discoveries
@@ -82,6 +85,11 @@ Windows 10 install cannot rely on electron-updater's default check.
   feed's floor to a string, so a non-string value that printed as a floor
   would have withheld an update instead of reaching validation. Fixed with a
   failing test first.
+- 2026-11-24, Phase 3. `main` gained ADR 0037 while this work was in
+  progress, so the frozen-feed record is ADR 0038. `origin/main` at
+  `c7b98f73a` was merged into the branch before the documents were written;
+  it merged without conflict and touched none of this plan's source files
+  except the licence review file.
 - 2026-11-24, planning. No Windows 11 dependency was found by reading:
   Electron 45.3.1 states "Windows 10 and up"; the guard and input hook use
   APIs older than Windows 10; PostgreSQL's UTF-8 code page manifest needs
@@ -113,6 +121,11 @@ Windows 10 install cannot rely on electron-updater's default check.
 - 2026-11-24, agent proposal, accepted. **PD4, decision record.** A new ADR records
   that the Windows feed minimum is frozen and where the real floor lives,
   because a future edit to that one string would silently end updates.
+- 2026-11-24, owner. Phase 3 is written before G1 so that work can continue
+  on macOS. This replaces PD2's ordering only: the pull request still does not
+  merge before G1, so `main` never claims Windows 10 ahead of a real install.
+  If G1 changes the floor or the outcome, the documents and the ADR are
+  revised before merge.
 - 2026-11-03, owner standing instruction. The full pre-push suite runs once,
   on the final candidate and with the owner's go-ahead, rather than before
   each phase review. Phases run the checks their changes affect.
@@ -430,7 +443,32 @@ Evidence: a public-safe summary in this section (commit, Windows builds,
 installer hash, each step's result, limits such as VM graphics). Raw
 receipts, screenshots and logs stay in owner-local storage.
 
-Receipt: none yet.
+Build from the branch head at the time of the run, not from an older
+commit, and record that commit: the head includes later merges of `main`.
+
+Receipt (public-safe summary; fill in during the run):
+
+- Commit built:
+- Build host: Windows build number; MSVC, Windows SDK, Node and pnpm versions:
+- Stage and audit result:
+- Installer SHA-256:
+- Windows 11 test system (build number; account or VM):
+- Windows 10 test system (`winver` build; hypervisor; graphics adapter):
+
+| Step | Result | Notes |
+| --- | --- | --- |
+| 2. Windows 11: published 0.1.6 installed, new installer run over it, data kept | | |
+| 2. Windows 11: uninstall keeps the data folder; reinstall uses it | | |
+| 3. Windows 10: installs for the current account without elevation | | |
+| 3. Windows 10: starts with no Docker, Node, Python or PostgreSQL present | | |
+| 3. Windows 10: required name, provider key, chat with both starters, cancellation | | |
+| 3. Windows 10: Pocket TTS, Avatar animation, fullscreen, PiP, Quick Chat, shortcuts | | |
+| 3. Windows 10: quit and reopen keeps owner, content and history | | |
+| 4. Windows 10: no owned process 30 seconds after a force close | | |
+| 4. Windows 10: provider key survives a restart | | |
+| 4. Windows 10: held Press to talk key unmutes once and re-mutes once | | |
+| 5. Windows 10: source build (stage, audit, package), then the three native tests | | |
+| 6. Build host: local version change discarded | | |
 
 ### Phase 3: documentation and decision record
 
@@ -438,7 +476,9 @@ Review tier: light; documentation only. Folded into the final integration
 review.
 
 Requirements: the document items of R7, R8's README outcome, spec P2 and P4;
-acceptance A7. Depends on G1, so the text describes what was shown.
+acceptance A7. Planned after G1; written before it by the owner's decision of
+2026-11-24 (see the Decision Log). The text states the agreed requirement, and
+is revised before merge if G1 shows otherwise.
 
 Steps:
 
@@ -465,9 +505,8 @@ Steps:
    `minimumSystemVersion`, `animama.minimum_os`, and that the first release
    containing this change updates the README download row and the
    installation document's current-release text.
-6. Add an ADR for the frozen feed minimum (PD4) under the next free number
-   and list it in `docs/adr/README.md`. Another open branch already uses
-   0037. Record two consequences found in review: apps from this change
+6. Add an ADR for the frozen feed minimum (PD4) under the next free number,
+   0038, and list it in `docs/adr/README.md`. Record two consequences found in review: apps from this change
    onward also require the exact top-level value, so the freeze outlives
    0.1.6; and 0.1.6 ignores `animama.minimum_os`, so a future floor above an
    installed 0.1.6 system would let it download an update the installer then
@@ -479,7 +518,36 @@ Markdown unformatted.
 
 Phase commit: `docs(desktop)[p3]: describe Windows 10 support`.
 
-Classification record: none yet.
+Classification record (2026-11-24), from
+`git grep -n -E "Windows 11|22000" -- README.md docs src/frontend/AGENTS.md .agents/skills src/backend`,
+leaving out `docs/plans` and earlier ADRs, which are history:
+
+| Where | Kind | Outcome |
+| --- | --- | --- |
+| `README.md`, download table row | Published 0.1.6 | Kept (P4) |
+| `README.md`, Windows build prerequisites | Build host | Kept until Phase 2 step 5; added that the built installer runs on Windows 10 22H2 and Windows 11 |
+| `docs/backend/operations/desktop-runtime.md`, opening | Current source | Now "Windows x64" |
+| `installation.md`, supported-target row | Both | States the 0.1.6 requirement and the new one; end-of-support and performance sentences added below the table |
+| `overview.md`, development package targets | Current source | Now Windows 10 22H2 or later |
+| `platforms.md`, installer refusal | Current source | Now build 18362; new paragraph on the shared floor and the claimed versions |
+| `platforms.md`, status table row | Both | Names both versions and that 0.1.6 requires Windows 11 |
+| `platforms.md`, "On a Windows 11 x64 host" | Build host | Kept |
+| `release-process.md`, declared minimums | Current source | Now build 18362, with minimum-OS acceptance on Windows 10 22H2 |
+| `release-process.md`, build host | Build host | Kept |
+| `releases.md`, tooling sentence and update bullet | Current source | Updated; new section "The Windows feed" |
+| `releases.md`, clean test machine | Current source | Now names Windows 10 22H2 for minimum-OS acceptance |
+| `releases.md`, build host | Build host | Kept |
+| `runtime-staging.md`, requirement and target sentences | Current source | Updated |
+| `src/frontend/AGENTS.md`, stage command host | Build host | Kept |
+| Release skill, `SKILL.md` and `references/commands.md` (three places) | Build host | Kept |
+
+The release skill is tracked under `.agents/skills`; `.claude/skills` is a
+link to it. Its three statements describe the build host, so spec R7's "release
+skill's references" item needed no change.
+
+Checks: `python3 scripts/public-release/check_source.py` passes with the new
+ADR's entry; every relative link added in this phase resolves. No Markdown
+formatter was run.
 
 ## Final integration review
 
