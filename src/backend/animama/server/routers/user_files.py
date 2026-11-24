@@ -5,18 +5,19 @@ from __future__ import annotations
 import asyncio
 import threading
 from io import BytesIO
-from typing import Annotated, NoReturn
+from typing import Annotated, Literal, NoReturn
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from animama.adapters.content_store.private_file_store import PrivateFileReadError
+from animama.adapters.content_store.private_file_store import PrivateFilePathError, PrivateFileReadError
 from animama.adapters.repositories.sqlalchemy.uow import SQLAlchemyUnitOfWork
 from animama.adapters.repositories.sqlalchemy.user_file_processing_repo import SQLAlchemyUserFileProcessingRepository
 from animama.adapters.repositories.sqlalchemy.user_file_repo import SQLAlchemyUserFileRepository
 from animama.app.ports.private_file_storage import PrivateFileUnavailableError
 from animama.app.services.content_file_validation import ContentFileInvalidError
 from animama.app.services.content_image import CanonicalChatImage, canonicalize_chat_image_stream
+from animama.app.services.content_thumbnails import ContentThumbnailError, thumbnail_file
 from animama.app.services.user_file_processing_service import (
     UserFileProcessingConflictError,
     UserFileProcessingNotFoundError,
@@ -35,8 +36,9 @@ from animama.app.services.user_file_service import (
     new_user_file_id,
     validate_user_file_upload_request,
 )
+from animama.domain.content_catalog import VerifiedContentFile
 from animama.domain.request_principal import RequestPrincipal
-from animama.domain.user_file import STATUS_ABORTED, STATUS_DELETE_PENDING, STATUS_UPLOADED, UserFile
+from animama.domain.user_file import STATUS_ABORTED, STATUS_DELETE_PENDING, STATUS_READY, STATUS_UPLOADED, UserFile
 from animama.domain.user_file_processing import (
     UserFileProcessingInfo,
     UserFileProcessingJobSummary,
@@ -49,6 +51,7 @@ from animama.server.deps import get_async_session, get_current_principal
 from animama.server.embeddings import role_embedder
 from animama.server.local_runtime import initialize_local_runtime
 from animama.server.model_roles import ModelRoleSettings, get_model_role_settings
+from animama.server.product_ports import local_file_response
 from animama.server.runtime_capabilities import get_runtime_settings
 from animama.server.schemas.user_file import (
     PyUserFileFinalizeRequest,
@@ -124,11 +127,32 @@ _UNREADABLE_IMAGE = "This image could not be read."
 _IMAGE_DECODE_SLOTS = threading.BoundedSemaphore(2)
 
 
-def _canonical_chat_image(storage_locator: str, size_bytes: int) -> CanonicalChatImage:
-    """Read an uploaded image from private storage and canonicalize it (blocking)."""
+# Everything a read from private storage can raise. The storage adapter checks
+# the path before it opens the file, so a parent directory that became
+# unreadable (OSError) or was replaced by a link (PrivateFilePathError) fails
+# there; neither is the file's fault. Missing or resized bytes are
+# PrivateFileUnavailableError, which callers may answer differently.
+_STORAGE_READ_ERRORS = (PrivateFileUnavailableError, PrivateFileReadError, PrivateFilePathError, OSError)
 
-    with _IMAGE_DECODE_SLOTS, open_private_file(storage_locator, expected_size_bytes=size_bytes) as stored:
-        return canonicalize_chat_image_stream(content=stored.stream)
+
+def _read_private_file(storage_locator: str, size_bytes: int) -> tuple[bytes, str]:
+    """Return a stored private file's bytes and digest (blocking).
+
+    Reading is finished before the bytes are used: the storage adapter reports
+    any ``OSError`` raised inside its block as a read failure, which would hide a
+    decoder or encoder fault. Chat images are at most 20 MiB uploaded and
+    3.5 MiB stored.
+    """
+
+    with open_private_file(storage_locator, expected_size_bytes=size_bytes) as stored:
+        return stored.stream.read(), stored.sha256
+
+
+def _canonical_chat_image(content: bytes) -> CanonicalChatImage:
+    """Canonicalize an uploaded image's bytes (blocking)."""
+
+    with _IMAGE_DECODE_SLOTS:
+        return canonicalize_chat_image_stream(content=BytesIO(content))
 
 
 async def _store_canonical_image(service: UserFileService, user_file: UserFile, *, size_bytes: int) -> UserFile:
@@ -163,8 +187,15 @@ async def _store_canonical_image(service: UserFileService, user_file: UserFile, 
 
     try:
         try:
+            uploaded, _digest = await asyncio.to_thread(_read_private_file, locator, size_bytes)
+        except _STORAGE_READ_ERRORS as exc:
+            _log.error("User image read failed", file_id=user_file.id, user_id=user_file.user_id, error=str(exc))
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Local file unavailable"
+            ) from exc
+        try:
             # Pillow decoding is CPU work; keep it off the event loop.
-            canonical = await asyncio.to_thread(_canonical_chat_image, locator, size_bytes)
+            canonical = await asyncio.to_thread(_canonical_chat_image, uploaded)
         except ContentFileInvalidError as exc:
             _log.info("User image refused", file_id=user_file.id, user_id=user_file.user_id, reason=exc.reason)
             return await service.fail_image_upload(
@@ -173,11 +204,6 @@ async def _store_canonical_image(service: UserFileService, user_file: UserFile, 
                 reason=_IMAGE_REJECTIONS.get(exc.reason, _UNREADABLE_IMAGE),
                 discard_upload=discard_upload,
             )
-        except (PrivateFileUnavailableError, PrivateFileReadError, OSError) as exc:
-            _log.error("User image read failed", file_id=user_file.id, user_id=user_file.user_id, error=str(exc))
-            raise HTTPException(
-                status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Local file unavailable"
-            ) from exc
         return await service.complete_image_upload(
             user_id=user_file.user_id,
             file_id=user_file.id,
@@ -452,6 +478,56 @@ async def get_user_file(
     return _to_response(user_file, info.get(user_file.id))
 
 
+def _verified_image(user_file: UserFile) -> VerifiedContentFile:
+    """Read a ready image's stored copy and check it is still the recorded one (blocking)."""
+
+    content, digest = _read_private_file(user_file.storage_locator, user_file.stored_size_bytes or 0)
+    if digest != user_file.sha256:
+        raise PrivateFileUnavailableError("Stored image no longer matches its record")
+    return VerifiedContentFile(
+        handle=BytesIO(content),
+        size_bytes=len(content),
+        sha256=digest,
+        media_type=user_file.detected_content_type or "application/octet-stream",
+    )
+
+
+@router.get("/v1/files/{file_id}/content")
+async def get_user_file_content(
+    file_id: str,
+    session: SessionDep,
+    user: UserDep,
+    if_none_match: Annotated[str | None, Header(alias="If-None-Match")] = None,
+    variant: Annotated[Literal["thumbnail"] | None, Query()] = None,
+) -> Response:
+    """Return the stored copy of one of the current user's ready chat images.
+
+    `variant=thumbnail` returns a copy at most 128 px on its long edge. The reply
+    is private and revalidated by its digest `ETag`. Documents and images that are
+    not ready are not served.
+    """
+
+    try:
+        user_file = await _service(session).get_user_file(user_id=user.id, file_id=file_id)
+    except UserFileNotFoundError as exc:
+        _raise_http_error(exc)
+    if not is_image_user_file(user_file) or user_file.status != STATUS_READY:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found")
+    try:
+        image = await asyncio.to_thread(_verified_image, user_file)
+    except PrivateFileUnavailableError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail={"code": "user_file_content_changed"}) from exc
+    except _STORAGE_READ_ERRORS as exc:
+        _log.error("User image read failed", file_id=file_id, user_id=user.id, error=str(exc))
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Local file unavailable") from exc
+    if variant == "thumbnail":
+        try:
+            image = await asyncio.to_thread(thumbnail_file, image)
+        except ContentThumbnailError as exc:
+            raise HTTPException(status_code=422, detail={"code": "content_thumbnail_unsupported"}) from exc
+    return local_file_response(image, if_none_match=if_none_match, revalidate=True)
+
+
 @router.post(
     "/v1/files/{file_id}:process",
     response_model=PyUserFileProcessResponse,
@@ -626,6 +702,7 @@ __all__ = [
     "delete_user_file",
     "finalize_user_file_upload",
     "get_user_file",
+    "get_user_file_content",
     "init_user_file_upload",
     "upload_user_file_content",
     "list_user_files",

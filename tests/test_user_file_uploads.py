@@ -12,7 +12,12 @@ from fastapi import HTTPException
 from PIL import Image
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from animama.adapters.content_store.private_file_store import FilesystemPrivateFileStorage, PrivateFileReadError
+from animama.adapters.content_store.private_file_store import (
+    FilesystemPrivateFileStorage,
+    PrivateFileNotFoundError,
+    PrivateFilePathError,
+    PrivateFileReadError,
+)
 from animama.app.services import content_image
 from animama.app.services.user_file_service import UserFileService
 from animama.domain.request_principal import RequestPrincipal
@@ -464,10 +469,13 @@ class _FakeImageStorage:
         if self.read_error is not None:
             raise self.read_error
         content = self.content
-        assert content is not None
+        if content is None:
+            raise PrivateFileNotFoundError("missing")
         assert expected_size_bytes == len(content)
         self.while_decoding()
-        yield SimpleNamespace(stream=BytesIO(content), size_bytes=len(content), sha256="unused")
+        yield SimpleNamespace(
+            stream=BytesIO(content), size_bytes=len(content), sha256=hashlib.sha256(content).hexdigest()
+        )
 
     def _write(self, storage_locator: str, content: BytesIO, *, content_type: str, content_length: int) -> bool:
         if not self.write_succeeds:
@@ -643,7 +651,8 @@ async def test_finalize_names_the_reason_when_an_image_is_too_detailed_to_store(
 
 
 @pytest.mark.asyncio
-async def test_finalize_keeps_the_upload_when_the_server_fails_to_encode_it(monkeypatch) -> None:
+@pytest.mark.parametrize("fault", [RuntimeError("encoder bug"), OSError("encoder error -2 when writing image file")])
+async def test_finalize_keeps_the_upload_when_the_server_fails_to_encode_it(monkeypatch, fault: Exception) -> None:
     uploaded = _photo_with_location()
     repo = _FakeUserFileRepository([_image_file(uploaded)])
     _patch_service(monkeypatch, repo, _FakeUnitOfWork())
@@ -651,11 +660,12 @@ async def test_finalize_keeps_the_upload_when_the_server_fails_to_encode_it(monk
     storage.install(monkeypatch)
 
     def broken_encoder(*_args: object, **_kwargs: object) -> tuple[bytes, str]:
-        raise RuntimeError("encoder bug")
+        raise fault
 
     monkeypatch.setattr(content_image, "_encode_chat_image", broken_encoder)
 
-    with pytest.raises(RuntimeError, match="encoder bug"):
+    # A server fault is neither a refusal nor a storage failure: it surfaces as itself.
+    with pytest.raises(type(fault), match=str(fault)):
         await user_files_router.finalize_user_file_upload("file-1", session=AsyncSession(), user=_user())
 
     assert repo.files["file-1"].status == STATUS_UPLOADED
@@ -664,13 +674,24 @@ async def test_finalize_keeps_the_upload_when_the_server_fails_to_encode_it(monk
 
 
 @pytest.mark.asyncio
-async def test_finalize_reports_a_read_failure_and_leaves_the_upload_for_a_retry(monkeypatch) -> None:
+@pytest.mark.parametrize(
+    "read_error",
+    [
+        PrivateFileReadError("disk error"),
+        PermissionError("parent directory is not readable"),
+        PrivateFilePathError("Private locator escaped its root"),
+    ],
+    ids=["read", "parent-permission", "parent-link"],
+)
+async def test_finalize_reports_a_read_failure_and_leaves_the_upload_for_a_retry(
+    monkeypatch, read_error: Exception
+) -> None:
     uploaded = _photo_with_location()
     repo = _FakeUserFileRepository([_image_file(uploaded)])
     _patch_service(monkeypatch, repo, _FakeUnitOfWork())
     storage = _FakeImageStorage(uploaded)
     storage.install(monkeypatch)
-    storage.read_error = PrivateFileReadError("disk error")
+    storage.read_error = read_error
 
     with pytest.raises(HTTPException) as exc_info:
         await user_files_router.finalize_user_file_upload("file-1", session=AsyncSession(), user=_user())
@@ -780,6 +801,11 @@ async def test_finalize_replaces_the_original_in_private_storage(monkeypatch, tm
     with Image.open(BytesIO(stored)) as canonical:
         assert not canonical.getexif()
 
+    served = await user_files_router.get_user_file_content("file-1", session=AsyncSession(), user=_user())
+
+    assert served.status_code == 200
+    assert await _body(served) == stored
+
 
 @pytest.mark.asyncio
 async def test_process_returns_a_ready_image_without_a_job(monkeypatch) -> None:
@@ -814,3 +840,179 @@ async def test_process_completes_an_image_left_uploaded(monkeypatch) -> None:
         "image": {"width": 40, "height": 20, "media_type": "image/jpeg"},
     }
     assert storage.writes == 1
+
+
+async def _body(response) -> bytes:
+    return b"".join([chunk async for chunk in response.body_iterator])
+
+
+def _ready_image(content: bytes, *, user_id: str = "user-1", media_type: str = "image/jpeg") -> UserFile:
+    user_file = _image_file(content, status=STATUS_READY)
+    user_file.user_id = user_id
+    user_file.storage_locator = f"user-files/{user_id}/file-1/original"
+    user_file.stored_size_bytes = len(content)
+    user_file.sha256 = hashlib.sha256(content).hexdigest()
+    user_file.detected_content_type = media_type
+    user_file.metadata = {"kind": "image", "image": {"width": 40, "height": 20, "media_type": media_type}}
+    return user_file
+
+
+def _jpeg(size: tuple[int, int]) -> bytes:
+    output = BytesIO()
+    Image.new("RGB", size, "red").save(output, format="JPEG")
+    return output.getvalue()
+
+
+@pytest.mark.asyncio
+async def test_content_returns_a_ready_image_to_its_owner_with_revalidation(monkeypatch) -> None:
+    stored = _jpeg((40, 20))
+    _patch_service(monkeypatch, _FakeUserFileRepository([_ready_image(stored)]), _FakeUnitOfWork())
+    _FakeImageStorage(stored).install(monkeypatch)
+
+    response = await user_files_router.get_user_file_content("file-1", session=AsyncSession(), user=_user())
+
+    assert response.status_code == 200
+    assert response.media_type == "image/jpeg"
+    assert response.headers["ETag"] == f'"{hashlib.sha256(stored).hexdigest()}"'
+    assert response.headers["Cache-Control"] == "private, no-cache"
+    assert response.headers["X-Content-Type-Options"] == "nosniff"
+    assert response.headers["Content-Security-Policy"] == "sandbox; default-src 'none'"
+    assert await _body(response) == stored
+
+
+@pytest.mark.asyncio
+async def test_content_answers_304_when_the_client_already_has_the_image(monkeypatch) -> None:
+    stored = _jpeg((40, 20))
+    _patch_service(monkeypatch, _FakeUserFileRepository([_ready_image(stored)]), _FakeUnitOfWork())
+    _FakeImageStorage(stored).install(monkeypatch)
+
+    response = await user_files_router.get_user_file_content(
+        "file-1",
+        session=AsyncSession(),
+        user=_user(),
+        if_none_match=f'"{hashlib.sha256(stored).hexdigest()}"',
+    )
+
+    assert response.status_code == 304
+
+
+@pytest.mark.asyncio
+async def test_content_thumbnail_is_a_small_copy(monkeypatch) -> None:
+    stored = _jpeg((1600, 800))
+    _patch_service(monkeypatch, _FakeUserFileRepository([_ready_image(stored)]), _FakeUnitOfWork())
+    _FakeImageStorage(stored).install(monkeypatch)
+
+    response = await user_files_router.get_user_file_content(
+        "file-1", session=AsyncSession(), user=_user(), variant="thumbnail"
+    )
+
+    assert response.status_code == 200
+    assert response.media_type == "image/webp"
+    with Image.open(BytesIO(await _body(response))) as thumbnail:
+        assert max(thumbnail.size) <= 128
+
+
+def _not_servable(case: str) -> UserFile:
+    stored = _jpeg((40, 20))
+    if case == "another-owner":
+        return _ready_image(stored, user_id="user-2")
+    user_file = _ready_image(stored)
+    if case == "document":
+        user_file.metadata = {}
+        user_file.normalized_extension = ".txt"
+    elif case == "not-ready":
+        user_file.status = STATUS_UPLOADED
+    elif case == "failed":
+        user_file.status = STATUS_FAILED
+    elif case == "deleted":
+        user_file.status = STATUS_DELETED
+    elif case == "aborted":
+        user_file.status = STATUS_ABORTED
+    elif case == "delete-pending":
+        user_file.status = STATUS_DELETE_PENDING
+    return user_file
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "case", ["another-owner", "document", "not-ready", "failed", "deleted", "aborted", "delete-pending"]
+)
+async def test_content_is_not_served_unless_it_is_the_owners_ready_image(monkeypatch, case: str) -> None:
+    user_file = _not_servable(case)
+    _patch_service(monkeypatch, _FakeUserFileRepository([user_file]), _FakeUnitOfWork())
+    storage = _FakeImageStorage(_jpeg((40, 20)))
+    storage.install(monkeypatch)
+
+    with pytest.raises(HTTPException) as exc_info:
+        await user_files_router.get_user_file_content("file-1", session=AsyncSession(), user=_user())
+
+    assert exc_info.value.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_content_refuses_bytes_that_no_longer_match_the_record(monkeypatch) -> None:
+    stored = _jpeg((40, 20))
+    _patch_service(monkeypatch, _FakeUserFileRepository([_ready_image(stored)]), _FakeUnitOfWork())
+    storage = _FakeImageStorage(stored)
+    storage.install(monkeypatch)
+    replaced = bytearray(stored)
+    replaced[-3] ^= 0xFF
+    storage.content = bytes(replaced)
+
+    with pytest.raises(HTTPException) as exc_info:
+        await user_files_router.get_user_file_content("file-1", session=AsyncSession(), user=_user())
+
+    assert exc_info.value.status_code == 409
+    detail: object = exc_info.value.detail
+    assert detail == {"code": "user_file_content_changed"}
+
+
+@pytest.mark.asyncio
+async def test_content_reports_bytes_that_are_gone(monkeypatch) -> None:
+    stored = _jpeg((40, 20))
+    _patch_service(monkeypatch, _FakeUserFileRepository([_ready_image(stored)]), _FakeUnitOfWork())
+    storage = _FakeImageStorage(stored)
+    storage.install(monkeypatch)
+    storage.content = None
+
+    with pytest.raises(HTTPException) as exc_info:
+        await user_files_router.get_user_file_content("file-1", session=AsyncSession(), user=_user())
+
+    assert exc_info.value.status_code == 409
+
+
+@pytest.mark.asyncio
+async def test_content_returns_a_small_image_itself_as_its_thumbnail(monkeypatch) -> None:
+    stored = _jpeg((100, 50))
+    _patch_service(monkeypatch, _FakeUserFileRepository([_ready_image(stored)]), _FakeUnitOfWork())
+    _FakeImageStorage(stored).install(monkeypatch)
+
+    response = await user_files_router.get_user_file_content(
+        "file-1", session=AsyncSession(), user=_user(), variant="thumbnail"
+    )
+
+    assert response.media_type == "image/jpeg"
+    assert await _body(response) == stored
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "read_error",
+    [
+        PrivateFileReadError("disk error"),
+        PermissionError("parent directory is not readable"),
+        PrivateFilePathError("Private locator escaped its root"),
+    ],
+    ids=["read", "parent-permission", "parent-link"],
+)
+async def test_content_reports_a_read_failure(monkeypatch, read_error: Exception) -> None:
+    stored = _jpeg((40, 20))
+    _patch_service(monkeypatch, _FakeUserFileRepository([_ready_image(stored)]), _FakeUnitOfWork())
+    storage = _FakeImageStorage(stored)
+    storage.install(monkeypatch)
+    storage.read_error = read_error
+
+    with pytest.raises(HTTPException) as exc_info:
+        await user_files_router.get_user_file_content("file-1", session=AsyncSession(), user=_user())
+
+    assert exc_info.value.status_code == 503

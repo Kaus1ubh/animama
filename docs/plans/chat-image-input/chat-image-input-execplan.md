@@ -133,7 +133,8 @@ canonical copy of at most 3.5 MiB (under 5 MB as base64). One estimate,
 - [x] G0: the owner approved the plan and Phase 1 (2026-11-24).
 - [x] Phase 1: image uploads are validated and stored as canonical copies.
   Three reviews; all blocking findings repaired. P1-A13 moves to Phase 2.
-- [ ] Phase 2: the owner can fetch image bytes.
+- [x] Phase 2: the owner can fetch image bytes. Two reviews; should-fix
+  items repaired; chat deletion moves to Phase 3 (D12).
 - [ ] Phase 3: a turn with images is checked, saved and assembled without bytes.
 - [ ] Phase 4: each adapter sends images.
 - [ ] Phase 5: the composer accepts images.
@@ -243,6 +244,12 @@ canonical copy of at most 3.5 MiB (under 5 MB as base64). One estimate,
     pending). `:process` stores the canonical copy for such an image and
     otherwise returns an image's state without a job. Phase 5 makes the
     composer call it when a finalize fails.
+
+- 2026-11-24, agent (Phase 2 review), within R3.3:
+  - **D12. Deleting a chat deletes its images when nothing else uses them.**
+    When a chat is deleted, each image its user messages reference is deleted
+    like a file the person removed, unless a message in another chat
+    references it too (an image can be attached again from the Library).
 
 ## Phased implementation
 
@@ -519,15 +526,106 @@ Checks: the two test files; `uv run ruff check`; from `src/frontend`
 Completion: the owner receives image bytes and thumbnails with revalidation;
 every other request is refused; the inventory and contract checks pass.
 
-Check record, results and commits: to be recorded.
+Starting revision: `4f5205edc`, the Phase 1 commit `0c150a155` merged with
+`origin/main` at `c7b98f73a`. Built as planned, plus:
+
+- **P1-A13 / P1-C8 (from Phase 1).** The router reads an image's bytes
+  (`_read_private_file`) before decoding them, so a storage error is the only
+  thing reported as a read failure. An encoder `OSError` now surfaces as
+  itself and the upload is kept; the encoder-fault test covers `RuntimeError`
+  and `OSError`.
+- A GIF whose frame count raises `IndexError` pins the opener's catch-all.
+- The route reads the stored copy into memory (at most 3.5 MiB) and checks its
+  digest against the record: missing or changed bytes are `409`
+  `user_file_content_changed`, a read error `503`. It answers with
+  `local_file_response`, the policy content files use.
+- `docs/backend/architecture/http-api.md` and the route list in
+  `docs/backend/features/user-files.md` describe the route and the image
+  behavior of `:finalize` and `:process`.
+
+Check record (working directory: the checkout root unless noted; working tree
+recorded under Code Review #1 Revisions; the frontend commands ran on tree
+`dc7c88d731b3` and the repair touched no frontend file):
+
+| Command | Result |
+| --- | --- |
+| `uv run --no-sync ruff format --check src/backend/animama tests` | exit 0 |
+| `uv run --no-sync ruff check` | exit 0 |
+| `uv run --no-sync mypy src/backend/animama tests` | exit 0, 907 files |
+| `uv run --no-sync python scripts/repository-boundary/check-python-imports.py` | exit 0 |
+| `timeout 900 uv run --no-sync pytest -q -n 2` on the 16 Phase 1 files | exit 0, 387 passed |
+| `pnpm openapi-ts` then `pnpm openapi-ts:check` (in `src/frontend`) | regenerated; "Generated SDK is current (17 files)" |
+| `pnpm packages:build` (in `src/frontend`) | exit 0 |
+| `pnpm check` (in `src/frontend`) | exit 0 |
+
+Not run: the package-set `compare`, which builds sets from an exact commit and
+runs once on the final candidate before the pull request, and the full
+pre-push suite (G3).
 
 #### Code Review #1 Findings
 
-To be recorded.
+Reviewed source: working tree `dc7c88d731b3` on `4f5205edc`, high risk,
+initial review. Both reviewers pass the phase with no blocking findings.
+
+The checks reviewer reran every recorded check (379 passed, SDK current,
+`pnpm check` clean), added `pnpm packages:check` and `pnpm packages:test`
+(61 tests), 17 more backend files on routing, admission and composition (600
+passed, 1 skipped on macOS) and the package-set, repository-boundary and CI
+script tests. An HTTP probe through the real local app showed the new route
+gets exactly the status `GET /v1/files/{file_id}` gets for every request
+shape: same-origin `fetch` and `<img>` 200; cross-site, same-site, foreign or
+`null` Origin 403; wrong Host 421; desktop without the renderer cookie 401.
+
+The analysis reviewer confirmed ownership (every non-servable case is the same
+404, with no existence oracle), headers, the 3.5 MiB memory bound, thumbnails,
+the P1-A13 fix, the contract bump and that no stale version remains.
+
+Should fix:
+
+- **P2-A1 / P2-C1.** A parent directory that became unreadable, or was
+  replaced by a link, fails in the storage adapter before its own error
+  handling, so the route answered a bare 500.
+- **P2-A2.** Spec R3.3 also says deleting a chat removes its images' bytes;
+  no phase did that, and one image can be attached in several chats.
+
+Optional: describe the byte responses in OpenAPI (P2-A3; the content route
+does not either); more tests (P2-A4); documentation details (P2-A5); the
+upload now waits for a decode slot in memory rather than spooled (P2-A6).
 
 #### Code Review #1 Revisions
 
-To be recorded.
+Repair round 1 of 2.
+
+| Finding | Disposition | Change |
+| --- | --- | --- |
+| P2-A1 / P2-C1 | Accepted | Reads from private storage map `OSError` and `PrivateFilePathError` to the 503 path, in the new route and in finalize; this is safe now that reading and decoding are separate. Test: read error, parent permission error and parent link, each 503. |
+| P2-A2 | Accepted | D12: Phase 3 deletes a chat's images that no remaining chat message references. |
+| P2-A4 | Accepted in part | Tests for missing bytes (409), the sandbox CSP header, aborted and delete-pending files, and a small image returned as its own thumbnail. |
+| P2-A5 | Accepted in part | The `http-api.md` entry names the 503 and the thumbnail format; `auth-server.md` moves to Phase 7. |
+| P2-A3, P2-A6 | Not taken | Undeclared byte responses follow the content route; P2-A6 is bounded by the thread pool and is small beside a decode. |
+
+Verification: the check record above, on working tree `aa70448df83d` (taken before this line was filled in).
+
+#### Code Review #2 Findings
+
+Reviewed source: working tree `1c7205fceedb`, high risk, targeted recheck.
+Pass, with no blocking findings. Probes through the real storage adapter gave
+503 with the "User image read failed" log for an unreadable or linked parent
+directory, on the new route, finalize and `:process`, and all three escaped as
+500 with the old error tuple. Missing bytes stay 409. Mutations confirmed each
+new test fails under the change it targets, and the encoder-fault test fails
+if decoding moves inside the read's error handling. `ruff check`, `mypy`, the
+16 files (385 passed) and `pnpm openapi-ts:check` reran clean.
+
+Non-blocking: **P2-A7**, the finalize half of the repair had no test.
+
+#### Code Review #2 Revisions
+
+| Finding | Disposition | Change |
+| --- | --- | --- |
+| P2-A7 | Accepted | The finalize read-failure test covers a read error, a parent permission error and a parent link. Test-only, verified by running the file (65 passed) and the 16-file set (387 passed). |
+
+Phase commit: `feat(chat)[p2]: serve chat images to their owner`.
 
 ### Phase 3: A turn with images is checked, saved and assembled without bytes
 
@@ -556,7 +654,8 @@ Steps, tests first in `tests/test_direct_chat_turn_executor.py`,
    apply to the text part. `prompt_last_user_message` and
    `_message_content_text` join text parts.
 4. Saving: `raw_provider_message` holds the parts; `content` and `data` follow
-   D7.
+   D7. Deleting a chat deletes the images only it references (D12), through
+   the same storage delete and row status as `DELETE /v1/files/{file_id}`.
 5. Selection: before context fitting, keep the newest 20 image parts in the
    prompt (the current turn's first) and turn every other image part into
    placeholder text; when the model does not accept images, turn all of them

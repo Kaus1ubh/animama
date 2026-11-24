@@ -451,3 +451,18 @@ def test_chat_image_takes_the_primary_picture_of_a_multi_picture_jpeg() -> None:
         red, _green, blue = _pixel(canonical.convert("RGB"), (4, 3))
         assert red > 200
         assert blue < 50
+
+
+def test_chat_image_refuses_a_gif_whose_frames_cannot_be_counted() -> None:
+    frames = [Image.new("P", (16, 16), index) for index in range(3)]
+    for frame in frames:
+        frame.putpalette([0, 0, 0, 255, 0, 0, 0, 0, 255] + [0] * 759)
+    damaged = _encoded(frames[0], "GIF", save_all=True, append_images=frames[1:], duration=50)[:167]
+    # Counting the frames of this truncated GIF raises IndexError, not OSError.
+    with pytest.raises(IndexError), Image.open(BytesIO(damaged), formats=["GIF"]) as broken:
+        _ = getattr(broken, "n_frames")  # noqa: B009 - typeshed omits the GIF plugin's attribute
+
+    with pytest.raises(ContentFileInvalidError) as caught:
+        canonicalize_chat_image_stream(content=BytesIO(damaged))
+
+    assert caught.value.reason == "unsupported_image_format"
