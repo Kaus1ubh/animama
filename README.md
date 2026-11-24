@@ -15,7 +15,7 @@
 </p>
 
 <p align="center">
-  <b>Latest</b>
+  <b>News</b>
   <br>
   November 18, 2026 · Animama has officially launched and is now open source
 </p>
