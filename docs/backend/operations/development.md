@@ -1746,7 +1746,9 @@ environment usage.
    local-only route under `server/routers/`. Add the route to
    `product_http/inventory.py` with its disposition and access class.
 2. Use `get_current_principal` for every local product route. Only the internal
-   `/health` readiness probe is unauthenticated. Shared handlers take sessions,
+   `/health` readiness probe and the ChatGPT sign-in return, `/auth/callback`,
+   are unauthenticated; the return has its own admission rule and accepts only
+   the pending sign-in's `state`. Shared handlers take sessions,
    repositories, policy, content services and byte delivery from the installed
    `ProductPorts`, never `get_async_session` or global settings.
 3. Prefer app services and repository ports for persistence.

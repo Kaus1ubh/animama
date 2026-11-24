@@ -636,3 +636,15 @@ async def test_a_rejected_session_is_never_used_even_when_clearing_it_fails(
 
     with pytest.raises(ChatGPTPlanUnavailableError):
         await service.access_token("interactive")
+
+
+async def test_a_return_naming_another_issuer_is_refused_before_any_exchange(harness: Harness) -> None:
+    service = harness.service()
+    params = harness.fake.authorize(await service.begin(redirect_uri=REDIRECT))
+    before = len(harness.fake.requests)
+
+    with pytest.raises(ChatGPTPlanSignInError) as refused:
+        await service.complete({**params, "iss": "https://auth.example.test"})
+
+    assert refused.value.code == "sign_in_refused"
+    assert len(harness.fake.requests) == before

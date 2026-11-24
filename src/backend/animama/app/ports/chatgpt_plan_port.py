@@ -72,6 +72,9 @@ class IdentityClaims:
 class ChatGPTPlanIdentityPort(Protocol):
     """OpenAI's sign-in service: authorization, token exchange, refresh, validation and revocation."""
 
+    issuer: str
+    """The issuer a sign-in return names in ``iss``; a return naming another is refused."""
+
     def authorize_url(self, request: AuthorizeRequest) -> str:
         """Return the URL the browser opens.
 

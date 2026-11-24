@@ -227,6 +227,10 @@ class ChatGPTPlanSessionService:
         code = params.get("code")
         if not code:
             raise ChatGPTPlanSignInError("sign_in_refused")
+        returned_issuer = params.get("iss")
+        if returned_issuer is not None and returned_issuer != self._identity.issuer:
+            # A return from another authorization server must not spend this attempt's verifier there.
+            raise ChatGPTPlanSignInError("sign_in_refused", "the return names another issuer")
         returned_client = params.get("client_id") or None
         if attempt.client_id is None:
             if returned_client is None:

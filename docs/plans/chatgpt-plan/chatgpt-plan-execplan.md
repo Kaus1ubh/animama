@@ -11,8 +11,10 @@ G4 still apply where the phases name them.
 Planning baseline: `origin/main` at `1c7d7295e`, which the line numbers below
 refer to. Implementation base: `origin/main` at `c7b98f73a`; nothing the plan
 cites changed between the two.
-Workspace: worktree `chatgpt-plan`, branch `feat/chatgpt-plan`. No stack yet;
-Phase 2 starts a task stack and records its URL here.
+Workspace: worktree `chatgpt-plan`, branch `feat/chatgpt-plan`. Task stack
+`animama-chatgpt-plan` at `http://animama-chatgpt-plan.localhost:9100`,
+started with `./reset.sh --name chatgpt-plan --base-port 9100` when a phase
+needs it and stopped afterwards; it holds only test data.
 
 ## Purpose and context
 
@@ -231,7 +233,8 @@ and the backend.
   allows, then a sign-out that OpenAI confirmed. Findings are under
   Surprises & Discoveries; the choices they settle are in the Decision Log.
 - [x] Phase 1: sign-in core (2026-11-24). Code Review #3 passed.
-- [ ] Phase 2: routes and the sign-in return.
+- [x] Phase 2: routes and the sign-in return (2026-11-24). Code Review #2
+  passed.
 - [ ] Phase 3: desktop custody.
 - [ ] Phase 4: settings and setup.
 - [ ] Phase 5: the plan connection and its model client.
@@ -987,15 +990,116 @@ variant is refused; the inventory and contract checks pass.
 Recovery: the exemption is one branch in admission and one config field.
 Removing the path from the config closes it.
 
-Check record, results and commits: to be recorded.
+As built (2026-11-24, from `024ebd0c2`): `server/routers/chatgpt_plan.py`
+with the five `/v1` routes and the return; `server/chatgpt_plan.py`, which
+decides availability and creates the session service on first use;
+`server/chatgpt_plan_return_page.py`, the fixed page in five languages; and
+`server/schemas/chatgpt_plan.py`. Choices made while building:
+
+- The return authority is derived for `localhost`, `127.0.0.1` and any
+  `*.localhost` name, all loopback (RFC 6761), so a named worktree stack
+  (`http://animama-<name>.localhost:<port>`) can sign in too; `https`,
+  `[::1]` and other hosts get no return. On port 80 the authority is the bare
+  `127.0.0.1`, as browsers send it.
+- A desktop composition without the vault key (Phase 3) reports
+  `secure_storage_unavailable` and its service reads and writes no session
+  file at all.
+- Every route words an unavailable session as a code: 503
+  `chatgpt_plan_temporarily_unavailable` while storage or OpenAI is down,
+  otherwise 409 `chatgpt_plan_<code>`.
+- Accepted exception to T3, development only: if FastAPI is down or
+  restarting when the return arrives, Vite's proxy logs the request URL with
+  its query. The code is useless without the PKCE verifier, which never
+  leaves the backend's memory, and the attempt's state grants nothing alone.
+- The return page uses the language sent with the latest sign-in start.
+  Outcomes: signed in (200), declined, expired (also a return with no pending
+  attempt) and failed (400). A repeated query field fails.
+- A return whose `iss` names another issuer is refused before any exchange
+  (RFC 9207).
+- The capability is `chatgpt_plan`, a permission; `contracts/hosted-web.md`
+  lists it. `local-http` is 24.0.0 and `runtime-contracts` 0.24.0.
+- Tracing excludes `auth/callback` and keeps the operator's own exclusions.
+- The stack check found uvicorn access lines, query included, in both
+  development and built logs. `configure_logging` re-enabled the
+  `uvicorn.access` logger that the launcher's `access_log=False` had turned
+  off. It now has no handler and does not propagate; a test pins it. This was
+  also the cause of the earlier packaged-build observation.
+
+Check record, from the worktree root, on working tree
+`42cce7af29e3d9ef8cf0b9f1f7efd9acb852103d` (hashed while this line still held
+a placeholder):
+
+| Check | Result |
+| --- | --- |
+| `uv run pytest -q` on the four Phase 1 test files, `test_chatgpt_plan_api.py`, `test_local_http_admission.py`, `test_product_http_inventory.py`, `test_runtime_capabilities.py`, `test_local_http_composition.py`, `test_local_http_wiring.py`, `test_local_app_composition.py`, `test_local_http_transport.py`, `test_desktop_credentials_route.py`, `test_local_http_telemetry.py` and `test_local_state_scripts.py` | 434 passed |
+| `uv run ruff check`; `uv run ruff format --check src/backend/animama tests` | Passed; 923 files already formatted |
+| `python3 scripts/heavy-slot.py -- uv run mypy src/backend/animama tests` | No issues in 923 files |
+| `check-python-imports.py`; `check_source.py` | 0 forbidden edges; every tracked file covered once |
+| From `src/frontend`: `pnpm openapi-ts:check` | Generated SDK is current |
+| From `src/frontend`: `python3 ../../scripts/heavy-slot.py -- pnpm check` | No issues; every catalog complete |
+| From `src/frontend`: `pnpm packages:build`, then vitest on `tests/local-api-proxy.test.ts` and `src/app/hosted-runtime/hosted-composition.test.ts` | 109 passed |
+| Task stack, development then built mode: the return's variants with `curl` | Valid shape reaches the route (400 for a wrong `state`, attempt kept); Origin, page Host, other port, foreign host, image fetch, POST, body, `/auth/other`, `/auth/callback/x` and cross-site `/v1` refused (403, 404 or 421); return page headers as designed; no query in container or file logs after the logging fix |
+
+Not run: the package-set `compare`, deferred to the final candidate so one
+comparison covers this phase's `runtime-contracts` bump and Phase 6's
+`product-ui` one; the full pre-push suite (G3).
 
 #### Code Review #1 Findings
 
-To be recorded.
+Independent review, high-risk tier, of working tree
+`41a9ecdee4bb5da28619c55644025e3cea0307bf` against `024ebd0c2`; the
+reviewer reran 691 tests across the affected files, lint, the boundary and
+licence checks, the frontend checks, and removed guards one at a time on a
+scratch copy. Result: blocked by F1 and F2, both test gaps. The exemption
+was found exactly as narrow as T1, and the return page, logging fix,
+inventory and hosted refusal sound.
+
+| ID | Kind | Finding |
+| --- | --- | --- |
+| P2-R1-F1 | Required | The T1 tests did not pin the path, method, `Transfer-Encoding`, `Sec-Fetch-Mode` and `Sec-Fetch-Dest` guards: removing any one still passed, because the tests accepted the router's 404 or 405 or changed two headers at once. A WebSocket and desktop `/v1` without the cookie at the return authority were untested. |
+| P2-R1-F2 | Required | The real wiring was untested: the return path in `local_http.py`, the keyless desktop store, the `/auth` asset fence and the schemas' fixed fields. |
+| P2-R1-F3 | Optional | On port 80 the authority read `127.0.0.1:80`, which no browser sends. |
+| P2-R1-F4 | Optional | Vite's proxy error log prints the request URL if FastAPI is down when the return arrives. |
+| P2-R1-F5 | Optional | A session storage failure was a bare 500 on every route but preferences. |
+| P2-R1-F6 | Optional | Wording: the hosted contract said the capability withholds the return; a stale logging comment; the tracing exclusion's wiring untested. |
 
 #### Code Review #1 Revisions
 
-To be recorded.
+All accepted; F4 as a recorded exception.
+
+| ID | Change |
+| --- | --- |
+| P2-R1-F1 | The tests assert the exact refusal (421 self-hosted; 401 or 403 desktop) for other paths, methods and each fetch-metadata header alone, plus a chunked body, a WebSocket and desktop `/v1` without the cookie. The separate WebSocket check was removed: a WebSocket scope has no method, so the `GET` check excludes it. |
+| P2-R1-F2 | Tests on `create_local_app` for a loopback self-hosted origin and a keyless desktop that ignores a planted plain session file, a built-asset test for `/auth` paths, and 422 tests for extra fields. |
+| P2-R1-F3 | Port 80 gives `127.0.0.1`. |
+| P2-R1-F4 | Recorded in the As-built notes as an accepted development-only exception. |
+| P2-R1-F5 | All routes map the error: 503 while temporary, 409 otherwise. |
+| P2-R1-F6 | Wording fixed; a test checks the instrumentor receives the exclusions. |
+
+Each of the nineteen guards and wirings above was removed in turn and a test
+failed. After the repairs, on working tree
+`74454a5046409c2e70fac83c48e405e2d91d4dca`: the affected backend tests, 653
+passed (the API file alone 81); lint and format passed; full mypy, no issues
+in 923 files.
+
+#### Code Review #2 Findings
+
+Targeted recheck of working tree `74454a5046409c2e70fac83c48e405e2d91d4dca`.
+The reviewer reran 718 tests across the affected files, lint, mypy on the
+changed files, the boundary, licence and generated-client checks, and swept
+20 guard removals. Result: pass. F1 to F6 are resolved.
+
+| ID | Kind | Finding |
+| --- | --- | --- |
+| P2-R2-F1 | Optional | The WebSocket test sent `Sec-Fetch-Mode: websocket`, so the mode check refused it and the method check was not isolated. |
+| P2-R2-F2 | Optional | The round-1 check line named no Git tree. |
+
+#### Code Review #2 Revisions
+
+Both accepted and verified by the implementing agent, as the policy allows for
+a one-line test change: the WebSocket test's scope carries no fetch metadata,
+and weakening the method check to `scope.get("method", "GET")` now fails both
+of its cases; the check line names its tree. No further review was needed.
 
 ### Phase 3: Desktop custody
 

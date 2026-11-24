@@ -95,6 +95,7 @@ class OpenAIChatGPTPlanIdentity:
             trust_env=transport is None,
         )
         self._app_name = app_name
+        self.issuer = ISSUER
         self._discovery: _Discovery | None = None
         self._keys: dict[str, jwt.PyJWK] = {}
         self._lock = asyncio.Lock()
