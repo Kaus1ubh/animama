@@ -4,8 +4,9 @@ Source agreement: [#904](https://github.com/raymond-van/animama/issues/904),
 published from the agreed [spec](chat-image-input-spec.md) at
 2026-11-24T16:51:31Z (accepted by the owner on 2026-11-24 with the recommended
 defaults).
-Authorized scope: planning only. Implementation starts after the owner reviews
-this plan (G0).
+Authorized scope: the whole plan. The owner approved this plan, including D1
+to D7, and Phase 1 on 2026-11-24 (G0), then authorized Phases 2 to 7 the same
+day. G1 to G3 still need the owner.
 Planning baseline and implementation base: `origin/main` at `f612be08d`.
 Workspace: worktree `chat-image-input`, branch `feat/chat-image-input`. No
 stack yet; Phase 5 starts a task stack and records its URL here.
@@ -129,8 +130,9 @@ canonical copy of at most 3.5 MiB (under 5 MB as base64). One estimate,
 ## Progress
 
 - [x] Phase 0: issue #904 published, spec snapshot and plan tracked.
-- [ ] G0: owner review of this plan.
-- [ ] Phase 1: image uploads are validated and stored as canonical copies.
+- [x] G0: the owner approved the plan and Phase 1 (2026-11-24).
+- [x] Phase 1: image uploads are validated and stored as canonical copies.
+  Three reviews; all blocking findings repaired. P1-A13 moves to Phase 2.
 - [ ] Phase 2: the owner can fetch image bytes.
 - [ ] Phase 3: a turn with images is checked, saved and assembled without bytes.
 - [ ] Phase 4: each adapter sends images.
@@ -156,6 +158,28 @@ canonical copy of at most 3.5 MiB (under 5 MB as base64). One estimate,
   suits documents, which the Anima searches on every turn, but would attach
   the same image again each turn (D5).
 
+- 2026-11-24 (Phase 1): the backend guide says upload bytes are never parsed
+  in the server process. That rule was written for document parsers. Chat
+  images are decoded in the server with Pillow, as content images already are
+  (D8); the guide now says so.
+- 2026-11-24 (Phase 1): Pillow refuses `formats=["MPO"]` because the JPEG
+  decoder opens multi-picture files, so the decoder list leaves MPO out.
+- 2026-11-24 (Phase 1): saving a JPEG with `optimize=True` at full colour
+  resolution fails on a noisy image ("broken data stream"), because Pillow
+  sizes one buffer from the pixel count. The encoder runs without it.
+- 2026-11-24 (Phase 1, review): Pillow's decoders raise `SyntaxError`,
+  `IndexError`, `TypeError` and `struct.error` on damaged input, beyond the
+  error types the existing image code catches. `ImageOps.exif_transpose`
+  fails on a photo with one malformed EXIF tag because it rewrites the EXIF
+  block. The chat path reads the orientation itself and treats every decoder
+  error as an unreadable image. The older content-image functions keep their
+  narrower handling; changing them is outside this plan.
+- 2026-11-24 (Phase 1, review): Pillow scales palette and 1-bit images with
+  nearest-neighbour and clips 16-bit greyscale when converting. The chat path
+  converts to 8-bit RGB first.
+- 2026-11-24 (Phase 1, review): storage `delete` succeeds for a missing file.
+  An earlier draft kept a refused upload's bytes on the opposite assumption.
+
 ## Decision Log
 
 - 2026-11-24, owner: scope is local compositions only; the recommended
@@ -164,7 +188,11 @@ canonical copy of at most 3.5 MiB (under 5 MB as base64). One estimate,
 - 2026-11-03, owner (standing instruction, recorded during #823): phases run
   the checks their changes affect, not the full pre-push suite. The full suite
   runs once on the final candidate after the owner agrees to the run (G3).
-- 2026-11-24, agent proposals for owner review at G0. Each is an
+- 2026-11-24, owner: plan approved with D1 to D7 as proposed; Phase 1
+  authorized (G0).
+- 2026-11-24, owner: Phases 2 to 7 authorized ("the rest of the execplan once
+  phase 1 is complete").
+- 2026-11-24, agent proposals, approved by the owner at G0. Each is an
   implementation choice inside the agreed behavior:
   - **D1. References, not bytes.** A user message with images is saved as
     text plus image reference parts (`file_id`, name, width, height). The
@@ -192,6 +220,30 @@ canonical copy of at most 3.5 MiB (under 5 MB as base64). One estimate,
     it (R4.1). `data` keeps the person's text and the image list so the
     bubble shows text and thumbnails without placeholder lines.
 
+- 2026-11-24, agent (Phase 1), within the approved behavior:
+  - **D3, extended.** When quality 90 does not fit 3.5 MiB the JPEG encoder
+    steps down (82, 74, 66, 58, 50) and then refuses. Random noise at
+    2000 × 2000 fits at quality 50, so a refusal is practically unreachable.
+  - **D8. Chat images are decoded in the server.** Finalize decodes on a worker
+    thread through the bounded opener content images use, restricted to the
+    PNG, JPEG, WebP and GIF decoders, at most two images at a time. The parse
+    child stays for documents: it returns text over a pipe and serves a
+    durable job, and R1.4 gives images no job. The owner can redirect this
+    without changing the stored format.
+  - **D9. The kind is recorded when the upload starts.** `metadata.kind` is
+    `"image"` from init, and `metadata.image` (width, height, media type) is
+    added when the canonical copy is stored. One predicate reads the kind.
+  - **D10. Storage changes run under the row lock.** Decoding takes no lock.
+    The service re-reads the row for update and checks it is still an
+    uploaded image before the canonical copy is written or a refused upload
+    is deleted, so a delete or a second request during decoding cannot be
+    followed by a write.
+  - **D11. `:process` completes an interrupted image.** A finalize that stops
+    after marking the file uploaded cannot be retried (the upload is no longer
+    pending). `:process` stores the canonical copy for such an image and
+    otherwise returns an image's state without a job. Phase 5 makes the
+    composer call it when a finalize fails.
+
 ## Phased implementation
 
 Each phase starts from the previous phase's commit and writes its tests first.
@@ -204,8 +256,10 @@ Phase 7 follows Phase 6.
 After G0, in worktree `chat-image-input`:
 
 1. Merge `origin/main` if it moved. Run `uv sync --python 3.12.13 --extra
-   voice --extra viz --extra realtime --extra encrypt --all-packages --group
-   dev`, `pnpm install` in `src/frontend`, and `git lfs pull`.
+   voice --extra viz --extra realtime --extra encrypt --extra documents
+   --all-packages --group dev` (the `make sync` set, pinned to Python
+   3.12.13). Before the frontend phases run `pnpm install` in `src/frontend`,
+   and run `git lfs pull` before backend content tests.
 2. Set #904's triage label to `triage:ready-for-agent`.
 
 ### Phase 1: Image uploads are validated and stored as canonical copies
@@ -215,49 +269,227 @@ stored private data).
 
 Requirements: R1.1 (server limits), R1.2, R1.3, R1.4 (server), R1.5 (errors).
 
-Steps, tests first in `tests/test_content_image.py` and
-`tests/test_user_file_uploads.py`:
+Starting revision: `bdc7ea710`. Built as follows, tests first in
+`tests/test_content_image.py` and `tests/test_user_file_uploads.py`:
 
-1. `content_image.py`: add `canonicalize_chat_image_stream`. It reuses
-   `_open_bounded_image`, accepts PNG, JPEG, WebP and GIF by decoded format
-   whatever the extension, takes the first frame of an animation, applies
-   EXIF orientation, scales the long edge to at most 2000 px, copies pixels
-   into a fresh image and encodes per D3. It returns the bytes, media type,
-   width, height and digest. Tests: each format; an animated GIF and WebP; a
-   JPEG with GPS EXIF whose output has no EXIF; a rotated JPEG; an oversized
-   and a corrupt file; a PNG that exceeds the byte cap and becomes JPEG.
-2. `user_file_service.py`: add the image extensions (`.png`, `.jpg`, `.jpeg`,
-   `.webp`, `.gif`) with a 20 MiB limit, and a specific rejection for `.heic`
-   and `.heif` that names the format.
-3. Finalize: for an image extension, read the stored bytes with
-   `open_bounded`, canonicalize through `asyncio.to_thread`, write the result
-   to the same locator, and set `ready`, `stored_size_bytes`, `sha256`,
-   `detected_content_type`, `processed_at` and `metadata.image` (width,
-   height, media type). A file that is not a supported image becomes `failed`
-   with a reason the composer can show, and its bytes are deleted.
-4. `:process` on an image returns its current state without a job.
-5. One predicate, `is_image_user_file`, reads `metadata.image`; nothing else
-   infers the kind.
-
-Checks: `uv run pytest -q tests/test_content_image.py
-tests/test_user_file_uploads.py tests/test_user_file_storage.py`;
-`uv run ruff check`. Not run in this phase: the full pre-push suite.
+1. `content_image.py`: `canonicalize_chat_image_stream` takes only the bytes.
+   It opens them with the PNG, JPEG, WebP and GIF decoders through
+   `_open_bounded_formats` (split out of `_open_bounded_image`, which now also
+   restricts Pillow to the decoders its extension allows), takes the first
+   frame, converts to 8-bit RGB or RGBA, scales the long edge to 2000 px,
+   applies the EXIF orientation, copies the pixels into a fresh image and
+   encodes per D3. A pixel-budget refusal now has that reason for a
+   decompression bomb too, for every caller of the opener.
+2. `user_file_service.py`: image extensions with a 20 MiB limit, a refusal
+   that names HEIC and HEIF, the kind recorded at init (D9), and
+   `complete_image_upload` and `fail_image_upload` (D10).
+3. Finalize: for an image, the router decodes the stored upload on a worker
+   thread, then the service stores the canonical copy at the same locator and
+   sets `ready`, the stored size, digest, media type, `processed_at` and
+   `metadata.image`. A file that cannot be stored as an image becomes `failed`
+   with a reason for the composer, and its uploaded bytes are deleted.
+4. `:process` on an image returns its state without a job, first completing an
+   image left at `uploaded` (D11).
+5. `src/backend/AGENTS.md` and one sentence of
+   `docs/backend/features/user-files.md` describe the in-server decode. The
+   rest of the documentation is Phase 7.
 
 Completion: an uploaded image ends `ready` with a canonical copy and image
-facts; the original bytes are gone; documents behave as before.
+facts; the original bytes are gone; a refused upload is `failed` with a reason
+and no bytes; documents behave as before.
 
-Recovery: a finalize that fails midway leaves the row `uploaded` or `failed`
-with the original bytes; finalize can be retried, and delete removes the file.
+Recovery: a read failure, a write failure or a server fault leaves the row
+`uploaded` with the original bytes; `:process` completes it, and delete
+removes it. Only a refusal of the image itself fails the file and deletes its
+bytes.
 
-Check record, results and commits: to be recorded.
+Check record (working directory: the checkout root; all on the working tree
+recorded under Code Review #2 Revisions):
+
+| Command | Result |
+| --- | --- |
+| `uv run --no-sync ruff format --check src/backend/animama tests` | exit 0 |
+| `uv run --no-sync ruff check` | exit 0 |
+| `uv run --no-sync mypy src/backend/animama tests` | exit 0, 907 files |
+| `uv run --no-sync python scripts/repository-boundary/check-python-imports.py` | exit 0 |
+| `timeout 900 uv run --no-sync pytest -q -n 2` on the 16 files below | exit 0, 367 passed |
+| `timeout 900 uv run --no-sync pytest -q -n 2` on the 27 wider files below | exit 0, 310 passed |
+| `uv run --no-sync python -m animama.server.export_openapi --output <file>` | byte-identical to the export from `main` |
+
+The 16 files: `test_content_image`, `test_content_gltf`,
+`test_content_thumbnails`, `test_user_file_processing`,
+`test_user_file_processing_runner`, `test_user_file_parsers`,
+`test_user_file_uploads`, `test_user_file_storage`,
+`test_runtime_capabilities`, `test_product_http_inventory`,
+`test_content_package_import_resources`, `test_typed_content_apis`,
+`test_anima_creation_batching`, `test_accountless_repository_boundaries`,
+`test_openapi_export`, `test_product_http_runtime_capabilities`.
+
+The 27 wider files are the other tests that reach the shared image opener:
+`test_anima_chat_profile`, `test_anima_creation`, `test_anima_creation_voice`,
+`test_anima_reaction_pools`, `test_anima_starters`, `test_avatar_face_parts`,
+`test_avatar_settings`, `test_content_evidence`,
+`test_content_package_cross_installation`,
+`test_content_package_export_review`, `test_content_package_import_anima`,
+`test_content_package_import_avatar`, `test_content_package_voice_export`,
+`test_content_portrait_mutation_replay`, `test_creation_content_admission`,
+`test_included_content_catalog`, `test_included_content_digest_urls`,
+`test_included_derivative_packaging`, `test_included_derivatives`,
+`test_local_content_catalog`, `test_non_portable_packages`,
+`test_optional_sound_dependencies`, `test_product_http_typed_content`,
+`test_runtime_content_catalog_completeness`, `test_starter_content_closure`,
+`test_typed_content_preview_batch`, `test_generate_synthetic_docs`.
+
+Not run: the full pre-push suite (owner's standing instruction; G3), and
+`pnpm openapi-ts:check`, because the worktree has no frontend dependencies
+yet. The identical schema export shows the generated client is not stale.
 
 #### Code Review #1 Findings
 
-To be recorded.
+Reviewed source: uncommitted working tree `74319f4248e7` on `bdc7ea710`, high
+risk, initial review, by an analysis reviewer and a checks reviewer. The
+checks reviewer reproduced all four recorded checks (329 passed) and ran 30
+more test files that reach the changed code (327 passed).
+
+Blocking:
+
+- **P1-A1.** Decoder errors outside the caught types (`SyntaxError`,
+  `IndexError`, `TypeError`, `struct.error`) escaped as HTTP 500 and left the
+  row `uploaded` with its original bytes. Found by mutating 52,000 inputs; a
+  rotated JPEG with one mistyped EXIF tag reproduces it.
+- **P1-A2.** The canonical copy was written before the row was locked or
+  re-checked. A delete during decoding was followed by a write that no API
+  could remove, and a concurrent `:process` could overwrite the copy after its
+  size and digest were recorded.
+- **P1-A3.** A refused upload kept its original bytes, against R1.3. The
+  reason given for keeping them was wrong: deleting a missing file succeeds.
+- **P1-C1.** The longer `process_user_file` docstring changed the operation's
+  OpenAPI description, so the generated client was stale.
+
+Should fix:
+
+- **P1-A4.** A decompression bomb was reported as an unsupported format.
+- **P1-A5.** `PrivateFileReadError` was not caught, so a read failure was an
+  unlogged 500 instead of a 503.
+- **P1-A6.** 16-bit greyscale PNGs were stored nearly white.
+- **P1-A7.** Palette and 1-bit sources were scaled with nearest-neighbour.
+- **P1-A9, P1-C4.** No tests for the read, write and conflict failures, the
+  other refusal messages, a pixel-area refusal, a multi-picture source, or the
+  real storage adapter.
+- **P1-A10, P1-C6.** Inexact guide wording, unrecorded plan deviations and a
+  misleading sentence in `user-files.md`.
+- **P1-C2.** `test_accountless_repository_boundaries` was missing from the
+  record.
+
+Optional, not taken: sharing the decode steps with `canonicalize_image_stream`
+(the chat path now differs on purpose, and changing content images is outside
+this plan); a reduced-size JPEG decode to lower peak memory. Noted, existing
+behavior: a `PUT` racing a finalize can rewrite same-size bytes.
+
+Sound as built, per the reviewers: decoder restriction and bounds (a
+1,000,000-frame GIF took 0.7 s; no mutated input over 1 s), metadata removal
+(output holds only image data chunks), ownership checks, no change for the
+existing callers of the opener across 61,335 comparisons, the document paths.
 
 #### Code Review #1 Revisions
 
-To be recorded.
+Repair round 1 of 2. Every finding was verified before the change.
+
+| Finding | Disposition | Change |
+| --- | --- | --- |
+| P1-A1 | Accepted | The chat path treats any decoder error as `invalid_image`, the opener treats any open error as an unsupported format, and the orientation is read without rewriting EXIF, so a photo with a malformed tag is accepted. Tests: a mistyped-tag JPEG, a PNG with a damaged chunk. |
+| P1-A2 | Accepted | D10: the service checks the row under its lock and then runs the write or delete. A conflict returns the file's current state. Tests: delete during decoding (nothing written, 404), another request finishing first (nothing written). |
+| P1-A3 | Accepted | A refused upload's bytes are deleted under the same lock, as the plan said. Test covers four refusals. |
+| P1-C1 | Accepted | The explanation moved to a comment; the schema export is byte-identical to `main`. |
+| P1-A4 | Accepted | A bomb is a pixel-budget refusal for every caller; the thumbnail test that pinned the old reason is updated. |
+| P1-A5 | Accepted | Caught with the other read failures; test for the 503. |
+| P1-A6 | Accepted | 16-bit greyscale is scaled to 8 bits; gradient test. |
+| P1-A7 | Accepted | Conversion happens before scaling; striped palette test for GIF and PNG. |
+| P1-A9, P1-C4 | Accepted | Added the tests above plus write failure (507), missing bytes on `:process`, a multi-picture JPEG, both pixel refusals, and finalize against the real filesystem storage. |
+| P1-A10, P1-C6 | Accepted | Guide paragraph rewritten; D8 to D11 and this section record the deviations; the `user-files.md` sentence is corrected. |
+| P1-C2 | Accepted | Added to the record with two more route and schema tests. |
+
+Verification: the check record above, on working tree `37a7e9b49c39` (taken before this line was filled in). Remaining
+repair budget: one round.
+
+#### Code Review #2 Findings
+
+Reviewed source: working tree `774e40e02534` (the repaired tree `37a7e9b49c39`
+plus one plan line), high risk, targeted recheck after repair round 1.
+
+The checks reviewer reran all seven checks clean (363 and 310 passed, schema
+byte-identical to `main`, no flakiness in three runs) and found P1-C1, P1-C2
+and P1-C4 fixed. The analysis reviewer found every accepted finding fixed:
+52,000 mutated inputs with nothing escaping, both lock interleavings correct
+on PostgreSQL with the real repository and storage, all eight orientations
+matching `ImageOps.exif_transpose`, and peak memory unchanged at 634 MiB for a
+40-megapixel RGBA source.
+
+Blocking:
+
+- **P1-A11 (new, from the repair).** The catch-all added for P1-A1 also
+  covered the server's own encoding and `MemoryError`. With the P1-A3 delete,
+  a server fault on a valid photo failed the file, deleted the upload and
+  logged nothing.
+- **P1-A9 (partly fixed).** The damaged-PNG test used an input the first tree
+  already refused, so nothing pinned the wider error handling.
+
+Non-blocking: **P1-A12**, the locked read (an existing repository method) does
+not refresh a row already loaded in the session, so D10 depended on no earlier
+reference being alive. Also noted and accepted as built: a failed delete of a
+refused upload keeps the bytes until the person deletes the file; a damaged
+animated GIF is reported as an unsupported file; scaled palette images fall
+back to JPEG more often. Coverage gaps left: the 404 after a conflict, a
+storage stat error, an invalid locator, the failed-delete warning and the
+damaged-EXIF fallback.
+
+#### Code Review #2 Revisions
+
+Repair round 2 of 2.
+
+| Finding | Disposition | Change |
+| --- | --- | --- |
+| P1-A11 | Accepted | Only the decode steps sit in the catch-all, and `MemoryError` propagates from it and from the opener. Encoding runs outside it, so a server fault raises, the row stays `uploaded` and the bytes stay. A refusal is now logged with its reason. Tests: a failing encoder at function level and through finalize. |
+| P1-A9 | Accepted | The test uses a non-letter chunk name and first asserts that Pillow raises `SyntaxError` for it. |
+| P1-A12 | Accepted | The locked read uses `populate_existing`. A PostgreSQL test holds a loaded row, changes it from a second session and reads it under the lock; it fails without the option. |
+| Refusal message | Accepted | The "too detailed to store" message is asserted through finalize. |
+| Remaining coverage gaps | Not taken | Each is a defensive branch with no behavior of its own beyond a status code or a log line. |
+
+Verification: the check record above, on working tree `df7d9f2534bd` (taken before this line was filled in). The repair
+budget is used; the next review is the final targeted recheck.
+
+#### Code Review #3 Findings
+
+Reviewed source: working tree `81eb22f7545b` (the repaired tree
+`df7d9f2534bd` plus one plan line), high risk, final targeted recheck.
+
+Both reviewers pass the phase. The checks reviewer reran every check from the
+record (367 and 310 passed, schema byte-identical to `main`), ran 13 more
+files that touch user-file rows or mount the router (405 passed, 1 skipped on
+macOS), and showed the locked-read test fails without `populate_existing`. The
+analysis reviewer confirmed P1-A11, P1-A9 and P1-A12 fixed: a server fault
+(runtime, attribute, memory or decode-step `MemoryError`) leaves the row
+`uploaded` with its bytes and `:process` completes it afterwards; the
+52,000-input fuzz gives the same refusals as before with nothing escaping;
+every new test fails under the mutation it targets; and `populate_existing`
+cannot discard unflushed changes in any caller.
+
+Non-blocking, not repaired in this phase because the repair budget is used:
+
+- **P1-A13 / P1-C8.** An `OSError` from the server's own encoder is reported
+  as a read failure (logged "User image read failed", answered 503), because
+  the storage adapter wraps errors inside its `with` block. The upload is
+  kept and `:process` completes it. Phase 2 edits the same router and fixes
+  it under its own review.
+- The `MemoryError` clauses and the opener's catch-all are verified by probes
+  but not pinned by tests. Phase 2 adds a GIF frame-count test for the opener.
+- **P1-C7.** The service's locked paths run against PostgreSQL in one test;
+  the reviewers covered the rest with scratch probes.
+- The Recovery sentence does not cover a commit that fails after the
+  canonical write: the row stays `uploaded` with the canonical copy stored,
+  and `:process` completes it.
+
+Phase commit: `feat(chat)[p1]: store chat images as canonical copies`.
 
 ### Phase 2: The owner can fetch image bytes
 

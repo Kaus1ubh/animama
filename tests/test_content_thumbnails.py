@@ -81,8 +81,9 @@ def _png_header_only(width: int, height: int) -> bytes:
 
 @pytest.mark.parametrize(
     ("side", "reason"),
-    # 64 million pixels: under Pillow's bomb warning, over Animama's budget.
-    [(8_000, "image_pixel_budget"), (12_000, "unsupported_image_format")],
+    # 64 million pixels is under Pillow's bomb warning and over Animama's budget;
+    # 144 million trips the bomb warning. Both are the same refusal.
+    [(8_000, "image_pixel_budget"), (12_000, "image_pixel_budget")],
 )
 def test_an_oversized_canvas_is_refused_from_its_header(side: int, reason: str) -> None:
     file = _verified(_png_header_only(side, side))

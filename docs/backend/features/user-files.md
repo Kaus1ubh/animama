@@ -61,7 +61,8 @@ Each composition runs one server process and so one runner. Several processes
 would still claim jobs safely (`SKIP LOCKED`), but they would share one
 liveness row.
 
-The server never parses upload bytes itself. For each file the runner starts a
+The server never parses a document's bytes itself (it does decode chat images,
+with Pillow, when they are finalized). For each file the runner starts a
 child of the same runtime (`parse-upload`, implemented in
 `adapters/parsers/parse_child.py`) and sends it the bytes on standard input:
 
