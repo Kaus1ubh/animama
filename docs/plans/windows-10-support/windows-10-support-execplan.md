@@ -15,7 +15,8 @@ this plan does not restate them.
 
 Task branch `build/windows-10-support`, base `f612be08d`. One branch and one
 PR. Only `src/frontend/desktop`, documentation and the desktop release skill
-change; the backend, the web app, contracts and the database are untouched.
+change, apart from one comment in the frozen server's PyInstaller spec; the
+backend's behavior, the web app, contracts and the database are untouched.
 
 ### Where the floor lives today
 
@@ -51,7 +52,10 @@ Windows 10 install cannot rely on electron-updater's default check.
 
 ## Progress
 
-- [ ] Phase 1: floor and update compatibility. Not started.
+- [x] Phase 1: floor and update compatibility. Implemented from `20243a225`.
+      Phase checks pass; review #1 found two required and four optional
+      items, all repaired; recheck #2 passed. The full pre-push suite has not
+      been run.
 - [ ] Phase 2: native evidence on Windows 11 and Windows 10 (gate G1). Not
       started; needs the Windows build host and a Windows 10 22H2 VM.
 - [ ] Phase 3: documentation and decision record. Not started; waits for G1.
@@ -67,6 +71,17 @@ Windows 10 install cannot rely on electron-updater's default check.
   document describe the published 0.1.6 installer, which refuses Windows 10.
   Changing that text before a release contains this change would be false.
   Recorded as spec P4, accepted by the owner with this plan.
+- 2026-11-24, Phase 1. `scripts/runtime/publish-release.mjs` holds the release
+  note text for Windows previews and stable releases, which said "Windows 11
+  x64". It is a user-facing requirement statement (spec R7) that the plan's
+  table missed; it now says "Windows x64 (Windows 10 22H2 or later)".
+- 2026-11-24, Phase 1. The repository has no release tags, so the 0.1.6
+  oracle was generated from `policy.ts` at the release merge `e8ccd2df5`, with
+  its two imports inlined as they were at that revision.
+- 2026-11-24, Phase 1. Self-review found that the support check coerced the
+  feed's floor to a string, so a non-string value that printed as a floor
+  would have withheld an update instead of reaching validation. Fixed with a
+  failing test first.
 - 2026-11-24, planning. No Windows 11 dependency was found by reading:
   Electron 45.3.1 states "Windows 10 and up"; the guard and input hook use
   APIs older than Windows 10; PostgreSQL's UTF-8 code page manifest needs
@@ -187,15 +202,161 @@ open blocker, and the oracle test fails when `minimumSystemVersion` in
 
 Phase commit: `build(desktop)[p1]: accept Windows 10 and keep 0.1.6 updates`.
 
-Check record: none yet.
+Check record (2026-11-24, macOS arm64 host, working directory
+`src/frontend`, uncommitted work; trees are working-tree hashes):
+
+| Command | Result | Tree |
+| --- | --- | --- |
+| `pnpm desktop:test` | Pass: 39 files passed, 2 skipped; 673 tests passed, 14 skipped | `0f255ca4413e` |
+| `pnpm desktop:check` | Pass | `0f255ca4413e` |
+| `pnpm desktop:build` | Pass | `0f255ca4413e` |
+| `pnpm --filter animama-desktop prettier:check` | Pass | `0f255ca4413e` |
+| `pnpm check` | Pass | `a297543c8eee` |
+| `pnpm prettier:check` | Pass | `a297543c8eee` |
+
+Between `a297543c8eee` and `0f255ca4413e` only
+`desktop/src/main-process/updates/policy.ts` and
+`desktop/tests/desktop-updates.test.ts` changed, so the web and i18n parts of
+`pnpm check` and the workspace part of `pnpm prettier:check` remain valid; the
+desktop parts were rerun.
+
+Observed red, then green, per slice:
+
+- Floor: the Windows boundary and `runtimePlatform` tests failed on `10.0.22000`.
+- Feed generation and oracle: `updateFeed` refused the `10.0.18362` manifest.
+- Feed validation: a missing or malformed `animama.minimum_os` was accepted.
+- Support check: the Windows updater had no `isUpdateSupported` override.
+- Consistency: the lock, source manifest and installer still named 22000.
+- Non-string floor: the support check withheld the update.
+
+Completion demonstration: with `minimumSystemVersion` for Windows changed by
+hand to `10.0.18362` in `release-artifacts.mjs`, "writes a Windows feed that
+installed 0.1.6 apps still accept" failed with `update_metadata_invalid`; the
+file was restored.
+
+Not run: the full pre-push suite (`make check-test`, `pnpm verify`,
+`pnpm web:test:browser`), by the owner's standing instruction; and any native
+Windows stage, package or installer run, which is Phase 2.
 
 #### Code Review #1 Findings
 
-None yet.
+Initial review, high-risk tier, 2026-11-24. Reviewed source: uncommitted
+working tree `7a798848e3ce` on baseline `20243a225`, which differs from the
+check record's `0f255ca4413e` only in this plan file. Two independent
+reviewers: analysis and checks.
+
+Checks reviewer, all rerun from `src/frontend` on tree `7a798848e3ce`:
+
+| Command | Result |
+| --- | --- |
+| `pnpm desktop:test` | Pass: 39 files passed, 2 skipped; 673 tests passed, 14 skipped |
+| `pnpm desktop:check` | Pass |
+| `pnpm desktop:build` | Pass |
+| `pnpm check` | Pass, including the i18n check |
+
+It also confirmed the completion demonstration by substituting the feed
+minimum at module load rather than editing the file: the 0.1.6 test passed
+unmodified and failed with `update_metadata_invalid` when the value was
+`10.0.18362`. It found the fixture textually identical to `policy.ts` at
+`e8ccd2df5` apart from the header and the inlined imports. It did not run
+formatting checks or the full pre-push suite.
+
+Analysis reviewer. It read the diff and the 0.1.6 and electron-updater
+sources, and ran a probe that generated a Windows feed, parsed it with
+electron-updater's own YAML reader and passed it to the real 0.1.6 validator,
+the fixture and the current validator. Its result: R4 and R5 hold; the
+fixture is faithful; no contract or IPC type changed.
+
+- **P1-F1, required.** `tests/windows-release.test.mjs`: no test passed the
+  generated Windows feed through the current app, so spec A5's automated half
+  was shown only with hand-written feeds. A later change to what the
+  generator writes in `animama.minimum_os` would pass every test and publish
+  a feed the new app rejects.
+- **P1-F2, required.** `tests/fixtures/update-policy-0.1.6.ts` and the two
+  plan files had no entry in `licenses/source-review.json`, so
+  `python3 scripts/public-release/check_source.py` failed. No phase check
+  runs it.
+- **P1-F3, optional.** `src/backend/packaging/desktop/animama-runtime.spec`
+  justified stripping Universal CRT copies by naming Windows 11. Also, for
+  G1: the Windows audit accepts every API-set import unchecked on a Windows
+  11 host, so a passing audit says nothing about loading on Windows 10.
+- **P1-F4, optional.** `updateFeed`'s refusal of a stale manifest, now
+  "requires the Windows runtime manifest", does not say which floor it wants.
+- **P1-F5, optional.** `manifest.ts` said only Windows 10 22H2 and Windows 11
+  "are tested", which is not true before G1.
+- **P1-F6, optional, for the PD4 ADR.** New apps also require the exact
+  top-level value, so the freeze continues past 0.1.6. And 0.1.6 ignores
+  `animama.minimum_os`: if the floor ever rose above an installed 0.1.6
+  system, that install would download the update and meet the installer's
+  refusal.
 
 #### Code Review #1 Revisions
 
-None yet.
+Repair round 1 of 2. Every finding was verified against the source before
+changing anything.
+
+- **P1-F1, accepted.** The feed tests now share one generator helper. A new
+  test, "writes a Windows feed that this app accepts and offers on Windows
+  10", passes each generated feed to the current `validateUpdateCandidate`
+  and requires `windowsUpdateSupported` to be true on `10.0.19045` and false
+  on `10.0.18361`. Demonstrated: with the generator writing
+  `<minimum_os>.0`, the new test failed with `update_metadata_invalid` while
+  the 0.1.6 test still passed; the file was restored byte-identical.
+- **P1-F2, accepted.** Added the three entries, using the original-work entry
+  of the neighbouring fixtures. The check now reports that every tracked file
+  is covered once.
+- **P1-F3, accepted.** The comment now says Windows 10 and later. This is the
+  plan's only edit under `src/backend`, and it changes no behavior. The audit
+  limit is added to Phase 2 below.
+- **P1-F4, accepted.** The refusal now ends with the expected `minimum_os`.
+- **P1-F5, accepted.** The comment now states what the documentation claims
+  rather than what has been tested.
+- **P1-F6, accepted as input to Phase 3.** Both consequences are listed under
+  the ADR step.
+
+Checks after the repairs, from `src/frontend` unless stated, tree
+`9a6086c526f3`:
+
+| Command | Result |
+| --- | --- |
+| `pnpm desktop:test` | Pass: 39 files passed, 2 skipped; 674 tests passed, 14 skipped |
+| `pnpm desktop:check` | Pass |
+| `pnpm desktop:build` | Pass |
+| `pnpm --filter animama-desktop prettier:check` | Pass |
+| `python3 scripts/public-release/check_source.py` (repository root) | Pass |
+
+Remaining repair budget: one round.
+
+#### Code Review #2 Findings
+
+Targeted recheck of repair round 1, high-risk tier, 2026-11-24. Reviewed
+source: working tree `f76d5b5fba73`, which differs from the post-repair check
+record's `9a6086c526f3` only in this plan file. Result: pass.
+
+- P1-F1 to P1-F6: all resolved. For P1-F1 the reviewer's own probe showed
+  that each drift in `animama.minimum_os` the 0.1.6 oracle cannot see
+  (malformed, omitted, raised, lowered) now fails the new test, and that
+  lowering the frozen top-level value still fails the 0.1.6 test.
+- **P1-R2-F1, optional.** `tests/windows-release.test.mjs` imports the same
+  `policy` module twice, once with a `.ts` and once with a `.js` specifier.
+
+Checks rerun by the reviewer on tree `f76d5b5fba73`:
+
+| Command | Working directory | Result |
+| --- | --- | --- |
+| `pnpm desktop:test` | `src/frontend` | Pass: 39 files passed, 2 skipped; 674 tests passed, 14 skipped |
+| `pnpm desktop:check` | `src/frontend` | Pass |
+| `pnpm desktop:build` | `src/frontend` | Pass |
+| `python3 scripts/public-release/check_source.py` | repository root | Pass |
+
+#### Code Review #2 Revisions
+
+- **P1-R2-F1, deferred.** Cosmetic: both specifiers resolve to one module and
+  the tests pass. Merging the imports is left for the next edit to that file,
+  because at this tier a further repair needs its own recheck and would use
+  the last repair round on a style point.
+
+No repair was made in this round. Repair budget used: one of two rounds.
 
 ### Phase 2: native evidence on Windows 11 and Windows 10 (gate G1)
 
@@ -259,6 +420,10 @@ Outcomes:
 - A defect that is not a version requirement: fix it under Phase 1's tier as
   a repair commit, then repeat the affected steps on a fresh build.
 
+Limit of the build-host audit: it accepts every API-set import unchecked and
+runs on Windows 11, so a passing audit does not show that the binaries load
+on Windows 10. Steps 3 and 4 are that proof (spec Q2).
+
 Evidence: a public-safe summary in this section (commit, Windows builds,
 installer hash, each step's result, limits such as VM graphics). Raw
 receipts, screenshots and logs stay in owner-local storage.
@@ -300,7 +465,11 @@ Steps:
    installation document's current-release text.
 6. Add an ADR for the frozen feed minimum (PD4) under the next free number
    and list it in `docs/adr/README.md`. Another open branch already uses
-   0037.
+   0037. Record two consequences found in review: apps from this change
+   onward also require the exact top-level value, so the freeze outlives
+   0.1.6; and 0.1.6 ignores `animama.minimum_os`, so a future floor above an
+   installed 0.1.6 system would let it download an update the installer then
+   refuses.
 
 Checks: every changed relative link resolves; the classification table is
 recorded here; no Markdown formatter is run, as the repository leaves
