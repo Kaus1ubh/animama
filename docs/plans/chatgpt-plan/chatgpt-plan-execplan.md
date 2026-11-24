@@ -224,7 +224,8 @@ and the backend.
 - [x] Workspace setup (2026-11-24): #919 published and read back, spec
   snapshot and plan tracked, branch fast-forwarded to `c7b98f73a`, Python
   dependencies installed. No stack started.
-- [ ] Phase 0: live trial of the route.
+- [ ] Phase 0: live trial of the route. The probe is built and reviewed
+  (Code Review #2 passed, 2026-11-24). The trial itself waits for G1.
 - [ ] Phase 1: sign-in core.
 - [ ] Phase 2: routes and the sign-in return.
 - [ ] Phase 3: desktop custody.
@@ -269,6 +270,15 @@ and the backend.
   that no log line can carry the return's query string.
 - 2026-11-24 (planning): the OpenAI SDK retries a 429 by default. A usage
   limit must stop, so the plan client sets no SDK retries.
+- 2026-11-24 (Phase 0): the OpenAI SDK's default HTTP client follows
+  redirects, and the SDK adds organization, project and custom headers from
+  the shell's environment. Phase 5's plan client must pass an HTTP client
+  with redirects off and omit those headers (T4), as the probe's SDK trial
+  now does.
+- 2026-11-24 (Phase 0): OpenAI's guide gives the issuer and the signing-key
+  location through its discovery document. The probe reads both from there
+  and holds them to OpenAI's sign-in host; Phase 1 should do the same, before
+  any code is exchanged.
 
 ## Decision Log
 
@@ -408,15 +418,104 @@ this plan or the shell history.
 Recovery: `sign-out` revokes the session, the credential file can be deleted,
 and the app can be disconnected in ChatGPT's settings.
 
-Check record, results and commits: to be recorded.
+Step 1 was built on 2026-11-24, starting from `4bb966a02`: the probe, and
+`tests/test_chatgpt_plan_probe.py`, which runs it against a fake OpenAI. The
+`requests` command has 20 named trials and sends at most 23 requests, inside
+G1's bound. Steps 2 and 3 wait for G1.
+
+To run the trial, from the worktree root, with a credentials path outside any
+Git work tree:
+
+```bash
+uv run python scripts/chatgpt_plan_probe.py sign-in --credentials PATH
+uv run python scripts/chatgpt_plan_probe.py models --credentials PATH
+uv run python scripts/chatgpt_plan_probe.py requests --credentials PATH --model SLUG
+uv run python scripts/chatgpt_plan_probe.py refresh --credentials PATH
+uv run python scripts/chatgpt_plan_probe.py sign-out --credentials PATH --delete
+```
+
+Check record, from the worktree root, on working tree
+`2eb7250394c5bd0e26232f27191b031fe7e6fce0`:
+
+| Check | Result |
+| --- | --- |
+| `uv run pytest -q tests/test_chatgpt_plan_probe.py -p no:cacheprovider` | 35 passed |
+| `uv run ruff check` | All checks passed |
+| `uv run ruff format --check src/backend/animama tests` | 908 files already formatted |
+| `uv run mypy tests/test_chatgpt_plan_probe.py scripts/chatgpt_plan_probe.py` | No issues in 2 files |
+| `python3 scripts/public-release/check_source.py` | Every tracked file covered once |
+| `uv run python scripts/chatgpt_plan_probe.py requests --credentials /nonexistent/plan.json --list` | 20 trial names, exit 0 |
+| Guard removal: 19 temporary mutations of the probe, restored byte-identical | Each made the test file fail |
+
+Not run: the full pre-push suite, and the live trial (G1). Commits: `4bb966a02`
+(the plan); the probe is the commit that carries this record.
 
 #### Code Review #1 Findings
 
-To be recorded.
+Independent review, standard tier, of working tree
+`432d9157b8bc4dbbea101326e53969eb16871363` against baseline `4bb966a02`. The
+reviewer reused the recorded lint, format, source and guard-removal results
+and reran mypy and the tests. Result: blocked by F1 to F3.
+
+| ID | Kind | Finding |
+| --- | --- | --- |
+| P0-R1-F1 | Required | `requests` built its redactor before a possible token refresh, so a refreshed token echoed in provider text could print in clear. |
+| P0-R1-F2 | Required | The SDK trial used the SDK's default HTTP client, which follows redirects, against T4. It also picked up organization and project headers from the shell. |
+| P0-R1-F3 | Required | The `web_search` and `apply_patch` trials used a prompt that calls neither tool, so a pass showed only that the declaration was admitted. `context_management` had the same limit. |
+| P0-R1-F4 | Optional | `plan_use_granted` could be wrong when the token response omits `scope`. |
+| P0-R1-F5 | Optional | Items were read only from the terminal event, so items delivered only as stream events would look like "no tool call". |
+| P0-R1-F6 | Optional | ID-token checks relied on an assumed key location and issuer, and ran after the code was spent, with nothing printed on failure. |
+| P0-R1-F7 | Optional | The client id, the subject and raw model metadata could reach output described as safe to paste. |
+| P0-R1-F8 | Optional | `sign-out` could fail with tokens still on disk without saying so, and treated two failure paths differently. |
+| P0-R1-F9 | Optional | An idle connection could hold the listener past its timeout. |
+| P0-R1-F10 | Optional | A busy port and a non-ASCII `state` produced tracebacks; one lost connection aborted the whole `requests` run. |
+| P0-R1-F11 | Optional | `refresh` did not show whether it ran before the saved `earliest_refresh_at`. |
+| P0-R1-F12 | Optional | No test covered the free-text guard, the algorithm allow-list, a token signed by another key or an interrupted write; the listener test honoured proxy variables. |
 
 #### Code Review #1 Revisions
 
-To be recorded.
+Every finding was verified against the code and accepted. Each fix has a test
+that fails without it.
+
+| ID | Fix |
+| --- | --- |
+| P0-R1-F1 | The redactor reads the record at every call and remembers earlier values. |
+| P0-R1-F2 | The SDK trial passes an HTTP client with redirects off, omits the organization and project headers, and skips itself when `OPENAI_CUSTOM_HEADERS` is set. |
+| P0-R1-F3 | `web_search` asks for a search and says how to read the result. `apply_patch` asks for a file and replays the call with its output. `context_management` is labelled admission only. |
+| P0-R1-F4 | Scopes come from the token response, else the access token's claim, else "not reported"; a stale saved list is removed. |
+| P0-R1-F5 | Items are also collected from `response.output_item.done`, and the event types and the item source are printed. |
+| P0-R1-F6 | Discovery is read before the browser opens. The issuer and key location come from it and must be on OpenAI's sign-in host. A failed check revokes the new session and prints the ID token's shape. |
+| P0-R1-F7 | The subject and client id are redacted, the client id prefix is not echoed without an underscore, and the docstring says to read model metadata before pasting it. |
+| P0-R1-F8 | Tokens are removed only once OpenAI confirms or there is nothing to revoke. The command exits 1 and says whether tokens were kept or the file was deleted. |
+| P0-R1-F9 | The listener's handler has a five-second socket timeout. |
+| P0-R1-F10 | A busy port is a plain error, `state` and nonce are compared as bytes, and a lost connection no longer stops the run. |
+| P0-R1-F11 | `refresh` prints when it ran and the previous `earliest_refresh_at`. |
+| P0-R1-F12 | Tests added for each gap, and the listener test ignores proxy variables. |
+
+Verified by the check record of that round on working tree
+`b2158425e9941bab3af3f71133b9c218c16f3792` (34 tests, 16 guard removals).
+Remaining repair budget: one round.
+
+#### Code Review #2 Findings
+
+Targeted recheck of working tree `b2158425e9941bab3af3f71133b9c218c16f3792`,
+reusing the round's check record. The reviewer also drove every command end
+to end against the test fake. Result: pass. F1 to F12 are resolved, with no
+blocking regression. Two notes on the repairs, neither blocking:
+
+| ID | Kind | Finding |
+| --- | --- | --- |
+| P0-R2-F1 | Optional | When a round trip's follow-up lost its connection, the first result was dropped and the request count was one short. A skipped SDK trial was counted as sent. |
+| P0-R2-F2 | Optional | A refused tool request carried the note "the model made no tool call". |
+
+#### Code Review #2 Revisions
+
+Both accepted. A lost connection now becomes that request's own result, so
+earlier results stay and the count is exact; a skipped trial is not counted;
+the note is set only when the request completed. Each has a test that fails
+without it. These are small repairs below the high-risk tier, verified by the
+implementing agent with the check record above and not rechecked by the
+reviewer. Remaining repair budget: one round, unused.
 
 ### Phase 1: Sign-in core
 
