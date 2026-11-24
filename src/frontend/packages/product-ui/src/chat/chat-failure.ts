@@ -120,6 +120,10 @@ const baseDescriptions: Record<string, Description> = {
   chat_stream_interrupted: pair("codes.chat_stream_interrupted"),
   // A Claude model's refusal (stop_reason "refusal"); no other model is tried.
   model_refused: pair("codes.model_refused"),
+  // Chat images the server refuses before the turn starts.
+  too_many_images: pair("codes.too_many_images"),
+  attached_image_unavailable: pair("codes.attached_image_unavailable"),
+  model_does_not_accept_images: pair("codes.model_does_not_accept_images"),
 };
 
 /** A more specific reading of some failures, from the server's neutral category. */

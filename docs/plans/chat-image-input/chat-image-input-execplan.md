@@ -8,8 +8,10 @@ Authorized scope: the whole plan. The owner approved this plan, including D1
 to D7, and Phase 1 on 2026-11-24 (G0), then authorized Phases 2 to 7 the same
 day. G1 to G3 still need the owner.
 Planning baseline and implementation base: `origin/main` at `f612be08d`.
-Workspace: worktree `chat-image-input`, branch `feat/chat-image-input`. No
-stack yet; Phase 5 starts a task stack and records its URL here.
+Workspace: worktree `chat-image-input`, branch `feat/chat-image-input`. Task
+stack `animama-cii` (development build, `ANIMAMA_LLM_SKIP=1`) at
+http://animama-cii.localhost:8400, started in Phase 5; tear it down after the
+last manual check.
 
 ## Purpose and context
 
@@ -139,7 +141,8 @@ canonical copy of at most 3.5 MiB (under 5 MB as base64). One estimate,
   Two reviews; all findings repaired.
 - [x] Phase 4: each adapter sends images. Two reviews; should-fix items
   repaired. G1 confirms against real providers.
-- [ ] Phase 5: the composer accepts images.
+- [x] Phase 5: the composer accepts images. Re-tiered high risk; two
+  reviews and an independent checks rerun; all blocking findings repaired.
 - [ ] Phase 6: chat and the Library show images.
 - [ ] Phase 7: documentation and decision record.
 - [ ] Final integration review, G1 to G3, pull request.
@@ -252,6 +255,20 @@ canonical copy of at most 3.5 MiB (under 5 MB as base64). One estimate,
     When a chat is deleted, each image its user messages reference is deleted
     like a file the person removed, unless a message in another chat
     references it too (an image can be attached again from the Library).
+
+- 2026-11-24, agent (Phase 5), within R2.2:
+  - **D5, revised.** Images leave the composer once the server accepts the
+    turn (its reply stream delivers its first event), rather than after the
+    reply succeeds. The shared chat session reports the accepted turn's
+    attachments (`onAttachmentsSubmitted`) and the composer removes the
+    images among them. A turn the server refuses (for example
+    `attached_image_unavailable` or `runtime_remount_required`) keeps them,
+    so the failure guidance can say to remove or replace them. A turn that
+    fails after its stream starts keeps its images in history; they stay
+    ready in the Library and can be attached again.
+  - **The product-ui version moves in Phase 5.** The session option and three
+    chat failure codes change product-ui's declarations, so 0.21.0 lands
+    here. Phase 6 ships in the same pull request and needs no second bump.
 
 ## Phased implementation
 
@@ -967,7 +984,9 @@ Phase commit: `feat(chat)[p4]: send chat images through every model adapter`.
 
 ### Phase 5: The composer accepts images
 
-Review tier: standard (behavior change inside the web app).
+Review tier: high risk. Planned as standard; re-tiered after Code Review #1
+(P5-A1) because the phase changes product-ui's public declarations and
+version, the shared session's submit flow and an upload recovery path.
 
 Requirements: R1.1, R1.5 and R2.2 in the composer.
 
@@ -1001,15 +1020,186 @@ vision model and get a reply about it.
 Completion: an image can be attached three ways and sent; refusals explain
 themselves; documents behave as before.
 
-Check record, results and commits: to be recorded.
+Starting revision: `c3e059766` (the Phase 4 commit).
+
+Built as planned, with these details:
+
+- `uploads.ts` adds the image extensions and the 20 MiB image limit. HEIC
+  and HEIF stay out of Uppy's type list: the composer's
+  `onBeforeFileAdded` runs first and refuses them by name.
+- `chat-images.ts` holds the composer's image rules: the format, the size,
+  four images a message (tray uploads and Library picks together, through
+  `attachedImageCount`) and the active model. An unknown model counts as
+  accepting images; the server still refuses. `sentChatImages` picks the
+  images to clear after a send, and `pastedImageFiles` the images a paste
+  attaches (none when the clipboard also carries text).
+- `useUserFileUpload` ends an image at finalize: `uploaded` with a ready row,
+  or `failed` with the server's reason, worded like other stored errors
+  (English only as detail outside English). It never calls `:process` for an
+  image, except once after a failed finalize, which completes an image left
+  at `uploaded` (D11) and logs the outcome.
+- `chat-attachments.ts` offers ready images, which have no chunks.
+  `chat-attachment-hold.ts` lets a saved image wait for its ready row even
+  while document processing is off, instead of blocking the send.
+- `ChatInterface` refuses an image through Uppy's `onBeforeFileAdded` (one
+  toast for the picker, a drop or a paste, keeping Uppy's duplicate check),
+  guards the Library picker the same way, shows a muted tray note while an
+  image is attached to a model known not to accept images, attaches pasted
+  images (or says uploads are unavailable while a reply streams), and
+  removes the sent images once the server accepts the turn (D5, revised).
+- Tray cards show a local preview of an image (an object URL of the picked
+  file, released when the card goes) in a box that keeps its size while the
+  preview loads.
+- `docs/frontend/features/user-file-uploads.md` describes paste, the image
+  rules, image finalize and which attachments a send clears.
+- product-ui 0.21.0: the `onAttachmentsSubmitted` session option and failure
+  copy for `too_many_images`, `attached_image_unavailable` and
+  `model_does_not_accept_images`; `contracts/hosted-web.md` names the new
+  version.
+- Strings in all five locales; `resources.d.ts` regenerated with
+  `pnpm i18n:extract`.
+
+Check record after Code Review #1 repairs (working directory `src/frontend`
+unless noted; source tree `db163fd0dccf`, taken before this record was
+written):
+
+| Command | Result |
+| --- | --- |
+| `pnpm packages:build`, `pnpm packages:check`, `pnpm packages:test` | exit 0 |
+| `pnpm check` | exit 0 |
+| `pnpm web:lint` | exit 0 |
+| `pnpm web:test` | exit 0, 6434 passed, 2 skipped |
+| `pnpm i18n:check` | exit 0 |
+| `pnpm exec prettier --check` on the touched web, product-ui, locale and i18n files (from `web`) | exit 0 |
+| `python3 scripts/public-release/check_source.py` (root) | exit 0 |
+
+The first record (tree `09d001897a41`, before review) passed the same
+commands with 6427 web tests.
+
+Manual check on the task stack (mock model, desktop width): a pasted image
+uploads to Ready with a preview; the send clears it and the reply arrives;
+the saved `content` ends with `[Image: name]` and `data` holds `images` and
+`user_text`; a HEIC file is refused with its format named; a fifth image is
+refused by paste, drop and the picker with one toast each; a drop with room
+is accepted; the picker offers image types; with the model treated as
+text-only (its cache entry set to `accepts: ["text"]`) the tray shows the note
+and a pasted image is refused. At 900 px in the dark theme the tray card and
+its preview render correctly. After the repairs: a paste carrying text and a
+picture pastes the text and attaches nothing; an image deleted after it was
+attached makes the server refuse the turn, the failure card shows the
+`attached_image_unavailable` copy and the image stays in the tray; the next
+accepted turn clears its image once the reply starts. The stack's web
+container builds the packages into its own `dist`, so product-ui changes
+need `pnpm packages:build` inside the container before a browser check.
+
+Not checked here: a reply from a real vision model (G1), Electron (G2), the
+Library picker's image guard by hand (its counting is unit-tested), and the
+full pre-push suite (G3; owner instruction: no per-phase full suite). The
+package-set `compare` for product-ui 0.21.0 runs in Phase 6, once its
+declarations are final for this pull request.
 
 #### Code Review #1 Findings
 
-To be recorded.
+Reviewed source: working tree `1ff0e4a0d544` on `c3e059766`, standard tier as
+briefed, one reviewer. Blocked. The reviewer reused the check record and ran
+an Uppy probe for P5-A5.
+
+Blocking:
+
+- **P5-A1.** The phase changes product-ui's public declarations and version,
+  the shared submit flow and an upload recovery path, so it is high risk, not
+  standard; the package-set `compare` is neither run nor deferred.
+
+Should fix:
+
+- **P5-A2.** Images clear when the send is accepted locally, so a turn the
+  server refuses (such as `runtime_remount_required`) loses them silently.
+- **P5-A3.** A known text-only model does not hold a send with images, and
+  the new failure guidance ("remove the images") assumes images the composer
+  has already cleared.
+- **P5-A4.** A paste carrying text and a picture (spreadsheets, documents)
+  attaches the picture and drops the text.
+- **P5-A5.** HEIC in Uppy's type list is unnecessary (`onBeforeFileAdded`
+  runs first) and makes every type refusal list HEIC as uploadable.
+- **P5-A6.** A refused image shows the server's English reason as the primary
+  message in every locale, and its card says "Processing failed."
+- **P5-A7.** The composer wiring (counting, clearing, paste, note) has no
+  tests; `ChatUploadCapability.test.tsx` is unchanged.
+- **P5-A8.** `docs/frontend/features/user-file-uploads.md` is now misleading
+  and Phase 7 does not list it.
+
+Optional: image entries in the Library picker show a document icon and
+"0 chunks" (P5-A9); an image pasted while a reply streams is dropped silently
+(P5-A10); the tray note reuses the toast wording in a warning tone (P5-A11);
+duplicated counting and model lookup (P5-A12); no log on finalize recovery,
+and a refused recovery shows the generic finalize message (P5-A13); the
+preview shifts the card while it loads, and a GIF animates in it (P5-A14).
 
 #### Code Review #1 Revisions
 
-To be recorded.
+Repair round 1 of 2.
+
+| Finding | Disposition | Change |
+| --- | --- | --- |
+| P5-A1 | Accepted | Re-tiered high risk; a checks subagent reruns the affected checks; the `compare` is recorded for Phase 6. |
+| P5-A2 | Accepted | `onAttachmentsSubmitted` fires on the stream's first event (D5, revised); tests cover the accepted and the refused turn. |
+| P5-A3 | Accepted in part | With P5-A2 a refused turn keeps its images, so the guidance is accurate. No extra send hold: the tray note already explains, adding images is refused, and a hold would add a state to product-ui's public `ChatAttachmentHold` for a case the server refuses clearly. |
+| P5-A4 | Accepted | `pastedImageFiles` attaches nothing when the clipboard carries text. |
+| P5-A5 | Accepted | HEIC and HEIF left out of Uppy's type list; a test pins it. |
+| P5-A6 | Accepted | `storedUploadErrorLine` words a refused image with `uploads.imageRefused`; the hook uses it for the toast and card. |
+| P5-A7 | Accepted | Counting, clearing and paste rules moved to `chat-images.ts` with unit tests; the hold and stream tests cover the session side. |
+| P5-A8 | Accepted | The doc is updated in this phase. |
+| P5-A9 | Deferred | Phase 6 step 3 now covers the picker's image entries. |
+| P5-A10 | Accepted | A pasted image while a reply streams shows `composer.drop.unavailable`. |
+| P5-A11 | Accepted | New `composer.images.noImagesNote`, muted like the tools note. |
+| P5-A12 | Accepted | `useActiveChatModel` and `attachedImageCount` remove the duplicates. |
+| P5-A13 | Accepted | The recovery logs its outcome and a refused recovery shows the image refusal. |
+| P5-A14 | Accepted in part | The preview box keeps its size; a GIF animating in the local preview is left as is. |
+
+Verification: the check record above and the manual checks after the
+repairs.
+
+Independent checks rerun (high-risk tier, a separate subagent, on working
+tree `598a1e7c6acd`, which equals `db163fd0dccf` apart from this plan): the
+same commands as the check record, all exit 0 (`pnpm packages:test` 61
+tests; `pnpm web:test` 6434 passed, 2 skipped; i18n catalogs complete); the
+runs changed no tracked file.
+
+#### Code Review #2 Findings
+
+Reviewed source: working tree `598a1e7c6acd`, high risk, targeted recheck.
+Pass, with no blocking findings. P5-A1, A2, A4 to A8 and A10 to A14 are
+resolved; the reasons for the partial or deferred dispositions of P5-A3, A9
+and A14 hold. The reviewer confirmed that every image refusal and
+`runtime_remount_required` is an HTTP error raised before the stream, so
+`onFirstEvent` never fires for them, and that both new session tests fail on
+the round 1 code.
+
+- **P5-A15** (optional, not reproduced): some sources put text beside a
+  copied image (Firefox and Safari "Copy Image" write the image URL, a Finder
+  copy may carry the file name), so such a paste would paste the text and
+  attach nothing. Chromium's "Copy image", which Electron uses, writes the
+  image with HTML only.
+- **P5-A16** (should fix, wording): `user-file-uploads.md` still says the
+  picker offers only files with chunks; ready images have none.
+- **P5-A17** (optional): Phase 6 step 1 still said to raise the product-ui
+  version, against the Decision Log.
+
+Optional and not taken: the tray's `hasImage` could reuse
+`attachedImageCount`; the recovery's `.catch(() => null)` does not log the
+`:process` error (the finalize error is logged).
+
+#### Code Review #2 Revisions
+
+No repair round used (one remains for this phase).
+
+| Finding | Disposition | Change |
+| --- | --- | --- |
+| P5-A15 | Deferred to G2 | G2's manual check adds Firefox and Safari "Copy Image" and a Finder copy; the rule narrows only if one of them fails. |
+| P5-A16 | Deferred to Phase 6 | Phase 6 changes the picker's image entries and fixes this sentence with them. |
+| P5-A17 | Accepted | Phase 6 step 1 now keeps product-ui at 0.21.0 (plan text only). |
+
+Phase commit: `feat(chat)[p5]: attach images in the chat composer`.
 
 ### Phase 6: Chat and the Library show images
 
@@ -1026,14 +1216,17 @@ Steps, tests first in `web/src/lib/chat/display-message-mapping.test.ts`,
 1. product-ui: `ChatDisplayMessage` gains an optional image list. The
    optimistic user message carries it, and history mapping reads it and the
    person's text from `data`. `ChatConversation` gains a render prop for user
-   message attachments, like `renderAssistantAccessory`. Raise the product-ui
-   version and its line in `contracts/hosted-web.md`.
+   message attachments, like `renderAssistantAccessory`. product-ui stays at
+   0.21.0, raised in Phase 5 for this pull request.
 2. web: a hook loads an image through fetch and a blob URL, following
    `useRuntimeContentMediaUrl`. A component renders the thumbnails in the
    bubble, opens the image larger in the existing dialog, and shows a
    placeholder when the file is gone.
 3. Library → Chat uploads: an image row shows its thumbnail and a ready
-   state without processing wording.
+   state without processing wording. The composer's Library picker shows an
+   image entry with its thumbnail instead of a document icon and chunk count
+   (P5-A9), and `docs/frontend/features/user-file-uploads.md` says the picker
+   also offers ready images (P5-A16).
 4. Strings in all five locales.
 
 Checks from `src/frontend`: the touched test files, `pnpm check`,
@@ -1074,6 +1267,9 @@ Review tier: light; the final integration review covers it.
    bytes in saved messages, provider file uploads, a separate image store).
 6. Source-review entries for every new file.
 
+`docs/frontend/features/user-file-uploads.md` was updated in Phase 5 (P5-A8);
+Phase 6 adds thumbnails to it if needed.
+
 Check: the documentation links resolve.
 
 ## Final integration review
@@ -1094,6 +1290,8 @@ Gates:
   each adapter family from the task stack and confirm the reply describes it.
 - **G2.** Desktop check. Pasting and dragging in the Electron app need the
   owner's go-ahead before the agent drives the app, or the owner checks them.
+  It includes pasting after "Copy Image" in Firefox and Safari and after a
+  Finder copy (P5-A15).
 - **G3.** Owner agreement to the full pre-push run.
 
 Hosted validation stays off unless the owner starts a run; the pull request

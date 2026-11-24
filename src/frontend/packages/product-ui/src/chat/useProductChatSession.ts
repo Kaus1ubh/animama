@@ -129,6 +129,12 @@ export type UseProductChatSessionArgs = {
    * says why.
    */
   getAttachmentHold?: () => ChatAttachmentHold;
+  /**
+   * Called with a turn's attachments once the server accepts the turn (its
+   * reply stream starts), so the host can clear what it sent with them. A turn
+   * the server refuses keeps them in the composer.
+   */
+  onAttachmentsSubmitted?: (fileIds: string[]) => void;
   openDraftChatRoute: () => void | Promise<void>;
   replaceChatRoute: (chatId: string) => void | Promise<void>;
   safety?: ChatSafetyEffects;
@@ -248,6 +254,7 @@ export function useProductChatSession({
   animaId,
   getAttachedFileIds,
   getAttachmentHold,
+  onAttachmentsSubmitted,
   openDraftChatRoute,
   routeChatId = null,
   replaceChatRoute,
@@ -1167,6 +1174,10 @@ export function useProductChatSession({
           }),
           onFirstEvent: () => {
             if (ttsEnabled) markTtsStreamStarted?.(runId);
+            // The server accepted the turn; a refused one keeps its attachments.
+            if (attachedFileIds.length > 0) {
+              onAttachmentsSubmitted?.(attachedFileIds);
+            }
           },
           onAiNotice: (notice) => safetyRef.current?.onAiNotice?.(notice),
           onCrisisSupport: (card) => safetyRef.current?.onCrisisSupport?.(card),
@@ -1590,6 +1601,7 @@ export function useProductChatSession({
       finalizeCompletedStream,
       getAttachedFileIds,
       getAttachmentHold,
+      onAttachmentsSubmitted,
       logger,
       noticeAttachmentHold,
       patchChatTitleCaches,

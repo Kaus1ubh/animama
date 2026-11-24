@@ -39,8 +39,13 @@ existing backend ID directly.
 
 ## Upload Flow
 
-1. The user selects files with Uppy or drops files onto the main chat page.
-2. Uppy applies browser-side restrictions from
+1. The user selects files with Uppy, drops files onto the main chat page, or
+   pastes images into the composer's text area. A paste that also carries
+   text pastes the text instead.
+2. The chat composer applies its image rules first
+   (`src/frontend/web/src/lib/user-files/chat-images.ts`: format, 20 MiB,
+   four images a message counting Library picks, and the active model). Uppy
+   then applies browser-side restrictions from
    `src/frontend/web/src/lib/user-files/uploads.ts`.
 3. Uppy's existing generic PUT transport callback calls
    `POST /v1/files/uploads` through `useInitUserFileUpload`.
@@ -50,15 +55,21 @@ existing backend ID directly.
    private storage.
 6. On `upload-success`, `useUserFileUpload` calls
    `POST /v1/files/{file_id}:finalize`.
-7. The hook reads fresh `GET /v1/runtime-capabilities` metadata. It calls
+7. An image is ready (or refused with its reason) when finalize returns, and
+   is never processed. If its finalize request fails, the hook calls
+   `:process` once, which completes an image the server already saved.
+8. For a document, the hook reads fresh `GET /v1/runtime-capabilities`
+   metadata. It calls
    `POST /v1/files/{file_id}:process` unless processing is turned off (an
    unreadable capability response still requests it; the server decides). If
    that request fails, the original stays saved and its card shows the failure.
-8. The hook invalidates user-file queries through the finalize/process
+9. The hook invalidates user-file queries through the finalize/process
    mutations and shows toast feedback.
 
-The chat composer keeps new-upload and existing-file cards visible until the
-user removes them locally or leaves the chat surface. Removing a new upload
+The chat composer keeps document cards visible until the user removes them
+locally or leaves the chat surface. An image goes with one message: once the
+server accepts a turn (its reply stream starts), the composer removes the
+images that turn carried; a refused turn keeps them. Removing a new upload
 card removes it from local Uppy state; removing a previously uploaded card
 removes its ID from local composer selection state. Neither action deletes the
 installation-owned backend file. Cards combine transient Uppy metadata for
@@ -68,9 +79,10 @@ backend file row is known.
 Sending waits until the Anima can read every new upload in the tray
 (`lib/user-files/chat-attachment-hold.ts`). While one is uploading, queued or
 processing, the send control shows that it is waiting for files. A failed
-card, or a saved original while processing is turned off, makes it ask for that
-file's removal instead. While Voice Mode is on, the control keeps offering to
-stop Voice Mode, so the notice each held turn shows is the sign of the hold.
+card, or a saved document while processing is turned off, makes it ask for
+that file's removal instead; a saved image waits for its ready row either way.
+While Voice Mode is on, the control keeps offering to stop Voice Mode, so the
+notice each held turn shows is the sign of the hold.
 The session checks the same hold (`getAttachmentHold`) on every send path: the
 button, Enter, Voice Mode and prompt suggestions. Desktop Quick Chat mirrors
 the hold from the main window and checks it before sending its draft. A held

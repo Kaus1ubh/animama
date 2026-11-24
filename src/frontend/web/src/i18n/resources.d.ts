@@ -1541,6 +1541,15 @@ export default interface Resources {
         "readyKeywordOnly": "Ready (keyword only)",
         "remove": "Remove from composer"
       },
+      "images": {
+        "modelUnsupported": "This model can't see images. Choose a model that accepts images to attach them.",
+        "noImagesNote": "This model can't see images. Remove them, or choose a model that accepts images.",
+        "rejected": "Image not added",
+        "tooLarge": "{{name}} is larger than {{size}}. Choose a smaller image.",
+        "tooMany_one": "A message can carry up to {{count}} image.",
+        "tooMany_other": "A message can carry up to {{count}} images.",
+        "unsupportedFormat": "{{name}} is in a format Animama can't read. Convert it to JPEG or PNG and try again."
+      },
       "model": {
         "back": "Back to model and reasoning",
         "choose": "Choose a model",
@@ -4104,6 +4113,7 @@ export default interface Resources {
       "filteredCount": "{{shown}} of {{total}}",
       "genericKind": "FILE",
       "heading": "Chat Uploads",
+      "imageRefused": "This image can't be used.",
       "keywordOnly": "Only keyword search is available for this file.",
       "live": {
         "empty": "No Chat Uploads yet.",

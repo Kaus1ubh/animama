@@ -41,6 +41,7 @@ let root: Root | null = null;
 let container: HTMLDivElement | null = null;
 let hold: ChatAttachmentHold = "none";
 let attached: string[] = [];
+let submitted: string[][] = [];
 let recorded: RecordedRequest[] = [];
 let view: { session: Session | null } = { session: null };
 
@@ -67,6 +68,7 @@ function mount() {
       effects: textOnlyChatEffects,
       getAttachedFileIds: () => attached,
       getAttachmentHold: () => hold,
+      onAttachmentsSubmitted: (fileIds) => submitted.push(fileIds),
       openDraftChatRoute: () => {},
       replaceChatRoute: () => {},
     });
@@ -165,9 +167,23 @@ async function pressEnter() {
   await settle();
 }
 
+/** Send the typed turn into a new chat and return its pending `chat:sse` request. */
+async function openTurn(): Promise<RecordedRequest> {
+  await pressEnter();
+  await act(async () => {
+    recorded[0].respond(
+      Response.json({ id: "chat-new", anima_id: "anima-1", title: null }),
+    );
+  });
+  return settleUntil(() =>
+    recorded.find(({ path }) => path.endsWith("/chat:sse")),
+  );
+}
+
 beforeEach(() => {
   hold = "none";
   attached = [];
+  submitted = [];
   recorded = [];
   view = mount();
   act(() => session().setInput(QUESTION));
@@ -253,5 +269,58 @@ describe("a send held by its attachments", () => {
     );
 
     expect(turn.body).toMatchObject({ attached_file_ids: ["file-ready"] });
+  });
+
+  it("tells the host which attachments a turn carried once its reply starts", async () => {
+    attached = ["image-1", "file-doc"];
+    const turn = await openTurn();
+    expect(session().input).toBe("");
+    expect(submitted).toEqual([]);
+
+    await act(async () => {
+      turn.respond(
+        new Response('data: {"type": "run_status"}\n\n', {
+          headers: { "Content-Type": "text/event-stream" },
+        }),
+      );
+    });
+    await settleUntil(() => (submitted.length > 0 ? true : undefined));
+
+    expect(submitted).toEqual([["image-1", "file-doc"]]);
+  });
+
+  it("keeps the attachments of a turn the server refuses", async () => {
+    attached = ["image-1"];
+    const turn = await openTurn();
+
+    await act(async () => {
+      turn.respond(
+        Response.json(
+          {
+            detail: {
+              code: "model_does_not_accept_images",
+              message: "This model does not accept images.",
+            },
+          },
+          { status: 400 },
+        ),
+      );
+    });
+    await settleUntil(() =>
+      session().displayMessages.some((message) => message.failure)
+        ? true
+        : undefined,
+    );
+
+    expect(submitted).toEqual([]);
+  });
+
+  it("tells the host nothing for a held turn", async () => {
+    attached = ["image-1"];
+    hold = "waiting";
+    await pressEnter();
+
+    expect(session().input).toBe(QUESTION);
+    expect(submitted).toEqual([]);
   });
 });

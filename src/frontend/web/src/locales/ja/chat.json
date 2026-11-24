@@ -151,6 +151,14 @@
       "stt": "STT: {{stt}}",
       "tts": "TTS: {{tts}}",
       "ttsOff": "オフ"
+    },
+    "images": {
+      "unsupportedFormat": "{{name}} は Animama が読み込めない形式です。JPEG か PNG に変換してからもう一度お試しください。",
+      "tooLarge": "{{name}} は {{size}} を超えています。小さい画像を選んでください。",
+      "tooMany_other": "1 件のメッセージに添付できる画像は {{count}} 枚までです。",
+      "modelUnsupported": "このモデルは画像を見られません。画像を添付するには、画像に対応したモデルを選んでください。",
+      "noImagesNote": "このモデルは画像を見られません。画像を外すか、画像に対応したモデルを選んでください。",
+      "rejected": "画像を追加できませんでした"
     }
   },
   "header": {

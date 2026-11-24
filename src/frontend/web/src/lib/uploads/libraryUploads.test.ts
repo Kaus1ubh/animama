@@ -172,5 +172,24 @@ describe("Library Chat Uploads", () => {
         ).error,
       ).toBe(detail(t("uploads.processingFailed")));
     });
+
+    it("words a refused image as refused, not as failed processing", async () => {
+      await getI18n().changeLanguage("ja");
+      const t = getI18n().getFixedT(null, "library");
+      expect(
+        presentLibraryUpload(
+          upload({
+            status: "failed",
+            last_error: "This image has too many pixels.",
+            metadata: { kind: "image" },
+          }),
+        ).error,
+      ).toBe(
+        getI18n().t("errors:generic.withDetail", {
+          message: t("uploads.imageRefused"),
+          detail: "This image has too many pixels.",
+        }),
+      );
+    });
   });
 });

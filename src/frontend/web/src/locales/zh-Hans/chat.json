@@ -151,6 +151,14 @@
       "stt": "STT：{{stt}}",
       "tts": "TTS：{{tts}}",
       "ttsOff": "关闭"
+    },
+    "images": {
+      "unsupportedFormat": "Animama 无法读取 {{name}} 的格式。请将其转换为 JPEG 或 PNG 后重试。",
+      "tooLarge": "{{name}} 超过 {{size}}。请选择较小的图片。",
+      "tooMany_other": "一条消息最多可附带 {{count}} 张图片。",
+      "modelUnsupported": "此模型无法查看图片。要附加图片，请选择支持图片的模型。",
+      "noImagesNote": "此模型无法查看图片。请移除图片，或选择支持图片的模型。",
+      "rejected": "未添加图片"
     }
   },
   "header": {
