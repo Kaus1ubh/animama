@@ -245,7 +245,8 @@ and the backend.
 - [x] Phase 7: roles, agreement and limits (2026-11-24). Code Review #2
   passed; three optional points are made with Phase 8; the manual check
   waits for G1.
-- [ ] Phase 8: documentation and records.
+- [x] Phase 8: documentation and records (2026-11-24); its review is the
+  final integration review's.
 - [ ] Final integration review, G1 to G4, pull request.
 
 ## Surprises & Discoveries
@@ -2006,6 +2007,28 @@ Review tier: light; the final integration review covers it.
 
 Check: the documentation links resolve;
 `python3 scripts/public-release/check_source.py`.
+
+As built (2026-11-24, from `a4c169151`): ADR 0038 and its index row; the
+glossary's Model connection entry and new ChatGPT plan connection and
+Account-listed models entries; and every document on the list except
+`docs/frontend/desktop/releases.md` and
+`docs/frontend/architecture/auth-server.md`, which were already accurate.
+`docs/frontend/runtime/chat.md` changed in Phase 6. Documents the list did
+not name but the feature left misleading were corrected too: the crisis
+protocol in all five languages (models used through a ChatGPT plan get no
+moderation check), `docs/frontend/features/anima-memory.md`,
+`docs/backend/features/memory.md`, `docs/backend/runtime/prompt-caching.md`,
+`docs/backend/runtime/adding-ai-models.md`,
+`docs/frontend/architecture/data-layer.md` and
+`docs/frontend/desktop/installation.md`. The README's "AI Models (BYOK)"
+section names only keys; it is product copy, left for the owner. Before this
+phase, `a4c169151` made Code Review #2's three optional Phase 7 points.
+
+Check record: every relative link added in the documentation diff resolves to
+an existing file and heading (a script over `git diff HEAD`);
+`python3 scripts/public-release/check_source.py` covers every tracked file
+once. No code changed in this phase. Review: covered by the final
+integration review.
 
 ## Final integration review
 

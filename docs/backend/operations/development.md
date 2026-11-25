@@ -302,6 +302,27 @@ After rebuilding, ordinary navigation loads current HTML/fingerprints. An old
 tab that requests a removed chunk gets a real 404 and an explicit **Reload
 page** recovery action; save work first. No purge or cache deletion is required.
 
+### ChatGPT plan session
+
+Signing in with a ChatGPT plan
+([ADR 0038](../../adr/0038-chatgpt-plan-sign-in-and-connection.md)) keeps the
+session in the private data root at `internal/chatgpt-plan/`: an owner-only
+directory (mode 0700) holding one file (mode 0600) that is replaced atomically
+and never followed through a link. A self-hosted stack writes `session.json`;
+desktop writes `session.bin`, AES-256-GCM ciphertext under a key held in its
+vault ([desktop operations](desktop-runtime.md#roots-secrets-and-private-bytes)).
+Tokens never enter the database. A file that cannot be read or decrypted
+counts as signed out and is removed. Deleting the directory signs the
+installation out at the next start; a running server keeps the session it
+already read.
+
+Sign-in is offered only when `ANIMAMA_PUBLIC_ORIGIN` is a loopback `http`
+origin: `localhost`, `127.0.0.1` or a `*.localhost` name such as a named
+stack's `animama-<name>.localhost`. OpenAI sends the browser back to
+`http://127.0.0.1:<port>/auth/callback`, so sign in from a browser on the
+machine that runs the stack. Elsewhere the app explains why instead of
+starting.
+
 ### Backup and restore
 
 Back up PostgreSQL, `content/local`, and `data` as one consistency unit:
@@ -316,7 +337,8 @@ application services while PostgreSQL stays available, creates a custom-format
 database dump plus Local/data archives and SHA-256 inventory, then restarts only
 the services it stopped. The default output is the ignored `backups/`
 directory. Included content, browser/HTTP caches, model caches, downloaded
-model assets and environment secrets are intentionally excluded. An in-place
+model assets, environment secrets and the
+[ChatGPT plan session](#chatgpt-plan-session) are intentionally excluded. An in-place
 restore keeps the installed model assets; once downloads have ended, a backup
 restored on another host has no offline speech recognition or downloadable
 voices. The
@@ -347,7 +369,9 @@ principal validation, or rescan fails after replacement begins, application
 services remain stopped and the rollback bundle is reported. Use an application
 version compatible with the dump and matching Included files. Copy deployment
 secrets separately through a secret manager; a backup intentionally does not
-contain `.env` or API keys.
+contain `.env` or API keys. Restore never extracts a ChatGPT plan session and
+its rollback bundle holds none, so the restored installation is signed out of
+its ChatGPT plan; sign in again in App Settings → Models.
 
 Browser memory and ordinary HTTP caches are disposable. Clearing them only
 causes the next preview/remount to fetch from FastAPI again.

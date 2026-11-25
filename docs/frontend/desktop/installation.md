@@ -73,8 +73,8 @@ existing Animas or restore a deliberately deleted starter.
 
 ## Provider keys and speech
 
-Setup asks for the OpenAI or Anthropic key in its AI step and the ElevenLabs
-key in its Voice step. After setup, the OpenAI and Anthropic keys are on their
+Setup asks for the OpenAI or Anthropic key, or offers signing in with a ChatGPT
+plan, in its AI step, and asks for the ElevenLabs key in its Voice step. After setup, the OpenAI and Anthropic keys are on their
 cards in App Settings → Models, and the ElevenLabs key is in App Settings →
 Voice. The Gemini key for [Gemini voices](../runtime/gemini-tts.md), which setup
 does not ask for, is in App Settings → Voice when Gemini is chosen. All four are
