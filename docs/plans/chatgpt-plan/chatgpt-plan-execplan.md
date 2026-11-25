@@ -2055,8 +2055,12 @@ moderation check), `docs/frontend/features/anima-memory.md`,
 `docs/backend/runtime/adding-ai-models.md`,
 `docs/frontend/architecture/data-layer.md` and
 `docs/frontend/desktop/installation.md`. The README's "AI Models (BYOK)"
-section names only keys; it is product copy, left for the owner. Before this
-phase, `a4c169151` made Code Review #2's three optional Phase 7 points.
+section named only keys; it is product copy, left for the owner, who chose
+its new layout on 2026-11-25 (one Chat table with a "Connect with" column,
+OpenAI's Help Center article on plan use linked, a note that the current
+installers predate the sign-in, and the same in the ja, ko and zh-Hans
+READMEs). Before this phase, `a4c169151` made Code Review #2's three optional
+Phase 7 points.
 
 Check record: every relative link added in the documentation diff resolves to
 an existing file and heading (a script over `git diff HEAD`);
