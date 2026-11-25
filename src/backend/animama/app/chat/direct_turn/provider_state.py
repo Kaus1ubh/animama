@@ -186,8 +186,9 @@ def reasoning_effort_blocks_function_tools(model_provider: ModelProvider, effort
     """Return whether the requested effort keeps this turn from sending function tools.
 
     OpenAI Chat Completions accepts function tools on GPT-5.4 and later only
-    at effort ``none``. A turn that names no effort is not blocked: the
-    request then sends ``none`` with its tools.
+    at effort ``none``. A turn that names no effort is not blocked: on
+    connections that send OpenAI efforts, the request then sends ``none``
+    with its tools.
     """
 
     requested = effort.strip() if isinstance(effort, str) else ""

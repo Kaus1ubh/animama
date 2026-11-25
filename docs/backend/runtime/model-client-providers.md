@@ -812,7 +812,9 @@ fails with HTTP 400. On these Chat Completions rows:
   the stream opens; application web search is left out instead
   (`reasoning_with_function_tools`);
 - a request that carries function tools and names no effort sends `none`, on
-  connections whose `reasoning_mode` is `openai_effort`;
+  connections whose `reasoning_mode` is `openai_effort`. Rounds of the same
+  turn without tools (a separate structured-reply round or a forced final)
+  still name no effort and get the model's default;
 - the [Memory Manager](../features/memory-manager-and-episodic-memory.md#live-openai-agents-runtime)
   and the connection probe's tool step send `none`.
 

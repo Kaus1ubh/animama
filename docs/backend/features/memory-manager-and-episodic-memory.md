@@ -506,7 +506,8 @@ interruptions. The patch tool and continuity depend on the row's API:
   replays the run's stored user and assistant messages. Every request carries
   function tools, so on OpenAI GPT-5.4 and later (such as `gpt-6-luna`), which
   accept them on Chat Completions only at effort `none`, the manager sends
-  `reasoning_effort: "none"`. Other models keep their server's default effort.
+  `reasoning_effort: "none"` on connections whose `reasoning_mode` is
+  `openai_effort`. Other models keep their server's default effort.
 - ChatGPT plan rows use `OpenAIResponsesModel` in
   [plan mode](#chatgpt-plan-mode): the same `apply_patch` function tool, and a
   replay of the run's stored messages each turn, because the plan stores

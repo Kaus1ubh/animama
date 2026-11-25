@@ -188,6 +188,6 @@ async def test_the_probe_sends_no_effort_for_other_models(sdk_transport):  # noq
     server = _Server()
     sdk_transport(server)
 
-    await _probe(server).probe_chat_model(_openai_connection(), model="qwen3:8b")
+    await _probe(server).probe_chat_model(_openai_connection(), model="gpt-5-nano")
 
     assert all("reasoning_effort" not in body for _method, _path, body in server.requests if body)

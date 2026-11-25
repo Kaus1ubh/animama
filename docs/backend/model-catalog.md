@@ -371,8 +371,8 @@ owner, that offers it; the Anthropic adapter applies the same constant to chat
 requests that carry no effort. OpenAI rows report none, so for both
 `gpt-6-luna` rows, whose list starts with `none`, the picker sends `none`
 rather than OpenAI's omitted-field default of `medium`. On the Chat Completions
-row `none` is also the only effort that keeps memory tools and web search, which
-OpenAI accepts there only at `none`
+row `none` is also the only effort that allows memory tools and web search,
+which OpenAI accepts there only at `none`
 ([function tools and reasoning](runtime/model-client-providers.md#provider-behavior)).
 
 All four provider types honor request-scoped
