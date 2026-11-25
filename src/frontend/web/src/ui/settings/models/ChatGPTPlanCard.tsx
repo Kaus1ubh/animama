@@ -35,7 +35,7 @@ import { Switch } from "@/ui/components/switch";
  * then show the account, plan use, **Manage usage**, the background choice
  * and sign-out. Shared by App Settings → Models and setup's AI step.
  *
- * The authorization URL carries the attempt's state, so it is held in memory
+ * OpenAI's sign-in URL carries the attempt's state, so it is held in memory
  * only, by this card while the sign-in waits and by nothing once it ends
  * (the begin mutation keeps no result): opened once, offered again while
  * waiting, never logged.

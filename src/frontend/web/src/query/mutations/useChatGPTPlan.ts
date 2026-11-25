@@ -29,8 +29,8 @@ function useKeys() {
 }
 
 /**
- * Start a sign-in and return the authorization URL the caller opens in the
- * browser. The URL carries the attempt's state, so it is kept only in the
+ * Start a sign-in and return OpenAI's sign-in URL, which the caller opens in
+ * the browser. The URL carries the attempt's state, so it is kept only in the
  * caller's memory and never logged.
  */
 export function useBeginChatGPTPlanSignIn() {
@@ -52,7 +52,7 @@ export function useBeginChatGPTPlanSignIn() {
       return data.authorize_url;
     },
     onSettled: () => queryClient.invalidateQueries({ queryKey: keys.status }),
-    // The result is the authorization URL: keep no copy in the mutation cache.
+    // The result is the sign-in URL: keep no copy in the mutation cache.
     gcTime: 0,
   });
 }
