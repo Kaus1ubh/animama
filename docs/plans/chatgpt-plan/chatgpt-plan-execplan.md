@@ -2169,6 +2169,27 @@ to the agent entry.
   owner to confirm; the As built note on `model-catalog.ts` points to
   P9-R1-F1.
 
+Correction (2026-11-25): the repair record's `pnpm check` did not pass. Its
+catalog sync would have removed `picker.apiKey` and `providers.chatgptPlan`,
+because the F1 repair called them as `getFixedT(...)("key")`, which the
+extractor does not see; a filtered log hid the failure. Both now go through a
+`t` variable, and every check below is judged by its exit code.
+
+Merge with `main` after #921 (first-run usability fixes, `db603bcfe`), as
+`edad21ce0`: the setup step's imports and two new setup tests conflicted, and
+both sides were kept (the plan's model choice beside #921's readiness check,
+which counts a signed-in plan model as able to reply). The old key-saved
+hook's type import went with the hook this branch replaced. Versions stay
+`local-http` 25.0.0, `runtime-contracts` 0.25.0 and `product-ui` 0.22.0, one
+step above `main`.
+
+Check record after the merge and the extractor fix (from `src/frontend`, exit
+codes): `pnpm check` 0; `pnpm web:lint` 0; from `web`, `pnpm prettier:check`
+0 and `pnpm exec vitest run` on `src/routes/-setup.test.ts`,
+`src/app/local-runtime/setup`, `src/ui/settings/models`, `src/lib/chat`,
+`src/ui/components` and `src/ui/main/chat` 0 (49 files, 468 passed);
+`check_source.py` 0.
+
 ## Final integration review
 
 One review of the combined change against the spec's acceptance criteria,

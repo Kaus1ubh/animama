@@ -22,8 +22,10 @@ type LabeledModel = Pick<
  * ChatGPT plan's connection is named in the UI Locale, as App Settings does.
  */
 export function modelConnectionLabel(item: LabeledModel): string {
-  if (item.model_provider === CHATGPT_PLAN_PROVIDER_TYPE)
-    return getI18n().getFixedT(null, "models")("providers.chatgptPlan");
+  if (item.model_provider === CHATGPT_PLAN_PROVIDER_TYPE) {
+    const t = getI18n().getFixedT(null, "models");
+    return t("providers.chatgptPlan");
+  }
   return (
     item.connection_name?.trim() ||
     item.provider_label?.trim() ||
@@ -113,9 +115,11 @@ export function modelOptionDetail(
   item: LabeledModel,
   splitOpenAI = false,
 ): string {
-  const access = splitOpenAI ? openaiModelAccess(item) : null;
-  if (access === "key")
-    return getI18n().getFixedT(null, "models")("picker.apiKey");
+  if (splitOpenAI && openaiModelAccess(item) === "key") {
+    // Called through `t` so the catalog extractor finds the key.
+    const t = getI18n().getFixedT(null, "models");
+    return t("picker.apiKey");
+  }
   return modelConnectionLabel(item);
 }
 
