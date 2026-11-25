@@ -2441,4 +2441,32 @@ Each spec acceptance criterion and the evidence planned for it:
 
 ## Outcomes & Retrospective
 
-To be recorded.
+### Final state
+
+Pull request #924 delivers Phases 0 to 8 combined with chat image input
+(#923). Code was last changed in `7c715bd9a` (tree `daca88769`); later commits
+change only this plan's records. Its check record, from the worktree root
+through the heavy slot:
+
+| Command | Result |
+| --- | --- |
+| `make check-test` | 6024 passed, 30 skipped |
+| The new in-stream test with the plan hook made a no-op (scratch plugin) | 3 failed, as intended |
+| Every relative link and anchor added to Markdown since `c7b98f73a` | All resolve |
+
+`7c715bd9a` changes only a backend test, one documentation sentence and these
+records after `c5789c3de`, so that commit's frontend, browser, journey and
+package-set results above stand for it.
+
+Owner checks still open: G1 (with the image turn), G2 and G4, and approval of
+the exact candidate before merging.
+
+### Retrospective
+
+- Targeted per-phase test runs never reached the repository boundary tests;
+  the first full suite found two violations. A plan that adds browser code or
+  credential tests should run `tests/test_accountless_repository_boundaries.py`
+  with each phase.
+- Two plans in flight at once both took ADR 0038 and the same contract and
+  package versions. The Contracts note anticipated the versions; ADR numbers
+  need the same rule: whichever merges second renumbers.
