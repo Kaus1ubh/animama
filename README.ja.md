@@ -132,7 +132,7 @@ pnpm desktop:runtime:audit -- --platform win32 --arch x64
 pnpm desktop:win:installer
 ```
 
-インストーラーは `src/frontend/desktop/release/` に出力されます。
+インストーラーは `src/frontend/desktop/release/` に出力されます。Windows 10 22H2 と Windows 11 にインストールできます。
 
 </details>
 

@@ -110,9 +110,10 @@ through the current app.
 [ADR 0038](../../adr/0038-windows-update-feed-minimum-is-frozen.md) records
 the decision and its limits.
 
-The first Windows release built from this source also updates the README
-download row and the installation page's current-release text. Until then
-both describe 0.1.6, which requires Windows 11.
+The first Windows release after 0.1.6 also updates the Windows download row in
+`README.md`, `README.ja.md`, `README.ko.md` and `README.zh-Hans.md`, and the
+installation page's current-release text. Until then they describe 0.1.6,
+which requires Windows 11.
 
 ## Distribution selection
 

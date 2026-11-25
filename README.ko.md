@@ -164,7 +164,8 @@ pnpm desktop:runtime:audit -- --platform win32 --arch x64
 pnpm desktop:win:installer
 ```
 
-설치 파일은 `src/frontend/desktop/release/`에 만들어집니다.
+설치 파일은 `src/frontend/desktop/release/`에 만들어집니다. Windows 10 22H2와
+Windows 11에 설치할 수 있습니다.
 
 </details>
 
