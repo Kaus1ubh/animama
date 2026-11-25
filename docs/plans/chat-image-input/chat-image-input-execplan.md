@@ -149,7 +149,8 @@ canonical copy of at most 3.5 MiB (under 5 MB as base64). One estimate,
   final integration review).
 - [x] Final integration review (three rounds, pass) and the full pre-push
   suite (G3, passed).
-- [x] Pull request #923.
+- [x] Pull request #923; the OpenAI mid-stream error fix joined it at the
+  owner's request, and the full suite passed again on `2fad4050b`.
 - [ ] G1 for the OpenAI families (Anthropic passed; the OpenAI account has no
   credit) and G2 (owner).
 
@@ -1770,7 +1771,18 @@ Check record (root, tree `dc0d11dd3e7e`, before this record): `pytest -q -n 2` o
 the four test files, 333 passed; `ruff check`, `ruff format --check`
 (913 files) and `mypy src/backend/animama tests` (913 files) exit 0.
 
-The full pre-push suite has not been rerun since this change.
+Full pre-push suite rerun on `2fad4050b` (clean; the owner agreed), each
+through `scripts/heavy-slot.py`:
+
+| Command | Result |
+| --- | --- |
+| `make check-test` (root) | exit 0: audit, ruff, mypy (913 files), pytest 5731 passed, 30 skipped |
+| `pnpm verify && pnpm prettier:check` (`src/frontend`) | exit 0: `pnpm web:test` 6454 passed, 2 skipped |
+| `pnpm web:test:browser` (`src/frontend`), run alone | 139 of 140 passed; `animation-reel.browser.test.mjs` ("records the take after a failed one") mismatched one frame capture, then passed alone twice (3 of 3 each); no frontend file changed since the first suite run |
+| `pnpm e2e:test:fast` on a disposable built stack | 39 of 40 passed; `accountless-creator-discard-local.spec.ts` timed out waiting for the Gesture name field, then passed alone on the same stack (3 of 3); the stack and its volume were removed |
+
+Both single failures are in areas this change does not touch, and each
+passed on its own rerun.
 
 ## Validation and acceptance
 
