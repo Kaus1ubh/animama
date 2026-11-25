@@ -249,7 +249,9 @@ and the backend.
   final integration review's.
 - [x] Final integration review (2026-11-24): Review #1 blocked on FI-R1-F1
   to F3, Review #2 on FI-R2-F1; Review #3 passed after repair round 2.
-- [ ] G1 to G4, pull request.
+- [x] G3: the full pre-push suite (2026-11-24), recorded under "Full
+  pre-push suite (G3)".
+- [ ] Pull request; G1, G2 and G4 with the owner.
 
 ## Surprises & Discoveries
 
@@ -2212,6 +2214,53 @@ Result: pass.
 - **FI-R3-F1: accepted.** The docstring gives only the trial's reason. A
   wording change in a docstring, verified by the coordinator with
   `ruff check` and `ruff format --check` on the file.
+
+### Full pre-push suite (G3)
+
+The owner agreed to the run on 2026-11-24. Heavy jobs ran through the heavy
+slot from the worktree; the venv was synced first with the pinned Python and
+extras.
+
+First run, on `ef38cd701` (tree `0aa8ebdc224d`):
+
+| Command | Result |
+| --- | --- |
+| `make check-test` | 5875 passed, 30 skipped, 2 failed: both repository boundary tests (below) |
+| From `src/frontend`: `pnpm verify` | Passed |
+| `pnpm web:test:browser` | 139 of 140; the animation combination page measured 1.166× real time against a 1.15 limit |
+| `pnpm prettier:check`, `pnpm desktop:test` | Passed |
+| `ANIMAMA_LLM_SKIP=1 ANIMAMA_WEB_BUILD_MODE=production ./reset.sh --purge --name chatgpt-plan --base-port 9100`, then `pnpm e2e:test:fast` | 38 passed, 2 failed: "avatar creator discard new draft before Library Edit" (the Library Edit stall) and "vfx guides preserve authored JSON with replacement artwork and animation" (no playback observation within 10 s) |
+| `scripts/package-sets/build.py build` of `c7b98f73a` (from the primary checkout, which was on it) and of `ef38cd701`, then `build.py compare` | "Compatibility policy passed" |
+
+The boundary tests caught what no phase's targeted runs covered: three
+browser comments called OpenAI's page the "authorization URL", and the plan's
+model and Memory Manager tests assert the bearer token each request to OpenAI
+carries. `0f90c6d9b` rewords the comments and adds the three test files to
+the guard's exemption for upstream credential tests, with its reason. The
+coordinator checked each of the ten flagged test lines: every one asserts a
+request to OpenAI's mocked route or an error body from it, and none calls a
+local route.
+
+Rerun, on `0f90c6d9b` (tree `1945d6b20d1e`):
+
+| Command | Result |
+| --- | --- |
+| `make check-test` | 5877 passed, 30 skipped |
+| `pnpm verify`, `pnpm prettier:check`, `pnpm desktop:test` | Passed |
+| The two failed journeys alone (`pnpm e2e:test -- --project chromium --grep …`) on the same built stack | 4 passed. The stack was built from `ef38cd701`; `0f90c6d9b` changes only comments in web code and a backend test |
+| `pnpm web:test:browser` in the worktree, twice | 139 of 140 each time: the same combination check, 1.157× and 1.166× |
+| `pnpm web:test:browser` on a `git archive` export of `0f90c6d9b` with the worktree's `node_modules` linked | 140 of 140 |
+| The same on an export of `c7b98f73a` | 140 of 140 |
+
+The combination page check is not this change: the branch touches none of
+the page's code, the test passed every time alone in the worktree (directly,
+through `pnpm`, after a fresh package build and as a background job), both
+exports passed it in a run of that file alone, and the exact candidate
+passed the whole browser suite once exported. It fails only in this
+worktree's full run, which points at local state in the checkout. The
+package-set compare stands for `0f90c6d9b`, which changes no package source.
+The task stack was stopped afterwards with its volumes kept; they hold only
+test data.
 
 Gates:
 
