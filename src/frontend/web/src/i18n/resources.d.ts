@@ -1058,6 +1058,7 @@ export default interface Resources {
       "cloning": {
         "change": "Change sample",
         "checking": "Checking voice cloning…",
+        "chooseHint": "Each Anima chooses its own voice under Voices on its page.",
         "clone": "Clone voice",
         "cloningVoice": "Cloning voice…",
         "delete": {
@@ -1103,7 +1104,10 @@ export default interface Resources {
         "savingVoice": "Saving voice…",
         "sectionLabel": "Voice cloning",
         "title": "Voice Cloning",
-        "upload": "Upload voice sample"
+        "upload": "Upload voice sample",
+        "useFor": "Use for {{anima}}",
+        "usedBy": "{{anima}}'s voice",
+        "usedFor": "{{voice}} is now {{anima}}'s voice. It applies the next time you open the chat."
       },
       "elevenLabs": {
         "idLabel": "Voice ID",
@@ -1560,6 +1564,7 @@ export default interface Resources {
         "empty": "No models found.",
         "fallbackLabel": "Model",
         "features": "Chat features",
+        "keyMissing": "{{model}} has no API key",
         "needsWindow": "Set its context window in App Settings → Models",
         "noFeatures": "No optional features for this model.",
         "noProfile": "No chat profile",
@@ -1594,11 +1599,21 @@ export default interface Resources {
         "unavailableShort": "Model unavailable",
         "webSearch": "Web search"
       },
+      "modelKey": {
+        "choose": "Choose a model",
+        "notice": "{{anima}} uses {{model}}, but {{provider}} has no API key yet.",
+        "settings": "Model settings",
+        "use": "Use {{model}}"
+      },
       "speechEngines": {
         "offline": "{{engine}} {{variant}}",
         "stt": "STT: {{stt}}",
         "tts": "TTS: {{tts}}",
         "ttsOff": "Off"
+      },
+      "speechSetup": {
+        "detail": "Speech recognition needs a model. Select to open App Settings → Voice.",
+        "title": "Set up speech recognition"
       }
     },
     "header": {
@@ -6668,6 +6683,12 @@ export default interface Resources {
         "searching": "Searching…",
         "setUpLater": "Set up later"
       },
+      "noModelPrompt": {
+        "continue": "Continue without a model",
+        "description": "No model is ready to reply yet, so your Animas can't chat. Connect a provider and add a model here, or add one later in App Settings → Models.",
+        "stay": "Keep setting up",
+        "title": "Continue without a chat model?"
+      },
       "providedModels": "This installation provides its own models, so there is nothing to choose here.",
       "providerTabs": "{{location}} providers",
       "purpose": "Pick the model your Animas chat with."
@@ -6830,6 +6851,7 @@ export default interface Resources {
       "account": "Account",
       "accountUnavailable": "Account access is unavailable.",
       "appSettings": "App Settings",
+      "checkForUpdates": "Check for updates…",
       "fallbackName": "You",
       "signOut": "Sign out",
       "usage": "Usage and limits"

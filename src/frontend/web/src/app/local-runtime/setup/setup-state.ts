@@ -30,6 +30,7 @@ import type { OfflineSttEngine } from "@/lib/speech/offline-stt/routing";
 import { recommendedSttChoice } from "@/lib/speech/stt-choices";
 import {
   connectionLocation,
+  modelKeyMissing,
   roleCandidates,
 } from "@/ui/settings/models/model-configuration-state";
 
@@ -224,6 +225,25 @@ export function ownerModelChoices(
     label: modelDisplayName(item, alternates.has(item.id)),
     connectionName: byId.get(item.connection_id ?? "")?.name ?? "",
   }));
+}
+
+/**
+ * Whether the model Animas chat with after setup can reply: `modelId` (the
+ * model chosen in this setup, else the system default) is on a connection
+ * whose key is set or that needs none. No model at all cannot reply; a model
+ * the lists do not describe is not reported, so setup warns only about what
+ * it knows.
+ */
+export function setupChatModelReady(
+  items: readonly PyModelProviderCatalogItem[],
+  connections: readonly PyModelConnection[],
+  modelId: string | null | undefined,
+): boolean {
+  if (!modelId) return false;
+  return !modelKeyMissing(
+    items.find((item) => item.id === modelId),
+    connections,
+  );
 }
 
 /**

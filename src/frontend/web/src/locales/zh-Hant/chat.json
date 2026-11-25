@@ -116,6 +116,7 @@
       "empty": "找不到模型。",
       "fallbackLabel": "模型",
       "features": "聊天功能",
+      "keyMissing": "{{model}} 沒有 API 金鑰",
       "needsWindow": "請在「應用程式設定 → 模型」中設定其上下文視窗",
       "noFeatures": "此模型沒有可選功能。",
       "noProfile": "沒有聊天設定檔",
@@ -150,11 +151,21 @@
       "unavailableShort": "模型無法使用",
       "webSearch": "網路搜尋"
     },
+    "modelKey": {
+      "choose": "選擇模型",
+      "notice": "{{anima}} 使用 {{model}}，但 {{provider}} 還沒有 API 金鑰。",
+      "settings": "模型設定",
+      "use": "使用 {{model}}"
+    },
     "speechEngines": {
       "offline": "{{engine}} {{variant}}",
       "stt": "STT：{{stt}}",
       "tts": "TTS：{{tts}}",
       "ttsOff": "關閉"
+    },
+    "speechSetup": {
+      "detail": "語音辨識需要模型。選取後會開啟應用程式設定 → 語音。",
+      "title": "設定語音辨識"
     },
     "images": {
       "unsupportedFormat": "Animama 無法讀取 {{name}} 的格式。請將其轉換為 JPEG 或 PNG 後再試一次。",

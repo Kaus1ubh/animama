@@ -27,6 +27,7 @@ import {
   modelConfigurationErrorCode,
   modelConfigurationErrorMessage,
   modelInUseUsage,
+  modelKeyMissing,
   modelLocationLabel,
   modelProviderLabel,
   modelProviderPurpose,
@@ -35,6 +36,7 @@ import {
   ownerModelRules,
   removalConsequences,
   removalUsageSummary,
+  replacementChatModel,
   roleCandidates,
   draftAfterProbe,
   visibleModelLocations,
@@ -242,6 +244,62 @@ describe("model pickers", () => {
         provider_label: null,
       }),
     ).toBe("qwen3:8b");
+  });
+});
+
+describe("models whose connection has no key", () => {
+  const connections = [
+    { id: "openai", credential_state: "missing" },
+    { id: "openrouter", credential_state: "configured" },
+    { id: "ollama", credential_state: "not_required" },
+  ] as const;
+  const stuck = row("gpt", { connection_id: "openai", source: "builtin" });
+  const routed = row("routed", { connection_id: "openrouter" });
+  const local = row("local", { connection_id: "ollama" });
+
+  it("reports a model only when its own connection is missing a key", () => {
+    expect(modelKeyMissing(stuck, connections)).toBe(true);
+    expect(modelKeyMissing(routed, connections)).toBe(false);
+    expect(modelKeyMissing(local, connections)).toBe(false);
+    // Nothing is reported from lists that do not name the connection.
+    expect(modelKeyMissing(row("loose"), connections)).toBe(false);
+    expect(modelKeyMissing(stuck, [])).toBe(false);
+    expect(modelKeyMissing(null, connections)).toBe(false);
+  });
+
+  it("offers the Chat default when it can reply", () => {
+    expect(
+      replacementChatModel([stuck, routed, local], connections, "local")?.id,
+    ).toBe("local");
+  });
+
+  it("offers the only model that can reply when the Chat default cannot", () => {
+    expect(replacementChatModel([stuck, routed], connections, "gpt")?.id).toBe(
+      "routed",
+    );
+    // Models the Chat default cannot be (hidden, or no context window) do not count.
+    expect(
+      replacementChatModel(
+        [
+          stuck,
+          routed,
+          row("hidden", { connection_id: "ollama", hidden: true }),
+          row("no-window", {
+            connection_id: "ollama",
+            context_window_tokens: null,
+          }),
+        ],
+        connections,
+        null,
+      )?.id,
+    ).toBe("routed");
+  });
+
+  it("offers nothing when the owner must choose between models, or has none", () => {
+    expect(
+      replacementChatModel([stuck, routed, local], connections, "gpt"),
+    ).toBeNull();
+    expect(replacementChatModel([stuck], connections, "gpt")).toBeNull();
   });
 });
 

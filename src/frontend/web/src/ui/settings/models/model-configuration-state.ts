@@ -72,6 +72,45 @@ export function roleCandidates(
   });
 }
 
+/** What `modelKeyMissing` reads from a connection. */
+type ConnectionKeyState = Pick<PyModelConnection, "id" | "credential_state">;
+
+/**
+ * Whether a model cannot reply because its connection needs a key and has
+ * none. A model whose connection is not in `connections` is not reported, so
+ * nothing is claimed from lists that are still loading or do not name it.
+ */
+export function modelKeyMissing(
+  item: Pick<PyModelProviderCatalogItem, "connection_id"> | null | undefined,
+  connections: readonly ConnectionKeyState[],
+): boolean {
+  if (!item?.connection_id) return false;
+  return (
+    connections.find((connection) => connection.id === item.connection_id)
+      ?.credential_state === "missing"
+  );
+}
+
+/**
+ * The model to offer an Anima whose own model has no key: the Chat default
+ * (`chatDefaultId`, the model the Chat role resolves to) when it can reply,
+ * else the only Chat-capable model that can. Null when no model can reply or
+ * the owner has several to choose between.
+ */
+export function replacementChatModel(
+  items: readonly PyModelProviderCatalogItem[],
+  connections: readonly ConnectionKeyState[],
+  chatDefaultId: string | null | undefined,
+): PyModelProviderCatalogItem | null {
+  const able = roleCandidates(items, "chat").filter(
+    (item) => !modelKeyMissing(item, connections),
+  );
+  return (
+    able.find((item) => item.id === chatDefaultId) ??
+    (able.length === 1 ? able[0] : null)
+  );
+}
+
 /** Where a connection's models run: a cloud service or a server on this computer or network. */
 export type ModelLocation = "cloud" | "local";
 
