@@ -75,9 +75,9 @@ Windows 10 install cannot rely on electron-updater's default check.
       because step 5 failed. With G1 accepted, the Windows 10 claims stand.
 - [ ] Final integration review and the single full pre-push run. Review #1
       on `cbfbee6e`: no code finding; record and wording findings repaired in
-      round 1 (below). The full pre-push suite is owed on the final
-      candidate, after the next merge of `main`, which must also renumber this
-      branch's ADR 0038.
+      round 1 (below). `main` at `8fda2eed2` was merged afterwards and this
+      branch's ADR renumbered to 0040 (see Surprises). The full pre-push
+      suite is owed on that merged candidate.
 
 ## Surprises & Discoveries
 
@@ -148,6 +148,13 @@ Windows 10 install cannot rely on electron-updater's default check.
   model scripts report this as a connectivity failure
   (`scripts/models/parakeet.py`), so the source build stopped before staging.
   The long-used build host did not show it.
+- 2026-11-25, merge of `main` at `8fda2eed2`. `main` recorded ADR 0038 (chat
+  images) and ADR 0039 (ChatGPT plan sign-in) first, so this plan's ADR is
+  now 0040 (`docs/adr/0040-windows-update-feed-minimum-is-frozen.md`); its
+  title, link, index row and licence entry moved with it. The merge
+  conflicted only in `docs/adr/README.md` and `licenses/source-review.json`,
+  and each kept both sides. Earlier records in this plan that say
+  "ADR 0038" mean that ADR.
 
 ## Decision Log
 
@@ -630,7 +637,7 @@ leaving out `docs/plans` and earlier ADRs, which are history:
 | `README.md`, Windows build prerequisites | Build host | Kept, because Phase 2 step 5 failed (#928); added that the built installer installs on Windows 10 22H2 and Windows 11 |
 | `README.ja.md`, `README.ko.md`, `README.zh-Hans.md`, download table row | Published 0.1.6 | Kept (P4); RG1 updates them with `README.md` |
 | `README.ja.md`, `README.ko.md`, `README.zh-Hans.md`, Windows build prerequisites | Build host | Kept; the same added sentence as `README.md` |
-| `docs/adr/0038-windows-update-feed-minimum-is-frozen.md` | Decision record | 22000 is the frozen feed value; kept |
+| `docs/adr/0040-windows-update-feed-minimum-is-frozen.md` | Decision record | 22000 is the frozen feed value; kept |
 | `docs/backend/operations/desktop-runtime.md`, opening | Current source | Now "Windows x64" |
 | `installation.md`, supported-target row | Both | States the 0.1.6 requirement and the new one; end-of-support and performance sentences added below the table |
 | `overview.md`, development package targets | Current source | Now Windows 10 22H2 or later |
