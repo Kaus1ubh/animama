@@ -130,7 +130,7 @@ class ModelRoleResolver:
             model_provider=fallback.model_provider,
             source=fallback.source,
             requested_id=requested,
-            assignment_available=requested is None,
+            assignment_available=requested is None and fallback.assignment_available,
         )
 
     async def _default(self, owner_id: str, role: str) -> ResolvedModelRole:
@@ -144,6 +144,12 @@ class ModelRoleResolver:
             chat = await self.resolve(owner_id, ROLE_CHAT)
             if chat.model_provider is not None and suits_role(role, chat.model_provider):
                 return ResolvedModelRole(role=role, model_provider=chat.model_provider, source=ROLE_SOURCE_INHERITED)
+            if chat.model_provider is None and not chat.assignment_available:
+                # The chat role's own choice is unavailable and it has nothing to fall back to (for example a
+                # ChatGPT plan model while signed out), so this role reports that wait rather than "no model".
+                return ResolvedModelRole(
+                    role=role, model_provider=None, source=ROLE_SOURCE_OFF, assignment_available=False
+                )
         return ResolvedModelRole(role=role, model_provider=None, source=ROLE_SOURCE_OFF)
 
     async def _usable_row(self, role: str, model_provider_id: str) -> ModelProvider | None:

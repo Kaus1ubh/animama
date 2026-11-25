@@ -122,6 +122,20 @@ describe("model pickers", () => {
     ).toContain("hidden");
   });
 
+  it("offers a ChatGPT plan model for chat, Utility and the Memory Manager, never Embeddings", () => {
+    const plan = row("ChatGPTPlanResponsesHTTPAgent:gpt-6-luna", {
+      source: "builtin",
+      connection_id: "chatgpt_plan",
+      model_provider: "ChatGPTPlanResponsesHTTPAgent",
+      context_window_tokens: 272000,
+    });
+    for (const role of ["chat", "utility", "memory_manager"] as const)
+      expect(roleCandidates([plan], role).map((item) => item.id)).toEqual([
+        plan.id,
+      ]);
+    expect(roleCandidates([plan], "embeddings")).toEqual([]);
+  });
+
   it("groups the built-in OpenAI connection's models under one name", () => {
     const builtin = row("gpt-6-luna", {
       connection_id: "openai",

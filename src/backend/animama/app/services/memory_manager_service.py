@@ -1202,7 +1202,9 @@ class MemoryManagerService:
                     result_provider_id if isinstance(result_provider_id, str) else run.model_provider_id
                 ),
                 openai_previous_response_id=(
-                    self._nonblank_string(result.openai_previous_response_id) or run.openai_previous_response_id
+                    (self._nonblank_string(result.openai_previous_response_id) or run.openai_previous_response_id)
+                    if result.keeps_conversation_state
+                    else None
                 ),
                 serialized_agent_state=result.serialized_agent_state,
                 summary=result.summary or run.summary,

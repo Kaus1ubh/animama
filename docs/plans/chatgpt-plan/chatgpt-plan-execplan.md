@@ -242,7 +242,9 @@ and the backend.
   Review #2 passed; the manual check waits for G1.
 - [x] Phase 6: chat on plan models (2026-11-24). Code Review #1's repairs
   were verified by the coordinator; the manual check waits for G1.
-- [ ] Phase 7: roles, agreement and limits.
+- [x] Phase 7: roles, agreement and limits (2026-11-24). Code Review #2
+  passed; three optional points are made with Phase 8; the manual check
+  waits for G1.
 - [ ] Phase 8: documentation and records.
 - [ ] Final integration review, G1 to G4, pull request.
 
@@ -298,6 +300,12 @@ and the backend.
 - 2026-11-24 (Phase 5): the evaluation tools (benchmark and gesture
   selection) read every active chat row, and build their registry without
   the app's session. They now leave plan rows out.
+- 2026-11-24 (Phase 7): the Agents SDK (0.24.0) has its own tool
+  namespaces (`tool_namespace`) and matches a returned call by its
+  qualified name (`animama.memory_list_files`), so wrapping the tools
+  outside the SDK makes it reject every call. Its unstreamed path calls
+  `responses.create(stream=False)` and expects a finished `Response`, so a
+  client that streams underneath serves it unchanged.
 - 2026-11-24 (Phase 5): an existing test-order leak, unchanged by this plan:
   `test_seed_rerun_keeps_owner_rows_and_hidden_flags_and_retires_missing_builtins`
   leaves the seeded rows active, so
@@ -1822,15 +1830,145 @@ Completion: every T7 negative test passes, and the manual check matches.
 Recovery: withdrawing agreement or choosing another Memory Manager model
 takes effect on the next run.
 
-Check record, results and commits: to be recorded.
+As built (2026-11-24, from `64b6bb810`):
+
+- Roles (R3.2): role pickers and the backend's role rule offer a plan model
+  for the default chat model, Utility and the Memory Manager, never for
+  Embeddings. Utility and the Memory Manager that inherit a chat role
+  waiting on an unavailable plan model report it as waiting (P5-R2-F1).
+- Memory Manager plan mode: the OpenAI Agents runtime runs a plan row
+  through `ChatGPTPlanAgentsClient`, which stands in for the SDK's OpenAI
+  client. Every `responses.create` goes out streamed and unstored, without
+  the fields the route refuses (output limits included), with replayed
+  items stripped of ids and without reasoning or item references, and the
+  stream is assembled into the `Response` the SDK expects (items from the
+  done events when the terminal event lists none). The runtime declares its
+  tools, memory edits in their function form included, with the SDK's own
+  `tool_namespace`, turns tracing off (the plan is not the built-in OpenAI
+  connection), builds its SDK client with no retries, no redirects and the
+  plan's header allowlist, and records no response cursor, as for Chat
+  Completions rows. A refused token is renewed once per request, a
+  temporary failure gets the plan's bounded backoff, a usage limit sets the
+  pause, and an interactive success clears it. Approvals stop for the
+  person as on other rows.
+- Purpose (D5): a run that started by itself (`origin: automatic`) asks for
+  `background` tokens, which the session refuses without agreement or while
+  paused; every other run, including a Reflection, is the person's own and
+  asks for `interactive` ones. Failures say why in the run's error.
+- Agreement and the pause in the worker (D6): the model check now reports
+  readiness. A plan row is ready only with a usable sign-in, agreement and
+  no pause; otherwise automatic processing waits with the new states
+  `needs_plan_agreement`, `needs_plan_sign_in` or `plan_paused`, which App
+  Settings words in five locales. It never moves to another model.
+- From review: each plan request asks the session for its token again, so
+  a pause or withdrawn agreement stops a run between rounds; a step on a
+  provider that stores no conversation (a plan or Chat Completions row) now
+  drops the run's stored cursor, so a later key step replays the run; an
+  approval is refused before it applies when the plan cannot serve the run;
+  and a run's error names the plan's reason, quoting the route for an
+  unsupported request.
+
+Check record, from the worktree root unless noted, on working tree
+`1330191de601f5af2bac15fb1b846ede8011c29a` (hashed while this line still held a placeholder):
+
+| Check | Result |
+| --- | --- |
+| `uv run pytest -q tests/test_chatgpt_plan_background.py` | 9 passed: the request capture (streamed, unstored, no refused field, tools in one namespace with the function form of edits, items without ids or reasoning, token, purpose), background purpose with output limits stripped, refusals without a request, the usage-limit pause, renewal, approvals, tracing off |
+| Mutation checks: refused fields kept, ids kept, reasoning kept, purpose always interactive, agreement ignored in the model check | Each fails a test |
+| `python3 scripts/heavy-slot.py -- uv run pytest -q -n 2` on the 88 test files importing the changed modules (model clients, plan code, Memory Manager, episode processing, roles, provider state, evaluation tools, memory automation) | 2218 passed |
+| `uv run ruff check`, `uv run ruff format --check`; `python3 scripts/heavy-slot.py -- uv run mypy src/backend/animama tests` | Passed; no issues in 932 files |
+| From `src/frontend`: `pnpm openapi-ts:check`; `python3 ../../scripts/heavy-slot.py -- pnpm check`; `pnpm web:lint` | Current; exit 0; lint clean |
+| From `src/frontend/web`: vitest on `src/ui`, `src/lib`, `src/query`, `src/app`, `src/routes` | 602 files, 5600 passed, 2 skipped |
+| Prettier `--check` on the changed web and locale files; `python3 scripts/public-release/check_source.py` | Formatted; every tracked file covered once |
+
+Not run: the full pre-push suite (G3), browser tests. Manual check (G1):
+pending the owner's sign-in; it should also approve one memory edit
+proposed on the plan.
 
 #### Code Review #1 Findings
 
-To be recorded.
+Independent review, high-risk tier, of working tree
+`1330191de601f5af2bac15fb1b846ede8011c29a` against `64b6bb810`, with four
+read-only probes over mock transports. A separate checks agent reran every
+affected check: all passed except the known order leak, and one
+episode-processing timeout under load that passed in a quiet rerun and
+alone. Result: blocked by F1 to F3. The purpose of each run kind, the
+absence of any fallback, every request path the SDK takes (including an
+approval resume from serialized state), credentials, the assembled
+`Response`, the renewal bound, readiness for key rows and the hosted
+composition were found sound. Step 2's open question is answered at the
+request level; the G1 check must still show the replay shapes, the
+namespace echo, multi-round quality without reasoning, a live approval
+resume and a real limit body.
+
+| ID | Kind | Finding |
+| --- | --- | --- |
+| P7-R1-F1 | Required | T7: a background run took its token once, so a pause or withdrawn agreement that began mid-step did not stop its later rounds. |
+| P7-R1-F2 | Required | A plan step kept the run's older key-model cursor, so a later key step would skip the plan step's exchange (the gap exists for Chat Completions steps too). |
+| P7-R1-F3 | Required | `docs/backend/features/memory-manager-and-episodic-memory.md` and the state list in `http-api.md` become misleading and were not on Phase 8's list. |
+| P7-R1-F4 | Optional | No test for the approval resume on the plan. |
+| P7-R1-F5 | Optional | Any surviving 429 read as a usage limit without setting the pause; other plan refusals read as a generic failure, without the route's detail. |
+| P7-R1-F6 | Optional | The client always drops reasoning whatever the route's switch says, repeats the temporary codes, and would answer a streamed caller with a finished response. |
+| P7-R1-F7 | Optional | A plan row needing a new sign-in or plan use read as "needs a model". |
+| P7-R1-F8 | Optional | A test ran a background request on a paused fake session that did not enforce the pause. |
+| P7-R1-F9 | Optional | The resolver comment named only the plan case of an inherited wait. |
+| P7-R1-F10 | Optional | An approval on a plan row could apply before the session was checked, then fail. |
 
 #### Code Review #1 Revisions
 
-To be recorded.
+| ID | Disposition |
+| --- | --- |
+| P7-R1-F1 | Accepted: every request asks the session for a token with its purpose. A test pauses the session during a run's first round and sees no second request; it fails without the change. |
+| P7-R1-F2 | Accepted: a runtime result says whether its step kept conversation state; the OpenAI Agents runtime says no for plan and Chat Completions steps, and the service then drops the run's cursor. A key → plan → key test sees the third step replay the plan step; it fails without the change. |
+| P7-R1-F3 | Accepted: both documents are on Phase 8's list. |
+| P7-R1-F4 | Accepted: a capture test rejects a proposed edit and checks the resumed request. |
+| P7-R1-F5 | Accepted: the run's error is worded from the plan's code; a 400 quotes the route's sanitized reason, a bare 429 says requests are limited, and only a limit code sets the pause. An in-stream temporary code is not retried, as in chat. |
+| P7-R1-F6 | Accepted: the client names the switch it ignores, shares the plan client's list of temporary codes and refuses a streamed call. |
+| P7-R1-F7 | Accepted: a new state, `needs_plan_sign_in`, in the contract and in five locales. |
+| P7-R1-F8 | Accepted: the background test runs unpaused and checks that its success clears nothing; the mid-run test uses a session that enforces the rule. |
+| P7-R1-F9 | Accepted: the comment states the general case. |
+| P7-R1-F10 | Accepted: `for_run` asks the session for the run's token on a plan row, so an approval is refused before it applies; a test covers it. |
+
+Repair check record, on working tree `74bf4bd2b624571e4b15833d864755b799b20d9d` (hashed while
+this line still held a placeholder):
+
+| Check | Result |
+| --- | --- |
+| `uv run pytest -q tests/test_chatgpt_plan_background.py` | 16 passed |
+| Mutation checks: token asked once per run, cursor always kept, no early refusal | Each fails a test |
+| `python3 scripts/heavy-slot.py -- uv run pytest -q -n 2` on the 88 affected test files | 2225 passed |
+| `uv run ruff check`, `uv run ruff format --check`, `python3 scripts/heavy-slot.py -- uv run mypy src/backend/animama tests` | Passed; no issues in 932 files |
+| From `src/frontend`: `pnpm openapi-ts:check`, `python3 ../../scripts/heavy-slot.py -- pnpm check`, `pnpm web:lint` | Current; exit 0; clean |
+| From `src/frontend/web`: vitest on `src/ui/settings`, `src/lib`, `src/query`, `src/app`, `src/routes` | 4058 passed, 2 skipped |
+| Prettier `--check` on the changed web and locale files; `python3 scripts/public-release/check_source.py` | Formatted; every tracked file covered once |
+
+#### Code Review #2 Findings
+
+Targeted recheck, high-risk tier, of working tree
+`74bf4bd2b624571e4b15833d864755b799b20d9d` against the tree of Review #1,
+with a read-only probe of the run errors. A separate checks agent reran
+every affected check on it: all passed (2224 of 2225 in the wider set, the
+one failure being the known order leak, which passed alone; 4058 web
+tests). Result: pass. P7-R1-F1 to F10 are resolved (F3 by Phase 8's list).
+Token requests per call add no lock contention; Cloud's hosted subclass,
+the deterministic runtime and runs that stay on Chat Completions behave as
+before; only a 400 quotes provider text, and it is sanitized.
+
+| ID | Kind | Finding |
+| --- | --- | --- |
+| P7-R2-F1 | Optional | An approval refused because the plan cannot serve the run says the model is no longer available and to restore it in App Settings, instead of the plan's reason (for example the usage-limit pause). |
+| P7-R2-F2 | Optional | Existing gap: Anthropic steps keep an older OpenAI cursor too, so the field's contract ("a provider that stores no conversation") does not hold for them; inverting its default would close it. |
+| P7-R2-F3 | Optional | The plan client's `token` argument is no longer used. |
+
+#### Code Review #2 Revisions
+
+| ID | Disposition |
+| --- | --- |
+| P7-R2-F1 | Accepted, made with Phase 8 before the final integration review, which covers it. |
+| P7-R2-F2 | Accepted the same way, by inverting the default so only stored-Responses steps keep the cursor. |
+| P7-R2-F3 | Accepted the same way. |
+
+Commit: `feat(memory)[p7]: …` (this commit).
 
 ### Phase 8: Documentation and records
 
@@ -1847,8 +1985,16 @@ Review tier: light; the final integration review covers it.
    turns, R3.4), and the role fallback in
    `docs/backend/architecture/data-model.md` and `http-api.md`: a role on an
    unavailable plan model waits (P5-R2-F3).
-4. `docs/backend/architecture/http-api.md`, `contracts/hosted-web.md` and the
-   version prose in `docs/frontend/desktop/releases.md`.
+4. `docs/backend/architecture/http-api.md` (with the automatic-processing
+   states `needs_plan_agreement`, `needs_plan_sign_in` and `plan_paused`),
+   `contracts/hosted-web.md` and the version prose in
+   `docs/frontend/desktop/releases.md`.
+4a. `docs/backend/features/memory-manager-and-episodic-memory.md`: the plan
+   mode of the OpenAI Agents runtime (streamed and unstored, tools in a
+   namespace, the function form of edits, no cursor, purposes), the new
+   readiness states, a run that keeps no cursor after a step on a provider
+   that stores none, and an approval refused before it applies when the plan
+   cannot serve (P7-R1-F3).
 5. `docs/backend/operations/local-http-components.md` and
    `docs/frontend/architecture/auth-server.md`: the return's admission rule.
 6. `docs/backend/operations/development.md` (the session file and what

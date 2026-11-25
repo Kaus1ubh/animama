@@ -3690,7 +3690,7 @@ export type PyAutomaticEpisodeProcessingStatus = {
     /**
      * State
      */
-    state: 'off' | 'memory_off' | 'needs_model' | 'running' | 'paused' | 'backing_off' | 'waiting' | 'ready';
+    state: 'off' | 'memory_off' | 'needs_model' | 'needs_plan_agreement' | 'needs_plan_sign_in' | 'plan_paused' | 'running' | 'paused' | 'backing_off' | 'waiting' | 'ready';
     /**
      * Threshold
      */

@@ -33,6 +33,7 @@ from animama.app.services.model_role_resolver import (
     ROLE_UTILITY,
     ModelRoleDefaults,
     ModelRoleResolver,
+    usable_for_role,
 )
 from animama.domain import ModelConnection, ModelProvider, ModelProviderCapabilities
 from animama.domain.model_connection import MODEL_KIND_CHAT, MODEL_KIND_EMBEDDING
@@ -215,6 +216,16 @@ async def test_a_plan_model_no_longer_available_waits_rather_than_moving_to_anot
     assert (resolved.requested_id, resolved.assignment_available) == (PLAN, False)
 
 
+@pytest.mark.parametrize(
+    ("role", "suits"),
+    [(ROLE_CHAT, True), (ROLE_UTILITY, True), (ROLE_MEMORY_MANAGER, True), (ROLE_EMBEDDINGS, False)],
+)
+def test_a_plan_model_suits_every_role_but_embeddings(role, suits):
+    """Spec #919 R3.2."""
+
+    assert usable_for_role(role, _plan_row(active=True)) is suits
+
+
 async def test_roles_inheriting_a_waiting_plan_chat_model_wait_too():
     resolver = _resolver(_row(CHAT), _plan_row(active=False), preferences={"chat": {"default_model_provider_id": PLAN}})
 
@@ -222,6 +233,9 @@ async def test_roles_inheriting_a_waiting_plan_chat_model_wait_too():
     manager = await resolver.resolve("owner", ROLE_MEMORY_MANAGER)
 
     assert utility.model_provider is None and manager.model_provider is None
+    # Settings say they wait for the chosen model, not that no model can do the job (P5-R2-F1).
+    assert (utility.source, utility.assignment_available) == (ROLE_SOURCE_OFF, False)
+    assert (manager.source, manager.assignment_available) == (ROLE_SOURCE_OFF, False)
     # While the plan model is listed, the roles use it.
     usable = _resolver(_row(CHAT), _plan_row(active=True), preferences={"chat": {"default_model_provider_id": PLAN}})
     assert (await usable.resolve("owner", ROLE_UTILITY)).model_provider.id == PLAN  # type: ignore[union-attr]

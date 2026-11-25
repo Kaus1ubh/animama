@@ -90,6 +90,63 @@ def _without_token(metadata: Mapping[str, Any], token: str | None) -> dict[str, 
     }
 
 
+def plan_sdk_client(*, timeout: float | None, transport: httpx2.AsyncBaseTransport | None = None) -> AsyncOpenAI:
+    """One key-free SDK client at the plan's fixed address, with no retries, no redirects and allowlisted headers.
+
+    ``transport`` is a test hook. Each request gets the token through :func:`with_plan_token`.
+    """
+
+    return AsyncOpenAI(
+        api_key=KEY_FREE_PLACEHOLDER,
+        base_url=PLAN_API_BASE_URL,
+        timeout=timeout,
+        max_retries=0,
+        http_client=DefaultAsyncHttpxClient(
+            follow_redirects=False,
+            transport=transport,
+            event_hooks={"request": [_only_plan_headers]},
+        ),
+    )
+
+
+def with_plan_token(client: AsyncOpenAI, token: str, *, timeout: float | None) -> AsyncOpenAI:
+    """A view of ``client`` that sends ``token``.
+
+    An explicit ``Authorization`` also keeps the SDK from taking one from ``OPENAI_CUSTOM_HEADERS``.
+    """
+
+    return client.with_options(api_key=token, default_headers={"Authorization": f"Bearer {token}"}, timeout=timeout)
+
+
+def plan_error_code(metadata: Mapping[str, Any]) -> str | None:
+    """The plan's own error code in sanitized OpenAI error metadata, without its prefix."""
+
+    return next(
+        (
+            value.removeprefix(PLAN_ERROR_PREFIX)
+            for value in (metadata.get("provider_error_code"), metadata.get("provider_error_type"))
+            if isinstance(value, str) and value.startswith(PLAN_ERROR_PREFIX)
+        ),
+        None,
+    )
+
+
+def plan_code_is_temporary(code: str | None) -> bool:
+    """Whether a plan error code names a temporary outage worth retrying."""
+
+    return code is not None and code in _PLAN_CODES and _PLAN_CODES[code][2]
+
+
+def plan_retry_delay(*, retryable: bool, retry_after: float | None, attempt: int) -> float | None:
+    """Seconds to wait before retrying a failed plan request, or None to report it (R5.3)."""
+
+    if not retryable or attempt >= len(PLAN_RETRY_DELAYS_SECONDS):
+        return None
+    if retry_after is None:
+        return PLAN_RETRY_DELAYS_SECONDS[attempt]
+    return retry_after if retry_after <= PLAN_MAX_RETRY_AFTER_SECONDS else None
+
+
 def plan_unavailable_error(error: ChatGPTPlanUnavailableError) -> ModelClientProviderError:
     """The model-client error for a session that cannot serve a request now."""
 
@@ -148,14 +205,7 @@ class ChatGPTPlanResponsesModelClient(OpenAIResponsesModelClient):
 
     async def _classified(self, info: OpenAIErrorInfo, credential: ModelCredential) -> OpenAIErrorInfo:
         metadata = _without_token(info.metadata, credential.api_key)
-        plan_code = next(
-            (
-                value.removeprefix(PLAN_ERROR_PREFIX)
-                for value in (metadata.get("provider_error_code"), metadata.get("provider_error_type"))
-                if isinstance(value, str) and value.startswith(PLAN_ERROR_PREFIX)
-            ),
-            None,
-        )
+        plan_code = plan_error_code(metadata)
         status = metadata.get("status_code")
         if plan_code is not None and plan_code in _PLAN_CODES:
             code, message, retryable = _PLAN_CODES[plan_code]
@@ -182,35 +232,27 @@ class ChatGPTPlanResponsesModelClient(OpenAIResponsesModelClient):
         await self._session().record_interactive_success()
 
     def _retry_delay(self, info: OpenAIErrorInfo, *, attempt: int, stream_started: bool) -> float | None:
-        if stream_started or not info.retryable or attempt >= len(PLAN_RETRY_DELAYS_SECONDS):
+        if stream_started:
             return None
-        wait = info.retry_after_seconds
-        if wait is None:
-            return PLAN_RETRY_DELAYS_SECONDS[attempt]
-        return wait if wait <= PLAN_MAX_RETRY_AFTER_SECONDS else None
+        return plan_retry_delay(retryable=info.retryable, retry_after=info.retry_after_seconds, attempt=attempt)
 
     def _client_for_spec(self, spec: ModelClientRequest, credential: ModelCredential) -> Any:
         """A per-request view of one key-free SDK client at the fixed address, with no retries or redirects."""
 
         if self._client is None:
-            self._client = AsyncOpenAI(
-                api_key=KEY_FREE_PLACEHOLDER,
-                base_url=PLAN_API_BASE_URL,
-                timeout=self._timeout,
-                max_retries=0,
-                http_client=DefaultAsyncHttpxClient(
-                    follow_redirects=False,
-                    transport=self._transport,
-                    event_hooks={"request": [_only_plan_headers]},
-                ),
-            )
+            self._client = plan_sdk_client(timeout=self._timeout, transport=self._transport)
             self._close_client = True
-        # An explicit Authorization also keeps the SDK from taking one from OPENAI_CUSTOM_HEADERS.
-        return self._client.with_options(
-            api_key=credential.api_key,
-            default_headers={"Authorization": f"Bearer {credential.api_key}"},
-            timeout=self._timeout,
-        )
+        assert credential.api_key is not None
+        return with_plan_token(self._client, credential.api_key, timeout=self._timeout)
 
 
-__all__ = ["ChatGPTPlanResponsesModelClient", "PLAN_API_BASE_URL", "plan_unavailable_error"]
+__all__ = [
+    "ChatGPTPlanResponsesModelClient",
+    "PLAN_API_BASE_URL",
+    "plan_code_is_temporary",
+    "plan_error_code",
+    "plan_retry_delay",
+    "plan_sdk_client",
+    "plan_unavailable_error",
+    "with_plan_token",
+]

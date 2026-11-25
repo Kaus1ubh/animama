@@ -52,6 +52,10 @@ class MemoryManagerRuntimeResult:
     metadata: dict[str, Any] | None = None
     error: str | None = None
     outcome: str = MEMORY_MANAGER_RUNTIME_OUTCOME_COMPLETED
+    keeps_conversation_state: bool = True
+    """False when the step ran on a provider that stores no conversation (Chat Completions, a
+    ChatGPT plan): the run's stored cursor then no longer covers it, so the service drops the
+    cursor and a later stored-response step replays the run."""
 
 
 class MemoryManagerRuntimeError(Exception):

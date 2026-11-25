@@ -25,11 +25,15 @@ from animama.server.config import Settings
 from animama.server.content_startup import start_content_runtime, stop_content_runtime
 from animama.server.deps import get_async_session_factory
 from animama.server.embedding_refresh import start_embedding_refresh, stop_embedding_refresh
-from animama.server.episode_processing import start_automatic_episode_processing, stop_automatic_episode_processing
+from animama.server.episode_processing import (
+    ModelReadiness,
+    start_automatic_episode_processing,
+    stop_automatic_episode_processing,
+)
 from animama.server.local_http import local_assets, local_http_config, local_telemetry
 from animama.server.local_installation_bootstrap import create_local_installation_bootstrap_service
 from animama.server.local_runtime import initialize_local_runtime
-from animama.server.memory_manager import local_memory_manager_model_usable
+from animama.server.memory_manager import local_memory_manager_model_readiness
 from animama.server.model_assets import close_model_asset_service, model_asset_service_for
 from animama.server.product_ports import LocalProductPorts
 from animama.server.routers import router
@@ -58,9 +62,11 @@ def _start_automatic_episode_processing(application: FastAPI, *, owner_id: str) 
     async def memory_manager(session: AsyncSession, user_id: str) -> MemoryManagerService:
         return await ports.memory_manager(session, RequestPrincipal(id=user_id))
 
-    async def model_usable(session: AsyncSession, user_id: str) -> bool:
+    async def model_usable(session: AsyncSession, user_id: str) -> ModelReadiness:
         roles = model_role_resolver(ports, ports.repositories(session))
-        return await local_memory_manager_model_usable(user_id, roles=roles)
+        return await local_memory_manager_model_readiness(
+            user_id, roles=roles, chatgpt_plan_session=lambda: chatgpt_plan_session_for(application)
+        )
 
     start_automatic_episode_processing(
         application,
