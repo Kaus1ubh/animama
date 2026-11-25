@@ -58,21 +58,21 @@ Windows 10 install cannot rely on electron-updater's default check.
       Phase checks pass; review #1 found two required and four optional
       items, all repaired; recheck #2 passed. The full pre-push suite has not
       been run.
-- [ ] Phase 2: native evidence on Windows 11 and Windows 10 (gate G1). Run
+- [x] Phase 2: native evidence on Windows 11 and Windows 10 (gate G1). Run
       2026-11-25 on the Windows build host and a Windows 10 22H2 Hyper-V VM
       from `9d3cb6491`; receipt below. Most rows pass. Not shown: keeping
       data on an owner-started Windows 11 uninstall, reinstall onto that
       data, Pocket TTS audio, Quick Chat's window and the held Press to talk
-      key; Quick Chat's invisible window is an open question for the owner.
+      key; Quick Chat's invisible window remains an open question.
       The source build on Windows 10 (R8) stopped at the speech model
       download, so the Phase 3 build-host rows stay as they are; follow-up
       [#928](https://github.com/raymond-van/animama/issues/928). No repair
-      was made.
-- [ ] Phase 3: documentation and decision record. Written ahead of G1 by the
+      was made. The owner accepted G1 as recorded (Decision Log,
+      2026-11-25).
+- [x] Phase 3: documentation and decision record. Written ahead of G1 by the
       owner's decision of 2026-11-24 and revisited after it: the floor and the
       claimed versions stand, and the build-host lines keep Windows 11
-      because step 5 failed. The Windows 10 claims stand only if the owner
-      accepts G1 with Quick Chat's window question open.
+      because step 5 failed. With G1 accepted, the Windows 10 claims stand.
 - [ ] Final integration review and the single full pre-push run. Review #1
       on `cbfbee6e`: no code finding; record and wording findings repaired in
       round 1 (below). The full pre-push suite is owed on the final
@@ -183,6 +183,12 @@ Windows 10 install cannot rely on electron-updater's default check.
 - 2026-11-03, owner standing instruction. The full pre-push suite runs once,
   on the final candidate and with the owner's go-ahead, rather than before
   each phase review. Phases run the checks their changes affect.
+- 2026-11-25, owner. Accepted gate G1 as recorded in the Phase 2 receipt,
+  with A1, A2 and A6 partly met. Not shown: Pocket TTS audio, Quick Chat's
+  window, the held Press to talk key, the native tests on Windows 10, an
+  owner-started Windows 11 uninstall that keeps data, and a reinstall onto
+  it. Quick Chat's window question stays open. The floor stays 18362, the
+  documents' Windows 10 claims stand, and R8 continues in #928.
 
 ## Phased implementation
 
@@ -772,9 +778,9 @@ repository root on the Windows build host; no Markdown formatter was run.
 Documentation outside the plan changed, so the full pre-push suite is owed
 again on the final candidate. That candidate also needs the next merge of
 `main`, whose own ADR 0038 (chat images) means this branch's ADR is
-renumbered then. Remaining repair budget: one round. Open owner decisions:
-accept G1 with A1, A2 and A6 partly met, or run the missing steps; and the
-Quick Chat window question.
+renumbered then. Remaining repair budget: one round. The owner then
+accepted G1 with A1, A2 and A6 partly met (Decision Log, 2026-11-25); the
+Quick Chat window question stays open.
 
 ## Validation and acceptance
 
