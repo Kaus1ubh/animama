@@ -510,10 +510,12 @@ interruptions. The patch tool and continuity depend on the row's API:
   nothing.
 
 The client reaches the row's connection with only that connection's key and
-timeout (connecting is capped at 10 seconds), honors its
-`strip_function_strict` option, sends `store` only on Responses (`false` on the
-ChatGPT plan), and sends `prompt_cache_key` on Responses, on the ChatGPT plan
-or when the connection's `send_openai_extensions` option is on. Agents SDK tracing, which exports to
+timeout (connecting is capped at 10 seconds), gives Chat Completions function
+tools the form direct chat sends on that connection (its
+`strip_function_strict` option, and no empty `required` list), sends `store`
+only on Responses (`false` on the ChatGPT plan), and sends `prompt_cache_key`
+on Responses, on the ChatGPT plan or when the connection's
+`send_openai_extensions` option is on. Agents SDK tracing, which exports to
 OpenAI, is disabled unless the row is on the built-in OpenAI connection; the
 desktop app disables it for every row
 ([Memory Manager tracing](../operations/development.md#memory-manager-tracing)). Runs
