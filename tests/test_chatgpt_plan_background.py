@@ -332,9 +332,11 @@ async def test_an_approval_is_refused_before_it_applies_when_the_plan_cannot_ser
     route, session = _Route(), _Session()
     session.unavailable = "sign_in_required"
 
-    with pytest.raises(MemoryManagerPinnedModelUnavailableError):
+    with pytest.raises(MemoryManagerPinnedModelUnavailableError) as refused:
         await _runtime(memory_entries, route, session).for_run(replace(_run(), model_provider_id=PLAN_ROW.id))
 
+    # The refusal names the plan's reason, not a missing model (P7-R2-F1).
+    assert "Sign in with ChatGPT again" in refused.value.detail
     assert route.requests == []
 
 

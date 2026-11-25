@@ -152,13 +152,12 @@ class ChatGPTPlanAgentsClient:
         client: AsyncOpenAI,
         session: ChatGPTPlanTokenSource,
         purpose: ChatGPTPlanPurpose,
-        token: str,
         timeout: float | None,
     ) -> None:
         self._client = client
         self._session = session
         self._purpose = purpose
-        self._token = token
+        self._token = ""
         self._timeout = timeout
         self.responses = SimpleNamespace(create=self._create)
 

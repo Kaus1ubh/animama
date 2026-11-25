@@ -234,8 +234,10 @@ class OpenAIAgentsMemoryManagerRuntime:
             return
         try:
             await self._plan_session().access_token(_plan_purpose(run))
-        except (ChatGPTPlanUnavailableError, MemoryManagerRuntimeConfigurationError) as exc:
-            raise MemoryManagerPinnedModelUnavailableError() from exc
+        except ChatGPTPlanUnavailableError as exc:
+            raise MemoryManagerPinnedModelUnavailableError(_plan_failure_message(exc)) from exc
+        except MemoryManagerRuntimeConfigurationError as exc:
+            raise MemoryManagerPinnedModelUnavailableError(exc.detail) from exc
 
     async def run_user_message(
         self,
@@ -434,7 +436,8 @@ class OpenAIAgentsMemoryManagerRuntime:
         session = self._plan_session()
         purpose = _plan_purpose(run)
         try:
-            token = await session.access_token(purpose)
+            # Fail with the plan's reason before the agent is built; each request asks again.
+            await session.access_token(purpose)
         except ChatGPTPlanUnavailableError as exc:
             raise MemoryManagerRuntimeConfigurationError(_plan_failure_message(exc)) from exc
         timeout = self._model_limits.timeout_seconds if self._model_limits is not None else self._timeout_seconds
@@ -442,7 +445,6 @@ class OpenAIAgentsMemoryManagerRuntime:
             client=plan_sdk_client(timeout=timeout, transport=self._chatgpt_plan_transport),
             session=session,
             purpose=purpose,
-            token=token,
             timeout=timeout,
         )
         return connection, credential, client
