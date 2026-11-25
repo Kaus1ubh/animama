@@ -291,6 +291,9 @@ canonical copy of at most 3.5 MiB (under 5 MB as base64). One estimate,
   placeholder reaches compaction, memory and search, which is the part of
   R4.1 that matters: no reader gets bytes.
 
+- 2026-11-24, owner: fold the fix for OpenAI mid-stream error events into
+  this pull request (found during G1), instead of a separate one.
+
 ## Phased implementation
 
 Each phase starts from the previous phase's commit and writes its tests first.
@@ -1664,7 +1667,110 @@ stay pending until the account has credit; their request shapes are covered
 by `test_model_client_image_requests.py`. The refusal reached the person as a
 generic "OpenAI request failed", because a mid-stream `error` event's code is
 not classified (`classify_openai_exception` reads no body from a bare
-`APIError`). That gap predates this change and is left for its own fix.
+`APIError`). That gap predated this change; at the owner's request the fix
+joined this pull request (Addendum: OpenAI mid-stream errors).
+
+### Addendum: OpenAI mid-stream errors
+
+Owner request after G1. An error OpenAI reports inside a stream (the SDK's
+bare `APIError` for an `error` event, or a Responses `response.failed` or
+`error` event) became the generic `openai_request_failed` or
+`openai_stream_error`, so a turn refused for an exhausted credit balance said
+only "OpenAI request failed". `classify_openai_exception` and
+`classify_openai_response_event` (`adapters/model_clients/openai_errors.py`)
+now read the provider's type and code and give the error the code and message
+the same HTTP error has (`openai_quota_exceeded`, `openai_rate_limit`,
+`openai_server_error`, `openai_overloaded`, `openai_authentication_error`,
+`openai_permission_denied`, `openai_bad_request`, including OpenAI's image
+errors), with the provider fields sanitized into the metadata. The adapter
+still never retries them: the stream had begun. An error whose type and code
+are not recognized keeps its generic code. Quota versus rate limit follows
+one shared rule (`_QUOTA_TERMS`, now also "credit") for HTTP 429s and stream
+errors, reading the message too. The Responses event metadata now carries
+`response.error.type`. The chat already has copy for these codes;
+`docs/backend/runtime/model-client-providers.md` describes the stream
+mapping.
+
+Review tier: standard (backend error classification; no contract, schema or
+frontend change).
+
+Check record (root, source tree `1c49023aa467`, before this record):
+
+| Command | Result |
+| --- | --- |
+| `uv run --no-sync pytest -q -n 2` on `test_model_error_categories.py`, `test_model_client_registry.py`, `test_direct_chat_turn_executor.py`, `test_anima_chat_sse.py` | exit 0, 324 passed (new: four stream-event cases, a code-only credit case, an unreadable body, secret redaction; the `response.failed`/`error` event test now expects classified codes) |
+| `ruff check`, `ruff format --check src/backend/animama tests`, `mypy src/backend/animama tests` | exit 0 (913 files) |
+| Live, task stack: a Responses turn on the account without credit | `error` event `openai_quota_exceeded`, category `quota_exceeded`, provider code `credit_balance_exhausted`, not retryable |
+
+#### Code Review #1 Findings
+
+Reviewed source: tree `1c49023aa467`, standard tier, one reviewer with
+read-only probes. Blocked.
+
+- **OE-A1** (blocking): a Responses `response.failed` event whose nested
+  error names quota or credit became `openai_rate_limit`, because the 429
+  re-read saw only the event's own fields.
+- **OE-A2** (should fix): the Responses event metadata dropped
+  `response.error.type`, and OpenAI's image error codes (`image_too_large`,
+  `invalid_base64_image` and others) matched nothing.
+- **OE-A3** (should fix): the docs said only an error without a type or code
+  stays generic; unrecognized ones do too.
+- **OE-A4** (should fix): the G1 record still said the gap was left for its
+  own fix.
+- Optional: the message counts for quota versus rate limit (OE-A5, as for
+  HTTP 429); the bare-`APIError` path skipped the previous-response check
+  (OE-A6); "never retried" holds for the adapter, while the turn can still
+  shrink and retry a context overflow (OE-A7); the quota terms were
+  duplicated (OE-A8).
+
+#### Code Review #1 Revisions
+
+Repair round 1 of 2.
+
+| Finding | Disposition | Change |
+| --- | --- | --- |
+| OE-A1 | Accepted | The stream classification decides quota versus rate limit from every nested error's type, code and message; tests cover `insufficient_quota`, `billing_hard_limit_reached` and a quota `type` inside `response.failed`. |
+| OE-A2 | Accepted | `events.py` forwards `response.error.type`; image codes map to `openai_bad_request`; `provider_error_type` now comes from the nested error, not the event type. |
+| OE-A3 | Accepted | Doc and addendum wording. |
+| OE-A4 | Accepted | The G1 record points here. |
+| OE-A5 | Accepted as designed | Stream errors follow the HTTP 429 rule. |
+| OE-A6 | Accepted | The bare-`APIError` path returns `openai_previous_response_unresolvable` when a cursor turn names an unknown response; tested. |
+| OE-A7 | Accepted | The doc says the adapter never retries it. |
+| OE-A8 | Accepted | One `_QUOTA_TERMS` tuple. |
+
+Verification (root, tree `073112d7724f`): `pytest -q -n 2` on the four test
+files, 332 passed; `ruff check` exit 0; mypy on the changed modules exit 0
+(rerun by the round-2 reviewer).
+
+#### Code Review #2 Findings
+
+Reviewed source: working tree `073112d7724f`, standard tier, targeted
+recheck with probes against HEAD's classifier. Pass. OE-A1 to OE-A8 are
+resolved: every quota, credit and billing code inside `response.failed`
+becomes `openai_quota_exceeded`, all 14 of the SDK's image codes become
+`openai_bad_request`, unrecognized codes stay generic, and HTTP
+classification changes only where a 429 names "credit" (now quota, not a
+retryable rate limit). Optional: the classifier still read the event's own
+type, so an event named for an image call could match "image" (OE-A9); the
+round-1 verification named no tree (OE-A10); "describes the rule" overstates
+what the doc covers (OE-A11).
+
+#### Code Review #2 Revisions
+
+Repair round 2 of 2 (trivial repairs, verified by the coordinator at the
+standard tier).
+
+| Finding | Disposition | Change |
+| --- | --- | --- |
+| OE-A9 | Accepted | `classify_openai_response_event` classifies the mapping without the event's type; a test pins `response.image_generation_call.failed` as `openai_stream_error`. |
+| OE-A10 | Accepted | The round-1 verification names its tree. |
+| OE-A11 | Accepted | The addendum says the doc describes the stream mapping. |
+
+Check record (root, tree `dc0d11dd3e7e`, before this record): `pytest -q -n 2` on
+the four test files, 333 passed; `ruff check`, `ruff format --check`
+(913 files) and `mypy src/backend/animama tests` (913 files) exit 0.
+
+The full pre-push suite has not been rerun since this change.
 
 ## Validation and acceptance
 

@@ -639,7 +639,14 @@ exceptions and status codes into stable model-client codes such as
 `openai_quota_exceeded`, `openai_timeout`, `openai_connection_error`,
 `openai_conflict`, `openai_server_error`, `openai_overloaded`, and
 `openai_previous_response_unresolvable`; connection failures before a request
-use codes such as `missing_api_key` and `connection_unavailable`. The adapters
+use codes such as `missing_api_key` and `connection_unavailable`. An error the
+provider reports inside a stream (the SDK's bare `APIError` for an `error`
+event, or a Responses `response.failed` or `error` event) gets the code its
+type or code would have as an HTTP error, for example `insufficient_quota` as
+`openai_quota_exceeded` and an image error such as `image_too_large` as
+`openai_bad_request`, and the adapter never retries it; one whose type and
+code are not recognized stays `openai_request_failed` or
+`openai_stream_error`. The adapters
 retry one request-local
 time only for retryable failures before any downstream text delta has been
 yielded. Once text has streamed, the adapter surfaces the error without retry
