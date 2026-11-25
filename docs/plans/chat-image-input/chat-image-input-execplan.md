@@ -149,7 +149,9 @@ canonical copy of at most 3.5 MiB (under 5 MB as base64). One estimate,
   final integration review).
 - [x] Final integration review (three rounds, pass) and the full pre-push
   suite (G3, passed).
-- [ ] G1 and G2 (owner), pull request.
+- [x] Pull request #923.
+- [ ] G1 for the OpenAI families (Anthropic passed; the OpenAI account has no
+  credit) and G2 (owner).
 
 ## Surprises & Discoveries
 
@@ -1643,13 +1645,34 @@ The owner agreed on 2026-11-24. Run on `1d4b60b6d` (clean), each through
 The full `pnpm e2e:test` is not required: this change touches no content
 packages, imports, cleanup or Anima content.
 
+### Provider check (G1)
+
+The owner agreed on 2026-11-24. The task stack `animama-cii` was restarted
+with real model clients and the owner's development credentials file selected
+through `COMPOSE_ENV_FILES`. One 800 × 500 PNG (a red circle, a blue square
+and the number 42) was uploaded, and each turn was sent as a scripted
+`chat:sse` request in a new chat, naming its catalog row:
+
+| Adapter | Row | Result |
+| --- | --- | --- |
+| Anthropic Messages | `claude-haiku-5-5` | Passed. Reply: "A red circle and a blue square, with the number 42 above them." The saved user row ends with `[Image: g1-shapes.png]` and `data.images` holds one reference. A follow-up without the image ("which shape was on the right, and what colour?") got "On the right was a blue square", so the replayed image reached the model. About 17,000 input and 58 output tokens a turn. |
+| OpenAI Responses | `gpt-6-luna` | Not completed: OpenAI refused the request with `insufficient_quota` / `credit_balance_exhausted` (the account has no credit), confirmed by a minimal host-side Responses call with the same kind of image. |
+| OpenAI Chat Completions | `gpt-6-luna` (hidden row) | Not sent: the same account. |
+
+No stream frame and no server log line held image bytes. The OpenAI families
+stay pending until the account has credit; their request shapes are covered
+by `test_model_client_image_requests.py`. The refusal reached the person as a
+generic "OpenAI request failed", because a mid-stream `error` event's code is
+not classified (`classify_openai_exception` reads no body from a bare
+`APIError`). That gap predates this change and is left for its own fix.
+
 ## Validation and acceptance
 
 Each #904 acceptance criterion and the evidence planned for it:
 
 | Criterion | Evidence |
 | --- | --- |
-| Each adapter builds and sends an image request | Phase 4 request tests; G1 |
+| Each adapter builds and sends an image request | Phase 4 request tests; G1 (Anthropic passed; both OpenAI families wait for account credit) |
 | A model without image input is refused | Phase 3 API test; Phase 5 composer test |
 | Pick, paste and drag in web and desktop | Phase 5 manual check; G2 |
 | Thumbnails after reload; placeholder after delete | Phase 6 tests and manual check |
@@ -1672,7 +1695,8 @@ Each #904 acceptance criterion and the evidence planned for it:
 ## Outcomes & Retrospective
 
 Delivered in Phases 1 to 7; the full pre-push suite (G3) passed on
-`1d4b60b6d`. Gates G1 and G2 remain with the owner.
+`1d4b60b6d`. G1 passed for Anthropic; the OpenAI families wait for account
+credit. G2 remains with the owner.
 
 Known limits:
 
