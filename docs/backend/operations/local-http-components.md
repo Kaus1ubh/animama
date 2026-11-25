@@ -90,7 +90,7 @@ expose either desktop secret to a renderer.
 
 One request is admitted without these browser checks: the system browser's
 return from OpenAI's ChatGPT sign-in
-([ADR 0038](../../adr/0038-chatgpt-plan-sign-in-and-connection.md)), a
+([ADR 0039](../../adr/0039-chatgpt-plan-sign-in-and-connection.md)), a
 cross-site navigation that carries neither the page's Host on a `localhost`
 stack nor the desktop cookie. `server/local_http.py` sets
 `LocalHTTPConfig.sign_in_return_path` to `/auth/callback`, and the config

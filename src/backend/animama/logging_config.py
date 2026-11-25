@@ -382,6 +382,16 @@ def _build_logging_config() -> dict[str, Any]:
             "level": "WARNING",
             "propagate": False,
         },
+        # At DEBUG the provider SDKs log each request body, with the chat's text
+        # and any images it sends, so they stay at INFO even with ANIMAMA_DEBUG.
+        "anthropic": {
+            "level": "INFO",
+            "propagate": True,
+        },
+        "openai": {
+            "level": "INFO",
+            "propagate": True,
+        },
     }
 
     cfg = {

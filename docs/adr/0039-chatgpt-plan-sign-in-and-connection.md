@@ -1,4 +1,4 @@
-# 0038: A ChatGPT plan sign-in is a model connection's credential
+# 0039: A ChatGPT plan sign-in is a model connection's credential
 
 - Status: accepted (owner, 2026-11-24)
 - Recorded: 2026-11-24

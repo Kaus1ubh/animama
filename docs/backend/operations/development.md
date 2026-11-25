@@ -305,7 +305,7 @@ page** recovery action; save work first. No purge or cache deletion is required.
 ### ChatGPT plan session
 
 Signing in with a ChatGPT plan
-([ADR 0038](../../adr/0038-chatgpt-plan-sign-in-and-connection.md)) keeps the
+([ADR 0039](../../adr/0039-chatgpt-plan-sign-in-and-connection.md)) keeps the
 session in the private data root at `internal/chatgpt-plan/`: an owner-only
 directory (mode 0700) holding one file (mode 0600) that is replaced atomically
 and never followed through a link. A self-hosted stack writes `session.json`;

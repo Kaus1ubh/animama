@@ -183,7 +183,7 @@ local server package, so any composition can return the same contract; the local
 router is a thin adapter. `runtime_kind` is presentation metadata (`desktop`,
 `self_hosted_web` or `hosted`), not an authentication mode or a feature gate;
 the local composition never reports `hosted`. Capability schema version 2 is
-exported in `local-http` contract version 24.0.0. `chat`, `model_selection` and
+exported in `local-http` contract version 25.0.0. `chat`, `model_selection` and
 `model_role_selection` admit chat and choices from the composition's catalog,
 independently of provider administration. The local adapter reports them true.
 `provider_credentials` and `local_filesystem_administration` describe owner key
@@ -1203,7 +1203,7 @@ and removals wake re-embedding.
 
 Local composition only (`chatgpt_plan` capability). These routes manage the
 owner's Sign in with ChatGPT session
-([ADR 0038](../../adr/0038-chatgpt-plan-sign-in-and-connection.md)) with the
+([ADR 0039](../../adr/0039-chatgpt-plan-sign-in-and-connection.md)) with the
 admitted installation principal. No response carries a token or an
 authorization code; only starting a sign-in returns the authorization URL.
 
@@ -1609,8 +1609,8 @@ profile/background selection plus crop/focal configuration.
 
 ## User Files
 
-The user-files router manages installation-owned document uploads, processing jobs,
-and backend debug search. It exposes:
+The user-files router manages installation-owned document and chat-image
+uploads, processing jobs, and backend debug search. It exposes:
 
 - `POST /v1/files/uploads`: validate filename, allowlisted extension, and
   declared size; create a pending `user_file` row; return a private
@@ -1620,12 +1620,15 @@ and backend debug search. It exposes:
   bytes to `data/user-files/<user-id>/<file-id>/original`.
 - `POST /v1/files/{file_id}:finalize`: verify the current user's pending row,
   opaque local locator, file existence, and exact size; mark the row
-  `uploaded`.
+  `uploaded`. A chat image (PNG, JPEG, WebP or GIF) is then replaced by its
+  canonical copy and marked `ready`, or marked `failed` with a reason and its
+  bytes deleted.
 - `POST /v1/files/{file_id}:process`: enqueue or reuse a durable processing job
   for the current user's finalized file and wake the server's processing
   runner. The request only enqueues; the runner parses the file afterwards in
   a bounded child process. Returns `409` `file_processing_unavailable` while
-  processing is turned off.
+  processing is turned off. A chat image has no job: the route returns its
+  state, first storing the canonical copy of one left `uploaded`.
 - `POST /v1/files/debug/search`: search current-user processed chunks in
   `keyword`, `semantic`, or `hybrid` mode. Keyword search uses PostgreSQL
   full-text search. Semantic search embeds the query with the Embeddings role
@@ -1639,6 +1642,13 @@ and backend debug search. It exposes:
   Responses include cheap processing summaries: chunk count and latest job
   summary when available.
 - `GET /v1/files/{file_id}`: return one current-user file record or `404`.
+- `GET /v1/files/{file_id}/content`: return the stored copy (PNG or JPEG) of a
+  current-user chat image that is `ready`, revalidated by its digest `ETag`;
+  `?variant=thumbnail` returns a WebP copy at most 128 px on its long edge and
+  `?variant=preview` one at most 320 px (the chat transcript's size), or the
+  stored copy when it is already that small. Other files are `404`; stored
+  bytes that are missing or no longer match the record are `409`
+  `user_file_content_changed`, and a storage read failure is `503`.
 - `DELETE /v1/files/{file_id}`: best-effort delete the local original and mark the row
   `deleted` or `delete_pending`; stored chunks are removed from debug search.
 - `DELETE /v1/files/uploads/{file_id}`: abort a non-finalized upload and

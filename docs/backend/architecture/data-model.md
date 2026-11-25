@@ -796,7 +796,7 @@ plan model that is unavailable (retired at sign-out, or no longer listed for
 the account) is the exception: the role resolves to no model and waits rather
 than moving its work to another connection, and Utility and the Memory Manager
 wait too when they inherit such a waiting chat role
-([ADR 0038](../../adr/0038-chatgpt-plan-sign-in-and-connection.md)).
+([ADR 0039](../../adr/0039-chatgpt-plan-sign-in-and-connection.md)).
 
 ### Avatar And Uploads
 

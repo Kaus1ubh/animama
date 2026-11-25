@@ -153,6 +153,10 @@ const baseDescriptions: Record<string, Description> = {
   ),
   chatgpt_plan_sign_in_required: pair("codes.chatgpt_plan_sign_in_required"),
   chatgpt_plan_use_not_granted: pair("codes.chatgpt_plan_use_not_granted"),
+  // Chat images the server refuses before the turn starts.
+  too_many_images: pair("codes.too_many_images"),
+  attached_image_unavailable: pair("codes.attached_image_unavailable"),
+  model_does_not_accept_images: pair("codes.model_does_not_accept_images"),
 };
 
 /** A more specific reading of some failures, from the server's neutral category. */

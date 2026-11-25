@@ -103,6 +103,18 @@
         "guidance": "接続を確認し、準備ができたらもう一度お試しください。",
         "guidanceLocal": "モデルがまだ読み込み中の可能性があります。もう一度試すか、「$t(chatFailure.settingsPath)」で接続のタイムアウトを延ばしてください。",
         "title": "{{name}}の応答に時間がかかりすぎました。"
+      },
+      "too_many_images": {
+        "title": "このメッセージには画像が多すぎます。",
+        "guidance": "4 枚以下になるよう減らしてから、もう一度送信してください。"
+      },
+      "attached_image_unavailable": {
+        "title": "添付した画像が利用できなくなりました。",
+        "guidance": "削除するか添付し直してから送信してください。"
+      },
+      "model_does_not_accept_images": {
+        "title": "このモデルは画像を見られません。",
+        "guidance": "画像に対応したモデルを選ぶか、画像を外してもう一度送信してください。"
       }
     },
     "defaultConnection": "モデルサーバー",

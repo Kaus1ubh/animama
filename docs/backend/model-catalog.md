@@ -88,7 +88,7 @@ mounts no sign-in and registers no plan model client.
 The `chatgpt_plan` connection serves the models of the owner's ChatGPT plan
 through a Sign in with ChatGPT session, in local compositions only (see the
 [glossary](../../GLOSSARY.md#chatgpt-plan-connection) and
-[ADR 0038](../adr/0038-chatgpt-plan-sign-in-and-connection.md)). Its preset
+[ADR 0039](../adr/0039-chatgpt-plan-sign-in-and-connection.md)). Its preset
 cannot be chosen for a new connection and it names no key variable.
 `GET /v1/model-connections` reports its `credential_state` from the session:
 `configured` while an account is signed in with plan use granted, otherwise

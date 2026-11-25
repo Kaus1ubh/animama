@@ -251,7 +251,11 @@ and the backend.
   to F3, Review #2 on FI-R2-F1; Review #3 passed after repair round 2.
 - [x] G3: the full pre-push suite (2026-11-24), recorded under "Full
   pre-push suite (G3)".
-- [ ] Pull request; G1, G2 and G4 with the owner.
+- [x] Pull request #924 opened (2026-11-24).
+- [ ] Merge with chat image input (#923, 2026-11-25): merged and targeted
+  checks pass; targeted review and the full suite on the combined candidate
+  pending.
+- [ ] G1, G2 and G4 with the owner.
 
 ## Surprises & Discoveries
 
@@ -2261,6 +2265,61 @@ worktree's full run, which points at local state in the checkout. The
 package-set compare stands for `0f90c6d9b`, which changes no package source.
 The task stack was stopped afterwards with its volumes kept; they hold only
 test data.
+
+### Merge with chat image input (#923)
+
+Chat image input (#923) merged to `main` as `b62662036` on 2026-11-25, and the
+owner asked for it to be combined into this pull request. `main` was merged
+into the branch (an ordinary merge commit).
+
+- **Conflicts.** The ADR index, `licenses/source-review.json`, the chat
+  failure codes, the chat screen's imports and two generated client files.
+  Each kept both sides; the licence file is the union of both entry sets in
+  its own order and format, and the client was regenerated with
+  `pnpm openapi-ts` from the merged backend rather than merged by hand.
+- **ADR number.** #923 recorded ADR 0038 first, so this plan's ADR is now
+  0039 (`docs/adr/0039-chatgpt-plan-sign-in-and-connection.md`); every link
+  and its licence entry moved with it. Earlier records in this plan that say
+  "ADR 0038" mean that ADR.
+- **Versions.** Both changes had raised `local-http` to 24.0.0,
+  `runtime-contracts` to 0.24.0 and `product-ui` to 0.21.0, which `main` now
+  ships with #923's content. As the Contracts note planned, the second to
+  merge takes the next: 25.0.0, 0.25.0 and 0.22.0, with the prose in
+  `contracts/hosted-web.md`, `http-api.md` and `releases.md`.
+- **Code that merged cleanly but meets.** #923's image parts pass through the
+  plan route's request adjustments unchanged, and explicit cache breakpoints
+  still go only to the key connection. #923's classification of errors inside
+  a stream runs before the plan client's hook, which still recognises plan
+  codes by their `subscription_sharing_` prefix. Plan rows already take
+  `accepts` from the listed `input_modalities`, so a plan model takes images
+  where OpenAI lists them.
+- **New test.** `test_a_plan_request_carries_chat_images_as_the_route_takes_them`:
+  a real plan request with an image in an earlier turn and one in the current
+  turn sends both as `input_image` data URLs, replays the history with no
+  cursor, and carries no `prompt_cache_breakpoint`.
+  `model-client-providers.md` says plan requests replay the kept images.
+
+Targeted check record (2026-11-25, from the worktree root, on the merge's
+working tree):
+
+| Command | Result |
+| --- | --- |
+| `uv run --no-sync ruff check`, `ruff format --check src/backend/animama tests` | Passed |
+| `uv run --no-sync mypy src/backend/animama tests` | No issues |
+| `pytest -n 2` on the plan client, background, models and API tests, `test_model_client_image_requests.py`, `test_anima_chat_sse.py`, `test_direct_chat_turn_executor.py`, the repository boundary tests, `test_model_call_boundary.py`, `test_model_client_registry.py`, `test_companion_safety_chat.py` and `test_turn_instruction_layout.py` | 566 passed |
+| From `src/frontend`: `pnpm openapi-ts:check`, `pnpm check` | Passed |
+| `python3 scripts/public-release/check_source.py` | Every tracked file covered once |
+
+**Prompt caching on the plan route (evidence, 2026-11-25).** The owner's
+first chat turns on the restarted task stack logged each request's usage: a
+key turn on `gpt-6-luna` read 15,217 input tokens with none cached, and the
+next turn, on a plan model, read 14,809 with 4,096 cached. The plan route
+therefore applies OpenAI's prefix caching to `store: false` requests that
+replay their history; plan requests rely on its implicit writes and send
+`prompt_cache_key`. How cached tokens count against a plan's allowance is not
+documented. OpenAI's conversation-state guide says a key chain's earlier input
+is billed as input even with `previous_response_id`, so replaying it is not
+extra model work.
 
 Gates:
 

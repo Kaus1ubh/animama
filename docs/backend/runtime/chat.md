@@ -155,6 +155,41 @@ catalog, including owner-added rows and model connections, is described in
 [model catalog](../model-catalog.md); the owner manages it in
 [App Settings → Models](../../frontend/features/model-settings.md).
 
+## Chat Images
+
+Local compositions accept images among a turn's `attached_file_ids`
+([User Files](../features/user-files.md#chat-images) covers uploads). Setup
+splits the IDs (`app/chat/attached_images.py`): ready images go with the user
+message, other IDs stay document attachments. More than four images is `400`
+`too_many_images`, an image that is deleted, failed or not ready is `400`
+`attached_image_unavailable`, and any image for a row whose catalog
+capabilities do not accept `image` is `400` `model_does_not_accept_images`,
+all before the chat is created or anything is saved.
+
+The saved user message refers to its images and never holds their bytes
+([ADR 0038](../../adr/0038-chat-images-saved-as-references.md)):
+
+- `content` is the person's text followed by one `[Image: name]` line per
+  image, so memory, search and compaction see each image named.
+- `data.images` lists each image (`file_id`, `name`, `width`, `height`) and
+  `data.user_text` keeps the person's own text for the chat bubble.
+- `raw_provider_message` holds a part list: the image reference parts, then
+  the text, which later turns replay.
+
+When building a prompt, `select_images` keeps the newest 20 images in the
+fitted history, the current turn's first, and turns the rest into
+placeholders; a row that does not accept images gets placeholders for all of
+them. Context fitting counts each image's estimate. Before the turn's first
+request that needs them, `SessionBackedChatImageLoader` reads the referenced
+bytes of the owner's ready images from private storage; the turn's later
+requests (tool rounds, a retry) reuse them. An image that is gone or whose
+bytes no longer match its record is sent as its placeholder; a read failure is
+logged by file ID, never with bytes. The adapters write the bytes in their
+provider's format ([model clients](model-client-providers.md#images)).
+
+Deleting a chat deletes the images only that chat's messages reference
+([deletion](../features/user-files.md#deletion-and-recovery)).
+
 ## Step-By-Step Flow
 
 1. The local HTTP boundary admits the request and resolves the installation
@@ -298,7 +333,7 @@ user-facing contract is the [safety and crisis protocol](../../safety/crisis-pro
   the guardrail's crisis rule still applies. ChatGPT plan turns are among them:
   the plan's route refuses inline moderation, and the operator check covers
   Anthropic turns only
-  ([ADR 0038](../../adr/0038-chatgpt-plan-sign-in-and-connection.md)). Crisis
+  ([ADR 0039](../../adr/0039-chatgpt-plan-sign-in-and-connection.md)). Crisis
   resources resolve from the owner's region, then the `client_context` locale,
   then the fallback entry.
 

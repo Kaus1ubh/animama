@@ -41,7 +41,7 @@ Animama separates a selectable model row from the code that calls its provider:
   boundary a row belongs to: the built-in `openai` or `anthropic` connection,
   the built-in `chatgpt_plan` connection (whose rows are listed from the
   signed-in account, not added here; see
-  [ADR 0038](../../adr/0038-chatgpt-plan-sign-in-and-connection.md)), or an
+  [ADR 0039](../../adr/0039-chatgpt-plan-sign-in-and-connection.md)), or an
   owner connection with its own base URL, key variable, timeout and
   compatibility options.
 - A **provider type** is a durable adapter-family identifier such as

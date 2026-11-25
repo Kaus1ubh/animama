@@ -1,4 +1,5 @@
 import { ChatConversation } from "@animama/product-ui/components";
+import { useFormatters } from "@animama/product-ui/i18n";
 import type { ChatAttachmentHold } from "@animama/product-ui/chat";
 import { useUppyState } from "@uppy/react";
 
@@ -18,6 +19,17 @@ import {
   ChatInputTextArea,
 } from "@/ui/components/chat-input";
 import { ChatInputFileTray } from "@/ui/components/chat-input-file-tray";
+import {
+  attachedChatImages,
+  attachedImageCount,
+  chatImageRefusal,
+  chatImageRefusalMessage,
+  modelAcceptsImages,
+  pastedImageFiles,
+  sentChatImages,
+  type ChatImageRefusal,
+} from "@/lib/user-files/chat-images";
+import { MAX_USER_IMAGE_UPLOAD_SIZE_BYTES } from "@/lib/user-files/uploads";
 import { useAnima } from "@/query/hooks/useAnima";
 import { useModelProviders } from "@/query/hooks/useModelProviders";
 import { Button } from "@/ui/components/button";
@@ -34,8 +46,9 @@ import {
   useUserFileUpload,
   type UserFileUploadUppy,
 } from "@/hooks/useUserFileUpload";
-import { ChatFileDropOverlay } from "./ChatFileDropOverlay";
+import { addPastedImages, ChatFileDropOverlay } from "./ChatFileDropOverlay";
 import { ChatGPTPlanUsageNote } from "./ChatGPTPlanUsageNote";
+import { ChatMessageImages } from "./ChatMessageImages";
 import { useChatSession, type ChatMessage } from "./useChatSession";
 import { useCrisisCardCornerBottom } from "./crisisCardCorner";
 import { PromptSuggestion } from "./PromptSuggestion";
@@ -192,6 +205,15 @@ type ChatInterfaceViewProps = {
 
 const USER_TYPING_INACTIVITY_TIMEOUT_MS = 3000;
 
+/** The model the Anima chats with, once its profile and the catalog load. */
+function useActiveChatModel(animaId: string) {
+  const { data: anima } = useAnima(animaId);
+  const { data: modelCatalog } = useModelProviders();
+  return modelCatalog?.find(
+    (item) => item.id === anima?.chat_profile?.default_model_provider_id,
+  );
+}
+
 /**
  * Whether the composer can capture speech: offline recognition with the
  * engine that runs installed (the owner's choice, else the UI Locale's), or
@@ -311,13 +333,10 @@ export function ChatInterfaceView({
     locale: i18n.resolvedLanguage,
     capabilities: capabilities.data,
   });
-  const { data: anima } = useAnima(animaId);
-  const { data: modelCatalog } = useModelProviders();
-  const activeModel = modelCatalog?.find(
-    (item) => item.id === anima?.chat_profile?.default_model_provider_id,
-  );
+  const activeModel = useActiveChatModel(animaId);
   // Attached files are searched through tool calls; unknown models get no note.
   const activeModelSearchesFiles = activeModel?.supports_tools !== false;
+  const activeModelSeesImages = modelAcceptsImages(activeModel);
   const isChatOnlyLayout = layout === "chat-only";
   const fileDropEnabled = Boolean(fileUploadUppy) && !quickChatSurface;
   const fileDropAccepting = fileDropEnabled && canChat && !isStreaming;
@@ -347,6 +366,14 @@ export function ChatInterfaceView({
       ) : null;
     },
     [animaName, onOpenMemoryEntry, onSkipTts, skipTtsShortcut, spokenMessageId],
+  );
+
+  const renderUserAttachments = useCallback(
+    (message: ChatMessage) =>
+      message.images?.length ? (
+        <ChatMessageImages images={message.images} />
+      ) : null,
+    [],
   );
 
   return (
@@ -405,6 +432,7 @@ export function ChatInterfaceView({
                     layout={layout}
                     messageComponent={Message}
                     renderAssistantAccessory={renderAssistantAccessory}
+                    renderUserAttachments={renderUserAttachments}
                   />
                 </div>
               </>
@@ -530,6 +558,11 @@ export function ChatInterfaceView({
                         ? null
                         : t("composer.files.noToolsNote")
                     }
+                    imageNote={
+                      activeModelSeesImages
+                        ? null
+                        : t("composer.images.noImagesNote")
+                    }
                     existingFiles={existingAttachmentFiles}
                     onRemoveExistingFile={onRemoveExistingFile}
                   />
@@ -537,6 +570,18 @@ export function ChatInterfaceView({
                 <ChatInputTextArea
                   autoFocus={autoFocusInput}
                   className="bg-transparent"
+                  onPaste={(event) => {
+                    if (!fileUploadUppy || !fileDropEnabled) return;
+                    // Images on the clipboard attach; text pastes as usual.
+                    const images = pastedImageFiles(event.clipboardData);
+                    if (images.length === 0) return;
+                    event.preventDefault();
+                    if (fileDropAccepting) {
+                      addPastedImages(fileUploadUppy, images);
+                    } else {
+                      toast.error(t("composer.drop.unavailable"));
+                    }
+                  }}
                   data-quick-chat-input={quickChatSurface ? "" : undefined}
                   placeholder={inputPlaceholder}
                   interimSuffix={dictationInterimText}
@@ -600,13 +645,100 @@ export const ChatInterface = ({
         .filter((file): file is PyUserFileResponse => Boolean(file)),
     [selectableExistingFilesById, selectedExistingFileIds],
   );
-  const toggleExistingFile = useCallback((file: PyUserFileResponse) => {
-    setSelectedExistingFileIds((current) =>
-      current.includes(file.file_id)
-        ? current.filter((fileId) => fileId !== file.file_id)
-        : [...current, file.file_id],
-    );
-  }, []);
+  const imagesAccepted = modelAcceptsImages(useActiveChatModel(animaId));
+  const formatters = useFormatters();
+  const refuseImage = useCallback(
+    (refusal: ChatImageRefusal, name: string) => {
+      toast.error(t("composer.images.rejected"), {
+        description: chatImageRefusalMessage(
+          t,
+          refusal,
+          name,
+          formatters.fileSize(MAX_USER_IMAGE_UPLOAD_SIZE_BYTES),
+        ),
+      });
+    },
+    [formatters, t],
+  );
+  // Read by Uppy's onBeforeFileAdded, which outlives each render.
+  const imageRulesRef = useRef({
+    imagesAccepted,
+    existingFiles: existingAttachmentFiles,
+  });
+  imageRulesRef.current = {
+    imagesAccepted,
+    existingFiles: existingAttachmentFiles,
+  };
+  useEffect(() => {
+    fileUploadUppy.setOptions({
+      onBeforeFileAdded: (file, files) => {
+        // Uppy's own duplicate check, which this option replaces.
+        if (Object.hasOwn(files, file.id)) return false;
+        const refusal = chatImageRefusal({
+          name: file.name,
+          size: file.size,
+          imagesAttached: attachedImageCount(
+            Object.values(files),
+            imageRulesRef.current.existingFiles,
+          ),
+          imagesAccepted: imageRulesRef.current.imagesAccepted,
+        });
+        if (refusal === null) return true;
+        refuseImage(refusal, file.name ?? "");
+        return false;
+      },
+    });
+  }, [fileUploadUppy, refuseImage]);
+  const toggleExistingFile = useCallback(
+    (file: PyUserFileResponse) => {
+      if (!selectedExistingFileIds.includes(file.file_id)) {
+        // A Library image follows the same rules as an upload; documents pass.
+        const refusal = chatImageRefusal({
+          name: file.original_filename,
+          size: null,
+          imagesAttached: attachedImageCount(
+            Object.values(fileUploadUppy.getState().files),
+            imageRulesRef.current.existingFiles,
+          ),
+          imagesAccepted: imageRulesRef.current.imagesAccepted,
+        });
+        if (refusal !== null) {
+          refuseImage(refusal, file.original_filename);
+          return;
+        }
+      }
+      setSelectedExistingFileIds((current) =>
+        current.includes(file.file_id)
+          ? current.filter((fileId) => fileId !== file.file_id)
+          : [...current, file.file_id],
+      );
+    },
+    [fileUploadUppy, refuseImage, selectedExistingFileIds],
+  );
+  // Images go with the message that carried them; documents stay attached.
+  const clearSubmittedImages = useCallback(
+    (fileIds: string[]) => {
+      const sent = sentChatImages({
+        trayFiles: Object.values(fileUploadUppy.getState().files),
+        existingFiles: imageRulesRef.current.existingFiles,
+        sentFileIds: fileIds,
+      });
+      for (const id of sent.trayFileIds) fileUploadUppy.removeFile(id);
+      setSelectedExistingFileIds((current) =>
+        current.filter((fileId) => !sent.existingFileIds.includes(fileId)),
+      );
+    },
+    [fileUploadUppy],
+  );
+  // The sent message shows its images until history confirms it.
+  const describeAttachedImages = useCallback(
+    (fileIds: readonly string[]) =>
+      attachedChatImages(fileIds, {
+        trayFiles: Object.values(fileUploadUppy.getState().files),
+        rows: userFilesQuery.data ?? [],
+      }),
+    [fileUploadUppy, userFilesQuery.data],
+  );
   const removeExistingFile = useCallback((fileId: string) => {
     setSelectedExistingFileIds((current) =>
       current.filter((candidate) => candidate !== fileId),
@@ -683,6 +815,8 @@ export const ChatInterface = ({
     animaId,
     getAttachedFileIds,
     getAttachmentHold,
+    onAttachmentsSubmitted: clearSubmittedImages,
+    describeAttachedImages,
     openDraftChatRoute,
     routeChatId: chatId,
     replaceChatRoute,

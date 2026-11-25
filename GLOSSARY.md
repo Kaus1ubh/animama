@@ -302,7 +302,7 @@ titles and compaction, and Memory Manager runs) use the usage included in the
 account's ChatGPT plan instead of an API key; automatic episode processing uses
 it only with the owner's agreement. Its models are **account-listed**. A role
 whose plan model cannot run waits rather than moving to another connection. See
-[ADR 0038](docs/adr/0038-chatgpt-plan-sign-in-and-connection.md).
+[ADR 0039](docs/adr/0039-chatgpt-plan-sign-in-and-connection.md).
 
 ## Account-listed models
 

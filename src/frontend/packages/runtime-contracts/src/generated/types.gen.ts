@@ -13386,6 +13386,45 @@ export type GetUserFileV1FilesFileIdGetResponses = {
 
 export type GetUserFileV1FilesFileIdGetResponse = GetUserFileV1FilesFileIdGetResponses[keyof GetUserFileV1FilesFileIdGetResponses];
 
+export type GetUserFileContentV1FilesFileIdContentGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * If-None-Match
+         */
+        'If-None-Match'?: string | null;
+    };
+    path: {
+        /**
+         * File Id
+         */
+        file_id: string;
+    };
+    query?: {
+        /**
+         * Variant
+         */
+        variant?: 'thumbnail' | 'preview' | null;
+    };
+    url: '/v1/files/{file_id}/content';
+};
+
+export type GetUserFileContentV1FilesFileIdContentGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetUserFileContentV1FilesFileIdContentGetError = GetUserFileContentV1FilesFileIdContentGetErrors[keyof GetUserFileContentV1FilesFileIdContentGetErrors];
+
+export type GetUserFileContentV1FilesFileIdContentGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
 export type UploadUserFileContentV1FilesFileIdContentPutData = {
     body?: never;
     path: {

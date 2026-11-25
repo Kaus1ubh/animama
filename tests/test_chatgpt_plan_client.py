@@ -6,6 +6,7 @@ see the request exactly as it would leave the machine.
 
 from __future__ import annotations
 
+import base64
 import json
 from dataclasses import replace
 from typing import Any
@@ -32,6 +33,7 @@ from animama.app.model_clients import (
 )
 from animama.app.model_clients.credentials import builtin_chatgpt_plan_connection
 from animama.app.model_clients.error_categories import model_error_category
+from animama.app.model_clients.image_parts import ModelClientImage, image_part
 from animama.app.model_clients.limits import ModelCallLimits
 from animama.app.ports.chatgpt_plan_port import PlanModelListing
 from animama.app.services.chatgpt_plan_models import plan_model_row
@@ -739,6 +741,58 @@ async def test_a_plan_turn_s_stream_and_logs_carry_no_token(
         recorded = repr(chats.record_turn_payloads)
         assert FIRST_TOKEN not in recorded and SECOND_TOKEN not in recorded
     assert FIRST_TOKEN not in caplog.text and SECOND_TOKEN not in caplog.text
+
+
+async def test_a_plan_request_carries_chat_images_as_the_route_takes_them() -> None:
+    """Chat images (#923) on the plan's route: data URL parts, replayed history, no cache breakpoints."""
+
+    images = {
+        "earlier": ModelClientImage(media_type="image/png", content=b"earlier png"),
+        "now": ModelClientImage(media_type="image/jpeg", content=b"current jpeg"),
+    }
+    row = _row()
+    assert row.accepts_images and not _row(input_modalities=("text",)).accepts_images
+
+    def user(file_id: str, text: str) -> dict[str, Any]:
+        part = image_part(file_id=file_id, name=f"{file_id}.png", width=40, height=20)
+        return {"role": "user", "content": [part, {"type": "text", "text": text}]}
+
+    def data_url(file_id: str) -> str:
+        image = images[file_id]
+        return f"data:{image.media_type};base64,{base64.b64encode(image.content).decode('ascii')}"
+
+    spec = replace(
+        _spec(
+            row=row,
+            messages=(
+                {"role": "system", "content": "Be Lumi."},
+                user("earlier", "What is this?"),
+                {"role": "assistant", "content": "A cat."},
+                user("now", "And this?"),
+            ),
+        ),
+        images=images,
+    )
+    route, session = _Route(_completed([_message()])), _Session()
+
+    await _run(_client(route, session), spec)
+
+    body = route.body()
+    assert body["store"] is False and body["stream"] is True and "previous_response_id" not in body
+    # With no cursor the whole history goes again, the earlier image included.
+    sent = [item["content"] for item in body["input"] if item.get("role") == "user"]
+    assert sent == [
+        [
+            {"type": "input_image", "image_url": data_url("earlier"), "detail": "auto"},
+            {"type": "input_text", "text": "What is this?"},
+        ],
+        [
+            {"type": "input_image", "image_url": data_url("now"), "detail": "auto"},
+            {"type": "input_text", "text": "And this?"},
+        ],
+    ]
+    # Explicit cache breakpoints are sent only on the key route.
+    assert "prompt_cache_breakpoint" not in json.dumps(body)
 
 
 def test_a_plan_chat_fits_its_context_to_the_row_s_window() -> None:

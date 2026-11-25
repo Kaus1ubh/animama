@@ -472,7 +472,7 @@ records `reset_at`, which lifts a pause. Timestamps in the status are UTC. Read 
 the model states. A ChatGPT plan model runs automatic work only with the
 owner's agreement and while no usage limit pauses it; otherwise processing
 waits and never moves to another model
-([ADR 0038](../../adr/0038-chatgpt-plan-sign-in-and-connection.md)). The
+([ADR 0039](../../adr/0039-chatgpt-plan-sign-in-and-connection.md)). The
 session enforces the same rule on every `background` token, so a run stops
 between rounds when a pause begins or agreement is withdrawn.
 Each automatic run spends the owner's Memory Manager model within the per-step request
