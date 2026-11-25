@@ -23,12 +23,13 @@ from openai.types.responses.response_create_params import (
 from openai.types.responses.response_input_param import ApplyPatchCall, ApplyPatchCallOutput
 from openai.types.shared.reasoning_effort import ReasoningEffort
 
-from animama.adapters.model_clients._common import jsonable, openai_cache_breakpoint_text_part
+from animama.adapters.model_clients._common import image_data_url, jsonable, openai_cache_breakpoint_text_part
 from animama.app.model_clients import (
     MODEL_CLIENT_TOOL_CALL_ITEM_TYPE,
     MODEL_CLIENT_TOOL_RESULT_ITEM_TYPE,
     ModelClientRequest,
 )
+from animama.app.model_clients.image_parts import ModelClientImage, message_text, resolved_parts
 from animama.app.model_clients.prompt import (
     prompt_last_user_message,
     prompt_messages,
@@ -155,6 +156,7 @@ def responses_input_items(spec: ModelClientRequest, *, has_previous_response_id:
                 messages[index],
                 phase=assistant_phases_by_message_index.get(index),
                 cache_breakpoint=index in breakpoint_indexes,
+                images=spec.images,
             )
         )
     return items or [_easy_input_message("user", prompt_last_user_message(spec.prompt, fallback=""))]
@@ -202,9 +204,7 @@ def _history_user_breakpoint_indexes(messages: list[dict[str, Any]], *, first: i
     user_indexes = [
         index
         for index in range(first, len(messages))
-        if _message_role(messages[index]) == "user"
-        and isinstance(messages[index].get("content"), str)
-        and messages[index]["content"]
+        if _message_role(messages[index]) == "user" and message_text(messages[index].get("content"))
     ]
     return set(user_indexes[:-1][-2:])
 
@@ -214,6 +214,7 @@ def _input_items_from_message(
     *,
     phase: str | None,
     cache_breakpoint: bool,
+    images: Mapping[str, ModelClientImage] | None = None,
 ) -> list[ResponseInputItemParam]:
     """Convert one prompt message into Responses input items."""
 
@@ -229,6 +230,9 @@ def _input_items_from_message(
         if tool_calls:
             return tool_calls
     content = message.get("content")
+    if role == "user" and isinstance(content, list | tuple):
+        parts = _user_content_parts(content, images or {}, cache_breakpoint=cache_breakpoint)
+        return [cast(ResponseInputItemParam, {"role": "user", "content": parts})] if parts else []
     if not isinstance(content, str) or not content:
         return []
     if role not in {"user", "assistant", "developer", "system"}:
@@ -237,6 +241,31 @@ def _input_items_from_message(
         part = openai_cache_breakpoint_text_part(content, part_type="input_text")
         return [cast(ResponseInputItemParam, {"role": "user", "content": [part]})]
     return [_easy_input_message(role, content, phase=phase if role == "assistant" else None)]
+
+
+def _user_content_parts(
+    content: list[Any] | tuple[Any, ...],
+    images: Mapping[str, ModelClientImage],
+    *,
+    cache_breakpoint: bool,
+) -> list[dict[str, Any]]:
+    """Map a user message with images to ``input_image`` and ``input_text`` parts.
+
+    An image whose bytes the request does not carry is sent as its placeholder
+    text. A cache breakpoint goes on the message's last part, which either part
+    type may carry.
+    """
+
+    parts: list[dict[str, Any]] = [
+        {"type": "input_text", "text": part}
+        if isinstance(part, str)
+        # The SDK types ``detail`` as required; "auto" is the documented default.
+        else {"type": "input_image", "image_url": image_data_url(part), "detail": "auto"}
+        for part in resolved_parts(content, images)
+    ]
+    if cache_breakpoint and parts:
+        parts[-1] = {**parts[-1], "prompt_cache_breakpoint": {"mode": "explicit"}}
+    return parts
 
 
 def _message_role(message: Mapping[str, Any]) -> str:

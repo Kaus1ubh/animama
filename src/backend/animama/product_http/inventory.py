@@ -286,6 +286,7 @@ ROUTES: tuple[RouteSpec, ...] = (
     _excluded("chat_file_uploads", "POST", "/v1/files/{file_id}:finalize", "finalize_user_file_upload", "write"),
     _excluded("chat_file_uploads", "GET", "/v1/files", "list_user_files", "read"),
     _excluded("chat_file_uploads", "GET", "/v1/files/{file_id}", "get_user_file", "read"),
+    _excluded("chat_file_uploads", "GET", "/v1/files/{file_id}/content", "get_user_file_content", "read"),
     _excluded("user_file_processing.enabled", "POST", "/v1/files/{file_id}:process", "process_user_file", "write"),
     _excluded("user_file_processing.enabled", "POST", "/v1/files/debug/search", "search_user_file_chunks", "write"),
     _excluded("chat_file_uploads", "DELETE", "/v1/files/uploads/{file_id}", "abort_user_file_upload", "write"),

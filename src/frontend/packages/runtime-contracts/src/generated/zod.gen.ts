@@ -8258,6 +8258,25 @@ export const zGetUserFileV1FilesFileIdGetData = z.object({
  */
 export const zGetUserFileV1FilesFileIdGetResponse = zPyUserFileResponse;
 
+export const zGetUserFileContentV1FilesFileIdContentGetData = z.object({
+    body: z.optional(z.never()),
+    path: z.object({
+        file_id: z.string()
+    }),
+    query: z.optional(z.object({
+        variant: z.optional(z.union([
+            z.enum(['thumbnail', 'preview']),
+            z.null()
+        ]))
+    })),
+    headers: z.optional(z.object({
+        'If-None-Match': z.optional(z.union([
+            z.string(),
+            z.null()
+        ]))
+    }))
+});
+
 export const zUploadUserFileContentV1FilesFileIdContentPutData = z.object({
     body: z.optional(z.never()),
     path: z.object({

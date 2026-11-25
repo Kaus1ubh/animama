@@ -11,6 +11,10 @@
         "guidance": "{{name}} ended the reply before it finished. Try sending your message again.",
         "title": "The reply was interrupted."
       },
+      "attached_image_unavailable": {
+        "guidance": "Remove it, or attach it again, then send.",
+        "title": "An attached image is no longer available."
+      },
       "chat_stream_interrupted": {
         "guidance": "The connection ended before Animama confirmed completion. Check your connection before sending again.",
         "title": "The reply was interrupted."
@@ -30,6 +34,10 @@
       "missing_api_key": {
         "guidance": "Ask the installation owner to add its key in $t(chatFailure.settingsPath) or API Keys, then send your message again.",
         "title": "{{name}} has no API key configured."
+      },
+      "model_does_not_accept_images": {
+        "guidance": "Choose a model that accepts images, or remove the images and send again.",
+        "title": "This model can't see images."
       },
       "model_refused": {
         "guidance": "Try rephrasing it.",
@@ -78,6 +86,10 @@
         "guidance": "Check your connection and try again when you're ready.",
         "guidanceLocal": "The model may still be loading. Try again, or raise the connection's timeout in $t(chatFailure.settingsPath).",
         "title": "{{name}} took too long to respond."
+      },
+      "too_many_images": {
+        "guidance": "Remove some so it carries no more than four, then send again.",
+        "title": "This message has too many images."
       }
     },
     "defaultConnection": "The model server",

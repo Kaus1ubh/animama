@@ -60,6 +60,23 @@ describe("provider-neutral chat failures", () => {
     expect(failure.title).not.toContain("OpenAI");
   });
 
+  it.each([
+    ["too_many_images", "This message has too many images."],
+    ["attached_image_unavailable", "An attached image is no longer available."],
+    ["model_does_not_accept_images", "This model can't see images."],
+  ])(
+    "explains the image refusal %s from the response detail",
+    (code, title) => {
+      const failure = describeChatFailure(
+        { status: 400, detail: { code, message: "English detail" } },
+        "hello",
+      );
+      expect(failure.code).toBe(code);
+      expect(failure.title).toBe(title);
+      expect(failure.guidance).not.toContain("English detail");
+    },
+  );
+
   it("describes a removed connection", () => {
     expect(
       describeChatFailure({ code: "connection_unavailable" }, "hello").title,

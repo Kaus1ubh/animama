@@ -78,6 +78,18 @@
         "guidance": "請檢查網路連線，準備好後再試一次。",
         "guidanceLocal": "模型可能仍在載入中。請再試一次，或在「$t(chatFailure.settingsPath)」中延長此連線的逾時時間。",
         "title": "{{name}}回應逾時。"
+      },
+      "too_many_images": {
+        "title": "此訊息的圖片太多。",
+        "guidance": "請移除部分圖片，使其不超過四張，然後重新傳送。"
+      },
+      "attached_image_unavailable": {
+        "title": "附加的圖片已無法使用。",
+        "guidance": "請將其移除或重新附加，然後傳送。"
+      },
+      "model_does_not_accept_images": {
+        "title": "此模型無法查看圖片。",
+        "guidance": "請選擇支援圖片的模型，或移除圖片後重新傳送。"
       }
     },
     "defaultConnection": "模型伺服器",

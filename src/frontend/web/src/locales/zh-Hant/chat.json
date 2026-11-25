@@ -81,7 +81,8 @@
       "loadFailed": "無法載入已上傳的檔案。",
       "loading": "正在載入已上傳的檔案…",
       "search": "搜尋已上傳的檔案…",
-      "uploading": "正在上傳 {{percent}}"
+      "uploading": "正在上傳 {{percent}}",
+      "imageDetails": "{{size}} · {{status}}"
     },
     "dictation": {
       "failed": "聽寫失敗",
@@ -162,6 +163,14 @@
     "speechSetup": {
       "detail": "語音辨識需要模型。選取後會開啟應用程式設定 → 語音。",
       "title": "設定語音辨識"
+    },
+    "images": {
+      "unsupportedFormat": "Animama 無法讀取 {{name}} 的格式。請將其轉換為 JPEG 或 PNG 後再試一次。",
+      "tooLarge": "{{name}} 超過 {{size}}。請選擇較小的圖片。",
+      "tooMany_other": "一則訊息最多可附帶 {{count}} 張圖片。",
+      "modelUnsupported": "此模型無法查看圖片。若要附加圖片，請選擇支援圖片的模型。",
+      "noImagesNote": "此模型無法查看圖片。請移除圖片，或選擇支援圖片的模型。",
+      "rejected": "未新增圖片"
     }
   },
   "header": {
@@ -177,6 +186,14 @@
       "failed": "下載失敗；選擇即可重試",
       "whenSelected": "選擇後即會下載"
     }
+  },
+  "images": {
+    "listLabel": "隨此訊息傳送的圖片",
+    "loadFailed": "無法載入圖片",
+    "open": "開啟 {{name}}",
+    "placeholderLabel": "{{name}}：{{reason}}",
+    "unavailable": "圖片已無法使用",
+    "unnamed": "圖片"
   },
   "loadingStatus": {
     "avatar": "正在載入虛擬形象",
