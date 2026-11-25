@@ -135,7 +135,7 @@ pnpm desktop:runtime:audit -- --platform win32 --arch x64
 pnpm desktop:win:installer
 ```
 
-安装包会生成在 `src/frontend/desktop/release/`。
+安装包会生成在 `src/frontend/desktop/release/`。它可以安装在 Windows 10 22H2 和 Windows 11 上。
 
 </details>
 

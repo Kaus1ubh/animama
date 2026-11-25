@@ -171,7 +171,8 @@ pnpm desktop:runtime:audit -- --platform win32 --arch x64
 pnpm desktop:win:installer
 ```
 
-The installer is written to `src/frontend/desktop/release/`.
+The installer is written to `src/frontend/desktop/release/`. It installs on
+Windows 10 22H2 and on Windows 11.
 
 </details>
 
