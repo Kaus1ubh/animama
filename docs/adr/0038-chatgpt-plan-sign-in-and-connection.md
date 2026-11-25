@@ -20,12 +20,14 @@ at no charge from the app. The credential is an OAuth sign-in, not a key:
 tokens are short-lived, a rotating refresh token renews them, and the person
 signs in at OpenAI in their own browser, which must come back to the app.
 
-The plan's route also differs from the API on a key. A live trial (the
-execution plan's Phase 0, 2026-11-24) found that it takes only streamed,
-unstored Responses requests and refuses `previous_response_id`, inline
-moderation, output limits, server compaction, system-role input items and the
-hosted `apply_patch` tool; that embeddings and moderations are refused; and
-that the models it serves are listed per account.
+The plan's route also differs from the API on a key. OpenAI documents it as
+taking only streamed, unstored Responses requests, without
+`previous_response_id`, inline moderation or output limits, and as refusing
+system-role input items. A live trial (the execution plan's Phase 0,
+2026-11-24) confirmed the system-role refusal and found that the route also
+refuses the hosted `apply_patch` tool, embeddings and moderations, that it
+admits a server compaction setting without showing that compaction works,
+and that the models it serves are listed per account.
 
 ## Decision
 
@@ -52,10 +54,11 @@ that the models it serves are listed per account.
    `ChatGPTPlanResponsesHTTPAgent`, which shares the Responses transcript
    standard so a chat moves between key and plan models. One Responses client
    serves both through a route profile that says what each endpoint accepts.
-5. **The account's models are read-only built-in rows, active only while
-   signed in.** Sign-in and refresh store one row per model OpenAI lists for
-   the account; a person may only hide or show one. The seed leaves them alone,
-   and signing out retires them.
+5. **The account's models are read-only built-in rows.** Sign-in and refresh
+   store one row per model OpenAI lists for the account; a person may only hide
+   or show one. The seed leaves them alone, and signing out retires them. While
+   the session needs a new sign-in or plan use is off, the rows stay listed and
+   requests on them fail with that reason.
 6. **Agreement gates work that starts by itself.** Automatic episode
    processing uses the plan only with the person's recorded agreement and not
    while a usage limit pauses it; every request names its purpose and the

@@ -59,7 +59,13 @@ _REFUSED_FIELDS = frozenset(
         "user",
     }
 )
-"""Request fields the plan's route refuses (Phase 0 trial), and ``include``, since no reasoning is replayed."""
+"""Request fields kept off the plan's route.
+
+Most are documented as refused. ``context_management`` is left out because
+server compaction was admitted in the trial but not shown to work,
+``prompt_cache_options`` with the documented-refused cache retention, and
+``include`` because no reasoning is replayed.
+"""
 
 _UNSTORED_ITEM_TYPES = frozenset({"reasoning", "item_reference"})
 """Items that point at stored state or need it; an unstored request cannot replay them.
@@ -157,7 +163,6 @@ class ChatGPTPlanAgentsClient:
         self._client = client
         self._session = session
         self._purpose = purpose
-        self._token = ""
         self._timeout = timeout
         self.responses = SimpleNamespace(create=self._create)
 
@@ -166,12 +171,12 @@ class ChatGPTPlanAgentsClient:
             raise NotImplementedError("The ChatGPT plan's Memory Manager client serves only unstreamed calls")
         request = plan_agents_request(kwargs)
         # The background rule is checked on every request, not once per run (T7).
-        self._token = await self._session.access_token(self._purpose)
+        token = await self._session.access_token(self._purpose)
         renewed = False
         attempt = 0
         while True:
             try:
-                client = with_plan_token(self._client, self._token, timeout=self._timeout)
+                client = with_plan_token(self._client, token, timeout=self._timeout)
                 response = await _collected_response(await client.responses.create(**request))
             except OpenAIError as exc:
                 info = classify_openai_exception(
@@ -179,7 +184,7 @@ class ChatGPTPlanAgentsClient:
                 )
                 code = plan_error_code(info.metadata)
                 if info.metadata.get("status_code") == 401 and not renewed:
-                    self._token = await self._session.refresh_rejected(self._token, self._purpose)
+                    token = await self._session.refresh_rejected(token, self._purpose)
                     renewed = True
                     continue
                 if code == "usage_limit_exceeded":

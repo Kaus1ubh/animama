@@ -693,6 +693,54 @@ async def test_a_utility_prompt_completes_on_a_plan_model() -> None:
     assert route.body()["store"] is False and session.purposes == ["interactive"]
 
 
+async def test_a_plan_turn_s_stream_and_logs_carry_no_token(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Acceptance line 2 (FI-R1-F2): a plan turn through `chat:sse`, on success and on a refusal.
+
+    Neither the stream, the logs nor the turn recorded for the chat's rows carries a token.
+    """
+
+    from animama.domain.request_principal import RequestPrincipal
+    from tests import test_anima_chat_sse as chat_route
+
+    caplog.set_level("DEBUG")
+    provider = chat_route._model_provider(  # noqa: SLF001
+        model_provider_id="ChatGPTPlanResponsesHTTPAgent:gpt-6-luna", provider_type=CHATGPT_PLAN_RESPONSES_PROVIDER_TYPE
+    )
+    provider.connection_id = "chatgpt_plan"
+    reply = chat_route._direct_structured_response()  # noqa: SLF001
+    for answer, expected_event in (
+        (_completed([_message(reply)]), "event: user.response"),
+        (_error(400, {"detail": f"Refused for {FIRST_TOKEN}"}), "event: error"),
+    ):
+        session, plan_route = _Session(), _Route(answer)
+        chats = chat_route._FakeChatManager()  # noqa: SLF001
+        chat_route._install_route_mocks(  # noqa: SLF001
+            monkeypatch,
+            model_client=_client(plan_route, session),  # type: ignore[arg-type]
+            model_provider=provider,
+            chat_manager=chats,
+        )
+        response = await chat_route.chat_anima_direct_sse(
+            "anima-1",
+            chat_route._chat_request(message="hello", run_id="run-1", chat_id="chat-1"),  # noqa: SLF001
+            request=chat_route._test_request(),  # noqa: SLF001
+            user=RequestPrincipal(id="user-1"),
+        )
+        stream = "".join(await chat_route._collect_chunks(response))  # noqa: SLF001
+        # The turn reached the plan route, with the token, and the stream still carries none.
+        assert [request.headers["authorization"] for request in plan_route.requests] == [f"Bearer {FIRST_TOKEN}"]
+        assert expected_event in stream
+        assert FIRST_TOKEN not in stream and SECOND_TOKEN not in stream
+        # What the chat's rows are written from, provider metadata included.
+        if expected_event == "event: user.response":
+            assert chats.record_turn_calls == 1
+        recorded = repr(chats.record_turn_payloads)
+        assert FIRST_TOKEN not in recorded and SECOND_TOKEN not in recorded
+    assert FIRST_TOKEN not in caplog.text and SECOND_TOKEN not in caplog.text
+
+
 def test_a_plan_chat_fits_its_context_to_the_row_s_window() -> None:
     """The route takes no server compaction, so the executor fits the prompt itself (Phase 6 step 1)."""
 

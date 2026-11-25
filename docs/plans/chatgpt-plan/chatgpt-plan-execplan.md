@@ -247,7 +247,9 @@ and the backend.
   waits for G1.
 - [x] Phase 8: documentation and records (2026-11-24); its review is the
   final integration review's.
-- [ ] Final integration review, G1 to G4, pull request.
+- [x] Final integration review (2026-11-24): Review #1 blocked on FI-R1-F1
+  to F3, Review #2 on FI-R2-F1; Review #3 passed after repair round 2.
+- [ ] G1 to G4, pull request.
 
 ## Surprises & Discoveries
 
@@ -2027,8 +2029,9 @@ phase, `a4c169151` made Code Review #2's three optional Phase 7 points.
 Check record: every relative link added in the documentation diff resolves to
 an existing file and heading (a script over `git diff HEAD`);
 `python3 scripts/public-release/check_source.py` covers every tracked file
-once. No code changed in this phase. Review: covered by the final
-integration review.
+once. No code changed in this phase. Both were rerun by the final review on
+`daf1ead67` (tree `15746e0af0e6`), with the same results. Review: covered by
+the final integration review.
 
 ## Final integration review
 
@@ -2038,8 +2041,177 @@ owner's agreement (G3), the full pre-push suite runs once on the final
 candidate through the heavy slot: `python3 scripts/heavy-slot.py -- make
 check-test`; from `src/frontend`, `python3 ../../scripts/heavy-slot.py --
 pnpm verify`, `pnpm web:test:browser`, `pnpm prettier:check` and
-`pnpm desktop:test`; and `pnpm e2e:test:fast` against a disposable built
-stack. Results go in the pull request.
+`pnpm desktop:test`; `pnpm e2e:test:fast` against a disposable built
+stack; and the package-set `compare` deferred by Phases 2, 5 and 6
+(`scripts/package-sets/build.py build` of the merge base and of the
+candidate, then `build.py compare` of the two), which `pnpm verify` does not
+run. Results go in the pull request.
+
+### Final Integration Review #1 Findings
+
+Reviewed `daf1ead67` (tree `15746e0af0e6`) against `c7b98f73a` at the high
+risk tier, by an independent read-only reviewer. Result: blocked on three
+Required findings. Every acceptance criterion was met in code and tests or
+waits only for G1, G2 or G3, except criterion 2 (FI-R1-F2). Sign-in through
+chat, roles and the Memory Manager, sign-out, a different account, moving
+between key and plan models, a usage limit and its clearing, and the hosted
+composition were traced end to end without other defects; T1 to T8 hold.
+
+- **FI-R1-F1 (Required).** The Plans facts row names the trial account's
+  ChatGPT tier, in a record meant to become public.
+- **FI-R1-F2 (Required).** No test shows acceptance criterion 2 for database
+  rows or the stream of a successful plan turn: nothing scans the catalog,
+  chat or Memory Manager rows (the paused agent state included) or a plan
+  turn's events for the token. Reading the code found no leak path.
+- **FI-R1-F3 (Required).** The package-set `compare` that Phases 2, 5 and 6
+  deferred to the final candidate is missing from the suite above, and
+  `pnpm verify` does not run it.
+- **FI-R1-F4 (Optional).** ADR 0038's Context and the docstrings of
+  `routes.py` and `chatgpt_plan_agents.py` credit the Phase 0 trial with
+  refusals it did not show: it found output limits accepted and compaction
+  admitted, and did not try `previous_response_id` or moderation.
+- **FI-R1-F5 (Optional).** `development.md` says a session file that cannot
+  be read is removed; a file the server cannot open is kept and reported
+  temporarily unavailable.
+- **FI-R1-F6 (Optional).** The glossary and ADR decision 5 say plan rows are
+  active only while signed in; they stay active when OpenAI ends the session
+  or a new sign-in has no plan use, and only sign-out retires them.
+- **FI-R1-F7 (Optional).** Rejecting a change while the plan cannot serve
+  still ends the review with "the model is no longer available", and the
+  failed run counts toward automatic processing's failure pause.
+- **FI-R1-F8 (Optional).** No check record covers `a4c169151`, and Phase 8's
+  names no tree. The reviewer reran the plan background and Memory Manager
+  tests (127 passed), `check_source.py` and the link check on
+  `15746e0af0e6`.
+- **FI-R1-F9 (Optional).** `ChatGPTPlanAgentsClient` keeps a leftover
+  `self._token` that only `_create` uses.
+
+### Final Integration Review #1 Revisions
+
+- **FI-R1-F1: rejected.** The owner asked for this line on 2026-11-24 and
+  approved its wording, which gives the tier as the account holder stated it
+  and names no person. No other record names an account's tier.
+- **FI-R1-F2: accepted.** New tests: a plan turn through `chat:sse` with the
+  real plan client, on success and on a refusal whose `detail` carries the
+  token, reaches the route with the token while the stream and the logs
+  carry none (`test_chatgpt_plan_client.py`); after a sign-in, a refresh and
+  the catalog's half of sign-out (`withdraw`), no access, refresh or ID token
+  is in a model or connection row (`test_chatgpt_plan_models.py`); a plan run
+  paused on an approval leaves no token in its run (the serialized agent
+  state included), message or approval rows
+  (`test_chatgpt_plan_background.py`). The chat-row part was added in repair
+  round 2 (FI-R2-F1). Diagnostics and browser storage are out of reach
+  by construction: no response schema has a token field, and
+  `lib/diagnostics/summary.ts` reads no model state.
+- **FI-R1-F3: accepted.** The `compare` is in the final suite above.
+- **FI-R1-F4: accepted.** The ADR and both docstrings say the route's
+  refusals are documented by OpenAI and that the trial confirmed system-role
+  items, `apply_patch`, embeddings and moderations.
+- **FI-R1-F5: accepted.** `development.md` says which files are removed and
+  that an unopenable one is kept while the plan reports itself temporarily
+  unavailable.
+- **FI-R1-F6: accepted** as a wording fix: the rows are retired at sign-out;
+  while a new sign-in is needed or plan use is off they stay listed and
+  requests on them fail with that reason. Retiring them on those paths would
+  hide an Anima's chosen model while the person can still recover it.
+- **FI-R1-F7: accepted.** `_apply_decision` returns the error the plan
+  raised instead of discarding it, and the rejected review's result carries
+  its reason ("The review ended after your rejection: Sign in with ChatGPT
+  again…"). The run still ends failed, as it does for any provider that
+  cannot resume; the new background test asserts the reason.
+- **FI-R1-F8: accepted.** The reviewer's reruns are recorded above and on
+  Phase 8; the repair check record below covers `a4c169151`'s files again.
+- **FI-R1-F9: accepted.** The token is a local of `_create`; no instance
+  field holds it.
+
+Repair check record (2026-11-24, working tree on `daf1ead67`, tree
+`db0e94eb5a0e` before this record was added; all from the worktree root):
+
+| Command | Result |
+| --- | --- |
+| `uv run --no-sync ruff check` and `ruff format --check` on `src/backend` and the three changed test files | Passed; 610 files formatted |
+| `uv run --no-sync mypy` on `memory_manager_service.py`, `adapters/memory_manager` and `adapters/model_clients/openai_responses` | No issues in 21 files |
+| `timeout 900 python3 scripts/heavy-slot.py -- uv run --no-sync pytest -q -p no:cacheprovider` on `test_chatgpt_plan_background.py`, `test_chatgpt_plan_client.py`, `test_chatgpt_plan_models.py`, `test_memory_manager.py`, `test_anthropic_memory_manager.py` and `test_anima_chat_sse.py` | 289 passed |
+| `python3 scripts/public-release/check_source.py` | Every tracked file covered once |
+| Every relative link and anchor added to Markdown since `c7b98f73a`, working tree included | All resolve |
+
+Not run: the full pre-push suite and the package-set `compare` (G3).
+
+### Final Integration Review #2 Findings
+
+Targeted recheck of the repairs on working tree `c33f05fa4f67` (on
+`daf1ead67`) at the high risk tier, by an independent read-only reviewer
+who reran the affected tests (289 passed), mypy on the touched modules and
+the three changed test files, ruff and `check_source.py`, and probed the new
+tests. FI-R1-F1's rejection is recorded with its reason; FI-R1-F3 and F5 to
+F9 are resolved without regressions, including both callers of
+`_apply_decision` and the 401 renewal with a local token. Result: blocked on
+one Required finding.
+
+- **FI-R2-F1 (Required).** The Revisions claimed the stream test covers chat
+  rows, but the persisted assistant message carries the provider metadata
+  the stream never shows, and no test inspects the recorded turn.
+- **FI-R2-F2 (Optional).** The ADR, `routes.py` and the Agents client still
+  credit OpenAI's documentation with refusing server compaction; the
+  documented list omits it, the trial found it admitted, and leaving it out
+  is the app's own choice. `prompt_cache_options` is not on the documented
+  list either.
+- **FI-R2-F3 (Optional).** Two Revisions overstated: the models test runs
+  the catalog's `withdraw`, not a whole sign-out, and the Agents client's
+  constructor never took a token.
+- Non-blocking notes: a directory in the session file's place is not removed;
+  the stream test's `"event:"` would pass on a failed success case; the
+  refusal's JWT-shaped token is also caught by the generic sanitizer; no
+  test pins which branch of the rejected-review message ran.
+
+### Final Integration Review #2 Revisions
+
+- **FI-R2-F1: accepted.** The plan turn test passes a recording chat manager
+  and asserts that the success case records one turn and that no recorded
+  turn, on success or refusal, carries a token. It now also requires
+  `user.response` on success and an `error` event on the refusal.
+- **FI-R2-F2: accepted.** The ADR, `routes.py` and the Agents client's
+  docstring separate what OpenAI documents from what the trial found, and
+  say compaction stays off the route because it was admitted but not shown
+  to work; `prompt_cache_options` is described as kept off with the
+  documented-refused cache retention.
+- **FI-R2-F3: accepted.** Both Revisions are corrected above.
+- Non-blocking: `development.md` now says the file or link is removed. The
+  other notes are left: the generic sanitizer and `_without_token` both
+  redact, and the outcome is what acceptance asks for.
+
+Repair round 2 check record (2026-11-24, from the worktree root, working
+tree `0143c8225ec2` before this record was added):
+
+| Command | Result |
+| --- | --- |
+| `uv run --no-sync ruff check` and `ruff format --check` on `src/backend` and the three changed test files | Passed; 610 files formatted |
+| `uv run --no-sync mypy` on the touched modules and the three changed test files | No issues in 24 files |
+| The same pytest command as round 1, through the heavy slot | 289 passed |
+| `python3 scripts/public-release/check_source.py` | Every tracked file covered once |
+| Every relative link and anchor added to Markdown since `c7b98f73a` | All resolve |
+
+Not run: the full pre-push suite and the package-set `compare` (G3).
+
+### Final Integration Review #3 Findings
+
+Final targeted recheck of repair round 2 on working tree `cf5a45134b54`, by
+the same independent reviewer, who reran the affected tests (289 passed),
+mypy on 24 files and ruff, and confirmed with a mutation probe that a token
+in a recorded turn now fails the plan turn test while the stream-only
+version passed. FI-R2-F1 to F3 and the `development.md` note are resolved
+with no regressions, and the added text meets the public-record constraints.
+Result: pass.
+
+- **FI-R3-F1 (Optional).** The Agents client's docstring said
+  `context_management` stays off because the app compacts plan runs itself;
+  nothing compacts Memory Manager runs.
+
+### Final Integration Review #3 Revisions
+
+- **FI-R3-F1: accepted.** The docstring gives only the trial's reason. A
+  wording change in a docstring, verified by the coordinator with
+  `ruff check` and `ruff format --check` on the file.
 
 Gates:
 

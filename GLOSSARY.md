@@ -308,8 +308,8 @@ whose plan model cannot run waits rather than moving to another connection. See
 
 The models OpenAI lists for the signed-in ChatGPT account, stored as read-only
 rows of the ChatGPT plan connection when the owner signs in or refreshes the
-list. They are active only while signed in; the owner can hide one but not add
-or remove one.
+list, and retired at sign-out. The owner can hide one but not add or remove
+one.
 
 ## Model role
 

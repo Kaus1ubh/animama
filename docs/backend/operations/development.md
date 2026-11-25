@@ -311,8 +311,10 @@ directory (mode 0700) holding one file (mode 0600) that is replaced atomically
 and never followed through a link. A self-hosted stack writes `session.json`;
 desktop writes `session.bin`, AES-256-GCM ciphertext under a key held in its
 vault ([desktop operations](desktop-runtime.md#roots-secrets-and-private-bytes)).
-Tokens never enter the database. A file that cannot be read or decrypted
-counts as signed out and is removed. Deleting the directory signs the
+Tokens never enter the database. A file that does not decode or decrypt, or a
+link or other non-file in its place, counts as signed out, and the file or link
+is removed; a file the server cannot open (for example a permission error) is
+kept, and the plan reports itself temporarily unavailable until it can. Deleting the directory signs the
 installation out at the next start; a running server keeps the session it
 already read.
 

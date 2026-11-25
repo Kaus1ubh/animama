@@ -1,10 +1,11 @@
 """How one OpenAI Responses endpoint is used: the API on a key, or the API through a ChatGPT plan.
 
-The ChatGPT plan's route (verified in the Phase 0 trial, 2026-11-24) takes
-only streamed, unstored requests: no ``previous_response_id``, no inline
-moderation, no output limits, no server compaction and no ``apply_patch``
-tool; system-role input items are refused, and OpenAI's documentation asks for
-function tools inside a namespace. A request builder reads a route instead of
+OpenAI documents the ChatGPT plan's route as taking only streamed, unstored
+requests: no ``previous_response_id``, no inline moderation, no output limits
+and no system-role input items, with function tools inside a namespace. The
+Phase 0 trial (2026-11-24) also found the ``apply_patch`` tool refused, and
+server compaction admitted but unproven, so plan requests send none and the
+app compacts plan chats itself. A request builder reads a route instead of
 asking which connection it serves.
 """
 

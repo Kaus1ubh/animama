@@ -14,7 +14,7 @@ from typing import Any
 import httpx2
 import pytest
 import pytest_asyncio
-from sqlalchemy import delete
+from sqlalchemy import delete, select
 
 from animama.adapters.memory_manager.openai_agents_runtime import OpenAIAgentsMemoryManagerRuntime
 from animama.adapters.openai_agents import OpenAIAgentsRunOutput
@@ -412,6 +412,49 @@ async def test_a_run_moving_to_the_plan_and_back_replays_what_the_plan_step_said
     third = runner.calls[2]
     assert third["previous_response_id"] is None
     assert "Second, on the plan." in [item["content"] for item in third["input_value"]]
+
+
+@pytest.mark.usefixtures("manager_rows")
+async def test_rejecting_a_change_the_plan_cannot_resume_says_why_and_stores_no_token(
+    async_session: Any, memory_entries: Any
+) -> None:
+    """FI-R1-F7: the plan's reason, not "the model is gone"; FI-R1-F2: no token in any Memory Manager row."""
+
+    patch_call = {
+        "id": "fc_patch",
+        "type": "function_call",
+        "call_id": "call_patch",
+        "name": "apply_patch",
+        "namespace": "animama",
+        "arguments": json.dumps({"operation": {"type": "create_file", "path": "notes/tea.md", "diff": TEA_NOTE}}),
+        "status": "completed",
+    }
+    route, session = _Route(_completed([patch_call])), _Session()
+    runtime = _runtime(memory_entries, route, session)
+    service = MemoryManagerService(
+        memory_manager=SQLAlchemyMemoryManagerRepository(async_session),
+        memory_entries=memory_entries,
+        runtime=runtime,
+        uow=SQLAlchemyUnitOfWork(async_session),
+    )
+    user_id = f"user-{uuid.uuid4()}"
+    created = await service.create_run(user_id=user_id)
+    await service.append_user_message(user_id=user_id, run_id=created.run.id, content="Remember that I like green tea.")
+    waiting = await service.get_run_snapshot(user_id=user_id, run_id=created.run.id)
+    assert waiting.run.serialized_agent_state and len(waiting.approvals) == 1
+
+    # Every Memory Manager row the plan step wrote, the paused agent state included, is free of tokens.
+    for table in (ORMMemoryManagerRun, ORMMemoryManagerMessage, ORMMemoryManagerApproval):
+        rows = (await async_session.execute(select(table))).scalars().all()
+        dumped = repr([vars(row) for row in rows])
+        assert FIRST_TOKEN not in dumped and SECOND_TOKEN not in dumped, table.__name__
+
+    session.unavailable = "sign_in_required"
+    await service.decide_approval(user_id=user_id, approval_id=waiting.approvals[0].id, decision="reject")
+
+    ended = await service.get_run_snapshot(user_id=user_id, run_id=created.run.id)
+    assert ended.run.error is not None and "Sign in with ChatGPT again" in ended.run.error
+    assert len(route.requests) == 1
 
 
 async def test_a_run_that_started_by_itself_asks_for_background_tokens(memory_entries: Any) -> None:

@@ -213,6 +213,17 @@ async def test_a_refresh_stores_listed_models_and_retires_the_rest(
     async_session.expire_all()
     assert set((await _plan_rows(async_session)).values()) == {False}
 
+    # No token reaches the catalog: the rows and the connection hold none (acceptance line 2).
+    from animama.orm import ORMModelConnection, ORMModelProvider
+
+    record = signed_in._store.load()  # noqa: SLF001
+    assert record is not None and record.account is not None and record.account.tokens is not None
+    tokens = record.account.tokens
+    for table in (ORMModelProvider, ORMModelConnection):
+        dumped = repr([vars(row) for row in (await async_session.execute(select(table))).scalars().all()])
+        for secret in (tokens.access_token, tokens.refresh_token, tokens.id_token):
+            assert secret not in dumped, table.__name__
+
 
 @pytest.mark.usefixtures("plan_rows_cleanup")
 async def test_a_refused_token_is_renewed_once_before_listing_again(
