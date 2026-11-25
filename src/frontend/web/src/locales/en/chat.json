@@ -85,6 +85,9 @@
       "search": "Search uploaded files…",
       "uploading": "Uploading {{percent}}"
     },
+    "chatgptPlan": {
+      "using": "Using ChatGPT plan"
+    },
     "dictation": {
       "failed": "Dictation failed",
       "mute": "Mute Mic",
@@ -124,6 +127,7 @@
       "empty": "No models found.",
       "fallbackLabel": "Model",
       "features": "Chat features",
+      "keyMissing": "{{model}} has no API key",
       "needsWindow": "Set its context window in App Settings → Models",
       "noFeatures": "No optional features for this model.",
       "noProfile": "No chat profile",
@@ -158,11 +162,21 @@
       "unavailableShort": "Model unavailable",
       "webSearch": "Web search"
     },
+    "modelKey": {
+      "choose": "Choose a model",
+      "notice": "{{anima}} uses {{model}}, but {{provider}} has no API key yet.",
+      "settings": "Model settings",
+      "use": "Use {{model}}"
+    },
     "speechEngines": {
       "offline": "{{engine}} {{variant}}",
       "stt": "STT: {{stt}}",
       "tts": "TTS: {{tts}}",
       "ttsOff": "Off"
+    },
+    "speechSetup": {
+      "detail": "Speech recognition needs a model. Select to open App Settings → Voice.",
+      "title": "Set up speech recognition"
     }
   },
   "header": {

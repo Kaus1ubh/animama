@@ -578,6 +578,7 @@
     "cloning": {
       "change": "Change sample",
       "checking": "Checking voice cloning…",
+      "chooseHint": "Each Anima chooses its own voice under Voices on its page.",
       "clone": "Clone voice",
       "cloningVoice": "Cloning voice…",
       "delete": {
@@ -623,7 +624,10 @@
       "savingVoice": "Saving voice…",
       "sectionLabel": "Voice cloning",
       "title": "Voice Cloning",
-      "upload": "Upload voice sample"
+      "upload": "Upload voice sample",
+      "usedBy": "{{anima}}'s voice",
+      "usedFor": "{{voice}} is now {{anima}}'s voice. It applies the next time you open the chat.",
+      "useFor": "Use for {{anima}}"
     },
     "elevenLabs": {
       "idLabel": "Voice ID",

@@ -567,6 +567,7 @@
     "cloning": {
       "change": "샘플 변경",
       "checking": "음성 복제를 확인하는 중…",
+      "chooseHint": "각 Anima의 음성은 해당 Anima 페이지의 음성에서 선택합니다.",
       "clone": "음성 복제",
       "cloningVoice": "음성을 복제하는 중…",
       "delete": {
@@ -612,6 +613,9 @@
       "sectionLabel": "음성 복제",
       "title": "음성 복제",
       "upload": "음성 샘플 업로드",
+      "usedBy": "{{anima}}의 음성",
+      "usedFor": "{{voice}}을(를) {{anima}}의 음성으로 설정했습니다. 다음에 채팅을 열 때부터 적용됩니다.",
+      "useFor": "{{anima}}에 사용",
       "downloadsEnded": "음성 복제에는 더 이상 다운로드할 수 없는 모델이 필요합니다. 저장된 복제 음성은 계속 작동합니다."
     },
     "elevenLabs": {

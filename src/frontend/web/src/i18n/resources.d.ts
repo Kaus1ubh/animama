@@ -1059,6 +1059,7 @@ export default interface Resources {
       "cloning": {
         "change": "Change sample",
         "checking": "Checking voice cloning…",
+        "chooseHint": "Each Anima chooses its own voice under Voices on its page.",
         "clone": "Clone voice",
         "cloningVoice": "Cloning voice…",
         "delete": {
@@ -1104,7 +1105,10 @@ export default interface Resources {
         "savingVoice": "Saving voice…",
         "sectionLabel": "Voice cloning",
         "title": "Voice Cloning",
-        "upload": "Upload voice sample"
+        "upload": "Upload voice sample",
+        "useFor": "Use for {{anima}}",
+        "usedBy": "{{anima}}'s voice",
+        "usedFor": "{{voice}} is now {{anima}}'s voice. It applies the next time you open the chat."
       },
       "elevenLabs": {
         "idLabel": "Voice ID",
@@ -1519,6 +1523,9 @@ export default interface Resources {
         "search": "Search uploaded files…",
         "uploading": "Uploading {{percent}}"
       },
+      "chatgptPlan": {
+        "using": "Using ChatGPT plan"
+      },
       "dictation": {
         "failed": "Dictation failed",
         "mute": "Mute Mic",
@@ -1558,6 +1565,7 @@ export default interface Resources {
         "empty": "No models found.",
         "fallbackLabel": "Model",
         "features": "Chat features",
+        "keyMissing": "{{model}} has no API key",
         "needsWindow": "Set its context window in App Settings → Models",
         "noFeatures": "No optional features for this model.",
         "noProfile": "No chat profile",
@@ -1592,11 +1600,21 @@ export default interface Resources {
         "unavailableShort": "Model unavailable",
         "webSearch": "Web search"
       },
+      "modelKey": {
+        "choose": "Choose a model",
+        "notice": "{{anima}} uses {{model}}, but {{provider}} has no API key yet.",
+        "settings": "Model settings",
+        "use": "Use {{model}}"
+      },
       "speechEngines": {
         "offline": "{{engine}} {{variant}}",
         "stt": "STT: {{stt}}",
         "tts": "TTS: {{tts}}",
         "ttsOff": "Off"
+      },
+      "speechSetup": {
+        "detail": "Speech recognition needs a model. Select to open App Settings → Voice.",
+        "title": "Set up speech recognition"
       }
     },
     "header": {
@@ -4579,6 +4597,58 @@ export default interface Resources {
       "testing": "Testing…",
       "undo": "Undo"
     },
+    "chatgptPlan": {
+      "background": {
+        "description": "Animama turns episode notes into memories by itself. With this on, that work counts toward your plan's usage.",
+        "label": "Let automatic memory updates use my plan"
+      },
+      "beginFailed": "Couldn't start the sign-in. Try again.",
+      "confirmation": {
+        "background": "Also let automatic memory updates use my plan",
+        "backgroundHint": "You can change this later in App Settings → Models.",
+        "description": "Eligible AI requests in Animama now use your ChatGPT plan: chats with plan models, chat titles and summaries, and memory updates you start. Review and limit this usage in ChatGPT's settings.",
+        "gotIt": "Got it",
+        "title": "You're using your ChatGPT plan"
+      },
+      "continue": "Continue with ChatGPT",
+      "description": "Complete eligible AI requests in Animama with the usage included in your ChatGPT plan, without an API key. Animama charges nothing for it.",
+      "enablePlanUse": "Enable plan use",
+      "failure": {
+        "declined": "Sign-in was cancelled at OpenAI. You can try again, or use another model connection.",
+        "other": "Sign-in didn't complete. Try again."
+      },
+      "loadFailed": "Couldn't load the ChatGPT plan status.",
+      "manageUsage": "Manage usage",
+      "models": {
+        "description": "OpenAI lists the models your plan includes. You can hide any of them, and refresh the list after your plan changes.",
+        "none": "OpenAI lists no models for this plan right now.",
+        "refresh": "Refresh list",
+        "refreshFailed": "Couldn't refresh the model list. Try again.",
+        "refreshed": "Model list updated.",
+        "refreshing": "Refreshing…",
+        "title": "Models in your plan"
+      },
+      "notSignedIn": "Not signed in",
+      "openAgain": "Open the sign-in page again",
+      "opensInBrowser": "(opens in your browser)",
+      "paused": "Paused after a usage limit: automatic memory updates wait until one of your own requests succeeds.",
+      "planUseOff": "This account is signed in, but plan use is off: it was declined, or the account's plan doesn't include it. You can enable it, or use another model connection.",
+      "planUseOn": "Eligible requests use your ChatGPT plan.",
+      "preferencesFailed": "Couldn't save that choice. Try again.",
+      "signInRequired": "OpenAI ended this session. Sign in again to keep using your plan.",
+      "signOut": "Sign out",
+      "signOutFailed": "Couldn't sign out. Try again.",
+      "signOutUnconfirmed": "You're signed out in Animama, but OpenAI didn't confirm that the session ended. You can disconnect Animama in ChatGPT's settings.",
+      "signedIn": "Signed in",
+      "signedInAs": "Signed in as {{email}}",
+      "signedOut": "Signed out of ChatGPT",
+      "title": "Use your ChatGPT plan",
+      "unavailable": {
+        "remoteOrigin": "Sign in from a browser on the computer running Animama: OpenAI can only send you back to that computer.",
+        "secureStorage": "Secure storage isn't available, so Animama can't keep a ChatGPT sign-in. Restart Animama and try again."
+      },
+      "waiting": "Finish signing in in your browser. This page continues by itself."
+    },
     "chips": {
       "appSearch": {
         "description": "Searches the web with this app's search service",
@@ -4653,6 +4723,10 @@ export default interface Resources {
       "addModel": "Add model",
       "addModelTo": "Add model to {{name}}",
       "added": "Connection added.",
+      "apiKey": {
+        "description": "Pay OpenAI per request with your own API key.",
+        "title": "Use an API key"
+      },
       "builtinKey": {
         "managed": "Encrypted on this computer and never shown again. Also in App Settings → API Keys.",
         "server": "Uses the {{name}} key configured on this server ({{env}})."
@@ -4735,7 +4809,8 @@ export default interface Resources {
       },
       "saveFailed": "The {{role}} model could not be saved.",
       "unavailable": "The chosen model is unavailable, so the default is used.",
-      "unavailableChoice": "{{model}} (unavailable)"
+      "unavailableChoice": "{{model}} (unavailable)",
+      "unavailableWaiting": "The chosen model is unavailable, so this waits until it is available again."
     },
     "downloadsEnded": {
       "note": "Animama no longer offers model downloads. Anything already downloaded keeps working; chat, Avatars and the built-in voices need no downloads."
@@ -4843,6 +4918,11 @@ export default interface Resources {
       "showNamedInLists": "Show {{name}} in model lists",
       "testModel": "Test model"
     },
+    "picker": {
+      "apiKey": "API key",
+      "openaiKey": "OpenAI · API key",
+      "openaiPlan": "OpenAI · ChatGPT plan"
+    },
     "probe": {
       "contextWindow": "The server reports a context window of {{tokens, number}} tokens.",
       "dimensions": "Vectors have {{dimensions, number}} dimensions.",
@@ -4861,6 +4941,7 @@ export default interface Resources {
       }
     },
     "providers": {
+      "chatgptPlan": "ChatGPT plan",
       "connected": " (connected)",
       "custom": "Custom",
       "purpose": {
@@ -4873,6 +4954,7 @@ export default interface Resources {
         "lmstudio": "Chat with models served by LM Studio on this computer.",
         "ollama": "Chat with models running in Ollama on this computer.",
         "openai": "Chat with OpenAI's models using your API key.",
+        "openaiWithPlan": "Use OpenAI's models through your ChatGPT plan or with an API key.",
         "openrouter": "Chat with models from many providers through one OpenRouter key.",
         "vllm": "Chat with models served by vLLM on this computer."
       },
@@ -6268,10 +6350,13 @@ export default interface Resources {
         "label": "Process episode notes automatically",
         "memoryOff": "Turn on Memory and Memory updates to process notes automatically.",
         "needsModel": "Needs a Memory Manager model that supports tools. Choose one in the Models settings.",
+        "needsPlanAgreement": "The Memory Manager model uses your ChatGPT plan. To process notes automatically, let automatic memory updates use it in the Models settings.",
+        "needsPlanSignIn": "The Memory Manager model uses your ChatGPT plan. Sign in with ChatGPT again, or turn plan use on, in the Models settings.",
         "notes_one": "After {{count}} note",
         "notes_other": "After {{count}} notes",
         "off": "Off",
         "paused": "Paused after repeated failures. Change this setting to try again. Last error: {{error}}",
+        "planPaused": "Paused after a ChatGPT plan usage limit. It continues once one of your own requests on the plan succeeds.",
         "retrying": "Retrying later after a failure. Last error: {{error}}",
         "running_one": "Crystallizing {{count}} note into memory…",
         "running_other": "Crystallizing {{count}} notes into memory…",
@@ -6600,6 +6685,12 @@ export default interface Resources {
         "searching": "Searching…",
         "setUpLater": "Set up later"
       },
+      "noModelPrompt": {
+        "continue": "Continue without a model",
+        "description": "No model is ready to reply yet, so your Animas can't chat. Connect a provider and add a model here, or add one later in App Settings → Models.",
+        "stay": "Keep setting up",
+        "title": "Continue without a chat model?"
+      },
       "providedModels": "This installation provides its own models, so there is nothing to choose here.",
       "providerTabs": "{{location}} providers",
       "purpose": "Pick the model your Animas chat with."
@@ -6762,6 +6853,7 @@ export default interface Resources {
       "account": "Account",
       "accountUnavailable": "Account access is unavailable.",
       "appSettings": "App Settings",
+      "checkForUpdates": "Check for updates…",
       "fallbackName": "You",
       "signOut": "Sign out",
       "usage": "Usage and limits"

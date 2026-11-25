@@ -220,9 +220,12 @@
       "label": "自动处理经历笔记",
       "memoryOff": "开启“记忆”和“记忆更新”后才能自动处理笔记。",
       "needsModel": "需要支持工具的记忆管理器模型，请在模型设置中选择。",
+      "needsPlanAgreement": "记忆管理器模型使用你的 ChatGPT 套餐。要自动处理笔记，请在模型设置中允许自动记忆更新使用套餐。",
+      "needsPlanSignIn": "记忆管理器模型使用你的 ChatGPT 套餐。请在模型设置中重新登录 ChatGPT，或开启套餐使用。",
       "notes_other": "每 {{count}} 条笔记",
       "off": "关闭",
       "paused": "多次失败后已暂停。更改此设置即可重试。最后的错误：{{error}}",
+      "planPaused": "已因 ChatGPT 套餐用量限额而暂停。你自己在套餐上的请求成功后会继续。",
       "retrying": "失败后将稍后重试。最后的错误：{{error}}",
       "running_other": "正在将 {{count}} 条笔记整理进记忆…",
       "updateFailed": "无法更新笔记自动处理设置。"

@@ -29,12 +29,13 @@ the tooling reference. CI publication remains unconfigured.
 
 A build whose sealed `runtime/update-policy.json` says `"updates": "ended"`,
 as the final release does, never checks for updates: it verifies no publisher,
-creates no updater session, makes no feed request and shows no update row or
-notice, as an unpackaged build does. Nothing read at run time turns checks back
+creates no updater session, makes no feed request and shows no update row,
+menu item or notice, as an unpackaged build does. Nothing read at run time turns checks back
 on. The rest of this section describes a build that offers updates.
 
-A signed, configured app checks its release feed 15 seconds after startup. Offline checks time out without blocking the application. Settings →
-General also offers **Check for updates**. A notice offers **Download update**;
+A signed, configured app checks its release feed 15 seconds after startup. Offline checks time out without blocking the application. App Settings →
+About, the sidebar user menu and, on macOS, the Animama menu also offer a
+check on request. A notice offers **Download update**;
 the separate **Restart to install** action asks for confirmation before stopping
 local services. Closing the notice or quitting normally does not install a
 downloaded update. Unpackaged or unconfigured builds do not offer updates.
@@ -835,7 +836,7 @@ steps, each with its own approval:
 4. **Animama Cloud follow-ups.** Its landing download links, hosted privacy
    terms, operator dashboard download analytics and its copy of
    `included-content-attribution.txt` need the same change, and its next
-   repin admits `local-http` 24 and `runtime-contracts` 0.24.0.
+   repin admits `local-http` 25 and `runtime-contracts` 0.25.0.
 
 Before the cut-off, a revert restores updates and downloads for a new build;
 after it, reconnecting the custom domain restores service while the bucket
