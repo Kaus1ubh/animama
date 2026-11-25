@@ -56,8 +56,16 @@ Windows 10 install cannot rely on electron-updater's default check.
       Phase checks pass; review #1 found two required and four optional
       items, all repaired; recheck #2 passed. The full pre-push suite has not
       been run.
-- [ ] Phase 2: native evidence on Windows 11 and Windows 10 (gate G1). Not
-      started; needs the Windows build host and a Windows 10 22H2 VM.
+- [ ] Phase 2: native evidence on Windows 11 and Windows 10 (gate G1). Run
+      2026-11-25 on the Windows build host and a Windows 10 22H2 Hyper-V VM
+      from `9d3cb6491`; receipt below. Most rows pass. Not shown: keeping
+      data on an owner-started Windows 11 uninstall, reinstall onto that
+      data, Pocket TTS audio, Quick Chat's window and the held Press to talk
+      key; Quick Chat's invisible window is an open question for the owner.
+      The source build on Windows 10 (R8) stopped at the speech model
+      download, so the Phase 3 build-host rows stay as they are; follow-up
+      [#928](https://github.com/raymond-van/animama/issues/928). No repair
+      was made.
 - [ ] Phase 3: documentation and decision record. Written ahead of G1 by the
       owner's decision of 2026-11-24. The README build-host line stays
       provisional until Phase 2 step 5; everything is revisited if G1 changes
@@ -94,6 +102,44 @@ Windows 10 install cannot rely on electron-updater's default check.
   Electron 45.3.1 states "Windows 10 and up"; the guard and input hook use
   APIs older than Windows 10; PostgreSQL's UTF-8 code page manifest needs
   version 1903. Nothing has been run on Windows 10.
+- 2026-11-25, Phase 2. Step 1's commands do not set
+  `ANIMAMA_REQUIRE_MIXAMO_MOTION` or `ANIMAMA_REQUIRE_WOW_COMEDY_SFX`, and the
+  private packs' ignored inputs (`build-inputs/`) belong to each checkout, so
+  the first build in a fresh worktree staged without both packs. Upgrading a
+  published 0.1.6 profile to that build stopped at startup with
+  `included_source_in_use` ("could not reconcile its content library"), as
+  designed, because the starter Animas use those packs. The receipt's build
+  was restaged with the verified inputs and both variables set; its starter
+  content then equalled the 0.1.6 baseline. An installer meant for upgrade
+  testing over a release profile needs the packs, as release candidates do.
+  Not a defect of this change.
+- 2026-11-25, Phase 2. The Windows stage fails at once when started from
+  PowerShell 7: it runs Windows PowerShell (`powershell.exe`) for `Get-Acl`,
+  which cannot load `Microsoft.PowerShell.Security` with the PowerShell 7
+  `PSModulePath` it inherits. Starting it from Windows PowerShell, cmd or Git
+  Bash works. This predates this change; it is a follow-up candidate.
+- 2026-11-25, Phase 2. The Windows 10 VM has no GPU (Microsoft Hyper-V Video)
+  and was viewed through Hyper-V Enhanced Session, whose display followed the
+  host monitor at first (3840×2160). During one long streamed reply at that
+  size, Windows marked the main window "not responding" for about a minute
+  while the GPU process rendered in software; it then recovered with the
+  reply complete, and the Stop clicks made during the freeze were lost. The
+  remaining steps ran at 1922×1080 without a freeze. This is the
+  older-graphics risk of C6 and D3, not a measured defect.
+- 2026-11-25, Phase 2, open question. On the Windows 10 VM, `Alt+/` opened
+  Quick Chat: its window existed at an on-screen position, took keyboard
+  focus and sent typed text into the current chat. The window itself never
+  appeared on screen, while PiP's transparent window did. Whether this comes
+  from the VM's software rendering over a remote session or from Windows 10
+  is not known; it needs a check on real Windows 10 hardware or the owner's
+  decision.
+- 2026-11-25, Phase 2. On a fresh Windows 10 install, Python cannot verify
+  huggingface.co: a new install holds only part of the trusted root
+  certificates, Windows adds the others when a Windows component first needs
+  them, and Python's TLS check reads the store without triggering that. The
+  model scripts report this as a connectivity failure
+  (`scripts/models/parakeet.py`), so the source build stopped before staging.
+  The long-used build host did not show it.
 
 ## Decision Log
 
@@ -446,29 +492,64 @@ receipts, screenshots and logs stay in owner-local storage.
 Build from the branch head at the time of the run, not from an older
 commit, and record that commit: the head includes later merges of `main`.
 
-Receipt (public-safe summary; fill in during the run):
+Receipt (public-safe summary), 2026-11-25. The agent on the build host ran
+the build and, at the owner's request, drove the Windows 10 VM through its
+console; the owner entered the provider key and decided the uninstall,
+reinstall and audio questions.
 
-- Commit built:
-- Build host: Windows build number; MSVC, Windows SDK, Node and pnpm versions:
-- Stage and audit result:
+- Commit built: `9d3cb6491`, the branch head, which contains `main` at
+  `c7b98f73a`. Desktop version set to 0.1.7 locally, never committed.
+- Build host: Windows 11 25H2 x64, build 26200.7171; Visual Studio 2022
+  17.14.23 with MSVC tools 14.44.35207 and redistributable 14.44.35112;
+  Windows SDK 10.0.26100.0; Node 24.15.0; pnpm 10.33.0; uv 0.12.21;
+  Python 3.13.5.
+- Stage and audit result: staged with `ANIMAMA_REQUIRE_MIXAMO_MOTION=1` and
+  `ANIMAMA_REQUIRE_WOW_COMEDY_SFX=1` (Mixamo-motion 71 files, comedy sound
+  150 files). `runtime audit: OK`: 5,132 manifest files, none missing or
+  unexpected; staged `minimum_os` `10.0.18362`; starter content 42,469,328
+  bytes, equal to the 0.1.6 baseline; release gate closed with 608 pending
+  licence records, as expected for an unsigned build.
 - Installer SHA-256:
-- Windows 11 test system (build number; account or VM):
-- Windows 10 test system (`winver` build; hypervisor; graphics adapter):
+  `2dd940b30a89f0adff6f2dc4cf61b3a7af591e64384729518cb350d9557ac4eb`
+  (375,611,236 bytes, unsigned).
+- Windows 11 test system: the build host itself (build 26200.7171), in the
+  owner's account, with its data folders and installed app set aside first
+  and restored afterwards, by the owner's choice.
+- Windows 10 test system: Windows 10 Pro 22H2 x64, `winver` build
+  19045.2965, installed unattended from Microsoft's current 22H2 ISO (its
+  SHA-256 matched Microsoft's list) into a Hyper-V Generation 2 VM on the
+  build host (6 vCPUs, 8 GB, not activated). Graphics: Microsoft Hyper-V
+  Video, no GPU, viewed through Enhanced Session (Microsoft Remote Display
+  Adapter) at 3840×2160, then 1922×1080. No microphone; audio was forwarded
+  to the host with its speakers off.
 
 | Step | Result | Notes |
 | --- | --- | --- |
-| 2. Windows 11: published 0.1.6 installed, new installer run over it, data kept | | |
-| 2. Windows 11: uninstall keeps the data folder; reinstall uses it | | |
-| 3. Windows 10: installs for the current account without elevation | | |
-| 3. Windows 10: starts with no Docker, Node, Python or PostgreSQL present | | |
-| 3. Windows 10: required name, provider key, chat with both starters, cancellation | | |
-| 3. Windows 10: Pocket TTS, Avatar animation, fullscreen, PiP, Quick Chat, shortcuts | | |
-| 3. Windows 10: quit and reopen keeps owner, content and history | | |
-| 4. Windows 10: no owned process 30 seconds after a force close | | |
-| 4. Windows 10: provider key survives a restart | | |
-| 4. Windows 10: held Press to talk key unmutes once and re-mutes once | | |
-| 5. Windows 10: source build (stage, audit, package), then the three native tests | | |
-| 6. Build host: local version change discarded | | |
+| 2. Windows 11: published 0.1.6 installed, new installer run over it, data kept | Pass | Published 0.1.6 (matching the live feed's SHA-512) installed onto a fresh profile; the owner set it up and chatted; the 0.1.7 installer upgraded it (exit 0) and opened 0.1.7 with the same owner and chat. A first build without the private packs failed this by design; see Surprises. |
+| 2. Windows 11: uninstall keeps the data folder; reinstall uses it | Partial | The owner's uninstall from Settings offered to delete the data folder and the owner chose to delete it, so keeping was not shown there. A silent uninstall (`/S`, as upgrades run it) kept the folder. Reinstall onto existing data: not run, by the owner's decision. |
+| 3. Windows 10: installs for the current account without elevation | Pass | Run as the standard user; no UAC prompt; exit 0; registered per user as Animama 0.1.7. |
+| 3. Windows 10: starts with no Docker, Node, Python or PostgreSQL present | Pass | None installed (only the Store `python.exe` alias); the runtime started and showed the required-name step. |
+| 3. Windows 10: required name, provider key, chat with both starters, cancellation | Pass | Name set; the owner entered the provider key; chats with Annie and Andrew; Stop ended a streaming reply and discarded it. One freeze at 3840×2160 is described under Surprises. |
+| 3. Windows 10: Pocket TTS, Avatar animation, fullscreen, PiP, Quick Chat, shortcuts | Partial | The Avatar blinked, waved and changed expression; fullscreen entered and left; `Alt+,` opened and closed PiP. Pocket TTS played (its skip control appeared and cleared) but was not heard. `Alt+/` opened Quick Chat, which took focus and sent a message, but its window was never seen on screen (open question under Surprises). Voice shortcuts not tried: no microphone. |
+| 3. Windows 10: quit and reopen keeps owner, content and history | Pass | Closing the window quit; no owned process remained; reopening went to the last Anima with the same owner, both Animas and both chats. |
+| 4. Windows 10: no owned process 30 seconds after a force close | Pass | Task Manager End task; 41 seconds later none of `Animama.exe`, `animama-runtime.exe`, `postgres.exe` or `animama-process-guard.exe` remained. |
+| 4. Windows 10: provider key survives a restart | Pass | After the force close and a reopen, a chat reply arrived without entering the key again. |
+| 4. Windows 10: held Press to talk key unmutes once and re-mutes once | Not run | No microphone in the VM session, so Voice Mode could not start. |
+| 5. Windows 10: source build (stage, audit, package), then the three native tests | Fail; stopped | The documented prerequisites installed in the VM: Visual Studio 2022 Build Tools 17.14.23 (MSVC 14.44.35207, SDK 10.0.26100.0), Node 24.15.0, pnpm 10.33.0, Python 3.13.5, uv 0.12.21, Git 2.56.1 with Git LFS 3.8.1. The clone was clean at `9d3cb6491` with `core.autocrlf=false`. `py -3 scripts/models/browser_speech.py acquire` then failed at once: "Model download failed; check connectivity and retry explicit acquisition". One diagnostic showed the cause: Python reached python.org but could not verify huggingface.co (`CERTIFICATE_VERIFY_FAILED`, "unable to get local issuer certificate"). Stage, audit, package and the native tests were not run. Follow-up: [#928](https://github.com/raymond-van/animama/issues/928). |
+| 6. Build host: local version change discarded | Pass | `git checkout -- src/frontend/desktop/package.json` after each build; the tree was clean. |
+
+Spec questions:
+
+- **Q1.** The Windows 10 test install runs in a Hyper-V Generation 2 VM on
+  the Windows 11 x64 build host. It did not build from source there: step 5
+  stopped at the speech model download (row 5), so the README keeps
+  Windows 11 as the build host until
+  [#928](https://github.com/raymond-van/animama/issues/928) is resolved and
+  R8 is rerun.
+- **Q2.** On Windows 10 22H2 (build 19045) no shipped component needed a
+  newer build: the installer, Electron, the frozen backend, PostgreSQL, the
+  process guard and the DPAPI vault all ran. Builds from 18362 to 19044
+  remain untested, as R3 allows; the floor stays 18362.
 
 ### Phase 3: documentation and decision record
 
