@@ -164,14 +164,16 @@ The application menu adds two items of its own to Electron's defaults
 (`application-menu.ts`): **Check for Updates…**, under About on macOS and in
 Help elsewhere, offered only once the build's updater exists, and **Import
 Anima…** in File. The Windows main window hides its title bar and so shows no
-menu bar; there App Settings → About and the Library's Import remain the way
-in. Main keeps the chosen command (one of two fixed values, for 20 seconds),
-shows the main window, reopening it as the Dock does when it was closed, and
-announces that a command waits without naming it. The main window's app takes
-it through `menu:take` then, and once when it starts, so a closed or loading
-window still receives it; no other window is admitted. The web app
-(`useDesktopMenuCommands`) opens App Settings at the update panel, where the
-check main started reports its result, or the Library's Import dialog.
+menu bar; there the sidebar user menu's **Check for updates…**, which every
+build with an updater offers (`SidebarUserMenu`), App Settings → About and the
+Library's Import are the way in. Main keeps the chosen command (one of two
+fixed values, for 20 seconds), shows the main window, reopening it as the Dock
+does when it was closed, and announces that a command waits without naming
+it. The main window's app takes it through `menu:take` then, and once when it
+starts, so a closed or loading window still receives it; no other window is
+admitted. The web app (`useDesktopMenuCommands`) opens App Settings at the
+update panel, where the check main started reports its result, or the Library's
+Import dialog.
 
 ## Provider Settings And Local State
 
@@ -314,8 +316,9 @@ manually to bypass references or leases.
 
 ## Application Updates
 
-A signed, configured macOS app checks its release feed after startup and on
-demand in Settings → General. The final release will seal `"updates": "ended"`
+A signed, configured macOS or Windows app checks its release feed after startup
+and on demand from App Settings → About, the sidebar user menu or, on macOS, the
+Animama menu. The final release will seal `"updates": "ended"`
 and never check; see [Desktop releases](releases.md#what-people-see). Checks never download. Download and confirmed
 Restart are separate actions; normal Quit does not install. Offline checks do
 not prevent startup. Unpackaged and unconfigured builds hide these controls.

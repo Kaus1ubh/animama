@@ -62,8 +62,8 @@ export class PendingMenuCommand {
  * Two items are Animama's own (`commands`): **Check for Updates…** under About
  * on macOS and in Help elsewhere, where there is no application menu, and
  * **Import Anima…** at the top of File. The Windows main window hides its
- * title bar and so shows no menu bar; there the items are unreachable and App
- * Settings and the Library remain the way in.
+ * title bar and so shows no menu bar; there the items are unreachable, and the
+ * sidebar user menu's update check, App Settings and the Library are the way in.
  */
 export function applicationMenuTemplate(
   { text }: ShellStrings,

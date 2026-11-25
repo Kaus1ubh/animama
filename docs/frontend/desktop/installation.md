@@ -140,9 +140,10 @@ can be imported. Complete starter animation acquisition remains a release gate. 
 
 A configured release checks for updates without blocking startup and shows a
 notice when one is available. **Check for updates** in App Settings → About
-checks on request, as does **Check for Updates…** in the Animama menu on macOS
-(the Windows app shows no menu bar). The final release never checks and offers
-neither; after downloads end, older builds' checks fail quietly. The
+checks on request, as do **Check for updates…** in the sidebar's user menu
+(click your name or avatar) and, on macOS, **Check for Updates…** in the Animama menu.
+The final release never checks and offers none of them; after downloads end,
+older builds' checks fail quietly. The
 preview builds 0.1.0 to 0.1.2 also send your system language and a random ID
 that stays the same for each installation; the
 [safety and crisis protocol](../../safety/crisis-protocol.md#your-data) lists

@@ -6762,6 +6762,7 @@ export default interface Resources {
       "account": "Account",
       "accountUnavailable": "Account access is unavailable.",
       "appSettings": "App Settings",
+      "checkForUpdates": "Check for updates…",
       "fallbackName": "You",
       "signOut": "Sign out",
       "usage": "Usage and limits"
