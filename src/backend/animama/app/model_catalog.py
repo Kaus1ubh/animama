@@ -330,12 +330,14 @@ PROVIDER_LABELS: dict[str, str] = {
     "OpenAIHTTPAgent": "OpenAI HTTP",
     "OpenAIResponsesHTTPAgent": "OpenAI Responses HTTP",
     "AnthropicMessagesHTTPAgent": "Anthropic",
+    "ChatGPTPlanResponsesHTTPAgent": "ChatGPT plan",
 }
 
 PROVIDER_LOGOS: dict[str, str] = {
     "OpenAIHTTPAgent": "openai",
     "OpenAIResponsesHTTPAgent": "openai",
     "AnthropicMessagesHTTPAgent": "anthropic",
+    "ChatGPTPlanResponsesHTTPAgent": "openai",
 }
 
 
