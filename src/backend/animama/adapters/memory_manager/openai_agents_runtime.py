@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING, Any, Literal, cast
 
 import httpx2
 from openai import APIStatusError, AsyncOpenAI
+from openai.types.shared import Reasoning, ReasoningEffort
 from pydantic import BaseModel, ConfigDict
 
 from animama.adapters.model_clients.openai_chat_completions.connection_sdk import (
@@ -37,6 +38,7 @@ from animama.app.chat.memory_tools import (
     MEMORY_TOOL_READ_FILES,
     MEMORY_TOOL_SEARCH_MEMORY_FILES,
 )
+from animama.app.model_catalog import chat_completions_function_tool_effort
 from animama.app.model_clients import ModelClientProviderError
 from animama.app.model_clients.credentials import (
     ModelCredential,
@@ -631,6 +633,7 @@ class OpenAIAgentsMemoryManagerRuntime:
             model_settings = ModelSettings(
                 extra_args=extra_args,
                 extra_headers=keyless_request_headers(connection, credential),
+                reasoning=_function_tool_reasoning(self._model, connection),
             )
             tools.append(apply_patch)
         if self._model_limits is not None:
@@ -1028,6 +1031,18 @@ def _memory_manager_prompt_cache_key(*, run_id: str, model: str) -> str:
     """Return a private stable cache bucket for one manager run and model."""
 
     return sha256(f"memory_manager\x1f{run_id}\x1f{model}".encode()).hexdigest()
+
+
+def _function_tool_reasoning(model: str, connection: ModelConnection) -> Reasoning | None:
+    """Return the reasoning setting for a Chat Completions manager, whose every request carries function tools.
+
+    Sending no effort leaves the model's default, which OpenAI refuses with
+    function tools from GPT-5.4 on, so those models run the manager at
+    ``none``. Other models keep their server's default.
+    """
+
+    effort = chat_completions_function_tool_effort(model, connection.compatibility)
+    return Reasoning(effort=cast(ReasoningEffort, effort)) if effort is not None else None
 
 
 def _is_unresolvable_previous_response_error(exc: APIStatusError) -> bool:

@@ -3033,6 +3033,73 @@ async def test_chat_completions_manager_uses_an_approval_gated_patch_tool_withou
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize(("model", "effort"), [("gpt-6-luna", "none"), ("gpt-5.4-mini", "none"), ("gpt-5-nano", None)])
+async def test_chat_completions_manager_sends_effort_none_where_openai_requires_it_with_tools(
+    async_session,
+    clean_memory_manager_rows,
+    model: str,
+    effort: str | None,
+) -> None:
+    """OpenAI refuses function tools at the default effort from GPT-5.4 on (#932)."""
+
+    from agents.models.interface import ModelTracing
+    from openai.types.chat import ChatCompletion
+
+    user_id = f"user-{uuid.uuid4()}"
+    memory_entries = _memory_entry_service(async_session)
+    runtime = OpenAIAgentsMemoryManagerRuntime(
+        user_id=user_id,
+        memory_entries=memory_entries,
+        model_provider=_manager_model(model, provider_type="OpenAIHTTPAgent"),
+        credential_resolver=_manager_credentials(),
+        timeout_seconds=1.0,
+    )
+    run = MemoryManagerRun(id=new_memory_manager_run_id(), user_id=user_id, status=MEMORY_MANAGER_RUN_STATUS_ACTIVE)
+    connection, credential = runtime._require_model()
+    client = runtime._client(connection, credential)
+    sent: dict[str, Any] = {}
+
+    async def _create(**kwargs: Any) -> ChatCompletion:
+        sent.update(kwargs)
+        return ChatCompletion.model_validate(
+            {
+                "id": "c",
+                "object": "chat.completion",
+                "created": 1,
+                "model": model,
+                "choices": [
+                    {"index": 0, "message": {"role": "assistant", "content": "Done."}, "finish_reason": "stop"}
+                ],
+            }
+        )
+
+    try:
+        agent, _run_config = await runtime._build_agent(
+            run=run,
+            workspace=MemoryManagerVirtualWorkspace(user_id=user_id, memory_entries=memory_entries),
+            client=client,
+            credential=credential,
+            editor=_approval_required_patch_editor(),
+        )
+        cast(Any, client.chat.completions).create = _create
+        await cast(Any, agent.model).get_response(
+            system_instructions=None,
+            input="Remember that my cat is Mochi.",
+            model_settings=agent.model_settings,
+            tools=agent.tools,
+            output_schema=None,
+            handoffs=[],
+            tracing=ModelTracing.DISABLED,
+        )
+    finally:
+        await client.close()
+
+    assert sent["tools"]
+    sent_effort = sent.get("reasoning_effort")
+    assert (sent_effort if isinstance(sent_effort, str) else None) == effort
+
+
+@pytest.mark.asyncio
 async def test_chat_completions_manager_replays_the_run_and_previews_function_tool_patches(
     async_session,
     clean_memory_manager_rows,

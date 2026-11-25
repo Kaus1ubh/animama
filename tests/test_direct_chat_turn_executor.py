@@ -2070,9 +2070,10 @@ async def test_direct_turn_rejects_unsupported_provider_features_before_model_in
 
 
 @pytest.mark.asyncio
-async def test_direct_turn_rejects_openai_chat_gpt_5_4_reasoning_with_memory_tools() -> None:
+@pytest.mark.parametrize("model", ["gpt-5.4-mini", "gpt-6-luna"])
+async def test_direct_turn_rejects_reasoning_with_memory_tools_where_chat_completions_refuses_it(model: str) -> None:
     provider = _provider(
-        model="gpt-5.4-mini",
+        model=model,
         supported_reasoning_efforts=["none", "low", "medium", "high", "xhigh"],
     )
     model_client = _FinalModelClient(_structured_response())
@@ -2082,10 +2083,53 @@ async def test_direct_turn_rejects_openai_chat_gpt_5_4_reasoning_with_memory_too
         memory_tool_service=_FakeMemoryToolService(),
     )
 
-    with pytest.raises(DirectChatTurnSetupError, match="reasoning_effort"):
+    with pytest.raises(DirectChatTurnSetupError, match="reasoning_effort none"):
         await _collect(executor.stream_turn(_request(request_options={"reasoning_effort": "low"})))
 
     assert model_client.seen_specs == []
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("model", ["gpt-5.4-mini", "gpt-6-luna"])
+@pytest.mark.parametrize("request_options", [{"reasoning_effort": "none"}, {}])
+async def test_direct_turn_keeps_memory_tools_where_chat_completions_needs_effort_none(
+    model: str,
+    request_options: dict[str, Any],
+) -> None:
+    provider = _provider(
+        model=model,
+        supported_reasoning_efforts=["none", "low", "medium", "high", "xhigh", "max"],
+    )
+    model_client = _FinalModelClient(_structured_response())
+    executor, _chats = _executor(
+        client=model_client,
+        provider=provider,
+        memory_tool_service=_FakeMemoryToolService(),
+    )
+
+    events = await _collect(executor.stream_turn(_request(request_options=request_options)))
+
+    assert EventType.ERROR not in [event.type for event in events]
+    prompt = model_client.seen_specs[0].prompt
+    assert "memory_read_files" in [_function_tool(tool)["function"]["name"] for tool in prompt.tools]
+    # An unnamed effort stays unnamed here; the Chat Completions request sends none with the tools.
+    assert prompt.reasoning_effort == request_options.get("reasoning_effort")
+
+
+@pytest.mark.asyncio
+async def test_direct_turn_allows_reasoning_with_memory_tools_on_models_before_gpt_5_4() -> None:
+    provider = _provider(model="gpt-5-nano", supported_reasoning_efforts=["minimal", "low", "medium", "high"])
+    model_client = _FinalModelClient(_structured_response())
+    executor, _chats = _executor(
+        client=model_client,
+        provider=provider,
+        memory_tool_service=_FakeMemoryToolService(),
+    )
+
+    await _collect(executor.stream_turn(_request(request_options={"reasoning_effort": "low"})))
+
+    assert model_client.seen_specs[0].prompt.reasoning_effort == "low"
+    assert model_client.seen_specs[0].prompt.tools
 
 
 @pytest.mark.asyncio

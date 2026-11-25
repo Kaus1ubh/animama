@@ -271,8 +271,9 @@ while the same model stays selected (the capability loads after the catalog,
 or the owner configures or removes the backend). The request field is the same
 `native_tools: ["web_search"]` either way; the backend picks hosted or
 application search. The control does not see the per-turn reasoning effort:
-on Chat Completions `gpt-5.4` rows the backend drops search when an effort is
-sent and logs `reasoning_with_function_tools`.
+on Chat Completions rows for OpenAI GPT-5.4 and later, such as
+`OpenAIHTTPAgent:gpt-6-luna`, the backend drops search when an effort other
+than `none` is sent and logs `reasoning_with_function_tools`.
 
 Chat features are not saved. `SettingsProvider` keeps the composer's choice
 (`chatFeatureChoice`) for one Anima and model, so leaving and reopening the chat

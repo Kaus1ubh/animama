@@ -6,7 +6,7 @@ from typing import Any
 import httpx2
 
 from animama.adapters.model_clients._common import image_data_url, jsonable, openai_cache_breakpoint_text_part
-from animama.app.model_catalog import STRUCTURED_OUTPUT_TRANSPORT_JSON_OBJECT
+from animama.app.model_catalog import STRUCTURED_OUTPUT_TRANSPORT_JSON_OBJECT, chat_completions_function_tool_effort
 from animama.app.model_clients import ModelClientProviderError, ModelClientRequest
 from animama.app.model_clients.image_parts import ModelClientImage, resolved_parts
 from animama.app.model_clients.prompt import prompt_messages
@@ -268,6 +268,10 @@ def _reasoning_effort_for_spec(
         return None
     if compatibility.reasoning_mode == REASONING_MODE_DEEPSEEK_THINKING:
         return _deepseek_reasoning_effort(spec.model_provider, effort)
+    if effort is None and spec.prompt.tools:
+        # Without a chosen effort the model's default applies, which some
+        # OpenAI models refuse alongside function tools.
+        return chat_completions_function_tool_effort(spec.model_provider.model, compatibility)
     return effort
 
 
