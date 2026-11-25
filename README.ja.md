@@ -57,7 +57,7 @@ Windows では、Animama が新しいアプリのため、SmartScreen に「Wind
 
 ## AI モデル
 
-ChatGPT プランか自分の API キーを、セットアップ中または **アプリ設定** で選んで使います。キーは暗号化されて、あなたのコンピューターに保存されます。
+[ChatGPT プラン](https://help.openai.com/en/articles/20001542-using-your-chatgpt-plan-in-other-apps-and-sites)か自分の API キーを、セットアップ中または **アプリ設定** で選んで使います。キーは暗号化されて、あなたのコンピューターに保存されます。
 
 ### [チャット](https://docs.animama.ai/ja/#setup)
 
@@ -68,7 +68,7 @@ ChatGPT プランか自分の API キーを、セットアップ中または **�
 | Anthropic | API キー | Claude Haiku 5.5（おすすめ） |
 | OpenRouter またはその他の OpenAI 互換エンドポイント | API キー | 自由に選べます |
 
-ChatGPT プランを使うには **ChatGPT で続ける** を選び、OpenAI でサインインします。API キーは不要で、利用量はプランの上限にカウントされます（[OpenAI ヘルプセンター](https://help.openai.com/en/articles/20001542-using-your-chatgpt-plan-in-other-apps-and-sites)、英語）。セルフホストの場合は、Animama を動かしているコンピューターのブラウザーでサインインしてください。現在のインストーラーにはまだ含まれておらず、ソースからセルフホストすると使えます。
+ChatGPT プランを使うには **ChatGPT で続ける** を選び、OpenAI でサインインします。API キーは不要で、利用量はプランの上限にカウントされます。セルフホストの場合は、Animama を動かしているコンピューターのブラウザーでサインインしてください。現在のインストーラーにはまだ含まれておらず、ソースからセルフホストすると使えます。
 
 おすすめの API モデルは低コストなので、数ドル分の API 利用でも長く使えます。
 

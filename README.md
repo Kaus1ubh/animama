@@ -81,8 +81,9 @@ new. Select **More info**, check that the publisher is Raymond Van, then select
 
 ## AI Models
 
-Use your ChatGPT plan or your own API keys, chosen during setup or in
-**App Settings**. Keys stay encrypted on your computer.
+Use your [ChatGPT plan](https://help.openai.com/en/articles/20001542-using-your-chatgpt-plan-in-other-apps-and-sites)
+or your own API keys, chosen during setup or in **App Settings**. Keys stay
+encrypted on your computer.
 
 ### [Chat](https://docs.animama.ai/#setup)
 
@@ -94,8 +95,7 @@ Use your ChatGPT plan or your own API keys, chosen during setup or in
 | OpenRouter or any OpenAI-compatible endpoint | API key | Your choice |
 
 To use your ChatGPT plan, select **Continue with ChatGPT** and sign in at
-OpenAI. No API key is needed, and usage counts toward your plan's limits
-([Using your ChatGPT plan in other apps and sites](https://help.openai.com/en/articles/20001542-using-your-chatgpt-plan-in-other-apps-and-sites)).
+OpenAI. No API key is needed, and usage counts toward your plan's limits.
 When self-hosting, sign in from a browser on the computer that runs Animama.
 The current installers don't include it yet; self-hosting from source does.
 

@@ -57,7 +57,7 @@ Animama 会在屏幕一角放上一位迷人又富有表现力的伙伴，无论
 
 ## AI 模型
 
-在初始设置或**应用设置**中选择使用你的 ChatGPT 套餐或你自己的 API 密钥。密钥会加密保存在你的电脑上。
+在初始设置或**应用设置**中选择使用你的 [ChatGPT 套餐](https://help.openai.com/en/articles/20001542-using-your-chatgpt-plan-in-other-apps-and-sites)或你自己的 API 密钥。密钥会加密保存在你的电脑上。
 
 ### [聊天](https://docs.animama.ai/zh-hans/#setup)
 
@@ -68,7 +68,7 @@ Animama 会在屏幕一角放上一位迷人又富有表现力的伙伴，无论
 | Anthropic | API 密钥 | Claude Haiku 5.5（推荐） |
 | OpenRouter 或其他兼容 OpenAI 的接口 | API 密钥 | 任选 |
 
-要使用 ChatGPT 套餐，请选择**使用 ChatGPT 继续**并在 OpenAI 登录。无需 API 密钥，用量计入你的套餐额度（[OpenAI 帮助中心](https://help.openai.com/en/articles/20001542-using-your-chatgpt-plan-in-other-apps-and-sites)，英文）。自托管时，请在运行 Animama 的电脑上的浏览器中登录。当前的安装包尚未包含此功能，从源码自托管即可使用。
+要使用 ChatGPT 套餐，请选择**使用 ChatGPT 继续**并在 OpenAI 登录。无需 API 密钥，用量计入你的套餐额度。自托管时，请在运行 Animama 的电脑上的浏览器中登录。当前的安装包尚未包含此功能，从源码自托管即可使用。
 
 推荐的 API 模型成本很低，几美元的 API 用量就能用很久。
 

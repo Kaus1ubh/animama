@@ -80,7 +80,7 @@ Windows에서는 Animama가 새로 나온 앱이라 SmartScreen에 "Windows의 P
 
 ## AI 모델
 
-처음 설정할 때나 **앱 설정**에서 ChatGPT 플랜이나 내 API 키를 골라 쓰세요. 키는
+처음 설정할 때나 **앱 설정**에서 [ChatGPT 플랜](https://help.openai.com/en/articles/20001542-using-your-chatgpt-plan-in-other-apps-and-sites)이나 내 API 키를 골라 쓰세요. 키는
 암호화되어 내 컴퓨터에 저장됩니다.
 
 ### [채팅](https://docs.animama.ai/ko/#setup)
@@ -93,7 +93,7 @@ Windows에서는 Animama가 새로 나온 앱이라 SmartScreen에 "Windows의 P
 | OpenRouter 또는 기타 OpenAI 호환 엔드포인트 | API 키 | 자유롭게 선택 |
 
 ChatGPT 플랜을 쓰려면 **ChatGPT로 계속하기**를 선택하고 OpenAI에서 로그인하세요.
-API 키는 필요 없고, 사용량은 플랜 한도에 포함됩니다([OpenAI 고객센터](https://help.openai.com/en/articles/20001542-using-your-chatgpt-plan-in-other-apps-and-sites)(영문)).
+API 키는 필요 없고, 사용량은 플랜 한도에 포함됩니다.
 셀프 호스팅할 때는 Animama를 실행하는 컴퓨터의 브라우저에서 로그인하세요. 현재
 설치 파일에는 아직 들어 있지 않으며, 소스에서 셀프 호스팅하면 쓸 수 있습니다.
 
