@@ -684,6 +684,7 @@ export default interface Resources {
         "landmarks_eyes_missing": "No eyes were found on the face, so eye effects are unavailable.",
         "landmarks_face_bounds_failed": "The face skin could not be measured.",
         "landmarks_face_skin_missing": "No face skin was found, so face landmarks are unavailable.",
+        "materials_unlit": "Every material in this file ignores light, so it looks flat as made. Animama adds toon shading and outlines unless the Avatar's Materials setting is Simple.",
         "morph_target_names_mismatched_one": "{{count}} mesh stores shape key names that disagree with each other or with its shape keys, so those shape keys stay unnamed and any MMD morphs or ARKit shapes among them cannot be used.",
         "morph_target_names_mismatched_other": "{{count}} meshes store shape key names that disagree with each other or with their shape keys, so those shape keys stay unnamed and any MMD morphs or ARKit shapes among them cannot be used.",
         "scene_bindings_unavailable": "The loaded model's mesh parts could not be listed.",
@@ -6120,7 +6121,8 @@ export default interface Resources {
             "automatic": "Automatic",
             "liltoon": "lilToon",
             "simple": "Simple"
-          }
+          },
+          "unlitDescription": "Automatic adds toon shading and outlines, because this Avatar's materials ignore light; Simple draws them flat, as the file has them. Applies wherever the Avatar is used, and reloads it."
         },
         "wind": {
           "description": "How wind and updraft move this Avatar's hair and clothes, wherever the Avatar is used.",

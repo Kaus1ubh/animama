@@ -57,7 +57,8 @@
           "automatic": "Automatic",
           "liltoon": "lilToon",
           "simple": "Simple"
-        }
+        },
+        "unlitDescription": "Automatic adds toon shading and outlines, because this Avatar's materials ignore light; Simple draws them flat, as the file has them. Applies wherever the Avatar is used, and reloads it."
       },
       "wind": {
         "description": "How wind and updraft move this Avatar's hair and clothes, wherever the Avatar is used.",
