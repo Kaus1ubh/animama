@@ -256,8 +256,9 @@ and the backend.
   `c5789c3de`; Merge Review #1 passed; the full suite ran on the combined
   candidate; the review's optional findings are made.
 - [x] Phase 9: one OpenAI tab and the picker's plan notice (owner feedback,
-  2026-11-25): Code Review #2 passed; the split rule and the R3.7 reading
-  wait for the owner's confirmation.
+  2026-11-25): Code Review #2 passed; merged with `main` after #921; the full
+  suite ran on `fd4f13803`. The split rule and the R3.7 reading wait for the
+  owner's confirmation.
 - [ ] G1, G2 and G4 with the owner.
 
 ## Surprises & Discoveries
@@ -2189,6 +2190,17 @@ codes): `pnpm check` 0; `pnpm web:lint` 0; from `web`, `pnpm prettier:check`
 `src/app/local-runtime/setup`, `src/ui/settings/models`, `src/lib/chat`,
 `src/ui/components` and `src/ui/main/chat` 0 (49 files, 468 passed);
 `check_source.py` 0.
+
+Full pre-push suite on `fd4f13803` (tree `99c86dd964cc`), through the heavy
+slot:
+
+| Command | Result |
+| --- | --- |
+| `make check-test` | 6024 passed, 30 skipped |
+| From `src/frontend`: `pnpm verify`, `pnpm prettier:check`, `pnpm desktop:test` | Passed |
+| `pnpm web:test:browser` in the worktree | 141 of 141 |
+| `pnpm e2e:test:fast` on a disposable built stack (`./reset.sh --purge --name chatgpt-plan-e2e --base-port 9300`, deterministic models, stopped afterwards) | 39 passed, 1 failed: the imported-playback journey's Library "new Reaction" hand-off did not navigate within 10 s; rerun alone on the same stack, it passed |
+| `build.py build` of `db603bcfe` (new `main`, temporary detached worktree) and of `fd4f13803`, then `build.py compare` | "Compatibility policy passed" |
 
 ## Final integration review
 
