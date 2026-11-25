@@ -252,9 +252,9 @@ and the backend.
 - [x] G3: the full pre-push suite (2026-11-24), recorded under "Full
   pre-push suite (G3)".
 - [x] Pull request #924 opened (2026-11-24).
-- [ ] Merge with chat image input (#923, 2026-11-25): merged and targeted
-  checks pass; targeted review and the full suite on the combined candidate
-  pending.
+- [x] Merge with chat image input (#923, 2026-11-25): merged as
+  `c5789c3de`; Merge Review #1 passed; the full suite ran on the combined
+  candidate; the review's optional findings are made.
 - [ ] G1, G2 and G4 with the owner.
 
 ## Surprises & Discoveries
@@ -2299,8 +2299,9 @@ into the branch (an ordinary merge commit).
   cursor, and carries no `prompt_cache_breakpoint`.
   `model-client-providers.md` says plan requests replay the kept images.
 
-Targeted check record (2026-11-25, from the worktree root, on the merge's
-working tree):
+Targeted check record (2026-11-25, from the worktree root, on the resolved
+merge before this record and one documentation sentence were added; the
+merge commit `c5789c3de` has tree `7602e2c3a`):
 
 | Command | Result |
 | --- | --- |
@@ -2310,7 +2311,64 @@ working tree):
 | From `src/frontend`: `pnpm openapi-ts:check`, `pnpm check` | Passed |
 | `python3 scripts/public-release/check_source.py` | Every tracked file covered once |
 
-**Prompt caching on the plan route (evidence, 2026-11-25).** The owner's
+Full pre-push suite on the combined candidate `c5789c3de` (tree `7602e2c3a`),
+through the heavy slot:
+
+| Command | Result |
+| --- | --- |
+| `make check-test` | 6020 passed, 30 skipped, 1 failed: `test_model_call_boundary.py::test_bounded_sdk_calls_do_not_retry_http_errors[responses]` saw no request |
+| The same tests again (`pytest -n 2`, with a scratch plugin that only records that test's exception) | 6021 passed, 30 skipped |
+| From `src/frontend`: `pnpm verify`, `pnpm prettier:check`, `pnpm desktop:test` | Passed |
+| `pnpm web:test:browser` in the worktree | 140 of 140 |
+| `pnpm e2e:test:fast` on a disposable built stack (`ANIMAMA_LLM_SKIP=1 ANIMAMA_WEB_BUILD_MODE=production ./reset.sh --name chatgpt-plan-e2e --base-port 9300`, stopped afterwards) | 40 passed |
+| `build.py build` of `b62662036` (new `main`, from a temporary detached worktree, removed afterwards) and of `c5789c3de`, then `build.py compare` | "Compatibility policy passed" |
+
+The one backend failure did not come back: the test passed alone, with its
+file, after each plan and image test file, and in the full rerun, where the
+recorder caught only the expected 429 after one request. It never failed
+before the merge. It is recorded as an intermittent failure whose cause was
+not found.
+
+#### Merge Review #1 Findings
+
+An independent read-only review of the merge at the high risk tier
+(resolutions, integration points, versions, the ADR move, the new test, the
+added prose) passed with no Required findings. It checked the licence union,
+locale key parity and the generated name sets with scripts, drove plan
+errors inside a stream through the real client, and mutated the new test
+four ways (each failed). Optional findings:
+
+- **MR-R1-F1.** No test pins a plan usage limit reported inside the stream,
+  where #923's classification and the plan hook meet.
+- **MR-R1-F2.** The trial sent no `detail` and never replayed images; add an
+  image turn and a replay to the owner's live check.
+- **MR-R1-F3.** The check record lacked its tree; the combined candidate
+  needs a compare against `b62662036` and `pnpm web:test`.
+- **MR-R1-F4.** `model-client-providers.md` says an in-stream error is never
+  retried; the plan client retries a temporary plan code before any output.
+- **MR-R1-F5.** The merge record and the caching evidence sat above "Gates"
+  with no heading of their own, so the gates read as part of the merge.
+
+#### Merge Review #1 Revisions
+
+- **MR-R1-F1: accepted.**
+  `test_a_usage_limit_inside_the_stream_pauses_background_use` covers a
+  `response.failed` before and after text and an `error` event: each becomes
+  `chatgpt_plan_usage_limit`, pauses background use, sends one request and
+  keeps the token out. With the plan hook made a no-op, all three fail.
+- **MR-R1-F2: accepted.** G1 lists an image turn on a plan model and a
+  follow-up turn that replays it.
+- **MR-R1-F3: accepted.** The trees are recorded above; the compare ran
+  against `b62662036`, and `pnpm verify` runs `pnpm web:test`.
+- **MR-R1-F4: accepted.** The sentence names the plan client's exception.
+- **MR-R1-F5: accepted.** The caching evidence and the gates have their own
+  headings.
+
+Follow-up check record: see "Final state" under Outcomes & Retrospective.
+
+### Prompt caching on the plan route
+
+Evidence from 2026-11-25. The owner's
 first chat turns on the restarted task stack logged each request's usage: a
 key turn on `gpt-6-luna` read 15,217 input tokens with none cached, and the
 next turn, on a plan model, read 14,809 with 4,096 cached. The plan route
@@ -2321,14 +2379,15 @@ documented. OpenAI's conversation-state guide says a key chain's earlier input
 is billed as input even with `previous_response_id`, so replaying it is not
 extra model work.
 
-Gates:
+### Gates
 
 - **G0.** Owner review of this plan, including D1 to D14.
 - **G1.** A live account. Phase 0 and the manual checks in Phases 4 to 7 need
   an eligible ChatGPT plan and the account holder signing in themself in
   their own browser. The agent never handles the password. Plan usage is
   bounded: at most 25 small requests in Phase 0 and 10 turns in each later
-  phase.
+  phase. Since chat image input merged, it includes one turn with an image on
+  a plan model and a follow-up turn that replays it (MR-R1-F2).
 - **G2.** Desktop check on a packaged development build with a fresh profile:
   sign in, restart, chat on a plan model, sign out, then scan the profile's
   logs and files for token and code values. The agent drives the app only

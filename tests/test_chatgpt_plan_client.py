@@ -459,6 +459,75 @@ async def test_plan_errors_become_codes_the_app_explains(
     assert session.paused is (code == "chatgpt_plan_usage_limit")
 
 
+def _failed_stream(error: dict[str, Any], *, text_first: bool) -> httpx2.Response:
+    """A plan stream that fails with ``error`` in ``response.failed``, after some text when ``text_first``."""
+
+    response = {
+        "id": "resp_1",
+        "object": "response",
+        "created_at": 1,
+        "model": "gpt-6-luna",
+        "output": [],
+        "parallel_tool_calls": False,
+        "tool_choice": "auto",
+        "tools": [],
+    }
+    events: list[dict[str, Any]] = [{"type": "response.created", "response": {**response, "status": "in_progress"}}]
+    if text_first:
+        events.append(
+            {
+                "type": "response.output_text.delta",
+                "item_id": "msg_1",
+                "output_index": 0,
+                "content_index": 0,
+                "delta": "Hel",
+                "logprobs": [],
+            }
+        )
+    events.append({"type": "response.failed", "response": {**response, "status": "failed", "error": error}})
+    return _sse(*events)
+
+
+@pytest.mark.parametrize(
+    "answer",
+    [
+        _failed_stream(
+            {"code": "subscription_sharing_usage_limit_exceeded", "message": f"Limit for {FIRST_TOKEN}"},
+            text_first=False,
+        ),
+        _failed_stream(
+            {"code": "subscription_sharing_usage_limit_exceeded", "message": f"Limit for {FIRST_TOKEN}"},
+            text_first=True,
+        ),
+        _sse(
+            {
+                "type": "error",
+                "error": {
+                    "code": "subscription_sharing_usage_limit_exceeded",
+                    "type": "usage_limit",
+                    "message": f"Limit for {FIRST_TOKEN}",
+                },
+            }
+        ),
+    ],
+    ids=["failed-before-text", "failed-after-text", "error-event"],
+)
+async def test_a_usage_limit_inside_the_stream_pauses_background_use(
+    answer: httpx2.Response, waits: list[float]
+) -> None:
+    """OpenAI can report a limit after the stream begins (MR-R1-F1): the plan's code still wins over #923's."""
+
+    route, session = _Route(answer), _Session()
+
+    with pytest.raises(ModelClientProviderError) as failed:
+        await _run(_client(route, session), _spec())
+
+    assert failed.value.code == "chatgpt_plan_usage_limit"
+    assert session.paused is True
+    assert len(route.requests) == 1
+    assert FIRST_TOKEN not in json.dumps(failed.value.raw_metadata, default=str) + str(failed.value)
+
+
 @pytest.fixture
 def waits(monkeypatch: pytest.MonkeyPatch) -> list[float]:
     """The client's retry waits, recorded instead of slept."""

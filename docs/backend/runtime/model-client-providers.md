@@ -737,7 +737,9 @@ provider reports inside a stream (the SDK's bare `APIError` for an `error`
 event, or a Responses `response.failed` or `error` event) gets the code its
 type or code would have as an HTTP error, for example `insufficient_quota` as
 `openai_quota_exceeded` and an image error such as `image_too_large` as
-`openai_bad_request`, and the adapter never retries it; one whose type and
+`openai_bad_request`, and the adapter does not retry it (except a temporary
+ChatGPT plan code that arrives before any output, which the plan client's
+[bounded backoff](#chatgpt-plan-responses) retries); one whose type and
 code are not recognized stays `openai_request_failed` or
 `openai_stream_error`. The adapters
 retry one request-local
