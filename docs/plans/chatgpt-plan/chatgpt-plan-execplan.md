@@ -259,7 +259,9 @@ and the backend.
   2026-11-25): Code Review #2 passed; merged with `main` after #921; the full
   suite ran on `fd4f13803`. The split rule and the R3.7 reading wait for the
   owner's confirmation.
-- [ ] G1, G2 and G4 with the owner.
+- [x] G2: the packaged desktop check (2026-11-25), recorded under "Final
+  state".
+- [ ] G1 and G4 with the owner.
 
 ## Surprises & Discoveries
 
@@ -2625,8 +2627,45 @@ through the heavy slot:
 records after `c5789c3de`, so that commit's frontend, browser, journey and
 package-set results above stand for it.
 
-Owner checks still open: G1 (with the image turn), G2 and G4, and approval of
-the exact candidate before merging.
+#924 merged as `8fda2eed2` (2026-11-25). Owner checks without a record here:
+G1 (with the image turn) and G4.
+
+#### G2: packaged desktop check
+
+Passed on 2026-11-25, with the owner signing in in their own browser. The
+package was built from `8fda2eed2` with `pnpm desktop:mac:build` through the
+heavy slot (stage, audit, package; runtime inventory OK). It ran as the
+release smoke's kind of copy, with Node's inspect fuse on and an ad-hoc
+signature, so that `ANIMAMA_DESKTOP_DEV_USER_DATA` could select a new profile.
+Run the copy's executable with that variable in its environment: launched
+through `open --env`, the copy did not receive it and opened the default
+profile, and was quit before it reached the database, vault or logs.
+
+| Step | Result |
+| --- | --- |
+| Start | No import error in the startup log, and the FastAPI child received the store key. The frozen archive holds `jwt` (with `jwt.jwks_client` and `jwt.api_jwt`) and `cryptography`'s AEAD module. |
+| Sign-in with plan use on | Completed. `session.bin` was 4,037 bytes, mode 0600 in a 0700 directory: version byte `0x01`, then ciphertext with no JWT, token name or JSON text. |
+| Quit and restart | The session decrypted at start, and the chat after it used the plan. |
+| Chat on a plan model | One turn on `ChatGPTPlanResponsesHTTPAgent`, which wrote its episode log. The model called no tool. |
+| Sign-out | The app reported "Signed out of ChatGPT", so OpenAI confirmed the revoke. `session.bin` fell to 169 bytes (140 of plaintext), room for the registration only. Roles left on plan models waited. |
+| Scan | No match. |
+
+The scan read every file in the profile (2,081 files, 374 MB: the logs,
+vault, session file, PostgreSQL data and WAL, and Chromium's Local Storage,
+Session Storage, HTTP cache, Code Cache, cookies and GPU caches), the app's
+standard output, a `pg_dump` of each database, and the two things the copy
+wrote outside the profile: its preferences file and a Metal shader cache. It
+searched raw bytes, UTF-16 text, reassembled LevelDB logs and gzip members
+for JWTs and `eyJ` fragments; the names `access_token`, `refresh_token`,
+`id_token`, `id_token_hint`, `code_verifier` and `code_challenge`; `code=`
+and `state=` query values; `/auth/callback` and authorize URLs with a query;
+`Bearer` values; and the store key's variable name. No IndexedDB store or
+crash report was created.
+
+The HTTP cache keeps the latest `GET /v1/chatgpt-plan` response, because that
+route sends no `Cache-Control: no-store`. While signed in, that response
+carries the account's email, never a token. After sign-out the cached copy
+has no email.
 
 ### Retrospective
 

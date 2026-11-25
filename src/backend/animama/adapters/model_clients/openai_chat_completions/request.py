@@ -144,10 +144,42 @@ def _with_cache_breakpoint(message: dict[str, Any]) -> dict[str, Any]:
 
 
 def _tools_for_spec(spec: ModelClientRequest, *, compatibility: ModelConnectionCompatibility) -> Any:
-    tools = jsonable(spec.prompt.tools)
+    return function_tools_for_connection(jsonable(spec.prompt.tools), compatibility=compatibility)
+
+
+def function_tools_for_connection(tools: Any, *, compatibility: ModelConnectionCompatibility) -> Any:
+    """Shape Chat Completions function tools for the connection's server.
+
+    Direct chat and the Memory Manager's Agents SDK client both send their
+    tools through here, so a server sees one form of tool definition. The
+    caller's definitions are left as they are.
+    """
+
+    if isinstance(tools, list):
+        tools = [_without_empty_required(tool) for tool in tools]
     if compatibility.strip_function_strict:
         return tools_without_function_strict(tools)
     return tools
+
+
+def _without_empty_required(tool: Any) -> Any:
+    """Return ``tool`` without an empty ``required`` list on its parameter schema.
+
+    A strict zero-argument tool is ``properties: {}`` beside ``required: []``.
+    Groq's validator rejects that pair as "'required' present but 'properties'
+    is missing" (#902). An absent ``required`` means the same as an empty one.
+    Only the parameter object itself is checked: no tool nests an object
+    without properties.
+    """
+
+    function = tool.get("function") if isinstance(tool, dict) else None
+    if not isinstance(function, dict):
+        return tool
+    parameters = function.get("parameters")
+    if not isinstance(parameters, dict) or parameters.get("required") != []:
+        return tool
+    shaped_parameters = {key: value for key, value in parameters.items() if key != "required"}
+    return {**tool, "function": {**function, "parameters": shaped_parameters}}
 
 
 def tools_without_function_strict(tools: Any) -> Any:
@@ -271,4 +303,4 @@ def _deepseek_thinking_config(spec: ModelClientRequest, *, reasoning_effort: str
     return {"type": "enabled"}
 
 
-__all__ = ["create_chat_completion_kwargs"]
+__all__ = ["create_chat_completion_kwargs", "function_tools_for_connection"]
