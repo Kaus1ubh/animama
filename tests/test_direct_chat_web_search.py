@@ -174,15 +174,26 @@ async def test_a_later_turn_replays_only_the_query_titles_and_urls() -> None:
 
 
 @pytest.mark.asyncio
-async def test_search_is_left_out_where_function_tools_cannot_carry_reasoning() -> None:
-    provider = _provider(model="gpt-5.4-mini")
+@pytest.mark.parametrize(
+    ("model", "effort", "offered"),
+    [
+        ("gpt-5.4-mini", "low", False),
+        ("gpt-6-luna", "low", False),
+        ("gpt-6-luna", "none", True),
+        ("gpt-5-nano", "low", True),
+    ],
+)
+async def test_search_is_left_out_where_function_tools_cannot_carry_reasoning(
+    model: str, effort: str, offered: bool
+) -> None:
+    provider = _provider(model=model, supported_reasoning_efforts=["none", "low", "medium", "high"])
     client = _ScriptedModelClient([_reply()])
     executor, _chats = _executor(client=client, provider=provider)
     _with_search(executor, _Backend())
 
     events = await _collect(
-        executor.stream_turn(_request(request_options={"native_tools": ["web_search"], "reasoning_effort": "low"}))
+        executor.stream_turn(_request(request_options={"native_tools": ["web_search"], "reasoning_effort": effort}))
     )
 
-    assert "web_search" not in _tool_names(client.seen_specs[0])
+    assert ("web_search" in _tool_names(client.seen_specs[0])) is offered
     assert EventType.ERROR not in [event.type for event in events]

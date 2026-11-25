@@ -794,10 +794,25 @@ memory tools are separate app-layer function tools, supported for
 `allow_memory_writes=false` gets read tools only. The Responses adapter
 converts the shared Chat Completions-style function schemas and tool-result
 messages into Responses `function` tools and `function_call_output` input
-items. For Chat Completions models whose ID starts with `gpt-5.4`, a turn that
-would attach memory function tools is rejected when `reasoning_effort` is also
-requested, because that `/v1/chat/completions` combination is not supported
-upstream.
+items.
+
+From GPT-5.4 on (OpenAI model IDs `gpt-5.4*`, `gpt-5.6*`, `gpt-6*`, such as
+`OpenAIHTTPAgent:gpt-6-luna`), OpenAI's `/v1/chat/completions` accepts function
+tools only with `reasoning_effort: "none"`. Leaving the field out does not help:
+the model's default effort (`medium` on `gpt-6-luna`) applies and the request
+fails with HTTP 400. On these Chat Completions rows:
+
+- a turn that would attach memory tools with any other effort fails setup before
+  the stream opens; application web search is left out instead
+  (`reasoning_with_function_tools`);
+- a request that carries function tools and names no effort sends `none`, on
+  connections whose `reasoning_mode` is `openai_effort`;
+- the [Memory Manager](../features/memory-manager-and-episodic-memory.md#live-openai-agents-runtime)
+  and the connection probe's tool step send `none`.
+
+The rule lives in `chat_completions_tools_require_no_reasoning`
+(`app/model_catalog.py`). For reasoning with tools, use the model's Responses
+row.
 
 ## Prompt-Only Maintenance Calls
 
@@ -885,8 +900,9 @@ passes keep a user message together with its reply.
   memory tool round limit.
 - Otherwise the turn runs without search and logs why (`no_backend`,
   `model_without_tools`, `provider_without_function_tools`, or
-  `reasoning_with_function_tools` for Chat Completions models that reject a
-  reasoning effort with function tools) instead of failing setup.
+  `reasoning_with_function_tools` for an effort other than `none` on Chat
+  Completions models that accept function tools only at `none`) instead of
+  failing setup.
 
 Backends are SearXNG (`GET {base_url}/search?format=json`, the instance's
 `search.formats` must include `json`) and the Brave Search API
