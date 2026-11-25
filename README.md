@@ -14,6 +14,12 @@
   <a href="README.zh-Hans.md">简体中文</a>
 </p>
 
+<p align="center">
+  <b>News</b>
+  <br>
+  November 18, 2026 · Animama has officially launched and is open source
+</p>
+
 # Animama
 
 Your new desk buddy is an Anima.
@@ -26,8 +32,9 @@ keeping you company while you work, play and power through the day.
 ### The app
 
 - **[Private and self-hostable](https://docs.animama.ai/self-host):** runs on your computer with
-  your own API keys or a local model (Ollama, LM Studio, llama.cpp or vLLM).
-  Self-host it in your browser or build the desktop app yourself.
+  your ChatGPT plan, your own API keys or a local model (Ollama, LM Studio,
+  llama.cpp or vLLM). Self-host it in your browser or build the desktop app
+  yourself.
 - **[Make them yours](https://docs.animama.ai/animas):** edit your Anima's identity, memories and
   behaviors until they feel just right.
 - **[VRM avatars](https://docs.animama.ai/avatars):** bring any VRM 0.x or 1.0 avatar; VRoid Studio
@@ -72,21 +79,28 @@ On Windows, SmartScreen may say "Windows protected your PC" because Animama is
 new. Select **More info**, check that the publisher is Raymond Van, then select
 **Run anyway**.
 
-## AI Models (BYOK)
+## AI Models
 
-Bring your own keys: add API keys from the providers you choose during setup or
-in **App Settings**. Keys stay encrypted on your computer.
+Use your [ChatGPT plan](https://help.openai.com/en/articles/20001542-using-your-chatgpt-plan-in-other-apps-and-sites)
+or your own API keys, chosen during setup or in **App Settings**. Keys stay
+encrypted on your computer.
 
 ### [Chat](https://docs.animama.ai/#setup)
 
-The recommended models are low-cost, so a few dollars of API usage goes a long
-way.
+| Provider | Connect with | Model |
+| --- | --- | --- |
+| OpenAI | ChatGPT plan | The models your plan includes |
+| OpenAI | API key | GPT-6 Luna (recommended) |
+| Anthropic | API key | Claude Haiku 5.5 (recommended) |
+| OpenRouter or any OpenAI-compatible endpoint | API key | Your choice |
 
-| Provider | Model |
-| --- | --- |
-| OpenAI | GPT-6 Luna (recommended) |
-| Anthropic | Claude Haiku 5.5 (recommended) |
-| OpenRouter or any OpenAI-compatible endpoint | Your choice |
+To use your ChatGPT plan, select **Continue with ChatGPT** and sign in at
+OpenAI. No API key is needed, and usage counts toward your plan's limits.
+When self-hosting, sign in from a browser on the computer that runs Animama.
+The current installers don't include it yet; self-hosting from source does.
+
+The recommended API models are low-cost, so a few dollars of API usage goes a
+long way.
 
 #### Local models
 
@@ -188,6 +202,13 @@ your own TLS and authentication in front of it.
 
 </details>
 
+## Contributing
+
+Bug reports, feature ideas and pull requests are welcome. Found a bug? Use the
+[bug report form](https://github.com/raymond-van/animama/issues/new?template=bug.yml).
+Read the [contributing guide](.github/CONTRIBUTING.md) before you open a pull
+request.
+
 ## Acknowledgements
 
 - [Pocket TTS](https://github.com/kyutai-labs/pocket-tts) by Kyutai: on-device
@@ -206,7 +227,3 @@ your own TLS and authentication in front of it.
 - [three.quarks](https://github.com/Alchemist0823/three.quarks): particle
   effects
 - [Lapwing](https://booth.pm/ja/items/4993931) ©kuji
-
-## Star history
-
-[![Star history chart](https://api.star-history.com/svg?repos=raymond-van/animama&type=Date)](https://www.star-history.com/#raymond-van/animama&Date)

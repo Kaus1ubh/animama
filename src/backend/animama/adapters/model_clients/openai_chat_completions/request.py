@@ -5,9 +5,10 @@ from typing import Any
 
 import httpx2
 
-from animama.adapters.model_clients._common import jsonable, openai_cache_breakpoint_text_part
+from animama.adapters.model_clients._common import image_data_url, jsonable, openai_cache_breakpoint_text_part
 from animama.app.model_catalog import STRUCTURED_OUTPUT_TRANSPORT_JSON_OBJECT
 from animama.app.model_clients import ModelClientProviderError, ModelClientRequest
+from animama.app.model_clients.image_parts import ModelClientImage, resolved_parts
 from animama.app.model_clients.prompt import prompt_messages
 from animama.app.model_connection_presets import DEEPSEEK_REASONING_EFFORTS
 from animama.domain import ModelProvider
@@ -70,7 +71,7 @@ def _compatibility(spec: ModelClientRequest) -> ModelConnectionCompatibility:
 
 
 def _messages_for_spec(spec: ModelClientRequest) -> list[dict[str, Any]]:
-    messages = prompt_messages(spec.prompt)
+    messages = [_with_image_content(message, spec.images) for message in prompt_messages(spec.prompt)]
     if not spec.model_provider.accepts_developer_role:
         # The turn context already travels in the user message; only
         # within-turn instructions (forced final, repair) remain to fold.
@@ -78,6 +79,31 @@ def _messages_for_spec(spec: ModelClientRequest) -> list[dict[str, Any]]:
     if spec.model_provider.connection_id == BUILTIN_OPENAI_CONNECTION_ID:
         return _messages_with_cache_breakpoints(messages)
     return messages
+
+
+def _with_image_content(message: dict[str, Any], images: Mapping[str, ModelClientImage]) -> dict[str, Any]:
+    """Write a user message's images as ``image_url`` parts.
+
+    An image whose bytes the request does not carry becomes its placeholder
+    text. A message left with text only is sent as one string, which every
+    OpenAI-compatible server accepts.
+    """
+
+    content = message.get("content")
+    if message.get("role") != "user" or not isinstance(content, list | tuple):
+        return message
+    parts = list(resolved_parts(content, images))
+    if all(isinstance(part, str) for part in parts):
+        return {**message, "content": "\n".join(str(part) for part in parts)}
+    return {
+        **message,
+        "content": [
+            {"type": "text", "text": part}
+            if isinstance(part, str)
+            else {"type": "image_url", "image_url": {"url": image_data_url(part)}}
+            for part in parts
+        ],
+    }
 
 
 def _messages_with_cache_breakpoints(messages: list[dict[str, Any]]) -> list[dict[str, Any]]:

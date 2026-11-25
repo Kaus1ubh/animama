@@ -11,6 +11,7 @@ import {
   type FeaturePackStatus,
   type FeaturePackId,
   type LoginItemStatus,
+  type MenuCommand,
   type UpdateStatus,
 } from "../../../../shared/desktop-runtime.js";
 import { isUiLocale, type UiLocale } from "@animama/runtime-contracts/locale";
@@ -40,6 +41,8 @@ export type RuntimeIpcOperations = {
   setLocale?(locale: UiLocale): void;
   loginItem?(): LoginItemStatus;
   setLoginItem?(enabled: boolean): LoginItemStatus;
+  /** The application-menu command waiting for the main window, taken once. */
+  takeMenuCommand?(): MenuCommand | null;
 };
 type Caller = {
   contents: WebContents;
@@ -120,6 +123,21 @@ export class RuntimeIpcCallers {
         caller.contents.getURL().startsWith(`${caller.allowedUrl}/`)
       )
         caller.contents.send("animama:updates:status-changed", status);
+    }
+  }
+  /**
+   * Tell the main window's app that a menu command is waiting. The message
+   * names no command: the app takes it through `menu:take`, which admits the
+   * main window alone.
+   */
+  announceMenuCommand(): void {
+    for (const caller of this.callers.values()) {
+      if (
+        caller.role === "main" &&
+        !caller.contents.isDestroyed() &&
+        caller.contents.getURL().startsWith(`${caller.allowedUrl}/`)
+      )
+        caller.contents.send("animama:menu:command");
     }
   }
 }
@@ -223,4 +241,6 @@ export function installRuntimeIpc(
     if (!operations.setLoginItem) throw new RuntimeError("feature_unavailable");
     return operations.setLoginItem(enabled);
   });
+  // Only the main app window acts on an application-menu command.
+  handle("menu:take", 0, false, () => operations.takeMenuCommand?.() ?? null);
 }

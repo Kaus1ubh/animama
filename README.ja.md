@@ -14,6 +14,12 @@
   <a href="README.zh-Hans.md">简体中文</a>
 </p>
 
+<p align="center">
+  <b>お知らせ</b>
+  <br>
+  2026年11月18日 · Animama を正式リリースし、オープンソースとして公開しました
+</p>
+
 # Animama
 
 あなたの新しいデスクの相棒は Anima です。
@@ -24,7 +30,7 @@ Animama は、魅力たっぷりで表情豊かなコンパニオンを画面の
 
 ### アプリ
 
-- **[プライベートでセルフホスト可能](https://docs.animama.ai/ja/self-host):** 自分の API キーまたはローカルモデル（Ollama、LM Studio、llama.cpp、vLLM）を使って、あなたのコンピューター上で動きます。セルフホストしてブラウザーで使うことも、デスクトップアプリを自分でビルドすることもできます。
+- **[プライベートでセルフホスト可能](https://docs.animama.ai/ja/self-host):** ChatGPT プラン、自分の API キー、またはローカルモデル（Ollama、LM Studio、llama.cpp、vLLM）を使って、あなたのコンピューター上で動きます。セルフホストしてブラウザーで使うことも、デスクトップアプリを自分でビルドすることもできます。
 - **[あなた好みに](https://docs.animama.ai/ja/animas):** Anima のアイデンティティ、記憶、ふるまいを、しっくりくるまで編集できます。
 - **[VRM アバター](https://docs.animama.ai/ja/avatars):** VRM 0.x / 1.0 のアバターなら何でも使えます。VRoid Studio のアバターがいちばん相性良好です。VRChat アバターは [Animama Avatar Converter](https://github.com/raymond-van/animama-avatar-converter)で、その他の 3D モデルは Blender と [VRM Add-on for Blender](https://github.com/saturday06/VRM-Addon-for-Blender)で変換できます。
 - **[音声モード](https://docs.animama.ai/ja/voice):** 話し終わりを自動で検出するので、ハンズフリーで会話できます。音声処理はすべてローカルで動かすこともできます。
@@ -49,19 +55,22 @@ Animama は、魅力たっぷりで表情豊かなコンパニオンを画面の
 
 Windows では、Animama が新しいアプリのため、SmartScreen に「Windows によって PC が保護されました」と表示されることがあります。**詳細情報** を選び、発行元が Raymond Van であることを確認してから **実行** を選んでください。
 
-## AI モデル（BYOK）
+## AI モデル
 
-自分の API キーを使う BYOK（Bring Your Own Key）方式です。セットアップ中または **アプリ設定** で、選んだプロバイダーの API キーを追加してください。キーは暗号化されて、あなたのコンピューターに保存されます。
+[ChatGPT プラン](https://help.openai.com/en/articles/20001542-using-your-chatgpt-plan-in-other-apps-and-sites)か自分の API キーを、セットアップ中または **アプリ設定** で選んで使います。キーは暗号化されて、あなたのコンピューターに保存されます。
 
 ### [チャット](https://docs.animama.ai/ja/#setup)
 
-おすすめのモデルは低コストなので、数ドル分の API 利用でも長く使えます。
+| プロバイダー | 接続方法 | モデル |
+| --- | --- | --- |
+| OpenAI | ChatGPT プラン | プランに含まれるモデル |
+| OpenAI | API キー | GPT-6 Luna（おすすめ） |
+| Anthropic | API キー | Claude Haiku 5.5（おすすめ） |
+| OpenRouter またはその他の OpenAI 互換エンドポイント | API キー | 自由に選べます |
 
-| プロバイダー | モデル |
-| --- | --- |
-| OpenAI | GPT-6 Luna（おすすめ） |
-| Anthropic | Claude Haiku 5.5（おすすめ） |
-| OpenRouter またはその他の OpenAI 互換エンドポイント | 自由に選べます |
+ChatGPT プランを使うには **ChatGPT で続ける** を選び、OpenAI でサインインします。API キーは不要で、利用量はプランの上限にカウントされます。セルフホストの場合は、Animama を動かしているコンピューターのブラウザーでサインインしてください。現在のインストーラーにはまだ含まれておらず、ソースからセルフホストすると使えます。
+
+おすすめの API モデルは低コストなので、数ドル分の API 利用でも長く使えます。
 
 #### ローカルモデル
 
@@ -151,6 +160,13 @@ ANIMAMA_WEB_BUILD_MODE=production ./reset.sh
 
 </details>
 
+## コントリビュート
+
+バグ報告、機能の提案、プルリクエストを歓迎します。バグを見つけたら
+[バグ報告フォーム](https://github.com/raymond-van/animama/issues/new?template=bug.yml)（英語）からお知らせください。
+プルリクエストを送る前に
+[コントリビューションガイド](.github/CONTRIBUTING.md)（英語）をお読みください。
+
 ## 謝辞
 
 - [Pocket TTS](https://github.com/kyutai-labs/pocket-tts)（Kyutai）: デバイス上で動く音声合成
@@ -160,7 +176,3 @@ ANIMAMA_WEB_BUILD_MODE=production ./reset.sh
 - [Mochiya Avatar Tools](https://github.com/mochiya-labs/unity-avatar-tools) と [three-liltoon](https://github.com/mochiya-labs/three-liltoon)（Mochiya Labs）: VRChat アバターの変換と lilToon マテリアル
 - [three.quarks](https://github.com/Alchemist0823/three.quarks): パーティクルエフェクト
 - [Lapwing](https://booth.pm/ja/items/4993931) ©kuji
-
-## スター履歴
-
-[![スター数の推移グラフ](https://api.star-history.com/svg?repos=raymond-van/animama&type=Date)](https://www.star-history.com/#raymond-van/animama&Date)

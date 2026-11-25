@@ -10,6 +10,7 @@ from hashlib import sha256
 from types import SimpleNamespace
 from typing import TYPE_CHECKING, Any, Literal, cast
 
+import httpx2
 from openai import APIStatusError, AsyncOpenAI
 from pydantic import BaseModel, ConfigDict
 
@@ -21,8 +22,14 @@ from animama.adapters.model_clients.openai_chat_completions.connection_sdk impor
 )
 from animama.adapters.model_clients.openai_chat_completions.request import function_tools_for_connection
 from animama.adapters.model_clients.openai_chat_completions.support import resolve_openai_base_url
+from animama.adapters.model_clients.openai_errors import classify_openai_exception
+from animama.adapters.model_clients.openai_responses.chatgpt_plan_client import plan_error_code, plan_sdk_client
 from animama.adapters.openai_agents import OpenAIAgentsRunner, OpenAIAgentsRunOutput
-from animama.app.chat.api_standard import ANTHROPIC_MESSAGES_PROVIDER_TYPE, OPENAI_RESPONSES_PROVIDER_TYPE
+from animama.app.chat.api_standard import (
+    ANTHROPIC_MESSAGES_PROVIDER_TYPE,
+    CHATGPT_PLAN_RESPONSES_PROVIDER_TYPE,
+    OPENAI_RESPONSES_PROVIDER_TYPE,
+)
 from animama.app.chat.conversation_language import MEMORY_LANGUAGE_RULE
 from animama.app.chat.memory_tools import (
     MEMORY_SEARCH_FILES_DESCRIPTION,
@@ -39,6 +46,7 @@ from animama.app.model_clients.credentials import (
 from animama.app.model_clients.limits import ModelCallLimits
 from animama.app.ports.anima_port import AnimaRepository
 from animama.app.ports.chat_message_port import ChatMessageRepository
+from animama.app.ports.chatgpt_plan_port import ChatGPTPlanTokenSource
 from animama.app.ports.memory_episode_port import MemoryEpisodeRepository
 from animama.app.ports.memory_manager_runtime import (
     MEMORY_MANAGER_RUNTIME_OUTCOME_COMPLETED,
@@ -56,6 +64,7 @@ from animama.app.services.memory_entry_service import MemoryEntryService
 from animama.app.services.model_role_resolver import ROLE_MEMORY_MANAGER, usable_for_role
 from animama.app.services.user_memory_read_tools import UserMemoryReadToolService
 from animama.domain import ModelProvider
+from animama.domain.chatgpt_plan import ChatGPTPlanPurpose, ChatGPTPlanUnavailableError
 from animama.domain.memory_manager import (
     MEMORY_MANAGER_EPISODE_TASK_STATUS_PROCESSING,
     MEMORY_MANAGER_RUN_KIND_EPISODE_PROCESSING,
@@ -64,10 +73,18 @@ from animama.domain.memory_manager import (
     MemoryManagerMessage,
     MemoryManagerReflectionTaskState,
     MemoryManagerRun,
+    memory_manager_run_is_automatic,
 )
 from animama.domain.model_connection import ModelConnection, ModelConnectionCompatibility
 from animama.logging import get_logger
 
+from .chatgpt_plan_agents import (
+    PLAN_TOOL_NAMESPACE,
+    PLAN_TOOL_NAMESPACE_DESCRIPTION,
+    ChatGPTPlanAgentsClient,
+    ChatGPTPlanResponseFailedError,
+    as_openai_client,
+)
 from .episode_processing import load_episode_processing_batch, render_episode_processing_instructions
 from .reflection import (
     MEMORY_TOOL_READ_REFLECTION_TURNS,
@@ -144,15 +161,20 @@ class OpenAIAgentsMemoryManagerRuntime:
         model_wrapper: Callable[[Any, MemoryManagerRun], Any] | None = None,
         model_limits: ModelCallLimits | None = None,
         max_model_turns: int | None = None,
+        chatgpt_plan_session: Callable[[], ChatGPTPlanTokenSource] | None = None,
+        chatgpt_plan_transport: httpx2.AsyncBaseTransport | None = None,
     ) -> None:
         """Run the manager on the memory-manager role's catalog row.
 
         OpenAI Responses rows use the hosted ``apply_patch`` tool and server-side
         response continuity. Chat Completions rows (any connection) use an
         approval-gated ``apply_patch`` function tool and replay the run's stored
-        messages, since those servers keep no conversation state.
-        ``model_providers`` finds the row an earlier run started on, so an
-        approval resumes on the model that proposed it.
+        messages, since those servers keep no conversation state. ChatGPT plan
+        rows replay too, through :class:`ChatGPTPlanAgentsClient` with a token
+        from ``chatgpt_plan_session``: ``background`` for a run that started by
+        itself, ``interactive`` otherwise (spec #919). ``model_providers`` finds
+        the row an earlier run started on, so an approval resumes on the model
+        that proposed it. ``chatgpt_plan_transport`` is a test hook.
         """
 
         if max_model_turns is not None and (type(max_model_turns) is not int or max_model_turns < 1):
@@ -173,6 +195,8 @@ class OpenAIAgentsMemoryManagerRuntime:
         self._openai_base_url = resolve_openai_base_url(openai_base_url)
         self._model = model_provider.model if model_provider is not None else ""
         self._timeout_seconds = max(0.1, float(timeout_seconds))
+        self._chatgpt_plan_session = chatgpt_plan_session
+        self._chatgpt_plan_transport = chatgpt_plan_transport
         self._runner = OpenAIAgentsRunner()
         self._log = get_logger("adapters.memory_manager.openai_agents")
 
@@ -189,6 +213,7 @@ class OpenAIAgentsMemoryManagerRuntime:
 
         pinned_id = run.model_provider_id
         if pinned_id is None or pinned_id == self.model_provider_id:
+            await self._ensure_plan_can_serve(run)
             return self
         row = await self._model_providers.get(pinned_id) if self._model_providers is not None else None
         if row is None or not usable_for_role(ROLE_MEMORY_MANAGER, row):
@@ -201,7 +226,20 @@ class OpenAIAgentsMemoryManagerRuntime:
             pinned._require_model()
         except MemoryManagerRuntimeConfigurationError as exc:
             raise MemoryManagerPinnedModelUnavailableError() from exc
+        await pinned._ensure_plan_can_serve(run)
         return pinned
+
+    async def _ensure_plan_can_serve(self, run: MemoryManagerRun) -> None:
+        """For a ChatGPT plan row, refuse before an approval is applied when the session cannot serve the run."""
+
+        if not self._uses_chatgpt_plan:
+            return
+        try:
+            await self._plan_session().access_token(_plan_purpose(run))
+        except ChatGPTPlanUnavailableError as exc:
+            raise MemoryManagerPinnedModelUnavailableError(_plan_failure_message(exc)) from exc
+        except MemoryManagerRuntimeConfigurationError as exc:
+            raise MemoryManagerPinnedModelUnavailableError(exc.detail) from exc
 
     async def run_user_message(
         self,
@@ -212,9 +250,8 @@ class OpenAIAgentsMemoryManagerRuntime:
     ) -> MemoryManagerRuntimeResult:
         """Run the live memory manager for a new user message."""
 
-        connection, credential = self._require_model()
+        connection, credential, client = await self._connect(run)
         workspace = self._workspace_for_run(run)
-        client = self._client(connection, credential)
         try:
             agent, run_config = await self._build_agent(
                 run=run,
@@ -247,17 +284,22 @@ class OpenAIAgentsMemoryManagerRuntime:
                     run_config=run_config,
                     max_turns=self._turn_limit(run),
                 )
-            return await self._runtime_result_from_sdk_output(
+            result = await self._runtime_result_from_sdk_output(
                 run=run,
                 agent=agent,
                 run_config=run_config,
                 workspace=workspace,
                 output=output,
             )
+            # Only stored Responses keep the conversation; after any other step a cursor would skip it.
+            result.keeps_conversation_state = self._uses_responses
+            return result
         except APIStatusError as exc:
             if run.openai_previous_response_id and _is_unresolvable_previous_response_error(exc):
                 raise MemoryManagerPreviousResponseUnresolvableError() from exc
-            raise MemoryManagerRuntimeConfigurationError("The Memory Manager model request failed.") from exc
+            raise MemoryManagerRuntimeConfigurationError(self._request_failure(exc)) from exc
+        except (ChatGPTPlanUnavailableError, ChatGPTPlanResponseFailedError) as exc:
+            raise MemoryManagerRuntimeConfigurationError(_plan_failure_message(exc)) from exc
         except Exception as exc:
             if _is_max_turns_exceeded(exc):
                 return blocked_result(
@@ -288,9 +330,8 @@ class OpenAIAgentsMemoryManagerRuntime:
                 metadata={"resume": "skipped_missing_state"},
             )
 
-        connection, credential = self._require_model()
+        connection, credential, client = await self._connect(run)
         workspace = self._workspace_for_run(run)
-        client = self._client(connection, credential)
         try:
             editor = _committed_approval_patch_editor(approval=approval if decision == "approve" else None)
             agent, run_config = await self._build_agent(
@@ -329,17 +370,22 @@ class OpenAIAgentsMemoryManagerRuntime:
                 max_turns=self._turn_limit(run),
                 run_config=run_config,
             )
-            return await self._runtime_result_from_sdk_output(
+            result = await self._runtime_result_from_sdk_output(
                 run=run,
                 agent=agent,
                 run_config=run_config,
                 workspace=workspace,
                 output=output,
             )
+            # Only stored Responses keep the conversation; after any other step a cursor would skip it.
+            result.keeps_conversation_state = self._uses_responses
+            return result
         except APIStatusError as exc:
             if run.openai_previous_response_id and _is_unresolvable_previous_response_error(exc):
                 raise MemoryManagerPreviousResponseUnresolvableError() from exc
-            raise MemoryManagerRuntimeConfigurationError("The Memory Manager model request failed.") from exc
+            raise MemoryManagerRuntimeConfigurationError(self._request_failure(exc)) from exc
+        except (ChatGPTPlanUnavailableError, ChatGPTPlanResponseFailedError) as exc:
+            raise MemoryManagerRuntimeConfigurationError(_plan_failure_message(exc)) from exc
         except Exception as exc:
             if _is_max_turns_exceeded(exc):
                 return blocked_result(
@@ -375,6 +421,61 @@ class OpenAIAgentsMemoryManagerRuntime:
     @property
     def _uses_responses(self) -> bool:
         return self._model_provider is not None and self._model_provider.provider_type == OPENAI_RESPONSES_PROVIDER_TYPE
+
+    @property
+    def _uses_chatgpt_plan(self) -> bool:
+        return (
+            self._model_provider is not None
+            and self._model_provider.provider_type == CHATGPT_PLAN_RESPONSES_PROVIDER_TYPE
+        )
+
+    async def _connect(self, run: MemoryManagerRun) -> tuple[ModelConnection, ModelCredential, Any]:
+        """The role's connection, the credential this run uses and an SDK client that carries it."""
+
+        connection, credential = self._require_model()
+        if not self._uses_chatgpt_plan:
+            return connection, credential, self._client(connection, credential)
+        session = self._plan_session()
+        purpose = _plan_purpose(run)
+        try:
+            # Fail with the plan's reason before the agent is built; each request asks again.
+            await session.access_token(purpose)
+        except ChatGPTPlanUnavailableError as exc:
+            raise MemoryManagerRuntimeConfigurationError(_plan_failure_message(exc)) from exc
+        timeout = self._model_limits.timeout_seconds if self._model_limits is not None else self._timeout_seconds
+        client = ChatGPTPlanAgentsClient(
+            client=plan_sdk_client(timeout=timeout, transport=self._chatgpt_plan_transport),
+            session=session,
+            purpose=purpose,
+            timeout=timeout,
+        )
+        return connection, credential, client
+
+    def _plan_session(self) -> ChatGPTPlanTokenSource:
+        if self._chatgpt_plan_session is None:
+            raise MemoryManagerRuntimeConfigurationError("ChatGPT plan models are not available here.")
+        return self._chatgpt_plan_session()
+
+    def _request_failure(self, exc: APIStatusError) -> str:
+        """The run's error for a refused request; on the plan, worded from the plan's code (R5.3)."""
+
+        if not self._uses_chatgpt_plan:
+            return "The Memory Manager model request failed."
+        info = classify_openai_exception(
+            exc, api="responses", provider_type=CHATGPT_PLAN_RESPONSES_PROVIDER_TYPE, model=self._model
+        )
+        code = plan_error_code(info.metadata)
+        if code is not None and code in _PLAN_FAILURES:
+            return _PLAN_FAILURES[code]
+        if exc.status_code == 401:
+            return _PLAN_FAILURES["sign_in_required"]
+        detail = info.metadata.get("provider_error_message")
+        if exc.status_code == 400 and isinstance(detail, str) and detail:
+            # The route says what it does not accept; the error classifier already sanitized the text.
+            return f"The ChatGPT plan refused the Memory Manager request: {detail}"
+        if exc.status_code == 429:
+            return "The ChatGPT plan is limiting requests right now. Try again shortly."
+        return "The Memory Manager model request failed."
 
     def _require_model(self) -> tuple[ModelConnection, ModelCredential]:
         """Return the role's connection and the one key this run will use."""
@@ -434,6 +535,7 @@ class OpenAIAgentsMemoryManagerRuntime:
             OpenAIResponsesModel,
             RunConfig,
             function_tool,
+            tool_namespace,
         )
         from agents.editor import ApplyPatchOperation
 
@@ -494,23 +596,33 @@ class OpenAIAgentsMemoryManagerRuntime:
         assert self._model_provider is not None
         connection = connection_for_model_provider(self._model_provider)
         cache_key = _memory_manager_prompt_cache_key(run_id=run.id, model=self._model)
+
+        @function_tool(name_override=_PATCH_TOOL_NAME, needs_approval=True)
+        async def apply_patch(operation: _PatchOperation) -> str:
+            """Propose exactly one create_file or update_file memory change as a V4A diff."""
+
+            patch = ApplyPatchOperation(type=operation.type, path=operation.path, diff=operation.diff)
+            outcome = editor.create_file(patch) if operation.type == "create_file" else editor.update_file(patch)
+            result = await outcome if inspect.isawaitable(outcome) else outcome
+            if isinstance(result, str):
+                return result or "Patch processed."
+            return (result.output if result is not None else None) or "Patch processed."
+
         if self._uses_responses:
             model: Any = OpenAIResponsesModel(self._model, client)
             model_settings = ModelSettings(store=True, extra_args={"prompt_cache_key": cache_key})
             tools.append(ApplyPatchTool(editor=editor, needs_approval=True))
+        elif self._uses_chatgpt_plan:
+            # The plan's route refuses the hosted apply_patch tool, so edits use the function form;
+            # the client makes every request streamed and unstored (spec #919).
+            # ``client`` is the ChatGPTPlanAgentsClient that ``_connect`` built for this row.
+            model = OpenAIResponsesModel(self._model, as_openai_client(cast(ChatGPTPlanAgentsClient, client)))
+            model_settings = ModelSettings(store=False, extra_args={"prompt_cache_key": cache_key})
+            # OpenAI's documentation asks for function tools inside a namespace on this route.
+            tools = tool_namespace(
+                name=PLAN_TOOL_NAMESPACE, description=PLAN_TOOL_NAMESPACE_DESCRIPTION, tools=[*tools, apply_patch]
+            )
         else:
-
-            @function_tool(name_override=_PATCH_TOOL_NAME, needs_approval=True)
-            async def apply_patch(operation: _PatchOperation) -> str:
-                """Propose exactly one create_file or update_file memory change as a V4A diff."""
-
-                patch = ApplyPatchOperation(type=operation.type, path=operation.path, diff=operation.diff)
-                outcome = editor.create_file(patch) if operation.type == "create_file" else editor.update_file(patch)
-                result = await outcome if inspect.isawaitable(outcome) else outcome
-                if isinstance(result, str):
-                    return result or "Patch processed."
-                return (result.output if result is not None else None) or "Patch processed."
-
             model = OpenAIChatCompletionsModel(
                 self._model,
                 cast(AsyncOpenAI, _ConnectionFunctionTools(client, connection.compatibility)),
@@ -594,7 +706,8 @@ class OpenAIAgentsMemoryManagerRuntime:
         invalid_resume_count: int = 0,
         latest_response_id: str | None = None,
     ) -> MemoryManagerRuntimeResult:
-        latest_response_id = output.last_response_id or latest_response_id
+        # A plan response is never stored, so it is no cursor; the result also says the step kept no state.
+        latest_response_id = None if self._uses_chatgpt_plan else (output.last_response_id or latest_response_id)
         interruptions = output.interruptions
         metadata = {
             "runtime": self.name,
@@ -865,6 +978,42 @@ def _instructions(*, memory_map: str, access: ManagerFileAccess | None = None) -
         f"{anima_guidance}"
         f"\n{memory_map}"
     )
+
+
+_PLAN_FAILURES = {
+    "not_signed_in": "Sign in with ChatGPT in App Settings → Models to use your plan for memory updates.",
+    "sign_in_required": "Sign in with ChatGPT again in App Settings → Models to use your plan for memory updates.",
+    "plan_use_not_granted": "Plan use is off for this ChatGPT account. Enable it in App Settings → Models.",
+    "background_not_agreed": (
+        "Automatic memory updates may not use your ChatGPT plan. Allow them in App Settings → Models."
+    ),
+    "paused": (
+        "Automatic memory updates on your ChatGPT plan are paused after a usage limit. "
+        "They resume once one of your own requests succeeds."
+    ),
+    "temporarily_unavailable": "ChatGPT plan usage is temporarily unavailable. Try again shortly.",
+    "usage_limit_exceeded": (
+        "Your ChatGPT plan's usage limit was reached. Review it with Manage usage in App Settings → Models."
+    ),
+    "user_not_eligible": "Your ChatGPT plan does not include this use. Choose another Memory Manager model.",
+    "usage_unavailable": "ChatGPT plan usage is temporarily unavailable. Try again shortly.",
+    "user_unavailable": "ChatGPT plan usage is temporarily unavailable. Try again shortly.",
+    "invalid_user": "Sign in with ChatGPT again in App Settings → Models to use your plan for memory updates.",
+    "unsupported_capability": "The ChatGPT plan refused the Memory Manager request. Choose another model.",
+    "route_not_supported": "The ChatGPT plan refused the Memory Manager request. Choose another model.",
+}
+
+
+def _plan_purpose(run: MemoryManagerRun) -> ChatGPTPlanPurpose:
+    """Work that started by itself follows the background rule: agreement, and no usage-limit pause (D5)."""
+
+    return "background" if memory_manager_run_is_automatic(run) else "interactive"
+
+
+def _plan_failure_message(exc: ChatGPTPlanUnavailableError | ChatGPTPlanResponseFailedError) -> str:
+    """What a Memory Manager run on the plan says when the plan could not serve it."""
+
+    return _PLAN_FAILURES.get(exc.code or "", "The ChatGPT plan could not complete the Memory Manager request.")
 
 
 def _is_max_turns_exceeded(exc: Exception) -> bool:
