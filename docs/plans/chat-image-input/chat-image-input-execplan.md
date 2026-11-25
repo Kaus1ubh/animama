@@ -151,8 +151,10 @@ canonical copy of at most 3.5 MiB (under 5 MB as base64). One estimate,
   suite (G3, passed).
 - [x] Pull request #923; the OpenAI mid-stream error fix joined it at the
   owner's request, and the full suite passed again on `2fad4050b`.
+- [x] G2: the desktop check passed, except that a Safari- or Firefox-style
+  "Copy Image" paste (image plus URL text) pastes the URL (P5-A15, emulated).
 - [ ] G1 for the OpenAI families (Anthropic passed; the OpenAI account has no
-  credit) and G2 (owner).
+  credit).
 
 ## Surprises & Discoveries
 
@@ -1784,6 +1786,28 @@ through `scripts/heavy-slot.py`:
 Both single failures are in areas this change does not touch, and each
 passed on its own rerun.
 
+### Desktop check (G2)
+
+The owner agreed on 2026-11-25 to the agent driving Electron. The unpackaged
+desktop app (Electron 45.3.1, `ANIMAMA_DESKTOP_WEB_URL` = the task stack, a
+throwaway `ANIMAMA_DESKTOP_DEV_USER_DATA` profile) was scripted over the main
+process inspector; the window was brought forward so it rendered. This
+process cannot post macOS mouse events, so a real Finder drag-and-drop was not
+performed (web drops were checked in Phase 5).
+
+| Check | Result |
+| --- | --- |
+| Paste an image through Chromium's clipboard (`webContents.paste()`) | Attached as "image.png · 5 kB · Ready" with its preview; the composer stayed empty |
+| A file reference on the macOS clipboard, also with its name as text (Finder-style) | Chromium exposes only the file; attached as `input-shapes.png` |
+| Image plus HTML `<img>` (Chrome's "Copy image") | Attached |
+| Image plus its URL as `public.url` and plain text (Safari- and Firefox-style "Copy Image", emulated with AppKit's pasteboard) | The URL pasted as text and nothing was attached, as P5-A15 predicted. Real Safari and Firefox were not driven. |
+| Quick Chat, opened through `animamaDesktop.quickChat.open` on a chat with an image turn | The preview shows above the user bubble (320 × 200); the thumbnail opens the 800 × 500 original in the dialog; Escape closes it and focus returns to the thumbnail |
+| Image turns from the desktop composer on `claude-haiku-5-5` | Saved with one image each; replies "Green." (triangle) and "Yellow." (circle) were correct; the tray cleared when each turn completed |
+| Stop between the saved turn and its completion | Not reachable: the Stop control showed, but the turn completed about 2.2 s after sending, before a 40 ms poll saw the saved reply. The trade-off stays theoretical for ordinary turns. |
+
+Electron was quit and its profile removed. The system clipboard was replaced
+with the test image during the check.
+
 ## Validation and acceptance
 
 Each #904 acceptance criterion and the evidence planned for it:
@@ -1792,7 +1816,7 @@ Each #904 acceptance criterion and the evidence planned for it:
 | --- | --- |
 | Each adapter builds and sends an image request | Phase 4 request tests; G1 (Anthropic passed; both OpenAI families wait for account credit) |
 | A model without image input is refused | Phase 3 API test; Phase 5 composer test |
-| Pick, paste and drag in web and desktop | Phase 5 manual check; G2 |
+| Pick, paste and drag in web and desktop | Phase 5 manual check; G2 (desktop paste, Finder and Chrome copies attach; a Safari- or Firefox-style "Copy Image" pastes its URL; no real OS drag) |
 | Thumbnails after reload; placeholder after delete | Phase 6 tests and manual check |
 | No EXIF or GPS; no bytes in rows, events, logs or memory files | Phase 1 and Phase 3 tests; final review tests for stream events and episode memory (F-A1) |
 | Replay, the 21st image, context fitting | Phase 3 tests |
