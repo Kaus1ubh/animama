@@ -54,6 +54,13 @@ const fixture = vi.hoisted(() => ({
   /** The offline speech set shown as downloading, if any. */
   downloadingAsset: null as string | null,
 }));
+// The plan card reads its own session; setup's layout around it is what these tests check.
+vi.mock("@/ui/settings/models/ChatGPTPlanCard", async (importOriginal) => ({
+  ...(await importOriginal<
+    typeof import("@/ui/settings/models/ChatGPTPlanCard")
+  >()),
+  ChatGPTPlanCard: () => createElement("p", null, "Plan card"),
+}));
 vi.mock("@/platform/env", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/platform/env")>();
   return {
@@ -409,6 +416,37 @@ describe("local first-run setup", () => {
       );
       expect(html).toContain("Set OPENAI_API_KEY on the server to use OpenAI.");
     } finally {
+      fixture.desktopKeys = true;
+    }
+  });
+
+  it("shows the ChatGPT plan above the API key on OpenAI's tab where the plan is offered", () => {
+    const data = fixture.capabilities.data;
+    fixture.capabilities.data = { ...data, chatgpt_plan: true };
+    fixture.desktopKeys = false;
+    fixture.connections = [anthropicConnection, builtinConnection];
+    fixture.providers = catalog;
+    try {
+      const html = renderSetup({ ...welcomeDone, step: "ai" });
+      // No tab of its own: the plan is the other way to use OpenAI's models.
+      expect(html).not.toContain("-chatgpt-plan");
+      const positions = [
+        "through your ChatGPT plan or with an API key",
+        "Plan card",
+        "Use an API key",
+        "Pay OpenAI per request",
+        "Uses the OpenAI key configured on this server.",
+      ].map((text) => html.indexOf(text));
+      expect(positions.every((position) => position >= 0)).toBe(true);
+      expect([...positions].sort((a, b) => a - b)).toEqual(positions);
+
+      // Where the runtime does not offer it, OpenAI's tab is the key alone.
+      fixture.capabilities.data = { ...data, chatgpt_plan: false };
+      const keyOnly = renderSetup({ ...welcomeDone, step: "ai" });
+      expect(keyOnly).not.toContain("Plan card");
+      expect(keyOnly).not.toContain("Use an API key");
+    } finally {
+      fixture.capabilities.data = data;
       fixture.desktopKeys = true;
     }
   });

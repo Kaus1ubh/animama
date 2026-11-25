@@ -7,6 +7,7 @@ import {
   defaultReasoningEffort,
   effectiveReasoningEffort,
   modelConnectionLabel,
+  pickerModelGroups,
   supportedReasoningEfforts,
 } from "./model-catalog";
 
@@ -115,5 +116,54 @@ describe("the connection a picker names", () => {
         connection_name: "Home Ollama",
       }),
     ).toBe("Home Ollama");
+  });
+});
+
+describe("chat picker groups", () => {
+  const plan = (id: string) =>
+    row({
+      id,
+      connection_id: "chatgpt_plan",
+      connection_name: "ChatGPT plan",
+      model_provider: "ChatGPTPlanResponsesHTTPAgent",
+    });
+  const key = (id: string) =>
+    row({ id, connection_id: "openai", connection_name: "OpenAI" });
+  const claude = (id: string) =>
+    row({
+      id,
+      connection_id: "anthropic",
+      connection_name: "Anthropic",
+      model_provider: "AnthropicMessagesHTTPAgent",
+    });
+  const groups = (items: PyModelProviderCatalogItem[]) =>
+    pickerModelGroups(items).map((group) => [
+      group.providerLabel,
+      group.models.map((item) => item.id),
+    ]);
+
+  it("names OpenAI's two ways and keeps them side by side, plan first", () => {
+    expect(
+      groups([key("gpt-6"), claude("opus"), plan("luna"), plan("terra")]),
+    ).toEqual([
+      ["OpenAI · ChatGPT plan", ["luna", "terra"]],
+      ["OpenAI · API key", ["gpt-6"]],
+      ["Anthropic", ["opus"]],
+    ]);
+  });
+
+  it("keeps one OpenAI group, as before, when no plan model is listed", () => {
+    // The hosted composition, or a local installation before signing in.
+    expect(groups([key("gpt-6"), claude("opus")])).toEqual([
+      ["OpenAI", ["gpt-6"]],
+      ["Anthropic", ["opus"]],
+    ]);
+  });
+
+  it("leaves other connections in catalog order", () => {
+    expect(groups([claude("opus"), plan("luna")])).toEqual([
+      ["Anthropic", ["opus"]],
+      ["OpenAI · ChatGPT plan", ["luna"]],
+    ]);
   });
 });

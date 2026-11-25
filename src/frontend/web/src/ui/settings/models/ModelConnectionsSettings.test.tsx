@@ -580,11 +580,13 @@ describe("Models connections by where models run", () => {
     });
     state.connections = [...state.connections, plan];
 
-    const signedIn = panel(
-      render(<ModelConnectionsSettings disabled={false} />),
-      "chatgpt-plan",
-    );
+    // The plan has no tab of its own: it is the other way to use OpenAI's
+    // models, so OpenAI's tab shows it above the API key.
+    const html = render(<ModelConnectionsSettings disabled={false} />);
+    expect(html).not.toContain("-content-chatgpt-plan");
+    const signedIn = panel(html, "openai");
     expectInOrder(signedIn, [
+      "through your ChatGPT plan or with an API key",
       "Account card",
       "Models in your plan",
       "GPT-6 Luna",
@@ -592,9 +594,26 @@ describe("Models connections by where models run", () => {
       "Built-in search",
       "Show 1 hidden model",
       "Refresh list",
+      "Use an API key",
+      "Pay OpenAI per request",
     ]);
-    // OpenAI decides which models the plan has: no adding or removing here.
-    expect(signedIn).not.toContain("Add model");
+    // OpenAI decides which models the plan has: no adding or removing there.
+    const planSection = signedIn.slice(0, signedIn.indexOf("Use an API key"));
+    expect(planSection).not.toContain("Add model");
+    // The plan's connection never shows as a key card of its own.
+    expect(signedIn.match(/Use an API key/gu)).toHaveLength(1);
+
+    // Where the runtime does not offer the plan, OpenAI's tab is the key alone.
+    state.capabilities = { ...state.capabilities, chatgpt_plan: false };
+    const keyOnly = panel(
+      render(<ModelConnectionsSettings disabled={false} />),
+      "openai",
+    );
+    expect(keyOnly).toContain("models using your API key.");
+    expect(keyOnly).not.toContain("Account card");
+    expect(keyOnly).not.toContain("Use an API key");
+    expect(keyOnly).not.toContain("Models in your plan");
+    state.capabilities = { ...state.capabilities, chatgpt_plan: true };
 
     state.connections = [
       ...state.connections.slice(0, -1),
@@ -602,7 +621,7 @@ describe("Models connections by where models run", () => {
     ];
     const signedOut = panel(
       render(<ModelConnectionsSettings disabled={false} />),
-      "chatgpt-plan",
+      "openai",
     );
     expect(signedOut).toContain("Account card");
     expect(signedOut).not.toContain("Models in your plan");

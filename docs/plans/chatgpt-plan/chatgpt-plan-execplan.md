@@ -255,6 +255,9 @@ and the backend.
 - [x] Merge with chat image input (#923, 2026-11-25): merged as
   `c5789c3de`; Merge Review #1 passed; the full suite ran on the combined
   candidate; the review's optional findings are made.
+- [x] Phase 9: one OpenAI tab and the picker's plan notice (owner feedback,
+  2026-11-25): Code Review #2 passed; the split rule and the R3.7 reading
+  wait for the owner's confirmation.
 - [ ] G1, G2 and G4 with the owner.
 
 ## Surprises & Discoveries
@@ -531,6 +534,28 @@ What this changes:
     failure.
   - **A sign-in reads as pending until its models are stored** (from review
     P5-R1-F1), so the page that sees it finish finds them.
+- 2026-11-25, owner, after using the plan on the task stack (Phase 9):
+  - **One OpenAI tab.** App Settings → Models and setup's AI step drop the
+    separate ChatGPT plan tab; OpenAI's tab shows the plan card above a
+    "Use an API key" card that says it is paid per request.
+  - **Picker groups.** The chat's model picker heads OpenAI's models
+    "OpenAI · ChatGPT plan" and "OpenAI · API key", side by side, and each
+    row's second line says which. Model names stay as each source gives them.
+  - **The plan notice moves into the picker.** "Using ChatGPT plan" with
+    **Manage usage** leaves the space above the composer and becomes the last
+    row of the open picker while a plan model is selected. OpenAI's interface
+    guidelines ask for it near the composer or the model selector, and its own
+    illustration places it in the model menu.
+- 2026-11-25, agent, following the owner's entry above:
+  - **OpenAI's rows split only while the picker lists plan models** (from
+    review P9-R1-F1). The hosted composition serves an operator-paid model on
+    the `openai` connection and never has plan models, and a local
+    installation has none before signing in; in both, OpenAI's models keep
+    one "OpenAI" group, as before. For the owner to confirm at the next
+    visual check.
+  - **R3.7 is met by the picker row.** The spec's "Using ChatGPT plan"
+    requirement is read as satisfied by the row in the open picker, which
+    OpenAI's guideline allows; #919's wording is unchanged.
 
 ## Phased implementation
 
@@ -2038,6 +2063,111 @@ an existing file and heading (a script over `git diff HEAD`);
 once. No code changed in this phase. Both were rerun by the final review on
 `daf1ead67` (tree `15746e0af0e6`), with the same results. Review: covered by
 the final integration review.
+
+### Phase 9: One OpenAI tab and the picker's plan notice
+
+Review tier: standard (presentation only; no request, credential or contract
+change). Authority: the owner's 2026-11-25 decisions in the Decision Log.
+
+As built (2026-11-25, from `06cfb7d1b`):
+
+- `model-configuration-state.ts`: the ChatGPT plan's entry is gone; OpenAI's
+  entry lists the plan preset in `alsoPresetIds`, so the plan connection
+  joins OpenAI's group (and its connected dot) only where the runtime offers
+  the plan. `modelProviderPurpose(entry, chatgptPlanAvailable)` names both
+  ways on OpenAI's tab.
+- `ModelConnectionsSettings.tsx`: OpenAI's panel shows the plan card and its
+  models, then the key card, which takes an optional `title` and
+  `description` ("Use an API key", "Pay OpenAI per request with your own API
+  key."). `SetupAiStep.tsx` does the same with its key section.
+- `lib/chat/model-catalog.ts`: `openaiModelAccess`, `modelPickerGroupLabel`
+  and `pickerModelGroups` (OpenAI's two groups side by side, plan first; made
+  conditional on listed plan models by P9-R1-F1);
+  `modelOptionDetail` says "ChatGPT plan" or "API key" for OpenAI's rows.
+  Other labels, including the tooltip's "Connection: Model", are unchanged.
+- The plan notice moved to `ui/components/chatgpt-plan-usage-note.tsx` and
+  renders as the last row of the picker's main and model-list views;
+  `ChatInterface.tsx` no longer shows it above the composer.
+- Strings in `models.json` for all five locales; the unused
+  `providers.purpose.chatgptPlan` is removed. `model-settings.md` describes
+  the tab, the picker headings and the notice.
+
+Check record (2026-11-25, working tree on `06cfb7d1b`):
+
+| Command | Result |
+| --- | --- |
+| From `src/frontend/web`: `pnpm exec vitest run` on `src/ui/settings/models`, `src/app/local-runtime/setup`, `src/lib/chat/model-catalog.test.ts`, `src/ui/components` and `src/ui/main/chat` | 33 files, 280 passed (before the grouping moved into `model-catalog.ts`); then 19 files, 222 passed on the touched folders |
+| From `src/frontend`: `python3 ../../scripts/heavy-slot.py -- pnpm check`; `pnpm web:lint`; `pnpm -s i18n:check` | Passed; every translated catalog complete |
+| Prettier `--check` on the changed TypeScript files | Formatted |
+| `python3 scripts/public-release/check_source.py` | Every tracked file covered once (the moved note's two entries renamed) |
+| The task stack rebuilt from the working tree (built mode), in the built-in browser at 1440x900 and 900x900 | Settings: one OpenAI tab, plan card and models, then "Use an API key" with Recommended; picker: "OpenAI · ChatGPT plan" and "OpenAI · API key" groups, the plan row at the bottom of the main and list views, nothing above the composer |
+| A disposable fresh stack (`chatgpt-plan-e2e`, port 9300, stopped afterwards), setup's AI step | One OpenAI tab: plan card with Continue with ChatGPT, then "Use an API key" naming the server variable |
+
+Not checked: the dark theme (the app keeps its own theme setting, which was
+left alone; the new pieces use the same tokens as their neighbours).
+
+#### Code Review #1 Findings
+
+An independent read-only review at the standard tier, which reran six test
+files (146 passed). Result: blocked.
+
+- **P9-R1-F1 (Required).** The picker called every row on the `openai`
+  connection "API key", with no runtime condition. The hosted composition's
+  operator-paid model sits on that connection, so hosted owners would see
+  "OpenAI · API key" for a key they do not have.
+- **P9-R1-F2 (Optional).** The memoised groups kept their headings in the old
+  language after a UI Locale switch.
+- **P9-R1-F3 (Optional).** No test failed if the notice left the picker or
+  showed in Chat features, if the plan connection rendered as a key card, if
+  the key card took the new title without the plan, for OpenAI's dot from a
+  signed-in plan, or for setup's OpenAI tab with the plan offered.
+- **P9-R1-F4 (Optional).** Two sentences in `model-settings.md`: which tab the
+  plan's dot lights, and that Chat features has no notice.
+- Owner notes: the Recommended tag beside "Use an API key"; whether to split
+  before a sign-in; R3.7's wording; the key description's size in setup; the
+  repeated "API key".
+
+#### Code Review #1 Revisions
+
+- **P9-R1-F1: accepted.** `listsChatGPTPlanModels` decides the split;
+  `modelPickerGroupLabel` and `modelOptionDetail` take it, and
+  `pickerModelGroups` keeps one "OpenAI" group without plan models (Decision
+  Log, 2026-11-25). Tests cover both cases in `model-catalog.test.ts`,
+  `model-configuration-state.test.ts` and the picker.
+- **P9-R1-F2: accepted.** The groups' memo also depends on `i18n.language`.
+- **P9-R1-F3: accepted.** New assertions: the picker shows the notice in its
+  main and list views and not in Chat features, with the split headings
+  (inverting the views fails it); one "Use an API key" card, and none where
+  the plan is not offered; OpenAI's dot from a signed-in plan only where it
+  is offered; setup's OpenAI tab with and without the plan
+  (`routes/-setup.test.ts`, with the plan card mocked).
+- **P9-R1-F4: accepted.** Both sentences are corrected.
+- Owner notes: the Recommended tag stays, as in the layout the owner picked;
+  the split now waits for plan models; R3.7 is recorded in the Decision Log;
+  setup's key description now matches the plan card's size; the repeated
+  "API key" follows the owner's choice.
+
+Repair check record (working tree on `06cfb7d1b`, tree `df6ebc2925f4` as the
+reviewer computed it): from `src/frontend/web`, `pnpm exec vitest run` on
+`src/routes/-setup.test.ts`, `src/ui/settings/models`,
+`src/app/local-runtime/setup`, `src/lib/chat`, `src/ui/components` and
+`src/ui/main/chat` → 48 files, 446 passed; from `src/frontend`, `pnpm check`,
+`pnpm web:lint` and `pnpm prettier:check` passed; `check_source.py` passed.
+
+#### Code Review #2 Findings
+
+Targeted recheck by the same reviewer on tree `df6ebc2925f4`, which reran the
+six touched test files (150 passed). Result: pass. All four repairs hold
+(F1 for the hosted composition and for a local installation before a
+sign-in), with no regressions. Non-blocking: the R3.7 sentence had been
+added to the owner's Decision Log entry; it is the agent's reading and moves
+to the agent entry.
+
+#### Code Review #2 Revisions
+
+- The R3.7 reading and the split rule are recorded as agent decisions for the
+  owner to confirm; the As built note on `model-catalog.ts` points to
+  P9-R1-F1.
 
 ## Final integration review
 

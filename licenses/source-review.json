@@ -37805,6 +37805,20 @@
       "review": "prepared-not-release-approved"
     },
     {
+      "path": "src/frontend/web/src/ui/components/chatgpt-plan-usage-note.test.tsx",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/ui/components/chatgpt-plan-usage-note.tsx",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
       "path": "src/frontend/web/src/ui/components/checkbox.tsx",
       "candidate_license": "MIT (upstream portions); AGPL-3.0-only for original local additions",
       "basis": "Adapted from shadcn/ui apps/www/registry/new-york/ui/checkbox.tsx: Checkbox primitive. Found by the 2026-11-03 provenance sweep (#823); attribution approved by the owner on 2026-11-03.",
@@ -39708,20 +39722,6 @@
     },
     {
       "path": "src/frontend/web/src/ui/main/chat/ChatFileDropOverlay.tsx",
-      "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
-      "copyright": "2026 Raymond Van",
-      "review": "prepared-not-release-approved"
-    },
-    {
-      "path": "src/frontend/web/src/ui/main/chat/ChatGPTPlanUsageNote.test.tsx",
-      "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
-      "copyright": "2026 Raymond Van",
-      "review": "prepared-not-release-approved"
-    },
-    {
-      "path": "src/frontend/web/src/ui/main/chat/ChatGPTPlanUsageNote.tsx",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
       "copyright": "2026 Raymond Van",

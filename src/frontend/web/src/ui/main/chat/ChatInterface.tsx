@@ -47,7 +47,6 @@ import {
   type UserFileUploadUppy,
 } from "@/hooks/useUserFileUpload";
 import { addPastedImages, ChatFileDropOverlay } from "./ChatFileDropOverlay";
-import { ChatGPTPlanUsageNote } from "./ChatGPTPlanUsageNote";
 import { ChatMessageImages } from "./ChatMessageImages";
 import { useChatSession, type ChatMessage } from "./useChatSession";
 import { useCrisisCardCornerBottom } from "./crisisCardCorner";
@@ -466,7 +465,6 @@ export function ChatInterfaceView({
             ) : loadingStatus ? (
               <ChatLoadingStatusLines status={loadingStatus} />
             ) : null}
-            <ChatGPTPlanUsageNote model={activeModel} />
             {showPromptSuggestions ? (
               <div className="mb-2 flex flex-wrap gap-2">
                 {promptSuggestions.map((suggestion) => (

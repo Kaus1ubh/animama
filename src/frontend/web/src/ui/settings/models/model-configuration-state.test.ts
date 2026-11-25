@@ -44,6 +44,7 @@ import {
   modelConnectionLabel,
   modelDisplayName,
   modelOptionDetail,
+  modelPickerGroupLabel,
   modelOptionLabel,
   selectableChatModels,
 } from "@/lib/chat/model-catalog";
@@ -151,8 +152,12 @@ describe("model pickers", () => {
     });
     expect(modelConnectionLabel(builtin)).toBe("OpenAI");
     expect(modelConnectionLabel(owner)).toBe("OpenAI");
-    // Pickers never name the API; the app picks it.
+    // Pickers never name the API; the app picks it. Beside ChatGPT plan models
+    // they say a key is used, to tell the two ways apart; otherwise not.
     expect(modelOptionDetail(owner)).toBe("OpenAI");
+    expect(modelPickerGroupLabel(owner, false)).toBe("OpenAI");
+    expect(modelOptionDetail(owner, true)).toBe("API key");
+    expect(modelPickerGroupLabel(owner, true)).toBe("OpenAI · API key");
     expect(modelOptionLabel(builtin)).toBe("OpenAI: gpt-6-luna");
     expect(
       modelOptionLabel({ ...builtin, model_provider: "OpenAIHTTPAgent" }),
@@ -162,6 +167,15 @@ describe("model pickers", () => {
       connection_name: "Ollama",
     });
     expect(modelOptionDetail(local)).toBe("Ollama");
+    expect(modelOptionDetail(local, true)).toBe("Ollama");
+    expect(modelPickerGroupLabel(local, true)).toBe("Ollama");
+    const plan = row("gpt-5.6-luna", {
+      connection_id: "chatgpt_plan",
+      connection_name: "ChatGPT plan",
+      model_provider: "ChatGPTPlanResponsesHTTPAgent",
+    });
+    expect(modelOptionDetail(plan, true)).toBe("ChatGPT plan");
+    expect(modelPickerGroupLabel(plan, true)).toBe("OpenAI · ChatGPT plan");
   });
 
   it("marks only the non-Responses twin of a visible duplicate name as alternate", () => {
@@ -412,7 +426,6 @@ describe("Cloud and Local tabs", () => {
     expect(MODEL_LOCATION_PROVIDERS.cloud.map(modelProviderLabel)).toEqual([
       "OpenAI",
       "Anthropic",
-      "ChatGPT plan",
       "DeepSeek",
       "Hugging Face",
       "OpenRouter",
@@ -541,27 +554,30 @@ describe("Cloud and Local tabs", () => {
     ]);
   });
 
-  it("offers the ChatGPT plan only where the runtime does, after the built-in keys", () => {
-    const ids = (available: boolean) =>
-      locationProviderGroups([], "cloud", false, available).map(
-        (group) => group.entry.id,
-      );
-    expect(ids(false)).not.toContain("chatgpt-plan");
-    expect(ids(true)).toEqual([
-      "openai",
-      "anthropic",
-      "chatgpt-plan",
-      "openrouter",
-      "custom-cloud",
-    ]);
-    const plan = locationProviderGroups([], "cloud", false, true)[2].entry;
-    expect(modelProviderLabel(plan)).toBe("ChatGPT plan");
-    expect(modelProviderPurpose(plan)).toContain("ChatGPT plan");
+  it("puts the ChatGPT plan on OpenAI's tab only where the runtime offers it", () => {
+    const connections = [
+      { source: "builtin", preset: "openai", base_url: null },
+      { source: "builtin", preset: "chatgpt_plan", base_url: null },
+    ] as const;
+    const openai = (available: boolean) =>
+      locationProviderGroups(connections, "cloud", false, available)[0];
+    // No tab of its own: the plan is the other way to use OpenAI's models.
     expect(
-      locationProviderGroups([], "local", false, true).map(
+      locationProviderGroups(connections, "cloud", false, true).map(
         (group) => group.entry.id,
       ),
-    ).not.toContain("chatgpt-plan");
+    ).toEqual(["openai", "anthropic", "openrouter", "custom-cloud"]);
+    expect(openai(true).connections.map((c) => c.preset)).toEqual([
+      "openai",
+      "chatgpt_plan",
+    ]);
+    expect(openai(false).connections.map((c) => c.preset)).toEqual(["openai"]);
+    expect(modelProviderPurpose(openai(true).entry, true)).toContain(
+      "ChatGPT plan",
+    );
+    expect(modelProviderPurpose(openai(true).entry)).not.toContain(
+      "ChatGPT plan",
+    );
   });
 
   it("keeps the chosen provider tab only while it is offered", () => {
@@ -603,6 +619,21 @@ describe("Cloud and Local tabs", () => {
     expect(
       flags([owner("custom", "http://127.0.0.1:9000/v1")], "local"),
     ).toEqual(["custom-local"]);
+    // A signed-in ChatGPT plan lights OpenAI's tab where the plan is offered.
+    const planOnly = [
+      builtin("missing"),
+      builtin("configured", "chatgpt_plan"),
+    ];
+    expect(
+      locationProviderGroups(planOnly, "cloud", false, true)
+        .filter(providerConnected)
+        .map((group) => group.entry.id),
+    ).toEqual(["openai"]);
+    expect(
+      locationProviderGroups(planOnly, "cloud", false, false).filter(
+        providerConnected,
+      ),
+    ).toEqual([]);
   });
 
   it("opens a location on its first connected provider, else the first one", () => {

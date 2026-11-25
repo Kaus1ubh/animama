@@ -138,6 +138,10 @@
     "added": "接続を追加しました。",
     "addModel": "モデルを追加",
     "addModelTo": "{{name}} にモデルを追加",
+    "apiKey": {
+      "description": "自分の API キーで、リクエストごとに OpenAI へ支払います。",
+      "title": "API キーを使う"
+    },
     "connect": "接続",
     "connecting": "接続しています…",
     "detail": "{{host}} · {{status}}",
@@ -320,6 +324,11 @@
       "description": "プロンプトが長いコンテキスト向けの高い料金に達する前に（{{model}} では {{early, number}} トークン）、それまでの会話を要約します。オフにすると {{late, number}} トークンまで待ち、より多くの内容を原文のまま残しますが、高い料金がかかります。"
     }
   },
+  "picker": {
+    "apiKey": "API キー",
+    "openaiKey": "OpenAI · API キー",
+    "openaiPlan": "OpenAI · ChatGPT プラン"
+  },
   "probe": {
     "contextWindow": "サーバーが報告したコンテキストウィンドウは {{tokens, number}} トークンです。",
     "dimensions": "ベクトルは {{dimensions, number}} 次元です。",
@@ -350,10 +359,10 @@
       "lmstudio": "このコンピューターの LM Studio が提供するモデルとチャットします。",
       "ollama": "このコンピューターの Ollama で実行中のモデルとチャットします。",
       "openai": "API キーを使って OpenAI のモデルとチャットします。",
+      "openaiWithPlan": "ChatGPT プランまたは API キーで OpenAI のモデルを使います。",
       "openrouter": "1 つの OpenRouter キーで、多くのプロバイダーのモデルとチャットします。",
       "vllm": "このコンピューターの vLLM が提供するモデルとチャットします。",
-      "anthropic": "API キーを使って Anthropic の Claude モデルとチャットします。",
-      "chatgptPlan": "API キーなしで、ChatGPT プランに含まれるモデルとチャットします。"
+      "anthropic": "API キーを使って Anthropic の Claude モデルとチャットします。"
     },
     "recommended": "おすすめ",
     "tabsLabel": "{{location}}のプロバイダー"

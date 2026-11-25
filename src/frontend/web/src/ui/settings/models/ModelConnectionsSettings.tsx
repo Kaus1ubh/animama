@@ -42,6 +42,7 @@ import {
 } from "@/ui/settings/DesktopCredentialsPanel";
 
 import {
+  CHATGPT_PLAN_PRESET,
   baseUrlHost,
   builtinConnectionKey,
   connectionLocation,
@@ -267,33 +268,35 @@ export function ModelConnectionsSettings({
 
   const providerPanel = (
     location: ModelLocation,
-    { entry, connections: items }: ModelProviderGroup<PyModelConnection>,
+    { entry, connections: group }: ModelProviderGroup<PyModelConnection>,
   ) => {
-    // Signing in with a ChatGPT plan takes no key or address, so it has its own
-    // card; while the plan is usable, the models OpenAI lists follow it.
-    if (entry.id === "chatgpt-plan") {
-      const plan = items.find(
-        (connection) => connection.credential_state === "configured",
-      );
-      return (
-        <>
-          <p className="text-muted-foreground text-xs">
-            {modelProviderPurpose(entry)}
-          </p>
-          <ChatGPTPlanCard disabled={disabled} />
-          {plan ? (
-            <ChatGPTPlanModels
-              connection={plan}
-              search={search}
-              disabled={disabled}
-              onInfo={(model) =>
-                setInfo({ connectionId: plan.id, modelId: model.id })
-              }
-            />
-          ) : null}
-        </>
-      );
-    }
+    // OpenAI's tab holds both ways to use its models. Signing in with a
+    // ChatGPT plan takes no key or address, so it has its own card, followed by
+    // the models OpenAI lists while the plan is usable; the API key card follows.
+    const offersPlan = entry.id === "openai" && chatgptPlan;
+    const plan = group.find(
+      (connection) =>
+        connection.preset === CHATGPT_PLAN_PRESET &&
+        connection.credential_state === "configured",
+    );
+    const items = group.filter(
+      (connection) => connection.preset !== CHATGPT_PLAN_PRESET,
+    );
+    const planSection = offersPlan ? (
+      <>
+        <ChatGPTPlanCard disabled={disabled} />
+        {plan ? (
+          <ChatGPTPlanModels
+            connection={plan}
+            search={search}
+            disabled={disabled}
+            onInfo={(model) =>
+              setInfo({ connectionId: plan.id, modelId: model.id })
+            }
+          />
+        ) : null}
+      </>
+    ) : null;
     const custom = entry.presetId === "custom";
     const preset = presetById(entry.presetId);
     const form = (onCancel?: () => void) =>
@@ -329,13 +332,19 @@ export function ModelConnectionsSettings({
     return (
       <>
         <p className="text-muted-foreground text-xs">
-          {modelProviderPurpose(entry)}
+          {modelProviderPurpose(entry, offersPlan)}
         </p>
+        {planSection}
         {items.map((connection) => (
           <ConnectionCard
             key={connection.id}
             connection={connection}
             entry={entry}
+            // Beside the plan, the key card says which way it is.
+            title={offersPlan ? t("connections.apiKey.title") : undefined}
+            description={
+              offersPlan ? t("connections.apiKey.description") : undefined
+            }
             location={location}
             active={shownTab === location}
             logo={
@@ -539,6 +548,8 @@ function reachabilityOf(query: {
 function ConnectionCard({
   connection,
   entry,
+  title,
+  description,
   location,
   active,
   logo,
@@ -553,6 +564,9 @@ function ConnectionCard({
 }: {
   connection: PyModelConnection;
   entry: ModelProviderEntry;
+  /** A heading in place of the connection's name, and a line under it. */
+  title?: string;
+  description?: string;
   location: ModelLocation;
   /** Its location tab is showing; Local cards check reachability only then. */
   active: boolean;
@@ -600,7 +614,7 @@ function ConnectionCard({
               id={headingId}
               className="flex flex-wrap items-center gap-2 text-sm font-semibold"
             >
-              {connection.name}
+              {title ?? connection.name}
               {entry.recommended ? (
                 <span className="bg-primary/10 text-primary text-2xs rounded-sm px-1.5 py-0.5 font-medium">
                   {t("providers.recommended")}
@@ -641,6 +655,9 @@ function ConnectionCard({
           </div>
         )}
       </div>
+      {description ? (
+        <p className="text-muted-foreground text-sm">{description}</p>
+      ) : null}
       {builtinKey ? (
         <BuiltinKey
           name={connection.name}

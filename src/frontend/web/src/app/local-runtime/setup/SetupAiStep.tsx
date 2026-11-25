@@ -301,6 +301,7 @@ function ModelChooser({
   onSetUpLater: () => void;
 }) {
   const { t } = useTranslation("setup");
+  const { t: tModels } = useTranslation("models");
   const headingPrefix = useId();
   const connections = useModelConnections(true);
   const providers = useModelProviders();
@@ -413,15 +414,6 @@ function ModelChooser({
     const items =
       groups[where].find((group) => group.entry.id === entry.id)?.connections ??
       [];
-    if (entry.id === "chatgpt-plan")
-      return (
-        <>
-          <p className="text-muted-foreground text-xs">
-            {modelProviderPurpose(entry)}
-          </p>
-          <ChatGPTPlanCard headingLevel={3} />
-        </>
-      );
     const builtin = Object.values(builtins).find(
       (candidate) => candidate.provider === entry.presetId,
     );
@@ -431,17 +423,27 @@ function ModelChooser({
       const env =
         builtinConnectionKey({ source: "builtin", preset: builtin.provider })
           ?.env ?? "";
-      return (
+      // OpenAI's tab offers both ways to use its models: the ChatGPT plan's
+      // sign-in card, then the API key under its own heading.
+      const offersPlan = entry.id === "openai" && chatgptPlan;
+      const keySection = (
         <section
           aria-labelledby={headingId}
           className="border-border/60 space-y-2 rounded-xl border p-4"
         >
           <h3 id={headingId} className="text-sm font-semibold">
-            {name}
+            {offersPlan ? tModels("connections.apiKey.title") : name}
           </h3>
-          <p className="text-muted-foreground text-xs">
-            {modelProviderPurpose(entry)}
-          </p>
+          {offersPlan ? (
+            // The size of the plan card's description beside it.
+            <p className="text-muted-foreground text-sm">
+              {tModels("connections.apiKey.description")}
+            </p>
+          ) : (
+            <p className="text-muted-foreground text-xs">
+              {modelProviderPurpose(entry)}
+            </p>
+          )}
           {managedKeys ? (
             keyField(builtin.provider)
           ) : (
@@ -452,6 +454,16 @@ function ModelChooser({
             </p>
           )}
         </section>
+      );
+      if (!offersPlan) return keySection;
+      return (
+        <>
+          <p className="text-muted-foreground text-xs">
+            {modelProviderPurpose(entry, true)}
+          </p>
+          <ChatGPTPlanCard headingLevel={3} />
+          {keySection}
+        </>
       );
     }
     if (where === "local" && entry.presetId !== "custom")

@@ -56,12 +56,17 @@ and Tailscale 100.64.0.0/10 addresses), otherwise on Cloud.
 Under Cloud | Local, a second row of left-aligned provider tabs
 (`ModelProviderTabsList`, shared with setup's AI step) shows one provider at a
 time, with a dot on connected providers (a built-in connection counts once its
-key is set, the ChatGPT plan once signed in with plan use). The tabs are padded
-more tightly than Library tabs so all seven Cloud providers fit the settings
+key is set; OpenAI's tab also counts a ChatGPT plan signed in with plan use,
+where the plan is offered). The tabs are padded
+more tightly than Library tabs so all six Cloud providers fit the settings
 dialog at desktop widths; narrower windows
-scroll the strip. Setup's AI step shows the same tabs; its OpenAI and Anthropic
-tabs hold their key field (desktop) or name the server variable (web), and its
-ChatGPT plan tab holds the plan card. Saving
+scroll the strip. The ChatGPT plan has no tab of its own: where the runtime
+offers it, OpenAI's tab holds both ways to use OpenAI's models, the plan card
+first and the API key card, titled "Use an API key", after it (the plan
+connection's preset is in the OpenAI entry's `alsoPresetIds`). Setup's AI step
+shows the same tabs; its OpenAI and Anthropic tabs hold their key field
+(desktop) or name the server variable (web), with the plan card above
+OpenAI's. Saving
 a key there chooses that provider's model for new Animas (OpenAI's default, or
 Claude Haiku 5.5 on Anthropic) unless its row is hidden; signing in with a
 ChatGPT plan chooses a plan model once the catalog lists them (the system
@@ -134,12 +139,12 @@ name in its ASCII (`xn--…`) form.
 
 ## ChatGPT plan
 
-The **ChatGPT plan** tab lets the owner use the models their ChatGPT plan
+The plan card on OpenAI's tab lets the owner use the models their ChatGPT plan
 includes instead of an API key
 ([ADR 0039](../../adr/0039-chatgpt-plan-sign-in-and-connection.md)). It appears
 only where the runtime reports `chatgpt_plan` (desktop and self-hosted web,
 never hosted). `ChatGPTPlanCard` (`web/src/ui/settings/models/`) serves both
-this tab and setup's AI step, with hooks in
+App Settings and setup's AI step, with hooks in
 `web/src/query/hooks/useChatGPTPlan.ts` and mutations in
 `web/src/query/mutations/useChatGPTPlan.ts`. The card shows one of these
 states:
@@ -306,11 +311,17 @@ as Animama Cloud does; other models, ChatGPT plan models included, rely on the
 Companion Guardrails alone (see the
 [safety and crisis protocol](../../safety/crisis-protocol.md)).
 
-The picker groups plan models under "ChatGPT plan", named in the UI Locale as
-App Settings names it (`modelConnectionLabel` in `lib/chat/model-catalog.ts`).
-While the chat's model is a plan model, "Using ChatGPT plan" with **Manage
-usage** shows above the composer, in chat and Quick Chat
-(`ui/main/chat/ChatGPTPlanUsageNote.tsx`). A turn the plan could not serve ends
+While the picker lists plan models, it names OpenAI's two ways in its group
+headings, "OpenAI · ChatGPT plan" and "OpenAI · API key", side by side, and
+each row's second line says "ChatGPT plan" or "API key"
+(`pickerModelGroups`, `modelPickerGroupLabel` and `modelOptionDetail` in
+`lib/chat/model-catalog.ts`). Without plan models (the hosted composition, or
+before a sign-in) OpenAI's models keep one "OpenAI" group, and other
+connections always keep their names. While the chat's model is a plan model,
+the picker's main and model-list views end with "Using ChatGPT plan" and
+**Manage usage** (not Chat features), in chat and Quick Chat
+(`ui/components/chatgpt-plan-usage-note.tsx`), as OpenAI's interface
+guidelines ask near the model selector. A turn the plan could not serve ends
 with a notice from the plan's code (`product-ui` `chat/chat-failure.ts`): a
 usage limit or a plan that does not include the use links **Manage usage**, a
 required sign-in or plan use that is off points to App Settings → Models, a
