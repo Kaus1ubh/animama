@@ -139,8 +139,8 @@ Renderer access to Electron goes through `window.animamaDesktop`, exposed by the
 sandboxed preload at `desktop/src/preload.cts`.
 
 API version 2 identifies the platform and window role and groups runtime,
-credential, feature-pack, update, login item, fullscreen, title bar, PiP, Quick
-Chat, shortcut and locale methods.
+credential, feature-pack, update, login item, menu, fullscreen, title bar, PiP,
+Quick Chat, shortcut and locale methods.
 See `desktop/src/preload.cts` for the complete surface.
 
 The preload source uses `.cts` and is bundled to `dist/preload.cjs` after
@@ -159,6 +159,21 @@ versions, hashes, or commands. Progress subscriptions return cleanup functions;
 destroyed windows stop receiving events. Update controls also require the main
 window and accept zero arguments; recovery can open only the fixed backup folder.
 The login item accepts only a boolean from the main window.
+
+The application menu adds two items of its own to Electron's defaults
+(`application-menu.ts`): **Check for Updates…**, under About on macOS and in
+Help elsewhere, offered only once the build's updater exists, and **Import
+Anima…** in File. The Windows main window hides its title bar and so shows no
+menu bar; there the sidebar user menu's **Check for updates…**, which every
+build with an updater offers (`SidebarUserMenu`), App Settings → About and the
+Library's Import are the way in. Main keeps the chosen command (one of two
+fixed values, for 20 seconds), shows the main window, reopening it as the Dock
+does when it was closed, and announces that a command waits without naming
+it. The main window's app takes it through `menu:take` then, and once when it
+starts, so a closed or loading window still receives it; no other window is
+admitted. The web app (`useDesktopMenuCommands`) opens App Settings at the
+update panel, where the check main started reports its result, or the Library's
+Import dialog.
 
 ## Provider Settings And Local State
 
@@ -301,8 +316,9 @@ manually to bypass references or leases.
 
 ## Application Updates
 
-A signed, configured macOS app checks its release feed after startup and on
-demand in Settings → General. The final release will seal `"updates": "ended"`
+A signed, configured macOS or Windows app checks its release feed after startup
+and on demand from App Settings → About, the sidebar user menu or, on macOS, the
+Animama menu. The final release will seal `"updates": "ended"`
 and never check; see [Desktop releases](releases.md#what-people-see). Checks never download. Download and confirmed
 Restart are separate actions; normal Quit does not install. Offline checks do
 not prevent startup. Unpackaged and unconfigured builds hide these controls.

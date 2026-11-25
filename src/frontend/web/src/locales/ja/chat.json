@@ -113,6 +113,7 @@
       "empty": "モデルが見つかりません。",
       "fallbackLabel": "モデル",
       "features": "チャット機能",
+      "keyMissing": "{{model}} の API キーがありません",
       "needsWindow": "「アプリ設定 → モデル」でコンテキストウィンドウを設定してください",
       "noFeatures": "このモデルに選択できる機能はありません。",
       "noProfile": "チャットプロファイルがありません",
@@ -147,11 +148,21 @@
       "unavailableShort": "モデルを利用できません",
       "webSearch": "ウェブ検索"
     },
+    "modelKey": {
+      "choose": "モデルを選択",
+      "notice": "{{anima}} は {{model}} を使いますが、{{provider}} の API キーがまだありません。",
+      "settings": "モデルの設定",
+      "use": "{{model}} を使う"
+    },
     "speechEngines": {
       "offline": "{{engine}} {{variant}}",
       "stt": "STT: {{stt}}",
       "tts": "TTS: {{tts}}",
       "ttsOff": "オフ"
+    },
+    "speechSetup": {
+      "detail": "音声認識にはモデルが必要です。選択するとアプリ設定 → 音声が開きます。",
+      "title": "音声認識を設定"
     },
     "images": {
       "unsupportedFormat": "{{name}} は Animama が読み込めない形式です。JPEG か PNG に変換してからもう一度お試しください。",

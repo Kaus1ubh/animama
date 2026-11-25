@@ -64,6 +64,7 @@ import {
   detectedModelsToAdd,
   ownerModelChoices,
   setupBuiltins,
+  setupChatModelReady,
   type SetupBuiltin,
   type SetupBuiltinProvider,
   type SetupModelChoice,
@@ -88,14 +89,16 @@ function canChat(model: PyConfiguredModel): boolean {
  * for that server at its default address and adds one of its models. The
  * model new Animas chat with is whichever was set up last (saving the OpenAI
  * or Anthropic key, or adding a chat model); with none, the system default
- * applies. A runtime that does not let the owner configure models shows no
- * choice.
+ * applies. The step reports whether that model can reply, so setup can ask
+ * before continuing without one. A runtime that does not let the owner
+ * configure models shows no choice.
  */
 export function SetupAiStep({
   location,
   onLocationChange,
   chatModelId,
   onChatModelChange,
+  onChatReadyChange,
   credentialsController,
   onKeyPendingChange,
   onKeyBusyChange,
@@ -105,6 +108,11 @@ export function SetupAiStep({
   onLocationChange: (location: SetupModelLocation) => void;
   chatModelId: string | null;
   onChatModelChange: (id: string | null) => void;
+  /**
+   * Whether the model Animas will chat with (the choice, else the system
+   * default) can reply; true while that is not yet known.
+   */
+  onChatReadyChange: (ready: boolean) => void;
   credentialsController: Ref<DesktopCredentialsController>;
   onKeyPendingChange: (count: number) => void;
   onKeyBusyChange: (busy: boolean) => void;
@@ -184,6 +192,7 @@ export function SetupAiStep({
       onLocationChange={onLocationChange}
       chatModelId={chatModelId}
       onChatModelChange={onChatModelChange}
+      onChatReadyChange={onChatReadyChange}
       managedKeys={managedKeys}
       keyField={keyField}
       connectFormKeys={forms.keysFor}
@@ -301,6 +310,7 @@ function ModelChooser({
   onLocationChange,
   chatModelId,
   onChatModelChange,
+  onChatReadyChange,
   managedKeys,
   keyField,
   connectFormKeys,
@@ -310,6 +320,7 @@ function ModelChooser({
   onLocationChange: (location: SetupModelLocation) => void;
   chatModelId: string | null;
   onChatModelChange: (id: string | null) => void;
+  onChatReadyChange: (ready: boolean) => void;
   managedKeys: boolean;
   /** A built-in provider's desktop key field (null on web). */
   keyField: (provider: SetupBuiltinProvider) => ReactNode;
@@ -379,6 +390,15 @@ function ModelChooser({
   useEffect(() => {
     if (settled && !offered) onChatModelChange(null);
   }, [offered, onChatModelChange, settled]);
+
+  // Like a choice, readiness is judged only from settled lists; until then,
+  // and when the default model could not be read, setup has nothing to warn
+  // about.
+  const chatReady =
+    !settled ||
+    !roles.isSuccess ||
+    setupChatModelReady(items, allConnections, chatModelId ?? systemDefaultId);
+  useEffect(() => onChatReadyChange(chatReady), [chatReady, onChatReadyChange]);
 
   const presetById = (id: string) =>
     presets.data?.find((preset) => preset.id === id);

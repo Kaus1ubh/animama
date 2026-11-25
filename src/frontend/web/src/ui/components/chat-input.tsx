@@ -83,7 +83,14 @@ import type React from "react";
 import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 import { useFormatters, type LocaleFormatters } from "@animama/product-ui/i18n";
-import { useContext, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useContext,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { toast } from "sonner";
 
 import {
@@ -410,11 +417,22 @@ function reasoningEffortLabel(t: TFunction<"chat">, effort: string) {
   }
 }
 
+/** Drives the model picker from outside it, e.g. the composer's no-key notice. */
+export type ChatModelSelectorControl = {
+  /** Open the picker on its model list. */
+  openModels: () => void;
+  /** Switch to `item` exactly as choosing it in the list does. */
+  select: (item: PyModelProviderCatalogItem) => Promise<void>;
+};
+
 type ChatInputModelSelectorProps = React.ComponentProps<typeof Button> & {
   animaId: string;
   activeChat?: PyChatResponse | null;
   closeSignal?: number;
+  controlRef?: React.Ref<ChatModelSelectorControl>;
   disabled?: boolean;
+  /** The active model's connection has no key, so it cannot reply. */
+  keyMissing?: boolean;
   onIncompatibleModelSelect?: (item: PyModelProviderCatalogItem) => void;
   onModelChange?: () => void;
 };
@@ -424,7 +442,9 @@ function ChatInputModelSelector({
   animaId,
   className,
   closeSignal = 0,
+  controlRef,
   disabled: disabledProp,
+  keyMissing = false,
   onIncompatibleModelSelect,
   onModelChange,
   ...props
@@ -502,8 +522,13 @@ function ChatInputModelSelector({
   const isDisabled = Boolean(
     disabledProp || updateAnimaChatProfile.isPending || !anima?.chat_profile,
   );
-  const tooltipLabel = activeItem
+  const activeLabel = activeItem
     ? modelOptionLabel(activeItem, alternateIds.has(activeItem.id), t)
+    : null;
+  const tooltipLabel = activeLabel
+    ? keyMissing
+      ? t("composer.model.keyMissing", { model: activeLabel })
+      : activeLabel
     : activeUnavailable
       ? t("composer.model.unavailable")
       : anima?.chat_profile
@@ -545,6 +570,14 @@ function ChatInputModelSelector({
     setView("reasoning");
     onModelChange?.();
   };
+  useImperativeHandle(controlRef, () => ({
+    openModels: () => {
+      if (isDisabled) return;
+      setOpen(true);
+      setView("models");
+    },
+    select: handleSelect,
+  }));
 
   const handleNativeToolChange = (tool: string, checked: boolean) => {
     if (isDisabled || !activeItem || !nativeTools.includes(tool)) return;
@@ -650,7 +683,7 @@ function ChatInputModelSelector({
             >
               {updateAnimaChatProfile.isPending ? (
                 <Loader2 className="size-4 animate-spin" />
-              ) : activeUnavailable ? (
+              ) : activeUnavailable || keyMissing ? (
                 <TriangleAlert className="text-destructive size-4" />
               ) : (
                 <ModelSelectorLogo
@@ -926,11 +959,17 @@ ChatInputModelSelector.displayName = "ChatInputModelSelector";
 type ChatInputDictationProps = React.ComponentProps<typeof Button> & {
   /** Lines under the Dictate tooltip, e.g. its speech engine. */
   engineDetails?: readonly string[] | null;
+  /**
+   * Speech recognition is not set up here but can be: while idle, the button
+   * opens its settings instead of dictating, and says so.
+   */
+  onSetUp?: (() => void) | null;
 };
 
 function ChatInputDictation({
   className,
   engineDetails,
+  onSetUp = null,
   ...props
 }: ChatInputDictationProps) {
   const { t } = useTranslation("chat");
@@ -1050,11 +1089,15 @@ function ChatInputDictation({
             "text-muted-foreground hover:text-foreground rounded-full",
             className,
           )}
-          onClick={onDictationStart}
+          onClick={onSetUp ?? onDictationStart}
           {...props}
         >
           <Mic className="h-4 w-4" />
-          <span className="sr-only">{t("composer.dictation.start")}</span>
+          <span className="sr-only">
+            {onSetUp
+              ? t("composer.speechSetup.title")
+              : t("composer.dictation.start")}
+          </span>
         </Button>
       </TooltipTrigger>
       {/* Flips above a composer at the window's bottom edge, like Voice
@@ -1062,12 +1105,16 @@ function ChatInputDictation({
       <TooltipContent side="bottom">
         <TooltipDetails
           title={
-            <TooltipLabel
-              label={t("composer.dictation.start")}
-              shortcut={shortcuts?.dictation}
-            />
+            onSetUp ? (
+              <TooltipLabel label={t("composer.speechSetup.title")} />
+            ) : (
+              <TooltipLabel
+                label={t("composer.dictation.start")}
+                shortcut={shortcuts?.dictation}
+              />
+            )
           }
-          lines={engineDetails}
+          lines={onSetUp ? [t("composer.speechSetup.detail")] : engineDetails}
         />
       </TooltipContent>
     </Tooltip>
