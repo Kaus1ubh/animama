@@ -3081,7 +3081,7 @@ async def test_chat_completions_manager_sends_effort_none_where_openai_requires_
             credential=credential,
             editor=_approval_required_patch_editor(),
         )
-        client.chat.completions.create = _create  # type: ignore[method-assign]
+        cast(Any, client.chat.completions).create = _create
         await cast(Any, agent.model).get_response(
             system_instructions=None,
             input="Remember that my cat is Mochi.",
