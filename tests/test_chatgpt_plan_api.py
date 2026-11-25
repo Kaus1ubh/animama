@@ -294,7 +294,16 @@ async def test_the_return_is_never_logged(installation: Installation, caplog: py
     page = await installation.return_from_openai(params)
 
     assert page.status_code == 200
-    assert params["code"] not in caplog.text and params["state"] not in caplog.text
+    # Capture includes non-propagating loggers such as httpx, so it also holds this
+    # test client's own request line, the browser's navigation in production.
+    # Every other record, including the server's outbound httpx calls, still counts.
+    navigation = f"{installation.origin}/auth/callback?"
+    logged = "\n".join(
+        caplog.handler.format(record)
+        for record in caplog.records
+        if not (record.name == "httpx" and navigation in record.getMessage())
+    )
+    assert params["code"] not in logged and params["state"] not in logged
 
 
 async def test_sign_out_and_preferences(installation: Installation) -> None:
