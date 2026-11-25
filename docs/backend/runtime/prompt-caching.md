@@ -171,6 +171,18 @@ covers the user's text, replayed user messages, memory-map descriptions and
 attachment names, descriptions and outlines. Nothing can open, close or forge
 the block.
 
+### Images
+
+A user message with images carries its image parts before its text. On
+Responses without a cursor its breakpoint goes on the last part, whatever its
+type; on Anthropic the history marker follows the image blocks. Which earlier
+images are sent changes only when history is trimmed or more than 20 images
+are in the fitted history (the newest are kept, older ones become `[Image:
+name]` placeholders), so the cached prefix holds from turn to turn. A
+placeholder escapes `<` in the file name, so a name cannot open a tag. A
+Responses conversation that OpenAI stores for the cursor holds the images it
+received.
+
 ## What changes, and how often
 
 Each part's volatility class is how often it can change: per installation, per

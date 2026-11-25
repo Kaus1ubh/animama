@@ -153,7 +153,10 @@ template's limits belong to another model.
 Each model row shows its name, capability chips (`modelCapabilityChips`) and an
 Info button. Chips are **Tools**, the context window (for example **128K**),
 web search and **Vision** for models that accept images; embedding models show
-**Embeddings**. Web search reads **Built-in search** when the model's own search
+**Embeddings**. The same capability (**Accepts images** in the model dialog,
+`accepts` containing `image`) decides whether chat sends images to the model:
+without it the composer refuses image attachments and the server refuses a
+turn that carries them. Web search reads **Built-in search** when the model's own search
 can be requested (OpenAI Responses and Anthropic models), **App search** when a model
 other than an Anthropic one calls tools and the installation's search service
 is ready, and is absent otherwise.

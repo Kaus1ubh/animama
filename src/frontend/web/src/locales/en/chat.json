@@ -78,6 +78,7 @@
       "fileDetailsNoSize": "{{chunks}} · {{status}}",
       "files": "Files",
       "fromComputer": "Upload from computer",
+      "imageDetails": "{{size}} · {{status}}",
       "keywordOnly": "Keyword only",
       "loadFailed": "Uploaded files could not be loaded.",
       "loading": "Loading uploaded files…",
@@ -107,6 +108,15 @@
       "ready": "Ready",
       "readyKeywordOnly": "Ready (keyword only)",
       "remove": "Remove from composer"
+    },
+    "images": {
+      "modelUnsupported": "This model can't see images. Choose a model that accepts images to attach them.",
+      "noImagesNote": "This model can't see images. Remove them, or choose a model that accepts images.",
+      "rejected": "Image not added",
+      "tooLarge": "{{name}} is larger than {{size}}. Choose a smaller image.",
+      "tooMany_one": "A message can carry up to {{count}} image.",
+      "tooMany_other": "A message can carry up to {{count}} images.",
+      "unsupportedFormat": "{{name}} is in a format Animama can't read. Convert it to JPEG or PNG and try again."
     },
     "model": {
       "back": "Back to model and reasoning",
@@ -168,6 +178,14 @@
       "failed": "Download failed; select to retry",
       "whenSelected": "Downloads when selected"
     }
+  },
+  "images": {
+    "listLabel": "Images sent with this message",
+    "loadFailed": "Image could not be loaded",
+    "open": "Open {{name}}",
+    "placeholderLabel": "{{name}}: {{reason}}",
+    "unavailable": "Image no longer available",
+    "unnamed": "Image"
   },
   "loadingStatus": {
     "avatar": "Loading avatar",

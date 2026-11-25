@@ -225,6 +225,19 @@ export const queryKeys = {
     list: (userId: string) =>
       [...queryKeys.userFiles.all(userId), "list"] as const,
   },
+  /**
+   * The bytes of one chat image, kept apart from `userFiles` so an upload's
+   * list refresh does not refetch every image.
+   */
+  userFileImages: {
+    file: (userId: string, fileId: string) =>
+      ["user-file-images", userId, fileId] as const,
+    variant: (
+      userId: string,
+      fileId: string,
+      variant: "thumbnail" | "preview" | "original",
+    ) => [...queryKeys.userFileImages.file(userId, fileId), variant] as const,
+  },
   content: {
     sharingInventory: (owner: string) =>
       [...queryKeys.content.all(owner), "sharing-inventory"] as const,

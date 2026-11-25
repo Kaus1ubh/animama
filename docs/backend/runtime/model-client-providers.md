@@ -131,6 +131,28 @@ When `ANIMAMA_LLM_SKIP=1`, startup registers `MockModelClient` for all direct
 provider families so local chat can run without upstream API keys. Mock mode is
 all-or-nothing for direct provider families.
 
+### Images
+
+A prompt never holds image bytes. A user message with images has a part list:
+one `model_client_image` part per image (`file_id`, name, width, height),
+then its `text` part (`app/model_clients/image_parts.py`). The executor loads
+the referenced bytes into `ModelClientRequest.images` just before each
+request, and each adapter walks the parts with `resolved_parts`, which turns
+an image without bytes into its `[Image: name]` placeholder:
+
+- **Responses:** `input_image` parts with a `data:` URL and `"detail":
+  "auto"`, then `input_text`. A cursor request sends only the new message and
+  its images.
+- **Chat Completions:** `image_url` parts with a `data:` URL, then `text`. A
+  message left with text only (every image a placeholder) is sent as one
+  string, for OpenAI-compatible servers whose templates expect string content.
+- **Anthropic Messages:** base64 `image` blocks, user messages only, then
+  `text` blocks.
+
+The `anthropic` and `openai` SDK loggers stay at INFO even with
+`ANIMAMA_DEBUG`, because their DEBUG output prints request bodies with the
+base64 images. The operator crisis moderator reads the turn's text only.
+
 ## Connections And Credentials
 
 Every catalog row belongs to a model connection
@@ -617,7 +639,14 @@ exceptions and status codes into stable model-client codes such as
 `openai_quota_exceeded`, `openai_timeout`, `openai_connection_error`,
 `openai_conflict`, `openai_server_error`, `openai_overloaded`, and
 `openai_previous_response_unresolvable`; connection failures before a request
-use codes such as `missing_api_key` and `connection_unavailable`. The adapters
+use codes such as `missing_api_key` and `connection_unavailable`. An error the
+provider reports inside a stream (the SDK's bare `APIError` for an `error`
+event, or a Responses `response.failed` or `error` event) gets the code its
+type or code would have as an HTTP error, for example `insufficient_quota` as
+`openai_quota_exceeded` and an image error such as `image_too_large` as
+`openai_bad_request`, and the adapter never retries it; one whose type and
+code are not recognized stays `openai_request_failed` or
+`openai_stream_error`. The adapters
 retry one request-local
 time only for retryable failures before any downstream text delta has been
 yielded. Once text has streamed, the adapter surfaces the error without retry
@@ -710,7 +739,9 @@ fitted either. Any other Responses turn without native compaction (threshold
   `max_output_tokens`, or minus a quarter of the window (at most 4096) when
   the row records none. Prompts are estimated offline and conservatively: ASCII
   at four characters per token, every other character as one token, over the
-  messages, tools and response format.
+  messages, tools and response format. An image counts
+  `min(ceil(w/28) × ceil(h/28), 4784)` tokens from its stored size, the larger
+  of the Anthropic and OpenAI patch counts.
 - **Pre-send compaction.** Above 90% of available, the executor emits
   `run.status` `summarizing_context` `started`, compacts through the Utility
   role in its own session (`ChatCompactionService.compact_for_budget`, bounded
@@ -789,7 +820,9 @@ footprint; `chats.active_context_tokens` uses that footprint, so estimated or
 multi-request turns still trigger post-response compaction at the right size.
 
 Direct chat also persists a raw Chat Completions-style `raw_provider_message`
-for each durable row used in model replay. User rows store `role: "user"`,
+for each durable row used in model replay. User rows store `role: "user"`
+(with image references in a part list when the turn had images, never
+bytes),
 tool-call rows store the assistant `tool_calls`, tool-result rows store
 `role: "tool"` plus `tool_call_id`, and final assistant rows store the raw
 structured JSON as assistant `content`. Tool-assisted successful turns persist

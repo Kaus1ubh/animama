@@ -89,6 +89,40 @@ No consuming build needs the original web sources or their aliases.
 See [Voice](voice.md) for STT/TTS and [Avatar animation](avatar-animation.md)
 for playback internals.
 
+## Images in chat
+
+In local compositions the person can attach up to four images to a message:
+**Upload from computer**, a drop on the chat page, a paste into the text box,
+or a ready image chosen from the attach popover's list of uploaded files. A paste that also carries text
+pastes the text. The composer refuses an image before uploading it
+(`lib/user-files/chat-images.ts`, through Uppy's `onBeforeFileAdded`): HEIC or
+HEIF by name, more than 20 MiB, a fifth image counting Library picks, or any
+image while the selected model is known not to accept images (its catalog
+`accepts` lacks `image`; an unknown model counts as accepting). While images
+are attached to such a model the tray shows a note. A refused image gets one
+toast. Upload details are in
+[user file uploads](../features/user-file-uploads.md).
+
+An image is ready once finalized, so it never holds a send waiting for
+processing. Images go with one message: the shared session reports a turn's
+attachments through `onAttachmentsSubmitted` when the turn completes (the
+server has saved it), and the composer removes the images among them while
+documents stay. A turn that is refused, fails or is stopped keeps them, so a
+resend carries them again; a refusal's failure card explains
+`too_many_images`, `attached_image_unavailable` or
+`model_does_not_accept_images`.
+
+The sent message shows its images at once: `describeAttachedImages` names
+them for the session's local message and for the history row it writes after
+the turn. Server history carries them in `data.images` with the person's text
+in `data.user_text` (`mapServerMessagesForDisplay`), so the bubble shows that
+text rather than the `[Image: name]` lines in `content`. `ChatConversation`
+draws the host's `renderUserAttachments` above the user bubble;
+`ui/main/chat/ChatMessageImages.tsx` shows 320 px previews loaded through
+`useUserFileImageUrl`, opens the original in a dialog (inside the fullscreen
+element when the chat is fullscreen) and leaves a placeholder for a deleted
+image.
+
 ## 2) High-level flow
 
 1. User types or dictates text in `ChatInterface`.
